@@ -138,6 +138,10 @@ export const SURFACES = Object.freeze({
   // notebook_passed_setups_enabled); rail a11y/researchCapture.a11y.test.jsx.
   'components/notebook/SaveTranscriptPassage.jsx': { recipe: 'save-transcript-passage' },
   'components/notebook/TranscriptDoors.jsx': { coveredBy: 'ticker-research-transcript' },
+  // Import a tweet (dark behind notebook_tweet_import_enabled); rail a11y/tweetImport.a11y.test.jsx.
+  'components/notebook/ImportTweetSheet.jsx': { recipe: 'import-tweet-sheet' },
+  'components/notebook/TweetDoors.jsx': { coveredBy: 'ticker-research-tweet' },
+  'components/notebook/TweetCard.jsx': { recipe: 'tweet-card' },
   'components/notebook/PassedSetups.jsx': { recipe: 'passed-setups' },
   // Wave 13 lane 13D: "what you wrote then", the resurfacing door's read-only version (dark
   // behind awareness_note_resurface_enabled); rail a11y/resurfaceVersion.a11y.test.jsx.
@@ -343,12 +347,44 @@ export const SURFACES = Object.freeze({
     // added, so 8A wrote the rail in its own directory (no 8B file edited).
     OTHER_LANES: { lane: '8B', railFile: 'a11y/sharing.a11y.test.jsx' },
   },
+  // S16 (audit 2026-11-05, M2): the 60-second first run -- the gate (closed: nothing) and the sheet it opens.
+  'components/notebook/FirstRunGate.jsx': { coveredBy: 'first-run-sheet' },
+  'components/notebook/FirstRunSheet.jsx': { recipe: 'first-run-sheet' },
+  // S17 (audit 2026-11-05, M7): an empty widget's ask (sentence, input, three suggestions).
+  'components/notebook/EmptyNamesAsk.jsx': { recipe: 'empty-names-ask' },
+  // S15 (audit 2026-11-05, M1): the Today home, and the setups board's first-plan ask it shares (moved out of the board).
+  'components/notebook/TodayHome.jsx': { recipe: 'today-home' },
+  'components/notebook/FirstPlanAsk.jsx': { coveredBy: 'setups-board' },
+  // S19 (audit 2026-11-05): the Share sheet's content, a lazy chunk the popover above renders when it opens.
+  'components/notebook/NoteSharePanel.jsx': { coveredBy: 'share-popover' },
   // P0.1: Research Home's New note split button. ResearchHome's own rail renders it closed only;
   // a11y/newNoteMenu.a11y.test.jsx reads it closed and OPEN (the role="menu" with its menuitem rows).
   'components/notebook/NewNoteMenu.jsx': { recipe: 'new-note-menu' },
+  // S12 (audit 2026-11-05, M9): the phone Notebook's one floating "+", read closed and OPEN (its Sheet).
+  'components/notebook/NotebookPlusFab.jsx': { recipe: 'notebook-plus-fab' },
+  // S14 (audit 2026-11-05): a feature's "?" to its own Quick Answer.
+  'components/notebook/HelpAnswerLink.jsx': { recipe: 'help-answer-link' },
+  // S13 (audit 2026-11-05): the one-time tips; the slot (empty status line) and the card it loads on demand.
+  'components/notebook/NotebookTipSlot.jsx': { recipe: 'notebook-tip-slot' },
+  'components/notebook/NotebookTip.jsx': { recipe: 'notebook-tip' },
+  // Tier 2 fix round 1 (Important 2): the quick thought's own "Set alert" offer.
+  'components/notebook/CaptureAlertOffer.jsx': { recipe: 'capture-alert-offer' },
+  // Fix round 1: the "+" sheet is its own chunk; the axe rail reads it OPEN.
+  'components/notebook/NotebookPlusSheet.jsx': { coveredBy: 'notebook-plus-fab:open' },
+  // Fix round 1 (Important 6): the phone note's folders sheet, read OPEN.
+  'components/notebook/FolderSheet.jsx': { recipe: 'folder-sheet:open' },
   // P0.4: Research Home's Notices box. ResearchHome's own rail renders no signed-in member, and the
   // box reads nothing without one; a11y/notices.a11y.test.jsx reads it closed and OPEN, with rows.
   'components/notebook/NoticesBox.jsx': { recipe: 'notices-box' },
+  // Plan F Task 10: the one-time notice above the list for imports that lost pictures. The tab's
+  // rails answer "no notice", so it has its own; rail a11y/importRepairNotice.a11y.test.jsx.
+  'components/notebook/ImportRepairNotice.jsx': { recipe: 'import-repair-notice' },
+  // L3 (2026-11-03): the note view's notice for a connector note its source app no longer has.
+  // The editor's rail opens an untagged note, so it has its own; rail a11y/sourceRemovedNotice.a11y.test.jsx.
+  'components/notebook/SourceRemovedNotice.jsx': { recipe: 'source-removed-notice' },
+  // Audit 2026-11-05, spec S2: the "Link this note to $NVDA?" offer under the title. The editor's rail
+  // opens a note whose body names no $TICKER twice, so it has its own; rail a11y/tickerSuggestion.a11y.test.jsx.
+  'components/notebook/TickerSuggestion.jsx': { recipe: 'ticker-suggestion' },
   // Notebook P2 Tier 2 part B: the earnings follow-up card a notice links to (dark behind
   // notebook_earnings_followup_enabled + Journal styles, so no tab recipe renders it); a11y/followupCard.a11y.test.jsx
   // reads it through its slot, with the failure sentence on screen. The slot is the card's eager half.
@@ -458,7 +494,7 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   'surfaces/WrappedSurface.jsx': { recipe: 'wrapped-surface', railFile: 'a11y/tier3.a11y.test.jsx' },
   'components/WrappedDoor.jsx': { recipe: 'wrapped-door', railFile: 'a11y/tier3.a11y.test.jsx' },
   // Notebook P3b Task 8: example notes, under components/notebook/styles/ (outside the derived population; dark
-  // behind notebook_style_library_enabled and the server's NOTEBOOK_EXAMPLE_NOTES_ENABLED): the author's door and its
+  // behind notebook_style_library_enabled; its server switches were retired as always on, 2026-11-04): the author's door and its
   // picker, the exact-public preview sheet (its replaced spans, its image rows, an unread image's second confirm), and
   // a library style's Preview with its "In use" section. Rail a11y/exampleNotes.a11y.test.jsx.
   'components/notebook/styles/AddExampleNoteDoor.jsx': { recipe: 'example-note-picker', railFile: 'a11y/exampleNotes.a11y.test.jsx' },

@@ -183,8 +183,9 @@ def test_there_is_no_delete_route_and_no_delete_statement():
 
 # ── (mount) ─────────────────────────────────────────────────────────────────
 
-def test_the_drill_mounts_the_prompt_with_a_declared_occasion():
+def test_the_drill_no_longer_mounts_the_prompt():
+    # Owner, 2026-11-09: "can we get rid of this message please" -- the prompt was
+    # taken out of the breadth drill window. The component and the endpoints stay,
+    # so a future mount must still use a declared occasion.
     src = DRILL.read_text(encoding="utf-8")
-    used = re.findall(r'<WhatElseOpenPrompt\s+occasion="([^"]+)"', src)
-    assert used, "BreadthDrillModal no longer mounts the instrument"
-    assert set(used) <= set(weo.OCCASIONS), f"undeclared occasion(s): {set(used) - set(weo.OCCASIONS)}"
+    assert "<WhatElseOpenPrompt" not in src

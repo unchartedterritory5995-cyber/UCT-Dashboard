@@ -174,6 +174,10 @@ const EXPECTED_UNEXERCISED = [
   // `pine.hiddenOnly.test.js`.
   'pine:hidden-only',
   'pine:history-ref',
+  // ⭐ ARRIVED 2026-11-07 (I6a-N4), declared with no published witness on purpose: it refuses an
+  // opener whose every line beneath is a wrap (no local block), which TradingView's own manual
+  // says is not a block. The 877-script census found none (`i6aN4BlockIndent.test.js`).
+  'pine:indent',
   'pine:input-kind',
   // ⭐ HOST MODE ONLY (2026-09-08). The census runs the corpus through the
   // LENIENT contract, where `barstate.*` still folds to its closed-bar value —

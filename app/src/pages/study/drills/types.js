@@ -40,9 +40,17 @@ export function itemHasChart(item) {
 }
 
 /** The prompt text for an item, whatever the authoring field was called. */
+/** The brand on screen is UCT, never "the firm" (owner, 2026-11-04). Display-level: the bank's text is unchanged. */
+export function brandWords(text) {
+  if (text == null || text === '') return text
+  return String(text)
+    .replace(/\bThe firm's\b/g, "UCT's").replace(/\bthe firm's\b/g, "UCT's")
+    .replace(/\bThe firm\b/g, 'UCT').replace(/\bthe firm\b/g, 'UCT')
+}
+
 export function questionOf(item) {
   const p = item?.prompt_json || {}
-  return p.q || p.question || p.prompt || p.text || ''
+  return brandWords(p.q || p.question || p.prompt || p.text || '')
 }
 
 /** Choice list from a prompt, as plain strings. */

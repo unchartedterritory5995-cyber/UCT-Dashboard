@@ -68,10 +68,12 @@ describe('RT6 — the frontend: the colour is an opt-in output, appended last', 
     expect(col.map((c) => packedPointColour(cc, c))).toEqual(['#FFFFFF99', '#FFFFFF99', '#33FF0099'])
   })
 
+  // W4-T12: the helper returns a NUMBER here. It used to return `color.red`, which this lane could not
+  // prove a colour; that shape is now served (w4PaintTyping.test.js), so the unreadable case is a number.
   it('⛔ FAIL-SOFT: a `color =` the lane cannot read never refuses the script — the descriptor says why', () => {
     const src = `//@version=5
 indicator("rt6b")
-f() => color.red
+f() => close
 plot(close, color = f())
 `
     const probe = probeRuntimeProgram(src)

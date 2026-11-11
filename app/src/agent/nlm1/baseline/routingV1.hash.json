@@ -1,0 +1,25 @@
+{
+  "about": "NLM-1 D1 (d), BRANCH-ERA RECORD: sha256 of v1 routeManifest answers, frozen from PRISTINE code per base while NLM-1 lived on a branch. Since PACKAGE 1 lands on master the test compares against master's own v1 router on the same tree (live), because other teams change routing inputs on master; these entries are no longer enforced.",
+  "bases": [
+    {
+      "base": "c87ab6d578 (origin/master, pristine)",
+      "sha256": "0828ccc7940290d7325ecbe49624e0ba9fe65ed034f3cf45bf8ec51a2b5c49e1",
+      "cases": 2256
+    },
+    {
+      "base": "7be34d2dd9 (origin/agent/w2/live-train4-fixes, Track A CG-37; inputs byte-identical: git diff 7be34d2dd9 -- routing.js capabilities* builtins.js contract qa/capabilityRegression/baseline is empty)",
+      "sha256": "4979c3772137af707a8e94fe4b8bc0c0d063e6cd96fb69f9b5a6c7eee627ff43",
+      "cases": 2268
+    },
+    {
+      "base": "29830442d0 (origin/master after #796/#797/#798; PACKAGE 1 base; inputs byte-identical: git diff 29830442d0 -- routing.js capabilities* builtins.js contract qa/capabilityRegression/baseline testing/corpus.js is empty; same hash as 7be34d2dd9)",
+      "sha256": "4979c3772137af707a8e94fe4b8bc0c0d063e6cd96fb69f9b5a6c7eee627ff43",
+      "cases": 2268
+    },
+    {
+      "base": "fe215c7c2a (origin/master after #802; PACKAGE 1 re-merged; inputs byte-identical: git diff fe215c7c2a -- routing.js capabilities* builtins.js contract qa/capabilityRegression/baseline testing/corpus.js is empty)",
+      "sha256": "28edfe657b07ceadde7c31b5ec0452f2bb52828b17cc56133d899adf5186060a",
+      "cases": 2304
+    }
+  ]
+}

@@ -62,14 +62,30 @@ DEFAULT_CAP_USD = 5.0
 # ACCIDENT (an unknown model falls back to the priciest known rate, which
 # happened to equal Opus's) — the COT narrative lane defaults to it.
 _PRICES = {
+    # The dearest models, so the unknown-model fallback really is the priciest rate: without them a model string
+    # set to Fable was reserved at half its real price, and every dollar cap held at about twice its value.
+    "claude-fable-5-2": (8.0, 40.0),
+    "claude-fable-5-1": (10.0, 50.0),
+    "claude-fable-5": (10.0, 50.0),
+    "claude-opus-5-5": (4.0, 20.0),
     "claude-opus-5": (5.0, 25.0),
     "claude-opus-4-8": (5.0, 25.0),
     "claude-opus-4-7": (5.0, 25.0),
     "claude-sonnet-5-5": (2.0, 10.0),
     "claude-sonnet-5": (2.0, 10.0),
     "claude-sonnet-4-6": (3.0, 15.0),
+    # Wave 1 A-02 (verified 2026-11-02 against tools/agent_eval_prices.json, published prices): Haiku 5.5
+    # $0.10 in / $0.50 out (cache write 1.25x = $0.125, cache read 0.1x = $0.01) for prompts up to 100K
+    # tokens; the >100K tier ($0.50 / $2.50) is priced by the eval ledger, never reached by an Agent turn.
+    "claude-haiku-5-5": (0.10, 0.50),
     "claude-haiku-4-5": (1.0, 5.0),
 }
+
+# Per-model departures from the family rule (cache read 0.1x, cache write 1.25x), from the published page
+# (2026-11-02): Sonnet 5.5 cache reads are $0.10/MTok = 0.05x; Haiku 5.5 prompts over 100K tokens bill at
+# $0.50 in / $2.50 out (the cache multipliers apply to that tier's input rate).
+_CACHE_READ_MULT = {"claude-sonnet-5-5": 0.05}
+_LONG_PROMPT_TIER = {"claude-haiku-5-5": (100_000, (0.50, 2.50))}
 
 # Server-side `web_search` tool: $10 per 1,000 searches. The result tokens are
 # billed as ordinary input tokens and already flow through the token maths.
@@ -154,11 +170,12 @@ def estimate_cost(model: str, input_tokens: int, output_tokens: int,
     that reads only input_tokens under-counts a cached surface and silently
     loosens its daily cap."""
     rates = _PRICES.get(model)
+    key = model if rates is not None else None
     if rates is None:
         # Tolerate a dated alias like claude-sonnet-4-6-20260101.
         for known, known_rates in _PRICES.items():
             if str(model or "").startswith(known):
-                rates = known_rates
+                rates, key = known_rates, known
                 break
     if rates is None:
         rates = max(_PRICES.values(), key=lambda r: r[1])
@@ -167,8 +184,12 @@ def estimate_cost(model: str, input_tokens: int, output_tokens: int,
             "priciest known rate ($%.0f/$%.0f per MTok) so the daily cap stays "
             "enforceable", model, rates[0], rates[1])
     pin, pout = rates
+    tier = _LONG_PROMPT_TIER.get(key)
+    prompt = float(input_tokens or 0) + float(cache_read_tokens or 0) + float(cache_creation_tokens or 0)
+    if tier and prompt > tier[0]:
+        pin, pout = tier[1]
     return (float(input_tokens or 0) * pin / 1e6
-            + float(cache_read_tokens or 0) * pin * 0.1 / 1e6
+            + float(cache_read_tokens or 0) * pin * _CACHE_READ_MULT.get(key, 0.1) / 1e6
             + float(cache_creation_tokens or 0) * pin * 1.25 / 1e6
             + float(output_tokens or 0) * pout / 1e6
             + float(web_searches or 0) * _WEB_SEARCH_USD_EACH)
@@ -249,6 +270,22 @@ def calls_today_for_surface(surface: str) -> int:
         return 0
 
 
+def spend_by_model_today(surface_prefix: str) -> dict:
+    """Today's (ET) calls and dollars per model for surfaces starting with `surface_prefix`, from the
+    durable ledger: `{model: {"calls": n, "usd": x}}`. Empty on a read failure."""
+    try:
+        _init()
+        with _conn() as c:
+            rows = c.execute(
+                "SELECT model, COUNT(*), COALESCE(SUM(cost_usd), 0) FROM llm_route_cost_log "
+                "WHERE surface LIKE ? AND at >= ? GROUP BY model",
+                (surface_prefix + "%", _et_midnight_utc_text())).fetchall()
+        return {str(r[0]): {"calls": int(r[1]), "usd": round(float(r[2] or 0.0), 6)} for r in rows}
+    except Exception as exc:  # noqa: BLE001 — a broken ledger must not 500 a read
+        logger.error("[narrative_cost_guard] spend read failed for %s: %s", surface_prefix, exc)
+        return {}
+
+
 def record(surface: str, model: str, input_tokens: int = 0,
            output_tokens: int = 0, web_searches: int = 0,
            cost_usd: float | None = None, cache_read_tokens: int = 0,
@@ -278,6 +315,23 @@ def record(surface: str, model: str, input_tokens: int = 0,
                      "the in-process accumulator still holds $%.4f",
                      surface, exc, cost)
     return cost
+
+
+@contextlib.contextmanager
+def charge_if_failed(surface: str, request: dict):
+    """Around ONE model call with no SDK retries: a failure that may have been billed is charged its
+    worst case, because it reports no usage and a $0 row leaves the cap unreachable. Only an HTTP error
+    response is free. Never hides the call's own error."""
+    try:
+        yield
+    except Exception as exc:
+        try:
+            from api.services.uct_agent import budget
+            if not budget._is_provider_error_response(exc):
+                record(surface, str(request.get("model") or ""), cost_usd=budget.worst_case_usd(request))
+        except Exception:  # noqa: BLE001
+            logger.exception("[narrative_cost_guard] could not charge a failed call on %s", surface)
+        raise
 
 
 def record_from_response(surface: str, model: str, response) -> float:

@@ -12,9 +12,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import usePreferences from '../../../hooks/usePreferences'
 import { beginPrefsOp } from '../../../lib/prefsSession'
 import {
-  sanitizeState, makeDefaultState, parseLayoutId, reconcileCells, makeLayout,
+  sanitizeState, sanitizeCellSettings, makeDefaultState, parseLayoutId, reconcileCells, makeLayout,
 } from './gridLayouts'
 import { readScopedField, writeScopedField } from '../presentation/devicePresentation'
+
+// A cell's own chart settings (policy A), carried only when present and valid —
+// an absent key keeps an unforked cell byte-identical to its pre-feature shape.
+function withSettings(c) {
+  return sanitizeCellSettings(c?.settings) ? { settings: c.settings } : {}
+}
 
 function parseRaw(raw) {
   if (!raw) return null
@@ -99,6 +105,21 @@ export default function useMultiChartState(deviceClass = 'desktop') {
     }
   }, [setPref])
 
+  // ⭐ UCT Agent: write the board NOW and say whether the server took it. A receipt never claims a change was saved on the
+  // strength of the debounce above. Same member guard and same writer as the debounced save.
+  const flushSave = useCallback(async () => {
+    await Promise.resolve()   // apply() schedules on a microtask; let it land first
+    if (!hydratedRef.current) return { ok: false, reason: 'not-saved' }
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
+    const op = beginPrefsOp()
+    saveOpRef.current = op
+    if (op.stale()) return { ok: false, reason: 'not-saved' }
+    try {
+      const ok = await setPref('multichart_state', JSON.stringify(stateRef.current))
+      return ok === false ? { ok: false, reason: 'not-saved' } : { ok: true }
+    } catch { return { ok: false, reason: 'not-saved' } }
+  }, [setPref])
+
   const apply = useCallback((updater) => {
     setState(prev => {
       const next = updater(prev)
@@ -160,16 +181,18 @@ export default function useMultiChartState(deviceClass = 'desktop') {
         const match = sym ? pool.get(sym) : null
         if (match && !used.has(match.id)) {
           used.add(match.id)
-          cells.push({ id: match.id, sym, tf: match.tf || 'D', chartType: match.chartType || null })
+          cells.push({ id: match.id, sym, tf: match.tf || 'D', chartType: match.chartType || null, ...withSettings(match) })
         } else {
           // Positional tf/style retention (mega-review #13): a NEW sym landing
           // in slot i inherits slot i's previous timeframe + chart style — a
           // board set to 65m/hollow stays 65m/hollow across group refills
-          // instead of snapping every cell back to Daily.
+          // instead of snapping every cell back to Daily. The slot's own chart
+          // settings (a forked cell, policy A) ride the same rule: the setup the
+          // member built in that slot stays in that slot.
           const at = prev.cells[i]
           cells.push({
             id: Math.random().toString(36).slice(2, 8), sym,
-            tf: at?.tf || 'D', chartType: at?.chartType || null,
+            tf: at?.tf || 'D', chartType: at?.chartType || null, ...withSettings(at),
           })
         }
       }
@@ -189,6 +212,7 @@ export default function useMultiChartState(deviceClass = 'desktop') {
         sym: c?.sym || null,
         tf: c?.tf || 'D',
         chartType: c?.chartType || null,
+        ...withSettings(c),
       }))
       return writeScopedField({ ...prev, cells: reconcileCells(restored, layout.cellCount), group: group || null }, deviceClass, 'mode', 'grid')
     })
@@ -235,6 +259,6 @@ export default function useMultiChartState(deviceClass = 'desktop') {
     state, hydrated,
     settingsOpen, setSettingsOpen,
     enterGrid, exitGrid, applyCustomLayout, updateCellAt, setSyncCrosshair, setSyncTimeRange, setGroupsMode, applyGridTemplate,
-    fillCells, restoreCells, setGroup, clearGroup,
+    fillCells, restoreCells, setGroup, clearGroup, flushSave,
   }
 }

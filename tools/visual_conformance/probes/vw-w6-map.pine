@@ -1,0 +1,67 @@
+// W6-T8 (2026-11-06) — probe W6-K1 for the capture lane. Queue: docs/pine/capture-queue-2026-11-06-w6.md
+// Chart: AMEX:SPY 1D, inputs at defaults (none), AFTER THE CLOSE.
+// ⚠️ Not compiled on TradingView yet: if a row does not compile, the error names the line — split it out.
+// A runtime error is itself a reading: record its text and the bar it names, then
+// comment that row out and capture the rest.
+//
+// Rows K01-K09 CONFIRM what W6-T8 serves from the reference / manual text (insertion order,
+// re-put in place, remove-then-put at the end, put_all order, put / get / remove answers).
+// Rows N01-N04 ask what neither text states (an `na` key); each stops the engine by name today.
+//
+//   K01-K03  keys() of a map put "b", "a", "c": index of "b", "a", "c" (insertion order 0, 1, 2)
+//   K04      keys() after a re-put of the EXISTING key "b": index of "b" (0 = in place, 2 = moved)
+//   K05      keys() after remove("b") then put("b"): index of "b" (2 = at the end)
+//   K06      put of a new key: na(result)   (the reference: na if the key is new)
+//   K07      put of an existing key: the PREVIOUS value (1.0), not the new one (9.0)
+//   K08      get of a missing key: na(result)   (the manual: otherwise na)
+//   K09      remove of a missing key: na(result); remove of a present key: its value (3.0)
+//   K10      put_all of ("e", "b", "d") into ("b", "a", "c"): index of "e" and "d" (3, 4) and of "b" (0)
+//   N01-N04  map<float, float>: put(na, 1.0) then size; get(na); contains(na); remove(na)
+//   N05a-c   v6 map<string, bool>: get of a missing key, put of a new key, remove of a missing key
+//            (a v6 bool is never na: false, or a runtime error? the texts conflict)
+//@version=6
+indicator("vw-w6-map", overlay = false)
+m = map.new<string, float>()
+m.put("b", 1.0)
+m.put("a", 2.0)
+m.put("c", 3.0)
+k = m.keys()
+plot(array.indexof(k, "b"), "K01 b after b,a,c")
+plot(array.indexof(k, "a"), "K02 a after b,a,c")
+plot(array.indexof(k, "c"), "K03 c after b,a,c")
+r = map.copy(m)
+r.put("b", 9.0)
+plot(array.indexof(map.keys(r), "b"), "K04 b after re-put")
+t = map.copy(m)
+t.remove("b")
+t.put("b", 9.0)
+plot(array.indexof(map.keys(t), "b"), "K05 b after remove then put")
+u = map.copy(m)
+plot(na(u.put("z", 5.0)) ? 1 : 0, "K06 put new key is na")
+plot(u.put("b", 9.0), "K07 put existing key answers previous")
+plot(na(m.get("zz")) ? 1 : 0, "K08 get missing is na")
+w = map.copy(m)
+plot(na(w.remove("zz")) ? 1 : 0, "K09a remove missing is na")
+plot(w.remove("c"), "K09b remove present answers value")
+p = map.copy(m)
+q = map.new<string, float>()
+q.put("e", 5.0)
+q.put("b", 6.0)
+q.put("d", 7.0)
+p.put_all(q)
+pk = map.keys(p)
+plot(array.indexof(pk, "e"), "K10a e after put_all")
+plot(array.indexof(pk, "d"), "K10b d after put_all")
+plot(array.indexof(pk, "b"), "K10c b after put_all")
+f = map.new<float, float>()
+f.put(1.0, 1.0)
+f.put(na, 2.0)
+plot(f.size(), "N01 size after put(na)")
+plot(f.get(na), "N02 get(na)")
+plot(f.contains(na) ? 1 : 0, "N03 contains(na)")
+plot(f.remove(na), "N04 remove(na)")
+bm = map.new<string, bool>()
+bm.put("t", true)
+plot(bm.get("zz") ? 1 : 2, "N05a bool get missing (1 = true, 2 = false)")
+plot(bm.put("q", true) ? 1 : 2, "N05b bool put new key answer")
+plot(bm.remove("zz") ? 1 : 2, "N05c bool remove missing answer")

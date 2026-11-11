@@ -236,6 +236,15 @@ def test_the_diff_covers_EVERY_address_in_the_catalog(measured):
     catalog = (list(ev.INDICATOR_FUNCS) + list(ev.EVENT_FUNCS)
                + list(ev.PRICE_FUNCS))
     assert measured["addresses_in_catalog"] == len(catalog) == 31
+    # 2026-11-06 (RS 2b-05) — STILL 31, BY DECISION (the `ma_cross` precedent of
+    # 2026-11-04): the diff compares the FORMING lane against the CLOSED one on
+    # single-symbol fixture bars, and a CLOSED-ONLY address has no forming lane
+    # to diff against (`ev.CLOSED_ONLY_ADDRESSES`: `ma_cross`, and the eleven
+    # `rs_line.*`, which also read a BENCHMARK the frozen corpus does not
+    # carry). The exclusion is declared there, not omitted here — the set the
+    # diff's catalog leaves out is exactly that set, in both directions.
+    assert set(ev.all_addresses()) - set(catalog) == set(ev.CLOSED_ONLY_ADDRESSES)
+    assert len(ev.all_addresses()) == 48  # 2026-11-10 (RS split, S2): 44 -> 48, +rs_phases.flipBlue/flipRed +rs_vs_ema.crossUp/crossDown; 2026-11-07 (RS 2b-06): +rs_line.rating
     assert measured["addresses_covered"] == len(catalog), (
         f"the diff drove {measured['addresses_covered']} of {len(catalog)} "
         "addresses — an address nobody drove is an address whose cutover "

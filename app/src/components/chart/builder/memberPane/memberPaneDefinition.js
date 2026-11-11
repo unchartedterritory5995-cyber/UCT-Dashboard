@@ -22,18 +22,24 @@
 // where the product can call it. That test is the reason this is a productised
 // path rather than a first attempt: the rows, the manifest placements and the
 // `buildDefinition` call are the shapes it already proved land a valid document.
-import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName } from '../../engine/ast/pine'
+import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName, PAINT_RUNTIME_COLOUR } from '../../engine/ast/pine'
 import { withAlphaByte } from '../../designTokens'
 import { DEFAULT_SERIES_COLOUR, V3_DEFAULT_SERIES_OPACITY } from '../../engine/pinePalette'
 import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf } from '../../engine/ast/paneGate'
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
+import { strategyBrokerEnabled } from '../../engine/strategyBrokerGate'
+import { registerStrategyBrokerGate } from '../../engine/strategyBrokerGateRegistry'
+// W9-T1: the broker's build flag is read here (outside the server compute closure) and handed to the front end.
+registerStrategyBrokerGate(strategyBrokerEnabled)
 import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
 import { naConditionIsFalse } from '../../engine/ast/interpret'
 import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp, colourInputsTheRunReads } from '../../engine/runtime/runtimeColumns'
+import { STRATEGY_WINDOW_HISTORY } from '../../engine/runtime/strategyRecord'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
+import { OHLC_DEF_STYLES } from '../../engine/defSchema'
 import { ensureRuntimeLane } from '../../engine/runtime/runtimeAsync'
 // ⭐⭐ RT5 — a runtime document may draw its OWN objects (`runtimeObjectsDoor.js`).
-import { runtimeOwnObjectsOf } from './runtimeObjectsDoor'
+import { runtimeOwnObjectsOf, valueBuildDefersToDrawing } from './runtimeObjectsDoor'
 import { runtimeInputSpecsOf, plotColourInputAt } from '../../engine/runtime/runtimeInputs'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engine/runtimeKill'
 import { objectLossNote } from '../../engine/ast/objectLoss'
@@ -322,6 +328,20 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // one would leave a `colorMode` naming a column nobody declared.
   const conditionRows = []
   const conditionKeyByFormula = new Map()
+  // ⭐⭐ H1 (C45, review round 2) — A COLOUR RULE'S GATES RIDE ITS CONDITION COLUMN.
+  // The translation reads the gates each colour rule carries (`pine.js::
+  // colourBlockRunsOf`, keyed by the rule's formula — the key this door mints one
+  // column per); the column is a plot of the document like any other, so the bind
+  // refuses THAT column where the colour's arm runs after a bar it skipped
+  // (`nativeRegistry.computeFor`, `engine/blockRuns.js`), and the plot draws in its
+  // series colour (`binder.pointColour` → null), a fill or a paint draws nothing.
+  // ⚰️ They rode the PLOT, and a plot whose colour read such an arm drew no line.
+  // (`colourBlockRunsOf` writes an entry only for a rule that carries gates.)
+  const colourGatesByFormula = new Map(((t && t.blockRuns && t.blockRuns.colours) || [])
+    .map((c) => [c.formula, c.gates]))
+  /** condition-column key → the gates its colour rule carries. One column per
+   *  formula (`conditionKeyByFormula`), so a key only ever meets one formula's. */
+  const colourBlockRunKeys = new Map()
   /** ⭐ B1 — the paints this document draws (`definition.paints`), built below. */
   const docPaints = []
   /** ⭐⭐ The `input.color` specs a band's hue reads, by key (see the fills loop). */
@@ -354,6 +374,8 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
       })
       conditionKeyByFormula.set(formula, key)
     }
+    // ⭐ H1 — see `colourGatesByFormula`: the gates go with the column, by formula
+    if (colourGatesByFormula.has(formula)) colourBlockRunKeys.set(key, colourGatesByFormula.get(formula))
     return key
   }
   const rows = drawable.map((o, i) => {
@@ -765,6 +787,20 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // ⭐⭐ B1 — THE PAINTS RIDE ON THE DOCUMENT (`defSchema.validatePaints`), and
   // only when there are any, so every other document keeps its exact shape.
   if (docPaints.length) definition.paints = docPaints
+  // ⭐⭐ DIV-4 — A `barcolor` WHOSE COLOUR THE HOST LANE WITHHELD, READ FROM THE
+  // PER-BAR RUN (`runtimeReadPaints`). Behind the runtime pane's own switch: off,
+  // the document is exactly what it was.
+  const rtRead = runtimePaneEnabled() ? runtimeReadPaints(source, t, allPaints) : null
+  if (rtRead) {
+    definition.compute = { ...definition.compute, runtimeColours: rtRead.compute }
+    // source order within a kind is what decides which `barcolor` paints a bar
+    // (`vw-bgcolor-barcolor` P1/P2), so the merged list is put back in line order
+    definition.paints = [...(definition.paints || []), ...rtRead.paints]
+      .map((p, i) => ({ p, i }))
+      .sort((a, b) => ((a.p.line ?? 1e9) - (b.p.line ?? 1e9)) || (a.i - b.i))
+      .map((x) => x.p)
+  }
+  const rtReadLines = new Set(rtRead ? rtRead.paints.map((p) => `${p.kind}@${p.line}`) : [])
   // ⛔⛔ THE DOOR NEVER GUESSES A PLACEMENT. Every locator above is one the
   // translator TAGGED (`paramLocatorsIn`): a literal that came from the parameter.
   // ⚰️ Round 2 also ran the saved-document migration here, which matched the call
@@ -806,7 +842,11 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   for (const p of allPaints) {
     if (!p.withheld) continue
     const name = `\`${p.kind}\`${Number.isInteger(p.line) ? ` (line ${p.line})` : ''}`
-    const note = `${name} is not drawn: ${p.withheld.reason}.`
+    const note = rtReadLines.has(`${p.kind}@${p.line}`)
+      ? `${name} takes its colour from running the script bar by bar, the way TradingView does. It is `
+        + "drawn only where that run is exact: on bars that start at the symbol's listing, at the "
+        + "script's own settings; anywhere else it is not drawn."
+      : `${name} is not drawn: ${p.withheld.reason}.`
     const key = `${name} :: ${note}`
     if (seen.has(key)) continue
     seen.add(key)
@@ -846,11 +886,15 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // count, which only the chart knows; the producer still owns the wording
   // (`parse.js::requirementNote`) and the consumer supplies the number.
   const requirementTags = requirementTagsRaised(t)
-  // ⭐ C48 — see `blockRuns` below: each drawable plot's own gates, by its key.
-  const blockRunKeys = drawable.flatMap((o, i) => {
-    const hit = ((t.blockRuns && t.blockRuns.outputs) || []).find((x) => x.index === (t.outputs || []).indexOf(o))
-    return hit ? [{ key: keyAt(i), gates: hit.gates }] : []
-  })
+  // ⭐ C48 — see `blockRuns` below: each drawable plot's own gates, by its key —
+  // ⭐ H1 — and after them each colour condition column's (`colourBlockRunKeys`).
+  const blockRunKeys = [
+    ...drawable.flatMap((o, i) => {
+      const hit = ((t.blockRuns && t.blockRuns.outputs) || []).find((x) => x.index === (t.outputs || []).indexOf(o))
+      return hit ? [{ key: keyAt(i), gates: hit.gates }] : []
+    }),
+    ...[...colourBlockRunKeys].map(([key, gates]) => ({ key, gates })),
+  ]
   definition.meta = {
     ...(definition.meta || {}),
     disclosures: notes.map((n) => ({ name: n.name, note: n.note })),
@@ -909,6 +953,8 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // bar, each with that block's guard as a tree: the bind refuses the plot, by
     // name, on a chart where the block runs after a bar it skipped
     // (`engine/blockRuns.js`). Absent for every script with no such plot.
+    // ⭐ H1 — a colour's hidden condition column is such a plot too: refused, it
+    // takes the colour and only the colour with it.
     ...(blockRunKeys.length ? { blockRuns: { keys: blockRunKeys } } : {}),
   }
 
@@ -925,6 +971,59 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // series has loaded; the producer still owns the wording.
     requirementTags,
   }
+}
+
+/** ⭐⭐ DIV-4 — THE COLUMN KEY a runtime-read paint colour lands in (`k` = its place
+ *  in `compute.runtimeColours.at`). A name no host row takes (`keyAt` mints
+ *  `value`, `out2`, …). */
+const RUNTIME_COLOUR_KEY = (k) => `rtcolour${k + 1}`
+
+/** ⭐⭐ DIV-4 — THE `barcolor`s THE HOST LANE WITHHELD FOR THEIR COLOUR, READ FROM THE
+ *  PER-BAR RUN: `{compute, paints}` for the document, or null.
+ *
+ *  The host lane cannot say every colour as a formula — SuperTrend STRATEGY's
+ *  `buy1[1] < sell1[1] ? color.green : …` compares two unbounded `barssince` of a
+ *  recurrence, which the columnar lane refuses by name (`pine.js`, "NOT OVER A
+ *  RECURRENCE"). The per-bar runtime lane runs it as Pine does. Pine's own rule for
+ *  the call (reference, `barcolor`): "color (series color) Color of bars"; an `na`
+ *  colour leaves the bar its own colour. So each such paint is asked of the run at
+ *  its own statement, as a colour (`objectTreesAt`, kind `colour` — the C18 door
+ *  objects already use), and draws the packed colour the run left on each bar
+ *  (`pool.packedPointColour`: `na` paints nothing, an alpha is drawn as computed).
+ *
+ *  ⛔ Exact or not drawn, and decided where the colour is computed
+ *  (`nativeRegistry.js::withRuntimeColours`): bars from the listing, inputs at the
+ *  author's defaults, a run that completes and whose probe runs agree on every bar.
+ *  ⛔ Only a `barcolor` (no style transparency) of a v4+ script, only where the host
+ *  withheld it for its COLOUR (`paint:colour`); every other withholding stands, and
+ *  so does this one when the run cannot build the script with the colour read. */
+function runtimeReadPaints(source, t, allPaints) {
+  const version = t && t.version
+  if (!(Number.isInteger(version) && version >= 4)) return null
+  const picked = allPaints.filter((p) => p && p.kind === 'barcolor' && p.withheld
+    && p.withheld.code === 'paint:colour' && p[PAINT_RUNTIME_COLOUR] && Number.isInteger(p.line))
+  if (!picked.length) return null
+  // the runtime pane's own per-script gates, first (the kill list, the starter allowlist)
+  if (runtimeKillOf({ source }) || runtimeNotGradedOf({ source })) return null
+  const at = picked.map((p) => {
+    const c = p[PAINT_RUNTIME_COLOUR]
+    return { line: c.line, column: c.column, node: c.node, kind: 'colour' }
+  })
+  let probe
+  try { probe = probeObjectRuntime(source, at, { paneLane: true }) } catch { probe = null }
+  if (!probe || !probe.ok) return null
+  const keys = at.map((_, k) => RUNTIME_COLOUR_KEY(k))
+  const paints = picked.map((p, k) => ({
+    kind: p.kind,
+    line: p.line,
+    ...(typeof p.title === 'string' && p.title ? { title: p.title } : {}),
+    // ⭐ F1 — render-time placement rides beside the colour, as on every paint
+    ...(Number.isInteger(p.offset) && p.offset !== 0 ? { offset: p.offset } : {}),
+    ...(Number.isInteger(p.showLast) ? { showLast: p.showLast } : {}),
+    colorMode: `column:${keys[k]}`,
+    colorPacked: {},
+  }))
+  return { compute: { source, at, keys }, paints }
 }
 
 /** The Pine outputs a runtime document draws: the ones a chart row carries.
@@ -946,9 +1045,59 @@ const RUNTIME_UNDRAWN_KINDS = Object.freeze({
   hline: 'a horizontal line',
   bgcolor: 'a background colour',
   barcolor: 'a bar colour',
-  plotcandle: 'candles',
-  plotbar: 'bars',
 })
+
+/** W4-T13 - the calls a runtime document draws as a candle / bar FROM THE RUN. Each is four host
+ *  outputs (open, high, low, close - `pine.js::MULTI_OUTPUT_CALLS`) and four run outputs of the
+ *  same call, in that order, so the n-th candle of a kind on one lane is the n-th on the other. */
+const RUNTIME_CANDLE_STYLE = Object.freeze({ plotcandle: OHLC_DEF_STYLES[0], plotbar: OHLC_DEF_STYLES[1] })
+
+/** ⭐⭐ W4-T13 - WHAT A RUNTIME CANDLE / BAR NEEDS TO BE DRAWN, or why it is withheld by name.
+ *
+ *  Drawn from the run's own columns: the four prices and the colours the call wrote. Withheld,
+ *  each with its reason, rather than drawn in a stand-in:
+ *  - below Pine v5 (no capture of v4's `transp` default for a candle);
+ *  - `show_last` (a window of bars the renderer is not told), `force_overlay = true` over a
+ *    script that is not an overlay (it asks for the price pane; this document is a pane), a
+ *    `display` other than `display.all` / `display.pane`;
+ *  - a colour the call did not write (`color`, and for a candle `wickcolor` and `bordercolor`):
+ *    what TradingView draws then is NOT CAPTURED (docs/pine/capture-queue-2026-11-04-w4-t13.md,
+ *    W4-P1), so it is not guessed; a colour this lane could not compute.
+ *  A `display.none` candle draws nothing on TradingView either and is skipped by the caller.
+ *
+ *  @param {string} kind  'plotcandle' | 'plotbar'
+ *  @param {number|null} version
+ *  @param {object} ro  the run's descriptor of the candle's CLOSE output
+ *  @param {boolean} overlay  the script is an `overlay = true` one
+ *  @returns {{ok: true, colours: object} | {ok: false, why: string}} */
+function runtimeCandlePresentation(kind, version, ro, overlay) {
+  const why = (w) => ({ ok: false, why: w })
+  if (!(Number.isInteger(version) && version >= 5)) {
+    return why(`the colour rules of a v${version ?? '1'} candle have no capture here`)
+  }
+  const c = (ro && ro.candle) || {}
+  if (c.showLast === true) return why('its `show_last` limits the candle to the last bars, which this pane does not apply')
+  if (c.display !== undefined && c.display !== 'display.all' && c.display !== 'display.pane') {
+    return why(`its \`display = ${c.display}\` is not a place this pane reads`)
+  }
+  if (c.forceOverlay === 'unread') return why('its `force_overlay` is not a literal `true` or `false`')
+  if (c.forceOverlay === true && !overlay) {
+    return why('it asks for the price chart (`force_overlay = true`) from a script that is not an overlay')
+  }
+  const fields = kind === 'plotcandle'
+    ? [['body', 'colour', 'color'], ['wick', 'wick', 'wickcolor'], ['border', 'border', 'bordercolor']]
+    : [['body', 'colour', 'color']]
+  const colours = {}
+  for (const [part, field, param] of fields) {
+    const f = ro && ro[field]
+    if (!f) return why(`it does not write \`${param} =\`, and TradingView's default for it is not captured`)
+    if (!Number.isInteger(f.output)) {
+      return why(`this lane could not compute its \`${param} =\` (${f.refused || 'unreadable'})`)
+    }
+    colours[part] = f.output
+  }
+  return { ok: true, colours }
+}
 
 /* ⚰️ RT2 — `RUNTIME_REPAINT_RISK` (a regex over the raw source, comments
  * included) stood here and DECLINED every script that mentioned `request.`,
@@ -1283,7 +1432,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   if (!probe.ok) {
     const r = probe.refusal || {}
     // RT5: a drawing the value build cannot hold is the drawing build's to explain.
-    if (r.guard === 'runtime:object-op' && own.guard) return decline(own.guard, own.why)
+    // ⭐ W3W4-D2 — and `runtime:no-output`: a script that only draws has no output in the value build.
+    if (valueBuildDefersToDrawing(r.guard) && own.guard) return decline(own.guard, own.why)
     return decline(r.guard || 'runtime', `${r.guard || 'runtime'}${r.message ? ` — ${r.message}` : ''}`)
   }
   // ⛔ RT2 — A REQUEST OF OTHER BARS, by name. A request this lane does not fold
@@ -1332,6 +1482,33 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
         + `(${n} against ${m}), so which column is which cannot be known`)
     }
   }
+  // ⭐ W4-T13 - THE CANDLES AND BARS, paired the same way: the n-th `plotcandle` of the host's
+  // outputs is the n-th the run emitted (four outputs each, `role` in source order). A count that
+  // disagrees is the same `runtime:output-map` decline as any other kind's.
+  const hostCandles = new Map()
+  ;(t.outputs || []).forEach((o, index) => {
+    if (!o || !Object.hasOwn(RUNTIME_CANDLE_STYLE, o.kind)) return
+    if (!hostCandles.has(o.kind)) hostCandles.set(o.kind, [])
+    hostCandles.get(o.kind).push({ o, index })
+  })
+  const runCandles = new Map()
+  probe.outputs.forEach((ro, k) => {
+    if (!ro || !Object.hasOwn(RUNTIME_CANDLE_STYLE, ro.call)) return
+    if (!runCandles.has(ro.call)) runCandles.set(ro.call, [])
+    const list = runCandles.get(ro.call)
+    if (!list[ro.group]) list[ro.group] = { byRole: {}, ro: null }
+    // keyed by the role the run NAMES (the pane keeps no second list of them)
+    list[ro.group].byRole[ro.role] = k
+    if (ro.role === 'close') list[ro.group].ro = ro
+  })
+  for (const kind of Object.keys(RUNTIME_CANDLE_STYLE)) {
+    const n = (hostCandles.get(kind) || []).length
+    const m = (runCandles.get(kind) || []).filter(Boolean).length
+    if (n !== m * 4) {
+      return decline('runtime:output-map', `the two lanes disagree on how many \`${kind}\` calls the script has `
+        + `(${n / 4} against ${m}), so which column is which cannot be known`)
+    }
+  }
   const seen = new Map()
   const carried = []
   const withheld = []
@@ -1355,6 +1532,48 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     for (const k of shift.keys) shiftPinned.add(k)
     carried.push({ o, index, p: pres.p, out, colourOutput: pres.colourOutput, displace: shift.displace })
   }
+  // ⭐ W4-T13 - each candle / bar is ONE row on the document (its close column), with the other
+  // three prices and the colours riding as hidden columns of the same run. Merged into the plot
+  // rows by source line, so the legend and the paint order read as the script does.
+  const candleEntries = []
+  for (const kind of Object.keys(RUNTIME_CANDLE_STYLE)) {
+    const hosts = hostCandles.get(kind) || []
+    const runs = runCandles.get(kind) || []
+    runs.forEach((run, ord) => {
+      const group = hosts.slice(ord * 4, ord * 4 + 4)
+      // A candle its author hid (`display = display.none`) draws nothing on TradingView either.
+      // ⛔ ONLY THE AUTHOR'S HIDING: the host also hides a candle whose four columns are the bare
+      // price series (`hiddenReason: 'passthrough'`, so it does not draw four lines over the chart),
+      // and that is exactly the candle that RECOLOURS the chart's own bars, which TradingView draws.
+      if (group.some(({ o }) => o.hiddenReason === 'author' || o._authorHidden === true)
+        || (run.ro.candle && run.ro.candle.display === 'display.none')) return
+      const label = (run.ro.candle && run.ro.candle.title) || `${kind} ${ord + 1}`
+      const pres = runtimeCandlePresentation(kind, t && t.version, run.ro, !!(t.presentation && t.presentation.overlay === true))
+      if (!pres.ok) { withheld.push({ label, why: pres.why }); return }
+      candleEntries.push({
+        candle: kind,
+        label,
+        line: Number.isInteger(run.ro.line) ? run.ro.line : Infinity,
+        index: group[3].index,
+        out: run.byRole.close,
+        parts: { open: run.byRole.open, high: run.byRole.high, low: run.byRole.low },
+        colours: pres.colours,
+      })
+    })
+  }
+  if (candleEntries.length) {
+    candleEntries.sort((a, b) => a.line - b.line)
+    const merged = []
+    let ci = 0
+    for (const entry of carried) {
+      const at = Number.isInteger(entry.o && entry.o.line) ? entry.o.line : -Infinity
+      while (ci < candleEntries.length && candleEntries[ci].line < at) merged.push(candleEntries[ci++])
+      merged.push(entry)
+    }
+    while (ci < candleEntries.length) merged.push(candleEntries[ci++])
+    carried.length = 0
+    carried.push(...merged)
+  }
   // ⭐ WS-E — the "draws nothing" decline moved BELOW the paints: a script whose
   // only output is a `barcolor` / `bgcolor` the run computes is a document too.
   const outputs = {}
@@ -1365,15 +1584,19 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // `colourKeyOf` is shared by the plot rows and the paints below.
   const colourRows = []
   const colourKeyByOutput = new Map()
-  const colourKeyOf = (outputIndex) => {
-    if (colourKeyByOutput.has(outputIndex)) return colourKeyByOutput.get(outputIndex)
+  // W4-T13 - a candle's price columns are minted by the same function but are NOT colour outputs
+  // (`colourInputsTheRunReads` is told which outputs are colours), so they keep a map of their own.
+  const ohlcKeyByOutput = new Map()
+  const colourKeyOf = (outputIndex, tag = 'colourFor') => {
+    const keyed = tag === 'ohlcFor' ? ohlcKeyByOutput : colourKeyByOutput
+    if (keyed.has(outputIndex)) return keyed.get(outputIndex)
     // ⭐ F1 — a document with NO drawn row keeps `value` for the RT5 anchor row
     // (below), so its colour columns start one slot later. Reached once F1 carried a
     // paint's `offset`: wyckoff's only output is an offset `barcolor`, and its colour
     // column took `value` beside the anchor — a duplicate key the install door refuses.
     const key = keyAt(Math.max(drawnRows.length, 1) + colourRows.length)
     outputs[key] = outputIndex
-    colourKeyByOutput.set(outputIndex, key)
+    keyed.set(outputIndex, key)
     colourRows.push({
       key,
       label: '',
@@ -1384,14 +1607,39 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       style: 'line',
       // ⛔ HIDDEN: a colour column draws nothing itself; the row that names it does.
       hidden: true,
-      colourFor: outputIndex,
+      // `colourFor` (a colour column) or `ohlcFor` (a candle's price column): which output it holds.
+      [tag]: outputIndex,
     })
     return key
   }
   const packedOf = new Map()
-  const rows = drawnRows.map(({ o, index, p, out, colourOutput, displace }, i) => {
+  const candleOf = new Map()
+  const rows = drawnRows.map(({ o, index, p, out, colourOutput, displace, candle, label, parts, colours }, i) => {
     const key = keyAt(i)
     outputs[key] = out
+    if (candle) {
+      // ⭐ W4-T13 - the row IS the close column; `ohlc` names the other three, `ohlcColors` the
+      // colour columns (`defSchema.validateOhlc`, drawn by `binder.js`).
+      candleOf.set(key, {
+        ohlc: {
+          open: colourKeyOf(parts.open, 'ohlcFor'),
+          high: colourKeyOf(parts.high, 'ohlcFor'),
+          low: colourKeyOf(parts.low, 'ohlcFor'),
+        },
+        ohlcColors: Object.fromEntries(Object.entries(colours).map(([part, outIdx]) => [part, colourKeyOf(outIdx)])),
+      })
+      return {
+        key,
+        label,
+        source: '0',
+        ast: { type: 'num', value: 0 },
+        mode: repaint.mode,
+        readback: '',
+        style: RUNTIME_CANDLE_STYLE[candle],
+        hidden: false,
+        output: index,
+      }
+    }
     if (Number.isInteger(colourOutput)) packedOf.set(key, { colorMode: `column:${colourKeyOf(colourOutput)}`, colorPacked: p.colorPacked })
     return {
       key,
@@ -1562,6 +1810,9 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // (`colorMode` + `colorPacked`), set on the built plot because `buildDefinition`
   // projects only the host lane's three colour forms.
   definition.plots = definition.plots.map((pl) => (pl && packedOf.has(pl.key) ? { ...pl, ...packedOf.get(pl.key) } : pl))
+  // ⭐ W4-T13 - a candle row names its price and colour columns, set on the built plot for the
+  // same reason (`buildDefinition` projects only the fields the host lane's rows carry).
+  definition.plots = definition.plots.map((pl) => (pl && candleOf.has(pl.key) ? { ...pl, ...candleOf.get(pl.key) } : pl))
   // ⭐⭐ RT6 — the paints ride on the document (`defSchema.validatePaints`), only
   // when there are any, so every other runtime document keeps its exact shape.
   if (docPaints.length) definition.paints = docPaints
@@ -1674,7 +1925,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // lane cannot prove that of a whole script, so a FALLBACK document computes
     // only on a series that starts at the listing (`runtimeColumns.js`), and is
     // refused by name on any other. The routed case keeps its measured behaviour.
-    ...(routed ? {} : { runtimeHistory: 'listing' }),
+    // ⭐⭐ W9-T11 — A STRATEGY (its program holds a broker, possible only with the broker gate
+    // on) is stamped instead with the window rule (design 3.4): its run takes the most recent
+    // `ctx.historyWindowBars` bars and never R-W's curtain. Every other document is as before.
+    ...(probe.broker === true ? { runtimeHistory: STRATEGY_WINDOW_HISTORY } : routed ? {} : { runtimeHistory: 'listing' }),
     // ⭐⭐ P1 HARDENING — which front end / IR built this document, and what each
     // `compute.outputs` index named when it did (`runtimeColumns.js::runtimeVersionStamp`).
     // Every run re-checks them, so a later engine that orders outputs differently
@@ -1705,6 +1959,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   }
 }
 
+/** The colour rules a plot, a fill or a paint carries (`outputPresentation`,
+ *  `resolvePaint`): each holds the tree (`ast`) its condition column is minted from. */
+const COLOUR_RULE_KEYS = Object.freeze(['colorCondition', 'colorIndex', 'colorGradient'])
+
 /** ─── ⭐⭐ WHICH REQUIREMENT TAGS THIS DOCUMENT RAISES ───────────────────────
  *
  *  ⛔⛔ DERIVED FROM THE MANIFEST'S OWN ROSTERS, NEVER TYPED. Each tag names the
@@ -1717,6 +1975,16 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
  *  ⚠️ AND IT IS THE PANE'S OWN DOCUMENT, so it answers about what is DRAWN. The
  *  full translation's alertcondition is not here — D1 removed it — which is the
  *  correct answer: a tag is a disclosure about a value on screen.
+ *
+ *  ⭐⭐ W1 RE-REVIEW (2026-11-02) — A COLOUR IS A VALUE ON SCREEN TOO. A paint
+ *  (`barcolor`/`bgcolor`, `t.presentation.paints`), a plot's colour and a fill's
+ *  colour each draw from a rule (`colorCondition` / `colorIndex` /
+ *  `colorGradient`), and the door mints a condition column from each
+ *  (`conditionColumnFor`). ⚰️ Only the plot trees were walked, so
+ *  `barcolor(ta.obv > 0 ? color.green : na)` or `plot(close, color = ta.cum(volume)
+ *  > 0 ? …)` drew a colour decided by a running total with no history-depth badge.
+ *  The rules are walked by the SAME `walk` and matched against the SAME roster —
+ *  one detector — and they only ever ADD a tag: nothing here withholds a paint.
  */
 export function requirementTagsRaised(translation, notes = REQUIREMENT_NOTES) {
   const names = new Set()
@@ -1731,7 +1999,21 @@ export function requirementTagsRaised(translation, notes = REQUIREMENT_NOTES) {
       walk(node[k])
     }
   }
-  for (const o of (translation && translation.outputs) || []) walk(o.ast || o.tree || null)
+  /** a plot's, a fill's or a paint's colour rules, each the tree its column is minted from */
+  const walkColourRules = (pres) => {
+    if (!pres || typeof pres !== 'object') return
+    for (const k of COLOUR_RULE_KEYS) if (pres[k] && typeof pres[k] === 'object') walk(pres[k].ast || null)
+  }
+  for (const o of (translation && translation.outputs) || []) {
+    const tree = (o && (o.ast || o.tree)) || null
+    walk(tree)
+    // a refused row keeps its presentation for the runtime lane (`refusedPresentation`)
+    // and draws nothing here: only a row whose tree is walked has a colour on screen
+    if (tree) walkColourRules(o.presentation)
+  }
+  const presentation = (translation && translation.presentation) || {}
+  for (const f of presentation.fills || []) walkColourRules(f)
+  for (const p of presentation.paints || []) walkColourRules(p)
 
   const raised = []
   for (const [tag, spec] of Object.entries(notes || {})) {

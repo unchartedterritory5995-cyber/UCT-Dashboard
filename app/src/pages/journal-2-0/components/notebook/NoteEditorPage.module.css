@@ -18,6 +18,8 @@
    to hit, and portaled via SkipLinkSlotContext so it lands as an early Tab stop rather than
    after the whole chrome it exists to bypass. */
 .skipLink {
+  /* VIS-5 (audit 2026-11-05, issue 25): a skip link wrapped onto two lines when it took focus */
+  white-space: nowrap;
   position: absolute;
   top: 8px;
   left: 8px;
@@ -228,6 +230,12 @@
   flex-direction: column;
 }
 .titleInput {
+  /* Final polish: a textarea that grows with its text (the title wraps, never clips). */
+  display: block;
+  width: 100%;
+  resize: none;
+  overflow: hidden;
+  overflow-wrap: anywhere;
   background: transparent;
   border: none;
   font-family: Georgia, 'Times New Roman', serif;
@@ -236,6 +244,9 @@
   color: var(--text-bright);
   padding: 8px 0;
   line-height: 1.15;
+  /* Notebook visual audit issue 2: Georgia's default figures are old-style, so
+     prices in a title read as uneven heights. Lining + tabular figures. */
+  font-variant-numeric: lining-nums tabular-nums;
 }
 /* ⚰️ Wave 8 (8A): the base rules no longer suppress the outline at all (the
    focus-suppression rail forbids a suppression with no replacement in the
@@ -251,10 +262,23 @@
    clicking into the editor to place a cursor doesn't wrap the whole body in
    an outline. Competitive audit finding Accessibility QW-1, 2026-09-22. */
 .titleInput:focus-visible,
-.subtitleInput:focus-visible,
-.proseEditor:focus-visible {
+.subtitleInput:focus-visible {
   outline: 2px solid var(--ut-gold);
   outline-offset: 2px;
+}
+/* Notebook visual audit issue 3: the "silent for a mouse click" claim above holds
+   for the title and subtitle INPUTS, but NOT for the body: a contenteditable
+   matches :focus-visible on a pointer click too, so every click wrapped the whole
+   note body in a gold ring with the text touching it. The body's focus cue is now
+   a 2 px gold LEFT EDGE, set off from the text by the 10 px gutter that
+   .proseEditor reserves (border + padding, cancelled by its negative margin so
+   the text stays aligned with the title). It is visible for keyboard focus, and
+   quiet enough that a mouse click no longer frames the page. The replacement
+   sits in THIS rule (border-color), as the focus-suppression rail requires
+   (a11y/focusSuppression.test.js). */
+.proseEditor:focus-visible {
+  outline: none;
+  border-color: var(--ut-gold);
 }
 .subtitleInput {
   background: transparent;
@@ -393,6 +417,19 @@
   line-height: 1.7;
   color: var(--text-bright);
   min-height: 400px;
+  /* Issue 2: lining, tabular figures (Georgia defaults to old-style). */
+  font-variant-numeric: lining-nums tabular-nums;
+  /* Issue 3: the gutter the keyboard focus edge paints in (see :focus-visible
+     above). Transparent at rest; net horizontal offset 0 (-12 + 2 + 10). */
+  border-left: 2px solid transparent;
+  padding-left: 10px;
+  margin-left: -12px;
+}
+/* Issue 2: a widget embed is app chrome (Snapshot, See it now, Change), not
+   prose, so it speaks the UI sans rather than inheriting the body's Georgia.
+   The hook is the same attribute the prose guard below uses. */
+.proseEditor [data-widget-embed-view] {
+  font-family: var(--font-sans);
 }
 /* The first block sits flush under the subtitle — so a divider (or heading)
    inserted at the top doesn't leave a big gap above it. */
@@ -475,6 +512,15 @@
 .proseEditor ul:not(:where([data-widget-embed-view] *)),
 .proseEditor ol:not(:where([data-widget-embed-view] *)) { padding-left: 24px; margin: 12px 0; }
 .proseEditor li:not(:where([data-widget-embed-view] *)) { margin: 4px 0; }
+/* Notebook visual audit issue 4: the `p { margin: 12px 0 }` above also landed on
+   the paragraph TipTap wraps inside every list item, task item and table cell,
+   which doubled list pitch (59 px per checklist row, 41 px per bullet, for 17 px
+   text). Inside those containers the paragraph carries no margin; the item's
+   own margin is the rhythm. */
+.proseEditor li > p:not(:where([data-widget-embed-view] *)),
+.proseEditor ul[data-type="taskList"] li > div > p:not(:where([data-widget-embed-view] *)),
+.proseEditor td > p:not(:where([data-widget-embed-view] *)),
+.proseEditor th > p:not(:where([data-widget-embed-view] *)) { margin: 0; }
 .proseEditor table:not(:where([data-widget-embed-view] *)) {
   border-collapse: collapse;
   margin: 14px 0;
@@ -538,7 +584,10 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  padding-top: 2px;
+  /* Issue 4: centre the 16 px box on the FIRST line box (1.7em tall), so it
+     sits beside its text instead of floating above it. em = the label's own
+     size, which inherits the body's, so a resized note still centres. */
+  padding-top: calc((1.7em - 16px) / 2);
   user-select: none;
 }
 .proseEditor ul[data-type="taskList"] li > label input[type="checkbox"] {
@@ -630,10 +679,11 @@
   border-radius: var(--radius-sm, 4px);
 }
 .proseEditor :global(.uctToggleChevron):hover { color: var(--accent); background: rgba(255, 255, 255, 0.05); }
-.proseEditor :global(.uctToggleChevron) svg { transition: transform 0.12s ease; }
+.proseEditor :global(.uctToggleChevron) svg { transition: transform var(--duration-fast) var(--ease-out); }
 .proseEditor [data-type="toggle"][data-open="true"] :global(.uctToggleChevron) svg { transform: rotate(90deg); }
 /* Touch tier is <=1024px, never 640px (canonical breakpoint, breakpoints.css). */
 @media (max-width: 1024px) {
+  .folderInline { min-height: var(--tap-min); }
   .proseEditor :global(.uctToggleChevron) { width: var(--tap-min, 44px); height: var(--tap-min, 44px); }
   /* Fin-ai K7: a toggle's title line (a voice note's "Full transcript") was 29 px tall beside
      its 44 px fold button. The line is as tall as the button now, and its first line of text
@@ -706,7 +756,29 @@
 /* ── Phone: fullscreen FORM — 16px inputs (no iOS zoom), finger targets, and a
    non-sticky toolbar so it can't overlap a wrapped header. ── */
 @media (max-width: 640px) {
+  /* Finish batch (2026-11-05, iPhone): the phone note header is ONE row at 360 px and up -- back and Folders
+     (NotebookTab, 44 px each, the header padded past both: 2 x 44 + 2 x 8 = 104), then Favorite, Writing help, Share
+     and More, four 44 px icons 4 px apart (188), and the 12 px right pad: 304 of the 312 px a 360 px phone gives the
+     Journal frame. The save indicator says its words on the line under the title (`.savedLine`, NoteEditorPage
+     `savedOnTitleLine`); Share shows its icon (`.phoneIconLabel` hides the word, the name stays "Share"). A problem line
+     (`.saveStatus`) still takes a line of its own, and the row still WRAPS below 360 px (a 320 px phone gets a second
+     row, never a page that pans sideways). Measured on production before (390 x 844): three rows, 144 px tall; the
+     title's top at y=336; with this, one 61 px row and the title at y=253.
+     ⛔ `.headerControls .aiGroup` (0,2,0) on purpose: the bare `.aiGroup` rule is declared AFTER this block, so a
+     bare selector here would lose. Rail: NoteEditorPage.phoneHeaderRow.test.jsx. */
+  .headerControls { gap: 4px; justify-content: flex-end; }
+  .headerControls .aiGroup { gap: 0; }
+  /* Finish review 3: a header message (a Share / Export notice, a failed write) takes a line of its own under the
+     controls, the way `.saveStatus` does, so the row stays one row while it shows. (0,2,0): it outranks the
+     message's own module class. */
+  .headerControls .headerMsg { flex-basis: 100%; order: 3; white-space: normal; }
+  /* An icon whose word is hidden sits centred (its inline 4 px gap was for the word). */
+  .chromeBtn:has(> .phoneIconLabel) > svg { margin-right: 0 !important; }
+  /* .folderInline: its finger floor lives in the <=1024px block (tablet is touch too). */
   .column { padding: 0 16px; margin: 16px auto 72px; }
+  /* Final polish (WebKit at 390 px): the floating "+" covered the last chart's corner. The column can scroll clear of
+     it, by the same 96 px the list keeps (NotebookTab.module.css .main). */
+  .column { padding-bottom: calc(2 * var(--space-3xl) + env(safe-area-inset-bottom, 0px)); } /* 96 px */
   .header { padding: 8px 12px; }
   .saveStatus { min-width: 0; order: 3; flex-basis: 100%; }
   .headerSelect, .headerInput { font-size: 16px; padding: 8px 10px; }
@@ -982,6 +1054,16 @@
   :global(body.uct-print-note) [data-export-exclude] { display: none; }
 }
 
+/* Notebook visual audit issue 13: on the touch tier the global anti-zoom rule
+   (tokens.css, `input, select, textarea { font-size: 16px !important }`) shrank
+   the note title to 16 px, smaller than its own H2 (24 px). The title is an
+   <input>, so only an !important rule can lift it; at (0,1,0) it beats the
+   global (0,0,1). 28 px matches the phone size above and is well past the 16 px
+   iOS zoom threshold. The global 16 px rule itself is unchanged. */
+@media (max-width: 1024px) {
+  .titleInput { font-size: 28px !important; }
+}
+
 /* TOUCH TIER (<=1024px) -- generated ------------------------------------------
    These selectors are declared finger targets by the PHONE block(s)
    in this file and nowhere else, so the TABLET tier (641-1024) -- which
@@ -1055,3 +1137,67 @@
 .canvasExtra { margin-top: 12px; }
 .canvasExtra :global(.uctCanvasNode) { display: none; }
 .canvasExtraTitle { margin: 0 0 6px; color: var(--text-muted); font-size: 13px; font-weight: 600; }
+
+/* Audit 2026-11-05, spec S10 (M4): the save indicator. Its width is RESERVED for the longest of its words ("Offline,
+   kept in this browser"), so the header never jumps as "Saved" and "Saving…" swap. Right-aligned against the controls. */
+.savedIndicator {
+  display: inline-block;
+  min-width: 15.5em;
+  text-align: right;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.savedIndicator + .headerControls {
+  margin-left: 0;
+}
+/* Finish batch (iPhone): the same indicator on a phone, last on the line under the title (NoteDetailsLine `trail`). */
+.savedLine {
+  margin-left: auto;
+  /* Finish review 2: one box for "Saved" and "Saving…", so an autosave never wraps and unwraps the line (and the
+     body under it) while the member types; only the rare offline phrase can take a second line. */
+  min-width: 4.5em;
+  text-align: right;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+/* S10 (M4): the AI control -- Ask and Writing help, one group in the header. */
+.aiGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.shareSlot { display: contents; }
+/* S10 (M4): the folder, a small quiet select at the start of the line under the title.
+   Tier 4 fix round 2 (live scorecard, field border 1:1): it IS a field (it moves the note), so it wears the field
+   edge every field wears (V1: --field-edge, 3.28:1), not a transparent one; hover lifts it to --border-accent. */
+.folderInlineWrap { position: relative; display: inline-flex; align-items: center; max-width: 14em; }
+.folderInlineChev { position: absolute; right: 6px; pointer-events: none; color: var(--text-muted); }
+.folderInline {
+  /* Final polish (WebKit): no native select chrome; the chevron is drawn beside it (.folderInlineChev). */
+  -webkit-appearance: none;
+  appearance: none;
+  max-width: 14em;
+  min-height: 28px;
+  padding: 2px 24px 2px 6px;
+  border: 1px solid var(--field-edge);
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.folderInline:hover {
+  color: var(--text-bright);
+  border-color: var(--border-accent);
+}
+.folderInline:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 1px;
+  color: var(--text-bright);
+}
+

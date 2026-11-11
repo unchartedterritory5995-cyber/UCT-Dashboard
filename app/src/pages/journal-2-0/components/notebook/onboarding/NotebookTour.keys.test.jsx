@@ -79,15 +79,18 @@ describe('closing the auto-started base tour (W14-keys)', () => {
     expect(document.activeElement).toBe(heading())
   })
 
-  it('switch OFF (onboarding only): the wave-8 behaviour -- focus is not moved to the heading', async () => {
+  // ⚰️ This pinned the wave-8 behaviour with the switch off: focus left on <body>. The 2026-11-05 audit
+  // measured exactly that as a defect ("Tour Esc -> <body>", issue 25), so VIS-5 retires it: with
+  // nothing to hand back to, a closing tour puts focus on the page's heading at every switch setting.
+  it('switch OFF (onboarding only): focus is still never left on <body> (VIS-5, issue 25)', async () => {
     latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: false })
     render(<Page />)
     await dialog()
     const user = userEvent.setup()
     await user.keyboard('{Escape}')
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    expect(document.activeElement).not.toBe(heading())
-    expect(document.activeElement).toBe(document.body)
+    expect(document.activeElement).not.toBe(document.body)
+    expect(document.activeElement).toBe(heading())
   })
 
   it('a tour a member opened from a control still hands focus back to THAT control', async () => {

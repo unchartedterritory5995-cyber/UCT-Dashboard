@@ -6,12 +6,41 @@ import { useRef, useEffect, useCallback } from 'react'
 
 const toMs = (v) => {
   const s = String(v)
+  // a daily bar keyed YYYYMMDD (the Study bank's own bars) reads as that day
+  if (/^\d{8}$/.test(s)) return Date.parse(`${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T00:00:00Z`)
   return Date.parse(s.length <= 10 ? `${s}T00:00:00Z` : s)
 }
 
-export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callouts, color = '#ffffff', bottomFrac = 0.82 }) {
+// A rounded rectangle path, whether or not the context has roundRect.
+function roundRectPath(ctx, x, y, w, h, r) {
+  const rr = Math.max(0, Math.min(r, w / 2, h / 2))
+  ctx.beginPath()
+  ctx.moveTo(x + rr, y); ctx.lineTo(x + w - rr, y); ctx.quadraticCurveTo(x + w, y, x + w, y + rr)
+  ctx.lineTo(x + w, y + h - rr); ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h)
+  ctx.lineTo(x + rr, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - rr)
+  ctx.lineTo(x, y + rr); ctx.quadraticCurveTo(x, y, x + rr, y); ctx.closePath()
+}
+
+// `look` (Study, round 21; the owner on the pointer: "an arrow that is logically spaced to the left and pointing at
+// the candle", "ensure that it doesnt interfere with candles"): the same blank-space search, drawn as a pill with
+// a border, a leader with an arrowhead that stops short of the candle, and a ring around the candle itself:
+//   { font, textH, padX, padY, pill, fill, radius, borderWidth, textColor, uppercase, letterSpacing, distances, bottomFrac,
+//     ring, ringPad, ringWidth, arrow, arrowSize, gap, lineWidth, glow }
+// A callout may carry `index` (a bar index) instead of `time`, and its own `color`, `textColor`, `ring: false`, `arrow: false`.
+// Without a look, nothing about the Model Book's catalysts changes.
+
+export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callouts, color = '#ffffff', bottomFrac = 0.82, look = null }) {
   const canvasRef = useRef(null)
   const rafRef = useRef(null)
+  // Study (2026-11-08, the owner: the choosable candles should show it, "slightly animated"; and "no throbbing gold"): with
+  // `look.fadeIn`, a new set of callouts arrives with one soft fade and lift, once, never a pulse; off under reduced motion
+  const fadeKey = look?.fadeIn ? JSON.stringify((callouts || []).map((c) => [c.index ?? c.time, c.text])) : null
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!fadeKey || !el || typeof el.animate !== 'function') return
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    el.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 700, easing: 'cubic-bezier(.2, .9, .2, 1)' })
+  }, [fadeKey])
   const sizeRef = useRef({ w: 0, h: 0 })
   const redrawRef = useRef(null)
   const trackedRef = useRef(null)
@@ -59,9 +88,10 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     if (!useCache) placeRef.current.clear()
 
     const ts = chart.timeScale()
-    const font = '400 11px "Instrument Sans", system-ui, sans-serif'
+    const font = look?.font || '400 11px "Instrument Sans", system-ui, sans-serif'
     ctx.font = font
-    const textH = 13, padX = 5, padY = 3
+    if ('letterSpacing' in ctx) ctx.letterSpacing = look?.letterSpacing || '0px'   // measured into the box below
+    const textH = look?.textH ?? 13, padX = look?.padX ?? 5, padY = look?.padY ?? 3
 
     // ── Map the price action so labels can dodge it ──
     // Build pixel high/low segments for the VISIBLE candles. A label that
@@ -89,7 +119,8 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     // (Model Book, index pane present → bottomFrac≈0.96) labels can use almost
     // the whole pane, so a low candle's down-right spot is reachable. When the
     // canvas spans the volume pane too (bottomFrac≈0.82) the bottom is reserved.
-    const priceBottom = h * bottomFrac
+    // a `look` may keep its labels higher still (a phone's volume pane takes more of the canvas)
+    const priceBottom = h * Math.min(bottomFrac, look?.bottomFrac ?? 1)
     const hitsCandles = (r) => {
       for (const s of segs) {
         if (s.x < r.x - 2 || s.x > r.x + r.w + 2) continue
@@ -140,7 +171,7 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     // wide to fit on screen. (The two-pass below additionally wraps a label when
     // that's the only way to place it CLOSE; everywhere else stays single-line.)
     const maxLineW = Math.max(220, Math.min(340, (plotRight - plotLeft) * 0.62))
-    const wrapLabel = (text) => ctx.measureText(text).width <= maxLineW ? [text] : splitTwo(text)
+    const wrapLabel = (text) => (look || ctx.measureText(text).width <= maxLineW) ? [text] : splitTwo(text)
     const boxDims = (lines) => {
       const tw = Math.max(...lines.map(l => ctx.measureText(l).width))
       return { boxW: tw + padX * 2, boxH: lines.length * textH + padY * 2 }
@@ -154,9 +185,9 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     // Resolve on-screen anchors (candle high + low) + wrap long labels.
     const items = []
     for (const c of callouts) {
-      if (!c?.text || !c?.time) continue
-      const idx = barIndexForDate(c.time)
-      if (idx < 0) continue
+      if (!c?.text || (c?.time == null && c?.index == null)) continue
+      const idx = c.index != null ? Math.round(Number(c.index)) : barIndexForDate(c.time)
+      if (idx < 0 || idx >= bars.length) continue
       // Hide a catalyst whose bar is OUTSIDE the visible range — e.g. when zoomed
       // to one catalyst, a later catalyst's bar is off the right edge, so its
       // label/leader must not extend into view.
@@ -168,8 +199,9 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
       try { ly = series.priceToCoordinate(b.l ?? b.low ?? b.c) } catch { ly = null }
       if (ax == null || hy == null || ax < -40 || ax > w + 40) continue
       if (ly == null) ly = hy
-      const lines = wrapLabel(c.text)
-      items.push({ key: `${c.time}|${c.text}`, text: c.text, lines, ax, hy, ly, ...boxDims(lines) })
+      const text = look?.uppercase ? String(c.text).toUpperCase() : c.text
+      const lines = wrapLabel(text)
+      items.push({ key: `${c.time ?? c.index}|${c.text}|${c.color || ''}`, idx, text, lines, ax, hy, ly, color: c.color || null, textColor: c.textColor || null, ring: c.ring, arrow: c.arrow, ...boxDims(lines) })
     }
     items.sort((a, b) => a.ax - b.ax)
 
@@ -180,17 +212,23 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     // leader line is a diagonal (offset in both x and y). The box is always fully
     // offset from the candle on both axes, so the nearest-point leader can't fall
     // vertical or horizontal.
-    const DIRS = [
+    const BASE_DIRS = [
       { dx: -1, dy: -1 },  // up-left (preferred via dirBias)
       { dx: -1, dy: 1 },   // down-left
       { dx: 1, dy: -1 },   // up-right
       { dx: 1, dy: 1 },    // down-right (least preferred)
     ]
+    // With a `look` (Study) the search also tries steeper and shallower diagonals: on a dense phone chart the open space
+    // is often straight above the candles, which a 45-degree step never reaches without crossing them.
+    const DIRS = look ? [...BASE_DIRS,
+      { dx: -0.45, dy: -1 }, { dx: -1, dy: -0.45 }, { dx: 0.45, dy: -1 },
+      { dx: -0.45, dy: 1 }, { dx: -1, dy: 0.45 }, { dx: 0.45, dy: 1 },
+    ] : BASE_DIRS
     // Min ~20px breathing room. Distance dominates the cost so the NEAREST spot
     // wins, but the range reaches ~210px so that — in a dense cluster — a clean,
     // READABLE gap is always reachable instead of being forced onto candles
     // (clean always outranks a graze). The cost keeps labels close when it can.
-    const DISTS = [20, 28, 38, 50, 64, 82, 104, 132, 168, 210]
+    const DISTS = look?.distances || [20, 28, 38, 50, 64, 82, 104, 132, 168, 210]
     const placed = []
     const placedLeaders = []   // leader segments already drawn — new ones must not cross them
     // Do two leader segments cross (proper interior intersection)?
@@ -242,7 +280,8 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     // Distance DOMINATES so every label lands at its nearest clear gap, keeping
     // leader lengths short and roughly UNIFORM across catalysts. (No strong
     // directional bonus — that previously dragged some labels far up-left.)
-    const bias = (d) => (d.dy < 0 ? -10 : 0) + (d.dx < 0 ? -10 : 0)
+    // (the steeper Study diagonals cost a little more, so a clean 45-degree spot up-left still wins)
+    const bias = (d) => (d.dy < 0 ? -10 : 0) + (d.dx < 0 ? -10 : 0) + (Math.abs(d.dx) !== Math.abs(d.dy) ? 14 : 0)
     const placeOne = (it) => {
       let best = null, bestCost = Infinity
       for (const dist of DISTS) {
@@ -296,7 +335,9 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
         // do we try wrapping to two narrower lines — and keep it only if that
         // brings it MUCH closer (>30px). Otherwise the label stays one line, even
         // if it sits a little out, so we don't wrap when there's plenty of room.
-        if (it.lines.length === 1 && it.text.includes(' ') && leaderLenOf(it.ax, rect) > 130) {
+        // (never with a `look`: Study's labels are short, one line reads better, and the two-line fallback compares only
+        // leader length, so it could pick a spot that covers a candle)
+        if (!look && it.lines.length === 1 && it.text.includes(' ') && leaderLenOf(it.ax, rect) > 130) {
           const lines2 = splitTwo(it.text)
           if (lines2.length === 2) {
             const it2 = { ...it, lines: lines2, ...boxDims(lines2) }
@@ -318,40 +359,70 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
       placedLeaders.push({ x0: it.ax, y0: rect.anchorY, x1: lnx, y1: lny })
     }
 
-    // Leader lines (under the labels): candle anchor → nearest point on the box.
-    ctx.save()
-    ctx.strokeStyle = color
-    ctx.globalAlpha = 0.8
-    ctx.lineWidth = 1.25
+    // ── Draw: the ring on the candle, the leader (with an arrowhead when asked), then the labels ──
+    let barW = 6
+    try { const x0 = ts.logicalToCoordinate(0), x1 = ts.logicalToCoordinate(1); if (x0 != null && x1 != null) barW = Math.abs(x1 - x0) || 6 } catch { /* pre-init */ }
+    const glow = look?.glow ?? 0
     for (const p of placed) {
+      const col = p.color || color
       const nx = Math.max(p.x, Math.min(p.x + p.w, p.ax))
       const ny = Math.max(p.y, Math.min(p.y + p.h, p.anchorY))
-      ctx.beginPath()
-      ctx.moveTo(p.ax, p.anchorY)
-      ctx.lineTo(nx, ny)
-      ctx.stroke()
+      const ringOn = !!look?.ring && p.ring !== false
+      const pad = look?.ringPad ?? 3
+      ctx.save()
+      ctx.strokeStyle = col; ctx.fillStyle = col
+      if (glow) { ctx.shadowColor = col; ctx.shadowBlur = glow }
+      if (ringOn) {
+        // a stroke only: the candle keeps its own colour inside the ring
+        const half = Math.max(5, barW / 2 + pad)
+        const top = Math.min(p.hy, p.ly) - pad, bot = Math.max(p.hy, p.ly) + pad
+        ctx.globalAlpha = 0.95; ctx.lineWidth = look.ringWidth ?? 1.25
+        roundRectPath(ctx, p.ax - half, top, half * 2, Math.max(4, bot - top), Math.min(half, 6)); ctx.stroke()
+      }
+      const gap = ringOn ? pad + (look?.gap ?? 5) : (look?.gap ?? 0)
+      const dx = p.ax - nx, dy = p.anchorY - ny, len = Math.hypot(dx, dy) || 1
+      const ex = p.ax - (dx / len) * gap, ey = p.anchorY - (dy / len) * gap
+      ctx.globalAlpha = look ? 0.95 : 0.8; ctx.lineWidth = look?.lineWidth ?? 1.25
+      ctx.beginPath(); ctx.moveTo(nx, ny); ctx.lineTo(ex, ey); ctx.stroke()
+      if (look?.arrow && p.arrow !== false) {
+        const size = look.arrowSize ?? 8, ang = Math.atan2(ey - ny, ex - nx)
+        ctx.beginPath(); ctx.moveTo(ex, ey)
+        ctx.lineTo(ex - size * Math.cos(ang - Math.PI / 7), ey - size * Math.sin(ang - Math.PI / 7))
+        ctx.lineTo(ex - size * Math.cos(ang + Math.PI / 7), ey - size * Math.sin(ang + Math.PI / 7))
+        ctx.closePath(); ctx.fill()
+      }
+      ctx.restore()
     }
-    ctx.restore()
 
-    // Labels: plain text (no box). A soft dark shadow keeps the white text
-    // readable where it passes over candles, without drawing a background.
     ctx.textBaseline = 'middle'
     ctx.font = font
-    ctx.fillStyle = color
-    // A tight, low-blur shadow keeps the text legible over candles without the
-    // fuzzy halo. Whole-pixel positions keep the glyphs crisp.
-    ctx.shadowColor = 'rgba(0,0,0,0.8)'
-    ctx.shadowBlur = 1.5
     for (const p of placed) {
+      const col = p.color || color
       const lines = p.lines || [p.text]
+      if (look?.pill) {
+        ctx.save()
+        if (glow) { ctx.shadowColor = col; ctx.shadowBlur = glow }
+        ctx.fillStyle = look.fill || 'rgba(11,11,11,.92)'
+        roundRectPath(ctx, p.x, p.y, p.w, p.h, Math.min(p.h / 2, look.radius ?? 999)); ctx.fill()
+        ctx.shadowBlur = 0
+        ctx.lineWidth = look.borderWidth ?? 1; ctx.strokeStyle = col; ctx.stroke()
+        ctx.restore()
+        ctx.fillStyle = p.textColor || look.textColor || col
+      } else {
+        // plain text (the Model Book): a tight, low-blur shadow keeps it legible over candles
+        ctx.fillStyle = col
+        ctx.shadowColor = 'rgba(0,0,0,0.8)'
+        ctx.shadowBlur = 1.5
+      }
       for (let li = 0; li < lines.length; li++) {
         const ty = Math.round(p.y + padY + textH * li + textH / 2) + 0.5
         ctx.fillText(lines[li], Math.round(p.x + padX), ty)
       }
+      ctx.shadowBlur = 0
+      ctx.shadowColor = 'transparent'
     }
-    ctx.shadowBlur = 0
-    ctx.shadowColor = 'transparent'
-  }, [chartRef, seriesRef, bars, callouts, color, barIndexForDate, bottomFrac])
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '0px'
+  }, [chartRef, seriesRef, bars, callouts, color, barIndexForDate, bottomFrac, look])
 
   // redrawRef → full search-and-place (deps change / resize).
   // trackedRef → cached rigid track (per-frame pan/zoom).
@@ -365,13 +436,14 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
   // full-year view; mid-zoom the rAF loop just rides the cached offsets. The
   // pending flag asks for one more re-place once the new chart's framing settles.
   useEffect(() => {
-    const sig = (callouts || []).map(c => `${c?.time}|${c?.text}`).join('~') +
-      `|${bars?.length ?? 0}|${color}|${bottomFrac}`
+    const sig = (callouts || []).map(c => `${c?.time ?? c?.index}|${c?.text}|${c?.color ?? ''}|${c?.textColor ?? ''}`).join('~') +
+      // with a `look` (Study) a label is placed once per callout set and then rides with its candle while bars run on
+      `|${look ? '' : (bars?.length ?? 0)}|${color}|${bottomFrac}|${look ? JSON.stringify(look) : ''}`
     if (sig === fullSigRef.current) return
     fullSigRef.current = sig
     pendingReplaceRef.current = true
     draw(false)
-  }, [draw, callouts, bars, color, bottomFrac])
+  }, [draw, callouts, bars, color, bottomFrac, look])
 
 
   // Canvas sizing.

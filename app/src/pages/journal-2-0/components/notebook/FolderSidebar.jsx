@@ -19,6 +19,8 @@ import {
 import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
   from '../../lib/documentProvenance'
 import UIcon from '../../../../components/ui/UIcon'
+import { Link } from 'react-router-dom'
+import { PLAYBOOK_IN_NOTEBOOK_PATH, playbookEnabled } from '../../lib/myPlaybookLink'
 import ConfirmModal from '../ConfirmModal'
 import LoadFailed from '../LoadFailed'
 import { keysInOrder, neighbourFallback, neighbourKeys, treeRowOf } from '../../lib/focusAfterRemoval'
@@ -109,6 +111,14 @@ export function renderSnippetMarks(snippet) {
 // no word of the query, so it says why it is there -- never a bare title that reads as a match.
 export const RELATED_BY_MEANING = 'Related by meaning'
 export const isMeaningRow = (note) => note?.matchKind === 'meaning'
+
+/** Audit 2026-11-05, spec S4 (B18): said under a search that found nothing by meaning while the
+ *  index has not reached some notes yet (the sweep runs every 15 minutes). */
+export function meaningWaitingSentence(n, capped = false) {
+  // Fix round 2 (re-review N4): at the server's cap the count is a floor ("1,000+").
+  const said = capped ? `${Number(n).toLocaleString('en-US')}+` : String(n)
+  return `New notes join meaning search within about 15 minutes. ${said} ${n === 1 && !capped ? 'is' : 'are'} waiting.`
+}
 
 export function matchReasonFor(note, query) {
   if (isMeaningRow(note)) return RELATED_BY_MEANING
@@ -842,6 +852,15 @@ function FolderNode({
   )
 }
 
+/** The Today row's day, the ET weekday ("Thu"), as M1 draws it. */
+function todayWeekdayShort() {
+  try {
+    return new Date().toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/New_York' })
+  } catch {
+    return ''
+  }
+}
+
 export default function FolderSidebar({
   notes,
   // The TRUE "All notes" total (from SQL, via the parent's unfiltered
@@ -890,6 +909,10 @@ export default function FolderSidebar({
   // behavior when omitted, so an existing caller/test is unaffected.
   isHome = false,
   onSelectAllNotes = null,
+  // Audit 2026-11-05, S15 (M1): the Today row, above All notes -- drawn only when the Notebook hands in its door,
+  // so a caller or test without it renders exactly as before.
+  isToday = false,
+  onSelectToday = null,
   // Wave 6 fix round 1, I4 — item 8's rename, client side: `(from, to,
   // noteIds) => Promise<void>`, the caller's own runBulk('renameTag', ...)
   // door. ⛔ M6 (wave 6 fix round 2): `null`, never a no-op default — a
@@ -1101,6 +1124,8 @@ export default function FolderSidebar({
   const searchEnabled = mode === 'search' && Boolean(debouncedQuery || hasActiveFilters)
   const {
     notes: serverSearchResults,
+    meaningPending,
+    meaningPendingCapped,
     isLoading: searchLoading,
     isValidating: searchValidating,
     error: searchError,
@@ -1717,6 +1742,9 @@ export default function FolderSidebar({
           ) : (
             <div className={styles.searchEmpty}>
               {trimmedQuery ? <>No notes match “{trimmedQuery}”.</> : 'No notes match these filters.'}
+              {trimmedQuery && meaningPending > 0 && (
+                <p className={styles.searchEmptyHint} data-meaning-waiting>{meaningWaitingSentence(meaningPending, meaningPendingCapped)}</p>
+              )}
             </div>
           )}
 
@@ -1883,6 +1911,15 @@ export default function FolderSidebar({
             { what: 'your tags', error: tagsError, retry: refreshTags },
             ...extraLoadFailures,
           ]} />
+          {/* S13 (audit 2026-11-05, detail #67): My Playbook, from the Notebook's own sidebar. It opens INSIDE the
+              Journal shell (the tabs stay, "Back to Notebook"); its data is the same read. Only while its gate is on. */}
+          {playbookEnabled() && (
+            <div className={styles.section}>
+              <Link to={PLAYBOOK_IN_NOTEBOOK_PATH} className={styles.row} data-sidebar-playbook="">
+                <span><UIcon name="book" size={12} gold={false} /> My Playbook</span>
+              </Link>
+            </div>
+          )}
           <RecencySection
             label="Favorites"
             icon="star-fill"
@@ -1913,6 +1950,24 @@ export default function FolderSidebar({
             <div role="tree" aria-label="Folders" ref={folderTree.ref}
               onKeyDown={folderTree.onKeyDown} onFocus={folderTree.onFocus}
               onContextMenu={folderTree.onContextMenu}>
+            {onSelectToday && (
+              <div className={styles.rowWrap} role="treeitem" aria-level={1} aria-label="Today"
+                aria-selected={isToday ? 'true' : undefined}>
+                <span className={styles.disclosureSpacer} aria-hidden="true" />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  data-tree-primary=""
+                  className={`${styles.row} ${isToday ? styles.rowActive : ''}`}
+                  aria-current={isToday ? 'true' : undefined}
+                  onClick={onSelectToday}
+                  data-today-row=""
+                >
+                  <span>Today</span>
+                  <span className={styles.count}>{todayWeekdayShort()}</span>
+                </button>
+              </div>
+            )}
             <div className={styles.rowWrap} role="treeitem" aria-level={1}
               aria-label={`All notes, ${notesTotal ?? notes.length}`}
               aria-selected={activeFolderId == null && !activeTag && !isHome ? 'true' : undefined}>

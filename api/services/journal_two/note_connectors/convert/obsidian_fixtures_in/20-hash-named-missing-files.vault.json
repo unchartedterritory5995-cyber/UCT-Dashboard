@@ -1,0 +1,17 @@
+{
+  "_comment": "D2 item 7: a link to a missing FILE whose name holds `#` reads as its name (or alias) as text on both lanes, never a pending link to a note `report`. Live audit 2026-11-03 (F3): an EMBED of a missing file is a not-found notice on both lanes, named by the full `#` name. The embed's `missing` ref is what the plugin sends (Plan C Task 8 `classifyRef`, the name read like `_unresolved_bare_target`). The two LINKS carry no ref here, to pin the no-ref text reading; a real plugin also sends them as `missing` refs, which the live lane shows as notices while the client keeps the text (a lane difference outside F3).",
+  "vault_id": "vault-1",
+  "self_path": "a.md",
+  "vault_paths": [
+    "a.md"
+  ],
+  "attachments": [
+    {
+      "original": "![[my chart #1 (v2).png]]",
+      "embed": true,
+      "path": "my chart #1 (v2).png",
+      "size": 0,
+      "status": "missing"
+    }
+  ]
+}

@@ -142,18 +142,6 @@ describe('VisualPlaybookBody', () => {
     expect(s.textContent).toContain('+0.75R (range -0.23R to +1.73R)')
   })
 
-  it('with the entry-context switch off the regime filter is a disabled, labelled placeholder', async () => {
-    serve('visual-playbook.cards.regime-unavailable')
-    const { regime } = contractBody('visual-playbook.cards.regime-unavailable')
-    expect(regime.available).toBe(false)
-    renderBody()
-    await screen.findAllByTestId('playbook-card')
-    const select = screen.getByLabelText(/Market regime/)
-    expect(select.disabled).toBe(true)
-    expect(screen.getByText(regime.reason)).toBeTruthy()       // the server's own sentence
-    expect(screen.queryByTestId('playbook-card-regime')).toBeNull()
-  })
-
   it('missing fingerprint values excluded by a range are counted out loud', async () => {
     serve('visual-playbook.cards.range-only')
     expect(contractBody('visual-playbook.cards.range-only').excludedMissing).toEqual({ rs_rank: 1 })

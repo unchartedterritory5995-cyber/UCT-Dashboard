@@ -4,15 +4,25 @@
 // from the same endpoints the Stock Profile dock, the Earnings dock and the Research
 // compare page use:
 //   stock.profile   /api/fundamentals-full/{sym} (vendor snapshot, ~30 min cache)
-//                   + /api/live-prices (live quote, vendor timestamp)
+//                   + the MD-1 `quote` kind for the price line (capabilities/marketDataFacts.js)
 //   stock.earnings  /api/earnings-intel/{sym}    (reported quarters vs estimates, next report)
 //   stock.compare   /api/research/compare/{a}/{b} (the Research compare page's payload)
 // Every answer says where the numbers come from and how fresh they are; a field the
 // source does not have is said to be unavailable, never filled in. Current events
 // ("why is it moving?", news) are NOT here — that is the research path.
+//
+// ⭐ W1-C (builder-c): the MD-1 gateway is the one door for market data.
+//   C-04  the price line reads the gateway `quote` kind, NEVER /api/live-prices (that route can run the member's
+//         alert checker on a cache miss — api/services/live_prices.py — and an Agent read must never trigger an
+//         alert). While `quote` is not served, the profile says a current quote wasn't available; it never falls
+//         back to the route. Rail: app/src/agent/qa/noLivePrices.test.js.
+//   C-02  while the server serves `fundamentals` / `earnings` (data_kinds), stock.profile / stock.earnings answer
+//         from those kinds with MD-1 freshness wording; the legacy routes below are used ONLY while the gateway says
+//         the kind is off.
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import { formatCompact, TERMINAL_COMPACT_TIERS } from '../../lib/presentation/presentationPrimitives'
+import { kindServed, readQuoteRow, quoteLine, readFundamentalsFacts, answerEarningsServed } from './marketDataFacts'
 const BIG_TIERS = TERMINAL_COMPACT_TIERS.filter((t) => t.at >= 1e6)
 
 const TICKER = /^[A-Z][A-Z0-9.-]{0,9}$/
@@ -53,41 +63,45 @@ const chartOf = (sym) => ({ symbol: sym, label: sym })
 const badSymbol = (s) => `“${s}” doesn't look like a ticker.`
 const notFound = (sym, e) => (e?.status === 404 ? `UCT has no data for “${sym}”.` : `I couldn't read UCT's data for ${sym} right now (${e?.message || 'error'}).`)
 
+// C-04: the current price comes from the gateway `quote` kind (one read for the open turn), or not at all.
+// Never /api/live-prices. → { price, changePct, when, live } | null
 async function liveQuote(sym) {
-  try {
-    const body = await get(`/api/live-prices?tickers=${encodeURIComponent(sym)}`)
-    const q = body?.[sym]
-    return q && num(q.price) != null ? q : null
-  } catch { return null }
+  try { return await readQuoteRow(sym) } catch { return null }
 }
 
 export async function answerProfile({ symbol }) {
   const sym = upper(symbol)
   if (!TICKER.test(sym)) return badSymbol(symbol)
+  // C-02 (integrator decision 2026-11-02): the profile is never degraded. The member's snapshot fields (market cap,
+  // P/E, 52-week range, sector — /api/fundamentals-full, a read-only member route, not /api/live-prices) stay; while
+  // the gateway serves `fundamentals`, its statements are ADDED below with MD-1 wording on the gateway part only.
   let f
-  const [fr, q] = await Promise.all([get(`/api/fundamentals-full/${encodeURIComponent(sym)}`).catch(e => ({ __err: e })), liveQuote(sym)])
+  const [fr, q, facts] = await Promise.all([
+    get(`/api/fundamentals-full/${encodeURIComponent(sym)}`).catch(e => ({ __err: e })), liveQuote(sym),
+    readFundamentalsFacts(sym).catch(() => null),
+  ])
   if (fr.__err) return notFound(sym, fr.__err)
   f = fr
   if (!f || (!f.name && f.market_cap == null && f.price == null)) return `UCT has no profile data for “${sym}”.`
   const lines = []
   lines.push(`${sym} — ${f.name || sym}${f.sector ? ` · ${f.sector}${f.industry ? ` / ${f.industry}` : ''}` : ''}`)
   if (q) {
-    const when = num(q.observed_at) ? ` (quote as of ${stamp(q.observed_at)})` : ''
-    lines.push(`Price ${money(q.price)}${num(q.change_pct) != null ? `, ${pct(q.change_pct, 2)} today` : ''}${when}`)
+    lines.push(quoteLine(q))
   } else if (num(f.price) != null) {
-    lines.push(`Price ${money(f.price)} (from the fundamentals snapshot — a live quote wasn't available)`)
+    lines.push(`Price ${money(f.price)} (from the fundamentals snapshot — a current quote wasn't available through the Agent's data gateway)`)
   } else lines.push(`Price: ${NA}`)
   lines.push(`Market cap ${big(f.market_cap) || NA} · P/E ${fix(f.pe_trailing) || NA} trailing, ${fix(f.pe_forward) || NA} forward`)
   lines.push(`52-week range ${money(f.fifty_two_week_low) || NA} – ${money(f.fifty_two_week_high) || NA}${num(f.beta) != null ? ` · beta ${fix(f.beta)}` : ''}`)
   lines.push(`Revenue (trailing 12 months) ${big(f.total_revenue) || NA}${num(f.revenue_growth_pct) != null ? ` · revenue growth ${pct(f.revenue_growth_pct)}` : ''}${num(f.profit_margin_pct) != null ? ` · profit margin ${f.profit_margin_pct.toFixed(1)}%` : ''}`)
   lines.push(`Next earnings: ${f.next_earnings ? `${day(f.next_earnings)} (scheduled date from the data vendor)` : NA}`)
-  lines.push('Source: UCT fundamentals (data vendor snapshot, refreshed about every 30 minutes); price from UCT live quotes.')
+  if (facts) lines.push(...facts.lines)
+  lines.push(`Source: UCT fundamentals (data vendor snapshot, refreshed about every 30 minutes); ${q ? 'price from the Massive market snapshot through the UCT data gateway' : "no current quote was available through the Agent's data gateway"}${facts?.source ? `; ${facts.source}` : ''}.`)
   // the member's view: the labelled figures (present.js shows just the one(s) they named; the full
   // profile above stays one tap away). Same values as the text — nothing new is fetched or computed.
   const price = q ? money(q.price) : money(f.price)
   const fig = [
-    { label: 'Price', value: price, note: q && num(q.observed_at) ? `as of ${stamp(q.observed_at)}` : (q ? null : 'fundamentals snapshot'), aka: ['price', 'quote', 'trading at', 'share price'] },
-    { label: 'Change today', value: q && num(q.change_pct) != null ? pct(q.change_pct, 2) : null, aka: ['change today', 'up today', 'down today', 'move today', 'moving today'] },
+    { label: 'Price', value: price, note: q ? (q.live ? (q.when ? `live, as of ${q.when}` : 'live') : (q.when ? `as of ${q.when}, not real-time` : 'not real-time')) : 'fundamentals snapshot', aka: ['price', 'quote', 'trading at', 'share price'] },
+    { label: 'Change', value: q && q.changePct != null ? pct(q.changePct, 2) : null, note: 'vs the previous close', aka: ['change', 'change today', 'up today', 'down today', 'move today', 'moving today'] },
     { label: 'Market cap', value: big(f.market_cap), aka: ['market cap', 'marketcap', 'valuation', 'worth'] },
     { label: 'P/E (trailing)', value: fix(f.pe_trailing), aka: ['pe', 'p/e', 'price to earnings', 'pe ratio', 'p/e ratio'] },
     { label: 'P/E (forward)', value: fix(f.pe_forward), aka: ['forward pe', 'forward p/e'] },
@@ -98,6 +112,7 @@ export async function answerProfile({ symbol }) {
     { label: 'Profit margin', value: num(f.profit_margin_pct) != null ? `${f.profit_margin_pct.toFixed(1)}%` : null, aka: ['margin', 'margins', 'profitability'] },
     { label: 'Next earnings', value: f.next_earnings ? day(f.next_earnings) : null, aka: ['earnings', 'report', 'reports'] },
     { label: 'Sector', value: f.sector ? `${f.sector}${f.industry ? ` / ${f.industry}` : ''}` : null, aka: ['sector', 'industry'] },
+    ...(facts ? facts.items : []),           // the gateway's statement figures, each noting its reporting period
   ].filter(x => x.value)
   return {
     text: lines.join('\n'), link: researchLink(sym), chart: chartOf(sym),
@@ -108,10 +123,17 @@ export async function answerProfile({ symbol }) {
 export async function answerEarnings({ symbol }) {
   const sym = upper(symbol)
   if (!TICKER.test(sym)) return badSymbol(symbol)
+  // C-02: the gateway serves `earnings` → the kind's reported quarters + next scheduled report; legacy only while off
+  if (kindServed('earnings')) return answerEarningsServed(sym)
   let e
   try { e = await get(`/api/earnings-intel/${encodeURIComponent(sym)}`) } catch (err) { return notFound(sym, err) }
   const qs = (e?.quarters || []).filter(q => q && q.reported !== false)
-  const lines = [`${sym} earnings (reported figures${e?.currency && e.currency !== 'USD' ? `, ${e.currency}` : ''})`]
+  const s = e?.summary || {}
+  const next = s.next_report_date || e?.next_report_date
+  // W1.1 R-06 (live LT-12): the LEAD line (the card's summary) carries the next report date when the data has one
+  const currency = e?.currency && e.currency !== 'USD' ? e.currency : null
+  const lines = [next ? `${sym} earnings — next report: ${day(next)} (${[s.next_report_label, 'scheduled'].filter(Boolean).join(', ')})${currency ? ` · ${currency}` : ''}`
+    : `${sym} earnings (reported figures${currency ? `, ${currency}` : ''})`]
   const q = qs[0]
   if (!q) lines.push(`No reported quarter is available for ${sym}.`)
   else {
@@ -124,8 +146,6 @@ export async function answerEarnings({ symbol }) {
     const epsEst = num(q.eps_estimate) != null ? `$${q.eps_estimate.toFixed(2)}` : null
     lines.push(`• EPS ${eps || NA}${epsEst ? ` vs ${epsEst} estimated${num(q.eps_surprise_pct) != null ? ` (${pct(q.eps_surprise_pct)} surprise)` : ''}` : ' (no comparable estimate)'}${q.eps_basis ? ` · basis: ${String(q.eps_basis).replace(/_/g, ' ')}` : ''}`)
   }
-  const s = e?.summary || {}
-  const next = s.next_report_date || e?.next_report_date
   if (next) {
     const est = [num(s.next_eps_estimate) != null ? `EPS est. $${s.next_eps_estimate.toFixed(2)}` : null, big(s.next_revenue_estimate) ? `revenue est. ${big(s.next_revenue_estimate)}` : null].filter(Boolean)
     lines.push(`Next report: ${day(next)}${s.next_report_label ? ` (${s.next_report_label})` : ''}${est.length ? ` · ${est.join(', ')}` : ''}`)
@@ -155,9 +175,8 @@ export async function answerCompare({ symbols }) {
   const fa = c?.a?.fundamentals || {}
   const fb = c?.b?.fundamentals || {}
   const rows = CMP_ROWS.map(([label, fn]) => ({ metric: label, a: fn(fa) || '—', b: fn(fb) || '—' }))
-  const ca = c?.a?.ratings?.composite
-  const cb = c?.b?.ratings?.composite
-  if (num(ca) != null || num(cb) != null) rows.push({ metric: 'UCT composite rating', a: num(ca) != null ? String(ca) : '—', b: num(cb) != null ? String(cb) : '—' })
+  // F-12 (owner, Sprint 2): UCT's proprietary rating is DISPLAY-ONLY and server-enforced isolation does not
+  // cover this route, so it is never part of the Agent's compare — not in the table, the text or the summary.
   const note = c?.fundamentals_period_note ? ` ${c.fundamentals_period_note}` : ''
   return {
     text: `${a} vs ${b} — fundamentals from UCT's Research compare data (vendor snapshot).${note}`,
@@ -190,7 +209,7 @@ export function registerStockCapabilities() {
   const one = { type: 'object', properties: { symbol: { type: 'string' } }, required: ['symbol'], additionalProperties: false }
   registerCapability({
     name: 'stock.profile',
-    surfaces: ['charts'],
+    surfaces: ['*'],
     target: 'market', query: true,
     summary: 'Answer a question about ONE stock\'s profile, price or fundamentals from UCT\'s own data: company name, sector/industry, price and today\'s change, market cap, P/E, 52-week range, revenue, margins, beta, next earnings date. '
       + 'Use this (disposition apply, research null) for "what\'s NVDA\'s market cap?", "what sector is AMD in?", "what\'s TSLA\'s P/E?" instead of answering from memory.',
@@ -200,7 +219,7 @@ export function registerStockCapabilities() {
   })
   registerCapability({
     name: 'stock.earnings',
-    surfaces: ['charts'],
+    surfaces: ['*'],
     target: 'market', query: true,
     summary: 'Answer earnings questions about ONE stock from UCT\'s earnings data: the latest REPORTED quarter\'s revenue and EPS versus consensus estimates, year-over-year change, and the next report date with its estimates. '
       + 'Use this (disposition apply, research null) for "what was AMD\'s latest quarterly revenue?", "when does TSLA report earnings?", "did NVDA beat last quarter?".',
@@ -210,9 +229,9 @@ export function registerStockCapabilities() {
   })
   registerCapability({
     name: 'stock.compare',
-    surfaces: ['charts'],
+    surfaces: ['*'],
     target: 'market', query: true,
-    summary: 'Compare the fundamentals of TWO stocks side by side from UCT\'s Research data (market cap, P/E, revenue, growth, margins, beta, next earnings, UCT composite rating). Use this (disposition apply, research null) for "compare NVDA and AMD".',
+    summary: 'Compare the fundamentals of TWO stocks side by side from UCT\'s Research data (market cap, P/E, revenue, growth, margins, beta, next earnings). Use this (disposition apply, research null) for "compare NVDA and AMD".',
     hints: 'target = the ref of the stockData entry; symbols = exactly two tickers, uppercase. For three or more, clarify which two.',
     args: { type: 'object', properties: { symbols: { type: 'array', items: { type: 'string' } } }, required: ['symbols'], additionalProperties: false },
     answer: (_snap, args) => answerCompare(args),

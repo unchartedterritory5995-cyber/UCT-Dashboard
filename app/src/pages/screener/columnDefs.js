@@ -83,6 +83,18 @@ const netUsd = v => {
   const s = formatCompact(Math.abs(v), { tiers: NET_USD_TIERS, prefix: '$' })
   return `${v < 0 ? '-' : '+'}${s}`
 }
+// ── UCT Relative Strength (Phase 2a, unit 2a-08) ──
+// A flag prints "Yes" at 1 and an em dash otherwise (the unit's spec: 0/1 →
+// Yes / —). A stored 0 is "we looked, no" and NULL "the window was short"; the
+// filter's Yes/No control is where the two are told apart, the cell stays quiet.
+const yesDash = v => v == null ? '—' : v ? 'Yes' : '—'
+// An age in sessions: "today" on the event bar itself, else "n bars ago".
+const barsAgo = v => v == null ? '—' : v === 0 ? 'today' : `${v} bar${v === 1 ? '' : 's'} ago`
+// A signed percent to two places: Mansfield RS is a distance from its own average.
+const pctSigned2 = v => v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`
+// A signed whole number: a rating delta.
+const signedInt = v => v == null ? '—' : `${v > 0 ? '+' : ''}${v}`
+const heatSign = v => v == null ? '' : v > 0 ? 'g' : v < 0 ? 'r' : ''
 
 export const COLUMN_DEFS = {
   ticker: { label: 'Ticker', fmt: v => v },
@@ -100,8 +112,11 @@ export const COLUMN_DEFS = {
     desc: "Change in extended hours, from the last pre-market or after-hours trade. Before the open (4:00–9:30 ET) the change is against the prior close; after the close (to 8:00 PM ET) it is against today's close. Overnight and on weekends it shows the last after-hours trade; blank during the session. No extended-hours volume is available, so these screens cannot filter on it." },
   premarket_price: { label: 'Ext-hrs price', fmt: usd,
     desc: "The last pre-market or after-hours trade. Before the open (4:00–9:30 ET) the change is against the prior close; after the close (to 8:00 PM ET) it is against today's close. Overnight and on weekends it shows the last after-hours trade; blank during the session. No extended-hours volume is available, so these screens cannot filter on it." },
+  // U5a (2026-11-09): one RS rating everywhere. The server hands this column the nightly
+  // IBD-style RS Rating (the chart's UCT RS number), so it reads the same as RS Rating; the
+  // hourly rank stands in only for a name with no stored rating. Copy describes the armed state.
   rs_rank: { label: 'RS', fmt: num(0), heat: heatRs, cell: 'rs',
-    desc: 'Price-performance rank, 1-99 (99 = strongest), against every name we rank — our own coverage list, not the whole market. It is the percentile of the RS Ret column, so the two always agree in order (checked on every row of the 2026-10-18 snapshot). Without a 3-month price history there is no rank.' },
+    desc: 'The RS Rating, 1-99 (99 = strongest): the IBD-style rating the chart\'s UCT RS shows, so this column and the RS Rating column carry the same number. The 63-session return weighted 40% with the 126-, 189- and 252-session returns 20% each, ranked against every name we rate — our own coverage list minus ETFs, not the whole market. Written once a night by the 04:15 ET rating job; it does not move during the session. A name with no stored rating shows our hourly rank instead. Without a 3-month price history there is no rank.' },
   uct_composite: { label: 'UCT', fmt: num(0), heat: heatRs, cell: 'rs',
     desc: 'The house composite, 1-99: a weighted blend of six ratings — EPS, relative strength, growth, SMR, accumulation/distribution and value — momentum-first (the weights are in the methodology panel). ⚠️ It is renormalised over the ratings a company actually has, so a name missing one is scored on a smaller basis rather than given a zero, and two equal scores are not always the same measurement. ⚠️ Its relative-strength leg is ranked from the ratings store\'s own copy of the RS return, refreshed on a rolling cycle of up to six days, so it can sit a few points away from the RS column.' },
   rs_return: { label: 'RS Ret', fmt: num(2),
@@ -140,6 +155,29 @@ export const COLUMN_DEFS = {
     desc: 'The 14-period Relative Strength Index, Wilder’s smoothing — the same definition this platform draws on the chart, so the screener and the chart cannot disagree. ⚠️ CHANGED 2026-08-24: this column previously used simple averages (Cutler’s RSI), which ran a median 6 points away from Wilder and put hundreds of rows on the wrong side of the 70/30 lines. A scan saved before that date will select a different set now.' },
   pct_vs_sma50: { label: 'vs50', fmt: pct, heat: heatPos },
   pct_vs_sma200: { label: 'vs200', fmt: pct, heat: heatPos },
+  // Scan primitives (technicals.scan_primitives). The definitions are the filter catalog's (filters.py).
+  pct_vs_ema9: { label: 'EMA9', fmt: pct },
+  pct_vs_ema10: { label: 'EMA10', fmt: pct },
+  run_close_ema20: { label: 'Run E20', fmt: num(0) },
+  run_close_sma50: { label: 'Run S50', fmt: num(0) },
+  run_close_sma200: { label: 'Run S200', fmt: num(0) },
+  run_ema9_ema20: { label: 'E9/E20', fmt: num(0) },
+  run_sma20_sma50: { label: 'S20/S50', fmt: num(0) },
+  run_sma50_sma200: { label: 'S50/S200', fmt: num(0) },
+  sma20_rising: { label: 'S20 Up', fmt: tri },
+  sma50_rising: { label: 'S50 Up', fmt: tri },
+  sma200_rising: { label: 'S200 Up', fmt: tri },
+  avg_volume_10d: { label: 'Vol 10d', fmt: shares },
+  avg_volume_50d: { label: 'Vol 50d', fmt: shares },
+  min_volume_3d_prior: { label: 'Min Vol 3d', fmt: shares },
+  vol_trend_pct: { label: 'Vol Trend', fmt: pct },
+  vol_up_run: { label: 'Vol Up Run', fmt: num(0) },
+  vol_down_run: { label: 'Vol Dn Run', fmt: num(0) },
+  new_high_lookback: { label: 'High Bars', fmt: num(0) },
+  new_low_lookback: { label: 'Low Bars', fmt: num(0) },
+  breakout_20d_age: { label: 'BO Age', fmt: num(0) },
+  high_52w_age: { label: '52WH Age', fmt: num(0) },
+  low_52w_age: { label: '52WL Age', fmt: num(0) },
   pct_vs_ema20: { label: 'EMA20', fmt: pct },
   adr_pct: { label: 'ADR%', fmt: num(1),
     desc: 'Average Daily Range as a percentage of price — the mean of each day’s high-to-low spread, a plain measure of how far a stock typically travels. ⚠️ This is NOT ATR: it ignores overnight gaps, where ATR (the column beside it) includes them, so a gappy stock reads calmer here than it trades.' },
@@ -524,4 +562,61 @@ export const COLUMN_DEFS = {
     desc: 'The pattern ENGINE has an active VCP detection on this symbol (daily timeframe, 7-day window) — a different instrument from the always-on patterns heuristic, which uses the same "vcp" key on far cheaper evidence. ✗ means the engine has active detections here and none of them is a VCP; a blank means the engine has no active detection for this symbol at all, which is not the same as "no".' },
   pattern_engine_flat_base: { label: 'Flat Base (Eng)', fmt: tri,
     desc: 'The pattern ENGINE has an active flat-base detection on this symbol (daily timeframe, 7-day window) — a different instrument from the always-on patterns heuristic, which uses the same "flat_base" key on far cheaper evidence. ✗ means the engine has active detections here and none of them is a flat base; a blank means the engine has no active detection for this symbol at all.' },
+  // ── UCT Relative Strength (Phase 2a, unit 2a-08) ──
+  // Ten bar-derived columns (`rs_columns.collect_one`, the builder's
+  // `_step("bars_rs")`: the last bar of the SAME `relative_strength` columns the
+  // chart's rsLine draws) and seven rating columns (`rs_rating_history`, the
+  // 04:15 ET job, read by the next 03:00 build). Views control visibility
+  // (`filters.VIEWS`: the family's own view plus three Momentum seats; `filters.meta()`
+  // leaves out each family's seats, and the RS view, while its writer's flag is off) and the
+  // sort menu derives "numeric" from the filter type, so there is no group or
+  // hidden key here. NULL is an em dash, never a 0: a short window, a missing
+  // SPY bar, a hole in the lookback, a dark rating job.
+  rs_new_high: { label: 'RS NH', fmt: yesDash,
+    desc: 'Yes when the stock\'s RS line against SPY (its close divided by SPY\'s close, daily bars) closed the last session at or above its highest value of the previous 252 sessions, ties included; blank until a full year of bars exists or when the window has a gap.' },
+  rs_nh_before_price: { label: 'RS NH Before Px', fmt: yesDash,
+    desc: 'Yes when the RS line made a 252-session high on the last daily bar while price is still more than 2% below its own 252-session high; IBD calls it more bullish, not a precondition, and no published study measures how often it precedes a breakout; blank where the RS high itself is blank.' },
+  rs_nh_red_day: { label: 'RS NH Red Day', fmt: yesDash,
+    desc: 'Yes when the RS line made a 252-session high on a daily bar where SPY closed down 0.5% or more, the stress-test day; blank where the RS high itself is blank.' },
+  rs_nh_bars_ago: { label: 'RS NH Age', fmt: barsAgo,
+    desc: 'Sessions since the RS line last made a 252-session high on daily bars, "today" on the event bar itself and counting up after; blank until one has been seen inside the stored window, and a gap can only make the age too large, never invent a high.' },
+  green_on_red_20: { label: 'Up on Red', fmt: num(0),
+    desc: 'How many of the last 20 daily bars were SPY down days (down 0.5% or more) on which this stock closed up, the up-on-down-days count; blank until 20 sessions with a prior bar exist, and the ceiling is the number of red days in the window, not 20.' },
+  rs_line_above_ma: { label: 'RS > 21E', fmt: yesDash,
+    desc: 'Yes when the RS line against SPY sits at or above its 21-session EMA on the last daily bar, an em dash when it sits below or the 21 sessions do not exist yet; the filter\'s Yes/No control separates the two.' },
+  rs_cross_up_bars_ago: { label: 'RS Cross Age', fmt: barsAgo,
+    desc: 'Sessions since the RS line last crossed from below to above its 21-session EMA on daily bars, "today" on the cross bar; the count keeps running even if the line has since fallen back, so pair it with RS > 21E to require that the cross still holds.' },
+  mansfield: { label: 'Mansfield', fmt: pctSigned2, heat: heatSign,
+    desc: 'Mansfield RS on 200 daily bars: the RS line against SPY as a signed percent above or below its own 200-session simple average (Weinstein\'s formula, read daily rather than on his weekly 52), so above zero means the RS line is above its own 200-session average and zero is at it; blank until 200 sessions exist.' },
+  mansfield_cross_bars_ago: { label: 'Mans Cross Age', fmt: barsAgo,
+    desc: 'Sessions since Mansfield RS last crossed zero in either direction on daily bars, "today" on the cross bar; read beside Mansfield\'s sign to know which way, blank on a gap bar or until 201 sessions exist.' },
+  rs_benchmark_agree: { label: 'RS Agree', fmt: yesDash,
+    desc: 'Yes when the 20-session slope of the stock\'s RS line has the same sign against SPY and against equal-weight RSP on daily bars (both rising or both falling), an em dash when they disagree, either is flat, or 20 sessions do not exist; the sector-ETF leg the chart reads is not part of the nightly build.' },
+  rs_rating_ibd: { label: 'RS Rating', fmt: num(0), heat: heatRs, cell: 'rs',
+    desc: 'IBD-style RS Rating, 1-99, our own calculation, not MarketSurge\'s: the 63-session return weighted 40% with the 126-, 189- and 252-session returns 20% each, ranked as a percentile across the cap universe minus ETFs on daily bars, written by the 04:15 ET rating job after the 03:00 build so the row carries the prior session\'s rating; the measured difference to MarketSurge is printed in the methodology panel once known.' },
+  rs_rating_chg_5: { label: 'Rtg Chg 5', fmt: signedInt, heat: heatSign,
+    desc: 'The IBD-style RS Rating minus its value 5 stored sessions earlier in the daily rating history, signed; blank until 5 earlier sessions exist, and a rank can move on a flat stock when the rest of the universe moves.' },
+  rs_rating_chg_20: { label: 'Rtg Chg 20', fmt: signedInt, heat: heatSign,
+    desc: 'The IBD-style RS Rating minus its value 20 stored sessions earlier in the daily rating history, signed; blank until 20 earlier sessions exist, and a change in rank is a change in position, not a return.' },
+  rs_rating_1m: { label: 'Rank 1M', fmt: num(0), heat: heatRs,
+    desc: 'Percentile rank, 1-99, of the plain 21-session return across the cap universe minus ETFs on daily bars, a companion percentile the IBD-style rating does not weight; blank where the rating job has not rated the name.' },
+  rs_rating_3m: { label: 'Rank 3M', fmt: num(0), heat: heatRs,
+    desc: 'Percentile rank, 1-99, of the plain 63-session return across the cap universe minus ETFs on daily bars, the window the IBD-style rating weights heaviest; blank where the rating job has not rated the name.' },
+  rs_rating_6m: { label: 'Rank 6M', fmt: num(0), heat: heatRs,
+    desc: 'Percentile rank, 1-99, of the plain 126-session return across the cap universe minus ETFs on daily bars, one of the four windows the IBD-style rating weights; blank where the rating job has not rated the name.' },
+  rs_rating_9m: { label: 'Rank 9M', fmt: num(0), heat: heatRs,
+    desc: 'Percentile rank, 1-99, of the plain 189-session return across the cap universe minus ETFs on daily bars, a companion percentile the IBD-style rating does not weight; blank where the rating job has not rated the name.' },
+  rs_rating_12m: { label: 'Rank 12M', fmt: num(0), heat: heatRs,
+    desc: 'Percentile rank, 1-99, of the plain 252-session return across the cap universe minus ETFs on daily bars, one of the four windows the IBD-style rating weights; blank where the rating job has not rated the name.' },
+  // ── UCT Relative Strength, Phase 3 (unit 3-11; engineering map D1 / D7) ──
+  // Written by the same `bars_rs` step only while RS_V3_ENABLED is armed
+  // (`rs_columns.PHASE3_COLUMNS`); `filters.meta()` leaves out their controls and
+  // seats until then. The two text columns print the writer's own names as they
+  // are; `clenow_score` is a FRACTION, printed to 2 places, never as a percent.
+  rrg_quadrant: { label: 'Rotation', fmt: v => v || '—',
+    desc: 'Where the stock sits on a rotation graph against SPY, read on weekly bars built from its daily closes: Leading (stronger than SPY and still gaining ground), Weakening (stronger than SPY but losing pace), Lagging (weaker than SPY and still losing ground) or Improving (weaker than SPY but gaining pace). RRG-style, UCT\'s own formula, the same one the Terminal\'s rotation graph draws, so it will not always match StockCharts; blank until 14 weeks of history exist.' },
+  clenow_score: { label: 'Clenow', fmt: num(2), heat: heatSign,
+    desc: 'A Clenow-style trend score over the last 90 daily closes: how fast price has been rising, as a yearly rate, multiplied by how steadily it rose (R², from 0 for a jumpy path to 1 for a straight line). 0.50 is about a 50%-a-year pace after that steadiness discount, a negative score is a falling trend, and a smooth climb scores higher than a jumpy one of the same size. It describes the last 90 sessions, not the next ones; blank until 90 sessions exist.' },
+  vars_state: { label: 'VARS', fmt: v => v || '—',
+    desc: 'Volatility-adjusted relative strength against SPY on daily bars (VARS-style): each day\'s move is counted in units of the stock\'s own typical daily range (its 20-session ATR), SPY\'s move the same way, and the difference is added up over 60 sessions. Strong means the stock has out-moved SPY on that measure and Weak means it has trailed; the second word says whether the reading is above its own 50-session average (rising, improving) or not (fading, falling). Blank until about 130 sessions exist.' },
 }

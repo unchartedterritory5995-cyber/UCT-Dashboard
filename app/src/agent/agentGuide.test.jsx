@@ -12,7 +12,7 @@ import { screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react
 import { registerBuiltins } from './builtins'
 import { setupPanel, ONE, TWO } from './testing/panelHarness'
 import { _resetGuide } from './guide/guideStore'
-import { LOST_MS } from './guide/placement'
+import { LOST_MS, PAUSE_MS } from './guide/placement'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -153,11 +153,11 @@ describe('S · Show me highlights the real control and changes nothing', () => {
     // the member clicks the gear: Chart settings opens (as ChartSettingsModal renders it)
     const modal = document.createElement('div')
     modal.setAttribute('data-guide', 'chartSettings')
-    modal.innerHTML = '<button data-guide="chartSettings.tab.indicators">Indicators</button>'
+    modal.innerHTML = '<button role="tab" aria-selected="false" data-guide="chartSettings.tab.indicators">Indicators</button>'
     act(() => { root.appendChild(modal) })
     await waitFor(() => expect(cardText()).toMatch(/Open the Indicators tab/), { timeout: 3000 })
-    // …and the Indicators tab: its search box appears
-    act(() => { modal.insertAdjacentHTML('beforeend', '<input aria-label="Search indicators" />') })
+    // …and the Indicators tab: it is selected and its search box appears (no indicator selected: no ＋ Add to Chart step)
+    act(() => { modal.querySelector('button').setAttribute('aria-selected', 'true'); modal.insertAdjacentHTML('beforeend', '<input aria-label="Search indicators" />') })
     await waitFor(() => expect(cardText()).toMatch(/Search for an indicator and add it/), { timeout: 3000 })
     expect(p.turns()).toBe(0)
   }, 30000)
@@ -166,7 +166,7 @@ describe('S · Show me highlights the real control and changes nothing', () => {
     const root = controls(['c'])
     const modal = document.createElement('div')
     modal.setAttribute('data-guide', 'chartSettings')
-    modal.innerHTML = '<button data-guide="chartSettings.tab.indicators">Indicators</button><input aria-label="Search indicators" />'
+    modal.innerHTML = '<button role="tab" aria-selected="true" data-guide="chartSettings.tab.indicators">Indicators</button><input aria-label="Search indicators" />'
     root.appendChild(modal)
     const { say } = p.mount(...ONE())
     const out = await say('how do I add an indicator?')
@@ -174,28 +174,170 @@ describe('S · Show me highlights the real control and changes nothing', () => {
     await waitFor(() => expect(cardText()).toMatch(/Search for an indicator and add it/))
   }, 30000)
 
-  it('S5 the control disappears mid-walkthrough → the guide stops and says why (never points at nothing)', async () => {
+  it('S5 the control disappears mid-walkthrough → it pauses and says why, carries on if it returns, and only then gives up (never points at nothing)', async () => {
     const root = controls(['c'])
     const { say } = p.mount(...ONE())
     await say('where do I change the timeframe?')
     await waitFor(() => expect(card()).toBeTruthy())
-    act(() => { root.querySelector('[data-widget-id="c"]').remove() })
-    await waitFor(() => expect(card()).toBeNull(), { timeout: LOST_MS + 3000 })
+    const cell = root.querySelector('[data-widget-id="c"]')
+    act(() => { cell.remove() })
+    await waitFor(() => expect(cardText()).toMatch(/I can’t see the timeframe control right now/), { timeout: LOST_MS + 3000 })
+    expect(screen.getByRole('button', { name: 'Restart' })).toBeTruthy()
+    // the chart comes back (a layout switched and back): the walkthrough carries on, on the same step
+    act(() => { root.appendChild(cell) })
+    await waitFor(() => expect(cardText()).toMatch(/These buttons switch this chart’s timeframe/), { timeout: 3000 })
+    // it goes again, and stays gone
+    act(() => { cell.remove() })
+    await waitFor(() => expect(cardText()).toMatch(/right now/), { timeout: LOST_MS + 3000 })
+    const real = Date.now
+    Date.now = () => real() + PAUSE_MS + 1
+    try {
+      await waitFor(() => expect(card()).toBeNull(), { timeout: 3000 })
+    } finally { Date.now = real }
     expect(screen.getByTestId('guide-notice').textContent).toMatch(/I can’t see that control on screen any more/)
   }, 30000)
+
+  // round 6 (pl-auto new-command): a new request typed with Enter mid-walkthrough ends it (useAgent → guideStore.endForNewRequest)
+  it('a new command typed to the Agent mid-walkthrough ends the walkthrough', async () => {
+    controls(['c'])
+    const { say } = p.mount(...ONE())
+    await say('where do I change the timeframe?')
+    await waitFor(() => expect(card()).toBeTruthy())
+    await say('make this chart weekly')
+    await waitFor(() => expect(card()).toBeNull())
+  }, 30000)
+
+  describe('S6b Escape is one press, one action', () => {
+    const start = async () => {
+      const root = controls(['c'])
+      const { say } = p.mount(...ONE())
+      await say('where do I change the timeframe?')
+      await waitFor(() => expect(card()).toBeTruthy())
+      document.activeElement?.blur?.()                                 // focus starts in the Agent's message box
+      return root
+    }
+    // long enough for the guide's own next-task decision to have run
+    const settled = () => new Promise(r => setTimeout(r, 30))
+    const press = (node = document.body, init = {}) => fireEvent.keyDown(node, { key: 'Escape', ...init })
+
+    it('with nothing else open, it ends the guide', async () => {
+      await start()
+      press()
+      await waitFor(() => expect(card()).toBeNull())
+    }, 30000)
+    it('with focus still in the Agent\'s message box after asking, it ends the guide', async () => {
+      await start()
+      screen.getByLabelText('Message UCT Agent').focus()
+      press(screen.getByLabelText('Message UCT Agent'))
+      await waitFor(() => expect(card()).toBeNull())
+    }, 30000)
+    it('Ctrl, Alt, Meta or Shift + Escape is not the guide\'s', async () => {
+      await start()
+      for (const mod of ['ctrlKey', 'altKey', 'metaKey', 'shiftKey']) press(document.body, { [mod]: true })
+      await settled()
+      expect(card()).toBeTruthy()
+    }, 30000)
+    it('a text field\'s Escape is the field\'s', async () => {
+      const root = await start()
+      const input = document.createElement('input')
+      root.appendChild(input)
+      input.focus()
+      press(input)
+      await settled()
+      expect(card()).toBeTruthy()
+    }, 30000)
+    it('a field that closes itself on Escape still owned the press, though focus has left it by the bubble phase', async () => {
+      const root = await start()
+      const input = document.createElement('input')
+      root.appendChild(input)
+      input.focus()
+      document.addEventListener('keydown', () => input.remove(), { once: true })
+      press(input)
+      await settled()
+      expect(card()).toBeTruthy()
+    }, 30000)
+    it.each([
+      ['a sheet', 'data-sheet-panel', ''],
+      ['the palette or a dialog', 'aria-modal', 'true'],
+      ['a popup that closes on Escape', 'data-escape-layer', ''],
+    ])('%s owns the press, whether or not it stays open', async (_, attr, value) => {
+      const root = await start()
+      const layer = document.createElement('div')
+      layer.setAttribute(attr, value)
+      root.appendChild(layer)
+      press()
+      await settled()
+      expect(card()).toBeTruthy()
+      // a layer closed from its own capture-phase-late listener: the record was taken before it went
+      const close = () => layer.remove()
+      document.addEventListener('keydown', close, { once: true })
+      press()
+      await settled()
+      expect(card()).toBeTruthy()
+    }, 30000)
+    // round 6 (pl-auto esc-on-board): the board's own handlers stop or prevent Escape even with nothing to cancel, so a
+    // consumed press no longer keeps the walkthrough up. What owns a press is a field, a layer, a menu, an armed tool or a drawing
+    it('a press a board handler stopped or prevented, with nothing of its own to close, still ends the guide', async () => {
+      await start()
+      const stop = (e) => { e.stopPropagation(); e.preventDefault() }
+      document.addEventListener('keydown', stop, { once: true })
+      press()
+      await waitFor(() => expect(card()).toBeNull())
+    }, 30000)
+    it('an armed drawing tool owns the press: the guide stays', async () => {
+      const root = await start()
+      const tool = document.createElement('button'); tool.setAttribute('data-guide', 'chart.tool.trendline'); tool.setAttribute('aria-pressed', 'true')
+      root.appendChild(tool)
+      press()
+      await settled()
+      expect(card()).toBeTruthy()
+    }, 30000)
+    it('a menu the press closed had it: the Widgets menu goes, the guide stays', async () => {
+      const root = await start()
+      const menu = document.createElement('div')
+      menu.setAttribute('data-guide', 'workspace.widgetsMenu')
+      root.appendChild(menu)
+      document.addEventListener('keydown', () => menu.remove(), { once: true })
+      press()
+      await settled()
+      expect(card()).toBeTruthy()
+    }, 30000)
+    it('a menu that ignores Escape does not keep the guide from ending', async () => {
+      const root = await start()
+      const menu = document.createElement('div')
+      menu.setAttribute('data-guide', 'workspace.widgetsMenu')
+      root.appendChild(menu)
+      press()
+      await waitFor(() => expect(card()).toBeNull())
+    }, 30000)
+    it('after the layer has gone, the next Escape ends the guide', async () => {
+      const root = await start()
+      const layer = document.createElement('div')
+      layer.setAttribute('aria-modal', 'true')
+      root.appendChild(layer)
+      press()
+      await settled()
+      expect(card()).toBeTruthy()
+      layer.remove()
+      press()
+      await waitFor(() => expect(card()).toBeNull())
+    }, 30000)
+  })
 
   it('S6 Escape and Exit end it; a new walkthrough replaces the old one', async () => {
     controls(['c'])
     const { say } = p.mount(...ONE())
     await say('where do I change the timeframe?')
     await waitFor(() => expect(card()).toBeTruthy())
-    fireEvent.keyDown(document, { key: 'Escape' })                   // a page-level Escape is not the guide's
-    expect(card()).toBeTruthy()
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' })     // focus sits in the Agent's message box: the card never takes it
+    await waitFor(() => expect(card()).toBeNull())
+    await say('where do I change the timeframe?')
+    await waitFor(() => expect(card()).toBeTruthy())
     fireEvent.keyDown(screen.getByRole('button', { name: 'Exit the guide' }), { key: 'Escape' })   // from inside the card
     await waitFor(() => expect(card()).toBeNull())
     await say('how do i draw a trendline')
-    await waitFor(() => expect(cardText()).toMatch(/drawing tools for this chart/))
-    await say('how do I save my layout')
+    await waitFor(() => expect(cardText()).toMatch(/Click Trendline on the drawing toolbar/))
+    await say('how do I switch layouts')
     await waitFor(() => expect(cardText()).toMatch(/Your saved layouts/))
     fireEvent.click(screen.getByRole('button', { name: 'Exit the guide' }))
     await waitFor(() => expect(card()).toBeNull())
@@ -206,7 +348,8 @@ describe('S · Show me highlights the real control and changes nothing', () => {
     const { say } = p.mount(...ONE())
     await say('where do I change the timeframe?')
     await waitFor(() => expect(card()).toBeTruthy())
-    expect(card().getAttribute('aria-modal')).toBe('false')
+    // never a dialog: utils/modalOpen.js would read it as a modal and the chart would ignore the keys the card names
+    expect(card().getAttribute('role')).toBe('region')
     expect(card().hasAttribute('data-escape-layer')).toBe(true)
     expect(document.activeElement && card().contains(document.activeElement)).toBe(false)     // focus stays where it was
   }, 30000)

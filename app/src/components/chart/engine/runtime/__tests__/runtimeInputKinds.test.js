@@ -115,14 +115,28 @@ ${RT}plot(acc * (time >= startDate ? 1 : 0))
     expect(got).toEqual(column(typed))
   })
 
-  it('the default follows a name bound to `timestamp(…)` (the kNN shape), zone included', () => {
+  it('the default follows a name bound to `timestamp(…)` (the kNN shape)', () => {
     const built = runtimeOf(`//@version=5
 indicator("t2")
-int sd = timestamp('01 Jan 2000 00:00:00 GMT+10')
+int sd = timestamp('01 Jan 2000 00:00 +0000')
 startDate = input.time(sd, "Start")
 ${RT}plot(acc * (time >= startDate ? 1 : 0))
 `)
-    expect(specOf(built, 'startDate').default).toBe(Date.UTC(1999, 11, 31, 14))
+    expect(specOf(built, 'startDate').default).toBe(Date.UTC(2000, 0, 1))
+  })
+
+  // ⚰️ RULING-0927 r1 (2026-11-07): the kNN shape's own spelling, `'… GMT+10'`, was SERVED here
+  // as UTC+10. No capture holds that zone grammar (`timestampOfDateString` says NEEDS CAPTURE),
+  // and `Etc/GMT+10` means the opposite sign, so it is refused by name until one does.
+  it('⛔ RULING-0927 r1 — a name bound to an UNCAPTURED date string is refused by name', () => {
+    const { specs, skipped } = runtimeInputSpecsOf(`//@version=5
+indicator("t2")
+int sd = timestamp('01 Jan 2000 00:00:00 GMT+10')
+startDate = input.time(sd, "Start")
+plot(close)
+`)
+    expect(specs.find((x) => x.key === 'startDate')).toBeUndefined()
+    expect(skipped.find((x) => x.key === 'startDate').reason).toMatch(/not written in the captured form.*RULING-0927 r1/)
   })
 
   it('v4: `input(defval = timestamp(…), type = input.time)` is the same setting', () => {
@@ -155,10 +169,12 @@ ${RT}plot(acc * (time >= startDate ? 1 : 0))
       expect(built.runtimeDeclined.why).toMatch(/startDate.*outside the dates/)
     })
 
-  it('the edge of the range is still a time: ±8.64e15 ms', () => {
-    const built = runtimeOf(SRC.replace('timestamp("01 Jan 2021 00:00 +0000")', '8640000000000000'))
-    expect(specOf(built, 'startDate').default).toBe(8.64e15)
-    expect(validateDefinition(built.definition).ok).toBe(true)
+  // ⚰️ RULING-0927 r1 (2026-11-07): this served a literal default at the edge of the range. A
+  // literal millisecond default is not a form any capture holds, so it is refused by name now.
+  it('⛔ RULING-0927 r1 — a literal millisecond default, even inside the range, is refused by name', () => {
+    const { specs, skipped } = runtimeInputSpecsOf(SRC.replace('timestamp("01 Jan 2021 00:00 +0000")', '8640000000000000'))
+    expect(specs.find((x) => x.key === 'startDate')).toBeUndefined()
+    expect(skipped.find((x) => x.key === 'startDate').reason).toMatch(/literal count of milliseconds.*RULING-0927 r1/)
   })
 
   it('⛔ a member value outside the JS Date range is refused by name', () => {
@@ -167,17 +183,19 @@ ${RT}plot(acc * (time >= startDate ? 1 : 0))
     expect(refusalOf(installed[0], { startDate: 8640000000000001 })).toMatch(/startDate.*not a time/)
   })
 
-  it('⭐ `timestamp("UTC", y, m, d, h, mi)` names its zone, so it is read exactly', () => {
-    const at = (args) => runtimeInputSpecsOf(`//@version=5
+  // ⚰️ RULING-0927 r1 (2026-11-07): `timestamp(timezone, y, m, d, …)` was SERVED here. It is
+  // read exactly by our arithmetic, but no capture holds the form, so it is refused by name.
+  it.each(['"UTC", 2021, 1, 1, 0, 0', '"GMT+10", 2021, 1, 1, 9, 30', '"UTC-5", 2021, 6, 1, 0, 0, 15',
+    'timezone = "UTC", year = 2021, month = 1, day = 1, hour = 0, minute = 0'])(
+    '⛔ RULING-0927 r1 — timestamp(%s) is refused by name', (args) => {
+      const { specs, skipped } = runtimeInputSpecsOf(`//@version=5
 indicator("tz")
 s = input.time(timestamp(${args}), "S")
 plot(close)
-`).specs[0]
-    expect(at('"UTC", 2021, 1, 1, 0, 0').default).toBe(Date.UTC(2021, 0, 1))
-    expect(at('"GMT+10", 2021, 1, 1, 9, 30').default).toBe(Date.UTC(2020, 11, 31, 23, 30))
-    expect(at('"UTC-5", 2021, 6, 1, 0, 0, 15').default).toBe(Date.UTC(2021, 5, 1, 5, 0, 15))
-    expect(at('timezone = "UTC", year = 2021, month = 1, day = 1, hour = 0, minute = 0').default).toBe(Date.UTC(2021, 0, 1))
-  })
+`)
+      expect(specs).toEqual([])
+      expect(skipped.find((x) => x.key === 's').reason).toMatch(/timestamp\(timezone, year.*RULING-0927 r1/)
+    })
 
   it.each([
     ['"America/New_York", 2021, 1, 1, 0, 0', /named time zone/],

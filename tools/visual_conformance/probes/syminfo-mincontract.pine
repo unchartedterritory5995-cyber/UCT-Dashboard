@@ -1,0 +1,25 @@
+//@version=6
+indicator("UCTPROBE_SYMINFO_MINCONTRACT", overlay = false)
+
+// W9-T4-F1 -- THE CAPTURE THAT SETTLES `syminfo.mincontract`, per exchange.
+//
+// Pine v6 reference, `syminfo.mincontract` (simple float): "The smallest amount
+// of the current symbol that can be traded. This limit is set by the exchange.
+// For cryptocurrencies, it is often less than 1 token. For most other types of
+// asset, it is often 1."  "Often" is not "always", so the engine serves no value
+// until this probe is captured on a witness of each exchange in our store's
+// spelling (`symbolScope.json::min_contract`): NYSE:RDDT (the Q-S1a capture
+// symbol), NASDAQ:AAPL and AMEX:SPY (NYSE Arca), the witnesses `tick_size` and
+// `listing_fields` already hold.
+//
+// A VALUE capture (`docs/pine/capture-procedure.md`): read the plot values, never
+// the CSV. Each capture becomes one `min_contract` row with all five of
+// {value, witnesses, captured, how, captures}; `symbolScopeMinContract.test.js`
+// re-reads it and requires M01 == value on EVERY bar.
+
+plot(syminfo.mincontract, "M01_mincontract")
+// M02 -- the reciprocal, so a sub-unit answer (a crypto pair: 1e-8 and the like)
+// is readable at full precision even if a plot rounds the raw value.
+plot(1 / syminfo.mincontract, "M02_inverse")
+// NON-VACUITY CONTROL: a dead study and an answer of 0 cannot wear the same row.
+plot(str.length(syminfo.ticker), "M03_len_ticker_CONTROL")

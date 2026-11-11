@@ -1,0 +1,558 @@
+{
+ "about": "Questions that lead (N008; OWNER_PRINCIPLES rule 10, his words 'that question is very leading'). Each approved bank question whose right choice is far longer than the others (the classic tell) with a draft that brings every choice to the same short form. The reasoning stays in each item's lesson text. Nothing changes in the bank until he approves an item.",
+ "found_by": "every approved item in the local bank copy: the right choice at least 1.8x the others' average length and over 25 characters (21 found; the two 'Which principle is this?' items are left as they are: every choice there has the same 'name (detail)' form)",
+ "items": [
+  {
+   "id": "si_ab81f8b7b66b",
+   "file": "recall.contrasts.json",
+   "skill": "setup.family3.kicker",
+   "now": {
+    "q": "A stock gaps up on its earnings report on heavy volume and closes strong. By the firm's rulings, what is that day by default?",
+    "choices": [
+     "A Kicker Candle",
+     "A High Volume Edge",
+     "A Slingshot trigger",
+     "An earnings gapper (a Power Earnings Gap), not a Kicker"
+    ],
+    "answer": "An earnings gapper (a Power Earnings Gap), not a Kicker",
+    "ratio": 3.2
+   },
+   "draft": {
+    "q": "A stock gaps up on its earnings report on heavy volume and closes strong. By the firm's rulings, what is that day by default?",
+    "choices": [
+     "A Kicker Candle",
+     "A High Volume Edge",
+     "A Slingshot trigger",
+     "A Power Earnings Gap"
+    ],
+    "answer": "A Power Earnings Gap",
+    "ratio": 1.2
+   },
+   "note": "",
+   "approved": false
+  },
+  {
+   "id": "si_d2abdf47edbe",
+   "file": "recall.contrasts.json",
+   "skill": "setup.family3.kicker",
+   "now": {
+    "q": "The day before closed red and weak near its low, with a real body. It looked like a failed breakdown out of a clean base. Today, not an earnings day, gapped up and closed strong above that red day's high. Which setup is this?",
+    "choices": [
+     "An Oops Reversal",
+     "A Slingshot",
+     "A Kicker Candle: the red-day sellers are trapped",
+     "A Base Breakout"
+    ],
+    "answer": "A Kicker Candle: the red-day sellers are trapped",
+    "ratio": 3.4
+   },
+   "draft": {
+    "q": "The day before closed red and weak near its low, with a real body. It looked like a failed breakdown out of a clean base. Today, not an earnings day, gapped up and closed strong above that red day's high. Which setup is this?",
+    "choices": [
+     "An Oops Reversal",
+     "A Slingshot",
+     "A Kicker Candle",
+     "A Base Breakout"
+    ],
+    "answer": "A Kicker Candle",
+    "ratio": 1.1
+   },
+   "note": "",
+   "approved": false
+  },
+  {
+   "id": "si_9c3d461bd87e",
+   "file": "recall.contrasts.json",
+   "skill": "setup.family3.kicker",
+   "now": {
+    "q": "The day before was a baby red candle, barely a body, inside a tight base. Today gapped up through the base highs. What did the owner call this?",
+    "choices": [
+     "A Super Oops",
+     "Just a breakout, not a kicker: a baby red candle traps nobody",
+     "A Kicker Candle, because it gapped above the prior high",
+     "A Launchpad"
+    ],
+    "answer": "Just a breakout, not a kicker: a baby red candle traps nobody",
+    "ratio": 2.3
+   },
+   "draft": {
+    "q": "The day before was a baby red candle, barely a body, inside a tight base. Today gapped up through the base highs. What did the owner call this?",
+    "choices": [
+     "A Super Oops",
+     "Just a breakout",
+     "A Kicker Candle",
+     "A Launchpad"
+    ],
+    "answer": "Just a breakout",
+    "ratio": 1.2
+   },
+   "note": "",
+   "approved": false
+  },
+  {
+   "id": "si_dda2bc8133f3",
+   "file": "recall.contrasts.json",
+   "skill": "setup.family3.kicker",
+   "now": {
+    "q": "A stock recovering from a correction, still under a falling 200-day, gaps up strongly after a red day. Kicker?",
+    "choices": [
+     "Yes, if the gap is over 3%",
+     "No: a gap against an intermediate downtrend is a different setup; the kicker fires out of an uptrend or a base",
+     "Yes, any red day then a gap up is a kicker",
+     "Yes, if the volume is double"
+    ],
+    "answer": "No: a gap against an intermediate downtrend is a different setup; the kicker fires out of an uptrend or a base",
+    "ratio": 3.4
+   },
+   "draft": {
+    "q": "A stock recovering from a correction, still under a falling 200-day, gaps up strongly after a red day. Kicker?",
+    "choices": [
+     "Yes, if the gap is over 3%",
+     "No: it gaps against a downtrend",
+     "Yes, any red day then a gap",
+     "Yes, if the volume is double"
+    ],
+    "answer": "No: it gaps against a downtrend",
+    "ratio": 1.1
+   },
+   "note": "",
+   "approved": false
+  },
+  {
+   "id": "si_ed9a9b3f29d9",
+   "file": "recall.contrasts.json",
+   "skill": "setup.family4.oops",
+   "now": {
+    "q": "Where does the owner want an Oops Reversal to show up?",
+    "choices": [
+     "At the end of an orderly drift lower, a flag, a wedge or a double bottom, into a buyable spot",
+     "Right after a big news gap, as a delayed reaction",
+     "After a random outsized red day a few days earlier",
+     "On the breakout day at a fresh high"
+    ],
+    "answer": "At the end of an orderly drift lower, a flag, a wedge or a double bottom, into a buyable spot",
+    "ratio": 2.1
+   },
+   "draft": {
+    "q": "Where does the owner want an Oops Reversal to show up?",
+    "choices": [
+     "At the end of an orderly drift lower",
+     "Right after a big news gap",
+     "After an outsized red day",
+     "On a breakout day at a new high"
+    ],
+    "answer": "At the end of an orderly drift lower",
+    "ratio": 1.3
+   },
+   "note": "",
+   "approved": false
+  },
+  {
+   "id": "si_0e40135d1ae8",
+   "file": "recall.contrasts.json",
+   "skill": "setup.family1.launchpad",
+   "now": {
+    "q": "A stock riding on TOP of its stacked averages in an uptrend pulls back and breaks out to new highs. Is that a Launchpad?",
+    "choices": [
+     "No: that is a pullback breakout or base breakout; a Launchpad lives under the bundle first",
+     "Yes, any breakout with stacked averages",
+     "Yes, if the 200-day is below price",
+     "Yes, if volume doubles"
+    ],
+    "answer": "No: that is a pullback breakout or base breakout; a Launchpad lives under the bundle first",
+    "ratio": 2.8
+   },
+   "draft": {
+    "q": "A stock riding on TOP of its stacked averages in an uptrend pulls back and breaks out to new highs. Is that a Launchpad?",
+    "choices": [
+     "No: that is a base breakout",
+     "Yes, any breakout over stacked averages",
+     "Yes, if the 200-day is below price",
+     "Yes, if the volume doubles"
+    ],
+    "answer": "No: that is a base breakout",
+    "ratio": 0.8
+   },
+   "note": "",
+   "approved": false
+  },
+  {
+   "id": "si_4cfd4b7d42ff",
+   "file": "recall.contrasts.json",
+   "skill": "setup.family1.launchpad",
+   "now": {
+    "q": "The launch bar clears the 8/21/50 bundle but closes under the 200-day. Launchpad?",
+    "choices": [
+     "No: the launch bar must close above EVERY average, the bundle and the 200-day alike",
+     "Yes, clearing the bundle is the launch",
+     "Yes, if it closes in the top half of its range",
+     "Yes, on double volume"
+    ],
+    "answer": "No: the launch bar must close above EVERY average, the bundle and the 200-day alike",
+    "ratio": 2.4
+   },
+   "draft": {
+    "q": "The launch bar clears the 8/21/50 bundle but closes under the 200-day. Launchpad?",
+    "choices": [
+     "No: it must close over the 200-day too",
+     "Yes, clearing the bundle is the launch",
+     "Yes, if it closes in the top half",
+     "Yes, on double the volume"
+    ],
+    "answer": "No: it must close over the 200-day too",
+    "ratio": 1.2
+   },
+   "note": "",
+   "approved": false
+  },
+  {
+   "id": "si_957353839778",
+   "file": "recall.contrasts.json",
+   "skill": "setup.family3.hve",
+   "now": {
+    "q": "A mega-cap closes up on the highest volume of the year, about three times normal. High Volume Edge?",
+    "choices": [
+     "Yes, if it closed strong",
+     "No, HVEs happen only on earnings days",
+     "No: that is an HVC, a high-volume close; an HVE dwarfs everything before it, ten times normal and above the record",
+     "Yes, the highest volume of the year is the definition"
+    ],
+    "answer": "No: that is an HVC, a high-volume close; an HVE dwarfs everything before it, ten times normal and above the record",
+    "ratio": 3.0
+   },
+   "draft": {
+    "q": "A mega-cap closes up on the highest volume of the year, about three times normal. High Volume Edge?",
+    "choices": [
+     "Yes, if it closed strong",
+     "No, HVEs come only on earnings",
+     "No: that is a high-volume close",
+     "Yes, the year's top volume is one"
+    ],
+    "answer": "No: that is a high-volume close",
+    "ratio": 1.1
+   },
+   "note": "",
+   "approved": false
+  },
+  {
+   "id": "si_1509dc179fcd",
+   "file": "recall.contrasts.json",
+   "skill": "setup.family3.hve",
+   "now": {
+    "q": "Three weeks after an HVE the stock trades below the HVE close. What does the firm say?",
+    "choices": [
+     "That is fine: the HVE close is a level to mark on the chart; it does not have to hold",
+     "The HVE failed and the level is erased",
+     "It flips into a short setup",
+     "It is re-labelled an HVC"
+    ],
+    "answer": "That is fine: the HVE close is a level to mark on the chart; it does not have to hold",
+    "ratio": 2.9
+   },
+   "draft": {
+    "q": "Three weeks after an HVE the stock trades below the HVE close. What does the firm say?",
+    "choices": [
+     "Fine: the close is a level, not a floor",
+     "The HVE failed; the level is erased",
+     "It flips into a short setup",
+     "It is re-labelled an HVC"
+    ],
+    "answer": "Fine: the close is a level, not a floor",
+    "ratio": 1.4
+   },
+   "note": "",
+   "approved": false
+  },
+  {
+   "id": "si_e40467cbae12",
+   "file": "recall.contrasts.json",
+   "skill": "setup.family4.slingshot",
+   "now": {
+    "q": "An earnings gapper runs, then pulls back four sessions. The closes sit under the 4-day average of the highs. Then it closes back above that average. Which setup?",
+    "choices": [
+     "A Slingshot: the first pause after the gap, retaken",
+     "A Kicker Candle",
+     "A Power Earnings Gap",
+     "An Oops Reversal"
+    ],
+    "answer": "A Slingshot: the first pause after the gap, retaken",
+    "ratio": 3.0
+   },
+   "draft": {
+    "q": "An earnings gapper runs, then pulls back four sessions. The closes sit under the 4-day average of the highs. Then it closes back above that average. Which setup?",
+    "choices": [
+     "A Slingshot",
+     "A Kicker Candle",
+     "A Power Earnings Gap",
+     "An Oops Reversal"
+    ],
+    "answer": "A Slingshot",
+    "ratio": 0.6
+   },
+   "note": "",
+   "approved": false
+  },
+  {
+   "id": "si_0e19b2f58ff3",
+   "file": "recall.contrasts.json",
+   "skill": "setup.family4.slingshot",
+   "now": {
+    "q": "The earnings gap-up day itself closes above the 4-day average of the highs. Is that the Slingshot trigger?",
+    "choices": [
+     "Yes, if the gap is over 5%",
+     "Yes, if it closes near its high",
+     "No: the gap day or rally day is never the trigger; the trigger is the first close back over the average AFTER the pullback",
+     "Yes, any close above the 4-day average triggers it"
+    ],
+    "answer": "No: the gap day or rally day is never the trigger; the trigger is the first close back over the average AFTER the pullback",
+    "ratio": 3.4
+   },
+   "draft": {
+    "q": "The earnings gap-up day itself closes above the 4-day average of the highs. Is that the Slingshot trigger?",
+    "choices": [
+     "Yes, if the gap is over 5%",
+     "Yes, if it closes near its high",
+     "No: the trigger comes after the pullback",
+     "Yes, any close over the average"
+    ],
+    "answer": "No: the trigger comes after the pullback",
+    "ratio": 1.4
+   },
+   "note": "",
+   "approved": false
+  },
+  {
+   "id": "si_5112f72ccec6",
+   "file": "recall.contrasts.json",
+   "skill": "setup.family4.slingshot",
+   "now": {
+    "q": "Which trigger day is the gallery-quality Slingshot?",
+    "choices": [
+     "A +3% to +6% day closing near its high with no gap, on ordinary volume",
+     "A +12% day on three times normal volume",
+     "A day that gaps up 3% and closes mid-range",
+     "A red day that holds the 50-day"
+    ],
+    "answer": "A +3% to +6% day closing near its high with no gap, on ordinary volume",
+    "ratio": 1.9
+   },
+   "draft": {
+    "q": "Which trigger day is the gallery-quality Slingshot?",
+    "choices": [
+     "A +3% to +6% day near its high, no gap",
+     "A +12% day on triple the volume",
+     "A 3% gap up that closes mid-range",
+     "A red day that holds the 50-day"
+    ],
+    "answer": "A +3% to +6% day near its high, no gap",
+    "ratio": 1.2
+   },
+   "note": "",
+   "approved": false
+  },
+  {
+   "id": "si_b4d7ba9cf7c7",
+   "file": "recall.contrasts.json",
+   "skill": "setup.family4.slingshot",
+   "now": {
+    "q": "Kicker Candle versus Slingshot: what separates them?",
+    "choices": [
+     "The Kicker reverses ONE weak red day on a gap; the Slingshot retakes the average after a MULTI-day pullback and needs no gap",
+     "Nothing; they are two names for one pattern",
+     "The Kicker needs earnings; the Slingshot never has earnings behind it",
+     "The Slingshot is intraday; the Kicker is daily"
+    ],
+    "answer": "The Kicker reverses ONE weak red day on a gap; the Slingshot retakes the average after a MULTI-day pullback and needs no gap",
+    "ratio": 2.4
+   },
+   "draft": {
+    "q": "Kicker Candle versus Slingshot: what separates them?",
+    "choices": [
+     "One red day versus a multi-day pullback",
+     "Nothing: two names for one pattern",
+     "Only the Kicker ever needs earnings",
+     "The Slingshot is intraday only"
+    ],
+    "answer": "One red day versus a multi-day pullback",
+    "ratio": 1.2
+   },
+   "note": "",
+   "approved": false
+  },
+  {
+   "id": "si_dd631f11c422",
+   "file": "recall.contrasts.json",
+   "skill": "setup.family4.oops",
+   "now": {
+    "q": "Oops Reversal versus Kicker Candle: both trap sellers. How does each one OPEN?",
+    "choices": [
+     "The Oops opens flat; the Kicker opens down",
+     "The Oops opens DOWN, below the prior close, and reverses up; the Kicker opens UP on a gap above the red day",
+     "Both open on a gap up",
+     "Both open below the prior low"
+    ],
+    "answer": "The Oops opens DOWN, below the prior close, and reverses up; the Kicker opens UP on a gap above the red day",
+    "ratio": 3.5
+   },
+   "draft": {
+    "q": "Oops Reversal versus Kicker Candle: both trap sellers. How does each one OPEN?",
+    "choices": [
+     "The Oops flat; the Kicker down",
+     "The Oops down; the Kicker up on a gap",
+     "Both open on a gap up",
+     "Both open below the prior low"
+    ],
+    "answer": "The Oops down; the Kicker up on a gap",
+    "ratio": 1.4
+   },
+   "note": "",
+   "approved": false
+  },
+  {
+   "id": "si_56d2969deccb",
+   "file": "recall.contrasts.json",
+   "skill": "setup.family3.kicker",
+   "now": {
+    "q": "Which stocks does the owner want every setup example drawn from?",
+    "choices": [
+     "Liquid, sizable names he would trade, roughly $1B+ and $20M+ a day; obscure or sub-$10 tickers are out",
+     "Any ticker where the geometry is right",
+     "Only the six mega-caps",
+     "Only stocks under $20 so the chart moves"
+    ],
+    "answer": "Liquid, sizable names he would trade, roughly $1B+ and $20M+ a day; obscure or sub-$10 tickers are out",
+    "ratio": 3.1
+   },
+   "draft": {
+    "q": "Which stocks does the owner want every setup example drawn from?",
+    "choices": [
+     "Liquid names, $1B+ and $20M+ a day",
+     "Any ticker where the shape is right",
+     "Only the six mega-caps",
+     "Only stocks under $20"
+    ],
+    "answer": "Liquid names, $1B+ and $20M+ a day",
+    "ratio": 1.3
+   },
+   "note": "",
+   "approved": false
+  },
+  {
+   "id": "si_71bc8f080434",
+   "file": "recall.playbooks.json",
+   "skill": "setup.family1.bull_flag",
+   "now": {
+    "q": "In the firm's Bull Flag playbook, where does the stop go?",
+    "choices": [
+     "Above the wedge / consolidation high.",
+     "Below the 30-minute opening-range low (Day 1), or below the Day 2 volume-support level.",
+     "Below the low of the flag. Keep the stop tight, a clean flag should not give much back; a break below the flag low invalidates the continuation thesis.",
+     "Below the wedge / consolidation low."
+    ],
+    "answer": "Below the low of the flag. Keep the stop tight, a clean flag should not give much back; a break below the flag low invalidates the continuation thesis.",
+    "ratio": 2.8
+   },
+   "draft": {
+    "q": "In the firm's Bull Flag playbook, where does the stop go?",
+    "choices": [
+     "Above the wedge or consolidation high",
+     "Below the 30-minute opening-range low",
+     "Below the low of the flag",
+     "Below the wedge or consolidation low"
+    ],
+    "answer": "Below the low of the flag",
+    "ratio": 0.7
+   },
+   "note": "",
+   "approved": false
+  },
+  {
+   "id": "si_acff4c0499c9",
+   "file": "recall.playbooks.json",
+   "skill": "setup.family1.ipo_base",
+   "now": {
+    "q": "In the firm's IPO Base playbook, where does the stop go?",
+    "choices": [
+     "Below the lower wick / low of the candle that held the 20-EMA.",
+     "Below the breakout day’s low or the most recent tight area; on the faster variant, below the 10/20-day SMA. Because the full base can be wide, anchor the stop to the last tight contraction rather than the deep base low so risk stays within a few percent of entry.",
+     "Below the breakout candle low and the 9-EMA, on a strong breakout candle these coincide and give a tight stop.",
+     "Below the candle that held the moving averages (intraday version), or below the consolidation low / the MA stack (daily version)."
+    ],
+    "answer": "Below the breakout day’s low or the most recent tight area; on the faster variant, below the 10/20-day SMA. Because the full base can be wide, anchor the stop to the last tight contraction rather than the deep base low so risk stays within a few percent of entry.",
+    "ratio": 2.6
+   },
+   "draft": {
+    "q": "In the firm's IPO Base playbook, where does the stop go?",
+    "choices": [
+     "Below the candle that held the 20-EMA",
+     "Below the breakout day's low or last tight area",
+     "Below the breakout candle and the 9-EMA",
+     "Below the candle that held the averages"
+    ],
+    "answer": "Below the breakout day's low or last tight area",
+    "ratio": 1.2
+   },
+   "note": "",
+   "approved": false
+  },
+  {
+   "id": "si_4b722b874e33",
+   "file": "recall.playbooks.json",
+   "skill": "setup.family1.launchpad",
+   "now": {
+    "q": "In the firm's Launchpad playbook, where does the stop go?",
+    "choices": [
+     "Below the wedge / consolidation low.",
+     "Below the candle that held the moving averages (intraday version), or below the consolidation low / the MA stack (daily version).",
+     "Below the lower wick / low of the candle that held the 20-EMA.",
+     "Long: below the candle that held the averages. Short: above the rejection candle’s high / above the moving average."
+    ],
+    "answer": "Below the candle that held the moving averages (intraday version), or below the consolidation low / the MA stack (daily version).",
+    "ratio": 1.8
+   },
+   "draft": {
+    "q": "In the firm's Launchpad playbook, where does the stop go?",
+    "choices": [
+     "Below the wedge or consolidation low",
+     "Below the candle that held the averages",
+     "Below the candle that held the 20-EMA",
+     "Below the low of the flag"
+    ],
+    "answer": "Below the candle that held the averages",
+    "ratio": 1.2
+   },
+   "note": "Today's fourth choice (\"Long: below the candle that held the averages ...\") is right too for a long; the draft swaps it for a stop from another playbook.",
+   "approved": false
+  },
+  {
+   "id": "si_753141a0f6dc",
+   "file": "recall.playbooks.json",
+   "skill": "setup.family4.oops",
+   "now": {
+    "q": "In the firm's Oops Reversal playbook, where does the stop go?",
+    "choices": [
+     "Below the wedge / consolidation low.",
+     "Above the wedge / consolidation high.",
+     "The low of the Oops day, which is the precise point the trap was set and must never break afterwards; a routine loss, never widened.",
+     "Long: below the candle that held the averages. Short: above the rejection candle’s high / above the moving average."
+    ],
+    "answer": "The low of the Oops day, which is the precise point the trap was set and must never break afterwards; a routine loss, never widened.",
+    "ratio": 2.1
+   },
+   "draft": {
+    "q": "In the firm's Oops Reversal playbook, where does the stop go?",
+    "choices": [
+     "Below the wedge or consolidation low",
+     "Above the wedge or consolidation high",
+     "The low of the Oops day",
+     "Below the candle that held the averages"
+    ],
+    "answer": "The low of the Oops day",
+    "ratio": 0.6
+   },
+   "note": "",
+   "approved": false
+  }
+ ],
+ "how_applied": "On his approval of an item: its choices change at their source (scripts/study/gen_contrasts.py CONTRASTS for the contrast items; a short stop label per playbook in scripts/study/gen_recall.py for the playbook stop items), the bank is regenerated and imported. The question's words never change: an item's id is made from them (scripts/study/_common.item_id), so his approval of the item stands. 'The firm' in a question is already shown as UCT by the display filter (brandWords)."
+}

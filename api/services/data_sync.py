@@ -117,15 +117,31 @@ DELTA_WINDOW_DAILY_DAYS = int(os.environ.get("DELTA_WINDOW_DAILY_DAYS", "10"))
 DELTA_WINDOW_SLOW_DAYS = int(os.environ.get("DELTA_WINDOW_SLOW_DAYS", "45"))
 
 
+#: Timeframes keyed by a YYYYMMDD integer rather than unix seconds.
+_DATE_KEYED_TFS = ("D", "W", "M")
+_DATE_KEY_MAX = 99991231
+_UNIX_KEY_MAX = 2**63 - 1
+
+
+def _date_key(unix_seconds: int) -> int:
+    """The ET calendar date of a unix time, in the YYYYMMDD form bars are keyed by."""
+    return int(_dt.datetime.fromtimestamp(unix_seconds, _ET).strftime("%Y%m%d"))
+
+
 def _delta_cutoffs(now: Optional[int] = None) -> dict:
-    """Per-tf unix-seconds cutoff: rows with ts >= cutoff go in the delta."""
+    """Per-tf cutoff: rows with ts >= cutoff go in the delta.
+
+    Each cutoff is in its timeframe's own key unit. Intraday bars are keyed by
+    unix seconds and D/W/M by YYYYMMDD; until 2026-11-09 D/W/M were given a
+    unix-seconds cutoff too, which no date key can reach, so no delta ever
+    carried a daily, weekly or monthly bar."""
     now = int(now if now is not None else time.time())
     intraday = now - DELTA_WINDOW_INTRADAY_DAYS * _DAY_SECONDS
     return {
         "1": intraday, "5": intraday, "15": intraday, "30": intraday, "60": intraday,
-        "D": now - DELTA_WINDOW_DAILY_DAYS * _DAY_SECONDS,
-        "W": now - DELTA_WINDOW_SLOW_DAYS * _DAY_SECONDS,
-        "M": now - DELTA_WINDOW_SLOW_DAYS * _DAY_SECONDS,
+        "D": _date_key(now - DELTA_WINDOW_DAILY_DAYS * _DAY_SECONDS),
+        "W": _date_key(now - DELTA_WINDOW_SLOW_DAYS * _DAY_SECONDS),
+        "M": _date_key(now - DELTA_WINDOW_SLOW_DAYS * _DAY_SECONDS),
     }
 
 
@@ -947,84 +963,229 @@ def _list_snapshot_ts_desc() -> list[str]:
         return []
 
 
-# ── Newer-wins MERGE (Part 2, 2026-05-16) ─────────────────────────────────────
-# The locked rule that replaces the two-mechanism conflict (worker→R2→web
-# REPLACE vs web on-demand delta WRITE). A snapshot row is adopted ONLY
-# when local has no rows for that (ticker,tf) yet (cold-ticker
-# pre-population) OR the row is strictly newer than local's newest bar for
-# that (ticker,tf) (forward freshness). INSERT OR IGNORE means an existing
-# local row is NEVER overwritten. Net: the snapshot can only ADD freshness,
-# never regress a fresher local write — the exact 2026-05-07 failure mode.
+# ── MERGE (Part 2, 2026-05-16; holes/corrections + chunked, 2026-11-10) ────────
+# The locked rule that replaced the two-mechanism conflict (worker→R2→web
+# REPLACE vs web on-demand delta WRITE): the snapshot may ADD what local lacks,
+# and may only REPLACE a local row it can prove is LESS COMPLETE. Never a blind
+# regress of a fresher local write — the exact 2026-05-07 failure mode.
+#
+# ⚰️ UNTIL 2026-11-10 ONLY `ts > local MAX` WAS ADOPTED. So a hole the worker had
+# filled below bars-api's tail, a bar the worker had corrected, and the PARTIAL last
+# bar bars-api stored mid-formation never reached bars-api through R2 at all, and
+# the whole merge was ONE write transaction over every pair (busy_timeout 30s) that
+# `put_bars` and the interactive heals queued behind.
+#
+# Per (ticker, tf) pair, now:
+#   * cold pair (no local rows)        → adopt every valid snapshot row;
+#   * forward (s.ts > local MAX)        → adopt (unchanged);
+#   * intraday, inside the heal window  → adopt rows local LACKS (holes), and REPLACE
+#     a local row whose snapshot twin carries MORE VOLUME — a bucket's volume only
+#     grows while it forms, so "more volume at the same ts" is the one monotone,
+#     source-free proof that the local row is the partial one;
+#   * ⛔ both interior rules apply ONLY when the two stores provably share a PRICE
+#     BASIS (closes agree at common rows at BOTH ends of the window) AND no declared
+#     split (cache only) sits near the window. A pair whose bases differ (one side
+#     re-adjusted for a split), cannot be compared, or straddles a split gets the
+#     legacy forward-only rule — interleaving two bases inside a series is the cliff
+#     the intraday split heal exists to remove.
+# Pairs are merged in CHUNKS, each its own short `BEGIN IMMEDIATE` transaction, with
+# the lock hold time measured and logged (merge start / end, max + total lock ms).
+
+_MERGE_INTRADAY_TFS = ("1", "5", "15", "30", "60")
+_MERGE_CHUNK_PAIRS = max(1, int(os.environ.get("DATA_SYNC_MERGE_CHUNK_PAIRS", "200")))
+#: Lock-hold budget per chunk; a chunk that runs over halves the next chunk's size.
+_MERGE_CHUNK_BUDGET_S = float(os.environ.get("DATA_SYNC_MERGE_CHUNK_BUDGET_S", "0.5"))
+#: Interior heal reach below local MAX (holes + corrections), intraday only.
+_MERGE_HEAL_WINDOW_S = int(float(os.environ.get("DATA_SYNC_MERGE_HEAL_DAYS", "5")) * 86400)
+#: Closes at common rows must agree to this relative tolerance to share a basis.
+_MERGE_BASIS_TOL = 0.02
+_MERGE_BASIS_SAMPLE = 5
+
+# ⛔ SAME POSSIBLE-BAR PREDICATE AS `put_bars`, SPELLED IN SQL BECAUSE THIS IS A
+# SET-AT-A-TIME COPY (the second write door into `ohlcv` — 3,533 impossible bars were
+# re-imported through it on 2026-08-09 before it was gated): finite (`s.x = s.x` is
+# false for a NaN and NULL fails every comparison), positive, and
+# `l <= min(o,c) <= max(o,c) <= h`. A rejection, never a repair.
+_MERGE_VALID_SQL = """
+      s.o IS NOT NULL AND s.h IS NOT NULL
+  AND s.l IS NOT NULL AND s.c IS NOT NULL
+  AND s.o = s.o AND s.h = s.h AND s.l = s.l AND s.c = s.c
+  AND s.o > 0 AND s.h > 0 AND s.l > 0 AND s.c > 0
+  AND s.h >= s.l AND s.h >= s.o AND s.h >= s.c
+  AND s.l <= s.o AND s.l <= s.c
+  AND (s.v IS NULL OR s.v >= 0)
+"""
+
+#: Rows local LACKS above `floor` (forward tail, plus holes when floor < MAX).
+_MERGE_ADD_SQL = (
+    "INSERT OR IGNORE INTO main.ohlcv (ticker,tf,ts,o,h,l,c,v) "
+    "SELECT s.ticker,s.tf,s.ts,s.o,s.h,s.l,s.c,s.v FROM snap.ohlcv s "
+    "WHERE s.ticker=? AND s.tf=? AND s.ts > ? AND " + _MERGE_VALID_SQL
+)
+
+#: Local rows above `floor` whose snapshot twin is MORE COMPLETE (more volume).
+_MERGE_CORRECT_SQL = (
+    "INSERT OR REPLACE INTO main.ohlcv (ticker,tf,ts,o,h,l,c,v) "
+    "SELECT s.ticker,s.tf,s.ts,s.o,s.h,s.l,s.c,s.v FROM snap.ohlcv s "
+    "JOIN main.ohlcv m ON m.ticker=s.ticker AND m.tf=s.tf AND m.ts=s.ts "
+    "WHERE s.ticker=? AND s.tf=? AND s.ts > ? "
+    "AND COALESCE(s.v,0) > COALESCE(m.v,0) AND " + _MERGE_VALID_SQL
+)
+
+
+#: Newest common SETTLED rows (strictly below local MAX: a partial tail never decides).
+_MERGE_BASIS_NEWEST_SQL = (
+    "SELECT m.c, s.c FROM (SELECT ts, c FROM main.ohlcv WHERE ticker=? AND tf=? "
+    "AND ts < ? ORDER BY ts DESC LIMIT 50) m "
+    "JOIN snap.ohlcv s ON s.ticker=? AND s.tf=? AND s.ts=m.ts LIMIT ?"
+)
+#: OLDEST common rows inside the heal window — the end a split would sit behind (settled: below MAX).
+_MERGE_BASIS_OLDEST_SQL = (
+    "SELECT m.c, s.c FROM (SELECT ts, c FROM main.ohlcv WHERE ticker=? AND tf=? "
+    "AND ts > ? AND ts < ? ORDER BY ts ASC LIMIT 50) m "
+    "JOIN snap.ohlcv s ON s.ticker=? AND s.tf=? AND s.ts=m.ts LIMIT ?"
+)
+#: A declared split this close to the heal window disables interior merge for the pair.
+_MERGE_SPLIT_PAD_DAYS = 10
+
+
+def _closes_agree(rows) -> bool:
+    if not rows:
+        return False
+    for lc, sc in rows:
+        if not lc or not sc or lc <= 0 or sc <= 0:
+            return False
+        if abs(sc / lc - 1.0) > _MERGE_BASIS_TOL:
+            return False
+    return True
+
+
+def _merge_basis_agrees(conn, ticker: str, tf: str, mx: int, floor: int) -> bool:
+    """True when local and snapshot closes agree at BOTH ends of the heal window: the
+    newest settled common rows below local MAX and the oldest common rows above
+    `floor`. ⛔ Sampling only the newest rows (review F2) agreed on post-split rows
+    while the snapshot's pre-split rows further down the window were still on the old
+    basis. No common row at either end ⇒ False (unproven → conservative rule)."""
+    args = (ticker, tf, mx, ticker, tf, _MERGE_BASIS_SAMPLE)
+    if not _closes_agree(conn.execute(_MERGE_BASIS_NEWEST_SQL, args).fetchall()):
+        return False
+    args = (ticker, tf, floor, mx, ticker, tf, _MERGE_BASIS_SAMPLE)
+    return _closes_agree(conn.execute(_MERGE_BASIS_OLDEST_SQL, args).fetchall())
+
+
+def _merge_split_near(ticker: str, floor: int) -> bool:
+    """A declared split (cache only, never a fetch) dated at/after the window floor
+    minus a pad. ⛔ Around a split the two stores can legitimately sit on different
+    bases (one healed, one not), and interleaving them — or letting a higher old-basis
+    volume REPLACE a healed row on a reverse split — re-creates the cliff the intraday
+    split heal removed, which it would then re-heal every few hours (an oscillation)."""
+    try:
+        from api.services.intraday_split_heal import declared_splits_cached
+        splits = declared_splits_cached(ticker)
+    except Exception:  # noqa: BLE001
+        return False
+    if not splits:
+        return False
+    lo = (_dt.datetime.fromtimestamp(floor, _ZoneInfo("America/New_York")).date()
+          - _dt.timedelta(days=_MERGE_SPLIT_PAD_DAYS)).isoformat()
+    return any(str(s[0])[:10] >= lo for s in splits)
+
+
+#: 2026-11-10 60m grid move: a snapshot/delta from a not-yet-redeployed worker
+#: still carries the old clock-hour 60m layout. Adopting ANY of its 60m rows for a
+#: ticker (its 09:30 row has the right key but 30 minutes of content) would
+#: re-poison a rebuilt store and make deploy order matter — so a pair whose
+#: candidate rows include an old-grid bucket is skipped whole.
+_OLD_GRID_60_PROBE_SQL = (
+    "SELECT 1 FROM snap.ohlcv WHERE ticker=? AND tf='60' AND ts > ? AND old_grid60(ts) LIMIT 1"
+)
+
+
+def _ensure_old_grid_fn(conn) -> None:
+    from api.services.bars_sqlite import is_old_grid_60m_ts
+    conn.create_function("old_grid60", 1, lambda ts: 1 if is_old_grid_60m_ts(ts) else 0,
+                         deterministic=True)
+
+
+def _merge_pair(conn, ticker: str, tf: str) -> tuple[int, int]:
+    """Merge ONE (ticker, tf). Returns (rows added, rows corrected). Runs inside the
+    caller's transaction; every statement is a primary-key range seek."""
+    mx = conn.execute("SELECT MAX(ts) FROM main.ohlcv WHERE ticker=? AND tf=?",
+                      (ticker, tf)).fetchone()[0]
+    if tf == "60":
+        probe_floor = -(1 << 62) if mx is None else mx - _MERGE_HEAL_WINDOW_S
+        if conn.execute(_OLD_GRID_60_PROBE_SQL, (ticker, probe_floor)).fetchone():
+            return 0, 0
+    before = conn.total_changes
+    if mx is None:
+        conn.execute(_MERGE_ADD_SQL, (ticker, tf, -(1 << 62)))
+        return conn.total_changes - before, 0
+    window_floor = mx - _MERGE_HEAL_WINDOW_S
+    interior = (tf in _MERGE_INTRADAY_TFS
+                and not _merge_split_near(ticker, window_floor)
+                and _merge_basis_agrees(conn, ticker, tf, mx, window_floor))
+    floor = window_floor if interior else mx
+    conn.execute(_MERGE_ADD_SQL, (ticker, tf, floor))
+    added = conn.total_changes - before
+    corrected = 0
+    if interior:
+        before = conn.total_changes
+        conn.execute(_MERGE_CORRECT_SQL, (ticker, tf, floor))
+        corrected = conn.total_changes - before
+    return added, corrected
+
 
 def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None) -> int:
-    """Newer-wins merge of snapshot ohlcv into the local bars.db.
+    """Merge snapshot ohlcv into the local bars.db (rules above), in short chunks.
 
-    Returns rows adopted (best-effort), or -1 if there is no local DB to
-    merge into (caller should fall back to a plain install)."""
+    Returns rows adopted + corrected (best-effort), or -1 if there is no local DB
+    to merge into (caller should fall back to a plain install)."""
     if local_db is None:
         local_db = os.path.join(_DATA_DIR, "bars.db")
     if not os.path.exists(local_db):
         return -1
-    conn = sqlite3.connect(local_db, timeout=30)
+    # isolation_level=None: autocommit, so each chunk's BEGIN/COMMIT is explicit and
+    # NOTHING holds the write lock between chunks.
+    conn = sqlite3.connect(local_db, timeout=30, isolation_level=None)
     try:
         conn.execute("PRAGMA busy_timeout=30000")
         conn.execute("ATTACH DATABASE ? AS snap", (src_db,))
+        _ensure_old_grid_fn(conn)
         try:
-            # `total_changes`, not `cur.rowcount`: Python's sqlite3 reports -1 for a
-            # statement that starts with `WITH`, and -1 here means "no local DB".
-            before = conn.total_changes
-            conn.execute(
-                """
-                -- Newest local bar for ONLY the (ticker,tf) pairs this snapshot
-                -- carries: one primary-key seek per pair, computed once. The old
-                -- `GROUP BY` over all of `main.ohlcv` scanned the whole table
-                -- while this statement held the write lock, so every bars write
-                -- on the pod waited (bars-api froze 10:20-10:28 ET on 2026-10-14,
-                -- inside the X-15 gate run).
-                WITH l AS MATERIALIZED (
-                    SELECT p.ticker, p.tf,
-                           (SELECT MAX(m.ts) FROM main.ohlcv m
-                            WHERE m.ticker=p.ticker AND m.tf=p.tf) AS mx
-                    FROM (SELECT DISTINCT ticker, tf FROM snap.ohlcv) p
-                )
-                INSERT OR IGNORE INTO main.ohlcv (ticker,tf,ts,o,h,l,c,v)
-                SELECT s.ticker,s.tf,s.ts,s.o,s.h,s.l,s.c,s.v
-                FROM snap.ohlcv s
-                LEFT JOIN l ON l.ticker=s.ticker AND l.tf=s.tf
-                WHERE (l.mx IS NULL OR s.ts > l.mx)
-                  -- 🔴 THE SECOND WRITE DOOR INTO `ohlcv`, AND IT BYPASSES
-                  -- `put_bars` ENTIRELY. Gating only `put_bars` leaves this
-                  -- statement re-importing every impossible bar another pod
-                  -- already wrote — 3,533 of them on 2026-08-09 — into any pod
-                  -- that merges a pre-fix R2 snapshot, so the invariant would
-                  -- hold going forward and be undone on the next restore.
-                  -- ⛔ SAME PREDICATE, SPELLED IN SQL BECAUSE THIS IS A
-                  -- SET-AT-A-TIME COPY: finite (`s.x = s.x` is false for a NaN
-                  -- and NULL fails every comparison), positive, and
-                  -- `l <= min(o,c) <= max(o,c) <= h`. It is a rejection, never a
-                  -- repair: a row that cannot describe a session is not adopted.
-                  AND s.o IS NOT NULL AND s.h IS NOT NULL
-                  AND s.l IS NOT NULL AND s.c IS NOT NULL
-                  AND s.o = s.o AND s.h = s.h AND s.l = s.l AND s.c = s.c
-                  AND s.o > 0 AND s.h > 0 AND s.l > 0 AND s.c > 0
-                  AND s.h >= s.l AND s.h >= s.o AND s.h >= s.c
-                  AND s.l <= s.o AND s.l <= s.c
-                  AND (s.v IS NULL OR s.v >= 0)
-                """
-            )
-            adopted = conn.total_changes - before
-            # ⚰️ A BEST-EFFORT `bars_provenance` MERGE SAT HERE UNTIL 2026-08-09.
-            # It copied rows from `snap.bars_provenance` into a local table that
-            # held 0 rows on both sides, because nothing in the product ever
-            # wrote one — the table and its three accessors were deleted from
-            # `bars_sqlite.py` in the same commit (the live provenance system is
-            # `bar_provenance.py`, singular). It was wrapped in
-            # `except sqlite3.Error: pass`, so removing it is safe in BOTH
-            # rolling-deploy directions: an old pod merging a new snapshot, or a
-            # new pod merging an old one, each swallow the missing table exactly
-            # as they always did.
-            conn.commit()
-            return adopted
+            pairs = conn.execute("SELECT DISTINCT ticker, tf FROM snap.ohlcv").fetchall()
+            t_start = time.monotonic()
+            logger.info(f"[data_sync] merge start: {len(pairs)} pairs")
+            added = corrected = chunks = 0
+            max_lock = total_lock = 0.0
+            size = _MERGE_CHUNK_PAIRS
+            i = 0
+            while i < len(pairs):
+                chunk = pairs[i:i + size]
+                t0 = time.monotonic()
+                conn.execute("BEGIN IMMEDIATE")
+                try:
+                    for ticker, tf in chunk:
+                        a, c = _merge_pair(conn, ticker, tf)
+                        added += a
+                        corrected += c
+                    conn.execute("COMMIT")
+                except BaseException:
+                    conn.execute("ROLLBACK")
+                    raise
+                held = time.monotonic() - t0
+                max_lock = max(max_lock, held)
+                total_lock += held
+                chunks += 1
+                i += len(chunk)
+                if held > _MERGE_CHUNK_BUDGET_S and size > 1:
+                    size = max(1, size // 2)     # adapt: shorter holds next time
+                time.sleep(0)                    # let a queued writer in between chunks
+            logger.info(
+                f"[data_sync] merge end: {len(pairs)} pairs, {added} added, "
+                f"{corrected} corrected, {chunks} chunks, lock max "
+                f"{max_lock * 1000:.0f}ms total {total_lock * 1000:.0f}ms, "
+                f"wall {(time.monotonic() - t_start) * 1000:.0f}ms")
+            return added + corrected
         finally:
             conn.execute("DETACH DATABASE snap")
     finally:
@@ -1122,17 +1283,27 @@ def _export_delta_db(out_path: str, now: Optional[int] = None) -> int:
             # ⚰️ A `bars_provenance` table was created in the delta here (and
             # filled from a source table that was always empty) until
             # 2026-08-09. See the note in `_merge_snapshot_db` above.
+            # ⛔ Seek per ticker. `WHERE tf=?` alone cannot use the (ticker, tf,
+            # ts) key, so it reads the whole 40 GB table once per timeframe; that
+            # made one delta take about two hours (2026-11-09).
+            from api.services.bars_sqlite import iter_tickers
+
             total = 0
-            for tf, cut in cutoffs.items():
-                rows = src.execute(
-                    "SELECT ticker,tf,ts,o,h,l,c,v FROM ohlcv WHERE tf=? AND ts>=?",
-                    (tf, cut),
-                ).fetchall()
-                if rows:
-                    out.executemany(
-                        "INSERT OR REPLACE INTO ohlcv VALUES (?,?,?,?,?,?,?,?)", rows
-                    )
-                    total += len(rows)
+            for ticker in iter_tickers(src):
+                for tf, cut in cutoffs.items():
+                    # The ceiling keeps a mis-keyed unix timestamp on a date
+                    # timeframe out of the delta.
+                    top = _DATE_KEY_MAX if tf in _DATE_KEYED_TFS else _UNIX_KEY_MAX
+                    rows = src.execute(
+                        "SELECT ticker,tf,ts,o,h,l,c,v FROM ohlcv "
+                        "WHERE ticker=? AND tf=? AND ts>=? AND ts<=?",
+                        (ticker, tf, cut, top),
+                    ).fetchall()
+                    if rows:
+                        out.executemany(
+                            "INSERT OR REPLACE INTO ohlcv VALUES (?,?,?,?,?,?,?,?)", rows
+                        )
+                        total += len(rows)
             out.commit()
             return total
         finally:

@@ -39,7 +39,7 @@ export const outcomeConfirmed = (got) => !!got && (got.ok
  */
 export function keyedSender({ confirmed = outcomeConfirmed } = {}) {
   const pending = new Map()
-  return async (intent, body, fetchWith) => {
+  const send = async (intent, body, fetchWith) => {
     const same = JSON.stringify(body ?? {})
     let p = pending.get(intent)
     if (!p || p.same !== same) p = { key: newIdempotencyKey(), same }
@@ -48,4 +48,10 @@ export function keyedSender({ confirmed = outcomeConfirmed } = {}) {
     if (confirmed(got) && pending.get(intent) === p) pending.delete(intent)
     return got
   }
+  /** Forget an intent's held key (its next request is a new press). For a caller that knows another intent's
+   *  settled answer has made the held one moot (templateLibrary.useTemplate, fix round 2 R1-4). */
+  send.forget = (intent) => { pending.delete(intent) }
+  /** Did the last request of this intent settle? (Read right after `send` resolves.) */
+  send.settled = (got) => confirmed(got)
+  return send
 }

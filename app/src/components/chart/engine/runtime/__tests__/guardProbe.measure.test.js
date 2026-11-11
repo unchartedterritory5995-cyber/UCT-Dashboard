@@ -47,7 +47,14 @@ const shapeOf = (msg) => String(msg || '')
   .replace(/\d+/g, 'N')
   .slice(0, 120)
 
-describe('PROBE', () => {
+// A whole-corpus measurement (buildObjectLane over every committed script), so
+// wall time grades the MACHINE, not the code: measured ~36s for its slowest test
+// alone on Node 20 (--maxWorkers=1, 2026-11-08) and slower in a folder run, past
+// vite.config's 15s testTimeout. 150s is ~3x the slow-box duration. A genuine
+// hang still fails; no assertion is weakened.
+const MEASURE_TIMEOUT_MS = 150000
+
+describe('PROBE', { timeout: MEASURE_TIMEOUT_MS }, () => {
   it('groups each guard by message shape', () => {
     expect(SCRIPTS.length).toBeGreaterThan(200)
     const byGuard = new Map()

@@ -1,0 +1,10 @@
+//@version=5
+indicator("hp na", overlay=false)
+x = bar_index % 7 == 0 ? na : close
+y = nz(x, -1)
+z = fixnan(x)
+c = na(x) ? 1 : 0
+plot(x, "x")
+plot(y, "y")
+plot(z, "z")
+plot(c, "c")

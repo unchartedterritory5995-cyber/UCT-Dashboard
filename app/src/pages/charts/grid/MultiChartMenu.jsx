@@ -112,7 +112,9 @@ export default function MultiChartMenu({ mc, onClose, flyout = false, features =
           kind: 'multichart',
           widgets: [],
           layout: mc.state.layout,
-          cells: mc.state.cells.map(c => ({ sym: c.sym, tf: c.tf, chartType: c.chartType || null })),
+          // A forked cell's own chart settings travel with the named layout
+          // (policy A) — sanitizeState carries them back on apply.
+          cells: mc.state.cells.map(c => ({ sym: c.sym, tf: c.tf, chartType: c.chartType || null, ...(c.settings ? { settings: c.settings } : {}) })),
           group: mc.state.group || null,
         },
         groups: null,
@@ -128,6 +130,7 @@ export default function MultiChartMenu({ mc, onClose, flyout = false, features =
   return (
     <div
       className={wsStyles.addMenu}
+      data-guide="multiChart.flyout"
       style={{
         minWidth: 240,
         // Viewport-bounded: on laptops the full menu (layouts + groups + save)
@@ -150,6 +153,7 @@ export default function MultiChartMenu({ mc, onClose, flyout = false, features =
             key={l.id}
             type="button"
             className={`${styles.presetBtn} ${inGrid && mc.state.layout === l.id ? styles.presetBtnActive : ''}`}
+            data-guide={`multiChart.preset.${l.id}`}
             onClick={() => pickPreset(l.id)}
             title={l.label}
           >
@@ -175,7 +179,7 @@ export default function MultiChartMenu({ mc, onClose, flyout = false, features =
           onChange={e => { setCols(e.target.value); setNxmErr('') }}
           aria-label="Columns"
         />
-        <button type="button" className={wsStyles.toolbarBtn} onClick={applyCustom}>Apply</button>
+        <button type="button" className={wsStyles.toolbarBtn} data-guide="multiChart.customApply" onClick={applyCustom}>Apply</button>
       </div>
       {nxmErr && <div className={wsStyles.menuErr}>{nxmErr}</div>}
 

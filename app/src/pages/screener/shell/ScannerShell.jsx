@@ -11,6 +11,7 @@ import UIcon from '../../../components/ui/UIcon'
 import { BoardFromList, usePanelList } from '../../../components/terminal'
 import useScreenerMeta from '../hooks/useScreenerMeta'
 import useScreenerScan from '../hooks/useScreenerScan'
+import { LIVE_REFRESH_MS } from '../hooks/liveRefresh'
 import { scanErrorText } from './scanErrorText'
 import useColumnPresets from '../hooks/useColumnPresets'
 import useScreenerCount from '../hooks/useScreenerCount'
@@ -43,6 +44,8 @@ import MemberInterestNotice from '../../../components/memberInterest/MemberInter
 import { buildScreenerCapture } from './notebookCapture'
 import { SkipLinkPortal } from '../../../components/skipLinks'
 import styles from './ScannerShell.module.css'
+import { AgentDockButton } from '../../../agent/AgentProvider'
+import { useScreenerAgentHost } from '../../../agent/hosts/usePageAgentHosts'
 
 const densityKey = 'uct.screener.density'
 
@@ -120,7 +123,7 @@ export default function ScannerShell({ embedded = false, toolbarLead = null }) {
   const scanSpec = useMemo(
     () => (retryNonce ? { ...s.scanSpec, _retry: retryNonce } : s.scanSpec),
     [s.scanSpec, retryNonce])
-  const { result, isLoading, error } = useScreenerScan(scanSpec)
+  const { result, isLoading, error } = useScreenerScan(scanSpec, { refreshMs: LIVE_REFRESH_MS })
   const { presets: columnPresets, save: saveColumnPreset, remove: removeColumnPreset } = useColumnPresets()
   // PACKET-AB CP1 (fingerprint bc19457cf) -- same scanSpec, a materially cheaper
   // and faster preview count fed into FilterRail as a fast signal ahead of the
@@ -184,8 +187,11 @@ export default function ScannerShell({ embedded = false, toolbarLead = null }) {
     const keys = new Set(Object.keys(COLUMN_DEFS))
     for (const v of meta?.views || []) v.columns.forEach(c => keys.add(c))
     for (const f of meta?.filters || []) if (f.column) keys.add(f.column)
+    // S1: the server's `picker_hidden` columns stay defined and computed (saved
+    // screens render them) but are not offered, unless already on screen.
+    for (const k of meta?.picker_hidden || []) if (!visibleColumns.includes(k)) keys.delete(k)
     return [...keys].map(k => ({ key: k, label: COLUMN_DEFS[k]?.label || k }))
-  }, [meta])
+  }, [meta, visibleColumns])
 
   // FT-041/042: the metered server export. `exportQuota()` is null while the
   // server door is dark (404) or the plan is free (402) -- then the toolbar keeps
@@ -350,6 +356,8 @@ export default function ScannerShell({ embedded = false, toolbarLead = null }) {
       criteriaSlot={<CriteriaBox logic={s.logic} onApply={s.setLogic} />} />
   )
 
+  // ⭐ W2-C1: what UCT Agent may read here and the door it opens a saved screen through (the page's own applySpec)
+  useScreenerAgentHost({ rows, total, filters: Object.keys(s.filters || {}), loading: isLoading, applyScreen: (spec) => s.applySpec(spec) })
   return (
     <div className={`${styles.shell} ${embedded ? styles.shellEmbedded : ''}`}>
       {!embedded && (
@@ -384,6 +392,7 @@ export default function ScannerShell({ embedded = false, toolbarLead = null }) {
           {/* One-click preset scans, right in the scan bar — each runs within the
               pool chosen to its left. */}
           <PresetChips currentSpec={s.baseSpec} onApply={s.applySpec} />
+          {toolbarLead == null && !embedded && <AgentDockButton style={{ marginLeft: 'auto' }} />}
         </div>
         <ShellToolbar meta={meta} view={s.view} onView={s.setView} leadSlot={toolbarLead}
           visibleColumns={visibleColumns} allColumns={allColumns}

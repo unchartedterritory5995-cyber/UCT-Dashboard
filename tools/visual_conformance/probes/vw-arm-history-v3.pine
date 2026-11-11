@@ -1,0 +1,25 @@
+//@version=3
+study("UCTPROBE_VW_ARM_HISTORY_V3", overlay = false)
+
+// --- 2026-10-31 prod-ternary - IS A v3 `?:` ARM LAZY? AND DOES v3 `iff` RUN BOTH? ---
+//
+// The v3 port of `vw-arm-history-v4.pine` (read that header). The plot lane draws a
+// v1-v4 arm the every-bar way, unwitnessed; this settles v3. v3 has `bar_index`; if it
+// does not compile, use `n` (the v1 / v2 bar counter) and record that it did not.
+//
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults. NEVER COMPILED ON
+// TRADINGVIEW: a row that does not compile names its line - split it out.
+
+up = close > open
+even = bar_index % 2 == 0
+
+plot(bar_index, title = "A00_bar_index_CONTROL")
+plot(sma(close, 5), title = "E03_sma_every_bar")
+plot(change(close), title = "E05_change_every_bar")
+
+plot(up ? sma(close, 5) : close, title = "T03_sma_in_true_arm")
+plot(up ? change(close) : 0.0, title = "T05_change_in_true_arm")
+plot(even ? sma(close, 3) : na, title = "K02_sma3_on_even_bars")
+
+plot(iff(up, sma(close, 5), close), title = "F03_sma_through_iff")
+plot(iff(even, sma(close, 3), na), title = "F02_sma3_through_iff_even")

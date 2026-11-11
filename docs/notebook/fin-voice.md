@@ -316,6 +316,8 @@ Generated from the code (the command is in the test file's docstring). One row p
 | POST | `/api/j2/trades/{trade_id}/attachments` | journal_two | capped_multipart('file') | `request_body_cap` (capped_multipart('file')) | 5 MiB | no | get_current_user | session, body |
 | POST | `/api/j2/trust/orphans/reattach` | journal_two | capped_json | `request_body_cap` (capped_json) | 2.2 MiB | no | get_current_user | session, body |
 | PUT | `/api/j2/unified-coach` | journal_two | capped_json | `request_body_cap` (capped_json) | 2.2 MiB | no | get_current_user | session, body |
+| POST | `/api/j2/notes/connectors/obsidian/attachments/check` | note_sync | request.stream() | running total in `_read_bounded_body` | `limit` | no | Obsidian plugin bearer token | body |
+| PUT | `/api/j2/notes/connectors/obsidian/attachments/{sha256}` | note_sync | request.stream() | running total in `_blob_body` | 25 MiB | no | Obsidian plugin bearer token | body |
 | POST | `/api/j2/notes/connectors/obsidian/ingest` | note_sync | request.stream() | running total in `_read_bounded_body` | `limit` | no | Obsidian plugin bearer token | body |
 | POST | `/api/j2/notes/connectors/obsidian/redeem` | note_sync | capped_json | `request_body_cap` (capped_json) | 64 KiB | no | one-time pairing code in the body | body |
 | PUT | `/api/j2/notes/connectors/sources/{source_id}` | note_sync | capped_json | `request_body_cap` (capped_json) | 64 KiB | no | get_current_user | session, body |

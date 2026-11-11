@@ -1,0 +1,6 @@
+{
+  "_comment": "D3 item 8: a list item whose first child is a block (an image, a nested list, a quote) is repaired the way the editor's parser repairs it on both lanes: the item closes with an empty paragraph, its content moves up, and the list's later items continue in a new bullet list. The server wrote listItem(image), a list item the schema refuses.",
+  "vault_id": "vault-1",
+  "self_path": "a.md",
+  "vault_paths": ["a.md"]
+}

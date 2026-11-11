@@ -25,6 +25,7 @@
 // from having typed it wrong. No rival's reference does this; ours can, because
 // the manifest already records a reason for all 103 of them.
 
+import { withoutGuardIds } from '../../components/chart/engine/ast/guardIdText'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -49,7 +50,7 @@ function Entry({ item }) {
   return (
     <li className={styles.entry} data-kind={item.kind}>
       <code className={styles.sig}>{item.signature}</code>
-      <p className={styles.says}>{item.sentence}</p>
+      <p className={styles.says}>{withoutGuardIds(item.sentence)}</p>
       {reach && <p className={styles.reach}><UIcon name="clock" size={11} /> {reach}</p>}
       {item.traits.map((t) => (
         <p key={t.key} className={styles.trait} data-trait={t.key}>{t.text}</p>
@@ -62,7 +63,7 @@ function Excluded({ item }) {
   return (
     <li className={styles.gone} data-excluded={item.name}>
       <code className={styles.goneName}>{item.name}</code>
-      <p className={styles.says}>{item.reason}</p>
+      <p className={styles.says}>{withoutGuardIds(item.reason)}</p>
       {/* ⭐⭐ THE MEMBER LEAVES WITH SOMETHING TO PASTE. Seven of the refused
           functions carry their own substitute in the manifest, and every one
           shown here has been through the shipped parser — so a substitute on

@@ -1,0 +1,57 @@
+// W19-R2 (2026-10-05) — probe for the capture lane. Queue: docs/pine/capture-queue-2026-10-05-w19-r2.md
+// Chart: NYSE:RDDT 1D from the listing, inputs at defaults (none), AFTER THE CLOSE.
+// ⚠️ Not compiled on TradingView yet: if a row does not compile, the error names the line — split it out.
+// A runtime error is itself a reading: record its text and the bar it names, then
+// comment that row out and capture the rest.
+//
+// Q-W19R2a — `array.insert` / `array.fill` at the indices the manual does not settle.
+//   I01  insert at index == size (append?)             a = (1,2), insert(a, 2, 9): size, last
+//   I02  insert at 0 into an EMPTY array               size, first
+//   I03  v6 negative index: insert(a, -1, 9) on (1,2,3) positions of the 9 (I03p) and size
+//   F01  fill(a, 7, 1, 5) on a 3-element array         error text? or clipped?
+//   F02  fill(a, 7, -1) on (1,2,3)                     sum
+// Q-W19R2b — the binary searches over a sorted array (1, 3, 3, 3, 7):
+//   B01..B05  binary_search            of 3, 0, 5, 9, 7
+//   L01..L05  binary_search_leftmost   of 3, 0, 5, 9, 7
+//   R01..R05  binary_search_rightmost  of 3, 0, 5, 9, 7
+//   E01..E03  the three over an EMPTY array, of 1
+//@version=6
+indicator("vw-w19r2-collections", overlay = false)
+a1 = array.from(1.0, 2.0)
+array.insert(a1, 2, 9.0)
+plot(array.size(a1), "I01 size")
+plot(array.last(a1), "I01 last")
+a2 = array.new_float()
+array.insert(a2, 0, 9.0)
+plot(array.size(a2), "I02 size")
+plot(array.first(a2), "I02 first")
+a3 = array.from(1.0, 2.0, 3.0)
+array.insert(a3, -1, 9.0)
+plot(array.indexof(a3, 9.0), "I03p position of 9")
+plot(array.size(a3), "I03 size")
+f1 = array.from(1.0, 2.0, 3.0)
+array.fill(f1, 7.0, 1, 5)
+plot(array.sum(f1), "F01 sum")
+f2 = array.from(1.0, 2.0, 3.0)
+array.fill(f2, 7.0, -1)
+plot(array.sum(f2), "F02 sum")
+s = array.from(1.0, 3.0, 3.0, 3.0, 7.0)
+plot(array.binary_search(s, 3), "B01")
+plot(array.binary_search(s, 0), "B02")
+plot(array.binary_search(s, 5), "B03")
+plot(array.binary_search(s, 9), "B04")
+plot(array.binary_search(s, 7), "B05")
+plot(array.binary_search_leftmost(s, 3), "L01")
+plot(array.binary_search_leftmost(s, 0), "L02")
+plot(array.binary_search_leftmost(s, 5), "L03")
+plot(array.binary_search_leftmost(s, 9), "L04")
+plot(array.binary_search_leftmost(s, 7), "L05")
+plot(array.binary_search_rightmost(s, 3), "R01")
+plot(array.binary_search_rightmost(s, 0), "R02")
+plot(array.binary_search_rightmost(s, 5), "R03")
+plot(array.binary_search_rightmost(s, 9), "R04")
+plot(array.binary_search_rightmost(s, 7), "R05")
+e = array.new_float()
+plot(array.binary_search(e, 1), "E01")
+plot(array.binary_search_leftmost(e, 1), "E02")
+plot(array.binary_search_rightmost(e, 1), "E03")

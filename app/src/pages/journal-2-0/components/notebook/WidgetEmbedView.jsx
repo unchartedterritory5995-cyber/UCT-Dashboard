@@ -1,25 +1,33 @@
 import { Component, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { NodeViewWrapper } from '@tiptap/react'
+import { useInRouterContext, useNavigate } from 'react-router-dom'
 import {
   resolveEmbedRender, embedAutoCaption, countLiveEmbeds, LIVE_EMBEDS_PER_ENTRY,
-  retimeChartParams, embedRenderHeight, makeCrosshairBus, chartPlanEnabled,
+  retimeChartParams, resymbolChartParams, embedRenderHeight, makeCrosshairBus, chartPlanEnabled,
   EMBED_MAX_H,
 } from '../../lib/widgetEmbedCore'
 import { widgetMeta, isTraderBlock, paramsPlainText } from '../../../../widgets/registry'
 import { chartsLinkPath } from '../../../../lib/chartDeepLink'
-import { peekDrawings } from '../../../../components/chart/drawingsStore'
+import { peekDrawings } from '../../../../components/chart/drawingsPeek' // not drawingsStore: keeps it off Notebook first open
 import { useCoarsePointer } from '../../../../components/chart/coarsePointer'
 import { captureElementPng, storeFallbackImage, kickSnapshotWarm } from '../../lib/embedArchive'
 import { RENDER_UNAVAILABLE, showsUnavailableFrame } from '../../../../lib/captureSafety'
 import UIcon from '../../../../components/ui/UIcon'
+import { TOOLBAR_ICON } from '../../lib/notebookIcons'
 import ContextPopover from '../../../../components/mobile/ContextPopover'
 import { useIsTouch } from '../../../../hooks/useBreakpoint'
+import { BP } from '../../../../styles/breakpoints'
 import styles from './WidgetEmbedView.module.css'
 import { lazyLeaf } from '../../lib/lazyChunk'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { useBlockParams } from './blocks/useBlockParams'
 import { isSnapshotKind, isDedicatedKind, widgetKind, WIDGET_KINDS } from '../../lib/notebookWidgets'
+import { CHART_EMBED_TYPE_EVENT } from '../../lib/widgetEmbedNode'
+
+// S3: the Charts page's own ticker search, as the chart embed's ticker button. Loaded on use: only
+// an editable live chart embed renders it.
+const SymbolSearch = lazyLeaf(() => import('../../../../components/chart/SymbolSearch'))
 
 // Free-resize bounds (px). MAX_W is generous so a resize can reach the full
 // note-column width on wide screens; `.sized { max-width: 100% }` keeps it
@@ -195,6 +203,60 @@ function PlaceholderChip({ attrs, reason, shareView = false }) {
 // other widget to EmbedNodeView. Two component TYPES (not a branch inside one) keep every hook of
 // EmbedNodeView in a stable order. Both receive TipTap's props untouched (EmbedBlockActions.test.jsx
 // pins `getPos` on EmbedNodeView's own signature, the view that mounts EmbedBlockActions).
+// S12 remainder (audit M9, point 2): phone chart mode. The width is READ from `window.innerWidth`, at mount
+// and on every resize, never from a media hook: the media hooks are stale at first paint (CLAUDE.md) and the
+// test environment's matchMedia always answers false. Tier 1b reads the same number the same way.
+const isPhoneWidth = () => typeof window !== 'undefined' && window.innerWidth <= BP.phone
+function usePhoneWidth(active) {
+  const [phone, setPhone] = useState(() => active && isPhoneWidth())
+  useEffect(() => {
+    if (!active) return undefined
+    const read = () => setPhone(isPhoneWidth())
+    read()
+    window.addEventListener('resize', read)
+    return () => window.removeEventListener('resize', read)
+  }, [active])
+  return active && phone
+}
+/** The timeframe as the compact header says it ("NVDA · 1D"). */
+const TF_WORDS = { 1: '1m', 5: '5m', 15: '15m', 30: '30m', 60: '1h', D: '1D', W: '1W', M: '1M' }
+export const chartTfWord = (tf) => TF_WORDS[String(tf ?? 'D')] || String(tf)
+
+// S12 fix round 1 (review 4): the full-screen door. A real link (middle-click, long-press semantics) that the
+// editor never sees (`widgetEmbedStopEvent` returns true inside `[data-phone-chart-open]`), and, inside the app's
+// router, a client-side hop to /charts so a pending autosave is never raced by a document unload. The width is
+// read again at the tap: wider than a phone by then, nothing happens. `data-archive-exclude`: the self-archive
+// never rasterises it (lib/embedArchive.js `captureElementPng`'s filter; review 1).
+function PhoneOpenLink({ href, label, navigate }) {
+  return (
+    <a
+      className={styles.phoneOpen}
+      href={href}
+      contentEditable={false}
+      data-phone-chart-open=""
+      data-archive-exclude=""
+      aria-label={label}
+      onClick={(e) => {
+        if (!isPhoneWidth()) { e.preventDefault(); return }
+        if (navigate && !e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0) {
+          e.preventDefault()
+          navigate(href)
+        }
+      }}
+    >
+      {/* Final polish (WebKit at 390 px): the visible words moved UNDER the plot (`.phoneOpenCaption`); a pill here
+          covered the volume pane. The link still covers the chart, transparent, so a tap anywhere opens it. */}
+    </a>
+  )
+}
+function RoutedPhoneOpenLink(props) {
+  const navigate = useNavigate()
+  return <PhoneOpenLink {...props} navigate={navigate} />
+}
+function PhoneOpen(props) {
+  return useInRouterContext() ? <RoutedPhoneOpenLink {...props} /> : <PhoneOpenLink {...props} navigate={null} />
+}
+
 export default function WidgetEmbedView(props) {
   if (isTraderBlock(props.node?.attrs?.widgetId)) {
     const line = props.node.attrs.searchText || ''
@@ -418,6 +480,54 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   // CENTER at the new tf — never jump to now. Explicit toolbar action = the
   // only kind of write an embed takes. Native tfs only: custom multipliers
   // fall through both durability rails (no to=, no warm) by design.
+  // ── S3: the chart's ticker, from its header ───────────────────────────────────────────────
+  // ⛔ Audit 2026-11-05, spec S3 (B7). The ticker could not be changed from the chart at all, and a
+  // key typed over the selected chart REPLACED it (widgetEmbedNode.jsx's chartTypeToSearch plugin
+  // now hands that key here instead). The header's ticker button is the Charts page's SymbolSearch;
+  // a typed key opens it with that key (`openWith`), as on /charts.
+  const canRetarget = attrs.widgetId === 'chart' && decision.kind === 'live' && !shareView
+    && editor?.isEditable !== false && !frozen
+  // SymbolSearch's imperative handle, once its chunk has loaded. A ref plus a ready FLAG, never the
+  // handle in state: the handle is a new object on every render, and storing it would loop.
+  const symRef = useRef(null)
+  const [symReady, setSymReady] = useState(false)
+  const setSymApi = useCallback((h) => { symRef.current = h; setSymReady(Boolean(h)) }, [])
+  const [pendingSearch, setPendingSearch] = useState(null)
+  const switchSymbol = (sym) => {
+    const next = resymbolChartParams(attrs, sym)
+    if (!next) return
+    // Drawings (a plan's entry/stop/target among them) were drawn on THIS ticker's prices; carrying
+    // them to another would draw a plan at the wrong prices. Say so instead.
+    if (Array.isArray(attrs.annotations) && attrs.annotations.length > 0) {
+      setToolbarMsg(`This chart has drawings on ${attrs.params?.symbol}. Insert a new chart for ${next.params.symbol}.`)
+      return
+    }
+    setPeek(false)
+    archivedOnceRef.current = false
+    barsReadyRef.current = false
+    kickSnapshotWarm(next.params)
+    updateAttributes?.({ params: next.params, searchText: next.searchText, fallback: null })
+  }
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return undefined
+    const onType = (e) => {
+      if (!canRetarget) {
+        setToolbarMsg('This chart is fixed. Insert a new chart for another ticker.')
+        return
+      }
+      setToolbarOpen(true)
+      setPendingSearch(e.detail?.text || '')
+    }
+    el.addEventListener(CHART_EMBED_TYPE_EVENT, onType)
+    return () => el.removeEventListener(CHART_EMBED_TYPE_EVENT, onType)
+  }, [canRetarget])
+  useEffect(() => {
+    if (pendingSearch == null || !symReady || !symRef.current?.openWith) return
+    symRef.current.openWith(pendingSearch)
+    setPendingSearch(null)
+  }, [pendingSearch, symReady])
+
   const switchTf = (newTf) => {
     const next = retimeChartParams(attrs, newTf)
     if (!next) return
@@ -681,6 +791,8 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   // persists), renders read-only on later opens, and never touches the
   // global /charts drawing store — frozen evidence stays frozen.
   const [annotate, setAnnotate] = useState(false)
+  // A search asked for while drawing is dropped, never opened later behind Done (fix round 1).
+  useEffect(() => { if (annotate && pendingSearch != null) setPendingSearch(null) }, [annotate, pendingSearch])
   // Marks changed this draw session → the stored archive PNG no longer shows
   // what the reader sees. Cleared when the exit re-freeze fires.
   const annotationsDirtyRef = useRef(false)
@@ -738,6 +850,21 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   // asks StockChart for MobileDrawBar at all (same read the 13H-3 effect used).
   const isCoarsePointer = useCoarsePointer()
   const touchTier = useIsTouch()      // 1024 px and below
+  // S12 (M9 point 2): at phone width a chart embed is a compact header over a readable chart: the ticker and
+  // timeframe, Insights (Chart IQ and the auto-labels, OFF until asked; view-only, nothing is saved) and More.
+  // Draw, Plan and Replay move into More. A tap on the chart opens it full screen in the phone /charts app.
+  // Desktop and tablet are unchanged: `phoneChart` is false there.
+  const phoneChart = usePhoneWidth(attrs.widgetId === 'chart' && !shareView)
+  const phoneMode = phoneChart && !annotate
+  const [insightsOn, setInsightsOn] = useState(false)
+  // ⛔ Fix round 1 (review 1, CRITICAL): the archive PNG is the note's permanent evidence (the public page and every
+  // unavailable render show it), so it is taken from the FULL render whatever the device. While an archive is due on
+  // an editable note, the chart renders as on a desktop (watermark, Chart IQ, labels, no tap layer); phone mode
+  // applies once the image is stored. The tap layer is also excluded from the raster itself (data-archive-exclude).
+  const archivePending = needsArchive && editor?.isEditable !== false
+  const phoneRender = phoneChart && !archivePending
+  // Fix round 1 (review 5): a read-only or frozen chart has no toolbar, so its Insights toggle (view-only) is its own.
+  const phoneBarOnly = phoneRender && decision.kind === 'live' && (editor?.isEditable === false || frozen)
 
   // 13H-2: the chart-plan doors, gate-checked at render (the latch never moves mid-tab).
   const planDoors = attrs.widgetId === 'chart' && decision.kind === 'live' && !shareView
@@ -755,6 +882,11 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
   //    Charts-page settings and drawings. Freeze: keep the real canvas but make it static.
   const isLiveChart = attrs.widgetId === 'chart' && decision.kind === 'live'
   const moreItems = [
+    // S12: on a phone the compact header drops Draw, Plan and Replay; they are here, same guards, same setters.
+    phoneMode && attrs.widgetId === 'chart' && decision.kind === 'live' && { label: 'Draw', hint: 'Draw on this snapshot', onClick: toggleAnnotate },
+    phoneMode && planDoors && { label: 'Plan', hint: 'Mark entry, stop and target; size it; arm alerts', onClick: () => setPlanOpen((o) => !o) },
+    phoneMode && planDoors && { label: 'Replay', hint: 'What happened next, bar by bar', onClick: () => setReplayOpen(true) },
+    // (S3: a chart also carries Live / Snapshot in its header; the menu row stays, same setter.)
     widgetMeta(attrs.widgetId)?.liveCapable === true
       && {
         label: attrs.mode === 'live' ? 'Snapshot' : 'Live',
@@ -821,6 +953,7 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
             // a coarse pointer (`isCoarsePointer`, above). Only chart embeds in
             // Draw mode ask for it; every other widget type ignores an unused prop.
             mobileDrawBar={annotate && isCoarsePointer}
+            {...(attrs.widgetId === 'chart' && phoneRender ? { phoneMode: true, insights: insightsOn } : {})}
             {...(attrs.widgetId === 'marketcontext' ? { setParams: captureEmbedParams, editable: embedEditable, embedFrozen: frozen } : {})}
             {...(isSnapshotKind(attrs.widgetId) ? { editable: embedEditable, onUpdateParams: updateSnapshotParams, uid: editor?.storage?.uctJournalWidgets?.uid } : {})}
             // Wave 8 (Task 8.14): a built widget's ⋯ menu opens the builder at this node (editor + getPos).
@@ -842,6 +975,8 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
       style={sizedWidth ? { width: sizedWidth } : undefined}
       data-widget-embed-view={attrs.widgetId || 'unknown'}
       data-snapshot-embed={snapshotEmbed ? 'true' : undefined}
+      // Final polish: in phone chart mode the compact header is a row ABOVE the plot, never laid over it.
+      data-phone-chart={phoneMode && phoneRender ? 'true' : undefined}
     >
       {editor?.isEditable !== false && !frozen && (
         // ONE Tab stop for the whole row (the toolbar pattern): Left and Right move inside
@@ -853,7 +988,7 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
           {/* Collapse toggle — hide/show the rest of the toolbar (the charts
               "Hide toolbar" affordance). Absent in draw mode (Done is the only
               control there). */}
-          {!annotate && (
+          {!annotate && !phoneMode && (
             <button
               type="button"
               className={styles.toolBtn}
@@ -873,7 +1008,14 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
               </Suspense>
             </EmbedErrorBoundary>
           )}
-          {(annotate || toolbarOpen) && (<>
+          {(annotate || toolbarOpen || phoneMode) && (<>
+          {/* S12: the compact header's title -- the ticker and the timeframe, and a live dot. */}
+          {phoneMode && attrs.params?.symbol && (
+            <span className={styles.phoneTitle} data-phone-chart-title="">
+              {attrs.params.symbol} · {chartTfWord(attrs.params.tf)}
+              {attrs.mode === 'live' ? <span className={styles.phoneLive}> · Live</span> : null}
+            </span>
+          )}
           {/* TF switch — chart embeds, live render path only (the archive of
               an out-of-ceiling snapshot shows the OLD tf; switchTf refuses).
               Native tfs only — custom multipliers skip both durability rails.
@@ -882,7 +1024,39 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
               WIDENS once a mark exists), so everything else is unreachable
               anyway — and ✕ next to a drawing gesture is a destructive
               misclick (the 8/10 builder-sweep defect class). */}
-          {!annotate && attrs.widgetId === 'chart' && decision.kind === 'live' && (
+          {/* S3: the ticker button -- the Charts page's SymbolSearch. A key typed over the
+              selected chart opens it with that key. */}
+          {!annotate && !phoneMode && canRetarget && attrs.params?.symbol && (
+            <span className={styles.tickerBtn} data-tour="chart-embed-ticker">
+              <EmbedErrorBoundary fallback={null}>
+                <Suspense fallback={<span className={styles.toolBtn} aria-hidden="true">{attrs.params.symbol}</span>}>
+                  <SymbolSearch
+                    ref={setSymApi}
+                    sym={attrs.params.symbol}
+                    onSymbolChange={switchSymbol}
+                    hideIcon
+                    ariaLabel={`Chart ticker, ${attrs.params.symbol}. Change it`}
+                  />
+                </Suspense>
+              </EmbedErrorBoundary>
+            </span>
+          )}
+          {/* S3: Live / Snapshot in the header (it was buried in More). The same setter. */}
+          {!annotate && !phoneMode && attrs.widgetId === 'chart' && widgetMeta('chart')?.liveCapable === true && (
+            <span className={styles.segment} role="group" aria-label="Live or snapshot">
+              <button type="button" className={`${styles.toolBtn} ${attrs.mode === 'live' ? styles.toolBtnActive : ''}`}
+                aria-pressed={attrs.mode === 'live'} onClick={() => { if (attrs.mode !== 'live') toggleLive() }}
+                title={`Go live (max ${LIVE_EMBEDS_PER_ENTRY} per note)`}>
+                Live
+              </button>
+              <button type="button" className={`${styles.toolBtn} ${attrs.mode !== 'live' ? styles.toolBtnActive : ''}`}
+                aria-pressed={attrs.mode !== 'live'} onClick={() => { if (attrs.mode === 'live') toggleLive() }}
+                title="Freeze to snapshot">
+                Snapshot
+              </button>
+            </span>
+          )}
+          {!annotate && !phoneMode && attrs.widgetId === 'chart' && decision.kind === 'live' && (
             <select
               className={styles.toolSelect}
               value={String(attrs.params?.tf ?? 'D')}
@@ -899,7 +1073,7 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
           )}
           {/* Draw mode — chart embeds on the live render path. Done exits;
               the marks are already persisted per-edit. */}
-          {attrs.widgetId === 'chart' && decision.kind === 'live' && (
+          {attrs.widgetId === 'chart' && decision.kind === 'live' && !phoneMode && (
             <button
               type="button"
               className={`${styles.toolBtn} ${annotate ? styles.toolBtnActive : ''}`}
@@ -911,7 +1085,7 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
             </button>
           )}
           {/* 13H-2: the drawn plan (roles, R:R + size, alerts) and "what happened next". */}
-          {!annotate && planDoors && (
+          {!annotate && !phoneMode && planDoors && (
             <button
               type="button"
               className={`${styles.toolBtn} ${planOpen ? styles.toolBtnActive : ''}`}
@@ -923,7 +1097,7 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
               Plan
             </button>
           )}
-          {!annotate && planDoors && (
+          {!annotate && !phoneMode && planDoors && (
             <button
               type="button"
               className={styles.toolBtn}
@@ -940,6 +1114,17 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
               under the same guard, name and effect it had as a button. Absent while drawing
               (Done is the only control there, and a destructive Remove next to a drawing
               gesture is a misclick). */}
+          {phoneMode && phoneRender && decision.kind === 'live' && (
+            <button
+              type="button"
+              className={`${styles.toolBtn} ${insightsOn ? styles.toolBtnActive : ''}`}
+              aria-pressed={insightsOn}
+              onClick={() => setInsightsOn((o) => !o)}
+              title="Chart IQ and the pattern labels, on this screen only"
+            >
+              Insights
+            </button>
+          )}
           {!annotate && (
             <button
               ref={moreRef}
@@ -955,7 +1140,7 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
               onBlur={dropMorePress}
               onClick={toggleMore}
             >
-              <UIcon name="more" size={14} gold={false} /> More
+              <UIcon name="more" {...TOOLBAR_ICON} /> More
             </button>
           )}
           {!annotate && (
@@ -981,9 +1166,39 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
           selects the block. Keep this attribute on whatever element wraps the live
           chart/drawing surface; moving the ref without moving the marker
           reopens the bug silently. */}
+      {phoneBarOnly && (
+        <div className={styles.phoneBar} contentEditable={false} data-phone-chart-bar="">
+          {attrs.params?.symbol && (
+            <span className={styles.phoneTitle} data-phone-chart-title="">
+              {attrs.params.symbol} · {chartTfWord(attrs.params.tf)}
+            </span>
+          )}
+          <button
+            type="button"
+            className={`${styles.toolBtn} ${insightsOn ? styles.toolBtnActive : ''}`}
+            aria-pressed={insightsOn}
+            onClick={() => setInsightsOn((o) => !o)}
+            title="Chart IQ and the pattern labels, on this screen only"
+          >
+            Insights
+          </button>
+        </div>
+      )}
       <div ref={bodyRef} data-widget-embed-body={annotate ? 'draw' : ''} className={styles.body} style={decision.kind === 'live' && !shareView ? { height } : undefined}>
         {body}
+        {/* S12: tap the chart to open it full screen in the phone /charts app, on this ticker and timeframe
+            (lib/chartDeepLink.js, the same link as More > Open in Charts). The width is read again at the tap. */}
+        {phoneMode && phoneRender && attrs.params?.symbol && (
+          <PhoneOpen
+            href={chartsLinkPath({ symbol: attrs.params.symbol, tf: attrs.params.tf })}
+            label={`Open ${attrs.params.symbol} ${chartTfWord(attrs.params.tf)} full screen`}
+          />
+        )}
       </div>
+      {/* Final polish: the hint is a caption under the plot, covering no data (the whole plot is the tap target). */}
+      {phoneMode && phoneRender && attrs.params?.symbol && (
+        <p className={styles.phoneOpenCaption} aria-hidden="true" data-phone-chart-caption="">Tap the chart to open it full screen</p>
+      )}
       {planDoors && inView && (
         <EmbedErrorBoundary fallback={null}>
           <Suspense fallback={null}>
@@ -997,6 +1212,22 @@ function EmbedNodeView({ node, selected, editor, updateAttributes, deleteNode, g
             />
           </Suspense>
         </EmbedErrorBoundary>
+      )}
+      {/* Fix round 1 (review finding 4): the spec's hint line while the chart is selected -- the
+          keys a selected chart answers. Polite, so it is said once when the chart is selected. */}
+      {/* Fix round 1 (review minor 12): a frozen chart has no toolbar, so its message is said here. */}
+      {frozen && toolbarMsg && (
+        <p className={styles.selectedHint} role="status">{toolbarMsg}</p>
+      )}
+      {/* Fix round 2 (re-review N6): the region is MOUNTED EMPTY on every editable chart and filled
+          when the chart is selected -- a live region inserted with its words is generally not read. */}
+      {/* Final polish: not on a phone chart -- its keys are a keyboard's, and the line pushed the note down. */}
+      {attrs.widgetId === 'chart' && editor?.isEditable !== false && !shareView && !(phoneMode && phoneRender) && (
+        <p className={selected ? styles.selectedHint : styles.hintIdle} aria-live="polite" data-chart-hint>
+          {!selected ? '' : canRetarget
+            ? 'Selected · type a ticker to switch it (for example A, M, D) · Del removes the chart · Esc back to writing'
+            : 'Selected · Del removes the chart · Esc back to writing'}
+        </p>
       )}
       {(attrs.mode === 'live') && !frozen && <span className={styles.liveBadge} title="Updates in real time — Snapshot freezes it">LIVE</span>}
       {attrs.caption ? <div className={styles.caption}>{attrs.caption}</div> : null}

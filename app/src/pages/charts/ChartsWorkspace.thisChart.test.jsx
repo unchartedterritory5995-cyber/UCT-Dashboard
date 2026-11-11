@@ -11,6 +11,11 @@ import { useSyncExternalStore } from 'react'
 import { vi, test, expect, beforeEach, afterEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 
+const hostSpy = vi.hoisted(() => ({ widgetOps: null }))
+vi.mock('../../agent/host', async (orig) => {
+  const real = await orig()
+  return { ...real, buildWorkspaceHost: (o) => { hostSpy.widgetOps = o.widgetOps; return real.buildWorkspaceHost(o) } }
+})
 vi.mock('./WidgetHost', async () => {
   const React = await import('react')
   const { useWorkspace } = await import('./WorkspaceContext')
@@ -88,8 +93,10 @@ import { AGENT_FLAG_KEY, AGENT_OPEN_KEY } from '../../agent/agentFlag'
 
 let turns
 let turnReply
+let records          // the Agent's outcome rows (/api/agent/record) — one per change the runtime actually applied
 beforeEach(() => {
   turns = []
+  records = []
   turnReply = null
   try { localStorage.clear() } catch { /* jsdom's own storage, this file only */ }
   localStorage.setItem(AGENT_FLAG_KEY, '1')
@@ -101,7 +108,7 @@ beforeEach(() => {
       turns.push(body)
       return json({ conversationId: 'ac_1', envelope: turnReply(body), usage: {} })
     }
-    if (String(url).startsWith('/api/agent/record')) return json({ conversationId: 'ac_1' })
+    if (String(url).startsWith('/api/agent/record')) { try { records.push(JSON.parse(init.body)) } catch { /* */ } return json({ conversationId: 'ac_1' }) }
     if (String(url).startsWith('/api/watchlists')) return json([])
     // the cross-tab guard's server read is railed in its own suites; unreadable = unchecked here
     if (String(url).startsWith('/api/auth/preferences')) return new Response('', { status: 503 })
@@ -134,6 +141,11 @@ async function say(text) {
   await act(async () => { fireEvent.keyDown(box, { key: 'Enter' }) })
 }
 const receipts = () => screen.queryAllByText(/Switched timeframe to Weekly/)
+// DUP-RECEIPT (11-05): a receipt CARD per change (data-testid agent-receipt). A card may say its change twice — its one-liner
+// and, for a change NOT saved (this suite's server read is unreadable), the record word for word under Details — so the
+// text count above is not the receipt count; the card count and the applied outcome rows are
+const receiptCards = () => screen.queryAllByTestId('agent-receipt').filter(n => /Switched timeframe to Weekly/.test(n.textContent))
+const applied = (action) => records.filter(r => String(r.outcomeData?.kind || '').startsWith('applied') && (r.outcomeData?.actions || []).includes(action))
 
 test('click the LEFT chart, "switch this chart to weekly": only the left chart changes — no question, no model', async () => {
   mount()
@@ -242,6 +254,21 @@ test('a layout switch makes the selection STALE — even back on the same layout
   expect([tfOf('c-left'), tfOf('c-right')]).toEqual(['D', 'D'])
 }, 45000)
 
+test('MODEL path: a true "this stock" with a chart clicked: a plan on the other chart goes to the clicked one, no question', async () => {
+  mount()
+  await screen.findByTestId('chart-c-left')
+  await click('c-left')
+  turnReply = (body) => {
+    const other = body.context.charts.find(c => !c.selected)
+    return { disposition: 'apply', reply: '', question: null, ops: [{ action: 'chart.setTimeframe', target: other.ref, args: { timeframe: 'W' } }], unsupported_category: null }
+  }
+  await say('could you put this stock on the weekly view please')
+  await waitFor(() => expect(tfOf('c-left')).toBe('W'), { timeout: 15000 })
+  expect(tfOf('c-right')).toBe('D')
+  expect(screen.queryByText(/Did you mean/)).toBeNull()
+  expect(turns).toHaveLength(1)
+}, 45000)
+
 test('MODEL path: the selected chart is in the context, and a plan on ANOTHER chart is never run — asked, then resumed on the pick', async () => {
   mount()
   await screen.findByTestId('chart-c-left')
@@ -251,7 +278,7 @@ test('MODEL path: the selected chart is in the context, and a plan on ANOTHER ch
     const other = body.context.charts.find(c => !c.selected)
     return { disposition: 'apply', reply: '', question: null, ops: [{ action: 'chart.setTimeframe', target: other.ref, args: { timeframe: 'W' } }], unsupported_category: null }
   }
-  await say('could you put this stock on the weekly view please')
+  await say('could you put the stock on the weekly view please')
   await waitFor(() => expect(turns).toHaveLength(1), { timeout: 15000 })
   const sent = turns[0].context.charts
   expect(sent.filter(c => c.selected).map(c => c.label)).toEqual(['Left chart (NVDA)'])
@@ -262,7 +289,10 @@ test('MODEL path: the selected chart is in the context, and a plan on ANOTHER ch
   await waitFor(() => expect(tfOf('c-left')).toBe('W'), { timeout: 15000 })
   expect(tfOf('c-right')).toBe('D')
   expect(turns).toHaveLength(1)                                           // the pick resumed the plan: no second model call
-  await waitFor(() => expect(receipts().length).toBe(1), { timeout: 15000 })
+  await waitFor(() => expect(receiptCards()).toHaveLength(1), { timeout: 15000 })   // ONE receipt for ONE change
+  expect(applied('chart.setTimeframe')).toHaveLength(1)                   // the op ran ONCE (never a second execution)
+  expect(receiptCards()[0].querySelectorAll('[data-testid="agent-receipt-summary"]')).toHaveLength(1)
+  expect(screen.queryAllByTestId('agent-receipt')).toHaveLength(1)        // and no other receipt at all
 }, 45000)
 
 test('MODEL path: a plan on the selected chart runs as planned', async () => {
@@ -273,4 +303,44 @@ test('MODEL path: a plan on the selected chart runs as planned', async () => {
   await say('could you put this stock on the weekly view please')
   await waitFor(() => expect(tfOf('c-right')).toBe('W'), { timeout: 15000 })
   expect(tfOf('c-left')).toBe('D')
+}, 45000)
+
+// #823: a board where no widget can give up room. 12 charts at their minimum (6 wide; 6-7 high): see placement/place.test.js
+const NO_ROOM = (() => {
+  const widgets = []
+  for (let c = 0; c < 4; c++) for (const [i, y, h] of [[0, 0, 7], [1, 7, 7], [2, 14, 6]]) widgets.push({ id: `c${c}${i}`, type: 'chart', color: 'A', x: c * 6, y, w: 6, h, opts: { tf: 'D' } })
+  return { id: 4, name: 'Packed', scope: 'user', groups: null, layout: { widgets, cols: 24 } }
+})()
+const banner = () => screen.queryByTestId('board-bound-status')
+const addOneChart = async () => {
+  await act(async () => { fireEvent.click(screen.getByText('Widgets ▾')) })
+  const item = document.querySelector('[data-guide="workspace.widgets.chart"]')
+  await act(async () => { fireEvent.click(item) })
+}
+
+test('no room left: the refusal banner says so, the board is untouched, and Dismiss clears it', async () => {
+    mount(NO_ROOM)
+    await screen.findByTestId('chart-c00')
+    const before = document.querySelectorAll('[data-widget-id]').length
+    await addOneChart()
+    await waitFor(() => expect(banner()?.textContent).toMatch(/no room left on this board/i), { timeout: 15000 })
+    expect(document.querySelectorAll('[data-widget-id]').length).toBe(before)
+    await act(async () => { fireEvent.click(banner().querySelector('button')) })
+    expect(banner()).toBeNull()
+}, 45000)
+
+test('a refused add that carries a ticker saves no N:<id> pref (the Agent adding a chart when the board filled after its plan)', async () => {
+  // The Agent's plan refuses a full board first, so this only happens when the board fills between plan and commit. That
+  // is the call capabilities/workspace.js commit makes, through the workspace's real widgetOps.
+  mount(NO_ROOM)
+  await screen.findByTestId('chart-c00')
+  const before = document.querySelectorAll('[data-widget-id]').length
+  await act(async () => { hostSpy.widgetOps.add('chart', null, { symbol: 'TSLA', tf: 'D' }) })
+  await waitFor(() => expect(banner()?.textContent).toMatch(/no room left on this board/i), { timeout: 15000 })
+  // the symbol writer saves on a 400ms debounce: wait past it, then read what was stored
+  await act(async () => { await new Promise(r => setTimeout(r, 800)) })
+  const groups = JSON.parse(prefStore.get().charts_workspace_groups || '{}')
+  expect(Object.keys(groups).filter(k => k.startsWith('N:'))).toEqual([])
+  expect(Object.values(groups)).not.toContain('TSLA')
+  expect(document.querySelectorAll('[data-widget-id]').length).toBe(before)
 }, 45000)

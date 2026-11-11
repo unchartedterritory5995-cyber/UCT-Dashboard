@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Piece 1 · question card</title>
+<style>
+  @font-face { font-family:"Instrument Sans"; src:url(/fonts/instrument-sans-v4-latin.woff2) format("woff2"); font-weight:400 700; font-display:swap }
+  :root { --bg:#0f0f0f; --card:#141414; --line:#262626; --fg:#f2efe6; --mute:#9a958a; --gold:#d9b84a; --up:#1ae51a; --down:#c41f2d }
+  * { box-sizing:border-box }
+  html, body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.45 "Instrument Sans", system-ui, sans-serif }
+  .page { max-width:760px; margin:0 auto; padding:20px 16px 110px; display:flex; flex-direction:column; gap:14px }
+  .top { display:flex; align-items:center; gap:12px; font-size:12px; color:var(--mute); letter-spacing:.12em; text-transform:uppercase }
+  .top .prog { flex:1; height:4px; background:#222; border-radius:2px; overflow:hidden }
+  .top .prog i { display:block; height:100%; width:30%; background:var(--gold) }
+  h1 { font-size:21px; line-height:1.3; margin:4px 0 0; text-wrap:balance }
+  .sub { color:var(--mute); font-size:14px; margin:0 }
+  .chart { position:relative; background:#0f0f0f; border:1px solid var(--line); border-radius:12px; overflow:hidden; height:360px }
+  .chart .tag { position:absolute; left:12px; top:10px; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--mute); z-index:2 }
+  .choices { display:flex; flex-direction:column; gap:8px }
+  .choice { display:flex; align-items:center; gap:14px; width:100%; text-align:left; padding:14px 16px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--fg); font:inherit; font-size:17px; cursor:pointer }
+  .choice .n { width:24px; height:24px; border-radius:7px; border:1px solid var(--line); display:grid; place-items:center; font-size:12px; color:var(--mute) }
+  .choice:hover { border-color:#3a3a3a }
+  .choice.on { border-color:var(--gold); background:#1a1708 }
+  .choice.on .n { border-color:var(--gold); color:var(--gold) }
+  .foot { position:fixed; left:0; right:0; bottom:0; padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px)); background:linear-gradient(transparent, #0f0f0f 30%) }
+  .check { display:block; width:100%; max-width:760px; margin:0 auto; padding:16px; border-radius:12px; border:0; background:var(--gold); color:#111; font:inherit; font-size:17px; font-weight:700; cursor:pointer; opacity:.45 }
+  .check.ready { opacity:1 }
+  @media (max-width:480px) { .chart { height:300px } h1 { font-size:19px } }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="top"><span>Question 3 of 10</span><span class="prog"><i></i></span><span>Setup</span></div>
+  <h1>A red day, then this. Is the last bar a Kicker?</h1>
+  <p class="sub">Daily chart. The ticker stays hidden until you answer.</p>
+  <div class="chart"><span class="tag">Daily · 120 bars</span><div id="chart" style="position:absolute;inset:0"></div></div>
+  <div class="choices" id="choices">
+    <button class="choice" type="button"><span class="n">1</span>Yes, that is a Kicker</button>
+    <button class="choice" type="button"><span class="n">2</span>No, it is just a green day</button>
+    <button class="choice" type="button"><span class="n">3</span>No, the prior day is not weak enough</button>
+  </div>
+</div>
+<div class="foot"><button class="check" id="check" type="button">Check</button></div>
+<script src="/vendor/lightweight-charts.standalone.production.js"></script>
+<script>
+(async () => {
+  const d = await fetch('/data/JBI_2023-12-14.json').then(r => r.json());
+  const bars = d.visible;
+  const el = document.getElementById('chart');
+  const chart = LightweightCharts.createChart(el, {
+    layout: { background: { color: '#0f0f0f' }, textColor: '#9a958a', fontFamily: 'Instrument Sans, system-ui, sans-serif', fontSize: 11 },
+    grid: { vertLines: { color: '#1b1b1b' }, horzLines: { color: '#1b1b1b' } },
+    rightPriceScale: { borderColor: '#262626', scaleMargins: { top: 0.08, bottom: 0.22 } },
+    timeScale: { borderColor: '#262626', rightOffset: 3, barSpacing: 6 },
+    crosshair: { mode: 0 }, handleScroll: false, handleScale: false,
+  });
+  const candles = chart.addSeries(LightweightCharts.CandlestickSeries, {
+    upColor: 'rgba(0,0,0,0)', downColor: '#c41f2d', borderUpColor: '#1ae51a', borderDownColor: '#c41f2d', wickUpColor: '#1ae51a', wickDownColor: '#c41f2d', borderVisible: true,
+  });
+  candles.setData(bars);
+  const vol = chart.addSeries(LightweightCharts.HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: 'vol' });
+  chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.86, bottom: 0 } });
+  vol.setData(bars.map(b => ({ time: b.time, value: b.volume, color: b.close >= b.open ? 'rgba(26,229,26,.55)' : 'rgba(196,31,45,.55)' })));
+  const ma = (n, ema) => { const out = []; let acc = null; const k = 2 / (n + 1);
+    bars.forEach((b, j) => { if (ema) { acc = acc == null ? b.close : b.close * k + acc * (1 - k); if (j >= n - 1) out.push({ time: b.time, value: acc }); }
+      else if (j >= n - 1) { let s = 0; for (let q = j - n + 1; q <= j; q++) s += bars[q].close; out.push({ time: b.time, value: s / n }); } });
+    return out; };
+  for (const [n, ema, color] of [[9, true, '#4fa3ff'], [20, true, '#ff5ec4'], [50, false, '#ffd166'], [200, false, '#ffffff']]) {
+    const s = chart.addSeries(LightweightCharts.LineSeries, { color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    s.setData(ma(n, ema));
+  }
+  chart.timeScale().fitContent();
+  new ResizeObserver(() => chart.applyOptions({ width: el.clientWidth, height: el.clientHeight })).observe(el);
+  const btns = [...document.querySelectorAll('.choice')]; const check = document.getElementById('check');
+  btns.forEach(b => b.onclick = () => { btns.forEach(x => x.classList.toggle('on', x === b)); check.classList.add('ready'); });
+  check.onclick = () => { if (check.classList.contains('ready')) check.textContent = 'Checked (the answer card is piece 2)'; };
+})();
+</script>
+</body>
+</html>

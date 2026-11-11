@@ -10,27 +10,30 @@
 //     (the server's `forDayLabel`, else `bindWords`), never a tick or a value (no day state, W11-R12). Cards and tools
 //     are drawn by the ONE renderer the adoption sheet uses too (PreviewParts.jsx, fix round 1 m-1);
 //   * the credit line, exactly as the server wrote it (`credit`, W11-R24; nothing here builds one);
-//   * one "Use this template" button, which opens the adoption sheet (`openAdoptSheet({galleryId, kind: 'template'})`)
-//     where the member makes it theirs.
+//   * Audit 2026-11-05, spec S7/S9 (M8): "Use" makes the note at once (libraryUse.js's
+//     `useLibraryTemplate`, the one one-press Use), "Customize first" beside it opens the adoption sheet, and the
+//     section's "Also start this every weekday" checkbox is shown here too (one value, the section's). It was "Use this
+//     template", which opened the adoption sheet as a second step ("Make it yours", then Use again).
 // ⛔ Opening it writes nothing: one GET for the outline and one `preview-mine`. A refusal is the server's own sentence
 //    (a rate refusal reads "Too many previews in an hour. Try again later.", the preview scope's own words).
 // ⛔ LAZY. Rendered only by TemplateLibrarySection.jsx (itself a lazy chunk); the adoption sheet and the built views
 //    load on demand.
-import { Suspense, useEffect, useId, useState } from 'react'
+import { Suspense, useEffect, useId, useRef, useState } from 'react'
 import Sheet from '../../../../../components/mobile/Sheet'
 import { previewMine } from '../../../lib/templateLibrary'
 import { getGalleryTemplate } from '../../../lib/templateGallery'
 import { widgetEmbedNode } from '../../../lib/notebookWidgets'
-import { doorLostSentence } from '../../../lib/notebookWidgetsFlags'
 import lazyChunk from '../../../lib/lazyChunk'
 import { DocBody } from '../TemplatePreview'
 import { outlineWithBlockNames, previewSlotNames } from '../../../lib/templateSlots'
 import { PreviewCard, PreviewTool } from './PreviewParts'
+import { CUSTOMIZE_LABEL, MAKING_SENTENCE, START_LABEL, USE_LABEL, openCustomize, useLibraryTemplate } from './libraryUse'
 import styles from './library.module.css'
 
 const BuiltWidgetEmbed = lazyChunk(() => import('../widgets/BuiltWidgetEmbed'))
 
-export const USE_TEMPLATE_LABEL = 'Use this template'
+// S7 (one vocabulary): "Use this template" is "Use".
+export const USE_TEMPLATE_LABEL = USE_LABEL
 export const DATA_HEADING = 'Preview with your data'
 export const LOADING_SENTENCE = 'Getting your preview ready…'
 export const OUTLINE_LOADING = 'Loading the outline…'
@@ -61,12 +64,15 @@ const drawBuilt = (payload) => (
  * @param returnFocusTo the card's Preview button that opened this (Sheet's `returnFocusTo`): focus goes back to it on
  *                 close even after a TAP, which WebKit never focuses
  */
-export default function TemplateDetailSheet({ item, onClose, navigate = null, busy = false, landNote = null, returnFocusTo = null }) {
+export default function TemplateDetailSheet({ item, onClose, navigate = null, busy = false, landNote = null, returnFocusTo = null,
+  startEveryWeekday = false, onStartEveryWeekday = null }) {
   const uid = useId()
   const id = item?.id
   const [outline, setOutline] = useState({ status: 'loading', body: null })
   const [data, setData] = useState(null)          // null while asking, then the library's answer {ok, data | code, message}
   const [doorProblem, setDoorProblem] = useState('')
+  const [using, setUsing] = useState(false)
+  const usingRef = useRef(false)
 
   useEffect(() => {
     let alive = true
@@ -80,17 +86,30 @@ export default function TemplateDetailSheet({ item, onClose, navigate = null, bu
     return () => { alive = false }
   }, [id])
 
+  // ⛔ The note lands only AFTER this sheet has closed: the page under a Sheet is inert, and focus cannot go into it.
+  const landAfterClose = typeof landNote === 'function'
+    ? (note) => { onClose?.(); setTimeout(() => landNote(note), 0) }
+    : null
   const use = async () => {
-    if (busy) return
+    if (busy || usingRef.current) return
+    usingRef.current = true
+    setUsing(true)
     setDoorProblem('')
     try {
-      const mod = await import('./openAdoptSheet')
-      onClose?.()
-      mod.openAdoptSheet({ galleryId: id, kind: 'template', ...(typeof navigate === 'function' ? { navigate } : {}),
-        ...(typeof landNote === 'function' ? { landNote } : {}) })
-    } catch {
-      setDoorProblem(doorLostSentence())
+      const said = await useLibraryTemplate(item, { startEveryWeekday, navigate, landNote: landAfterClose })
+      if (said) setDoorProblem(said)
+      else onClose?.()            // landed, or Customize first opened: either way this sheet is done
+    } finally {
+      usingRef.current = false
+      setUsing(false)
     }
+  }
+  const customize = async () => {
+    if (busy) return
+    setDoorProblem('')
+    onClose?.()
+    const said = await openCustomize(item, { navigate, landNote })
+    if (said) setDoorProblem(said)
   }
 
   const answer = data?.ok ? data.data : null
@@ -116,9 +135,17 @@ export default function TemplateDetailSheet({ item, onClose, navigate = null, bu
           {tools.length > 0 && <ul className={styles.previewList}>{tools.map((t, i) => <PreviewTool key={text(t.slot) || i} tool={t} />)}</ul>}
         </section>
         {doorProblem && <p className={styles.notice} role="alert">{doorProblem}</p>}
+        {typeof onStartEveryWeekday === 'function' && (
+          <label className={styles.choice} data-start-every-weekday="">
+            <input type="checkbox" checked={startEveryWeekday} onChange={(e) => onStartEveryWeekday(e.target.checked)} />
+            <span>{START_LABEL}</span>
+          </label>
+        )}
+        <p className={styles.hint} aria-live="polite">{using ? MAKING_SENTENCE : ''}</p>
         <div className={styles.actions}>
           <button type="button" className={styles.btn} onClick={onClose}>{CANCEL_LABEL}</button>
-          <button type="button" className={styles.btnPrimary} onClick={use} disabled={busy}>{USE_TEMPLATE_LABEL}</button>
+          <button type="button" className={styles.linkBtn} onClick={customize} disabled={busy || using}>{CUSTOMIZE_LABEL}</button>
+          <button type="button" className={styles.btnPrimary} onClick={use} disabled={busy || using}>{USE_TEMPLATE_LABEL}</button>
         </div>
       </div>
     </Sheet>

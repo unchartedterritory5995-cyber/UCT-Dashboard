@@ -470,7 +470,48 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // the A1 literal below reproduce byte-for-byte. The corpus spreads CHART_DEFAULTS;
       // no door moved.
       // (Prior value: 6f7743de23fdad1681d202f328898691c2d7151c59787de818b125cbb1fd45be)
-      .toBe('1caded5378e5fe9ae49615e5a953112103fe524e925967b543876d646e0df70e')
+      // 2026-11-07: re-pinned for the UCT RS v2/v3 work on `rsLine`, commits d49ec576b4
+      // (RS v2, Phase 1 unit 2) .. edd674016f (rsLine v3, 2a-14), on feat/uct-rs-phase1 →
+      // feat/uct-rs-phase2a (measured at 9b7e58ce3b). It left this rail and the A1 literal
+      // red on both branches. ⛔ INVESTIGATED BY MEASUREMENT, NOT REGENERATED: both corpora
+      // were dumped element by element (labelled base|def|step, sorted keys) on this tree
+      // and with app/src checked out at ab9693d50b (the parent of d49ec576b4), which
+      // reproduces this literal and the A1 literal byte for byte, and diffed. 760 elements
+      // each; 745 byte-identical; the 15 that differ are EXACTLY rsLine's on/input/off in
+      // each of the five bases, and nothing else in them moved:
+      //   · `indicatorInstances[].defVersion` 1 → 3 — the definition's own `version`
+      //     (v2 at d49ec576b4, v3 at edd674016f);
+      //   · the INPUT step exercises a different key: the corpus bumps the FIRST `int`
+      //     input with a default, which was `lineWidth` (1 → 2) and is now the new
+      //     `maLength` (21 → 22, declared ahead of it by d49ec576b4). So
+      //     `indicators.rsLine.lineWidth: 2` and `inputs.lineWidth: 2` are gone and
+      //     `indicators.rsLine.maLength: 22` / `inputs.maLength: 22` arrived in their
+      //     place, on the input and off elements.
+      // No other definition's enable/input/disable blob changed and no CHART_DEFAULTS key
+      // moved — rsLine's own intended change (new inputs, new version), no door moved.
+      // (Prior value: 1caded5378e5fe9ae49615e5a953112103fe524e925967b543876d646e0df70e)
+      // 2026-11-07: re-pinned for UCT RS v4 (Phase 3 unit 3-08), MEASURED: the corpus
+      // rebuilt with every rsLine instance's `defVersion` mapped 4 → 3 (and nothing else
+      // touched) digests to the prior value 8ed70382… byte for byte. 15 of 760 elements
+      // differ, exactly rsLine's on/input/off in each of the five bases, and only in
+      // `defVersion` (the definition's own `version`). The first `int` input is still
+      // `maLength` (the new inputs are declared after it), so the input step did not move.
+      // No door moved. (Prior value: 8ed703821a52dc3b1c7bc9c404cffdb6b0eee41685fa31238dcaafcb40727735)
+      // 2026-11-08: re-pinned for rsLine rev 5 (Deepvue round 2, the RS Rating Reading),
+      // MEASURED the same way: every rsLine instance's `defVersion` mapped 5 → 4 (nothing
+      // else touched) digests to the prior value f53b16f1… byte for byte. The elements that
+      // differ are rsLine's own and only in `defVersion`; the first `int` input is still
+      // `maLength`. No door moved. (Prior value: f53b16f12b19922f82c8159640a351296031b5d9e81a0b993cbd686b3180d0d4)
+      // 2026-11-10: re-pinned for the UCT RS split (U6 + U7), a REGISTRY ADDITION, not a door
+      // change. ⛔ INVESTIGATED BY MEASUREMENT, NOT REGENERATED: the corpus walks
+      // `listDefinitions()` (56 definitions now). Rebuilt with `rsRating`, `rsPhases` and
+      // `rsVsEma` SKIPPED it digests to the prior value c922cb55… byte for byte (and the
+      // toggle corpus to dff12cc1… below), so every pre-existing definition's blobs, rsLine's
+      // slim/V5 pair included, are untouched. The three add 40 of the 800 elements
+      // (5 bases x [rsRating 3 + rsPhases 3 + rsVsEma 2]): rsRating and rsPhases each declare
+      // an `int` input (on/input/off), rsVsEma declares none (on/off). No door moved.
+      // (Prior value: c922cb55165e84ffece9fb0ec6f4618c4b5645062de946c825a588a3eef41832)
+      .toBe('49d9202ed0712dc3e31489061a997cad71a3a5d5a6bc94fda9206182900ae2c3')
   })
 
   // ⭐ A1 (D3, owner-approved 2026-10-13): the definition door hides; the old literal now
@@ -522,7 +563,23 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
     // same measurement, same 760-element diff). The element-by-element case above still
     // holds, so the toggle corpus still differs from the removeDefinition one ONLY in its
     // OFF elements. (Prior value: 8ab5b272734563f15dd707eed76d45ea5527049ec3643a84db9523ac67e96063)
+    // 2026-11-07: re-pinned with the literal above for the UCT RS v2/v3 work on `rsLine`
+    // (d49ec576b4 .. edd674016f; same measurement, ab9693d50b reproduces this prior value
+    // byte for byte). The toggle corpus diff is the same 15 rsLine elements and nothing
+    // else: `defVersion` 1 → 3, and the input step's key `lineWidth: 2` → `maLength: 22`
+    // (the first `int` input is now `maLength`). The element-by-element case above still
+    // holds. (Prior value: 529f4941433a715525eca6c42b09a12b6a5f18bd9e734f6dcce5946cfaa5206d)
+    // 2026-11-07: re-pinned for UCT RS v4 (unit 3-08), same measurement as the literal
+    // above: rsLine's `defVersion` mapped 4 → 3 reproduces the prior value 6145e093…
+    // byte for byte; the same 15 rsLine elements, `defVersion` only. The element-by-element
+    // case above still holds. (Prior value: 6145e093a600d556527856f1bf3db6c97d9e9a100ad2cf3dee606a309af2a8ee)
+    // 2026-11-08: re-pinned for rsLine rev 5 (Deepvue round 2), same measurement: `defVersion`
+    // mapped 5 → 4 on the 15 rsLine elements reproduces the prior value 07ee0bff… byte for
+    // byte. (Prior value: 07ee0bff1d2a3c05259dfe63c94fac2685a90b188475cb769ffd18e7a3b901ec)
     expect(digest(corpus().map(digest).join('|')))
-      .toBe('529f4941433a715525eca6c42b09a12b6a5f18bd9e734f6dcce5946cfaa5206d')
+      // 2026-11-10: re-pinned for the UCT RS split (U6 + U7); see the literal above: the
+      // toggle corpus with the three new ids skipped reproduces the prior value byte for byte.
+      // (Prior value: dff12cc182d3d17c16617670e436bdc1aa8ef7258f460d64cde42972c39544d0)
+      .toBe('5e2845d4ae574e4f822a053e2945b0c24a6fc11b8e4af345aa88803722ebe894')
   })
 })

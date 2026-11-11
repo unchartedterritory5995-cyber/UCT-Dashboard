@@ -62,9 +62,13 @@ const TYPE_OF_CALL = Object.freeze({
   'input.price': 'float',
 })
 // ⭐ PHASE 3 WS-D — `input.time`, `input.session` and `input.price` are served now (below).
-// ⛔ `input.enum` still is not: its default is a field of an `enum` DECLARATION, and this
-// lane has no `enum` statement yet (WS-A's statement grammar), so there is no value to key.
+// ⭐ W6-T10 — `input.enum` RUNS at its DEFAULT field now (`pineRuntimeFrontend.js::lowerInputEnum`).
+// ⛔ It is still NOT OFFERED as a setting: the menu of an enum's titles is the member input
+// UI's work (W2), and which value a member's choice carries is uncaptured (W6-E1). A run handed
+// a member's value for it refuses by name; with no knob, none is handed, and the default serves.
 const UNSERVED = new Set(['input.symbol', 'input.text_area', 'input.enum'])
+const ENUM_SKIP = 'an enum menu is not offered here yet (the member input menu, and capture W6-E1); its default '
+  + 'field stays'
 const TIMEFRAME_SKIP = 'a timeframe setting changes which bars the script reads, and this pane is handed only '
   + "the chart's own — another timeframe's bars are not made up; its default stays"
 // ⭐ PHASE 3 WS-D — the same ruling, for the same reason, read for a symbol: a symbol setting
@@ -139,9 +143,13 @@ const TEXT_KIND_OF_CALL = Object.freeze({
   'input.string': 'string', 'input.text_area': 'text_area', 'input.session': 'session',
   'input.timeframe': 'timeframe', 'input.symbol': 'symbol',
 })
+// W4 T3: v1-v3 spelled the type with a bare word (`input("0930-1600", "S", type = session)`,
+// `type = resolution`, `type = string`); v4 renamed them `input.session` / `input.resolution` /
+// `input.string`. Same inputs, same values, so one table reads both spellings.
 const TEXT_KIND_OF_LEGACY_TYPE = Object.freeze({
   'input.string': 'string', 'input.resolution': 'timeframe', 'input.timeframe': 'timeframe',
   'input.session': 'session', 'input.symbol': 'symbol',
+  string: 'string', resolution: 'timeframe', session: 'session',
 })
 
 /** Which TEXT input this call is (`string`, `text_area`, `session`, `timeframe`, `symbol`),
@@ -239,7 +247,50 @@ export function timestampOfDateString(str) {
  *  (`syminfo.timezone`), which this pane is not handed — a guess would move every bar's
  *  window by hours. */
 export function timeInputDefaultOf(node, lookup) {
-  return constTimeOf(argOf(node, 'defval', 0), lookup, 0)
+  // ⭐⭐ RULING-0927 r1 (2026-11-07) — ONLY THE CAPTURED FORM IS SERVED, on every lane that reads
+  // a time default (this function is the one reader: the run, the settings dialog and the
+  // translator all call it). T16 of `vw-time-tf-spy-1d-2026-09-27.json` witnesses exactly
+  // `input.time(timestamp("18 May 2022 00:00 +0000"))` with no `confirm`. Every other form refuses
+  // by name and has a probe row in `docs/pine/capture-queue-2026-09-27.md` (RULING-0927 r1).
+  // r2 (B3): `confirm` is positional index 5 in BOTH signatures — v5/v6 `input.time(defval, title,
+  // tooltip, inline, group, confirm)` and v4 `input(defval, title, type, minval, maxval, confirm)`.
+  const confirm = argOf(node, 'confirm', 5)
+  if (confirm !== undefined && literalNumber(confirm) !== 0) return { skip: TIME_CONFIRM_SKIP }
+  const def = argOf(node, 'defval', 0)
+  const r = constTimeOf(def, lookup, 0)
+  if (r.skip) return r
+  const why = unwitnessedTimeDefault(terminalTimeNode(def, lookup))
+  return why ? { skip: why } : r
+}
+
+/** The one default form a capture holds: an RFC 2822 date string, minutes, zone written `+0000`. */
+export const WITNESSED_TIME_DEFAULT = /^\d{1,2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2} \+0000$/
+const TIME_NEEDS_CAPTURE = ' — no capture holds this form yet (RULING-0927 r1, '
+  + '`docs/pine/capture-queue-2026-09-27.md`); the one captured form is `timestamp("D MMM YYYY hh:mm +0000")`'
+export const TIME_CONFIRM_SKIP = 'it asks the member to pick the time on the chart (`confirm = true`), so the '
+  + "author's default is not what TradingView runs" + TIME_NEEDS_CAPTURE
+
+/** The node a default finally names, through name bindings (the same walk `constTimeOf` makes). */
+function terminalTimeNode(v, lookup) {
+  for (let depth = 0; v && v.type === 'name' && typeof lookup === 'function' && depth <= 8; depth += 1) {
+    const bound = lookup(v.name)
+    if (!bound) break
+    v = bound
+  }
+  return v
+}
+
+/** Why a READABLE default is still not served (null when it is the captured form). */
+function unwitnessedTimeDefault(v) {
+  if (literalNumber(v) !== null) return 'its default is a literal count of milliseconds' + TIME_NEEDS_CAPTURE
+  const args = v && v.type === 'call' && v.name === 'timestamp' ? (v.args || []).filter((a) => a && !a.name) : []
+  if (args.length === 1 && args[0].value && args[0].value.type === 'string') {
+    const text = args[0].value.value
+    return WITNESSED_TIME_DEFAULT.test(text)
+      ? null
+      : `its default \`timestamp("${text}")\` is not written in the captured form` + TIME_NEEDS_CAPTURE
+  }
+  return 'its default is `timestamp(timezone, year, …)`' + TIME_NEEDS_CAPTURE
 }
 
 const OUT_OF_RANGE = 'its default is outside the dates a chart can hold (±8.64e15 ms, about 271,821 years either side of 1970)'
@@ -293,6 +344,22 @@ function constTimeOf(v, lookup, depth) {
 
 const isLiteralNode = (v) => !!v && (v.type === 'string' || v.type === 'colour' || literalNumber(v) !== null)
 
+/** W4 T3: the names a TUPLE statement binds (`[a, b] = f()`), and the operator that follows the
+ *  closing bracket; `null` when the statement is not a tuple. (`[a, b] := f()` is refused by name
+ *  by the front end, `runtime:tuple`, so nothing reads it as a write here.) Every identifier between the brackets counts (a type word too: over-counting only makes
+ *  a `var` less likely to be called constant, never more). */
+function tupleTargetsOf(toks) {
+  if (!toks || !toks[0] || !isPunct(toks[0], '[')) return null
+  const names = []
+  let close = -1
+  for (let k = 1; k < toks.length; k += 1) {
+    if (isPunct(toks[k], ']')) { close = k; break }
+    if (toks[k].kind === 'ident') names.push(toks[k].value)
+  }
+  if (close < 0 || !toks[close + 1] || toks[close + 1].kind !== 'punct') return null
+  return { names, op: toks[close + 1].value }
+}
+
 /** Every name a `:=` or a compound assignment (`+=` …) writes, anywhere in the script. */
 function scanReassigned(stmts) {
   const out = new Set()
@@ -328,6 +395,10 @@ export function constantVarsOf(stmts) {
       const toks = st.header || []
       const eq = findTop(toks, (t) => isPunct(t, '='))
       const nameTok = eq > 0 ? boundName(toks, eq) : null
+      // W4 T3: `[a, b] = f()` binds `a` and `b` (a second binding of a name, in any block, means
+      // the name is not one constant): count each, exactly as a plain `a = …` is counted
+      const tup = tupleTargetsOf(toks)
+      if (tup && tup.op === '=') for (const n of tup.names) count.set(n, (count.get(n) || 0) + 1)
       if (nameTok) {
         count.set(nameTok.value, (count.get(nameTok.value) || 0) + 1)
         if (top && toks[0] && toks[0].kind === 'ident' && toks[0].value === 'var') {
@@ -383,6 +454,7 @@ function specOf(name, node, rhsToks, version, lookup) {
   const legacy = legacyType && legacyType.type === 'name' ? legacyType.name : null
   // ⭐ PHASE 3 WS-D — a symbol setting is skipped for the timeframe ruling's reason, by name.
   if (call === 'input.symbol' || legacy === 'input.symbol') return { skip: SYMBOL_SKIP }
+  if (call === 'input.enum') return { skip: ENUM_SKIP }
   if (UNSERVED.has(call)) return { skip: `\`${call}\` is not a setting this pane can carry yet` }
   let type = TYPE_OF_CALL[call]
   const def = argOf(node, 'defval', 0)

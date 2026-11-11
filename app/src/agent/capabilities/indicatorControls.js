@@ -24,11 +24,19 @@ import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 import { normalizeColor } from './chart'
 import {
   common, oneChange, targetOf, planFor, refusalSentence, extReceiptLine, VOLUME_OPTS, placeWord, indicatorEditsRef, defIdOfWords,
+  inputsOfDef, receiptLine, ownIndicatorName,
 } from './indicatorEdits'
+import { isValidTf } from '../../components/chart/timeframes'
 
 const APPEARANCE = ['lineWidth', 'lineStyle', 'overlap']
-const PROPERTIES = ['color', 'upColor', 'downColor', 'lineWidth', 'lineStyle', 'plotStyle', 'overlap']
+// ⭐ PACKAGE 3: `showOn` — which chart timeframes it draws on (Indicators' `setVisibility`, the Inspector's "Show on")
+// ⭐ UCT RS Phase 2a (2a-12b): `dotSize` — the Dot size control on an indicator that draws dots (Indicators' `setDotSize`)
+const PROPERTIES = ['color', 'upColor', 'downColor', 'lineWidth', 'lineStyle', 'plotStyle', 'overlap', 'showOn', 'dotSize']
 const lc = (s) => String(s ?? '').trim().toLowerCase()
+// the member's word for a dot size → the store's word (the three `DOT_SIZES` keys); the control labels "medium" as "Default"
+const DOT_SIZE_SYNONYMS = { default: 'medium', normal: 'medium', regular: 'medium', standard: 'medium', big: 'large', bigger: 'large', larger: 'large', tiny: 'small', smaller: 'small', little: 'small' }
+const dotSizeOf = (v) => { const w = lc(v); return DOT_SIZE_SYNONYMS[w] || w }
+const dotSizeLabel = (w) => (w === 'medium' ? 'Default (medium)' : w)
 
 // ── the request for ONE style change (or why there is none) ──
 /** A colour as the contract accepts it: a name or hex (→ #rrggbb), or a theme token / rgb() / hsl() as said. */
@@ -56,6 +64,33 @@ function relativeWidth(opts, word) {
   const j = word === 'thicker' ? i + 1 : i - 1
   return j >= 0 && j < a.options.length ? a.options[j] : a.current
 }
+// ── PACKAGE 3: "only on the daily" / "intraday only" / "daily and weekly" / "all timeframes" → the stored policy shape ──
+const TF_WORDS = { daily: 'D', day: 'D', d: 'D', '1d': 'D', weekly: 'W', week: 'W', w: 'W', '1w': 'W', monthly: 'M', month: 'M', m: 'M',
+  hourly: '60', '1h': '60', '60m': '60', '60': '60', '4h': '240', '240': '240', '30m': '30', '30': '30', '15m': '15', '15': '15', '5m': '5', '5': '5', '1min': '1' }
+/** @returns 'all' | {preset:'intraday'} | {preset:'dailyUp'} | {preset:'custom', tfs} | null (not understood) */
+export function showOnOf(value) {
+  const w = lc(value).replace(/\b(?:charts?|timeframes?|only|just|the|on|show|it)\b/g, ' ').replace(/\s+/g, ' ').trim()
+  if (!w || /^(?:all|any|every|everywhere|always)$/.test(w)) return 'all'
+  if (/^intra-?day$/.test(w)) return { preset: 'intraday' }
+  if (/^(?:daily (?:and|&|or) (?:above|up|higher)|daily ?\+|dailyup|higher)$/.test(w)) return { preset: 'dailyUp' }
+  const parts = w.split(/\s*(?:,|\band\b|&|\+|\bor\b|\/)\s*/).filter(Boolean)
+  const tfs = []
+  for (const p of parts) {
+    const code = TF_WORDS[p] || (parts.length === 1 && isValidTf(String(value).trim()) ? String(value).trim() : null)
+    if (!code) return null
+    if (!tfs.includes(code)) tfs.push(code)
+  }
+  return tfs.length ? { preset: 'custom', tfs } : null
+}
+/** An authored indicator's own "Line width" SETTING (its `lineWidth` input), when it has no Inspector width control. */
+function widthInputOf(st, id) {
+  const inst = (st.cs?.indicatorInstances || []).find(i => i && i.instanceId === id)
+  if (!inst) return null
+  const spec = inputsOfDef(inst.defId).find(i => i.key === 'lineWidth' && (i.type === 'int' || i.type === 'number'))
+  if (!spec) return null
+  const cur = Number(inst.inputs?.lineWidth ?? spec.default ?? 1)
+  return { spec, cur: Number.isFinite(cur) ? cur : 1 }
+}
 export function styleRequest(st, { instance, property, value, output }) {
   const t = targetOf(st, instance)
   if (!t.ok) return { why: refusalSentence(t, { chart: st.chart }) }
@@ -64,6 +99,37 @@ export function styleRequest(st, { instance, property, value, output }) {
   let opts
   try { opts = styleOptionsOf(st.cs, nativeRegistry, id) } catch { opts = null }
   if (!opts || !opts.ok) return { why: refusalSentence(opts || { reason: REASONS.BAD_REQUEST }, { chart: st.chart }) }
+  if (property === 'showOn') {
+    const visibility = showOnOf(value)
+    if (!visibility) return { why: `I can show ${t.name} on all timeframes, intraday only, daily & above, or on the timeframes you name (daily, weekly, 1h…) — which?` }
+    return { req: { op: 'setVisibility', instanceId: id, visibility }, name: t.name }
+  }
+  // ⭐ 2a-12b: the Dot size control — only on an indicator that draws dots (`styleOptionsOf(...).dotSize` is null otherwise);
+  // the word is validated against the options Indicators offers, never invented; `output` names ONE dot output (else the instance level)
+  if (property === 'dotSize') {
+    const ds = opts.dotSize
+    if (!ds) return { why: `${t.name} has no dot size to change — this indicator draws no dots.` }
+    const size = dotSizeOf(value)
+    if (!(ds.options || []).includes(size)) return { why: `“${value}” isn't a dot size I know — ${t.name}'s dots can be ${(ds.options || []).map(dotSizeLabel).join(', ')}.` }
+    const plots = ds.plots || []
+    const pick = output ? plots.find(p => lc(p.label) === lc(output) || lc(p.plotKey) === lc(output)) : null
+    if (output && !pick) return { why: `${t.name} draws no dots on “${output}” — its dots: ${plots.map(p => p.label).join(', ')}.` }
+    return { req: { op: 'setDotSize', instanceId: id, size, ...(pick ? { plotKey: pick.plotKey } : {}) }, name: t.name }
+  }
+  // PACKAGE 3: an indicator built in Create Indicator has no Inspector width control — its width is its own "Line width"
+  // SETTING (the `lineWidth` input), changed through the same setInputs door as any setting (exact Undo)
+  if (property === 'lineWidth' && !(opts.appearance || []).some(a => a.key === 'lineWidth')) {
+    const w = widthInputOf(st, id)
+    if (w) {
+      const lo = Number.isFinite(w.spec.min) ? w.spec.min : 1
+      const hi = Number.isFinite(w.spec.max) ? w.spec.max : 10
+      const v = lc(value) === 'thicker' ? w.cur + 1 : lc(value) === 'thinner' ? w.cur - 1 : Number(value)
+      if (!Number.isFinite(v)) return { why: 'Say a line width (a number), thicker or thinner.' }
+      const next = Math.min(hi, Math.max(lo, Math.round(v)))
+      if (next === w.cur) return { why: `${t.name} is already as ${lc(value) === 'thinner' ? 'thin' : 'thick'} as it goes (line width ${w.cur}).` }
+      return { req: { op: 'setInputs', instanceId: id, inputs: { lineWidth: next } }, name: t.name }
+    }
+  }
   if (APPEARANCE.includes(property)) {
     let v = value
     if (property === 'lineWidth' && (lc(value) === 'thicker' || lc(value) === 'thinner')) v = relativeWidth(opts, lc(value))
@@ -166,7 +232,7 @@ export function copyRequest(st, { from, instances }, env) {
 }
 
 // ── the shared check / apply / describe for one built request ──
-function checkBuilt(st, built, op) {
+export function checkBuilt(st, built, op) {
   if (built.why) return built.why
   return oneChange(st) || planCheckP2(st, built.req, op)
 }
@@ -176,7 +242,7 @@ function planCheckP2(st, req, op) {
   if (!p.ok && p.reason === REASONS.NO_CHANGE) return null                 // said as a no-op, not a refusal
   return p.ok ? null : refusalSentence(p, { chart: st.chart, op: op || req.op })
 }
-function applyBuilt(st, built) {
+export function applyBuilt(st, built) {
   if (built.why || !built.req) return st
   const p = planFor(st, built.req)
   return p.ok ? { ...st, change: { request: built.req, plan: p.plan } } : st
@@ -185,7 +251,9 @@ function describeBuilt(a) {
   if (!a.change) return null
   const { plan } = a.change
   const pv = plan.preview || {}
-  return extReceiptLine({ op: plan.op, change: pv.change, copied: pv.copied, already: pv.already, from: pv.from }, pv.nameAfter || pv.name || 'the indicator', ` on ${a.chart}`)
+  // PACKAGE 3: a width set through the indicator's own Line width setting is said as a settings change
+  if (plan.op === 'setInputs' && pv.inputs) return receiptLine({ op: 'setInputs', inputs: pv.inputs, defId: plan.target?.defId, name: pv.nameAfter || pv.name }, a.chart)
+  return extReceiptLine({ op: plan.op, change: pv.change, copied: pv.copied, already: pv.already, from: pv.from }, ownIndicatorName(plan.target?.defId) || pv.nameAfter || pv.name || 'the indicator', ` on ${a.chart}`)
 }
 
 let registered = false
@@ -198,8 +266,8 @@ export function registerIndicatorControlCapabilities() {
     ...common,
     name: 'indicatorStyle.set',
     fanOut: true,
-    summary: 'Change how ONE indicator on ONE chart looks — its colour (or a histogram\'s up / down colours), line width, line style or plot style — exactly what its settings / Inspector offer. One change per op; Undo puts it back.',
-    hints: 'target = the ref of that chart\'s indicatorEdits entry; instance = the indicator\'s id from that chart\'s indicators list (or "#20" for the one of length 20, "#20:ema"). property = color | upColor | downColor | lineWidth (1–4, or "thicker" / "thinner") | lineStyle (solid | dashed | dotted) | plotStyle (line, histogram, area… as offered) | overlap. value = the member\'s value (a colour name or #hex for colours). output = which line or colour when the indicator has several (its label), else null. "Make the 9 green and the 20 red and dashed" = three ops.',
+    summary: 'Change how ONE indicator on ONE chart looks — its colour (or a histogram\'s up / down colours), line width, line style, plot style, dot size (on an indicator that draws dots), or which chart timeframes it shows on — exactly what its settings / Inspector offer. One change per op; Undo puts it back.',
+    hints: 'target = the ref of that chart\'s indicatorEdits entry; instance = the indicator\'s id from that chart\'s indicators list (or "#20" for the one of length 20, "#20:ema"). property = color | upColor | downColor | lineWidth (1–4, or "thicker" / "thinner") | lineStyle (solid | dashed | dotted) | plotStyle (line, histogram, area… as offered) | overlap | showOn (which chart timeframes it draws on: value = "daily", "weekly", "daily and weekly", "intraday", "daily and above" or "all" — "only show it on the daily" = showOn daily) | dotSize (small | medium | large — "medium" is the default; only an indicator that draws dots, e.g. "make the RS dots large" = dotSize large). value = the member\'s value (a colour name or #hex for colours). output = which line, colour or dot output when the indicator has several (its label), else null. "Make the 9 green and the 20 red and dashed" = three ops.',
     args: { type: 'object', properties: { instance: instanceArg, property: { type: 'string', enum: PROPERTIES }, value: { type: ['string', 'number', 'boolean'] }, output: { type: ['string', 'null'] } }, required: ['instance', 'property', 'value', 'output'], additionalProperties: false },
     fast: ({ lower }) => fastStyle(lower),
     check: (st, args) => checkBuilt(st, styleRequest(st, args)),
@@ -322,6 +390,9 @@ function fastStyle(lower) {
   }
   m = /^(?:show|draw|make) (.+?) (?:as )?an? (histogram|line|area|columns)$/.exec(lower)
   if (m && instanceWord(m[1])) return { instance: instanceWord(m[1]), property: 'plotStyle', value: m[2], output: null }
+  // ⭐ 2a-12b: "make the RS dots large" / "make sar's dots small" — the Dot size control (styleRequest validates the word)
+  m = /^make (.+?)(?:'s)? dots (small|medium|large|default|big|tiny)$/.exec(lower)
+  if (m && instanceWord(m[1])) return { instance: instanceWord(m[1]), property: 'dotSize', value: m[2], output: null }
   return null
 }
 function fastPlace(lower) {

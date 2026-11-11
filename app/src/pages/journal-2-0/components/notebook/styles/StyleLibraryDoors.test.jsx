@@ -1,3 +1,6 @@
+// S7 fix round 2 (audit 2026-11-05, re-review R1-1): the copy these rails pin was renamed (style -> template).
+// S7 (audit 2026-11-05, one vocabulary): the copy these rails pin was renamed (styles -> templates, Adopt -> Use,
+// Community styles/gallery -> Template library, Active setups -> Setups); the rails follow the new words.
 // P3a Task 10 — the doors into the community style library, sharing a style, and reviewing an author's
 // update, through the REAL clients (lib/styleLibrary.js, lib/journalStyles.js) with only the network faked.
 // ⛔ Feedback is asserted by RENDERED TEXT, never by a state transition.
@@ -178,16 +181,16 @@ describe('the recorded answers hold what these rails read (non-vacuity)', () => 
 })
 
 describe('with the library switch off, none of the doors render', () => {
-  it('KindSection has no "Browse community styles" and the manager has no Share, Community or Updates', async () => {
+  it('KindSection has no "Browse the Template library" and the manager has no Share, Community or Updates', async () => {
     flags({ library: false })
     render(tree(<KindSection onCreate={vi.fn()} />))
-    await screen.findByRole('group', { name: 'Start from a kind of note' })
+    await screen.findByRole('group', { name: 'Start from a template' })
     expect(screen.queryByRole('button', { name: /community styles/i })).toBeNull()
 
     openManager()
     const row = await memberRow()
     expect(within(row).getByRole('button', { name: `Edit ${MEMBER.name}` })).toBeInTheDocument()   // control: the row rendered
-    expect(screen.queryByRole('button', { name: /Share .* to community/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Share .* to the Template library/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /^Community$/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /^Updates/ })).toBeNull()
     expect(called('GET', /\/template-gallery\/updates$/)).toEqual([])                                // nothing is asked
@@ -199,7 +202,7 @@ describe('which rows and buttons the library adds (M-3, ruling P3a-T10-R3)', () 
     flags()
     updatesAnswer = NONE
     openManager()
-    expect(await screen.findByRole('button', { name: 'Community' })).toBeInTheDocument()          // control: library on
+    expect(await screen.findByRole('button', { name: 'Template library' })).toBeInTheDocument()          // control: library on
     await waitFor(() => expect(called('GET', /\/template-gallery\/updates$/).length).toBeGreaterThan(0))
     await act(async () => {})
     expect(screen.queryByRole('button', { name: /^Updates/ })).toBeNull()
@@ -208,12 +211,12 @@ describe('which rows and buttons the library adds (M-3, ruling P3a-T10-R3)', () 
   it('Share is offered on the member\'s own style, never on a built-in one or on a copy adopted from the library', async () => {
     flags()
     openManager()
-    expect(within(await memberRow()).getByRole('button', { name: `Share ${MEMBER.name} to community` })).toBeInTheDocument()
+    expect(within(await memberRow()).getByRole('button', { name: `Share ${MEMBER.name} to the Template library` })).toBeInTheDocument()
     const builtin = within(screen.getAllByText(BUILTIN.name, { selector: 'span' })[0].closest('li'))
     expect(builtin.getByRole('button', { name: `Duplicate ${BUILTIN.name} to edit` })).toBeInTheDocument()   // the row is there
-    expect(builtin.queryByRole('button', { name: /to community/ })).toBeNull()
+    expect(builtin.queryByRole('button', { name: /to the Template library/ })).toBeNull()
     const copyRow = within(screen.getByRole('button', { name: `Edit ${COPY.name}` }).closest('li'))
-    expect(copyRow.queryByRole('button', { name: /to community/ })).toBeNull()
+    expect(copyRow.queryByRole('button', { name: /to the Template library/ })).toBeNull()
   })
 })
 
@@ -228,7 +231,7 @@ describe('Duplicate carries provenance (ruling P3a-T10-R6)', () => {
     await waitFor(() => expect(called('POST', /^\/api\/j2\/journal-styles$/)).toHaveLength(1))
     expect(called('POST', /^\/api\/j2\/journal-styles$/)[0].body.duplicateOf).toBe(COPY.id)
     const dupRow = within((await screen.findByRole('button', { name: `Edit ${created.name}` })).closest('li'))
-    expect(dupRow.queryByRole('button', { name: /to community/ })).toBeNull()
+    expect(dupRow.queryByRole('button', { name: /to the Template library/ })).toBeNull()
   })
 })
 
@@ -248,38 +251,38 @@ describe('libraryError: what a failed library call says', () => {
 })
 
 describe('the doors open the community library at Styles', () => {
-  it('KindSection\'s "Browse community styles" opens the library with Styles chosen', async () => {
+  it('KindSection\'s "Browse the Template library" opens the library with Styles chosen', async () => {
     flags()
     render(tree(<KindSection onCreate={vi.fn()} />))
-    fireEvent.click(await screen.findByRole('button', { name: 'Browse community styles' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Community styles' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Browse the Template library' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Template library' })
     const types = await within(dialog).findByRole('group', { name: 'Filter by type' })
-    expect(within(types).getByRole('button', { name: 'Styles' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(types).getByRole('button', { name: 'Templates' })).toHaveAttribute('aria-pressed', 'true')
     const style = contractBody('template-gallery.list.styles').templates[0]
     // (this fake answers the "UCT picks" read and the full list alike, so the card can appear in both)
     expect((await within(dialog).findAllByRole('heading', { name: style.title })).length).toBeGreaterThan(0)
     expect(calls.some((c) => c.path === '/api/j2/template-gallery' && c.search.includes('type=style'))).toBe(true)
     // its way back says where it goes, and closes the library
     fireEvent.click(within(dialog).getByRole('button', { name: 'Close the library' }))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Community styles' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Template library' })).toBeNull())
   })
 
   it('the manager\'s Community button opens the same library', async () => {
     flags()
     openManager()
-    fireEvent.click(await screen.findByRole('button', { name: 'Community' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Community styles' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Template library' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Template library' })
     const types = await within(dialog).findByRole('group', { name: 'Filter by type' })
-    expect(within(types).getByRole('button', { name: 'Styles' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(types).getByRole('button', { name: 'Templates' })).toHaveAttribute('aria-pressed', 'true')
   })
 })
 
-describe('Share to community', () => {
+describe('Share to the Template library', () => {
   const share = async () => {
     flags()
     openManager()
-    fireEvent.click(within(await memberRow()).getByRole('button', { name: `Share ${MEMBER.name} to community` }))
-    return screen.findByRole('dialog', { name: `Share ${MEMBER.name} to community` })
+    fireEvent.click(within(await memberRow()).getByRole('button', { name: `Share ${MEMBER.name} to the Template library` }))
+    return screen.findByRole('dialog', { name: `Share ${MEMBER.name} to the Template library` })
   }
   const fill = (dialog) => {
     fireEvent.change(within(dialog).getByLabelText(/What it's for/), { target: { value: 'How I plan a breakout.' } })
@@ -302,7 +305,7 @@ describe('Share to community', () => {
     expect(await screen.findByText(SENT_SENTENCE)).toBeInTheDocument()
     expect(SENT_SENTENCE).toBe('Sent for review. It is listed once an admin approves it.')
     expect(screen.queryByText(/property defaults (was|were) left out/)).toBeNull()
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: `Share ${MEMBER.name} to community` })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: `Share ${MEMBER.name} to the Template library` })).toBeNull())
   })
 
   it('says how many of the member\'s own defaults were left out when the server says 2', async () => {

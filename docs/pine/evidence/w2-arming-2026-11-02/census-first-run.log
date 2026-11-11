@@ -1,0 +1,33 @@
+[hl] 18:22:01 free RAM 1232 MB before 'w2-rf-readiness'
+[heavy-lock] 'w2-rf-readiness' waiting: held by 'w1fix2-post' (pid 26204) for 5.7 min
+
+ RUN  v4.0.18 C:/Users/pgosz/uct-worktrees/pine-w2/app
+
+ ❯ src/components/chart/engine/__tests__/vendorHarness/runtimePaneReadiness.measure.test.js (1 test | 1 failed) 308777ms
+     × measures every runtime-only corpus script 308776ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/chart/engine/__tests__/vendorHarness/runtimePaneReadiness.measure.test.js > RF — runtime-only panes: door, run, heap and budget at every chart length (opt-in) > measures every runtime-only corpus script
+AssertionError: fair-value-gap: expected 'runtime:limit' to be 'runtime:time-budget' // Object.is equality
+
+Expected: "runtime:time-budget"
+Received: "runtime:limit"
+
+ ❯ src/components/chart/engine/__tests__/vendorHarness/runtimePaneReadiness.measure.test.js:212:83
+    210|     for (const r of out) {
+    211|       expect(r.runs.length).toBe(lengths.length)
+    212|       for (const b of r.budget) if (b.stopped !== null) expect(b.stopp…
+       |                                                                                   ^
+    213|     }
+    214|     fs.mkdirSync(path.dirname(path.resolve(OUT)), { recursive: true })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  18:25:23
+   Duration  317.79s (transform 5.77s, setup 378ms, import 7.36s, tests 308.78s, environment 1.10s)
+
+[heavy-lock] 'w2-rf-readiness' released after 5.3 min

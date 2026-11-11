@@ -6,7 +6,7 @@ The service is `template_gallery.get_item` (a style's `examples`, an example's `
 * `examples`: up to 3 APPROVED, listed, non-hidden example items linked to the style, newest first, each exactly
   `{id, title, bodyJson, updatedAt}`. `bodyJson` is the stored LISTED example reduction (`payload.bodyJson`,
   ruling P3b-R13), never a gallery-mode re-reduction, and never a held revision (`pending_json`).
-* absent while the example switch is off (`example_enabled()`, which needs the library switch too).
+* (the example switch that could hide them was retired as always on, 2026-11-04).
 * an example item read by someone who may see its style carries `linkedStyle: {id, title}` (the reviewer's
   "the linked style's title"); None when they may not see the style.
 """
@@ -150,15 +150,6 @@ def test_examples_carry_the_listed_reduction_and_never_pending_json(api, conn, e
 
 
 # ── server: the switch ─────────────────────────────────────────────────────────────────────
-
-def test_examples_are_absent_while_the_example_switch_is_off(api, conn, ex_on, ocr, monkeypatch):
-    sid = _shared_style(conn, approve=True)
-    _example(conn, sid, title="Plan")
-    assert "examples" in _item(api, sid)                                    # control: on, it is there
-    monkeypatch.setenv("NOTEBOOK_EXAMPLE_NOTES_ENABLED", "0")
-    for who, role in (("reader", "member"), ("author", "member"), ("admin", "admin")):
-        assert "examples" not in _item(api, sid, who, role), who            # the style still reads; the key does not
-
 
 def test_an_outline_carries_no_examples(api, conn, ex_on):
     from tests._style_library_helpers import _row

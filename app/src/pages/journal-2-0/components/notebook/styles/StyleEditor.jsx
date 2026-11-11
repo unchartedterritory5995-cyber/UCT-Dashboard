@@ -187,7 +187,7 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
   }
 
   const save = async () => {
-    if (!name.trim()) { setError('Give the style a name.'); return }
+    if (!name.trim()) { setError('Give the template a name.'); return }
     if (mode === 'template' && !templateId) { setError('Choose one of your templates, or pick another outline option.'); return }
     setSaving(true); setError('')
     try {
@@ -208,13 +208,13 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
   const pvEmpty = !pv?.bodyJson?.content?.length
 
   return (
-    <form className={styles.editor} onSubmit={(e) => { e.preventDefault(); save() }} aria-label={isNew ? 'New style' : `Edit style ${style.name}`}>
+    <form className={styles.editor} onSubmit={(e) => { e.preventDefault(); save() }} aria-label={isNew ? 'New template' : `Edit template ${style.name}`}>
       <div className={styles.field}>
         <label htmlFor="js-name">Name</label>
         <input id="js-name" type="text" value={name} maxLength={MAX_STYLE_NAME_CHARS} onChange={(e) => setName(e.target.value)} />
       </div>
       <div className={styles.field}>
-        <label htmlFor="js-kind">Kind of note</label>
+        <label htmlFor="js-kind">Note type</label>
         <select id="js-kind" value={kindId} onChange={(e) => setKindId(e.target.value)}>
           {kinds.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
         </select>
@@ -268,7 +268,7 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
       <fieldset className={styles.fieldset}>
         <legend>Blocks</legend>
         {blocks.length === 0 && <p className={styles.hint}>No blocks yet. Add one below.</p>}
-        <ol className={styles.blocks} aria-label="Blocks in this style">
+        <ol className={styles.blocks} aria-label="Blocks in this template">
           {blocks.map((b, i) => {
             // Wave 11 (Task 11.14): a template slot (built_<k>, routine_<k>, tracker_<k>) is a block this bundle knows,
             // named by its family (a style's slot settings carry a ref, not a name, so the target's name is not
@@ -366,7 +366,7 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
               {pv.ticker ? `Shown with ${pv.ticker}, from your notes.` : 'Add a ticker to a note to see the chart block.'}
             </p>
             {pvEmpty
-              ? <p className={styles.hint}>A new {kindName || 'note'} from this style starts empty.</p>
+              ? <p className={styles.hint}>A new {kindName || 'note'} from this template starts empty.</p>
               : <DocBody body={previewDoc(pv.bodyJson)} />}
           </>
         )}
@@ -375,7 +375,7 @@ export default function StyleEditor({ style, kinds, onSaved, onCancel, offline =
       {error && <p role="alert" className={styles.error}>{error}</p>}
       <div className={styles.actions}>
         <button type="button" className="btn btn-ghost" onClick={onCancel}>Cancel</button>
-        <button type="submit" className="btn btn-primary" disabled={saving || offline}>{saving ? 'Saving…' : 'Save style'}</button>
+        <button type="submit" className="btn btn-primary" disabled={saving || offline}>{saving ? 'Saving…' : 'Save template'}</button>
       </div>
     </form>
   )

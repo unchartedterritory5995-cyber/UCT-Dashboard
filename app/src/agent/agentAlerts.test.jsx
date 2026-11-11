@@ -11,6 +11,8 @@ import { decideMode } from './policy'
 import { commitPlan, undoEntry } from './runtime'
 import { fastParse } from './fastPath'
 import { _resetAlertCache, loadAlerts } from './capabilities/alert'
+import { loadAgentConfig, _resetAgentConfig } from './agentClient'
+import { turnStart, turnEnd, _resetTurns } from './trace'
 import { makeBoard } from './__fixtures__/board'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
@@ -21,13 +23,13 @@ const CTX = { surface: 'charts' }
 const KNOWN = new Set(['NVDA', 'AMD', 'TSLA', 'SPY', 'AAPL'])
 const QUOTES = { NVDA: 180, AMD: 150, TSLA: 250, SPY: 650, AAPL: 230 }
 
-let server, calls, envelopes, failPost
+let server, calls, envelopes, failPost, gateway
 const row = (id, sym, price, direction, extra = {}) => ({ id, user_id: 'me', sym, target_price: price, direction, is_active: 1, triggered_at: null, created_at: '2026-10-08T13:00:00Z', alert_type: 'price', drawing_id: null, ...extra })
-beforeEach(() => {
-  _resetAlertCache()
+beforeEach(async () => {
+  _resetAlertCache(); _resetAgentConfig(); _resetTurns()
   try { localStorage.clear() } catch { /* */ }
   server = [row('a1', 'AMD', 160, 'above'), row('a2', 'AMD', 120, 'below'), row('a3', 'TSLA', 300, 'above', { is_active: 0, triggered_at: new Date().toISOString() })]
-  calls = []; envelopes = []; failPost = false
+  calls = []; envelopes = []; failPost = false; gateway = true
   let n = 0
   globalThis.fetch = vi.fn(async (url, init = {}) => {
     const u = String(url); const method = init.method || 'GET'
@@ -49,9 +51,15 @@ beforeEach(() => {
         return json({ ok: true })
       }
     }
-    if (u.startsWith('/api/live-prices')) {
-      const t = new URL(u, 'http://x').searchParams.get('tickers').split(',')
-      return json(Object.fromEntries(t.filter(s => QUOTES[s]).map(s => [s, { price: QUOTES[s] }])))
+    // W1-C C-04: the current price comes from the MD-1 gateway's `quotes` kind; /api/live-prices is never called
+    // (that route can run the member's alert checker on a cache miss).
+    if (u.startsWith('/api/live-prices')) throw new Error('an Agent alert read called /api/live-prices')
+    if (u === '/api/agent/config') return json({ stream: false, nl1: false, data: gateway, scan: false, data_kinds: gateway ? ['quotes'] : [] })
+    if (u === '/api/agent/data') {
+      const rows = body.params.symbols.filter(s => QUOTES[s]).map(s => ({ symbol: s, last: QUOTES[s], last_source: 'trade', as_of: '2026-11-02T15:30:00Z' }))
+      return json({ contract: 'MD-1.0', kind: 'quotes', params_echo: body.params, status: 'ok', freshness: 'live', as_of: '2026-11-02T15:30:00Z',
+        fetched_at: '2026-11-02T15:30:05Z', delay_s: null, stale: false, source: 'massive', coverage: null, provider_calls: 1, notes: [],
+        data: { quotes: rows, session: 'regular', session_detail: 'regular' } })
     }
     if (u.startsWith('/api/ticker-search')) {
       const q = new URL(u, 'http://x').searchParams.get('q')
@@ -64,16 +72,22 @@ beforeEach(() => {
     if (u === '/api/agent/record') return json({ conversationId: 'ac_1' })
     return json({ conversations: [] })
   })
+  await loadAgentConfig()
 })
-afterEach(() => { vi.restoreAllMocks() })
+afterEach(() => { _resetTurns(); vi.restoreAllMocks() })
 
 const KINDS = ['alertLibrary', 'alert']
 const board = () => makeBoard([{ id: 'c', type: 'chart', x: 0, y: 0, w: 12, h: 20 }])
+// planned inside one member turn, as the panel does (trace.js): the gateway's `quotes` read is keyed by that turn
 async function plan(host, ops) {
   await loadAlerts({ force: true })
-  const env = await prepareOps(ops)
-  return { p: planOps(collectTargets(host, KINDS), ops, env, CTX), env }
+  turnStart('send')
+  try {
+    const env = await prepareOps(ops)
+    return { p: planOps(collectTargets(host, KINDS), ops, env, CTX), env }
+  } finally { turnEnd() }
 }
+const quoteReads = () => calls.filter(c => c[1] === '/api/agent/data')
 const CREATE = (symbol, price, direction = 'above') => ({ action: 'alert.create', target: 'alerts', args: { symbol, price, direction } })
 const posts = () => calls.filter(c => c[0] === 'POST' && c[1].startsWith('/api/watchlist-alerts'))
 const deletes = () => calls.filter(c => c[0] === 'DELETE')
@@ -111,20 +125,39 @@ describe('alert.list (read-only, from the real rows)', () => {
     const f = fastParse('show my alerts', { host })
     expect(f.ops[0]).toMatchObject({ action: 'alert.list', args: { symbol: null, status: null, triggered_today: null } })
     const text = await getCapability('alert.list').answer(null, f.ops[0].args)
-    expect(text).toMatch(/^Your alerts \(3\):/)
+    expect(text).toMatch(/^Your price alerts \(3\):/)
     expect(text).toContain('AMD at or above $160 — active')
     expect(text).toMatch(/TSLA at or above \$300 — went off/)
     expect(calls.every(c => c[0] === 'GET')).toBe(true)
   })
   it('filters: by symbol + active; "which went off today"; none → said plainly', async () => {
     const a = getCapability('alert.list')
-    expect(await a.answer(null, { symbol: 'amd', status: 'active', triggered_today: null })).toMatch(/^Your active alerts on AMD \(2\):/)
-    expect(await a.answer(null, { symbol: null, status: null, triggered_today: true })).toMatch(/^Your alerts that went off today \(1\):\n• TSLA/)
-    expect(await a.answer(null, { symbol: 'NVDA', status: null, triggered_today: null })).toBe('You have no alerts on NVDA.')
+    expect(await a.answer(null, { symbol: 'amd', status: 'active', triggered_today: null })).toMatch(/^Your active price alerts on AMD \(2\):/)
+    expect(await a.answer(null, { symbol: null, status: null, triggered_today: true })).toMatch(/^Your price alerts that went off today \(1\):\n• TSLA/)
+    expect(await a.answer(null, { symbol: 'NVDA', status: null, triggered_today: null })).toBe('You have no price alerts on NVDA.\n\nThat covers price alerts only: indicator alerts aren\'t included here.')
   })
 })
 
 describe('alert.create', () => {
+  // W1-C C-04: the "already reached" check reads the gateway's `quotes` kind (one read, the open turn), never
+  // /api/live-prices; with the gateway dark the level is simply not checked and the proposal says so.
+  it('the current price is ONE `quotes` gateway read for the turn; dark → no read, no refusal, the proposal says it was not checked', async () => {
+    const { host } = board()
+    const { p } = await plan(host, [CREATE('nvda', 200, 'above'), CREATE('amd', 100, 'below')])
+    expect(p.ok).toBe(true)
+    expect(quoteReads()).toHaveLength(1)
+    expect(quoteReads()[0][2]).toMatchObject({ kind: 'quotes', purpose: 'answer', params: { symbols: ['NVDA', 'AMD'] } })
+    expect(quoteReads()[0][2].turn_id).toMatch(/^t-/)
+    expect(p.lines[0]).toBe('Price alert: NVDA at or above $200 — goes off once, checked while the market is open')
+    gateway = false
+    _resetAgentConfig(); calls = []
+    await loadAgentConfig()
+    const dark = await plan(host, [CREATE('nvda', 150, 'above')])            // NVDA is at $180: would be refused if checked
+    expect(dark.p.ok).toBe(true)
+    expect(quoteReads()).toHaveLength(0)
+    expect(calls.some(c => String(c[1]).startsWith('/api/live-prices'))).toBe(false)
+    expect(dark.p.lines[0]).toBe("Price alert: NVDA at or above $150 — goes off once, checked while the market is open (the current price isn't available to the Agent, so this level wasn't checked against it)")
+  })
   it('VALID: proposed (never auto-applied); Apply POSTs exactly that alert, reads it back; Undo deletes exactly it', async () => {
     const { host } = board()
     const { p, env } = await plan(host, [CREATE('nvda', 200, 'above')])
@@ -163,6 +196,7 @@ describe('alert.create', () => {
     const { p } = await plan(host, [op])
     expect(p.ok).toBe(false)
     expect(why(p)).toMatch(re)
+    expect(calls.some(c => String(c[1]).startsWith('/api/live-prices'))).toBe(false)
     expect(posts()).toHaveLength(0)
   })
   it('UNSUPPORTED condition (not above/below) is refused by the closed schema', async () => {

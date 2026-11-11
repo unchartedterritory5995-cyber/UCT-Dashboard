@@ -16,7 +16,7 @@ export const TOURS = Object.freeze([
   {
     id: 'journal-styles',
     flag: 'notebook_journal_styles_enabled',
-    title: 'Journal styles',
+    title: 'Templates',
     replayable: true,
     start: '/journal/notebook?view=all',
     load: steps((m) => ({ steps: m.JOURNAL_STYLES_STEPS, copy: m.JOURNAL_STYLES_COPY })),
@@ -24,7 +24,7 @@ export const TOURS = Object.freeze([
   {
     id: 'style-library',
     flag: 'notebook_style_library_enabled',
-    title: 'Community library',
+    title: 'Template library',
     replayable: true,
     requires: Object.freeze(['notebook_template_gallery_enabled']),
     start: '/journal/notebook?view=all',

@@ -91,6 +91,7 @@ import { __resetNotebookFlags } from '../lib/offline/notebookFlags'
 import { installKeyRange } from '../lib/offline/__fixtures__/fakeIndexedDb'
 import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
 import { MQ } from '../../../styles/breakpoints'
+import { chooseView } from './__tests__/toolbarDoors'
 
 /** Turn the offline wave on with a store holding unsent work for `queued`;
  *  a note in `unreadable` fails its own read (R1-S1: it cannot be checked). */
@@ -271,7 +272,7 @@ describe('NotebookTab — selecting notes', () => {
     renderTab()
     expect(box('First note')).toBeInTheDocument()
     expect(box('Third note')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /board view/i }))
+    chooseView('Board')
     expect(screen.queryAllByRole('checkbox')).toHaveLength(0)
   })
 
@@ -401,10 +402,12 @@ describe('NotebookTab — selecting notes', () => {
     expect(toolbar()).toBeNull()
   })
 
-  it('the table view selects too, with a select-all header', () => {
+  // Tier 1a bytes: the table view mode is fetched on its first use (lazyView), so its header is awaited.
+  it('the table view selects too, with a select-all header', async () => {
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: /table view/i }))
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select all notes in view' }))
+    chooseView('Table')
+    // master: the table is lazy now, so its select-all box arrives after the chunk loads
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Select all notes in view' }))
     expect(within(toolbar()).getByText('3 selected')).toBeInTheDocument()
   })
 

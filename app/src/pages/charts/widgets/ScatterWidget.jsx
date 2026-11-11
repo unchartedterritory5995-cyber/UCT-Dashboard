@@ -13,6 +13,7 @@
  * Data: /api/scatter/* — /data (the per-ticker bundle: nightly screener metrics +
  * a live snapshot) polled slowly, POST /live (fast overlay) for the glide.
  */
+import { useWidgetDoor } from '../widgetDoors'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ReactECharts from 'echarts-for-react'
@@ -332,6 +333,26 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
     (uniData?.groups || []).map(g => ({ label: g.group, items: g.items.map(it => ({ key: `${it.source}:${it.value ?? ''}`, label: it.label, source: it.source, value: it.value })) })),
     [uniData])
 
+  useWidgetDoor(() => {
+    const catalog = uniGroups.flatMap(g => g.items)
+    const adds = catalog.filter(it => !universes.some(u => u.source === it.source && (u.value ?? '') === (it.value ?? '')))
+    const axis = METRICS.map(m => ({ value: m.key, label: m.label }))
+    return {
+      read: () => ({ universes: universes.map(u => u.label) }),
+      options: () => ({
+        xKey: axis, yKey: axis, sizeKey: [{ value: '', label: 'Uniform' }, ...axis],
+        universe: universes.map((u, i) => ({ value: i, label: u.label })),
+        universes: [...universes.map(u => u.label), ...adds.map(it => it.label)].map(l => ({ value: l, label: l })),
+      }),
+      write: (key, labels) => {
+        if (key !== 'universes') return
+        const gone = universes.findIndex(u => !labels.includes(u.label))
+        if (gone >= 0) removeUniverse(gone)
+        else { const add = adds.find(it => labels.includes(it.label)); if (add) addUniverse(add) }
+      },
+    }
+  })
+
   // ── The universe bundle (daily metrics + a first live snapshot) ──
   const dataUrl = `/api/scatter/data?source=${encodeURIComponent(source)}&value=${encodeURIComponent(value ?? '')}`
   const { data, error: dataError, mutate: retryData, isValidating } = useMobileSWR(dataUrl, getFetcher, {
@@ -474,7 +495,7 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
       {/* Toolbar: a row of saved-universe TABS (switch / delete) + a ＋ to add one;
           gear on the right. The X/Y axes are chosen by clicking the axis titles. */}
       <div className={chrome.toolbar}>
-        <div className={styles.uniTabs}>
+        <div className={styles.uniTabs} data-guide="scatter.universes">
           {universes.map((u, i) => (
             <span key={`${u.source}:${u.value ?? ''}:${i}`}
               className={`${styles.uniTab}${i === active && !showingLinked ? ' ' + styles.uniTabActive : ''}`}
@@ -520,7 +541,7 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
         </button>
         <span className={chrome.spacer} />
         <button ref={gearRef} type="button" className={`${chrome.gear} ${settingsOpen ? chrome.gearOn : ''}`}
-          onClick={() => setSettingsOpen(o => !o)} title="Market Map settings" aria-label="Market Map settings">
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)} title="Market Map settings" aria-label="Market Map settings">
           <UIcon name="gear" size={13} gold={false} />
         </button>
       </div>
@@ -558,7 +579,7 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
                 {yMeta.label}<UIcon name="chevronDown" size={9} gold={false} />
               </button>
             </div>
-            <button type="button" className={`${styles.axisSel} ${styles.axisX}`} onClick={(e) => toggleMenu('x', e)}>
+            <button type="button" className={`${styles.axisSel} ${styles.axisX}`} data-guide="scatter.axisX" onClick={(e) => toggleMenu('x', e)}>
               {xMeta.label}<UIcon name="chevronDown" size={9} gold={false} />
             </button>
             <button type="button" className={styles.axisSize} onClick={(e) => toggleMenu('size', e)}>

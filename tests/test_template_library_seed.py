@@ -484,8 +484,6 @@ def test_seed_is_idempotent_and_never_undoes_an_admin_hide(db, monkeypatch):
     assert tl.seed_template_library(db) == 27
     monkeypatch.undo()
     waves(monkeypatch, *ALL_WAVES)
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
     assert tl.seed_template_library(db) == 0
     target = _official(db)[3]["id"]
     assert gallery.admin_act("admin", target, "hide", conn=db) is not None
@@ -614,9 +612,6 @@ def test_official_rows_hidden_while_w11_off(db, monkeypatch):
     assert all(gallery.get_item(MEMBER, i, conn=db) is None for i in ids)
     assert all(gallery.get_item("admin", i, is_admin=True, conn=db) is None for i in ids)
     monkeypatch.setenv("NOTEBOOK_WIDGETS_W11_ENABLED", "1")
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    assert _listed_official(db) == []
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
     assert len(_listed_official(db)) == 27                                   # stored, never deleted: back on re-arm
 
 

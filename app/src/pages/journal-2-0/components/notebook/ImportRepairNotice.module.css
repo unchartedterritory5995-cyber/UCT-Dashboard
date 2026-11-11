@@ -1,0 +1,48 @@
+/* Plan F Task 10: the one-time import-repair notice above the note list. No fixed widths: it
+   takes the list's width and its text wraps. Colours are the Notebook's own tokens, so the
+   contrast rail (a11y/notebookContrast.test.js) reads them in all three themes. */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 8px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text);
+  min-width: 0;
+}
+
+.icon { flex-shrink: 0; margin-top: 2px; color: var(--text-muted); }
+
+.text { flex: 1; min-width: 0; }
+
+.heading {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.body {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* TOUCH tier: every button is a full tap target. */
+@media (max-width: 1024px) {
+  .actions button {
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
+  }
+}

@@ -28,6 +28,7 @@
 import { POOL_LIMITS, resolveCapacity, collectsAbove } from '../objectPool.js'
 import { packedToObjectHex } from './colours.js'
 import { objectHandle, isDrawingHandle } from './handles.js'
+import { ENUM_NA_SENTENCE } from '../enumNaRule.js'
 
 /** Pine's absent colour (`color = na`): fully transparent — the host lane's
  *  `NA_OBJECT_COLOUR` (`pine.js`). */
@@ -338,7 +339,7 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
 
   // ── property values ───────────────────────────────────────────────────────
   /** A raw VM value → the property's drawing value, or throws by name. */
-  function propValue(name, prop, raw) {
+  function propValue(name, prop, raw, fam) {
     const kind = PROP_KIND[prop]
     switch (kind) {
       case 'x': {
@@ -366,7 +367,11 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
         throw new ObjectRunError(`\`${name}\`: \`${prop}\` takes text`)
       }
       case 'enum': {
-        if (isNa(raw)) return undefined
+        // ⛔⛔ HONESTY-SWEEP item 1 — an `na` PASSED to an enum slot (not an omitted
+        // argument: that is `undefined` and the default stands). What TradingView
+        // draws for it is not captured (Q-HS1): the family is withheld by name, as
+        // the host object program withholds the drawing (`enum:na`).
+        if (isNa(raw)) { withhold(fam, ENUM_NA_SENTENCE); return undefined }
         if (typeof raw !== 'string') throw new ObjectRunError(`\`${name}\`: \`${prop}\` takes a constant`)
         return raw.replace(/^(position|xloc|yloc|extend|size|text)\./, '')
       }
@@ -384,12 +389,12 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
   }
 
   /** Apply `props` (canonical names) with `values` onto `out`. */
-  function assign(name, out, props, values) {
+  function assign(name, out, props, values, fam) {
     for (let i = 0; i < props.length; i += 1) {
       const prop = props[i]
       if (values[i] === undefined) continue      // not passed — the default stands
       if (prop === 'force_overlay') continue
-      const v = propValue(name, prop, values[i])
+      const v = propValue(name, prop, values[i], fam)
       if (v === undefined) { delete out[prop]; continue }
       out[prop] = v
       noteUndrawn(prop, v)
@@ -444,7 +449,7 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
         withhold('linefill', `more than ${fillCap} live linefills; Pine publishes no rule for which one goes`)
       }
     }
-    const props = assign(name, {}, spec.params, args)
+    const props = assign(name, {}, spec.params, args, fam)
     if (fam === 'table') {
       const pos = tablePos(props)
       if (!pos) {
@@ -543,7 +548,7 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
         const inst = instOf(args[0])
         if (!inst) { stats.writesToDead += 1; return undefined }
         if (inst.family !== spec.family) throw new ObjectRunError(`\`${name}\` was handed a ${inst.family}`)
-        assign(name, inst.props, spec.props, args.slice(1))
+        assign(name, inst.props, spec.props, args.slice(1), inst.family)
         stats.updated += 1
         return undefined
       }
@@ -576,10 +581,10 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
         if (spec.kind === 'cell') {
           // ⭐ a whole `table.cell` REPLACES the cell (unpassed properties take
           // their defaults again); a `cell_set_*` patches one property.
-          inst.cells.set(key, assign(name, {}, spec.params.slice(3), args.slice(3)))
+          inst.cells.set(key, assign(name, {}, spec.params.slice(3), args.slice(3), 'table'))
         } else {
           const cur = inst.cells.get(key) || {}
-          inst.cells.set(key, assign(name, cur, [spec.prop], [args[3]]))
+          inst.cells.set(key, assign(name, cur, [spec.prop], [args[3]], 'table'))
         }
         stats.updated += 1
         return undefined

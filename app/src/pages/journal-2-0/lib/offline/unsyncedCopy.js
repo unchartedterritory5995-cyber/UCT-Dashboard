@@ -55,15 +55,53 @@ export const BLOCKED_TITLE =
   'This note has words that have not reached the server, and will not until you edit it again.'
 
 /**
- * ⛔ A DIFFERENT AXIS FROM EVERYTHING ABOVE. The strings above are about
- * UNSENT WORK -- the member typed something and the server does not have it
- * yet. This one is about a READ, not a write: Wave Q1's durable IndexedDB
- * working copy lets a member reopen a previously-viewed note while offline
- * (G-083, verified live 2026-09-22) -- correct and useful, and completely
- * silent about it. A member navigating between a cached thesis and a
- * never-opened one (silently, honestly absent) had no way to tell "my
- * connection is fine and this note is just short" from "I'm offline and
- * this is what's saved locally" — the same undifferentiated silence in both
- * cases. Competitive audit finding Accessibility QW-5, 2026-09-22.
+ * ⚰️ OFFLINE_VIEWING_BANNER ("Viewing an earlier saved copy — you're offline.", Accessibility QW-5) lived here as a
+ * second header line about the READ axis. VIS-5 (audit 2026-11-05, issue 17) measured it beside two more lines
+ * ("Saved in this browser · waiting to sync", "Couldn't reach the server — … retrying…"): three contradictory
+ * 11 px lines that pushed the header down 26 px. The fact it carried -- "you are offline, and this is the copy
+ * saved here" -- is now the ONE offline pill below (`saveIndicatorWords`, offline branch), in the indicator's
+ * reserved slot, whether or not anything is waiting to sync.
  */
-export const OFFLINE_VIEWING_BANNER = "Viewing an earlier saved copy — you're offline."
+
+/**
+ * Audit 2026-11-05, spec S10 (M4): the note header's always-visible save indicator. READ FROM THE EXISTING STATE, never
+ * a new store: the editor's own `saveStatus` and the offline outbox's `durable.unsynced` / `persisted` (useDurableNote).
+ *   * "Saving…" while an edit is waiting or on its way (`dirty`, `saving`);
+ *   * "Saved" once the server has it;
+ *   * "Offline · saved on this device" whenever the browser is offline and nothing is only intended (VIS-5: the ONE
+ *     offline message; the outbox has COMMITTED the work, or there is no work waiting). The noun narrows exactly as
+ *     `savedLocally` does: "in this browser" unless the platform granted persistence.
+ * ⛔ Silent ('') where another line in the header already speaks for the state (blocked, conflict, refused, a failed
+ *    or reconnecting save while online): two status lines naming one state as two would read as two states.
+ * ⛔ Fix round 1 (review finding 5) + VIS-5: OFFLINE, this is the ONE offline message: the editor hides the Wave Q1
+ *    "Saved on this device · waiting to sync" line and the retrying line, and the "Viewing an earlier saved copy" banner
+ *    is retired. An edit still
+ *    inside the durable debounce (`dirty`) is not yet kept anywhere, so it reads "Saving…" even offline. While the note
+ *    loads nothing is said (`loading`): "Saved" before the note exists would be a claim nobody measured.
+ */
+export const SAVING_WORDS = 'Saving…'
+export const SAVED_WORDS = 'Saved'
+// VIS-5 (audit 2026-11-05, issue 17): ONE offline message, the spec's words "Offline · saved on this device". Tier 1a's
+// "Offline, kept on this device" and the two header lines beside it are reconciled into it. The noun still narrows
+// exactly as `savedLocally` does (Wave Q1's rule: "this device" only when the platform granted persistence).
+export function offlineKept(persisted) {
+  return persisted === true ? 'Offline · saved on this device' : 'Offline · saved in this browser'
+}
+export function saveIndicatorWords({ status, unsynced = false, persisted = false, offline = false, blocked = false,
+  loading = false } = {}) {
+  if (loading || blocked || status === 'conflict' || status === 'refused') return ''
+  // Fix round 1 (Tier 1a): an edit still inside the durable debounce is not yet kept anywhere -- "Saving…", even offline.
+  if (status === 'dirty') return SAVING_WORDS
+  if (offline) {
+    // VIS-5: committed to the outbox, or nothing waiting at all -- the copy on screen is the one saved here.
+    if (unsynced) return offlineKept(persisted)
+    // A save that failed with NOTHING committed locally is a real problem, and the header's error line says it.
+    if (status === 'error' || status === 'reconnecting') return ''
+    // A write on its way but not yet in the outbox is never claimed as saved.
+    if (status === 'saving') return SAVING_WORDS
+    return offlineKept(persisted)
+  }
+  if (status === 'error' || status === 'reconnecting') return ''
+  if (status === 'saving' || status === 'dirty') return SAVING_WORDS
+  return SAVED_WORDS
+}

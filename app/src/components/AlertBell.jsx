@@ -13,6 +13,7 @@
 import { useState, useRef, useEffect, useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useSWR from 'swr'
+import { safeInternalPath } from '../utils/safeInternalPath'
 import { playAlertSound, showBrowserNotification, requestNotificationPermission } from '../utils/alertSound'
 import usePreferences from '../hooks/usePreferences'
 import { timeAgoShort as timeAgo } from '../utils/timeAgo'
@@ -173,7 +174,13 @@ export default function AlertBell() {
 
       // Show browser notification for each new alert (max 3)
       newAlerts.slice(0, 3).forEach(a => {
-        showBrowserNotification(a.title, a.message)
+        // Click-through: in-app router navigate (never a hard reload, which
+        // would close pop-outs). No usable URL => focus only.
+        const path = safeInternalPath(a.data?.research_url, window.location.origin)
+        showBrowserNotification(a.title, a.message, undefined, {
+          tag: a.id != null ? `uct-alert-${a.id}` : undefined,
+          onClick: path ? () => navigate(path) : undefined,
+        })
       })
     }
   }, [items, userId])

@@ -345,8 +345,10 @@ describe('⛔ what 2F-2A does NOT do — every wall named', () => {
     expect(refusalOf(src).guard).toBe('runtime:history-expression')
   })
 
-  it('history over an EXPRESSION inside a FUNCTION still refuses', () => {
-    expect(refusalOf(`${head}f(v) =>\n    (v + 1)[1]\nplot(f(close))\n`).guard)
+  // W4-T7: a function body's own list now hoists (`w4FrameHoist.test.js`); a
+  // NESTED list inside the body still refuses.
+  it('history over an EXPRESSION inside a NESTED LIST of a FUNCTION still refuses', () => {
+    expect(refusalOf(`${head}f(v) =>\n    r = 0.0\n    if v > 0\n        r := (v + 1)[1]\n    r\nplot(f(close))\n`).guard)
       .toBe('runtime:history-expression')
   })
 

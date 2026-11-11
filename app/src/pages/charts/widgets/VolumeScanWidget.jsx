@@ -17,6 +17,7 @@
  * ~2s during market hours. Clicking a row routes the ticker into this widget's color
  * group so a paired chart follows. RVOL / move filters are debounced local state.
  */
+import { useWidgetDoor } from '../widgetDoors'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
@@ -190,6 +191,7 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
     },
     [setPref, opts, onOptsChange])
   const listHelpers = useMemo(() => makeListHelpers(lists, activeListId, commitLists), [lists, activeListId, commitLists])
+  useWidgetDoor(() => ({ options: () => ({ list: [{ value: null, label: 'Top 1,000' }, ...lists.map(l => ({ value: l.id, label: l.name }))] }) }))
   // One-time migration: lists used to live per-widget in opts.volLists — move any still
   // there up to the account so a pre-existing list isn't lost on the next widget close.
   const migratedRef = useRef(false)
@@ -286,7 +288,7 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
           ref={gearRef}
           type="button"
           className={`${chrome.gear} ${settingsOpen ? chrome.gearOn : ''}`}
-          onClick={() => setSettingsOpen(o => !o)}
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)}
           title="Volume Surge settings"
           aria-label="Volume Surge settings"
         >

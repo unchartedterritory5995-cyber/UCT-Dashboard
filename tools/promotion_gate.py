@@ -45,6 +45,10 @@ _MARKER = "# promotion-gate:"
 #: something is wrong with the gate itself.
 ALWAYS_RUNS = "master deploy gate"
 
+#: A run counts for promotion only if it ran on this branch, from one of these events. See decide().
+MASTER_BRANCH = "master"
+COUNTED_EVENTS = frozenset({"push", "workflow_dispatch"})
+
 PROMOTE, WAIT, REFUSE = "PROMOTE", "WAIT", "REFUSE"
 
 
@@ -93,6 +97,31 @@ def _name_of(text: str) -> str | None:
     return None
 
 
+def _superseded(runs: list[dict]) -> list[dict]:
+    """One gating workflow's runs, minus any `cancelled` run a LATER fully green run of that same workflow supersedes.
+
+    A cancelled run proved nothing either way, so a later green run on the same commit answers what it left open. That is
+    the manual fallback's only way to rescue a commit whose runs were cancelled during a runner outage. Every gating
+    workflow gets the rule, because the queue watch can cancel any of them: one left out would refuse forever.
+
+    ⛔ NEVER A FAILURE. A failure is evidence about this commit, so any other non-success conclusion stays and refuses.
+    ⛔ ORDER IS NOT GUESSED. A run with no `created_at` supersedes nothing and is superseded by nothing, so an unreadable
+    answer keeps the old refusal. Runs for one SHA come from the API, which carries this field.
+    """
+    green = [r["created_at"] for r in runs if r.get("status") == "completed" and r.get("conclusion") == "success"
+             and r.get("created_at")]
+    if not green:
+        return runs
+    newest_green = max(green)
+    kept = []
+    for r in runs:
+        stamp = r.get("created_at")
+        if r.get("status") == "completed" and r.get("conclusion") == "cancelled" and stamp and stamp < newest_green:
+            continue
+        kept.append(r)
+    return kept
+
+
 def decide(*, gating: list[str], runs: list[dict], workflows: list[dict]) -> tuple[str, str]:
     """`(PROMOTE|WAIT|REFUSE, one-line reason)` for ONE commit.
 
@@ -114,16 +143,29 @@ def decide(*, gating: list[str], runs: list[dict], workflows: list[dict]) -> tup
     if disabled:
         return REFUSE, "gating workflow(s) are not active: %s" % ", ".join(sorted(disabled))
 
+    # ⛔ THE RUNS QUERY FILTERS BY COMMIT ONLY. A run dispatched on a branch sitting at master's tip has master's SHA, so
+    # read as-is it would count: a refused branch dispatch would REFUSE master's commit, and a green one could pass it.
+    # Only runs ON MASTER speak for master. A gating run with no branch cannot be placed, so it refuses rather than
+    # being dropped: dropping it would turn an unreadable answer into "not relevant".
+    # ⛔ THE BRANCH NAME ALONE IS NOT ENOUGH. A fork's branch can be named `master`, and its pull_request run then reports
+    # head_branch == master at this SHA. The repo's own master runs come only from a push or a dispatch.
+    named = [r for r in runs if r.get("name") in gating]
+    unplaced = sorted({r.get("name") for r in named if not r.get("head_branch")
+                       or (r.get("head_branch") == MASTER_BRANCH and not r.get("event"))})
+    if unplaced:
+        return REFUSE, "gating run(s) carry no head_branch or event, so they cannot be placed on master: %s" % ", ".join(unplaced)
+
     by_name: dict[str, list[dict]] = {}
-    for r in runs:
-        by_name.setdefault(r.get("name"), []).append(r)
+    for r in named:
+        if r.get("head_branch") == MASTER_BRANCH and r.get("event") in COUNTED_EVENTS:
+            by_name.setdefault(r.get("name"), []).append(r)
 
     if ALWAYS_RUNS in gating and ALWAYS_RUNS not in by_name:
-        return REFUSE, "%r did not run for this commit; it has no path filter on master, so its absence is a fault" % ALWAYS_RUNS
+        return REFUSE, "%r did not run on master for this commit; it has no path filter on master, so its absence is a fault" % ALWAYS_RUNS
 
     pending, failed = [], []
     for name in gating:
-        for r in by_name.get(name, []):
+        for r in _superseded(by_name.get(name, [])):
             if (r.get("status") or "") != "completed":
                 pending.append(name)
             elif (r.get("conclusion") or "") != "success":
@@ -161,10 +203,30 @@ def _self_check() -> int:
           {"name": "vite build args", "state": "active"}], REFUSE),
         ("no runs at all", g, [], wf, REFUSE),
         ("no gating set resolved", [], [ok(ALWAYS_RUNS)], wf, REFUSE),
+        ("a failed branch run at master's SHA does not count", g,
+         [ok(ALWAYS_RUNS), {"name": ALWAYS_RUNS, "status": "completed", "conclusion": "failure", "head_branch": "x"}],
+         wf, PROMOTE),
+        ("a green branch run does not stand in for master", g,
+         [{"name": ALWAYS_RUNS, "status": "completed", "conclusion": "success", "head_branch": "x"}], wf, REFUSE),
+        ("a gating run with no branch refuses", g,
+         [dict(ok(ALWAYS_RUNS), head_branch=None)], wf, REFUSE),
+        ("a fork PR on a branch named master does not count", g,
+         [dict(ok(ALWAYS_RUNS), event="pull_request")], wf, REFUSE),
+        ("a master run with no event refuses", g,
+         [dict(ok(ALWAYS_RUNS), event=None)], wf, REFUSE),
+        ("a later green gate supersedes a cancelled one", g,
+         [dict(ok(ALWAYS_RUNS), created_at="2026-01-01T02:00:00Z"),
+          {"name": ALWAYS_RUNS, "status": "completed", "conclusion": "cancelled", "created_at": "2026-01-01T01:00:00Z"}],
+         wf, PROMOTE),
+        ("a later green gate never supersedes a failure", g,
+         [dict(ok(ALWAYS_RUNS), created_at="2026-01-01T02:00:00Z"),
+          {"name": ALWAYS_RUNS, "status": "completed", "conclusion": "failure", "created_at": "2026-01-01T01:00:00Z"}],
+         wf, REFUSE),
     ]
     bad = 0
     for label, gate, runs, works, want in cases:
-        got, why = decide(gating=gate, runs=runs, workflows=works)
+        placed = [{"head_branch": MASTER_BRANCH, "event": "push", **r} for r in runs]
+        got, why = decide(gating=gate, runs=placed, workflows=works)
         flag = "ok " if got == want else "FAIL"
         if got != want:
             bad += 1

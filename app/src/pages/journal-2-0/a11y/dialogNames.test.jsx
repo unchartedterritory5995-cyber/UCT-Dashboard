@@ -14,6 +14,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { installFetch, latchWave8Flags, Providers } from './fixtures'
 import NotebookTab from '../tabs/NotebookTab'
+import { pressToolbar } from '../tabs/__tests__/toolbarDoors'
 
 if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
 if (!Range.prototype.getBoundingClientRect) {
@@ -35,7 +36,8 @@ describe('the Notebook dialogs are named (F4, A2R-08)', () => {
     ['Export', 'Export your notebook'],
   ])('%s opens a dialog named "%s", by its visible title', async (button, name) => {
     const wrap = await renderTab()
-    fireEvent.click(within(wrap).getByRole('button', { name: button }))
+    expect(wrap).toBeTruthy()
+    pressToolbar(button)   // S11: each is a row of a toolbar menu now
     const dialog = await screen.findByRole('dialog', { name })
     // the name IS the visible title (aria-labelledby), not a second copy of it
     const by = dialog.getAttribute('aria-labelledby')

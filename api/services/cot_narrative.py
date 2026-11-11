@@ -41,14 +41,18 @@ COST NOTE
 ---------
 ~62 symbols x 1 CFTC report per week, cached forever per (symbol, week, facts)
 => on the order of 62 generations a week at ~1.5K input / ~300 output tokens
-each. `COT_NARRATIVE_DAILY_CAP` (default 300 generations per UTC day) is a
-BACKSTOP against a runaway client re-hashing facts, not a budget.
+each. `COT_NARRATIVE_DAILY_CAP` (default 300 per UTC day) is a BACKSTOP against
+a runaway client re-hashing facts, not a budget. It counts every model call on
+`daily_counters` (auth.db) before the call is made, because a rejected reply is
+billed and stores nothing: counting stored rows left a client that kept drawing
+rejections uncapped. Stored rows are still checked too, so the counter failing
+open, or the day the counter first ships, cannot loosen the cap.
 
 ENV
 ---
     COT_NARRATIVE_ENABLED    default "1"  — anything else returns status "disabled"
     COT_NARRATIVE_MODEL      default "claude-opus-5"  (owner prefers Opus for synthesis)
-    COT_NARRATIVE_DAILY_CAP  default 300  generations per UTC day
+    COT_NARRATIVE_DAILY_CAP  default 300  model calls per UTC day
 All three are read at CALL time, never at import, so an operator flip (or a
 test's monkeypatch) takes effect without a restart or a reload.
 """
@@ -63,13 +67,14 @@ from contextlib import closing
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 
-from api.services import cot_service
+from api.services import cot_service, daily_counters
 
 logger = logging.getLogger(__name__)
 
 ENABLED_ENV = "COT_NARRATIVE_ENABLED"    # default "1"
 MODEL_ENV   = "COT_NARRATIVE_MODEL"      # default "claude-opus-5"
-CAP_ENV     = "COT_NARRATIVE_DAILY_CAP"  # default 300 (generations per UTC day)
+CAP_ENV     = "COT_NARRATIVE_DAILY_CAP"  # default 300 (model calls per UTC day)
+ATTEMPT_SCOPE = "cot_narrative_attempt"  # the daily_counters scope of those calls
 
 DEFAULT_MODEL     = "claude-opus-5"
 DEFAULT_DAILY_CAP = 300
@@ -173,6 +178,14 @@ def _created_today_count() -> int:
             (today,),
         ).fetchone()
     return int(row[0]) if row else 0
+
+
+def _take_attempt(cap: int) -> bool:
+    """Count one model call against the day's cap, or refuse it. Durable, and taken
+    BEFORE the call, so a rejected or failed generation still counts."""
+    today = datetime.now(timezone.utc).date().isoformat()
+    charge = daily_counters.Charge(ATTEMPT_SCOPE, daily_counters.GLOBAL, 1, cap)
+    return daily_counters.take(today, [charge]) is None
 
 
 def _store(symbol: str, report_date: str, h: str, text: str, model: str) -> str:
@@ -423,6 +436,10 @@ def get_or_create(symbol: str, name: str, report_date: str, facts) -> dict:
     reason, offending = "ungrounded", []
     text = ""
     for attempt in (1, 2):
+        if not _take_attempt(cap):
+            logger.warning("[cot_narrative] daily cap of %d model calls reached — %s %s not generated",
+                           cap, sym, report_date)
+            return _result("capped", model=model, reason=f"daily cap of {cap} generations reached")
         try:
             text = _call_model(model, prompt)
         except Exception as exc:

@@ -66,15 +66,12 @@ def test_preview_writes_nothing_and_prefills_only_for_owner(db):
         assert gallery.share_preview(MEMBER, kind, tid, conn=db) is None
 
 
-def test_preview_is_absent_while_wave_11_or_the_library_is_off(db, monkeypatch):
+def test_preview_is_absent_while_wave_11_is_off(db, monkeypatch):
     w = widget(db)
     monkeypatch.setenv("NOTEBOOK_WIDGETS_W11_ENABLED", "0")
     assert gallery.share_preview(AUTHOR, "widget", w["id"], conn=db) is None
     assert gallery.publish_tool(AUTHOR, "widget", w["id"], conn=db) is None
     monkeypatch.setenv("NOTEBOOK_WIDGETS_W11_ENABLED", "1")
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    assert gallery.share_preview(AUTHOR, "widget", w["id"], conn=db) is None
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
     assert gallery.share_preview(AUTHOR, "widget", w["id"], conn=db) is not None         # control
 
 

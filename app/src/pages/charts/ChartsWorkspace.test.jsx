@@ -10,6 +10,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url))
 // Mock the widget host + heavy children so we don't bring in real widget
 // internals. WidgetHost surfaces the widget type so tests can assert which
 // widgets are on the board.
+const hostReady = vi.hoisted(() => new Map())
 vi.mock('./WidgetHost', () => ({
   // `data-mounted` surfaces the S1 CP3 mount-cap prop for
   // test_board_mount_count_is_bounded_by_staggered_mount below; every other
@@ -17,7 +18,7 @@ vi.mock('./WidgetHost', () => ({
   // `data-watchkey` surfaces a watchlist widget's opts.watchKey for the A12 CP2
   // ?openWatchlist= tests below; every other test still reads only `data-testid`.
   // `data-themeset` surfaces a themes widget's opts.themeSetId for the TERM-038 ?openThemeSet= tests.
-  default: ({ widget, mounted }) => <div data-testid={`body-${widget.type}`} data-mounted={String(mounted)} data-watchkey={widget.opts?.watchKey || ''} data-themeset={widget.opts?.themeSetId || ''}>{widget.type}</div>,
+  default: ({ widget, mounted, onPanelReady }) => { hostReady.set(widget.id, onPanelReady); return <div data-testid={`body-${widget.type}`} data-mounted={String(mounted)} data-watchkey={widget.opts?.watchKey || ''} data-themeset={widget.opts?.themeSetId || ''}>{widget.type}</div> },
 }))
 vi.mock('./mobile/MobileChartsApp', () => ({ default: () => <div data-testid="mobile-charts-app">MOBILE</div> }))
 vi.mock('./grid/MultiChartGrid', () => ({ default: () => <div data-testid="multichart-grid">GRID</div> }))
@@ -116,6 +117,37 @@ test('the main board mount count is bounded by PANEL_MOUNT_CAP, not by widget co
   expect(mountedNodes.length + queuedNodes.length, 'every seeded widget rendered its header/chrome').toBe(CAP_TEST_TYPES.length)
   expect(mountedNodes.length, 'no more than PANEL_MOUNT_CAP widgets are mounted at once').toBe(3)
   expect(queuedNodes.length).toBe(CAP_TEST_TYPES.length - 3)
+})
+
+// Speed pass 2026-11-09: the main board queued panels behind the 5 s safety timer because nothing
+// ever released a slot, so a panel past the cap read "Loading…" for ~5 s behind a chart already up.
+const slotBoard = (types) => JSON.stringify({ widgets: types.map((type, i) => ({ id: `w${i}`, type, color: 'A', x: 0, y: i * 4, w: 6, h: 4, opts: {} })), cols: 24 })
+const queuedCount = () => document.querySelectorAll('[data-mounted="false"]').length
+test('panels with no chart in them do not wait out the chart slot timer', () => {
+  mockPrefs = { charts_workspace_layout: slotBoard(['watchlist', 'themes', 'fundamentals', 'breadth', 'indexes', 'news']) }
+  renderWS()
+  expect(queuedCount()).toBe(3)
+  act(() => { vi.advanceTimersByTime(900) })
+  expect(queuedCount()).toBe(0)
+})
+test('12 charts ready at once join the board no faster than one per 300 ms', async () => {
+  mockPrefs = { charts_workspace_layout: slotBoard(Array(12).fill('chart')) }
+  renderWS()
+  expect(queuedCount()).toBe(9)
+  await act(async () => { for (let i = 0; i < 12; i += 1) hostReady.get(`w${i}`)?.(`w${i}`) })
+  expect(queuedCount(), 'ready at once admits nobody yet').toBe(9)
+  act(() => { vi.advanceTimersByTime(299) })
+  expect(queuedCount()).toBe(9)
+  act(() => { vi.advanceTimersByTime(1) })
+  expect(queuedCount()).toBe(8)
+})
+test('CONTROL: chart panels keep their slot until they report bars, then free it', async () => {
+  mockPrefs = { charts_workspace_layout: slotBoard(['chart', 'chart', 'chart', 'watchlist', 'themes']) }
+  renderWS()
+  act(() => { vi.advanceTimersByTime(900) })
+  expect(queuedCount(), 'chart slots outlast the short timer').toBe(2)
+  await act(async () => { hostReady.get('w0')?.('w0') })
+  expect(queuedCount(), 'bars ready frees the slot at once').toBe(1)
 })
 
 // ── Toolbar navigation ──────────────────────────────────────────────────────

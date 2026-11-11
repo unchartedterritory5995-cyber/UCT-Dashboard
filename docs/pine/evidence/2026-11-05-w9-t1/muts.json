@@ -1,0 +1,10 @@
+[
+ ["control-noop", "src/components/chart/engine/runtime/vm.js", "const runBars = broker", "const  runBars = broker"],
+ ["drop-gate", "src/components/chart/engine/strategyBrokerGate.js", "return import.meta.env.VITE_PINE_STRATEGY_BROKER_ENABLED === '1'", "return true"],
+ ["drop-forming-bar-skip", "src/components/chart/engine/runtime/vm.js", "ctx.confirmed === false ? Math.max(0, ctx.bars - 1) : ctx.bars", "ctx.confirmed === false ? ctx.bars : ctx.bars"],
+ ["drop-pinned", "src/components/chart/engine/runtime/broker.js", "if (!isPinned(id)) throw new BrokerUnpinned(id)", "if (false) throw new BrokerUnpinned(id)"],
+ ["drop-rule-11", "src/components/chart/engine/ast/strategyRepaint.js", "  let toks\n", "  return null\n  let toks\n"],
+ ["opcode-97", "src/components/chart/engine/runtime/program.js", "BROKER: 100,", "BROKER: 97,"],
+ ["drop-window-refusal", "src/components/chart/engine/runtime/vm.js", "if (ctx.bars > win) {", "if (false) {"],
+ ["drop-object-door-gate", "src/components/chart/engine/ast/pineRuntimeFrontend.js", "if (brokerOn && opts.objectDoor !== true &&", "if (brokerOn &&"]
+]

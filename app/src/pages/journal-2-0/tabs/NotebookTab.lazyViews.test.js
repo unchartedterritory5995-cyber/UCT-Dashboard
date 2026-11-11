@@ -16,10 +16,17 @@ const JsxParser = Parser.extend(jsx())
 const FILE = path.join(path.resolve(__dirname), 'NotebookTab.jsx')
 const LAZY = [
   '../components/notebook/NoteGraphView',
+  // Tier 1a bytes: the table view mode, through `lazyView` like the others.
+  '../components/notebook/NotesTableView',
   '../components/notebook/NoteBoardView',
   '../components/notebook/NoteCalendarView',
   '../components/notebook/NoteTimelineView',
   '../components/notebook/NoteTasksView',
+  // Audit 2026-11-05, S15: the Today home, through `lazyView` -- the default landing, so its cards are a chunk of
+  // their own and the Notebook's first-open bytes pay only for lib/todayHome.js.
+  '../components/notebook/TodayHome',
+  // Tier 3b fix round 1 (I1): Research Home is the opt-in landing now (?view=home), so it left the first open too.
+  '../components/notebook/ResearchHome',
   // Wave 7 Task 7.3: the bulk bar, mounted on the first selection through `lazyView` (null fallback).
   '../components/notebook/BulkActionBar',
   // Wave 7 Task 7.4: the template picker (and the catalog it loads), through `lazyView` with its skeleton fallback.
@@ -33,10 +40,17 @@ const LAZY = [
   '../components/notebook/VoiceNoteDialog',
   // Notebook P1 lane C: the Journal styles manager, on demand through `lazyDialog` (gated by the switch).
   '../components/notebook/styles/StylesManager',
+  // Tier 1b fix round 1: the phone "+" sheet, on its first open through `lazyDialog`.
+  '../components/notebook/NotebookPlusSheet',
+  // Tier 1b fix round 1: the phone note's folders sheet, on its first open through `lazyDialog`.
+  '../components/notebook/FolderSheet',
   // Wave 7 Task 7.6: the "Save view" name prompt, on its first open through `lazyDialog`.
   '../components/notebook/SavedViewEditor',
   // Wave 7 Task 7.6: the connected-apps sync line, after first paint through `lazyView` (null fallback).
   '../components/connectors/NoteConnectorsTrustStrip',
+  // Connector fidelity Plan F Task 10: the one-time import-repair notice, through `lazyView` (null
+  // fallback), rendered only when the server says there is one to show.
+  '../components/notebook/ImportRepairNotice',
   // Notebook widgets phase 2 Task 8.18: the My tools header door (wave 8), its own root through openMyTools.
   '../components/notebook/myTools/openMyTools.js',
   // W11-R77 (review n-1): the slot words, on a Use from Your templates (createFromMemberTemplate), so the note holds

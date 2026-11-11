@@ -14,6 +14,8 @@ import useChartSurfaceSettings from './useChartSurfaceSettings'
 import { paneLookProps } from './paneLook'
 import ChartSettingsModal from '../ChartSettingsModal'
 import AttachedPineDisclosures from './AttachedPineDisclosures'
+// W9-T13b: the strategy report panel, DARK behind VITE_PINE_STRATEGY_BROKER_ENABLED (read inside)
+import AttachedStrategyReports from './AttachedStrategyReports'
 import UIcon from '../../ui/UIcon'
 import { VOLUME_PANE_SURFACE_FIXED } from '../indicatorRegistry'
 import { tfLabel, tfSortKey, tfSpokenLabel } from '../timeframes'
@@ -107,6 +109,12 @@ const SHIFT_F = chordById('SHIFT_F')
  *                          timeframe (Journal Daily/Weekly-only, a small popup)
  *                          renders none of that row rather than a row of dead
  *                          buttons
+ *   identityLabel          default null; a host whose `sym` is NOT a ticker (a Study
+ *                          item id: the chart shows an exhibit, round 18) hands the
+ *                          identity row its own label (a string or a node) and the
+ *                          pane looks nothing up on `sym`: no ticker meta, no
+ *                          delisting, no day change, no logo, and Shift+F flags
+ *                          nothing. null (every other surface) is byte-identical.
  *   tfCodes                default null; when an array is supplied it REPLACES
  *                          the user's favorited timeframes as the only codes
  *                          the bar offers (no auto-add of the current `tf`) —
@@ -132,6 +140,7 @@ function ChartPane({
   onActivate = undefined,
   showTfBar = true,
   tfCodes = null,
+  identityLabel = null,
   // ⭐ May the symbol search offer ECONOMIC series (`ECON:USCPI`)? Only a surface
   // whose chart is the member's own charting chart opts in (the /charts ChartWidget);
   // a trade drawer or a popup keeps a ticker-only search. Even then the category
@@ -237,13 +246,14 @@ function ChartPane({
   // Header shows the COMPANY NAME + logo (not the ticker). For a theme index it's
   // the theme name + the Uncharted Territory brand mark (it has no company ticker,
   // so no logo.dev logo). meta.name comes from the shared ticker-meta cache.
-  const meta = useTickerMeta(synthDailyOnly ? null : sym)
+  const exhibit = identityLabel != null   // the host names the chart; `sym` is not a ticker to look up
+  const meta = useTickerMeta((synthDailyOnly || exhibit) ? null : sym)
   // DELISTED (dead company — Yahoo, Twitter, Lehman): freeze every live path. Its bars
   // still flow through /api/bars (Massive retains delisted history to ~2003), but there is
   // no live quote/stream to chase — so liveUpdates goes false, the header quote/change is
   // suppressed, the watermark uses the curated name/sector (a reused symbol's live meta is
   // the WRONG company), and the identity row shows a "Delisted <date>" badge. null = live.
-  const delistedInfo = useDelisted(synthDailyOnly ? null : sym)
+  const delistedInfo = useDelisted((synthDailyOnly || exhibit) ? null : sym)
   const isDelisted = !!delistedInfo
   const companyName = (isDelisted && delistedInfo.name) || meta?.name || sym
   const indexLabel = themeIdx.isIndex
@@ -501,9 +511,9 @@ function ChartPane({
     : trimTimeframes(visibleTfs, (isBreadthLike || isEcon) ? breadthTf : tf, tfCap)
   shownTfCountRef.current = responsiveTfs.length
   const infoAbbrev = infoForceAbbrev
-  const effHeaderLabel = (titleForceCollapse && !_themeViewLabel && !isBreadthLike && !isEcon && !themeIdx.isIndex)
+  const effHeaderLabel = exhibit ? identityLabel : ((titleForceCollapse && !_themeViewLabel && !isBreadthLike && !isEcon && !themeIdx.isIndex)
     ? sym
-    : headerLabel
+    : headerLabel)
   const customTfs = Array.isArray(hdr.customTimeframes) ? hdr.customTimeframes : []
   const toggleTfFav = useCallback((code) => {
     const fav = Array.isArray(hdr.timeframes) ? hdr.timeframes : []
@@ -694,6 +704,26 @@ function ChartPane({
   /** ⭐ PHASE 4 — THE DEFINITION'S OWN DOORS for Chart Settings → Indicators: the
    *  same toolbar calls the legend menu makes. The modal closes first (one surface
    *  holding Escape at a time — the hazard `openFormulaBuilder` describes). */
+  /** ⭐ UCT RS Phase 4 (4-11) — Chart Settings → Indicators' FIRST add of a toured
+   *  definition (the indicator's first-add tour, unit 4-05).
+   *
+   *  ⛔ HELD UNTIL THE MODAL CLOSES, NOT OPENED UNDER IT, AND THE MODAL IS NOT
+   *  CLOSED FOR IT. This door's own flow is "search → add → see it land → edit it":
+   *  the new row's Inspector takes the right column so the member configures what
+   *  they just added, and closing the modal on the add would take that step away.
+   *  The tour describes the PANE on the chart, which the modal covers, so it waits:
+   *  the moment the member closes Chart Settings, the chart's own handler gets the
+   *  definition and applies its own rules (seen, claimed, nothing open over the
+   *  chart; a removed instance never derives a chip, so no tour). The newest add
+   *  wins; one tour per close. */
+  const pendingTourRef = useRef(null)
+  const onSettingsFirstAdd = useCallback((defId) => { pendingTourRef.current = defId || null }, [])
+  useEffect(() => {
+    if (settingsOpen || !pendingTourRef.current) return
+    const defId = pendingTourRef.current
+    pendingTourRef.current = null
+    try { paneToolbarApi.current?.indicatorFirstAdd?.(defId) } catch { /* noop */ }
+  }, [settingsOpen])
   const definitionDoors = useMemo(() => ({
     canModify: () => { try { return !!paneToolbarApi.current?.canModifyWithIntelligence?.() } catch { return false } },
     modify: (defId) => { setSettingsOpen(false); try { return paneToolbarApi.current?.openCreateIndicator?.({ defId }) ?? false } catch { return false } },
@@ -780,7 +810,13 @@ function ChartPane({
     })
   }, [onSymbolChange])
 
-  const handleChartClick = useCallback(() => {
+  const handleChartClick = useCallback((e) => {
+    // ⛔ A PORTAL CLICK IS NOT A CHART CLICK (a11y gate §12.2, 2026-11-08). React
+    // bubbles a click inside a portalled popover (the chip menu, its cards, the
+    // RS tour, a sheet) through its React parent, so it reached this handler and
+    // threw keyboard focus out of the popover onto the chart region. Only a click
+    // whose target is inside the region's own DOM focuses the chart.
+    if (e && e.currentTarget && e.target && !e.currentTarget.contains(e.target)) return
     // Don't steal focus from a child input (e.g., the open search dropdown).
     const ae = document.activeElement
     if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return
@@ -804,7 +840,7 @@ function ChartPane({
     // in ChartPane.chordAdoption.test.jsx.
     // ⛔ `!e.repeat` stays HERE, not in the table: a held chord auto-repeats ~30x/sec
     // and this binding is a TOGGLE. That is a property of the binding, not the chord.
-    if (matchesChord(e, SHIFT_F) && !e.repeat) {
+    if (matchesChord(e, SHIFT_F) && !e.repeat && !exhibit) {
       e.preventDefault(); e.stopPropagation()
       const willFlag = !isFlagged(sym)
       toggleFlag(sym)
@@ -826,7 +862,7 @@ function ChartPane({
     // (document) hotkey handlers — typing a ticker must never trigger a tool or TF.
     e.stopPropagation()
     searchRef.current?.openWith(e.key)
-  }, [sym, isFlagged, toggleFlag, onSymbolChange])
+  }, [sym, isFlagged, toggleFlag, onSymbolChange, exhibit])
 
   useImperativeHandle(ref, () => ({
     openSettings,
@@ -857,6 +893,13 @@ function ChartPane({
     stepBar: (dir) => dateNavApiRef.current?.stepBar?.(dir),
     ensureFullHistory: () => dateNavApiRef.current?.ensureFullHistory?.(),
     getDateMeta: () => (dateNavApiRef.current?.getDateMeta?.() || null),
+    // ⭐ UCT Agent: the range bar (and its Undo), Reset view and hide-all-indicators, read back through getDateMeta. A VIEW; nothing saved here.
+    viewDo: (op, arg) => {
+      const fn = ['applyRange', 'restoreView', 'resetView', 'setIndicatorsHidden'].includes(op) ? dateNavApiRef.current?.[op] : null
+      if (!fn) return false
+      fn(arg)
+      return true
+    },
     // ⭐ AGENT M1 — Create Indicator for UCT Agent (`ChartToolbar.openCreateIndicatorFor`):
     // the settings modal closes when it opens (one surface holding Escape), the studio opens with
     // the request PREFILLED (never sent). `canCreateIndicator` is the button's own answer.
@@ -911,13 +954,13 @@ function ChartPane({
           sym={sym}
           displayLabel={effHeaderLabel}
           labelColor={hdrColors.title || null}
-          logoSym={(_themeViewLabel || synthDailyOnly) ? null : sym}
+          logoSym={(_themeViewLabel || synthDailyOnly || exhibit) ? null : sym}
           brandLogo={themeIdx.isIndex || isBreadthLike}
           boundsRef={focusableRef}
           themeVars={menuVars}
           onSymbolChange={onSymbolChange ? handleSymbolChange : null}
           economic={allowEconomic}
-          showChange={!_themeViewLabel && hdr.showChange && !isDelisted && !isBreadthLike && !isEcon && !(themeIdx.isIndex && !idxGain)}
+          showChange={!exhibit && !_themeViewLabel && hdr.showChange && !isDelisted && !isBreadthLike && !isEcon && !(themeIdx.isIndex && !idxGain)}
           dayGain={themeIdx.isIndex ? idxGain : null}
           delistedDate={isDelisted ? delistedInfo.delisted_date : null}
           dayGainColors={{
@@ -1172,6 +1215,9 @@ function ChartPane({
           and `null` when nothing attached raises anything, which is every chart
           in the app today. */}
       <AttachedPineDisclosures settings={chartCs} barsLoaded={drawnBars} noticeScope={noticeScope} />
+      {/* ⭐ W9-T13b — a drawn strategy's report. null unless the broker gate is on AND a run
+          published a record; the gate is read INSIDE (one reader, strategyBrokerGate.js). */}
+      <AttachedStrategyReports settings={chartCs} noticeScope={noticeScope} />
       <ChartSettingsModal
         open={settingsOpen}
         chartTf={effectiveTf}
@@ -1211,6 +1257,7 @@ function ChartPane({
         onCreateIndicator={openCreateIndicator}
         definitionDoors={definitionDoors}
         chartFeatures={chartFeatures}
+        onIndicatorFirstAdd={onSettingsFirstAdd}
       />
       {/* The Create Indicator dock host. Always mounted (so the panel can portal
           into it the moment it opens) and `display: none` while empty, so a closed

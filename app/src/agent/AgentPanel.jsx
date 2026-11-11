@@ -7,7 +7,7 @@
 // keypress propagation (the Create Indicator panel's measured lesson — chart
 // shortcuts listen at the document and would otherwise eat "B", "W", Delete…).
 
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link, useInRouterContext } from 'react-router-dom'
 import useAgent from './useAgent'
 import { AuthContext } from '../context/AuthContext'
@@ -16,16 +16,18 @@ import { quickReplies } from './quickReplies'
 import { continues } from './chatTime'
 import { searchChat, snippet } from './chatSearch'
 import { agentConversations } from './agentClient'
+import { isWorking, subscribeWorking } from './trace'
 import AgentHistory from './AgentHistory'
 import VoiceInputButton from '../pages/journal-2-0/components/VoiceInputButton'
 import compassMark from '../components/intro/assets/compass-mark.png'
 import { HeadIcon, AgentAvatar, MemberAvatar, SenderLine, Hl } from './agentUi'
 import AgentResult, { Rows } from './AgentResult'
 import GuideOverlay from './guide/GuideOverlay'
+import { onGuideDoIt, guideState, endGuide } from './guide/guideStore'
 import { receiptView } from './receiptView'
 import styles from './AgentPanel.module.css'
 // structured answers take the column's width (a single figure and prose stay as small as they are)
-const WIDE_VIEWS = new Set(['comparison', 'metrics', 'range', 'table', 'headlines'])
+const WIDE_VIEWS = new Set(['comparison', 'metrics', 'range', 'table', 'headlines', 'research'])
 
 // Welcome: the Agent's first text — a moment of "typing", then a left-side bubble stamped with
 // the time the chat opened, and a few quick replies (a tap sends that text as-is).
@@ -76,19 +78,19 @@ function AgentSays({ children, testId, at, cont, wide }) {
   )
 }
 
-function Welcome({ host, quiet, empty, onPick, full, animate, firstName, onShown, onTyping }) {
+function Welcome({ host, quiet, empty, onPick, full, animate, firstName, onShown, onTyping, surface = 'charts' }) {
   const [at] = useState(() => new Date())
-  const [replies, setReplies] = useState(() => quickReplies(readCharts(host)))
+  const [replies, setReplies] = useState(() => quickReplies(readCharts(host), surface))
   // Charts register a moment after the panel mounts: re-read until the board has one (≤ 5 s).
   useEffect(() => {
-    if (readCharts(host).length) { setReplies(quickReplies(readCharts(host))); return undefined }
+    if (surface !== 'charts' || readCharts(host).length) { setReplies(quickReplies(readCharts(host), surface)); return undefined }
     let n = 0
     const t = setInterval(() => {
       const c = readCharts(host)
-      if (c.length || ++n >= 10) { clearInterval(t); setReplies(quickReplies(c)) }
+      if (c.length || ++n >= 10) { clearInterval(t); setReplies(quickReplies(c, surface)) }
     }, 500)
     return () => clearInterval(t)
-  }, [host])
+  }, [host, surface])
   const [typing, setTyping] = useState(() => !!animate && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
   useEffect(() => {
     if (!typing) return undefined
@@ -149,6 +151,16 @@ function OpenLink({ link }) {
     : <a className={styles.openLink} href={link.href} data-testid="agent-open-link">{link.label}</a>
 }
 
+/** ⭐ W3-4 `coach.next`: suggested next messages under a coach answer; a tap is the member's own message. */
+function NextChips({ it, agent }) {
+  if (!(it.next?.length > 0)) return null
+  return (
+    <div className={styles.choices} data-testid="agent-next">
+      {it.next.map((t, i) => <button key={i} type="button" className={styles.choice} disabled={agent.busy} onClick={() => agent.send(t)}>{t}</button>)}
+    </div>
+  )
+}
+
 function Item({ it, agent, member, at, cont }) {
   switch (it.role) {
     case 'member':
@@ -163,7 +175,7 @@ function Item({ it, agent, member, at, cont }) {
       )
     case 'agent':
       // ⭐ an answer VIEW (present.js) renders through the one presentation component
-      if (it.present) return <AgentSays at={at} cont={cont} wide={WIDE_VIEWS.has(it.present.kind)}><AgentResult view={it.present} onOpenChart={agent.openChart} busy={agent.busy} /></AgentSays>
+      if (it.present) return <AgentSays at={at} cont={cont} wide={WIDE_VIEWS.has(it.present.kind)}><AgentResult view={it.present} onOpenChart={agent.openChart} busy={agent.busy} /><NextChips it={it} agent={agent} /></AgentSays>
       // ⛔ never an empty bubble (an older restored row, a blank reply)
       if (!String(it.text || '').trim() && !it.table && !it.link) return null
       return (
@@ -178,13 +190,16 @@ function Item({ it, agent, member, at, cont }) {
               ))}
             </div>
           )}
+          <NextChips it={it} agent={agent} />
         </AgentSays>
       )
     case 'question':
       return (
         <AgentSays testId="agent-question" at={at} cont={cont}>
-          <div className={styles.bubble}><Paragraphs text={it.text} /></div>
-          {it.choices?.length > 0 && (
+          <div className={styles.bubble} data-status={it.status || undefined}><Paragraphs text={it.text} /></div>
+          {/* #766 nit 2: a question withdrawn with the change it was about keeps no live choices */}
+          {it.status === 'withdrawn' && <div className={styles.cardMeta}>Withdrawn — nothing was changed</div>}
+          {it.choices?.length > 0 && it.status !== 'withdrawn' && (
             <div className={styles.choices}>
               {it.choices.map((c, i) => (
                 <button key={i} type="button" className={styles.choice} disabled={agent.busy}
@@ -213,13 +228,13 @@ function Item({ it, agent, member, at, cont }) {
       )
     case 'receipt': {
       // live test 2026-10-28: ONE short line; the exact record (every line, word for word) one click away
-      const view = receiptView(it.lines, { isUndo: !!it.isUndo })
+      const view = receiptView(it.lines, { isUndo: !!it.isUndo, charts: it.charts || null, name: !!it.namePart, unsaved: !!it.unsaved })
       return (
         <AgentSays at={at} cont={cont}>
         {/* No Undo button: the member just says "undo" / "reverse that" (the newest change). The card
             still marks itself undoable for tests and the harnesses. */}
         <div className={`${styles.bubble} ${styles.cardBubble}`} data-testid="agent-receipt"
-          data-undoable={it.undoId && !it.undone && agent.canUndo(it.undoId) ? 'true' : undefined}>
+          data-undoable={it.undoId && !it.undone && agent.canUndo(it.undoId) ? 'true' : undefined} data-status={it.faulted ? 'failed' : undefined} data-saving={it.saving ? 'true' : undefined}>
           <div className={styles.receiptLines} data-testid="agent-receipt-summary">{view.summary}</div>
           {view.details && (
             <details className={styles.receiptDetails}>
@@ -228,7 +243,9 @@ function Item({ it, agent, member, at, cont }) {
             </details>
           )}
           {it.notes?.length > 0 && <div className={styles.cardMeta}>{it.notes.join(' · ')}</div>}
+          {it.saving && <div className={styles.cardMeta} role="status" data-testid="agent-receipt-saving">Saving…</div>}
           {it.undoId && it.undone && <div className={styles.cardMeta}>Undone</div>}
+          {it.faulted && <div className={styles.cardMeta}>The chart hit an error after this change.</div>}
         </div>
         </AgentSays>
       )
@@ -275,7 +292,9 @@ function SearchResults({ results, query, active, setActive, onPick, member }) {
 
 // `request` (Indicators ⇄ Agent): `{id, chartRef, defId?, name?}` — the chart's Create Indicator /
 // Modify door opened the Agent; each NEW id asks once (useAgent.prompt) and focuses the composer.
-export default function AgentPanel({ host, gridMode, onClose, request = null }) {
+// `{id, kind: 'conversation', conversationId}` (UCT News "Continue in UCT Agent", newsAsk.openAgent):
+// the panel shows that chat — the server's transcript, as History opens it — and asks nothing.
+export default function AgentPanel({ host, gridMode, onClose, request = null, surface = 'charts' }) {
   const member = useMember()
   // A new chat greets afresh (typing, new timestamp); messages after the greeting keep it.
   const [chatEpoch, setChatEpoch] = useState(0)
@@ -284,7 +303,8 @@ export default function AgentPanel({ host, gridMode, onClose, request = null }) 
   // chat types a short greeting; reopening the panel shows the greeting at once (no replay).
   const [firstTime] = useState(() => readLocal(welcomedKey(member.id)) !== '1')
   const firstName = member.name === 'User' ? '' : member.name.split(/\s+/)[0]
-  const agent = useAgent({ host, gridMode })
+  const agent = useAgent({ host, gridMode, surface })
+  const working = useSyncExternalStore(subscribeWorking, isWorking)   // a website write is in flight (agent/trace.js)
   const [text, setText] = useState('')
   const [historyOpen, setHistoryOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -304,10 +324,16 @@ export default function AgentPanel({ host, gridMode, onClose, request = null }) 
   // when that reply lands, never dropped).
   useEffect(() => {
     if (!request || !request.id || askedRef.current === request.id || agent.restoring || agent.busy) return
+    if (request.kind === 'conversation') {
+      askedRef.current = request.id
+      if (request.conversationId && request.conversationId !== agent.conversationId) agent.openConversation(request.conversationId)
+      inputRef.current?.focus()
+      return
+    }
     if (!askAgent(request)) return
     askedRef.current = request.id
     inputRef.current?.focus()
-  }, [request, agent.restoring, agent.busy, askAgent])
+  }, [request, agent.restoring, agent.busy, askAgent, agent.conversationId, agent.openConversation])
   // Follow the conversation: stay pinned to the newest line while the reader is at the bottom,
   // including when a line grows after it lands (welcome reveal, photos, the typing line's room).
   const stickRef = useRef(true)
@@ -345,6 +371,10 @@ export default function AgentPanel({ host, gridMode, onClose, request = null }) 
     el.scrollIntoView({ block: 'center', behavior: 'smooth' })
     el.classList.remove(styles.flash); void el.offsetWidth; el.classList.add(styles.flash)
   }, [searchOpen, historyOpen, agent.items])
+
+  // the walkthrough card's "Do it for me": the same words, down the same path, as typing them here
+  // (false: the Agent is busy, and the card says so rather than dropping the click)
+  useEffect(() => onGuideDoIt(() => { if (agent.busy) return false; agent.send('do it for me'); return true }), [agent])
 
   const submit = () => {
     const t = text.trim()
@@ -393,10 +423,12 @@ export default function AgentPanel({ host, gridMode, onClose, request = null }) 
         <span className={styles.avatar} aria-hidden="true"><img src={compassMark} alt="" /><i className={styles.online} /></span>
         <span className={styles.contactText}>
           <span className={styles.contactName}>UCT Agent</span>
-          <span className={styles.contactStatus} aria-live="polite">
-            {(agent.busy || greetingTyping)
-              ? <span className={styles.typingNow}>typing<i /><i /><i /></span>
-              : <span className={styles.onlineWord}>Online</span>}
+          <span className={styles.contactStatus} aria-live="polite" data-testid="agent-status">
+            {working
+              ? <span className={styles.typingNow}>UCT Agent is working<i /><i /><i /></span>
+              : (agent.busy || greetingTyping)
+                ? <span className={styles.typingNow}>typing<i /><i /><i /></span>
+                : <span className={styles.onlineWord}>Online</span>}
           </span>
         </span>
         <span className={styles.headSpacer} />
@@ -434,7 +466,7 @@ export default function AgentPanel({ host, gridMode, onClose, request = null }) 
         {agent.restoring && <div className={styles.thinking} aria-live="polite" data-testid="agent-restoring">Loading this conversation…</div>}
         {/* The greeting opens every chat started here; a reopened past conversation starts at its own history. */}
         {!agent.restoring && !agent.items[0]?.history && (
-          <Welcome key={chatEpoch} host={host} quiet={!!text.trim()} empty={agent.items.length === 0} onPick={(p) => agent.send(p)}
+          <Welcome key={chatEpoch} host={host} surface={surface} quiet={!!text.trim()} empty={agent.items.length === 0} onPick={(p) => agent.send(p)}
             full={firstTime && chatEpoch === 0} animate={firstTime || chatEpoch > 0} firstName={firstName}
             onShown={() => writeLocal(welcomedKey(member.id), '1')} onTyping={setGreetingTyping} />
         )}
@@ -460,7 +492,7 @@ export default function AgentPanel({ host, gridMode, onClose, request = null }) 
         {typing && (
           <div className={styles.typingLine} role="status" aria-live="polite" data-testid="agent-typing">
             <span className={styles.typingDots} aria-hidden="true"><i /><i /><i /></span>
-            <span><b>UCT Agent</b> {agent.activity === 'research' ? 'is looking that up on the web…' : 'is typing…'}</span>
+            <span><b>UCT Agent</b> {working ? 'is working' : agent.activity === 'research' ? 'is looking that up on the web…' : 'is typing…'}</span>
           </div>
         )}
         <div className={styles.bar}>
@@ -474,6 +506,8 @@ export default function AgentPanel({ host, gridMode, onClose, request = null }) 
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() }
+              // the panel stops its keys reaching the board, so the guide's own Escape can't hear this box, and focus sits here after asking
+              if (e.key === 'Escape' && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey && guideState()) endGuide('exit')
             }}
           />
           <span className={styles.micSlot}>

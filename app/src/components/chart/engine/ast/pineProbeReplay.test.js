@@ -213,8 +213,13 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
       // the measured wave-16 cost. Pre-wave-16: [102, 937, '6aa396f1a09699d5'] both.
       // ⭐ F1 (wave 16) +1 Resolver, +33 steps: its const-int division fold
       // (`pineConstIntValue`) resolves one more operand. Pre-F1: [103, 1450, 'ae4f9119eeecd7d5'].
+      // ⭐ STRAT-COLOR (engine 37, 2026-11-08) -12 Resolvers, -53 steps: a `strategy.*` read the
+      // host lane meets in a plot's presentation is now withheld by name (`strategyTaint.js`),
+      // so the walk stops resolving what it would have refused anyway. The script stays refused
+      // with the SAME guards (pine:statement, pine:strategy-call; corpus_metric row unchanged).
+      // Pre-STRAT-COLOR: [104, 1483, '5adeff2487d271ca'] both.
       '72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt': {
-        plain: [104, 1483, '5adeff2487d271ca'], manifest: [104, 1483, '5adeff2487d271ca'] },
+        plain: [92, 1430, '404861a4920130ba'], manifest: [92, 1430, '404861a4920130ba'] },
     }
     const got = {}
     for (const name of Object.keys(PINNED)) {

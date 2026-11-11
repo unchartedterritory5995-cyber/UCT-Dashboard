@@ -48,24 +48,87 @@
 // fixture holds both lanes to the same answer (`tests/fixtures/ast/
 // bar_index_shift_parity.json`, written by `barIndexShift.test.js`).
 
-import { RECURRENCES } from './parse.js'
+import { RECURRENCES, TABLE, SERIES_LOOKBACK } from './parse.js'
 
 /** The clock leaves that count bars from the first one held. */
 export const BAR_INDEX_LEAVES = Object.freeze(['barindex', 'lastbarindex'])
 
-/** Does this tree read a bar-index leaf at all? Iterative: it is asked of every
- *  tree, including ones too deep to recurse into. */
-export function readsBarIndex(tree) {
+/** ⭐⭐ 2026-11-09 — `barstate.isfirst`: true on the first bar of the symbol's
+ *  HISTORY on TradingView (Pine's reference: "true if current bar is first bar in
+ *  barset"; the barset is TradingView's loaded history, NOT this chart's window —
+ *  measured: `vw-bar-origin-spy-1d-300-2026-10-02` reads it false on the 300-bar
+ *  window's first bar, 0 of 300 true). So it IS `bar_index < 1`, and the pass
+ *  lists the leaf as exactly that THRESHOLD (`FIRST_BAR_TEST`): known false on
+ *  every bar after this chart's first, unknown on that one. It is never an index
+ *  (`BAR_INDEX_LEAVES`). The Python twin is `ast_bar_index_shift.FIRST_BAR_LEAVES`. */
+export const FIRST_BAR_LEAVES = Object.freeze(['isfirst'])
+/** The comparison an `isfirst` leaf stands for, read by `interpret.js::barIndexMask`. */
+export const FIRST_BAR_TEST = Object.freeze({ type: 'op', name: '<',
+  args: Object.freeze([Object.freeze({ type: 'series', name: 'barindex' }), Object.freeze({ type: 'num', value: 1 })]) })
+
+/** Does this tree read `isfirst`? Iterative. */
+export function readsFirstBar(tree) {
   const stack = [tree]
   const seen = new Set()
   while (stack.length) {
     const n = stack.pop()
     if (!n || typeof n !== 'object' || seen.has(n)) continue
     seen.add(n)
-    if (n.type === 'series' && BAR_INDEX_LEAVES.includes(n.name)) return true
+    if (n.type === 'series' && FIRST_BAR_LEAVES.includes(n.name)) return true
     if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
   }
   return false
+}
+
+/** The `series`-lookback entries that are an INDEX into the series rather than a
+ *  total over it: they move with their source (`SHIFT_EQUIVARIANT_CALLS`). */
+const SERIES_INDEX_CALLS = Object.freeze(['valuewhenOccurrence'])
+
+/** ⭐⭐ 2026-11-09 (`fix/pine-cumulative-off-listing`) — THE RUNNING TOTALS: the
+ *  table functions whose value on a bar sums EVERY bar before it. Read off the
+ *  manifest (`lookback: "series"`), never retyped here — `closedTable.json` is the
+ *  one authority over which functions read the whole series. Today this is
+ *  exactly `cum`, which Pine's `ta.cum` and the translator's `ta.obv`, `ta.pvt`,
+ *  `ta.wad`, `ta.accdist`, `ta.nvi` and `ta.pvi` (each written as `cum(…)` by
+ *  `pine.js`) all reach.
+ *
+ *  Off the listing a running total is fixed only up to the total of the bars
+ *  TradingView holds and this chart does not (`_functions_cumulative`: "defined
+ *  only UP TO AN ADDITIVE CONSTANT"). For a constant source `k` that constant is
+ *  `k · D` — `ta.cum(1)` IS `bar_index + 1` (`vw-bar-counters-spy-1-2026-10-02`
+ *  C05: TradingView 11,761 where this chart drew 1, on every bar) — and the pass
+ *  reads it exactly so. For any other source it is `D · μ`, `μ` the unseen bars'
+ *  mean: an atom that is THE SAME ON EVERY BAR (`ORIGIN_ATOM`), so
+ *  `cum(x) - cum(x)[n]`, `cum(x) - ema(cum(x), n)` and
+ *  `crossover(cum(x), sma(cum(x), n))` cancel and are served, while `cum(x)`
+ *  itself, `cum(x) > 0` and `cum(a) / cum(b)` are withheld — the ruling's own
+ *  invariance test, decided by the same proof `bar_index` already is. */
+export const RUNNING_TOTAL_CALLS = Object.freeze(Object.entries(TABLE.functions)
+  .filter(([name, spec]) => spec && spec.lookback === SERIES_LOOKBACK && !SERIES_INDEX_CALLS.includes(name))
+  .map(([name]) => name))
+
+function readsAny(tree, hit) {
+  const stack = [tree]
+  const seen = new Set()
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (hit(n)) return true
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
+  return false
+}
+
+/** Does this tree read a bar-index leaf at all? Iterative: it is asked of every
+ *  tree, including ones too deep to recurse into. */
+export function readsBarIndex(tree) {
+  return readsAny(tree, (n) => n.type === 'series' && BAR_INDEX_LEAVES.includes(n.name))
+}
+
+/** Does this tree call a running total (`RUNNING_TOTAL_CALLS`)? */
+export function readsRunningTotal(tree) {
+  return readsAny(tree, (n) => n.type === 'call' && RUNNING_TOTAL_CALLS.includes(n.name))
 }
 
 // ── polynomials over opaque atoms ───────────────────────────────────────────────
@@ -76,6 +139,41 @@ export function readsBarIndex(tree) {
 
 const MONO_SEP = '\u0002'
 const INV_PREFIX = '1/'
+/** ⭐ The key prefix of an atom that is the SAME on every bar: a running total's
+ *  unseen mean `μ` (`RUNNING_TOTAL_CALLS`). A time-invariant linear operator
+ *  passes it through as a constant factor (`sma(μ·y) = μ·sma(y)`; `μ[k]` is `μ`),
+ *  so two spellings of one running total cancel. */
+const ORIGIN_ATOM = '\u0003'
+/** …and the mark after it: `+` when the unseen bars' mean is provably never
+ *  negative (`nonNegativeSource` — `ta.cum(nz(volume))`), `?` otherwise. A total
+ *  of a never-negative source only GROWS with the unseen bars, so a test of it
+ *  against a fixed number is a THRESHOLD, exactly like `bar_index > 100`. */
+const ORIGIN_NONNEG = '+'
+const ORIGIN_ANY = '?'
+
+/** Is this source provably never negative on any bar? A small, closed set of
+ *  shapes — anything else answers no (the withholding side). ⛔ Prices are NOT
+ *  here: a spread or a futures contract can trade below zero. */
+function nonNegativeSource(n, depth = 0) {
+  if (!n || typeof n !== 'object' || depth > 32) return false
+  const a = Array.isArray(n.args) ? n.args : []
+  const sub = (x) => nonNegativeSource(x, depth + 1)
+  if (n.type === 'num') return Number.isFinite(n.value) && n.value >= 0
+  if (n.type === 'series') return n.name === 'volume'
+  if (n.type === 'offset') return sub(a[0])
+  if (n.type === 'call') {
+    if (n.name === 'abs') return a.length === 1
+    if (n.name === 'nz') return sub(a[0]) && (a.length < 2 || sub(a[1]))
+    if (n.name === 'max') return a.length === 2 && (sub(a[0]) || sub(a[1]))
+    if (n.name === 'min') return a.length === 2 && sub(a[0]) && sub(a[1])
+    return false
+  }
+  if (n.type === 'op') {
+    if (n.name === '+' || n.name === '*') return a.length === 2 && sub(a[0]) && sub(a[1])
+    if (n.name === '?:') return a.length === 3 && sub(a[1]) && sub(a[2])
+  }
+  return false
+}
 /** Past this many monomials a product is not expanded: the tree is 'dep'. */
 const MAX_TERMS = 96
 /** Past this depth the pass stops and answers 'dep'. A canonical tree the budget
@@ -183,15 +281,33 @@ function makeAlgebra() {
     .reduce((acc, t) => (acc ? { type: 'op', name: '*', args: [acc, t] } : t), null)
   /** A LINEAR, time-invariant operator applied term by term: `wrap(tree)` is the
    *  operator on one subtree, `onConstant` what it answers for the series `1`. */
+  const isOriginAtom = (a) => (a.startsWith(INV_PREFIX) ? a.slice(INV_PREFIX.length) : a).startsWith(ORIGIN_ATOM)
   const linear = (p, wrap, onConstant) => {
     let out = ZERO
     for (const [k, c] of p) {
-      if (k === '') out = add(out, constant(c * onConstant))
-      else out = add(out, scale(atom(wrap(monoTree(k))), c))
+      // the `μ` factors are the same on every bar and pass through the operator
+      const atoms = atomsOf(k)
+      const moving = atoms.filter((a) => !isOriginAtom(a))
+      const factor = new Map([[monoKey(atoms.filter(isOriginAtom)), c]])
+      if (!moving.length) out = add(out, scale(factor, onConstant))
+      else out = add(out, mul(factor, atom(wrap(monoTree(monoKey(moving))))))
     }
     return out
   }
-  return { keyOf, ZERO, constant, atom, add, scale, mul, equal, isZero, isConstant, constantOf, reciprocal, linear }
+  /** `μ` — a running total's unseen mean, named by the call it belongs to. */
+  const originAtom = (tree, nonNegative) => new Map([[ORIGIN_ATOM + (nonNegative ? ORIGIN_NONNEG : ORIGIN_ANY) + keyOf(tree), 1]])
+  /** The direction a threshold's sides move apart as `D` grows: the sign of a
+   *  constant, or of a single never-negative `μ` term; else null (not provable). */
+  const gapSign = (g) => {
+    if (isConstant(g)) return Math.sign(constantOf(g))
+    if (g.size !== 1) return null
+    const [[k, c]] = [...g]
+    return k.startsWith(ORIGIN_ATOM + ORIGIN_NONNEG) && !k.includes(MONO_SEP) ? Math.sign(c) : null
+  }
+  /** Is every term a constant or a product of `μ`s — the same on every bar? */
+  const isTimeConstant = (a) => [...a.keys()].every((k) => atomsOf(k).every(isOriginAtom))
+  return { keyOf, ZERO, constant, atom, add, scale, mul, equal, isZero, isConstant, constantOf, reciprocal, linear,
+    originAtom, isTimeConstant, gapSign }
 }
 
 // ── the functions whose behaviour under a shift is known ────────────────────────
@@ -251,7 +367,7 @@ export function barIndexClass(tree) {
  * @returns {{cls: 'inv' | 'pos' | 'dep', thresholds: Array<{node: object, sign: number}>}}
  */
 export function barIndexVerdict(tree) {
-  if (!readsBarIndex(tree)) return { cls: 'inv', thresholds: NO_THRESHOLDS }
+  if (!readsBarIndex(tree) && !readsFirstBar(tree) && !readsRunningTotal(tree)) return { cls: 'inv', thresholds: NO_THRESHOLDS }
   const thresholds = []
   const A = makeAlgebra()
   const NA = { na: true }
@@ -289,6 +405,10 @@ export function barIndexVerdict(tree) {
         return fixed(n)
       case 'series':
         if (self && self.name === n.name) return self.sym
+        // ⭐ 2026-11-09 — `isfirst` is the threshold `bar_index < 1` (`FIRST_BAR_TEST`)
+        if (FIRST_BAR_LEAVES.includes(n.name) && !thresholds.some((t) => t.node === n)) {
+          thresholds.push({ node: n, sign: 1 })
+        }
         return BAR_INDEX_LEAVES.includes(n.name) ? lin(A.atom(n), A.constant(1)) : fixed(n)
       case 'offset': {
         const x = sub(args[0])
@@ -345,9 +465,10 @@ export function barIndexVerdict(tree) {
       // ⭐ a THRESHOLD: the sides move apart by a constant multiple of `D`, and
       // `D ≥ 0`, so an ORDERING is known wherever `D` can only confirm it.
       const gap = A.add(a.p1, b.p1, -1)
-      if (n.name === '==' || n.name === '!=' || !A.isConstant(gap)) unprovable()
+      const sign = A.gapSign(gap)
+      if (n.name === '==' || n.name === '!=' || sign === null) unprovable()
       if (self && readsBinding(n, self.name)) unprovable()             // no column of its own
-      if (!thresholds.some((t) => t.node === n)) thresholds.push({ node: n, sign: Math.sign(A.constantOf(gap)) })
+      if (!thresholds.some((t) => t.node === n)) thresholds.push({ node: n, sign })
       return fixed(n)
     }
     if (LOGICAL.has(n.name)) {
@@ -444,7 +565,7 @@ export function barIndexVerdict(tree) {
     if (SHIFT_INVARIANT_CALLS.has(name)) {
       const x = sub(args[0])
       for (const a of args.slice(1)) if (!still(sub(a))) unprovable()
-      if (!x.na && !A.isConstant(x.p1)) unprovable()
+      if (!x.na && !A.isTimeConstant(x.p1)) unprovable()
       return fixed(n)
     }
     if (Object.prototype.hasOwnProperty.call(SHIFT_EQUIVARIANT_CALLS, name)) {
@@ -452,8 +573,19 @@ export function barIndexVerdict(tree) {
       for (let i = 0; i < args.length; i += 1) if (i !== at && !still(sub(args[i]))) unprovable()
       const x = sub(args[at])
       if (x.na) return NA
-      if (!A.isConstant(x.p1)) unprovable()
+      if (!A.isTimeConstant(x.p1)) unprovable()
       return lin(A.atom(n), x.p1)
+    }
+    if (RUNNING_TOTAL_CALLS.includes(name)) {
+      // ⭐ A RUNNING TOTAL MOVES BY ITS UNSEEN BARS' TOTAL (`RUNNING_TOTAL_CALLS`):
+      // `k · D` for a constant source `k` (`ta.cum(1)` is `bar_index + 1`), `D · μ`
+      // for any other. A source that itself moves with `D` (`cum(bar_index)`)
+      // would add a `D²` term: not provable.
+      for (const a of args.slice(1)) if (!still(sub(a))) unprovable()
+      const x = sub(args[0])
+      if (x.na) return NA
+      if (!A.isZero(x.p1)) unprovable()
+      return lin(A.atom(n), A.isConstant(x.p0) ? A.constant(A.constantOf(x.p0)) : A.originAtom(n, nonNegativeSource(args[0])))
     }
     if (WHOLE_SHIFT_CALLS.has(name)) {
       const x = sub(args[0])

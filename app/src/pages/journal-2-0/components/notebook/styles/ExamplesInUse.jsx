@@ -18,7 +18,7 @@ import UIcon from '../../../../../components/ui/UIcon'
 import styles from '../TemplateGallery.module.css'
 
 export const IN_USE_HEADING = 'In use'
-export const IN_USE_NOTE = 'Notes its author wrote with this style, reviewed by UCT. Amounts and account details are replaced.'
+export const IN_USE_NOTE = 'Notes its author wrote with this template, reviewed by UCT. Amounts and account details are replaced.'
 export const REPORT_EXAMPLE_LABEL = 'Report'
 
 function ExampleCard({ example, reportable }) {

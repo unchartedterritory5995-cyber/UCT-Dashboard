@@ -1,0 +1,19 @@
+//@version=6
+indicator("UCTPROBE_VW_OBJCOND_TERNARY_SMA_VAR", overlay = false, max_bars_back = 5000)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme, capture queue row T1
+// (docs/pine/capture-queue-2026-11-01-objcond.md). NEVER COMPILED ON TRADINGVIEW.
+// A `var` filled from a `ta.sma` in the TRUE arm of a top-level ternary, read by a last-bar label
+// and a plot. Does TradingView evaluate the `ta.sma` only on the bars that arm is taken (per-run
+// history: 149.2033 on RDDT, the `if` form's value) or on every bar (145.7767, what our object
+// lane draws now)? Record the label's text and the last bar's S01.
+// CAPTURE: NYSE:RDDT 1D from the listing, and AMEX:SPY 1D, inputs at defaults.
+
+var float s = na
+s := close > open ? ta.sma(close, 3) : s
+
+if barstate.islast
+    label.new(bar_index, s, str.tostring(s))
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(s, "S01_s")

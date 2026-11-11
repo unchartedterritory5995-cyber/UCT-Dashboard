@@ -17,7 +17,7 @@ from api.services import study_store as ss
 
 REAL_TICKERS = ("NVDA", "AAPL")
 FORBIDDEN_KEYS = {"sym", "forward", "forward_json", "forward_bars", "answer_json", "answer",
-                  "reveal_json", "lesson_text", "source_ref", "sha256"}
+                  "reveal_json", "lesson_text", "source_ref", "sha256", "subject"}
 FORWARD_SENTINEL = 777777.5     # a price that exists ONLY in forward bars
 KEY_SENTINEL = "the-secret-key-string"
 
@@ -37,7 +37,7 @@ def store(tmp_path, monkeypatch):
                       "answer_json": {"answer": KEY_SENTINEL}, "reveal_json": {"why": KEY_SENTINEL},
                       "lesson_text": KEY_SENTINEL, "source_ref": KEY_SENTINEL})
         ss.upsert_bars(f"sb_{i}", "D", vis, fwd)
-    items.append({"id": "si_recall", "type": "recall", "skill_id": "f1", "prompt_json": {"q": "bid?"},
+    items.append({"id": "si_recall", "type": "recall", "skill_id": "f1", "prompt_json": {"q": "bid?", "subject": KEY_SENTINEL},
                   "answer_json": {"answer": KEY_SENTINEL}, "lesson_text": KEY_SENTINEL})
     ss.upsert_items(items)
     for it in items:
@@ -69,11 +69,16 @@ def _walk(node, path="$"):
         yield (path, None, node)
 
 
-def _assert_clean(body, where):
+def _assert_clean(body, where, lesson=False):
+    """`lesson`: a LESSON set may carry each chart's `ticker` (the owner, 2026-11-02 and 2026-11-08, "Yes": the
+    lesson's question card shows the chart exactly as on the Charts page, its ticker visible before answering). Only
+    in that one key; never the key, never forward bars, and never on a challenge route (Hard mode's "no ticker")."""
     for path, key, value in _walk(body):
         if key is not None:
             assert key not in FORBIDDEN_KEYS, f"{where}: forbidden key {key!r} at {path}"
         if isinstance(value, str):
+            if lesson and path.endswith(".ticker"):
+                continue
             assert value.upper() not in REAL_TICKERS, f"{where}: real ticker {value!r} at {path}"
             assert KEY_SENTINEL not in value, f"{where}: key text leaked at {path}"
         if isinstance(value, (int, float)) and not isinstance(value, bool):
@@ -139,6 +144,11 @@ def _step_without_attempt(c):
     return c.post("/api/study/attempts/1/step", json={"n": 5})
 
 
+def _intraday_without_attempt(c):
+    # the replay within the day is the forward bars, finer: refused without the member's own attempt, like /step
+    return c.get("/api/study/attempts/1/intraday")
+
+
 def _house_chart(c):
     # the owner's saved look, stubbed: the walk is about what the route returns
     from unittest import mock
@@ -150,6 +160,31 @@ def _house_chart(c):
 def _feedback_before_scoring(c):
     # a member can say something about an item before answering it
     return c.post("/api/study/items/si_chart0/feedback", json={"kind": "other", "text": "hm"})
+
+
+def _lesson_session(c):
+    # a lesson set (the practise sheet, the Desk's courses): carries each chart's ticker, by the owner's ruling
+    return c.post("/api/study/sessions", json={"kind": "free", "lesson": True})
+
+
+def _spot_setup(c):
+    # Spot the Setup's one-request pool: the look-alikes are candle indexes and measures, never a ticker
+    from unittest import mock
+    from api.services import study_spot_setup
+    with mock.patch.object(study_spot_setup, "lookalikes", return_value={"real": 4, "real_features": {}, "lookalikes": [{"i": 1, "features": {}}]}),             mock.patch("api.services.study_hard.key_is_yes", return_value=True),             mock.patch.dict("api.services.study_hard.SETUP_RULES", {"setup.vcp": ()}):
+        return c.post("/api/study/spot-setup", json={"rounds": 2})
+
+
+def _lookalikes(c):
+    from unittest import mock
+    from api.services import study_spot_setup
+    with mock.patch.object(study_spot_setup, "lookalikes", return_value={"real": 4, "real_features": {}, "lookalikes": []}):
+        return c.get("/api/study/items/si_chart0/lookalikes")
+
+
+def _draw_on_a_draft(c):
+    # Draw it scores only after both lines are placed; a refused one (an item that is not approved) shows nothing
+    return c.post("/api/study/draw/score", json={"item_id": "si_nope", "entry": 1.0, "stop": 0.9})
 
 
 def _attempt_on_a_draft(c):
@@ -166,19 +201,31 @@ WALKS = [
     ("GET", "/api/study/items/{item_id}/bars", _bars),
     ("POST", "/api/study/attempts", _attempt_on_a_draft),
     ("POST", "/api/study/attempts/{attempt_id}/step", _step_without_attempt),
+    ("GET", "/api/study/attempts/{attempt_id}/intraday", _intraday_without_attempt),
     ("GET", "/api/study/profile", _profile),
     ("PUT", "/api/study/profile", _put_profile),
     ("GET", "/api/study/leaderboard", _leaderboard),
     ("GET", "/api/study/house-chart", _house_chart),
     ("POST", "/api/study/items/{item_id}/feedback", _feedback_before_scoring),
+    ("POST", "/api/study/sessions", _lesson_session),
+    ("POST", "/api/study/spot-setup", _spot_setup),
+    ("GET", "/api/study/items/{item_id}/lookalikes", _lookalikes),
+    ("POST", "/api/study/draw/score", _draw_on_a_draft),
 ]
+LESSON_WALKS = {_today, _lesson_session}
 
 
 @pytest.mark.parametrize("method,path,call", WALKS, ids=[f"{m} {p} {c.__name__}" for m, p, c in WALKS])
 def test_no_sym_or_forward_before_scoring(paid_client, method, path, call):
     r = call(paid_client)
     assert r.status_code in (200, 404), (path, r.status_code, r.text)
-    _assert_clean(r.json(), f"{method} {path}")
+    _assert_clean(r.json(), f"{method} {path}", lesson=call in LESSON_WALKS)
+
+
+def test_a_lesson_set_really_carries_the_ticker_and_a_challenge_set_never_does(paid_client):
+    """Non-vacuity for the lesson exception: the ticker is there in a lesson, and only there."""
+    assert any(i.get("ticker") in REAL_TICKERS for i in _lesson_session(paid_client).json()["items"])
+    assert all("ticker" not in i for i in _skill_session(paid_client).json()["items"])
 
 
 def test_today_really_carried_the_chart_items(paid_client):

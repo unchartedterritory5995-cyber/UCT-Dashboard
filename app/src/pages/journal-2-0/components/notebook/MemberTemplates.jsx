@@ -24,7 +24,7 @@
  *     goes through the one door this component has always used.
  *
  * Wave 12 lane 12A: a "Share" action beside Rename/Delete opens GalleryPublishForm,
- * which submits a COPY of the template to the community gallery for review. It is
+ * which submits a COPY of the template to the Template library for review. It is
  * rendered only while notebook_template_gallery_enabled is LATCHED on, so with the
  * gate off this component is byte-for-byte what it was.
  */
@@ -202,7 +202,7 @@ export default function MemberTemplates({ onPick, busy = false, query = '', onPr
                     <button type="button" className={styles.miniBtn}
                       onClick={() => { setRenaming(null); setConfirmDelete(null); setSharing(t.id) }}
                       aria-expanded={sharing === t.id}
-                      aria-label={`Share ${t.name} to the community gallery`}>
+                      aria-label={`Share ${t.name} to the Template library`}>
                       Share
                     </button>
                   )}

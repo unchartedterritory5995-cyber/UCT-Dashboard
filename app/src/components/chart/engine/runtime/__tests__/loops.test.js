@@ -173,17 +173,20 @@ describe('the for loop', () => {
       + 'plot(s)\n')).toEqual(all(12))
   })
 
-  it('⛔ the bounds are evaluated ONCE — a body that grows the array does not extend the walk', () => {
-    // The array starts with 2 elements; the body pushes one per iteration. A
-    // loop that re-read `array.size(a)` every pass would never terminate (and
-    // would be caught only by the iteration ceiling, thousands of passes later).
-    expect(runPine(
+  it('⛔ a v6 body that grows the array its bound reads is REFUSED, never walked once', () => {
+    // The array starts with 2 elements; the body pushes one per iteration.
+    // ⚰️ This asserted the read-once answer (3) under `//@version=6`. Pine 6
+    // re-reads the `to` bound before every pass (v6 migration guide), so that
+    // was an unwitnessed semantic served; it is refused by name until a capture
+    // pins the per-pass rule (P3 WS-A). The read-once rule stands for v5 and is
+    // railed in `p3WsaForBoundAndStatements.test.js`.
+    expect(() => runPine(
       'a = array.from(1.0, 2.0)\n'
       + 'float s = 0.0\n'
       + 'for i = 0 to array.size(a) - 1\n'
       + '    s := s + array.get(a, i)\n'
       + '    array.push(a, 9.0)\n'
-      + 'plot(s)\n')).toEqual(all(3))
+      + 'plot(s)\n')).toThrow(/Pine 6 re-reads/)
   })
 
   it('walks an array — the shape a watchlist parse is made of', () => {

@@ -31,15 +31,16 @@
 //                            page's own reorder route (the whole order, by item id); Undo restores the
 //                            old order only onto the list exactly as the Agent left it.
 //   watchlist.setNote        ⭐ one ticker's note — the page's notes route; Undo puts the old note back.
+//   watchlist.keepOnly       everything EXCEPT the tickers named goes, as one proposal: the remove path, one Undo.
 //
-// ⛔ Not here: the flagged list (it syncs as a whole set — an overwrite race), prebuilt / community /
-// linked lists (read-only).
+// A WIDGET showing a list (column sort, columns, next / previous, what it shows) and the Flagged set are in listView.js.
+// ⛔ Not here: prebuilt / community / linked lists (read-only).
 // No revision exists server-side, so every write re-reads the list from the server
 // first and refuses if it moved since the plan was made.
 
 import { registerCapability, registerTargetKind, registerContextProvider, isRef, SYMBOLS } from '../capabilities'
 import { unknownSymbols } from '../agentClient'
-import { isPronounToken, groundSymbols, groundingOf, resolvedTicker, candidatesText } from '../nl/tickers'
+import { isPronounToken, isReservedWord, groundSymbols, groundingOf, resolvedTicker, candidatesText } from '../nl/tickers'
 import { matchName } from '../nl/match'
 import { afterRender } from '../frames'
 import { MAX_TOP } from '../compose'
@@ -72,18 +73,20 @@ export function andList(xs) {
  *  to the model, which knows what "it" refers to. `raw` = the whole message, for capitals. */
 export function parseTickers(text, raw = text) {
   const typed = String(text || '').split(/\s*(?:,|\band\b|&|\+)\s*/i).map(s => s.trim()).filter(Boolean)
-  if (typed.some(p => isPronounToken(p, raw))) return null
+  if (typed.some(p => isPronounToken(p, raw) || isReservedWord(p))) return null
   const parts = typed.map(s => s.replace(/^\$/, ''))
   if (!parts.length || parts.length > MAX_PER_REQUEST) return null
   if (!parts.every(p => /^[A-Za-z][A-Za-z0-9.]{0,9}$/.test(p))) return null
   return parts.map(p => p.toUpperCase())
 }
 
-function snapOf(l, all = []) {
+function snapOf(l, all = [], host = null) {
   return {
     ref: l.id, label: l.name, name: l.name, items: l.items, symbols: l.items.map(i => i.sym),
     editable: l.editable, why: l.why, shownIn: l.shownIn, position: null,
     otherNames: all.filter(x => x.id !== l.id).map(x => x.name),
+    // a widget showing this list is sorted by a column, so the saved order is not what is on screen
+    viewSorted: !!host?.listViews?.columnSorted(l.id),
   }
 }
 const listsOf = (host) => (host?.watchlists ? host.watchlists.snapshot() : [])
@@ -126,8 +129,8 @@ export const watchlistKind = {
   boardScoped: false,
   // Its receipt lines already name the list ("Added AMD to “Momentum”").
   selfDescribing: true,
-  list: (host) => { const all = listsOf(host); return all.map(l => snapOf(l, all)) },
-  read: (host, ref) => { const all = listsOf(host); const l = all.find(x => x.id === ref); return l ? snapOf(l, all) : null },
+  list: (host) => { const all = listsOf(host); return all.map(l => snapOf(l, all, host)) },
+  read: (host, ref) => { const all = listsOf(host); const l = all.find(x => x.id === ref); return l ? snapOf(l, all, host) : null },
   virtual: ({ alias, spec }) => ({ ref: alias, label: spec?.name || 'New watchlist', name: spec?.name || 'New watchlist', items: [], symbols: [], editable: true, why: null, shownIn: [], position: null, otherNames: [], virtual: true }),
   stateOf: (snap) => ({ name: snap.name, symbols: snap.symbols, items: snap.items, otherNames: snap.otherNames || [], add: [], skipped: [], remove: [], absent: [], rename: null, addFrom: null, deleteList: false, reorder: null, notes: [] }),
   patch(before, after) {
@@ -346,6 +349,28 @@ function editProblem(st, env) {
   return null
 }
 
+/** Before a plan: every model-typed ticker looked up. A company name the search resolves exactly stands in for its ticker
+ *  (NL N4); a screen's results (`trusted`, from UCT itself) and pending references are not looked up. */
+export async function lookupTickers(ops) {
+  const syms = [...new Set(ops.filter(o => !o.trusted && Array.isArray(o.args?.symbols)).flatMap(o => o.args.symbols.map(upper)).filter(Boolean))]
+  if (!syms.length) return {}
+  const unknown = await unknownSymbols(syms)
+  if (!unknown.size) return { unknownSymbols: unknown }
+  const g = await groundSymbols([...unknown])
+  return { unknownSymbols: g.unknown, ambiguousSymbols: g.ambiguous, namedSymbols: g.named }
+}
+
+/** Why these looked-up tickers can't be used (`verb`: what did not happen), or null. */
+export function tickerProblem(syms, env, verb) {
+  const vague = syms.find(s => env?.ambiguousSymbols?.has(s))
+  if (vague) return `“${vague}” could be ${candidatesText(vague)} — which one? Say the ticker. Nothing was ${verb}.`
+  const odd = syms.find(s => !TICKER.test(s) && !env?.namedSymbols?.has(s))
+  if (odd) return `“${odd}” doesn't look like a ticker.`
+  const unknown = syms.filter(s => env?.unknownSymbols?.has(s))
+  if (unknown.length) return `UCT has no symbol ${andList(unknown.map(s => `“${s}”`))} — nothing was ${verb}.`
+  return null
+}
+
 let registered = false
 export function registerWatchlistCapabilities() {
   if (registered) return
@@ -365,6 +390,7 @@ export function registerWatchlistCapabilities() {
       if (!host?.watchlists) return undefined
       return listsOf(host).slice(0, 40).map(l => ({
         ref: refFor('watchlist', l.id), name: l.name, count: l.items.length,
+        ...(lastCreated?.id === l.id ? { recent: true } : {}),      // "the one I just made": read from here, never from a receipt
         symbols: l.items.slice(0, SHOW_IN_CONTEXT).map(i => i.sym),
         ...(l.items.length > SHOW_IN_CONTEXT ? { moreSymbols: l.items.length - SHOW_IN_CONTEXT } : {}),
         ...(l.shownIn.length ? { shownInWidget: l.shownIn } : {}),
@@ -398,7 +424,7 @@ export function registerWatchlistCapabilities() {
     surfaces: ['charts'],
     target: 'watchlist', query: true,
     summary: 'Say which symbols are in one of the member\'s watchlists. UCT answers from the real list — use this (disposition apply) for "what\'s in <list>?".',
-    hints: 'target = the ref of that watchlist. as: name this list\'s STOCKS (e.g. "list1") when a later op in the same request uses them '
+    hints: 'target = the ref of that watchlist. "my watchlist" = the list a widget shows (shownInWidget); "the one I just made" = the list marked recent. as: name this list\'s STOCKS (e.g. "list1") when a later op in the same request uses them '
       + '(e.g. widget.addCharts symbols {from:"list1", top:N}); else null.',
     args: { type: 'object', properties: { as: { type: ['string', 'null'] } }, required: ['as'], additionalProperties: false },
     fastWhole: true,
@@ -445,7 +471,7 @@ export function registerWatchlistCapabilities() {
     target: 'watchlist',
     fastWhole: true,
     summary: 'Add tickers to one of the member\'s saved watchlists (the list itself, not a widget). Symbols already in the list are skipped.',
-    hints: 'target = the ref of the watchlist (or the "as" name of a list created earlier in this request); symbols = the tickers, uppercase, '
+    hints: 'target = the ref of the watchlist (or the "as" name of a list created earlier in this request); "my watchlist" = the list a widget shows (shownInWidget); "the one I just made" = the list marked recent. symbols = the tickers, uppercase, '
       + 'OR {from, top} to add a SCREEN\'s stocks: from = the "as" of a screener op earlier in this request (or "lastScreen" for the last screen run here), '
       + `top = how many of its results, in its order (null = ALL of them — the default when they say "all" or give no number; at most ${MAX_TOP}). Never type tickers you have not been given. `
       + 'If they say "my watchlist" and it is not clear which list, clarify with the real list names. One op per list.',
@@ -472,14 +498,7 @@ export function registerWatchlistCapabilities() {
     // from UCT's own Screener) and pending references are not.
     // NL N4: a symbol that is not a ticker is tried ONCE as an exact company name through the same
     // ticker search ("add nvidia to momentum" → NVDA, said in the receipt); several companies → asked.
-    async prepare(ops) {
-      const syms = [...new Set(ops.filter(o => !o.trusted && Array.isArray(o.args?.symbols)).flatMap(o => o.args.symbols.map(upper)).filter(Boolean))]
-      if (!syms.length) return {}
-      const unknown = await unknownSymbols(syms)
-      if (!unknown.size) return { unknownSymbols: unknown }
-      const g = await groundSymbols([...unknown])
-      return { unknownSymbols: g.unknown, ambiguousSymbols: g.ambiguous, namedSymbols: g.named }
-    },
+    prepare: lookupTickers,
     check(st, { symbols }, env) {
       const bad = editProblem(st, env)
       if (bad) return bad
@@ -492,13 +511,7 @@ export function registerWatchlistCapabilities() {
       if (!syms.length) return 'Which tickers?'
       const max = env?.trusted ? MAX_TRUSTED : MAX_PER_REQUEST
       if (syms.length > max) return `That's more than ${max.toLocaleString()} tickers at once — split it up.`
-      const vague = syms.find(s => env?.ambiguousSymbols?.has(s))
-      if (vague) return `“${vague}” could be ${candidatesText(vague)} — which one? Say the ticker. Nothing was added.`
-      const odd = syms.find(s => !TICKER.test(s) && !env?.namedSymbols?.has(s))
-      if (odd) return `“${odd}” doesn't look like a ticker.`
-      const unknown = syms.filter(s => env?.unknownSymbols?.has(s))
-      if (unknown.length) return `UCT has no symbol ${andList(unknown.map(s => `“${s}”`))} — nothing was added.`
-      return null
+      return tickerProblem(syms, env, 'added')
     },
     confirmIf: (st, { symbols }) => isRef(symbols) || (symbols || []).length > CONFIRM_OVER,
     apply(st, { symbols }) {
@@ -533,8 +546,8 @@ export function registerWatchlistCapabilities() {
     surfaces: ['charts'],
     target: 'watchlist',
     fastWhole: true,
-    summary: 'Remove specific tickers from one of the member\'s saved watchlists. Never clears a whole list.',
-    hints: 'target = the ref of the watchlist; symbols = exactly the tickers to remove.',
+    summary: 'Remove specific tickers from one of the member\'s saved watchlists, one or several at once. Undo puts them back with their notes and order.',
+    hints: 'target = the ref of the watchlist; "my watchlist" = the list a widget shows (shownInWidget); "the one I just made" = the list marked recent. symbols = exactly the tickers to remove ("the top three" = the first rows of the listViews entry showing it, or of its symbols when no widget shows it). For "everything except these" use watchlist.keepOnly.',
     args: {
       type: 'object',
       properties: { symbols: { type: 'array', items: { type: 'string' } } },
@@ -556,7 +569,11 @@ export function registerWatchlistCapabilities() {
       if (!syms.some(s => st.symbols.includes(s))) return `${andList(syms)} ${syms.length === 1 ? "isn't" : "aren't"} in ${quote(st.name)}.`
       return null
     },
-    confirmIf: (st, { symbols }) => (symbols || []).length > CONFIRM_OVER,
+    // broad = many at once, or every ticker left in the list: that is a clear, whatever words asked for it
+    confirmIf: (st, { symbols }) => {
+      const want = new Set((symbols || []).map(upper))
+      return want.size > CONFIRM_OVER || (want.size > 1 && st.items.every(i => want.has(i.sym)))
+    },
     apply(st, { symbols }) {
       const want = [...new Set((symbols || []).map(upper))]
       const gone = new Set(st.remove.map(r => r.sym))
@@ -572,6 +589,39 @@ export function registerWatchlistCapabilities() {
       if (!a.remove.length) return null
       const miss = a.absent.length ? ` · ${andList(a.absent)} ${a.absent.length === 1 ? "wasn't" : "weren't"} in it` : ''
       return `Removed ${andList(a.remove.map(r => r.sym))} from ${quote(a.name)}${miss}`
+    },
+  })
+
+  // ── watchlist.keepOnly ──
+  registerCapability({
+    name: 'watchlist.keepOnly',
+    surfaces: ['charts'],
+    target: 'watchlist',
+    risk: 'confirm',
+    summary: 'Remove everything from one of the member\'s saved watchlists EXCEPT the tickers named ("keep only these", "everything except these"). One change, always shown as a proposal naming what goes; Undo puts them back with their notes and order.',
+    hints: 'target = the ref of the watchlist; "my watchlist" = the list a widget shows (shownInWidget); "the one I just made" = the list marked recent. symbols = the tickers to KEEP ("keep the top three" = the first rows of the listViews entry showing it, or of its symbols). Every one must be in the list: a name that is not stops the whole change.',
+    args: { type: 'object', properties: { symbols: { type: 'array', items: { type: 'string' } } }, required: ['symbols'], additionalProperties: false },
+    check(st, { symbols }, env) {
+      const bad = editProblem(st, env)
+      if (bad) return bad
+      if (st.remove.length || st.add.length) return 'Do that on its own, then ask for other changes.'
+      const keep = [...new Set((symbols || []).map(upper))].filter(Boolean)
+      if (!keep.length) return 'Which tickers stay? To empty the list, say clear it.'
+      const missing = keep.filter(s => !st.symbols.includes(s))
+      if (missing.length) return `${andList(missing)} ${missing.length === 1 ? "isn't" : "aren't"} in ${quote(st.name)}, so nothing was removed.`
+      const going = st.items.length - keep.length
+      // said here, not as a no-op: a confirm-risk capability would still offer an Apply with nothing behind it
+      if (!going) return `${quote(st.name)} only holds those already.`
+      if (going > MAX_PER_REQUEST) return `That removes ${going} stocks — more than I remove at once (${MAX_PER_REQUEST}). Do it on the Watchlists page.`
+      return null
+    },
+    apply(st, { symbols }) {
+      const keep = new Set(symbols.map(upper))
+      return { ...st, remove: st.items.filter(i => !keep.has(i.sym)).map(it => ({ id: it.id, sym: it.sym, notes: it.notes })) }
+    },
+    describe(b, a, { symbols }) {
+      const what = a.remove.length > 8 ? `${a.remove.length} stocks` : andList(a.remove.map(r => r.sym))
+      return `Removed ${what} from ${quote(a.name)}, keeping ${andList([...new Set(symbols.map(upper))])}`
     },
   })
 
@@ -690,8 +740,8 @@ export function registerWatchlistCapabilities() {
     surfaces: ['charts'],
     target: 'watchlist',
     fastWhole: true,
-    summary: 'Reorder one of the member\'s saved watchlists: sort it alphabetically (A–Z or Z–A) and/or move some tickers to the top, in the order given. Nothing is added or removed. Undo puts the old order back.',
-    hints: 'target = the ref of the watchlist; sort = az | za | null (keep the order); top = tickers to put first, in this order ([] for none). "Sort my Momentum list" = az. Sorting by price, change or other data is not available.',
+    summary: 'Reorder one of the member\'s saved watchlists (the saved order, permanently): sort it alphabetically (A–Z or Z–A) and/or move some tickers to the top, in the order given. Nothing is added or removed. Undo puts the old order back.',
+    hints: 'target = the ref of the watchlist; sort = az | za | null (keep the order); top = tickers to put first, in this order ([] for none). "Sort my Momentum list" = az. This rewrites the saved order. To order what a widget shows by price, change or other data, use watchlist.sortColumn.',
     args: { type: 'object', properties: { sort: { type: ['string', 'null'], enum: ['az', 'za', null] }, top: { type: 'array', items: { type: 'string' } } }, required: ['sort', 'top'], additionalProperties: false },
     fast: ({ raw, host }) => {
       const t = String(raw).trim()
@@ -730,12 +780,12 @@ export function registerWatchlistCapabilities() {
       return { ...st, reorder: order, items, symbols: items.map(i => i.sym) }
     },
     noop: (st) => `${quote(st.name)} is already in that order`,
-    describe(b, a, { sort, top }) {
+    describe(b, a, { sort, top }, env) {
       if (!a.reorder) return null
       const parts = []
       if (sort) parts.push(`sorted ${SORTS[sort]}`)
       if ((top || []).length) parts.push(`${andList([...new Set(top.map(upper))])} first`)
-      return `Reordered ${quote(a.name)}: ${parts.join(', ')}`
+      return `Reordered ${quote(a.name)}: ${parts.join(', ')}${env?.target?.viewSorted ? ' · its widget is sorted by a column, so it won\'t show this order until that sort is cleared' : ''}`
     },
   })
 

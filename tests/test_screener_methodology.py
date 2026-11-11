@@ -162,3 +162,212 @@ def test_the_rs_rank_weighting_is_read_from_the_formula(monkeypatch):
     monkeypatch.setattr(rsw, "RS_TERMS", (("3m", 63, 0.7), ("1w", 5, 0.3)))
     how = M.for_column("rs_rank")["how"]
     assert "70% 3m, 30% 1w" in how
+
+
+# ── 2026-11-06, Phase 2a unit 2a-08: the seventeen UCT Relative Strength columns
+
+def _rs_columns():
+    from api.services.screener import rs_columns, snapshot_builder
+    return [*rs_columns.COLUMNS, *snapshot_builder._RS_HISTORY_COLUMNS,
+            *rs_columns.PHASE3_COLUMNS]
+
+
+def test_every_rs_column_publishes_a_method_with_a_stated_limit():
+    """Derived from the two writers: a column either gains tomorrow fails here
+    until it says what it is, on what scale, how, and what it is not."""
+    doc = M.all_methods()
+    published = {m["column"]: m for m in doc["methods"]}
+    cols = _rs_columns()
+    assert len(cols) == 21, cols        # 17 -> 20 on 2026-11-07: the Phase 3 three (unit 3-11); 20 -> 21 on 2026-11-10: rs_rating_9m (S1)
+    for col in cols:
+        m = published.get(col)
+        assert m is not None, f"{col} ships without a method"
+        assert m["family"] == M.RS_FAMILY, col
+        for field in ("one_line", "scale", "how", "caveat"):
+            assert m.get(field), (col, field)
+        assert "Blank" in m["how"] or "blank" in m["how"], (col, "the method must say when it is blank")
+        assert M.for_column(col)["column"] == col
+    section = doc["rs_columns"]
+    assert set(section["columns"]) == set(cols)
+    assert "03:00" in section["timing"] and "04:15" in section["timing"]
+    assert "lags" in section["timing"] and "intraday" in section["timing"]
+    notes = " ".join(section["notes"])
+    assert "DAILY" in notes and "never on weekly" in notes       # Mansfield's reading
+    assert "TWO-benchmark" in notes and "RSP" in notes            # the agree column's two legs
+    assert "not MarketSurge" in notes and "IBD-style" in notes    # whose number it is not
+    assert "Denominator" in notes                                 # map §2.5 risk: 3,640 vs 11,230
+    assert "not when to buy" in section["honesty"]
+    assert "04:15" in doc["as_of_note"] and "None of them is an intraday" in doc["as_of_note"]
+
+
+def test_the_rs_methods_are_read_from_the_collector(monkeypatch):
+    """⛔ THE ONE TEST THAT MATTERS, again: proven derived by MOVING the real
+    constants and watching the published words follow. A retyped copy would
+    not."""
+    from api.services import rs_weighted_return as rsw
+    from api.services.screener import rs_columns, rs_history
+    assert "200-session simple average" in M.for_column("mansfield")["how"]
+    monkeypatch.setattr(rs_columns, "MANSFIELD_LENGTH", 150)
+    assert "150-session simple average" in M.for_column("mansfield")["how"]
+    assert "150 DAILY bars" in " ".join(M.all_methods()["rs_columns"]["notes"])
+    monkeypatch.setattr(rs_columns, "GREEN_ON_RED_WINDOW", 15)
+    assert M.for_column("green_on_red_20")["scale"] == "0-15"
+    assert M.for_column("rs_rating_ibd")["scale"].startswith("1-99")
+    monkeypatch.setattr(rs_history, "RATING_MAX", 50)
+    assert M.for_column("rs_rating_ibd")["scale"].startswith("1-50")
+    assert M.for_column("rs_rating_chg_5")["scale"] == "-49 to +49 points"
+    monkeypatch.setattr(rsw, "IBD_TERMS", (("q1", 63, 0.7), ("q4", 252, 0.3)))
+    how = M.for_column("rs_rating_ibd")["how"]
+    assert "70% of the close over the close 63 sessions earlier" in how
+    assert "30% of the close over the close 252 sessions earlier" in how
+    assert "63-session term is required" in how
+
+
+def test_the_rs_rating_says_whose_number_it_is_NOT_and_claims_no_figure(monkeypatch):
+    """Plan §6.12 struck "±3-5 points vs MarketSurge" from member copy until
+    measured; §7 item 17 prints the measured difference once known. Until the
+    constant is set the prose says so, and quotes no number."""
+    cav = M.for_column("rs_rating_ibd")["caveat"]
+    assert "our own calculation" in cav and "not MarketSurge" in cav
+    assert M.RS_RATING_VS_MARKETSURGE is None
+    assert "not yet measured" in cav
+    assert "±" not in cav and "3-5" not in cav and "3–5" not in cav
+    monkeypatch.setattr(M, "RS_RATING_VS_MARKETSURGE", "median 2 points over 40 names, 2026-12-01")
+    cav = M.for_column("rs_rating_ibd")["caveat"]
+    assert "median 2 points over 40 names, 2026-12-01" in cav and "not yet measured" not in cav
+
+
+# ── 2026-11-07, Phase 2b unit 2b-09: the Evidence subsection of the RS section
+
+def _evidence():
+    return M.all_methods()["rs_columns"]["evidence"]
+
+
+def test_the_rs_section_publishes_the_five_statements_with_sources_and_cards():
+    """Research base 03-evidence.md §b: five defensible statements, each with
+    its source and the chart card that carries it."""
+    ev = _evidence()
+    assert ev["label"] == "Evidence"
+    assert len(ev["statements"]) == 5
+    for s in ev["statements"]:
+        assert s["claim"] and s["source"] and s["card"], s
+    assert {s["card"] for s in ev["statements"]} == {"rating", "regime", "benchmark", "sensitivity", "beforePrice"}
+    sources = " ".join(s["source"] for s in ev["statements"])
+    for name in ("Jegadeesh and Titman", "Asness, Frazzini, Israel and Moskowitz", "Daniel and Moskowitz",
+                 "Dorsey Wright", "IBD", "Lyrical", "Bulkowski"):
+        assert name in sources, name
+    claims = " ".join(s["claim"] for s in ev["statements"])
+    assert "not a guarantee" in claims and "falls faster" in claims and "78%" in claims and "41%" in claims
+
+
+def test_the_measured_number_rule_is_read_from_the_pull_module(monkeypatch):
+    """⛔ THE ONE TEST THAT MATTERS, a third time: the floor, the horizon, the
+    honesty sentence and the survivorship note are the pull module's, proven by
+    MOVING them and watching the published words follow."""
+    from api.services import rs_evidence_pull as ep
+    ev = _evidence()
+    assert ev["measured"]["display_floor_n"] == ep.DISPLAY_FLOOR_N == 100
+    assert ev["measured"]["horizon_bars"] == ep.DEFAULT_HORIZON == 63
+    # Pin moved 2026-11-07 (unit VA3): "session", the sentence's own word, and the span rule.
+    assert "at least 100 events" in ev["measured"]["rule"] and "complete 63-session window" in ev["measured"]["rule"]
+    # 2026-11-07 (N6): the hit rate is stated with its base, in the pull's own phrase.
+    assert ep.outcome_phrase("the benchmark", 63) in ev["measured"]["rule"]
+    assert ep.outcome_phrase("<benchmark>", 63) in ev["measured"]["form"]
+    assert "63 sessions later" in ev["measured"]["rule"] and "63 sessions later" in ev["measured"]["form"]
+    assert ev["honesty"] == ep.HONESTY_SENTENCE
+    assert ev["measured"]["rule"].endswith(ep.HONESTY_SENTENCE)
+    assert ev["measured"]["survivorship"] == ep.SURVIVORSHIP_NOTE
+    assert ev["measured"]["artifact"] == ep.ARTIFACT_KEY
+    assert {(s["card"], s["signal"]) for s in ev["measured"]["signals"]} == set(ep.CARD_SIGNALS.items())
+    assert all(s["label"] == ep.SIGNAL_LABELS[s["signal"]] for s in ev["measured"]["signals"])
+    monkeypatch.setattr(ep, "DISPLAY_FLOOR_N", 250)
+    monkeypatch.setattr(ep, "DEFAULT_HORIZON", 126)
+    monkeypatch.setattr(ep, "HONESTY_SENTENCE", "Nothing measured.")
+    monkeypatch.setattr(ep, "SURVIVORSHIP_NOTE", "universe as held, delistings restored")
+    ev = _evidence()
+    assert ev["measured"]["display_floor_n"] == 250 and "at least 250 events" in ev["measured"]["rule"]
+    assert ev["measured"]["horizon_bars"] == 126 and "complete 126-session window" in ev["measured"]["rule"]
+    assert "126 sessions later" in ev["measured"]["form"] and "63" not in ev["measured"]["form"]
+    assert ev["honesty"] == "Nothing measured." and ev["measured"]["rule"].endswith("Nothing measured.")
+    assert "universe as held, delistings restored" in ev["measured"]["rule"]
+    assert ev["measured"]["form"].endswith("Universe as held, delistings restored.")
+
+
+def test_the_rule_says_point_in_time_and_that_the_base_is_the_next_open():
+    """`rs_evidence.measure`'s header: since owner decision N6 (2026-11-07) the
+    base is the NEXT session's open, the first price a member who sees the dot
+    after the close can act on (the signal close overstated what was tradeable),
+    and a window holding an unadjusted split is left out (N5). The rule says so."""
+    rule = _evidence()["measured"]["rule"]
+    assert "point-in-time" in rule
+    assert "starts at the next session's open" in rule and "can act on" in rule
+    assert "signal bar's own close" not in rule and "cannot get" not in rule, "the old base is gone"
+    assert "stock split" in rule and "left out and counted" in rule
+    assert "not as a trade result" in rule
+    assert "universe as held, survivorship not yet corrected" in rule
+    assert "sample size" in rule and "dates" in rule and "median excess" in rule
+
+
+def test_the_evidence_claims_none_of_the_forbidden_things():
+    """The must-not-claim list (03-evidence.md §b) as a rail over the claims and
+    the rule, and as a published `not_claimed` list that names what we refuse."""
+    import re
+    ev = _evidence()
+    text = " ".join(s["claim"] for s in ev["statements"]) + " " + ev["measured"]["rule"] + " " + ev["honesty"]
+    for pat in (r"\bpredicts?\b", "leading indicator", r"\b87\b", r"\b(80|85|90)\b", "validated", "win rate",
+                r"\bguaranteed\b", "institutional buying"):
+        assert not re.search(pat, text, re.I), pat
+    assert "!" not in text
+    assert len(ev["not_claimed"]) >= 5
+    assert any("87" in n for n in ev["not_claimed"])
+    assert any("validated threshold" in n for n in ev["not_claimed"])
+    assert any("predicts" in n for n in ev["not_claimed"])
+    assert any("net of" in n for n in ev["not_claimed"])
+
+
+def test_the_evidence_subsection_rides_the_published_document():
+    doc = M.all_methods()
+    assert "evidence" in doc["rs_columns"]
+    assert doc["rs_columns"]["evidence"]["honesty"]
+    # and the RS section's own honesty line still stands beside it
+    assert "not when to buy" in doc["rs_columns"]["honesty"]
+
+
+# ── 2026-11-07, Phase 3 unit 3-11: the rotation quadrant, the Clenow score, VARS
+
+def test_the_phase3_methods_print_whose_formula_and_say_they_are_empty_until_filled():
+    from api.services.screener import rs_columns
+    for col in rs_columns.PHASE3_COLUMNS:
+        m = M.for_column(col)
+        assert m is not None and m["family"] == M.RS_FAMILY, col
+        assert "Empty until the nightly build fills it" in m["how"], col
+        text = f" {m['how']} {m['caveat']} {m['one_line']} ".lower()
+        for word in ("buy", "sell"):
+            assert f" {word} " not in text, (col, word)
+    rrg = M.for_column("rrg_quadrant")
+    assert "RRG-style, UCT's formula" in rrg["how"]
+    assert "RS = 100 x C / B" in rrg["how"]
+    assert "RS-Ratio = 100 x RS / SMA(RS, 10)" in rrg["how"]
+    assert "RS-Momentum = 100 x RS-Ratio / SMA(RS-Ratio, 5)" in rrg["how"]
+    assert "split at 100" in rrg["how"] and "WEEKLY" in rrg["how"]
+    assert rrg["scale"] == "Leading | Weakening | Lagging | Improving"
+    clen = M.for_column("clenow_score")
+    assert "Clenow-style, 90 trading days" in clen["how"] and "FRACTION" in clen["how"]
+    vars_ = M.for_column("vars_state")
+    assert "VARS-style" in vars_["how"] and "DAILY" in vars_["how"]
+    assert vars_["scale"] == "Strong, rising | Strong, fading | Weak, improving | Weak, falling"
+    notes = " ".join(M.all_methods()["rs_columns"]["notes"])
+    assert "RRG-style, UCT's formula" in notes and "Clenow-style, 90 trading days" in notes
+    assert "VARS-style" in notes and "empty until the nightly build fills them" in notes
+
+
+def test_the_phase3_methods_are_read_from_the_writer(monkeypatch):
+    """Proven derived by MOVING the writer's constants."""
+    from api.services.screener import rs_columns
+    monkeypatch.setattr(rs_columns, "RRG_RATIO_LEN", 12)
+    monkeypatch.setattr(rs_columns, "CLENOW_WINDOW", 120)
+    monkeypatch.setattr(rs_columns, "PHASE3_MIN_BARS",
+                        {**rs_columns.PHASE3_MIN_BARS, "rrg_quadrant": 16})
+    assert "SMA(RS, 12)" in M.for_column("rrg_quadrant")["how"]
+    assert "Blank until 16 joined weeks" in M.for_column("rrg_quadrant")["how"]
+    assert "Clenow-style, 120 trading days" in M.for_column("clenow_score")["how"]

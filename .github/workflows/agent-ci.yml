@@ -1,0 +1,260 @@
+# promotion-gate: no — ADDITIVE CI for the Agent program's branches (agent/**, PRs into
+#   agent/int and master from them). It never decides promotion: the master deploy gate keeps
+#   every Agent step it has today, and tools/promotion_gate.py classifies this file as "no".
+#   Owner-approved 2026-11-02: tests/test_uct_agent_deploy_gate.py::test_no_OTHER_workflow_is_an_agent_gate
+#   exempts promotion-gate:no workflows (pinned by name) and keeps refusing any gating or
+#   unclassified workflow that names the Agent suites; the gate's own Agent steps stay mandatory.
+# UCT Agent CI — the Agent program's own integration check (Wave 1, 2026-11-02).
+#
+# ADDITIVE. This does not change the master deploy gate; the gate keeps every step it has
+# today. This runs the Agent suites where they belong — on every push to an Agent branch and
+# on every PR into agent/int or master from one — so breakage is visible BEFORE a release
+# candidate reaches the serial gate, and so the suites can be sharded in parallel.
+#
+# Coverage equivalence is a rail, not a promise: the `union` job fails unless the set of test
+# files the four shards executed equals the set `vitest list` reports for the same paths, and
+# unless the file count clears the same floor the gate uses (30).
+name: agent ci
+
+on:
+  # CI COST (2026-11-06, owner): push runs take the SAME paths list as the PR trigger below
+  # (tests/test_ci_cost_rails.py holds the two lists equal). Before this, every push to any
+  # agent/** branch ran the full ~76-minute suite even for a docs-only commit: 552 of 789 runs
+  # on 11-01..11-06 were pushes, ~70% of the month's Actions bill. The master deploy gate
+  # still runs the whole Agent suite on every master push, unfiltered.
+  push:
+    branches: ['agent/**']
+    paths:
+      - 'app/src/agent/**'
+      - 'app/src/components/chart/builder/agent*'
+      # DUP-RECEIPT (11-05, owner): the page tests that DRIVE the Agent (AgentPanel / useAgent on the real workspace) and
+      # the page code they exercise — a regression there was invisible to Agent CI (only the nightly report-only suite ran it)
+      - 'app/src/pages/charts/ChartsWorkspace.jsx'
+      - 'app/src/pages/charts/ChartsWorkspace.thisChart.test.jsx'
+      - 'app/src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx'
+      - 'app/src/pages/charts/ChartsWorkspace.previousLayout.test.jsx'
+      - 'app/src/pages/charts/widgets/ChartWidget.agent.test.jsx'
+      - 'app/src/pages/charts/widgets/TradeExchangeNewsWidget.terminal.test.jsx'
+      - 'app/src/pages/breadth/breadthTabHookOrder.test.jsx'
+      - 'app/src/components/chart/builder/studio/agentRoute.test.jsx'
+      - 'app/src/components/StockChart.jsx'
+      - 'app/src/components/StockChart.timeRangeSync.test.jsx'
+      - 'app/src/pages/charts/grid/**'
+      - 'api/services/uct_agent/**'
+      - 'api/routers/uct_agent*.py'
+      - 'tests/test_uct_agent*.py'
+      - 'tools/agent_*'
+      - '.github/workflows/agent-ci.yml'
+  pull_request:
+    branches: [agent/int, master]
+    paths:
+      - 'app/src/agent/**'
+      - 'app/src/components/chart/builder/agent*'
+      # DUP-RECEIPT (11-05, owner): the page tests that DRIVE the Agent (AgentPanel / useAgent on the real workspace) and
+      # the page code they exercise — a regression there was invisible to Agent CI (only the nightly report-only suite ran it)
+      - 'app/src/pages/charts/ChartsWorkspace.jsx'
+      - 'app/src/pages/charts/ChartsWorkspace.thisChart.test.jsx'
+      - 'app/src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx'
+      - 'app/src/pages/charts/ChartsWorkspace.previousLayout.test.jsx'
+      - 'app/src/pages/charts/widgets/ChartWidget.agent.test.jsx'
+      - 'app/src/pages/charts/widgets/TradeExchangeNewsWidget.terminal.test.jsx'
+      - 'app/src/pages/breadth/breadthTabHookOrder.test.jsx'
+      - 'app/src/components/chart/builder/studio/agentRoute.test.jsx'
+      - 'app/src/components/StockChart.jsx'
+      - 'app/src/components/StockChart.timeRangeSync.test.jsx'
+      - 'app/src/pages/charts/grid/**'
+      - 'api/services/uct_agent/**'
+      - 'api/routers/uct_agent*.py'
+      - 'tests/test_uct_agent*.py'
+      - 'tools/agent_*'
+      - '.github/workflows/agent-ci.yml'
+
+concurrency:
+  group: agent-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # DUP-RECEIPT (11-05, owner): + the 8 page tests that drive the Agent (outside src/agent; the shards and the
+  # equivalence rail below read this same list, so they stay balanced and complete)
+  AGENT_VITEST_PATHS: src/agent src/components/chart/builder/agentMutations src/components/chart/builder/studio/agentRoute.test.jsx src/components/StockChart.timeRangeSync.test.jsx src/pages/breadth/breadthTabHookOrder.test.jsx src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx src/pages/charts/ChartsWorkspace.previousLayout.test.jsx src/pages/charts/ChartsWorkspace.thisChart.test.jsx src/pages/charts/widgets/ChartWidget.agent.test.jsx src/pages/charts/widgets/TradeExchangeNewsWidget.terminal.test.jsx
+  AGENT_SHARDS: '4'
+
+# A PR from a branch in this repo already ran on its push; running it again on the
+# pull_request event only doubles the queue. Fork PRs have no push run here, so they keep it.
+# (All three jobs carry the same condition; `union` needs `browser`.)
+jobs:
+  server:
+    name: UCT Agent server tests (production dependency set)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Some QA rails diff the tree against the integration branch (e.g. the F-16 rail that proves
+      # the member Screener's server code is untouched). A shallow checkout has no such ref.
+      - name: Fetch the integration branch for diff-based rails
+        run: git fetch --no-tags --quiet origin +refs/heads/agent/int:refs/remotes/origin/agent/int +refs/heads/master:refs/remotes/origin/master
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Production dependency set + pytest
+        run: |
+          sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
+          python -m pip install --quiet --upgrade pip
+          python -m pip install --quiet -r requirements.txt pytest httpx
+      - name: pytest tests/test_uct_agent*.py
+        run: python -m pytest tests/test_uct_agent*.py -q -p no:cacheprovider
+
+  browser:
+    name: UCT Agent browser tests (shard ${{ matrix.shard }}/4)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: npm ci
+        working-directory: app
+        run: npm ci
+      - name: vitest shard
+        working-directory: app
+        run: |
+          start=$(date +%s)
+          npx vitest run $AGENT_VITEST_PATHS --shard=${{ matrix.shard }}/${AGENT_SHARDS} \
+            --reporter=default --reporter=json --outputFile=../shard-${{ matrix.shard }}.json
+          echo "shard ${{ matrix.shard }} wall: $(( $(date +%s) - start )) s"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: agent-shard-${{ matrix.shard }}
+          path: shard-${{ matrix.shard }}.json
+          if-no-files-found: error
+
+  # Mission 2 (2026-11-04): the deterministic CAPABILITY REGRESSION suite, as its own named check — the NL equivalence
+  # corpus (routing / deterministic plan / final state), the golden workflows, the capability inventory + coverage
+  # rails, and the baseline lock (docs/agent/REGRESSION-SYSTEM.md). Scripted model only: it never calls a paid model,
+  # needs no key, and takes about 7 min. The same files ALSO run inside the shards (they live under src/agent), so the union
+  # rail and the master deploy gate's `npx vitest run src/agent` keep covering them; this job makes a regression a
+  # NAMED failure (branch protection is not available on this plan, so it cannot be made a required check; the
+  # enforcement is the master deploy gate's `vitest run src/agent` and the server job's tests/test_uct_agent*.py). Paid live-model evals (tools/agent_eval_*) are separate and never run here.
+  # the suite pins Date (testing/clock.js) and runs at BOTH pinned market-clock instants, in PARALLEL (one matrix leg
+  # each, its own timeout), so a market-clock dependence can never again turn a gate red at the 09:30 ET open
+  # (2026-11-04): `post` = after the close (the default, which the master deploy gate's `vitest run src/agent` uses)
+  # and `rth` = the regular session. The baseline (Python) rail runs once, on the `post` leg.
+  capability-regression-clock:
+    name: UCT Agent capability regression (deterministic, no model) @ ${{ matrix.clock }}
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        clock: [post, rth]
+    env:
+      CAPREG_CLOCK: ${{ matrix.clock }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # the baseline rail also holds the corpus to the lock AS IT IS ON MASTER (merge base), so a hand-edited lock in
+      # the same PR cannot launder a weakening (review #769)
+      - name: Fetch master for the merge-base baseline check
+        if: matrix.clock == 'post'
+        run: git fetch --no-tags --quiet origin +refs/heads/master:refs/remotes/origin/master
+      - uses: actions/setup-python@v5
+        if: matrix.clock == 'post'
+        with:
+          python-version: '3.12'
+      - name: Baseline lock (removing or weakening a baseline entry needs a recorded decision)
+        if: matrix.clock == 'post'
+        run: |
+          python -m pip install --quiet pytest
+          python -m pytest tests/test_uct_agent_capreg_*.py -q -p no:cacheprovider
+      # CI COST (2026-11-06, owner): the `post` leg runs ONLY the Python baseline lock above. The vitest
+      # capreg suite at the post clock already runs inside the four browser shards (it lives under src/agent and
+      # `post` is the suite's default clock), and the union rail fails if any shard skips it — so the post
+      # leg's own vitest run was a second, identical ~15-minute execution. The `rth` leg is the only place the
+      # suite runs at the regular-session clock, so it keeps its vitest run.
+      - uses: actions/setup-node@v4
+        if: matrix.clock == 'rth'
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: npm ci
+        if: matrix.clock == 'rth'
+        working-directory: app
+        run: npm ci
+      - name: vitest src/agent/qa/capabilityRegression (CAPREG_CLOCK=${{ matrix.clock }})
+        if: matrix.clock == 'rth'
+        working-directory: app
+        run: npx vitest run src/agent/qa/capabilityRegression --reporter=default
+
+  # one named result for both clock legs (the check to watch / require)
+  capability-regression:
+    name: UCT Agent capability regression (deterministic, no model)
+    needs: capability-regression-clock
+    if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Both pinned clocks passed
+        run: |
+          echo "clock legs: ${{ needs.capability-regression-clock.result }}"
+          test "${{ needs.capability-regression-clock.result }}" = "success"
+
+  union:
+    name: Shards cover every Agent test file (equivalence rail)
+    needs: browser
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: npm ci
+        working-directory: app
+        run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: agent-shard-*
+          path: shards
+          merge-multiple: true
+      - name: Expected file list
+        working-directory: app
+        run: npx vitest list $AGENT_VITEST_PATHS --filesOnly > ../expected-files.txt && wc -l ../expected-files.txt
+      - name: Union of executed files equals the expected list; floor 30; no failures
+        run: |
+          node - <<'EOF'
+          const fs = require('fs'), path = require('path');
+          const norm = p => path.resolve(p).replace(/\\/g, '/').replace(/^.*?\/app\//, 'app/');
+          const expected = new Set(fs.readFileSync('expected-files.txt', 'utf8').split(/\r?\n/).filter(Boolean).map(f => norm(path.join('app', f))));
+          const ran = new Set(); let failed = 0, passed = 0, files = 0;
+          for (const f of fs.readdirSync('shards').filter(f => f.endsWith('.json'))) {
+            const r = JSON.parse(fs.readFileSync(path.join('shards', f), 'utf8'));
+            for (const t of r.testResults) { files++; ran.add(norm(t.name)); }
+            failed += r.numFailedTests || 0; passed += r.numPassedTests || 0;
+          }
+          const missing = [...expected].filter(f => !ran.has(f));
+          const extra = [...ran].filter(f => !expected.has(f));
+          console.log(`expected ${expected.size} files; shards ran ${ran.size} distinct (${files} total); passed ${passed}, failed ${failed}`);
+          if (missing.length) { console.log('::error::files no shard ran:\n' + missing.join('\n')); }
+          if (extra.length) { console.log('::warning::files ran but not in the expected list:\n' + extra.join('\n')); }
+          if (ran.size < 30) { console.log('::error::fewer than 30 Agent test files ran'); process.exit(1); }
+          if (missing.length || failed > 0) process.exit(1);
+          EOF

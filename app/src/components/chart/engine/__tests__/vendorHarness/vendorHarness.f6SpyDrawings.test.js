@@ -119,33 +119,33 @@ function inOrderPairing(V, O) {
 describe('F6 — makuchaku FVGs SPY: boxes 51/55 is the collector\'s cycle (a WINDOW), not a wrong drawing', () => {
   const ID = 'makuchaku039s-trade-tools-fair-value-gaps-spy-1d-2026-10-03'
 
-  it('every box TradingView holds is ours at id + 2096, same prices; our 4 extra are our 4 OLDEST boxes', () => {
+  // ⭐ DIV-1 RE-PIN (2026-11-09): the harness now replays SPY's proved history from its 1993
+  // listing before the window (`ourSide.js`), the series the member's daily chart computes.
+  // The WINDOW analysis this block proved (every object we lacked was made before our cold
+  // bar 0) is now proved the strongest way: replayed from the listing, our creation
+  // counter IS TradingView's, and every object pairs at offset 0.
+  it('every box TradingView holds is ours at the SAME id (offset 0), same prices, and we hold no other (DIV-1)', () => {
     const c = cap(ID)
     const V = vendorObjects(c)
     const O = ourObjects(ours(ID))
-    expect([V.length, O.length]).toEqual([51, 55])
-    const { misses, extra } = idOffsetPairing(V, O, 2096)
+    expect([V.length, O.length]).toEqual([51, 51])
+    const { misses, extra } = idOffsetPairing(V, O, 0)
+    expect(misses).toEqual([])
     expect(extra).toEqual([])
-    expect(misses.length).toBe(4)
-    // …and they are exactly the four lowest ids we hold: what TradingView's
-    // collector, at its own point in the cycle, has already taken
-    expect(misses.map((o) => o.id)).toEqual(O.slice(0, 4).map((o) => o.id))
     // non-vacuity: a neighbouring offset pairs nothing
-    expect(idOffsetPairing(V, O, 2097).extra.length).toBe(51)
+    expect(idOffsetPairing(V, O, 1).extra.length).toBe(51)
   }, T)
 
-  it('⭐ the arithmetic: one box per FVG, TradingView\'s ids run 2701..2751 (2,751 made since SPY\'s listing), ours 2,751 - 2,096 = 655; the collector predicts 51 and 55', () => {
+  it('⭐ the arithmetic: one box per FVG, TradingView\'s ids run 2701..2751 (2,751 made since SPY\'s listing), and so do ours (DIV-1)', () => {
     const c = cap(ID)
     const V = vendorObjects(c)
-    // the script makes boxes and nothing else, so TradingView's counter IS its box count
     expect(V.every((v) => v.f === 'box')).toBe(true)
     expect(V.map((v) => v.id)).toEqual(Array.from({ length: 51 }, (_, k) => 2701 + k))
     const o = ours(ID)
-    const made = Math.max(...o.objects.held.map((h) => h.id))
-    expect(made).toBe(2751 - 2096)
+    expect(Math.max(...o.objects.held.map((h) => h.id))).toBe(2751)
     const v = graded(ID)
-    expect(family(v, 'boxes')).toMatchObject({ vendor: heldAfter(2751, 50), ours: heldAfter(made, 50) })
-    expect([heldAfter(2751, 50), heldAfter(made, 50)]).toEqual([51, 55])
+    expect(family(v, 'boxes')).toMatchObject({ vendor: heldAfter(2751, 50), ours: heldAfter(2751, 50) })
+    expect(v.objects.verdict, v.objects.reason).toBe('MATCH')
   }, T)
 
   it('control: on RDDT (from the listing) the same script MATCHES', () => {
@@ -153,29 +153,31 @@ describe('F6 — makuchaku FVGs SPY: boxes 51/55 is the collector\'s cycle (a WI
   }, T)
 })
 
-describe('F6 — pro-trading-art, rsi-swing, price-action, trend-duration SPY: the objects we lack were all made before our bar 0', () => {
+// ⭐ DIV-1 RE-PIN (2026-11-09): the harness now replays SPY's proved history from its 1993
+// listing before the window (`ourSide.js`), the series the member's daily chart computes.
+// The WINDOW analysis this block proved (every object we lacked was made before our cold
+// bar 0) is now proved the strongest way: replayed from the listing, our creation
+// counter IS TradingView's, and every object pairs at offset 0.
+describe('F6 — pro-trading-art, rsi-swing, price-action, trend-duration SPY: replayed from the listing, every object is TradingView\'s, id for id (DIV-1)', () => {
   const CASES = [
-    // [id, offset, ours, vendor, extra made before our first object, of them outside the window's prices]
-    ['pro-trading-art-double-top-bottom-with-alert', 267, 39, 306, 267, 234],
-    ['rsi-swing-indicator', 360, 85, 100, 15, 0],
-    ['price-action-as-in-book-fibonacci-supportresistant-trendline', 3768, 507, 509, 2, 0],
-    ['trend-duration-forecast-chartprime', 887, 53, 56, 3, 0],
+    // [id, TradingView's object count]. Before DIV-1 we held 39 / 85 / 507 / 53 of them,
+    // at id offsets 267 / 360 / 3768 / 887 (the objects made before our cold bar 0).
+    ['pro-trading-art-double-top-bottom-with-alert', 306],
+    ['rsi-swing-indicator', 100],
+    ['price-action-as-in-book-fibonacci-supportresistant-trendline', 509],
+    ['trend-duration-forecast-chartprime', 56],
   ]
-  for (const [name, OFF, nOurs, nVendor, nPre, nOutside] of CASES) {
-    it(`${name}: all ${nOurs} of ours are TradingView's at id + ${OFF}; its ${nPre} others have ids below our first`, () => {
+  for (const [name, nVendor] of CASES) {
+    it(`${name}: all ${nVendor} of TradingView's objects are ours at the same id, and we hold no other`, () => {
       const id = `${name}-spy-1d-2026-10-03`
-      const c = cap(id)
-      const V = vendorObjects(c)
+      const V = vendorObjects(cap(id))
       const O = ourObjects(ours(id))
-      expect([O.length, V.length]).toEqual([nOurs, nVendor])
-      const { misses, extra } = idOffsetPairing(V, O, OFF)
+      expect([O.length, V.length]).toEqual([nVendor, nVendor])
+      const { misses, extra } = idOffsetPairing(V, O, 0)
       expect(misses).toEqual([])
-      const first = Math.min(...O.map((o) => o.id)) + OFF
-      expect(extra.length).toBe(nPre)
-      expect(extra.every((v) => v.id < first)).toBe(true)
-      expect(extra.filter((v) => outsideWindow(v, windowRange(c))).length).toBe(nOutside)
+      expect(extra).toEqual([])
       // non-vacuity: the offset is a real pairing
-      expect(idOffsetPairing(V, O, OFF + 1).misses.length).toBeGreaterThan(nOurs / 2)
+      expect(idOffsetPairing(V, O, 1).misses.length).toBeGreaterThan(nVendor / 2)
     }, T)
 
     it(`${name}: control — on RDDT (from the listing) it MATCHES`, () => {
@@ -187,22 +189,17 @@ describe('F6 — pro-trading-art, rsi-swing, price-action, trend-duration SPY: t
 describe('F6 — liquidity-pools SPY: lines 504/502, labels 504/254 are the WINDOW and the collector', () => {
   const ID = 'liquidity-pools-spy-1d-2026-10-03'
 
-  it('all 756 objects we hold are TradingView\'s IN ORDER; what only it holds is its OLDEST of each family', () => {
+  // ⭐ DIV-1 RE-PIN (2026-11-09): was "all 756 objects we hold are TradingView's IN ORDER;
+  // what only it holds is its OLDEST of each family" (252 made before our cold bar 0).
+  // Replayed from SPY's listing (DIV-1) we hold all 1008, in order, and nothing else.
+  it('all 1008 objects TradingView holds are ours, IN ORDER, and we hold no other (DIV-1)', () => {
     const c = cap(ID)
     const V = vendorObjects(c)
     const O = ourObjects(ours(ID))
     const { pairs, unV, unO } = inOrderPairing(V, O)
-    expect([V.length, O.length, pairs.length]).toEqual([1008, 756, 756])
+    expect([V.length, O.length, pairs.length]).toEqual([1008, 1008, 1008])
     expect(unO).toEqual([])
-    // per family, the unpaired vendor objects are exactly its lowest ids
-    for (const f of ['line', 'label']) {
-      const fam = V.filter((v) => v.f === f).map((v) => v.id)
-      const un = unV.filter((v) => v.f === f).map((v) => v.id)
-      expect(un, f).toEqual(fam.slice(0, un.length))
-    }
-    expect([unV.filter((v) => v.f === 'line').length, unV.filter((v) => v.f === 'label').length]).toEqual([2, 250])
-    // 150 of the 252 lie wholly outside the window's prices (pools from years before it)
-    expect(unV.filter((v) => outsideWindow(v, windowRange(c))).length).toBe(150)
+    expect(unV).toEqual([])
   }, T)
 
   it('why there is no single id offset: TradingView\'s counter also counts the `linefill.new` the script runs on every bar', () => {
@@ -219,13 +216,15 @@ describe('F6 — liquidity-pools SPY: lines 504/502, labels 504/254 are the WIND
     expect(offs[0] - offs[offs.length - 1]).toBeGreaterThan(3000)
   }, T)
 
-  it('both families sit where Pine\'s collector puts them: lines at the cap band on both sides; TradingView\'s labels at the cap (history from 1993), ours below it', () => {
+  // ⭐ DIV-1 RE-PIN (2026-11-09): was "TradingView's labels at the cap (history from 1993),
+  // ours below it (254)". Replayed from 1993 (DIV-1), ours sit at the cap too.
+  it('both families sit where Pine\'s collector puts them, on both sides, with the history from 1993 (DIV-1)', () => {
     const v = graded(ID)
-    for (const n of [family(v, 'lines').vendor, family(v, 'lines').ours, family(v, 'labels').vendor]) {
+    for (const n of [family(v, 'lines').vendor, family(v, 'lines').ours, family(v, 'labels').vendor, family(v, 'labels').ours]) {
       expect(n).toBeGreaterThanOrEqual(500)
       expect(n).toBeLessThanOrEqual(505)
     }
-    expect(family(v, 'labels').ours).toBe(254)
+    expect(v.objects.verdict, v.objects.reason).toBe('MATCH')
   }, T)
 
   it('control: on RDDT (from the listing) the same script MATCHES', () => {
@@ -258,13 +257,36 @@ function pivotCentres(c, depth) {
 }
 const doubledBars = (P) => [...new Set(P.map((p) => p.bar))].filter((b) => P.filter((p) => p.bar === b).length === 2)
 
-describe('F6 — vdubus SPY: lines 504/272, labels 129/23 are the WINDOW plus two zig-zag spans the door withholds (C22)', () => {
+// ⛔⛔ DIV-1 RE-PIN (2026-11-09): PRODUCT DEFECT, fix lane W-C22-DEL — NOT an explained difference.
+// Graded cold, this block proved "lines 504/272, labels 129/23 are the WINDOW plus two
+// withheld zig-zag spans" and "nothing we draw is wrong" (295 of 295 ours were TradingView's).
+// The harness now replays SPY's proved history from its 1993 listing — the series a
+// member's daily chart computes (DIV-1) — and the truth it shows is a defect the member
+// sees: counts are close (lines 504 vs 500, labels 129 = 129), 581 of our 629 objects are
+// TradingView's in order, but
+//   · ours holds 48 zig-zag LINES TradingView does not: their pivots sit at absolute bars
+//     5649..5948 (2015-16, before the window) — stale lines TradingView deleted;
+//   · TradingView holds 52 in-window lines (prices 322..697.84, 2020 onward) that we lack.
+// Suspected cause (not yet proved): the C22 window-ambiguity withholding (doubled 9-bar
+// pivots at absolute bars 7025 / 8231 = window 348 / 1554) withholds the program's
+// DELETES as well as its creates, so pre-window lines survive that TradingView removed.
+// These rails pin the defect AS IT IS, so the fix (lane W-C22-DEL) flips them.
+describe('F6 — vdubus SPY (DIV-1, product defect W-C22-DEL): replayed from the listing we hold 48 stale pre-window lines and lack 52 in-window lines', () => {
   const ID = 'vdubus-pattern-gen-v2-restored-refined-spy-1d-2026-10-03'
 
-  it('every one of our 295 objects is TradingView\'s, in order — nothing we draw is wrong', () => {
-    const { pairs, unO } = inOrderPairing(vendorObjects(cap(ID)), ourObjects(ours(ID)))
-    expect(pairs.length).toBe(295)
-    expect(unO).toEqual([])
+  it('⛔ DEFECT: 581 of our 629 objects are TradingView\'s in order; the 48 we hold that it does not are LINES whose pivots lie before the window (absolute bars 5649..5948)', () => {
+    const c = cap(ID)
+    const V = vendorObjects(c)
+    const O = ourObjects(ours(ID))
+    const { pairs, unO } = inOrderPairing(V, O)
+    expect([V.length, O.length, pairs.length]).toEqual([633, 629, 581])
+    expect(unO.length).toBe(48)
+    expect(new Set(unO.map((o) => o.f))).toEqual(new Set(['line']))
+    // our x is the absolute bar index of the replayed series: the window starts at 6677
+    const xs = unO.flatMap((o) => o.x).filter(Number.isFinite)
+    expect([Math.min(...xs), Math.max(...xs)]).toEqual([5649, 5948])
+    expect(Math.max(...xs)).toBeLessThan(6677)
+    expect(graded(ID).objects.verdict).toBe('DIVERGE')
   }, T)
 
   it('the cause: SPY has two bars that are BOTH a 9-bar pivot high and a pivot low (348, 1554); RDDT has none, which is why RDDT MATCHES', () => {
@@ -278,42 +300,16 @@ describe('F6 — vdubus SPY: lines 504/272, labels 129/23 are the WINDOW plus tw
     expect(doorDiagnostics(cap(ID)).windowAmbiguousSteps).toBeGreaterThan(0)
   }, T)
 
-  it('⭐ every vendor object we lack is pre-window, made while the zig-zag still held pre-window pivots, or inside one of the two withheld spans (4 pivots before each doubled bar to the 10th after it)', () => {
+  it('⛔ DEFECT: the 52 objects TradingView holds that we lack are LINES inside the window\'s prices (322..697.84, 2020 onward)', () => {
     const c = cap(ID)
-    const V = vendorObjects(c)
-    const O = ourObjects(ours(ID))
-    const { pairs, unV } = inOrderPairing(V, O)
-    const P = pivotCentres(c, 9)
-    const spans = doubledBars(P).map((d) => {
-      const i = P.findIndex((p) => p.bar === d)
-      return [P[i - 4].bar, P[Math.min(P.length - 1, i + 11)].bar + 9]
-    })
-    expect(spans).toEqual([[287, 523], [1454, 1728]])
-    // and the WINDOW's own state: until the fast engine has seen ten pivots of its
-    // own, its ten-deep arrays still hold (on TradingView's side) pivots from
-    // before our bar 0 — a structure drawn there is a window effect
-    const warm = [0, P[9].bar + 9]
-    // TradingView's x is a dense rank over the x it holds; read our bar off the pairs
-    const rankToBar = new Map()
-    for (const [a, b] of pairs) V[a].x.forEach((x, k) => { if (Number.isFinite(x) && Number.isFinite(O[b].x[k])) rankToBar.set(x, O[b].x[k]) })
-    const ranks = [...rankToBar.keys()].sort((a, b) => a - b)
-    const firstRank = ranks[0]
+    const { unV } = inOrderPairing(vendorObjects(c), ourObjects(ours(ID)))
+    expect(unV.length).toBe(52)
+    expect(new Set(unV.map((v) => v.f))).toEqual(new Set(['line']))
     const range = windowRange(c)
-    const barsOf = (v) => {
-      const r = Math.max(...v.x.filter(Number.isFinite))
-      const lo = ranks.filter((k) => k <= r).pop()
-      const hi = ranks.find((k) => k >= r)
-      return [rankToBar.get(lo), rankToBar.get(hi)]
-    }
-    const pre = unV.filter((v) => outsideWindow(v, range) || Math.max(...v.x.filter(Number.isFinite)) < firstRank)
-    const inWin = unV.filter((v) => !pre.includes(v))
-    const inSpan = (span, v) => { const [lo, hi] = barsOf(v); return lo <= span[1] && hi >= span[0] }
-    const early = inWin.filter((v) => inSpan(warm, v) && !spans.some((s) => inSpan(s, v)))
-    expect(inWin.filter((v) => !spans.some((s) => inSpan(s, v)) && !inSpan(warm, v)).map(key)).toEqual([])
-    expect([unV.length, pre.length, inWin.length, early.length]).toEqual([338, 277, 61, 9])
-    // non-vacuity: the same spans moved 600 bars on would not hold them
-    const moved = spans.map(([a, b]) => [a + 600, b + 600])
-    expect(inWin.filter((v) => !moved.some((s) => inSpan(s, v))).length).toBeGreaterThan(50)
+    expect(unV.filter((v) => outsideWindow(v, range))).toEqual([])
+    const ys = unV.flatMap((v) => v.y).filter(Number.isFinite)
+    expect(Math.min(...ys)).toBeGreaterThanOrEqual(322)
+    expect(Math.max(...ys)).toBe(697.84)
   }, T)
 })
 
@@ -365,12 +361,16 @@ function runtimeValuesOn(c, fromListing) {
 }
 
 describe('F6 — what is not drawn on the SPY captures, why, and whose it is', () => {
-  it('options-max-pain: every drawing reads runtime values, served only from the listing (`runtime:not-from-listing`) — SPY 0 drawn, RDDT (from the listing) MATCH', () => {
+  it('options-max-pain: every drawing reads runtime values, served only from the listing (`runtime:not-from-listing` on the cold window); replayed from the listing SPY MATCHES (DIV-1), as RDDT does', () => {
     const spy = cap('options-max-pain-calculator-backquant-spy-1d-2026-10-03')
     expect(spy.history && spy.history.startsAtBar0).not.toBe(true)
     expect(runtimeValuesOn(spy, false)).toMatchObject({ served: false, reason: 'runtime:not-from-listing' })
+    // ⭐ DIV-1 RE-PIN (2026-11-09): was "SPY 0 drawn". The harness now replays SPY's proved
+    // history from its listing (the series the member's daily chart computes), so the run
+    // IS from the listing and served: every drawing is drawn and the objects MATCH.
     const v = graded('options-max-pain-calculator-backquant-spy-1d-2026-10-03')
-    expect([family(v, 'lines').ours, family(v, 'labels').ours, family(v, 'boxes').ours]).toEqual([0, 0, 0])
+    expect([family(v, 'lines').ours, family(v, 'labels').ours, family(v, 'boxes').ours]).toEqual([24, 15, 13])
+    expect(v.objects.verdict, v.objects.reason).toBe('MATCH')
     // control: the same run, from the listing, is served — and the RDDT capture MATCHES
     const rddt = cap('options-max-pain-calculator-backquant-rddt-1d-2026-09-28')
     expect(runtimeValuesOn(rddt, true).served).toBe(true)
@@ -413,12 +413,13 @@ describe('F6 — what is not drawn on the SPY captures, why, and whose it is', (
     }
   }, T)
 
-  it('volume-profile: the profile lines are moved inside a loop whose bound reads a value the function changes (`loop:bounds` pine:state), and the runtime lane refuses a `ta.highest` whose length is known only while the bar runs', () => {
+  it('volume-profile: the profile lines are moved inside a loop whose bound reads a value the function changes (`loop:bounds` pine:state); the runtime lane\'s own-drawings build now compiles (W6-T5 serves `array.fill`, the wall it used to stop at)', () => {
     const c = cap('volume-profile-spy-1d-2026-10-03')
     const d = doorDiagnostics(c)
     expect(d.loopBoundsWhy.some((w) => /pine:state: `va_up` changes as the function `draw` runs/.test(w))).toBe(true)
     expect(d.lostCreates).toEqual(['line'])
-    expect(probeRuntimeProgram(c.source.text, { objectsInRun: true }).refusal.guard).toBe('runtime:history-dynamic-offset')
+    const p = probeRuntimeProgram(c.source.text, { objectsInRun: true })
+    expect(p.ok, p.refusal && `${p.refusal.guard}: ${p.refusal.message}`).toBe(true)
   }, T)
 
   it('vold-market-breadth and position-size-calc: the missing cells read `request.security` of other symbols (breadth tickers; an FX rate)', () => {
@@ -441,33 +442,29 @@ describe('F6 — what is not drawn on the SPY captures, why, and whose it is', (
   }, T)
 })
 
-// ─── (a) WINDOW + (c) ENGINE, OPEN — leviathan ──────────────────────────────────
-describe('F6 — market-structure-by-leviathan SPY: lines 117/21, labels 368/63 are the WINDOW, plus ONE wrong caption (an engine defect, owner F5)', () => {
+// ─── leviathan — was (a) WINDOW + (c) ENGINE, OPEN ──────────────────────────────
+// ⭐ DIV-1 RE-PIN (2026-11-09): this block proved the shortfall was the WINDOW plus ONE
+// wrong caption (LH where TradingView prints HH, owner F5: `prevHigh` re-seeded 250 bars
+// back). Replayed from SPY's 1993 listing (DIV-1), every object pairs id for id and the
+// caption is TradingView's: the "engine defect" was the same window, not the engine.
+describe('F6 — market-structure-by-leviathan SPY: replayed from the listing, every object is TradingView\'s id for id, captions included (DIV-1)', () => {
   const ID = 'market-structure-by-leviathan-spy-1d-2026-10-03'
 
-  it('83 of our 84 objects are TradingView\'s at id + 401; its 401 others were made before our bar 0 (348 wholly outside the window\'s prices)', () => {
-    const c = cap(ID)
-    const V = vendorObjects(c)
+  it('all of TradingView\'s objects are ours at the same id, and we hold no other', () => {
+    const V = vendorObjects(cap(ID))
     const O = ourObjects(ours(ID))
-    const { misses, extra } = idOffsetPairing(V, O, 401)
-    expect(O.length).toBe(84)
-    expect(misses.map(key)).toEqual(['label|LH|454.05'])
-    const pre = extra.filter((v) => v.id <= 401)
-    expect(pre.length).toBe(401)
-    expect(pre.filter((v) => outsideWindow(v, windowRange(c))).length).toBe(348)
-    // the one vendor object beyond the window that we do not pair is the SAME label, captioned HH
-    expect(extra.filter((v) => v.id > 401).map((v) => [v.id, key(v)])).toEqual([[409, 'label|HH|454.05']])
+    expect(O.length).toBe(V.length)
+    const { misses, extra } = idOffsetPairing(V, O, 0)
+    expect(misses.map(key)).toEqual([])
+    expect(extra.map(key)).toEqual([])
   }, T)
 
-  it('⛔ OPEN (owner F5): the swing high at our bar 524 is captioned LH where TradingView prints HH — `prevHigh` is a bounded accumulator re-seeded 250 bars back, and its last set (bar 272, confirmed at 292) is 252 bars before', () => {
-    const c = cap(ID)
-    // the previous 20-bar pivot high on the window's own bars is bar 272 (358.75) — nothing between
-    const highs = pivotCentres(c, 20).filter((p) => p.k === 'H').map((p) => p.bar)
-    expect(highs.filter((b) => b > 200 && b <= 524)).toEqual([211, 272, 524])
-    // 454.05 >= 358.75 is HH; reading the seed (na) makes `pivHi >= prevHigh` false -> LH
-    expect((524 + 20) - (272 + 20)).toBeGreaterThan(250)
+  it('⭐ RESOLVED (was OPEN, owner F5): the swing high at 454.05 is captioned HH, as TradingView prints it', () => {
+    const V = vendorObjects(cap(ID))
     const O = ourObjects(ours(ID))
-    expect(O.find((o) => o.id === 8)).toMatchObject({ t: 'LH', y: [454.05] })
+    expect(V.filter((v) => key(v) === 'label|HH|454.05').length).toBe(1)
+    expect(O.filter((o) => key(o) === 'label|HH|454.05').length).toBe(1)
+    expect(O.filter((o) => key(o) === 'label|LH|454.05')).toEqual([])
   }, T)
 
   it('control: on RDDT (from the listing) the same script MATCHES', () => {

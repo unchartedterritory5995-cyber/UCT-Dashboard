@@ -68,6 +68,10 @@ function inertWorkspaceMembers() {
     // not part of charts_workspace_layout.
     applyThemeToAllCharts: () => {},
     applyThemeToAllWidgets: () => {},
+
+    // The chart legend's "compare" door opens the /charts Compare Symbols panel,
+    // which the drill does not mount — so the door must not be offered here.
+    canOpenCompare: false,
   }
 }
 

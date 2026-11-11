@@ -12,7 +12,7 @@ import * as registry from '../engine/nativeRegistry'
 import { mergeChartSettings } from '../chartDefaults'
 import {
   findInstance, withInstances, setInstanceAppearance, setInstancePlotStyle, setInstanceCandleColor,
-  setInstanceDisplayTarget, duplicateInstance, setInstanceInput,
+  setInstanceDisplayTarget, duplicateInstance, setInstanceInput, setInstanceVisibility, setInstanceDotSize,
 } from '../engine/instanceControls'
 import { movePane, movePaneTo } from '../engine/paneOrder'
 import { setPaneSize } from '../engine/paneSizes'
@@ -87,7 +87,8 @@ describe('the contract is additive', () => {
     expect(MUTATION_CONTRACT).toBe('uct.indicators.mutation/1')
     expect(MUTATION_OPS.slice(0, 4)).toEqual(['add', 'remove', 'setVisible', 'setInputs'])
     expect(MUTATION_OPS.slice(4)).toEqual([...STYLE_OPS, ...PANE_OPS, ...CREATE_OPS])
-    expect([...STYLE_OPS, ...PANE_OPS, ...CREATE_OPS]).toEqual(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'movePane', 'setPaneSize', 'duplicate', 'copyFrom'])
+    // ⭐ 2a-12 appended `setDotSize` to the STYLE ops; every earlier op keeps its position
+    expect([...STYLE_OPS, ...PANE_OPS, ...CREATE_OPS]).toEqual(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'setVisibility', 'setDotSize', 'movePane', 'setPaneSize', 'duplicate', 'copyFrom'])
   })
   it('REASONS is exactly the frozen set — no new refusal codes', () => {
     expect(Object.values(REASONS).sort()).toEqual(['ambiguous', 'bad-input', 'bad-request', 'changed-while-working', 'dependent-exists', 'did-not-land',
@@ -96,6 +97,14 @@ describe('the contract is additive', () => {
 })
 
 describe('I-1 setAppearance — the Inspector stroke controls', () => {
+  it('a refusal is in the member\'s words: no store key in `why` or in what is offered', () => {
+    const none = planIndicatorMutation(chart(), { op: 'setAppearance', instanceId: 'inst:rsi:1', key: 'lineWidth', value: 3 }, ctx())
+    expect(none.ok).toBe(false)
+    expect(none.detail.why).toBe('Relative Strength Index has no line width setting')
+    const bad = planIndicatorMutation(chart(), { op: 'setAppearance', instanceId: 'inst:movingAverage:20', key: 'lineWidth', value: 99 }, ctx())
+    expect(bad.detail.why).toBe('that isn\'t a line width it offers')
+    expect(bad.detail.options).toEqual([1, 2, 3, 4])
+  })
   it('equals setInstanceAppearance byte for byte, confirms, pins the post-change fingerprint, and undoes exactly', () => {
     const cs = chart()
     const r = run(cs, { op: 'setAppearance', instanceId: 'inst:movingAverage:20', key: 'lineWidth', value: 3 })
@@ -196,6 +205,68 @@ describe('I-4 setDisplayTarget — the Inspector Display-in menu', () => {
     const back = run(moved.cs, { op: 'setDisplayTarget', instanceId: 'inst:movingAverage:9', target: 'auto' })
     expect(back.receipt.change).toMatchObject({ after: '@inst:rsi:1', automatic: true })
     expect(refusal(cs, { op: 'setDisplayTarget', instanceId: 'inst:rsi:1', target: 'pane' })).toMatchObject({ ok: false, reason: 'no-change' })
+  })
+})
+
+describe('I-14 setVisibility — the Inspector Show-on row (PACKAGE 3)', () => {
+  it('"only on the daily" = setInstanceVisibility byte for byte; the receipt says it in words; Undo restores exactly', () => {
+    const cs = chart()
+    const r = run(cs, { op: 'setVisibility', instanceId: 'inst:rsi:1', visibility: { preset: 'custom', tfs: ['D'] } })
+    expect(r.cs).toEqual(json(setInstanceVisibility(cs, 'inst:rsi:1', { preset: 'custom', tfs: ['D'] }, registry)))
+    expect(r.receipt.change).toMatchObject({ what: 'visibility', before: 'All timeframes', after: 'Daily only' })
+    const u = runUndo(r.cs, r.undo)
+    expect(readBack(u.cs).indicatorInstances).toEqual(readBack(cs).indicatorInstances)
+  })
+  it('a preset is stored as its word; "all" clears it; nonsense and no-ops are refused', () => {
+    const cs = chart()
+    const r = run(cs, { op: 'setVisibility', instanceId: 'inst:rsi:1', visibility: { preset: 'intraday' } })
+    expect(readBack(r.cs).indicatorInstances.find((i) => i.instanceId === 'inst:rsi:1').visibility).toEqual({ preset: 'intraday' })
+    const back = run(r.cs, { op: 'setVisibility', instanceId: 'inst:rsi:1', visibility: 'all' })
+    expect('visibility' in readBack(back.cs).indicatorInstances.find((i) => i.instanceId === 'inst:rsi:1')).toBe(false)
+    expect(refusal(cs, { op: 'setVisibility', instanceId: 'inst:rsi:1', visibility: 'all' })).toMatchObject({ ok: false, reason: 'no-change' })
+    expect(refusal(cs, { op: 'setVisibility', instanceId: 'inst:rsi:1', visibility: { preset: 'sometimes' } })).toMatchObject({ ok: false, reason: 'bad-input' })
+  })
+})
+
+describe('I-15 setDotSize — the Dot size control (UCT RS Phase 2a, unit 2a-12)', () => {
+  /** Parabolic SAR: one `markers` output, so the control exists on it and not on RSI. */
+  const SAR = { instanceId: 'inst:sar:1', defId: 'sar', inputs: {}, hidden: false }
+  const sarOf = (cs) => readBack(cs).indicatorInstances.find((i) => i.instanceId === 'inst:sar:1')
+
+  it('"large dots" = setInstanceDotSize byte for byte; the receipt carries before → after; Undo restores exactly', () => {
+    const cs = chart([SAR])
+    const r = run(cs, { op: 'setDotSize', instanceId: 'inst:sar:1', size: 'large' })
+    expect(r.cs).toEqual(json(setInstanceDotSize(cs, 'inst:sar:1', 'large', registry)))
+    expect(r.receipt.change).toMatchObject({ what: 'dotSize', before: 'medium', after: 'large' })
+    expect(sarOf(r.cs).presentation).toEqual({ dotSize: 'large' })
+    const u = runUndo(r.cs, r.undo)
+    expect(readBack(u.cs).indicatorInstances).toEqual(readBack(cs).indicatorInstances)
+  })
+
+  it('a plotKey sizes ONE output; "medium" returns it to the declared size — the key is deleted', () => {
+    const cs = chart([SAR])
+    const r = run(cs, { op: 'setDotSize', instanceId: 'inst:sar:1', size: 'small', plotKey: 'sar' })
+    expect(r.cs).toEqual(json(setInstanceDotSize(cs, 'inst:sar:1', 'small', registry, 'sar')))
+    expect(r.receipt.change).toMatchObject({ what: 'dotSize', plotKey: 'sar', before: 'medium', after: 'small' })
+    const back = run(r.cs, { op: 'setDotSize', instanceId: 'inst:sar:1', size: 'medium', plotKey: 'sar' })
+    expect('presentation' in sarOf(back.cs)).toBe(false)
+  })
+
+  it('refuses an unknown word, an output that draws no dots, an indicator with no dots, a no-op and an unknown instance — nothing written', () => {
+    const cs = chart([SAR])
+    expect(refusal(cs, { op: 'setDotSize', instanceId: 'inst:sar:1', size: 'enormous' }))
+      .toMatchObject({ ok: false, reason: 'bad-input', detail: { options: ['small', 'medium', 'large'] } })
+    expect(refusal(cs, { op: 'setDotSize', instanceId: 'inst:sar:1', size: 'large', plotKey: 'nope' })).toMatchObject({ ok: false, reason: 'bad-input' })
+    expect(refusal(cs, { op: 'setDotSize', instanceId: 'inst:rsi:1', size: 'large' })).toMatchObject({ ok: false, reason: 'bad-input' })
+    expect(refusal(cs, { op: 'setDotSize', instanceId: 'inst:sar:1', size: 'medium' })).toMatchObject({ ok: false, reason: 'no-change' })
+    expect(refusal(cs, { op: 'setDotSize', instanceId: 'inst:nope:1', size: 'large' })).toMatchObject({ ok: false, reason: 'not-found' })
+  })
+
+  it('styleOptionsOf lists the dot size for a dotted indicator and null for one without', () => {
+    const cs = chart([SAR])
+    expect(styleOptionsOf(cs, registry, 'inst:sar:1').dotSize)
+      .toMatchObject({ current: 'medium', options: ['small', 'medium', 'large'], plots: [{ plotKey: 'sar', current: 'medium' }] })
+    expect(styleOptionsOf(cs, registry, 'inst:rsi:1').dotSize).toBeNull()
   })
 })
 

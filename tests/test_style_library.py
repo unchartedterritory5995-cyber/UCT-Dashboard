@@ -29,7 +29,6 @@ def test_existing_rows_read_as_outlines(tmp_path, monkeypatch):
     # A LEGACY table (no P3a columns, not even preview_json) holding a row written before them,
     # run through the real ensure_gallery_schema. The ALTER's DEFAULTs are the only thing that
     # can make that row an outline at version 1, so this is the test that fails without them.
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
     c = sqlite3.connect(str(tmp_path / "legacy.db"))
     c.row_factory = sqlite3.Row
     try:
@@ -68,51 +67,7 @@ def test_existing_rows_read_as_outlines(tmp_path, monkeypatch):
         c.close()
 
 
-def test_library_off_hides_every_style_row_in_the_list(conn, monkeypatch):
-    """Review Focus 6, the LIST half. Renamed from `..._and_route` (final review M-11): it never asserted a route.
-    The route 404s are railed in tests/test_style_library_adopt.py
-    (`test_every_style_route_is_the_one_404_for_everyone_while_the_library_is_off`) and
-    tests/test_style_library_social.py; the library-off unpublish ring in tests/test_style_library_notices.py
-    (`test_unpublishing_a_style_while_the_library_is_off_deletes_it_and_rings_no_one`)."""
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    _row(conn, item_type="outline", title="O")
-    _row(conn, item_type="style", title="S")
-    titles = [t["title"] for t in gallery.list_gallery("v", conn=conn)]
-    assert titles == ["O"]
-    with pytest.raises(gallery.GalleryError):
-        gallery.list_gallery("v", item_type="style", conn=conn)
-
-
-def test_library_off_hides_style_rows_in_mine_and_picks_too(conn, monkeypatch):
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    _row(conn, item_type="outline", title="O", user_id="me")
-    sid = _row(conn, item_type="style", title="S", user_id="me")
-    oid = _row(conn, item_type="outline", title="OP", user_id="other")
-    conn.execute("UPDATE j2_template_gallery SET featured = 1 WHERE id IN (?, ?)", (sid, oid))
-    conn.commit()
-    assert [t["title"] for t in gallery.list_gallery("me", section="mine", conn=conn)] == ["O"]
-    assert [t["title"] for t in gallery.list_gallery("me", section="picks", conn=conn)] == ["OP"]
-    # non-vacuity: with the library on the same style row IS in both sections
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
-    assert "S" in {t["title"] for t in gallery.list_gallery("me", section="mine", conn=conn)}
-    assert "S" in {t["title"] for t in gallery.list_gallery("me", section="picks", conn=conn)}
-
-
-def test_library_off_answers_trending_exactly_as_an_unknown_sort(conn, monkeypatch):
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    _row(conn, item_type="outline", title="O")
-    with pytest.raises(gallery.GalleryError) as unknown:
-        gallery.list_gallery("v", sort="bogus", conn=conn)
-    with pytest.raises(gallery.GalleryError) as trending:
-        gallery.list_gallery("v", sort="trending", conn=conn)
-    assert str(trending.value) == str(unknown.value) == "Sort by newest or most used."
-    # the two sorts the gallery has today still work
-    for ok in ("newest", "most_used"):
-        assert [t["title"] for t in gallery.list_gallery("v", sort=ok, conn=conn)] == ["O"]
-
-
 def test_library_on_accepts_trending_and_still_refuses_an_unknown_sort(conn, monkeypatch):
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
     _row(conn, item_type="style", title="S")
     assert [t["title"] for t in gallery.list_gallery("v", sort="trending", conn=conn)] == ["S"]
     with pytest.raises(gallery.GalleryError) as unknown:
@@ -121,7 +76,6 @@ def test_library_on_accepts_trending_and_still_refuses_an_unknown_sort(conn, mon
 
 
 def test_library_on_lists_both_and_filters_by_type_and_trading_style(conn, monkeypatch):
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
     _row(conn, item_type="outline", title="O")
     _row(conn, item_type="style", title="S", trading_style="swing")
     _row(conn, item_type="style", title="D", trading_style="day")
@@ -133,7 +87,6 @@ def test_library_on_lists_both_and_filters_by_type_and_trading_style(conn, monke
 
 
 def test_trending_counts_distinct_adoptions_in_the_last_seven_days(conn, monkeypatch):
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
     old = _row(conn, item_type="style", title="Old")
     new = _row(conn, item_type="style", title="New")
     conn.executemany("INSERT INTO j2_template_gallery_uses (gallery_id, user_id, used_at) VALUES (?, ?, ?)",
@@ -146,7 +99,6 @@ def test_trending_counts_distinct_adoptions_in_the_last_seven_days(conn, monkeyp
 
 
 def test_summary_carries_type_version_and_trading_style(conn, monkeypatch):
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
     _row(conn, item_type="style", trading_style="earnings")
     s = gallery.list_gallery("v", conn=conn)[0]
     assert (s["itemType"], s["version"], s["tradingStyle"]) == ("style", 1, "earnings")
@@ -333,32 +285,8 @@ def test_rejecting_a_first_submission_still_unlists_it(conn, lib_on):
     assert conn.execute("SELECT status FROM j2_template_gallery WHERE id = ?", (item["id"],)).fetchone()[0] == "rejected"
 
 
-def test_publish_style_is_404_with_the_library_off(conn, monkeypatch):
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    s = _style(conn)
-    assert gallery.publish_style("author", s["id"], title="X", description="", category="journal",
-                                 trading_style=None, conn=conn) is None
-
-
-def test_the_admin_queue_lists_only_outlines_while_the_library_is_off(conn, monkeypatch):
-    # R-T3-R2, the OFF direction: a style row (pending, or hidden) is not in the reviewer's queue.
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    o = _row(conn, item_type="outline", status="pending", title="O")
-    s = _row(conn, item_type="style", status="pending", title="S")
-    hs = _row(conn, item_type="style", status="approved", title="HS")
-    ho = _row(conn, item_type="outline", status="approved", title="HO")
-    conn.execute("UPDATE j2_template_gallery SET hidden = 1, hidden_at = ? WHERE id IN (?, ?)",
-                 ("2026-10-11T00:00:00+00:00", hs, ho))
-    conn.commit()
-    queue = gallery.admin_queue(conn=conn)
-    assert [r["id"] for r in queue["pending"]] == [o]
-    assert [r["id"] for r in queue["hidden"]] == [ho]
-    assert s not in [r["id"] for r in queue["pending"]]
-
-
 def test_the_admin_queue_lists_style_rows_when_the_library_is_on(conn, monkeypatch):
     # R-T3-R2, the ON direction (also the non-vacuity of the test above).
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
     o = _row(conn, item_type="outline", status="pending", title="O")
     s = _row(conn, item_type="style", status="pending", title="S")
     hs = _row(conn, item_type="style", status="approved", title="HS")
@@ -370,30 +298,7 @@ def test_the_admin_queue_lists_style_rows_when_the_library_is_on(conn, monkeypat
     assert [r["id"] for r in queue["hidden"]] == [hs]
 
 
-def test_a_style_row_is_the_one_not_found_while_the_library_is_off(conn, monkeypatch):
-    # R-T3-w1 (R-P3-10: every style route 404s while off).
-    gid = _row(conn, item_type="style", status="approved", user_id="author", title="S")
-    oid = _row(conn, item_type="outline", status="approved", user_id="author", title="O")
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
-    assert gallery.get_item("viewer", gid, conn=conn)["title"] == "S"          # non-vacuity: it reads when on
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    for viewer, admin in (("viewer", False), ("author", False), ("admin", True)):
-        assert gallery.get_item(viewer, gid, is_admin=admin, conn=conn) is None
-    assert gallery.use_template("viewer", gid, conn=conn) is None
-    assert gallery.report("viewer", gid, reason="spam", conn=conn) is None
-    assert gallery.get_item("viewer", oid, conn=conn)["title"] == "O"          # an outline is untouched
-
-
 # ── the route ────────────────────────────────────────────────────────────────────────────
-
-def test_post_styles_is_404_while_the_library_is_off(api, conn, monkeypatch):
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
-    s = _style(conn)
-    r = api.post("/api/j2/template-gallery/styles", json={"styleId": s["id"], "title": "T", "category": "journal"})
-    assert r.status_code == 404
-    assert conn.execute("SELECT COUNT(*) FROM j2_template_gallery").fetchone()[0] == 0
-
 
 def test_post_styles_publishes_a_pending_style_item(api, conn, lib_on):
     from api.services.journal_two import note_properties as np
@@ -420,26 +325,6 @@ def test_post_styles_refusals(api, conn, lib_on):
     custom = _style(conn, kindId=kind["id"], name="Scalp")
     r = api.post("/api/j2/template-gallery/styles", json={"styleId": custom["id"], "title": "T", "category": "journal"})
     assert r.status_code == 400 and r.json()["detail"] == gallery.CUSTOM_KIND_SENTENCE
-
-
-def test_post_styles_is_the_one_404_for_everyone_while_the_library_is_off(api, conn, monkeypatch):
-    # R-T4-2 / R-P3-10: a library-off pod looks exactly like today, where POST /styles does not exist.
-    # The gate is a ROUTER DEPENDENCY ordered before the session, the plan and the body, so an unpaid
-    # member, a paid member and a signed-out caller all get the gallery's one 404.
-    from api.middleware import auth_middleware as authmw
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
-    s = _style(conn)
-    body = {"styleId": s["id"], "title": "T", "category": "journal"}
-    url = "/api/j2/template-gallery/styles"
-    paid = api.post(url, json=body)
-    api.app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": "author", "role": "member", "plan": "free"}
-    unpaid = api.post(url, json=body)
-    api.app.dependency_overrides.pop(authmw.get_current_user, None)
-    api.app.dependency_overrides.pop(authmw.get_current_user_with_plan, None)
-    signed_out = api.post(url, content=b"{bad")
-    assert (paid.status_code, unpaid.status_code, signed_out.status_code) == (404, 404, 404)
-    assert paid.json() == unpaid.json() == signed_out.json()                 # the SAME body, not three different 404s
 
 
 def test_post_styles_needs_a_paid_plan_while_the_library_is_on(api, conn, lib_on):
@@ -506,55 +391,6 @@ def test_the_style_route_gives_its_daily_charge_back_on_a_refusal(api, conn, lib
     assert used() == before                                                  # the 400 gave it back
     assert api.post(url, json={"styleId": "nope", "title": "T", "category": "journal"}).status_code == 404
     assert used() == before                                                  # the 404 gave it back
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    assert api.post(url, json={"styleId": s["id"], "title": "T", "category": "journal"}).status_code == 404
-    assert used() == before                                                  # library off: never charged
-
-
-def test_admin_act_on_a_style_row_is_the_one_not_found_while_the_library_is_off(conn, monkeypatch):
-    # R-T4-3 (R-P3-10): a known id must not act on a style row while the library is off, whatever the
-    # action. Outline rows are unaffected; a style row with the library ON is the control.
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    style = _row(conn, item_type="style", status="pending", title="S")
-    outline = _row(conn, item_type="outline", status="pending", title="O")
-
-    def status(gid):
-        return conn.execute("SELECT status, hidden, featured FROM j2_template_gallery WHERE id = ?",
-                            (gid,)).fetchone()
-
-    before = tuple(status(style))
-    for action, kw in (("approve", {}), ("reject", {"note": "no"}), ("hide", {}), ("unhide", {}),
-                       ("feature", {}), ("unfeature", {})):
-        if action in ("approve", "reject"):
-            kw = {**kw, "reviewed_updated_at": conn.execute("SELECT updated_at FROM j2_template_gallery WHERE id = ?",
-                                                            (style,)).fetchone()[0]}
-        assert gallery.admin_act("admin", style, action, conn=conn, **kw) is None, action
-    assert tuple(status(style)) == before                                    # nothing was written
-    # an outline row still acts
-    got = gallery.admin_act("admin", outline, "approve", conn=conn, reviewed_updated_at=conn.execute(
-        "SELECT updated_at FROM j2_template_gallery WHERE id = ?", (outline,)).fetchone()[0])
-    assert got is not None and status(outline)["status"] == "approved"
-    # control: the same style row acts once the library is on
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
-    got = gallery.admin_act("admin", style, "approve", conn=conn, reviewed_updated_at=conn.execute(
-        "SELECT updated_at FROM j2_template_gallery WHERE id = ?", (style,)).fetchone()[0])
-    assert got is not None and status(style)["status"] == "approved"
-
-
-def test_a_report_on_a_style_row_cannot_be_acted_on_while_the_library_is_off(conn, monkeypatch):
-    # The report queue's twin of the above: `hide` goes through admin_act, so without a guard it would
-    # answer True and hide nothing.
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
-    gid = _row(conn, item_type="style", status="approved", user_id="author", title="S")
-    assert gallery.report("viewer", gid, reason="spam", conn=conn)["reported"] is True
-    rid = conn.execute("SELECT id FROM j2_template_gallery_reports WHERE gallery_id = ?", (gid,)).fetchone()[0]
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    assert gallery.admin_report_act("admin", rid, "hide", conn=conn) is False
-    assert gallery.admin_report_act("admin", rid, "dismiss", conn=conn) is False
-    assert conn.execute("SELECT status FROM j2_template_gallery_reports WHERE id = ?", (rid,)).fetchone()[0] == "open"
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")                 # control
-    assert gallery.admin_report_act("admin", rid, "hide", conn=conn) is True
-    assert conn.execute("SELECT hidden FROM j2_template_gallery WHERE id = ?", (gid,)).fetchone()[0] == 1
 
 
 # ── P3a Task 9: what the library UI reads ───────────────────────────────────────────────────
@@ -576,16 +412,6 @@ def test_the_list_route_filters_by_type_and_trading_style(api, conn, lib_on):
     assert api.get(url, params={"type": "outline"}).json()["templates"][0]["title"] == "O"
     bad = api.get(url, params={"trading_style": "scalping"})
     assert bad.status_code == 400 and bad.json()["detail"] == "Unknown trading style."
-
-
-def test_the_list_route_refuses_a_style_filter_while_the_library_is_off(api, conn, monkeypatch):
-    # R-P3-10: a library-off pod lists outlines only, and a style filter is the service's refusal.
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    _row(conn, item_type="outline", title="O")
-    _row(conn, item_type="style", title="S", trading_style="swing")
-    url = "/api/j2/template-gallery"
-    assert [t["title"] for t in api.get(url).json()["templates"]] == ["O"]
-    assert api.get(url, params={"type": "style"}).status_code == 400
 
 
 def test_get_item_carries_the_listed_payload_for_a_style_only(conn, lib_on):

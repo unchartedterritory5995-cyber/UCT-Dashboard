@@ -11,7 +11,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  /* One gap on all four sides: the window fills the screen less this margin. */
+  padding: 60px;
 }
 
 /* The panel takes programmatic focus on open (tabIndex -1) so the dialog is
@@ -19,15 +20,22 @@
    so it shows no ring. Controls inside keep their own focus styles. */
 .dialog:focus { outline: none; }
 
+/* Two separate panels: the header strip, a gap, then the list + chart. */
 .dialog {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  width: 100%;
-  max-width: 1600px;
-  height: 96vh;
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
 }
 
@@ -119,7 +127,8 @@
   /* 100dvh, not 100vh: on iOS Safari 100vh is the UNCOLLAPSED viewport, so the
      board's bottom row sits under the browser chrome and the chart's date axis
      is cut off. Fallback first for anything without dvh. */
-  .dialog { height: 100vh; height: 100dvh; border-radius: 0; border: none; max-width: none; }
+  .dialog { height: 100vh; height: 100dvh; border-radius: 0; border: none; max-width: none; gap: 0; }
+  .panel { border-radius: 0; border: none; }
   .close { min-width: 44px; min-height: 44px; justify-content: center; }
   .paneToggle { display: inline-flex; }
   /* The title bar is the only chrome above a full-bleed board — keep it tight
@@ -128,3 +137,6 @@
   .title { font-size: var(--text-base); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .when { display: none; }
 }
+
+/* Applied filters inline in the Grid toolbar: no strip of their own. */
+.gridChips { border: 0; padding: 0; background: transparent; flex-wrap: nowrap; overflow: hidden; min-width: 0; }

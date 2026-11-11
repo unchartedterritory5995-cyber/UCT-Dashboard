@@ -358,9 +358,10 @@ def _anthropic_text(model: str, system: str, prompt: str, max_tokens: int,
     client = _get_anthropic_client()
     if client is None:
         raise RuntimeError("anthropic client unavailable")
-    resp = client.with_options(timeout=timeout).messages.create(
-        model=model, max_tokens=max_tokens, system=system,
-        messages=[{"role": "user", "content": prompt}])
+    request = dict(model=model, max_tokens=max_tokens, system=system,
+                   messages=[{"role": "user", "content": prompt}])
+    with guard.charge_if_failed("ai_search_deep", request):
+        resp = client.with_options(timeout=timeout).messages.create(**request)
     try:
         guard.record_from_response("ai_search_deep", model, resp)
     except Exception:

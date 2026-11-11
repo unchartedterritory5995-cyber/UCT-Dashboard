@@ -44,7 +44,8 @@ import { useSWRConfig } from 'swr'
 import usePreferences from '../../../../../hooks/usePreferences'
 import { trapTabKey } from '../../../../../components/mobile/useFocusTrap'
 import { claimFirstRunStage } from '../../../../../components/firstRun/firstRunStage'
-import { anchorFor, requestReveal } from './tourAnchorVisibility'
+import { anchorFor, requestReveal, NEVER_SHOWN } from './tourAnchorVisibility'
+import { focusPageIfLost } from './keyboardDoors'
 import { TOURS_PREF, TOUR_STATES, readToursPref, recordTourState } from './tourSeenState'
 import { UNREACHABLE_COPY, atStart, resolveStart } from './tourStart'
 import { SAMPLE_COPY, addSampleNotebook, isNotebookKey } from './sampleNotebook'
@@ -86,6 +87,17 @@ function explainerSlot() {
     document.body.prepend(el)
   }
   return el
+}
+
+/** The anchor is IN the page and the engine COULD show it: on screen or not yet (a box comes when
+ *  the tour marks it), but never inside `[hidden]` or `aria-hidden="true"`, which `anchorFor`
+ *  refuses for ever (fix round 2, re-review N5: one visibility rule with the engine). */
+function anchorExists(anchor) {
+  if (typeof document === 'undefined' || !anchor) return false
+  try {
+    const el = document.querySelector(`[data-tour="${anchor}"]`)
+    return Boolean(el) && !el.closest(NEVER_SHOWN)
+  } catch { return false }
 }
 
 function presentFrom(steps, from, dir) {
@@ -151,22 +163,35 @@ export default function GenericTourEngine({
 
   const steps = content?.steps || null
 
-  // ── the step counter counts what is SHOWN ────────────────────────────────────────────────
-  // A step that was passed over because its anchor is not on this screen is not a step the
-  // member takes, so it is in neither number: a tour whose first step cannot show here opens
-  // on "Step 1 of N-1", never "Step 2 of N" (the Formulas tour did, at every width). A step
-  // reached later (Back onto one that has since appeared) counts again.
-  const [passed, setPassed] = useState(() => new Set())
+  // ── the step counter counts what is SHOWN, over ONE list fixed at the start ────────────────
+  // A step whose anchor is not on this screen is not a step the member takes, so it is in
+  // neither number: a tour whose first step cannot show here opens on "Step 1 of N-1", never
+  // "Step 2 of N" (the Formulas tour did, at every width).
+  // ⛔ Audit 2026-11-05, spec S5 (B6): THE LIST IS COMPUTED ONCE, when the tour opens. The total
+  // used to drop each time a later step turned out not to be there, so the My Playbook tour read
+  // "Step 1 of 5" and then "Step 2 of 3". Now the steps whose anchors are on screen when the
+  // tour opens are the list (anchors in the page, plus every step after the first one that waits for
+  // the member), and the total holds. A step outside it that the tour lands on anyway is an
+  // "Extra step": the total never grows mid-tour (fix round 1).
+  const [visible, setVisible] = useState(null)   // sorted step indices, or null before opening
   const indexRef = useRef(0)
   indexRef.current = index
   const land = useCallback((from, to) => {
-    setPassed((prev) => {
-      const out = new Set(prev)
-      for (let j = from + 1; j < to; j += 1) out.add(j)
-      out.delete(to)
-      return out.size === prev.size && [...out].every((j) => prev.has(j)) ? prev : out
+    setVisible((prev) => {
+      if (prev === null) {
+        // ⛔ Fix round 1 (review finding 3): a step is in the list when its anchor EXISTS in the
+        // page -- on screen or not: some anchors only get a box once the tour marks them (the chart
+        // toolbar, revealed by [data-tour-active]) -- or when it comes after a step that WAITS for
+        // the member (a door that opens a sheet or a page). Computed ONCE; never changed after.
+        const firstWait = (steps || []).findIndex((s) => s.waitFor)
+        return (steps || []).map((_, j) => j).filter((j) => j === to || anchorExists(steps[j].anchor)
+          || (firstWait >= 0 && j > firstWait))
+      }
+      // A step outside the list that the tour lands on anyway shows as an extra step (see the
+      // progress line); the list -- and so the total -- never changes mid-tour.
+      return prev
     })
-  }, [])
+  }, [steps])
   const step = phase === 'open' && steps ? steps[index] : null
 
   // ── 1. START ──────────────────────────────────────────────────────────────────────────
@@ -239,6 +264,8 @@ export default function GenericTourEngine({
     const back = returnFocusRef.current
     returnFocusRef.current = null
     if (back && typeof back.focus === 'function' && document.contains(back)) back.focus()
+    // VIS-5 (audit 2026-11-05, issue 25): what opened it may be gone (a Learn menu row); never <body>.
+    if (openedRef.current) focusPageIfLost()
     onCloseRef.current({ opened: openedRef.current, ...extra })
   }, [])
   const finish = useCallback(() => end(), [end])
@@ -511,7 +538,9 @@ export default function GenericTourEngine({
       data-tour-card={modal ? 'modal' : 'non-modal'}
     >
       <p id={progressId} className={styles.progress}>
-        {`Step ${index + 1 - [...passed].filter((j) => j < index).length} of ${steps.length - passed.size}`}
+        {visible && !visible.includes(index)
+          ? 'Extra step'
+          : `Step ${(visible?.indexOf(index) ?? -1) + 1 || 1} of ${visible?.length || steps.length}`}
       </p>
       <h2 id={titleId} ref={titleRef} tabIndex={-1} className={styles.title}
         aria-describedby={`${progressId}${hintId}`}>{copy.title}</h2>

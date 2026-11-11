@@ -1,0 +1,20 @@
+/* S14: a feature's "?" -- a small round link to its Quick Answer. Theme tokens only. */
+.link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border-accent);
+  border-radius: 50%;
+  color: var(--ut-gold);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+}
+.link:hover { background: var(--bg-hover); }
+@media (max-width: 1024px) {
+  .link { min-width: var(--tap-min); min-height: var(--tap-min); border-color: transparent; }
+}

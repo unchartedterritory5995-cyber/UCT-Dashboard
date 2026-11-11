@@ -1,0 +1,38 @@
+/* Audit 2026-11-05, spec S2: the "Link this note to $NVDA?" offer under the title. One quiet line,
+   Notebook tokens only (the contrast rail reads it in every theme), wraps on a phone. */
+.offer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  min-width: 0;
+}
+
+.text { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+
+.btn {
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.btn:disabled { opacity: 0.6; cursor: default; }
+
+/* TOUCH tier: every button is a full tap target. */
+@media (max-width: 1024px) {
+  .btn {
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
+  }
+}

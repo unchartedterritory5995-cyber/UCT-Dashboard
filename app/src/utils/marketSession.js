@@ -10,6 +10,7 @@
 // session." Outside `hasCoverage`'s covered years this degrades EXACTLY to the
 // prior weekday-only/16:00 behavior — never a guess, never a throw.
 import { hasCoverage, holidayOn, earlyCloseOn } from '../lib/marketClock/nyseCalendar'
+import { bucketStartUnix as _sharedBucketStartUnix } from '../components/chart/barTime'
 
 const _pad = (n) => String(n).padStart(2, '0')
 
@@ -415,29 +416,57 @@ const _RTH_OPEN_MINUTES = 570        // 09:30 ET
 const _EXT_OPEN_MINUTES = 240        // 04:00 ET
 const _EXT_CLOSE_MINUTES = 1200      // 20:00 ET
 
-function _etMinutesOfUnix(unixSec) {
-  const s = new Date(unixSec * 1000).toLocaleString('en-US', {
-    timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit',
-  })
-  const [h, m] = s.split(':').map(Number)
-  return h * 60 + m
+// ⛔ ONE TIMEZONE LOOKUP PER DAY, NOT PER BAR. A per-bar `toLocaleString` was the
+// single largest cost of rendering an intraday chart (2,852 bars: ~290 ms of main
+// thread, measured on production). The ET offset can only change inside a UTC day
+// on a DST transition day, so a day with one offset at both ends uses it directly;
+// a transition day asks per minute-bucket the slow way, and stays exact.
+const _etFmt = typeof Intl !== 'undefined'
+  ? new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hourCycle: 'h23', hour: '2-digit', minute: '2-digit' })
+  : null
+function _etWallMinutes(unixSec) {
+  const parts = _etFmt.formatToParts(new Date(unixSec * 1000))
+  let h = 0, m = 0
+  for (const p of parts) {
+    if (p.type === 'hour') h = Number(p.value)
+    else if (p.type === 'minute') m = Number(p.value)
+  }
+  return (h % 24) * 60 + m
 }
+const _ET_DAY_CACHE_MAX = 4000
+const _etDayOffset = new Map()   // UTC day -> minutes ET differs from UTC, or null on a transition day
+function _etOffsetAt(unixSec) {
+  const utc = Math.floor((((unixSec % 86400) + 86400) % 86400) / 60)
+  const et = _etWallMinutes(unixSec)
+  return ((et - utc + 1440) % 1440)
+}
+export function etMinutesOfUnix(unixSec) {
+  const sec = Math.floor(unixSec)
+  const day = Math.floor(sec / 86400)
+  let off = _etDayOffset.get(day)
+  if (off === undefined) {
+    const a = _etOffsetAt(day * 86400)
+    const b = _etOffsetAt(day * 86400 + 86399)
+    off = a === b ? a : null
+    if (_etDayOffset.size >= _ET_DAY_CACHE_MAX) _etDayOffset.clear()
+    _etDayOffset.set(day, off)
+  }
+  if (off === null) return _etWallMinutes(sec)
+  const utcMin = Math.floor((sec - day * 86400) / 60)
+  return (utcMin + off) % 1440
+}
+const _etMinutesOfUnix = etMinutesOfUnix
 
 /**
  * Start instant of the bucket containing `unixSec`.
- * ⭐ tf=60 is SESSION-ANCHORED (09:30-09:59 anchors at 09:30, then clock hours) to
- * match the server's `bucket_60_et_unix_seconds`. Two bucketings of one timeframe is
- * how duplicate candles at neighbouring timestamps get planted.
- * Subtracting a MINUTE DIFFERENCE from the epoch keeps this DST-safe — no calendar
- * instant is reconstructed.
+ * ⭐ tf=60 follows the ONE 60-minute grid policy (chart/barTime.js
+ * `bucketStartUnix`, server twin `bars_fetch.bucket_60_et_unix_seconds`):
+ * TradingView's session grid, 09:30, 10:30 ... 15:30 (early-close aware). Two
+ * bucketings of one timeframe is how duplicate candles at neighbouring
+ * timestamps get planted, so this file never re-encodes it.
  */
 function _bucketStartUnix(unixSec, tfMin) {
-  const mins = _etMinutesOfUnix(unixSec)
-  const anchor = tfMin === 60
-    ? ((mins >= 570 && mins < 600) ? 570 : Math.floor(mins / 60) * 60)
-    : Math.floor(mins / tfMin) * tfMin
-  const secs = new Date(unixSec * 1000).getSeconds()   // timezone-invariant
-  return unixSec - (mins - anchor) * 60 - secs
+  return _sharedBucketStartUnix(unixSec, tfMin)
 }
 
 export function expectedLatestCompletedBar(tf, nowMs = Date.now(), { session = 'rth' } = {}) {
@@ -562,8 +591,18 @@ export function classifyIntradayTail(lastTUnixSec, tf) {
   const expected = expectedLatestDailySessionET()   // last CLOSED trading session
   if (tailDate < expected) return 'gapped'          // missing a whole closed session
   if (tailDate > expected) {                        // inside today's still-open session
-    const tfSec = Math.max(60, (Number(tf) || 5) * 60)
-    return (Date.now() / 1000 - lastTUnixSec) > Math.max(3 * tfSec, 180) ? 'behind' : 'fresh'
+    // ⛔⛔ BUCKETS, NOT WALL-CLOCK SECONDS (2026-11-10). The old `max(3*tf, 180s)` age
+    // window meant a 60m cache THREE HOURS old answered 'fresh' — no catch-up poll, no
+    // warm repair — and on 1h that is two-plus missing bars. 'fresh' is now the same
+    // contract the paint gate uses: within ONE expected bucket of the session frontier
+    // (`expectedBarsBehind`: early-close, holiday/weekend and irregular-09:30 aware).
+    // RTH frontier first; before the first RTH bucket closes (pre-market, or 09:30-09:35
+    // on 5m) there is no RTH expectation, so the EXTENDED frontier judges a same-day
+    // pre-market tail instead of waving it through.
+    const nowMs = Date.now()
+    let behind = expectedBarsBehind(lastTUnixSec, tf, nowMs, { session: 'rth' })
+    if (behind == null) behind = expectedBarsBehind(lastTUnixSec, tf, nowMs, { session: 'extended' })
+    return (behind == null || behind <= 1) ? 'fresh' : 'behind'
   }
   // tailDate === expected → a CLOSED session by definition.
   // ⛔⛔ BUT "THE LAST CLOSED SESSION IS COMPLETE" IS NOT "CURRENT" ONCE TODAY HAS
@@ -615,6 +654,17 @@ export const CURRENTNESS = Object.freeze({
   UNAVAILABLE: 'unavailable', NO_EXPECTATION: 'no_expectation',
 })
 
+/** Does an intraday tail reach the EXTENDED close (20:00 ET; 17:00 on an early-close
+ *  day) of its own session, within one bucket? Server twin:
+ *  `bars_fetch.intraday_ext_session_complete`. */
+function _reachesExtendedClose(tailT, tf) {
+  const tfMin = Math.max(1, Number(tf) || 5)
+  const tailD = new Date(new Date(tailT * 1000).toLocaleString('en-US', { timeZone: 'America/New_York' }))
+  const tailMin = tailD.getHours() * 60 + tailD.getMinutes()
+  const extClose = _effectiveCloseMinutesET(tailD) + (_EXT_CLOSE_MINUTES - 960)
+  return tailMin >= extClose - 2 * tfMin
+}
+
 export function intradayBarCurrentness({
   tf, tailT, nowMs = Date.now(), session = 'rth',
   verifiedThrough = null, serverStatus = null,
@@ -627,8 +677,20 @@ export function intradayBarCurrentness({
   if (behind == null) {
     // No bucket of today is expected. The tail must still carry the last session to
     // its close (the repair-base classifier owns that rule, weekend/holiday aware).
-    if (classifyIntradayTail(tailT, tf) === 'fresh') return CURRENTNESS.NO_EXPECTATION
     if (serverStatus === 'verified') return CURRENTNESS.NO_EXPECTATION
+    if (session === 'extended') {
+      // ⛔⛔ AN EXTENDED-HOURS CHART'S "CLOSE" IS 20:00, NOT 16:00 (2026-11-11). Overnight
+      // (00:00-04:00) and on weekends/holidays there is no extended expectation either,
+      // and the RTH classifier waved a tail that stopped at 16:53 through as complete —
+      // three hours of post-market missing under a settled badge. The server judges
+      // the full series: its `unverified` is never overridden here.
+      if (serverStatus === 'unverified') return notCurrent()
+      if (classifyIntradayTail(tailT, tf) !== 'gapped' && _reachesExtendedClose(tailT, tf)) {
+        return CURRENTNESS.NO_EXPECTATION
+      }
+      return notCurrent()
+    }
+    if (classifyIntradayTail(tailT, tf) === 'fresh') return CURRENTNESS.NO_EXPECTATION
     return notCurrent()
   }
   if (behind <= 1) return CURRENTNESS.CURRENT

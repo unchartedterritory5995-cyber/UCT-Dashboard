@@ -369,3 +369,96 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
 @media (max-width: 1024px) {
   .placeholderReload { min-height: var(--tap-min); min-width: var(--tap-min); }
 }
+
+/* Audit 2026-11-05, spec S3: the chart header's ticker button (the Charts page's SymbolSearch) and
+   its Live / Snapshot segment. Compact: the segment's two buttons share one border line, and on a
+   phone the row wraps rather than overflowing (the toolbar already wraps). */
+.tickerBtn {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+  font-size: 11px;
+}
+.segment { display: inline-flex; }
+.segment > .toolBtn + .toolBtn { margin-left: -1px; }
+.segment > .toolBtn:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.segment > .toolBtn:last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+/* Fix round 1 (review finding 4): the selected chart's one-line hint. */
+.selectedHint {
+  margin: 4px 0 0;
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+/* The hint's live region at rest: present (so a screen reader hears it when filled), takes no room. */
+.hintIdle { margin: 0; height: 0; overflow: hidden; }
+
+/* S12 remainder (audit M9, point 2): phone chart mode. These classes render only at phone width
+   (WidgetEmbedView reads it), so their floors are declared once, unscoped: every target is 44 px. */
+.phoneTitle {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-min, 44px);
+  padding: 0 var(--space-sm);
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: lining-nums tabular-nums;
+  color: var(--text-bright);
+}
+.phoneLive { color: var(--gain); font-weight: 500; }
+/* The whole chart is the door to full screen: a real link over the canvas, under the header (z 5). */
+.phoneOpen {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: var(--space-sm);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  /* Fix round 1 (review 4): a long press is not a "link" moment here; no Safari callout over the chart. */
+  -webkit-touch-callout: none;
+}
+.phoneOpenHint {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-min, 44px);
+  padding: 0 var(--space-lg);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: rgba(12, 12, 12, 0.72);
+  color: var(--menu-text);
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+  font-size: 12px;
+}
+/* Fix round 1 (review 5): a read-only or frozen phone chart's own header row (it has no toolbar): the title and
+   Insights, view-only. */
+.phoneBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+}
+
+/* Final polish (WebKit at 390 px, production): the compact header (the more door, NVDA · 1D, Insights, More) was laid
+   over the price area, and the tap pill over the volume pane. In phone chart mode the header is a row ABOVE the plot,
+   always shown (a phone has no hover), and the words "Tap the chart…" are a caption UNDER it. Rail:
+   WidgetEmbedView.phoneChart.test.jsx. */
+.frame[data-phone-chart] .toolbar {
+  position: static;
+  display: flex;
+  opacity: 1;
+  pointer-events: auto;
+  max-width: none;
+  margin: var(--space-xs) var(--space-sm);
+}
+.phoneOpenCaption {
+  margin: var(--space-xs) var(--space-sm) 0;
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+  font-size: 12px;
+  color: var(--text-muted);
+}

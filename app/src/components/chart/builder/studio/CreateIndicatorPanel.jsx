@@ -16,6 +16,7 @@
 // is the STORED blob, and the only write this component makes is Save's, through
 // `onChange` — the chart's own settings writer, exactly as BuilderSheet does.
 
+import { withoutGuardIds } from '../../engine/ast/guardIdText'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import UIcon from '../../../ui/UIcon'
@@ -388,7 +389,7 @@ export default function CreateIndicatorPanel({
 
         {editMode && blocked && (
           <div className={styles.status} role="note" data-testid="create-indicator-not-editable" data-code={editability.code}>
-            {editability.text}
+            {withoutGuardIds(editability.text)}
             {onEditFormula && (
               <div className={styles.doors}>
                 <button type="button" className={styles.door} data-testid="create-indicator-edit-formula"
@@ -410,7 +411,7 @@ export default function CreateIndicatorPanel({
         )}
         {/* ⭐ BATCH 1 — a kept draft that could not be opened safely, and why. */}
         {conv.dropped && (
-          <div className={styles.status} role="note" data-testid="create-indicator-draft-dropped" data-reason={conv.dropped.reason}>
+          <div className={styles.status} role="note" data-testid="create-indicator-draft-dropped" data-reason={withoutGuardIds(conv.dropped.reason)}>
             {conv.dropped.reason === 'stale'
               ? `Your unsaved changes were made to version ${conv.dropped.from ?? 'an earlier version'}, and this indicator has been saved since (now version ${conv.dropped.now}). They were not restored, so nothing newer is overwritten.`
               : 'An unsaved draft from before the page reloaded could not be restored.'}
@@ -474,7 +475,7 @@ export default function CreateIndicatorPanel({
                 <span className={styles.typeTag}>{typeWord(o.type)}</span>
                 <span>{o.phrase || o.sentence || o.label}</span>
                 {/* ⭐ PHASE 5 — a pending refusal is another symbol's bars still loading */}
-                {o.status === 'refused' && !o.pending && <span className={styles.refused}> — {o.reason}</span>}
+                {o.status === 'refused' && !o.pending && <span className={styles.refused}> — {withoutGuardIds(o.reason)}</span>}
               </div>
             ))}
           </div>
@@ -483,7 +484,7 @@ export default function CreateIndicatorPanel({
             {look.plots.map((p) => (
               <div key={p.key} className={styles.detail}>
                 {safeCssColour(p.color) && <span className={styles.swatch} style={{ background: safeCssColour(p.color) }} />}
-                <span>{p.text}</span>
+                <span>{withoutGuardIds(p.text)}</span>
               </div>
             ))}
             {look.paints.map((l) => <div key={l} className={styles.detail}>{l}</div>)}

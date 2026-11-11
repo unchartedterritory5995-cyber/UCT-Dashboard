@@ -36,6 +36,7 @@ import { isInstanceTombstone } from '../../../components/chart/instanceShape'
 import { CARVED_OUT_ROWS } from '../../../components/chart/indicatorCatalog'
 import { liveOverlayList } from '../../../components/chart/chartDefaults'
 import { MA_DEF_ID } from '../../../components/chart/maAdoption'
+import useChartTouchTuck from '../../../hooks/useChartTouchTuck'
 import wsStyles from '../ChartsWorkspace.module.css'
 import styles from './MobileCharts.module.css'
 
@@ -125,6 +126,12 @@ export default function MobileChartsApp({
   const [pendingWatchlistOpen, setPendingWatchlistOpen] = useState(false)
 
   const paneRef = useRef(null)
+  // ⭐ Decision B3 — the floating buttons (voice orb, feedback "?", the joystick
+  // hub and its pill) tuck away while a finger is on the CHART and come back a
+  // short idle after it lifts. The listener sits on the chart's own wrapper, not
+  // on the chart area, so a touch on a widget page opened over the chart (a
+  // watchlist) never tucks anything. See `hooks/useChartTouchTuck.js`.
+  const chartTouchRef = useRef(null)
   // Filled by StockChart with the mounted ChartToolbar's imperative API — the
   // door the ƒx sheet uses to open the real IndicatorLibraryDialog.
   const toolbarApiRef = useRef(null)
@@ -149,6 +156,9 @@ export default function MobileChartsApp({
 
   const chartIdx = chartWidgetIndex(widgets)
   const chartWidget = chartIdx >= 0 ? widgets[chartIdx] : null
+  // Armed only once the chart wrapper exists: the layout hydrates AFTER the first
+  // render, so the wrapper (and the ref) arrive later than the hook's first run.
+  useChartTouchTuck(chartTouchRef, { enabled: !!chartWidget })
   const otherWidgets = useMemo(() => (widgets || []).filter((w) => w.type !== 'chart'), [widgets])
   const screenWidget = screen ? (widgets || []).find((w) => w.id === screen.id) : null
 
@@ -517,7 +527,7 @@ export default function MobileChartsApp({
                 onOpenList={openReviewList}
               />
             )}
-            <div className={styles.paneWrap}>
+            <div className={styles.paneWrap} ref={chartTouchRef} data-chart-touch-area="">
               <ChartPane
                 ref={paneRef}
                 sym={sym}

@@ -101,6 +101,7 @@ from urllib.parse import unquote, urlsplit
 
 from api.services.journal_two import example_sanitize   # pure (re only): the closure stays framework-free
 from api.services.journal_two import shelf_kind_names   # constants only: the closure stays engine-free
+from api.services.journal_two import web_embed as _web_embed   # pure (re + urllib): the embed id patterns, from webEmbeds.js
 
 # ⛔ NO WEB FRAMEWORK AT MODULE LEVEL. `journal_two.db.ensure_schema` imports
 # `template_gallery`, which imports this module for `reduce`, and the firm-template seed calls
@@ -223,6 +224,11 @@ NEUTRAL_LINE = "A market-data item is not shown on public pages."
 #: stranger does not see it is the member's privacy, not a vendor licence. Adjacent runs of the
 #: SAME line collapse to one; a market line beside an account line stays two.
 ACCOUNT_NEUTRAL_LINE = "A private account item is not shown on public pages."
+
+#: Audit 2026-11-05, S19 fix round 1 (I2): what an IMAGE becomes on a share link minted with "Hide P&L widgets and
+#: images". A broker screenshot is the obvious leak, and a reducer cannot read a picture, so every image (and the
+#: hero) goes, behind this one line. Text the member typed is NOT touched: it is shared as written.
+IMAGE_HIDDEN_LINE = "An image is not shown on this link."
 
 #: What a noteLink becomes (ruling D-B7): no id and no title leaves.
 LINKED_NOTE_TEXT = "linked note"
@@ -438,6 +444,10 @@ NODE_POLICY: dict[str, dict[str, str]] = {
     "financialFact": {"share": "market-data", "publish": "market-data", "gallery": "neutral"},
     "documentExcerpt": {"share": "market-data", "publish": "market-data", "gallery": "neutral"},
     "tradeCanvas": {"share": "market-data", "publish": "market-data", "gallery": "neutral"},  # wave 11 11D: a trade plan
+    # Connector fidelity (2026-11): an import's "couldn't copy" marker. It names a file of the
+    # member's and the address it came from, and says nothing a reader needs: it never leaves
+    # the member's notebook (example mode inherits gallery's drop).
+    "importNotice": {"share": "drop", "publish": "drop", "gallery": "drop"},
     # ── marks ──
     "bold": {"share": "mark", "publish": "mark", "gallery": "mark"},
     "code": {"share": "mark", "publish": "mark", "gallery": "mark"},
@@ -891,10 +901,12 @@ GALLERY_FONT_FAMILIES: tuple[str, ...] = (
 GALLERY_FONT_SIZE_RANGE = (8, 96)
 GALLERY_COLOR_NAMES: tuple[str, ...] = ("gray", "red", "orange", "yellow", "green", "blue")
 GALLERY_CALLOUT_VARIANTS: tuple[str, ...] = ("note", "info", "success", "warning", "danger")
-#: provider -> the pattern its id must match (lib/webEmbeds.js YOUTUBE_ID, TRADINGVIEW_REF).
+#: provider -> the pattern its id must match. DERIVED from `web_embed` (the server port of
+#: lib/webEmbeds.js, pinned against it by tests/test_web_embed_parity.py), never restated here,
+#: and always tested with `fullmatch` (`$` also matches before a trailing newline).
 GALLERY_EMBED_REFS: dict[str, "re.Pattern[str]"] = {
-    "youtube": re.compile(r"^[A-Za-z0-9_-]{11}$"),
-    "tradingview": re.compile(r"^(?:[A-Z0-9_]{1,20}:)?[A-Z0-9._!]{1,30}$"),
+    "youtube": re.compile(_web_embed.YOUTUBE_ID_SRC),
+    "tradingview": re.compile(_web_embed.TRADINGVIEW_REF_SRC),
 }
 GALLERY_MAX_URL_CHARS = 2048
 
@@ -1256,7 +1268,7 @@ def _clean_node(out: dict, mode: str, policy: dict | None = None) -> dict | None
         return None
     if t == "webEmbed":
         pattern = GALLERY_EMBED_REFS.get(attrs.get("provider"))
-        if pattern is None or not isinstance(attrs.get("ref"), str) or not pattern.match(attrs["ref"]):
+        if pattern is None or not isinstance(attrs.get("ref"), str) or not pattern.fullmatch(attrs["ref"]):
             attrs.pop("provider", None)              # not a player this app can build:
             attrs.pop("ref", None)                   # it reads as a plain link, or nothing
     if t == "linkPreview" and not isinstance(attrs.get("url"), str):
@@ -1298,8 +1310,12 @@ class _Ctx:
                  note_links: Mapping[str, tuple[str, str]], attachment_base: str = "", *,
                  images_on: frozenset = frozenset(), brokers: tuple[str, ...] = (),
                  image_src_for: Callable[[str], str] | None = None, report: list | None = None,
-                 owner_id: str = "", note_id: str = "", offered: list | None = None):
+                 owner_id: str = "", note_id: str = "", offered: list | None = None,
+                 hide_account: bool = False):
         self.mode = mode
+        #: Audit 2026-11-05, S19: a share link minted with "Hide my P&L and position size". Every account kind is
+        #: the private line, whatever its own `share` switch says.
+        self.hide_account = hide_account is True
         self.facts = facts
         self.note_links = note_links
         self.attachment_base = attachment_base
@@ -1398,9 +1414,11 @@ def _kept_urls(t: str, node: dict, ctx: _Ctx) -> dict | None:
         if _internal_href(attrs.get("url")) or (ctx.strict and _in_app_shape(attrs.get("url"))):
             ctx.note("dropped", attrs.get("url"))
             return None
-        if ctx.strict and attrs.get("image") is not None:
+        if (ctx.strict or ctx.hide_account) and attrs.get("image") is not None:
             ctx.note("dropped", attrs.get("image"))
-            return {**node, "attrs": {**attrs, "image": None}}     # gallery: no image of any kind
+            # gallery: no image of any kind; a hidden share link (Tier 3a fix round 2, R3): "…and images" means every
+            # image, a link card's picture included (it can point at the member's own upload)
+            return {**node, "attrs": {**attrs, "image": None}}
         if attrs.get("image") is not None and _public_image_src(attrs.get("image"), ctx.attachment_base) is None:
             node = {**node, "attrs": {**attrs, "image": None}}
         return node
@@ -1435,7 +1453,7 @@ def _placed_line_of(node: Any) -> str | None:
 def _neutral_line_of(node: Any) -> str | None:
     """Which neutral line this node is (market or account), or None when it is neither."""
     if isinstance(node, dict) and node.get("type") == "paragraph":
-        for line in (NEUTRAL_LINE, ACCOUNT_NEUTRAL_LINE):
+        for line in (NEUTRAL_LINE, ACCOUNT_NEUTRAL_LINE, IMAGE_HIDDEN_LINE):
             if node.get("content") == [{"type": "text", "text": line}]:
                 return line
     return None
@@ -1556,7 +1574,7 @@ def _market_data(node: dict, ctx: _Ctx) -> list:
         if _is_account_kind(widget_id):
             # The member's switch, read BEFORE the vendor verdict (which is NEUTRAL for this vendor).
             # Only a real boolean True shows: "true", 1 and everything else are the neutral line.
-            if params.get("share") is not True:
+            if ctx.hide_account or params.get("share") is not True:
                 return [_neutral_for_embed(widget_id)]
         elif market_data_verdict("widgetEmbed", widget_id) != SHOWN:
             return [_neutral_for_embed(widget_id)]
@@ -1575,6 +1593,8 @@ def _market_data(node: dict, ctx: _Ctx) -> list:
             # it can hold their real note titles, folder and account names and their own controls, so it never
             # travels (and `referenced_images` then refuses to serve it).
             kept.pop("fallback", None)
+        if ctx.hide_account:
+            kept.pop("fallback", None)               # R3: a hidden link carries no widget's archived picture either
         fallback = kept.get("fallback")
         if isinstance(fallback, dict):
             url = fallback.get("url")
@@ -1591,6 +1611,9 @@ def _market_data(node: dict, ctx: _Ctx) -> list:
             return [_neutral()]
         if market_data_verdict("financialFact", str(fact.get("source") or "")) != SHOWN:
             return [_neutral()]
+        if ctx.hide_account and str(fact.get("source") or "") == "user":
+            # S19 I2: the member's own stated figure ("my size: 500 sh") is an account item on a hidden link.
+            return [_neutral(ACCOUNT_NEUTRAL_LINE)]
         para = _fact_paragraph(fact)
         return [para] if para else []
     # documentExcerpt (and any future market-data row with no public rendition)
@@ -1748,6 +1771,8 @@ def _reduce_node(node: Any, ctx: _Ctx) -> list:
         return [{"type": "askCitation", "attrs": {"n": attrs.get("n")}}]
     if action == "ask" and not (node.get("attrs") or {}).get("action"):
         return []                                    # an Ask answer: publish never carries it
+    if ctx.hide_account and t in ("image", "imageFigure"):
+        return [_neutral(IMAGE_HIDDEN_LINE)]      # S19 I2: no image travels on a hidden link (a figure goes whole)
     if action == "image":
         src = (node.get("attrs") or {}).get("src")
         if _public_image_src(src, ctx.attachment_base) is None:
@@ -1828,6 +1853,7 @@ def reduce(
     image_src_for: Callable[[str], str] | None = None,
     report: list | None = None,
     offered: list | None = None,
+    hide_account: bool = False,
 ) -> dict:
     """The public copy of one note's body.
 
@@ -1857,7 +1883,7 @@ def reduce(
         raw = raw.replace(f"{_ATTACHMENT_PREFIX}{owner_id}/{note_id}/", attachment_base)
     ctx = _Ctx(mode, facts or {}, note_links or {}, attachment_base, images_on=images_on, brokers=brokers,
                image_src_for=image_src_for, report=report, owner_id=owner_id, note_id=note_id,
-               offered=offered)
+               offered=offered, hide_account=hide_account)
     token = _PLACED.set(set())
     try:
         reduced = _reduce_node(json.loads(raw), ctx)
@@ -1882,16 +1908,18 @@ def public_hero(hero: Any, *, owner_id: str, note_id: str, attachment_base: str)
 
 def public_note(note: Mapping[str, Any], *, mode: str, owner_id: str, note_id: str,
                 attachment_base: str, facts: Mapping[str, Mapping[str, Any]] | None = None,
-                note_links: Mapping[str, tuple[str, str]] | None = None) -> dict:
-    """The public payload of one note: EXACTLY `PUBLIC_NOTE_KEYS`."""
+                note_links: Mapping[str, tuple[str, str]] | None = None, hide_account: bool = False) -> dict:
+    """The public payload of one note: EXACTLY `PUBLIC_NOTE_KEYS`. `hide_account` (S19): every account figure is
+    the private line, whatever its own `share` switch says."""
     return {
         "title": note.get("title") or "",
         "subtitle": note.get("subtitle"),
         "bodyJson": reduce(note.get("bodyJson") or {}, mode=mode, owner_id=owner_id,
                            note_id=note_id, attachment_base=attachment_base, facts=facts,
-                           note_links=note_links),
-        "heroImageUrl": public_hero(note.get("heroImageUrl"), owner_id=owner_id,
-                                    note_id=note_id, attachment_base=attachment_base),
+                           note_links=note_links, hide_account=hide_account),
+        # S19 I2: a hidden link carries no hero image either (it is an image like any other).
+        "heroImageUrl": None if hide_account else public_hero(note.get("heroImageUrl"), owner_id=owner_id,
+                                                              note_id=note_id, attachment_base=attachment_base),
         "updatedAt": note.get("updatedAt"),
     }
 

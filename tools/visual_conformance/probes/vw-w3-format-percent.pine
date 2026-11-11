@@ -1,0 +1,27 @@
+//@version=6
+indicator("vw-w3-format-percent", overlay = true)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from the inline shape in
+// docs/pine/capture-queue-2026-11-02-w3.md, W3 S1, row Q-W3-3 (shape S1-C), THE GATE for serving percent. The code below these comments is that doc's text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: {0,number,percent} over positives, negatives, ties and na, and the integer / currency presets. Read the fifteen cell texts character by character.
+// CAPTURE: AMEX:SPY 1D, inputs at defaults.
+
+if barstate.islast
+    var table t = table.new(position.top_right, 1, 15)
+    table.cell(t, 0, 0,  str.format("{0,number,percent}", 0.5))
+    table.cell(t, 0, 1,  str.format("{0,number,percent}", 0.125))
+    table.cell(t, 0, 2,  str.format("{0,number,percent}", 0.135))
+    table.cell(t, 0, 3,  str.format("{0,number,percent}", 12.345))
+    table.cell(t, 0, 4,  str.format("{0,number,percent}", -0.004))
+    table.cell(t, 0, 5,  str.format("{0,number,percent}", -0.126))
+    table.cell(t, 0, 6,  str.format("{0,number,percent}", close / open - 1))
+    table.cell(t, 0, 7,  str.format("{0,number,percent}", na))
+    table.cell(t, 0, 8,  str.format("{0,number,integer}", 1.5))
+    table.cell(t, 0, 9,  str.format("{0,number,integer}", 2.5))
+    table.cell(t, 0, 10, str.format("{0,number,currency}", -1234.567))
+    table.cell(t, 0, 11, str.format("{0,number,#.#}", 1.25))
+    // round 2: decimal half ties whose binary product is not x.5
+    table.cell(t, 0, 12, str.format("{0,number,percent}", 0.575))
+    table.cell(t, 0, 13, str.format("{0,number,percent}", 0.145))
+    table.cell(t, 0, 14, str.format("{0,number,percent}", -0.575))

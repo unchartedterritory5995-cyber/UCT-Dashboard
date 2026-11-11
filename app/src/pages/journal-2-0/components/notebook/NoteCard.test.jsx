@@ -88,3 +88,29 @@ describe('NoteCard — wave 5 selection', () => {
     expect(touch[1]).toMatch(/\.selectBox\s*\{[^}]*min-width:\s*var\(--tap-min\)[^}]*min-height:\s*var\(--tap-min\)/)
   })
 })
+
+// Visual audit issue 6: a thumbnail that fails to load used to paint the
+// browser's broken-image glyph. On error the thumb box goes and the card keeps
+// its no-image layout. CONTROL: before the error the thumb IS there, so the
+// assertion after it cannot pass vacuously.
+describe('NoteCard — broken thumbnail', () => {
+  it.each([
+    ['a live card', {}],
+    ['a trashed card', { onRestore: vi.fn() }],
+  ])('%s: hides the thumb when its image fails to load', (_name, extra) => {
+    const { container } = render(
+      <NoteCard note={note({ firstImageUrl: '/gone.png' })} onOpen={vi.fn()} {...extra} />,
+    )
+    const img = container.querySelector('[data-card-thumb] img')
+    expect(img).not.toBeNull()
+    fireEvent.error(img)
+    expect(container.querySelector('[data-card-thumb]')).toBeNull()
+    expect(container.querySelector('img')).toBeNull()
+  })
+
+  it('keeps a thumb that loads', () => {
+    const { container } = render(<NoteCard note={note({ firstImageUrl: '/ok.png' })} onOpen={vi.fn()} />)
+    fireEvent.load(container.querySelector('[data-card-thumb] img'))
+    expect(container.querySelector('[data-card-thumb] img')).not.toBeNull()
+  })
+})

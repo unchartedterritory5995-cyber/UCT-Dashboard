@@ -1,0 +1,41 @@
+/* The Study mark (the compass + candle), rendered live by StudyMark3D or as a still.
+   Tokens only; every motion is off under prefers-reduced-motion. */
+.wrap {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  animation: throb 4.2s cubic-bezier(.45, 0, .55, 1) infinite;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .55)) drop-shadow(0 0 10px var(--ut-gold-dim, rgba(220, 187, 94, .18)));
+}
+.still { display: block; flex: none; object-fit: contain; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .45)); }
+.think { filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .55)) drop-shadow(0 0 12px rgba(220, 187, 94, .3)); }
+.happy { animation: throb 4.2s cubic-bezier(.45, 0, .55, 1) infinite, hop .6s cubic-bezier(.2, 1.4, .4, 1) 1; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .55)) drop-shadow(0 0 18px rgba(220, 187, 94, .55)); }
+.oops { animation: throb 4.2s cubic-bezier(.45, 0, .55, 1) infinite, shakeX .5s ease-in-out 1; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .55)) brightness(.75); }
+.fire { animation: throb 1.2s ease-in-out infinite; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .55)) drop-shadow(0 0 22px rgba(255, 150, 0, .65)); }
+.spark {
+  position: absolute;
+  bottom: 10%;
+  left: var(--x);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ffc266;
+  box-shadow: 0 0 8px #ff9600;
+  animation: sparkUp 1.3s ease-out infinite;
+  animation-delay: var(--d);
+  pointer-events: none;
+}
+@keyframes throb { 0%, 100% { transform: scale(1) } 50% { transform: scale(1.035) } }
+@keyframes hop { 0% { transform: translateY(0) } 40% { transform: translateY(-12%) } 100% { transform: translateY(0) } }
+@keyframes shakeX { 0%, 100% { transform: translateX(0) } 25% { transform: translateX(-6%) } 75% { transform: translateX(6%) } }
+@keyframes sparkUp { 0% { transform: translateY(0) scale(1); opacity: 1 } 100% { transform: translateY(-120%) scale(.3); opacity: 0 } }
+@media (prefers-reduced-motion: reduce) {
+  .wrap, .happy, .oops, .fire, .spark { animation: none !important; }
+}
+
+/* 'live': the drill's mark, alive on screen: it breathes, bobs and glows while it turns (owner, batch 16: "I want the logo
+   to be moving in our animation work that we did") */
+.live { animation: liveMove 3.2s ease-in-out infinite; filter: drop-shadow(0 8px 18px rgba(0, 0, 0, .6)) drop-shadow(0 0 28px rgba(220, 187, 94, .55)); }
+@keyframes liveMove { 0%, 100% { transform: translateY(0) scale(1) } 35% { transform: translateY(-6%) scale(1.045) } 70% { transform: translateY(2%) scale(.985) } }
+@media (prefers-reduced-motion: reduce) { .live { animation: none !important; } }

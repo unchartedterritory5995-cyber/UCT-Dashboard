@@ -26,6 +26,8 @@ import styles from './ContextPopover.module.css'
 const hintProps = (it) => (it.hint ? { title: it.hint, 'aria-description': it.hint } : null)
 
 export default function ContextPopover({
+  /** A stable name for UCT Agent's product guide (agent/guide/targets.js): no behaviour. */
+  guide,
   open,
   onClose,
   anchor,
@@ -64,6 +66,20 @@ export default function ContextPopover({
   // escaping any scoped theme tokens (the chart's Sunrise), exactly like every
   // other Sheet. Desktop's anchored menu ignores it (menu-dark by design).
   sheetClassName = '',
+  /** ⭐ OPT-IN, BOTH BRANCHES: a REF (`{ current }`) to the element focus returns
+   *  to on close, used only while it is still connected; otherwise focus goes back
+   *  to where it was on open. The touch branch hands it to `Sheet`'s own
+   *  `returnFocusTo`. A menu the CHART opened on its own (the RS tour) has no
+   *  opener in focus, so without it focus fell back to the chart region rather
+   *  than the chip it is about (a11y gate §12.2, 2026-11-08).
+   *
+   *  ⭐ INITIAL FOCUS IS NOT A PROP: a child marked `data-autofocus` takes focus on
+   *  open (desktop), else the first focusable one. The RS tour marks "Next", its
+   *  primary action, not "Skip tour", first in reading order.
+   *  ⛔ Both stay this small ON PURPOSE: this module ships in the Notebook's
+   *  first-open JS (`tools/notebook_perf_budgets.py`), so a caller's own focus
+   *  logic (which element, resolved how) lives with the caller, not here. */
+  returnFocusTo,
 }) {
   const isTouch = useIsTouch()
   const menuRef = useRef(null)
@@ -113,7 +129,7 @@ export default function ContextPopover({
     const takeFocus = () => {
       const el = menuRef.current
       if (!el) return
-      const first = focusableWithin(el)[0]
+      const first = el.querySelector('[data-autofocus]') || focusableWithin(el)[0]
       ;(first || el).focus?.()
       if (!el.contains(document.activeElement) && tries < 12) {
         tries += 1
@@ -129,8 +145,14 @@ export default function ContextPopover({
     // test written for it could not fail, and a test that cannot fail reads as
     // coverage while providing none. Optional chaining is the whole guard: it
     // handles `restoreTo` being null, which IS distinguishable.
-    return () => { cancelAnimationFrame(raf); restoreTo?.focus?.() }
-  }, [open, isTouch, pos])
+    // `returnFocusTo` is read from this closure on purpose (not a dep): it is a
+    // ref, read at close, and a new ref identity must never re-run this latch.
+    return () => {
+      cancelAnimationFrame(raf)
+      const to = returnFocusTo?.current
+      ;(to?.isConnected ? to : restoreTo)?.focus?.()
+    }
+  }, [open, isTouch, pos]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Desktop: dismiss on outside click / Escape
   useEffect(() => {
@@ -174,6 +196,7 @@ export default function ContextPopover({
       ) : (
         <button
           key={it.key ?? it.label ?? i}
+          data-menu-id={it.key}
           role={asMenu ? 'menuitem' : undefined}
           className={`${styles.item} ${it.danger ? styles.danger : ''}`}
           disabled={it.disabled}
@@ -189,7 +212,11 @@ export default function ContextPopover({
   // Touch → bottom sheet
   if (isTouch) {
     return (
-      <Sheet open={open} onClose={onClose} variant="bottom-sheet" title={title} className={sheetClassName}>
+      // VIS-7 (audit 2026-11-05, axe aria-dialog-name): the sheet is a dialog and needs a name. The same rule as the
+      // anchored menu below: the title when it is plain text (named BY the visible title), else Options / Actions.
+      <Sheet open={open} onClose={onClose} variant="bottom-sheet" title={title} className={sheetClassName} returnFocusTo={returnFocusTo}
+        labelledByTitle={typeof title === 'string' && Boolean(title)}
+        ariaLabel={typeof title === 'string' && title ? undefined : (children != null ? 'Options' : 'Actions')}>
         <div className={styles.sheetList}>
           {children ?? <>{header}{renderItems()}</>}
         </div>
@@ -230,6 +257,7 @@ export default function ContextPopover({
       // The role follows the content. An action list is a menu of menu items. Custom
       // children (a form, a picker) are not menu items, so that form is a named dialog.
       role={children != null ? 'dialog' : 'menu'}
+      data-guide={guide}
       // Both need a name. The title when it is plain text.
       aria-label={typeof title === 'string' && title ? title : (children != null ? 'Options' : 'Actions')}
       tabIndex={-1}

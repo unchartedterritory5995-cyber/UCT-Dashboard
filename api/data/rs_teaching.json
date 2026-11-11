@@ -1,0 +1,245 @@
+{
+  "cards": {
+    "beforePrice": {
+      "evidence": "Bulkowski measured 15,763 chart patterns: the direction of RS before a breakout barely changed the result, while RS rising after the breakout did (an average gain of 41% against 22%). No published hit rate exists for this signal and UCT has not measured one yet.",
+      "label": "Before price",
+      "origin": "IBD: more bullish, and not a precondition. Deepvue, ChillLax.",
+      "what": "That RS high came while price was still more than 2% below its own lookback high: relative strength led, price had not confirmed. The gold dot."
+    },
+    "benchmarkName": {
+      "evidence": "A rising RS line means the stock is beating this benchmark over the window, nothing more: it can rise while the stock is falling if the benchmark falls faster (IBD). Which benchmark you compare against changes the answer.",
+      "label": "Benchmark",
+      "origin": "IBD and MarketSurge draw RS against the S&P 500. The equal-weight index or the sector ETF isolates the stock from the few giants that carry a cap-weighted index.",
+      "what": "What the RS line is measured against: this symbol's close divided by the benchmark's close, bar by bar. The resolved ticker is printed; SECTOR and INDUSTRY are resolved on the server."
+    },
+    "checks": {
+      "evidence": "Counts, not signals: the green-on-red check passes at 6 of the last 20 sessions, which is UCT's own threshold, and the screener's up-on-down-days scan is looser at 3. No published hit rate exists for these checks and UCT has not measured them yet.",
+      "label": "Checks",
+      "origin": "UCT workshops (Chartmaster, the four RS checks).",
+      "what": "The four UCT checks, each a yes or no with its numbers: distance from the 200-day average against the benchmark's; return since the benchmark's lowest close of the last 20 sessions against the benchmark's; how many of the last ten red days closed in the top third of their range; how many of the last twenty sessions closed up on a red day."
+    },
+    "phase": {
+      "evidence": "No published hit rate exists for this signal and UCT has not measured one yet.",
+      "label": "RS line",
+      "origin": "Manrav video 59 (the 21 EMA on the RS line); TraderLion RS Phase; Deepvue Webby RS. A trend read that lags turns by design.",
+      "what": "Whether the RS line closed above or below its moving average on the last bar, and by how much. Above is the bullish phase; the cross is the event the screener and alerts read. The average is drawn while Show average is on and read here either way."
+    },
+    "ratingSummary": {
+      "evidence": "The rating is a rank of past return, not a forecast. The nearest evidence is the academic momentum literature (a 12-month return with the last month skipped): past 6 to 12-month winners kept outperforming for the next 3 to 12 months across many markets and decades, about 8% a year long-short and positive in roughly four years of five (Jegadeesh and Titman 1993; Asness, Frazzini, Israel and Moskowitz 2014). It loses roughly one year in five and reverses hardest at bear-market bottoms (Daniel and Moskowitz 2016).",
+      "label": "Rating",
+      "origin": "IBD's Relative Strength Rating, with IBD's published term weights (40% on the latest quarter). Labelled IBD-style because the universe and the bars are ours; ETFs are rated against the stock distribution, not inside it.",
+      "what": "IBD-style RS Rating, 1 to 99: where this symbol's weighted 3, 6, 9 and 12-month return ranks across the universe, computed nightly from our own bars. 90 means it beat 90% of the names rated. The 1M to 12M rows are the ranks of each return on its own."
+    },
+    "redDay": {
+      "evidence": "No published hit rate exists for this signal and UCT has not measured one yet.",
+      "label": "On a red day",
+      "origin": "UCT workshops; Kell; TraderLion on down days. Taught widely, never measured publicly.",
+      "what": "That RS high came on a day the benchmark closed down by at least 0.5%: strength while the market sold off. Drawn as its own dot while Red-day highs is on."
+    },
+    "rsHigh": {
+      "evidence": "No published hit rate exists for this signal and UCT has not measured one yet.",
+      "label": "Last RS high",
+      "origin": "IBD's RS line new high; the blue dot MarketSurge draws.",
+      "what": "How many bars since the RS line last closed at its highest level of the lookback (252 bars on a daily chart, ties count)."
+    }
+  },
+  "glossary": [
+    {
+      "aliases": [
+        "relative strength line",
+        "price relative"
+      ],
+      "definition": "The stock's price divided by the benchmark's price, drawn as a line: up means the stock is beating the market, down means it is lagging. Only its direction and its own prior highs matter, not where it sits beside price.",
+      "key": "rsLine",
+      "term": "RS line"
+    },
+    {
+      "aliases": [
+        "relative strength rating",
+        "IBD-style rating"
+      ],
+      "definition": "A 1 to 99 rank of the stock's price change over roughly the past year against every other stock in the universe; 90 means it beat 90% of them. Ours is IBD-style and ranks stocks in the same order as Deepvue's RS rating: at 75 and above it reads within about a point, and below that about 11 points lower, because UCT ranks against a liquid universe rather than every listed stock; it has not been measured against MarketSurge.",
+      "key": "rsRating",
+      "term": "RS Rating"
+    },
+    {
+      "aliases": [
+        "RS line new high",
+        "blue dot"
+      ],
+      "definition": "The RS line closes higher than at any point in its lookback. The stock is outperforming the market by the most it has in that window.",
+      "key": "rsNewHigh",
+      "term": "RS new high"
+    },
+    {
+      "aliases": [
+        "RS high before price",
+        "gold dot"
+      ],
+      "definition": "The RS line makes a new high while price is still below its own high. IBD calls it more bullish, and not a precondition.",
+      "key": "rsNewHighBeforePrice",
+      "term": "RS new high before price"
+    },
+    {
+      "definition": "What the stock is compared against: the S&P 500, the equal-weight S&P 500, the Nasdaq 100, the Russell 2000, or the stock's sector or industry group. Change it and the question changes.",
+      "key": "benchmark",
+      "term": "Benchmark"
+    },
+    {
+      "aliases": [
+        "Mansfield relative strength"
+      ],
+      "definition": "Weinstein's version: the RS ratio measured against its own long average (52 weeks on his weekly charts), so it swings around zero, and above zero and rising means the stock is outperforming its own trend against the benchmark. On UCT it is the screener's Mansfield RS column, read on 200 daily bars.",
+      "key": "mansfieldRs",
+      "term": "Mansfield RS"
+    },
+    {
+      "aliases": [
+        "RRG quadrant"
+      ],
+      "definition": "Leading (strong and gaining), Weakening (strong but fading), Lagging (weak and fading) or Improving (weak but gaining), read from the trend of the RS ratio and that trend's momentum on the Terminal's rotation graph and in the screener's weekly Rotation Quadrant column. A map, not a system.",
+      "key": "rotationQuadrant",
+      "term": "Rotation quadrant"
+    },
+    {
+      "definition": "How fast a price, or an RS line, is moving. In academic research it is also the name for relative strength itself.",
+      "key": "momentum",
+      "term": "Momentum"
+    },
+    {
+      "definition": "The stock is losing ground to the market, even while its price rises. On the chart, the RS line falls.",
+      "key": "relativeWeakness",
+      "term": "Relative weakness"
+    },
+    {
+      "aliases": [
+        "leader",
+        "laggard",
+        "leadership"
+      ],
+      "definition": "A leader beats the market and its group; a laggard trails them.",
+      "key": "leaderLaggard",
+      "term": "Leader and laggard"
+    },
+    {
+      "definition": "RS that rises only because the stock fell less than a falling market. It can fade when the market recovers.",
+      "key": "defensiveRs",
+      "term": "Defensive RS"
+    },
+    {
+      "definition": "The window used for a rating or a new high, such as 52 weeks or 3 months. A shorter window reacts faster and flips more often.",
+      "key": "lookback",
+      "term": "Lookback"
+    },
+    {
+      "definition": "Where a value sits in its group, read as \"beat X% of the group\". An RS Rating of 80 beat 80% of the names rated.",
+      "key": "percentileRank",
+      "term": "Percentile rank"
+    },
+    {
+      "definition": "Price and the RS line disagree. Price at a new high without the RS line is a warning; the RS line rising while price falls is hidden strength.",
+      "key": "divergence",
+      "term": "Divergence"
+    },
+    {
+      "aliases": [
+        "sector rotation"
+      ],
+      "definition": "Money moving from one group of stocks to another. The RS lines of the new group turn up while the old group's turn down.",
+      "key": "rotation",
+      "term": "Rotation"
+    },
+    {
+      "aliases": [
+        "RS Rating history",
+        "rating line"
+      ],
+      "definition": "An indicator that draws the stock's RS Rating, 1 to 99, session by session on daily charts, with its 21-session average and guides at 80 and 90. The 1, 3, 6, 9 and 12-month ranks print in the corner of its pane.",
+      "key": "uctRsRating",
+      "term": "UCT RS Rating"
+    },
+    {
+      "aliases": [
+        "RS phases",
+        "RS divergence shading"
+      ],
+      "definition": "An indicator that shades the bars where the RS line and the market pull apart: blue while RS rises as the market falls, red for the reverse, with a histogram of how unusual the split is for this stock. Both trends are a short average of the line against a longer one, 3 and 10 bars by default.",
+      "key": "uctRsPhases",
+      "term": "UCT RS Phases"
+    },
+    {
+      "aliases": [
+        "RS vs 21 EMA",
+        "Webby RS line"
+      ],
+      "definition": "An indicator that draws how far the RS line sits above or below its 21 EMA, in percent, bar by bar, blue above and red below, with a 3 and a 13 EMA of that distance. It is the same number the RS line's readout prints as its distance from the average.",
+      "key": "uctRsVsEma",
+      "term": "UCT RS vs 21 EMA"
+    }
+  ],
+  "misconceptions": [
+    {
+      "key": "rsIsNotRsi",
+      "myth": "RS is RSI.",
+      "truth": "They are different things. RS compares a stock with the market and has no fixed bounds; RSI measures only the stock's own recent momentum on a 0 to 100 scale."
+    },
+    {
+      "key": "risingMeansUp",
+      "myth": "A rising RS line means the price is going up.",
+      "truth": "It means the stock is doing better than the market; both can be falling."
+    },
+    {
+      "key": "fallingMeansDown",
+      "myth": "A falling RS line means the stock is going down.",
+      "truth": "The stock can be rising while the market rises faster."
+    },
+    {
+      "key": "fellLessIsLeader",
+      "myth": "RS rose while the market fell, so the stock is a leader.",
+      "truth": "It may only have fallen less. Defensive names often give that back when growth returns."
+    },
+    {
+      "key": "rating99IsTiming",
+      "myth": "An RS Rating of 99 means now is the time to get in.",
+      "truth": "RS is a filter, not a timing signal; a 99 after a near-vertical run is often extended."
+    },
+    {
+      "key": "anyBenchmark",
+      "myth": "Any benchmark will do.",
+      "truth": "A small-cap read against the S&P 500, or a stock against the wrong sector, misleads. Say what you compare against."
+    },
+    {
+      "key": "rsExcusesChart",
+      "myth": "Good RS excuses a bad chart.",
+      "truth": "RS is one read, not the whole chart. A strong RS line does not repair a broken base, and a neat base with a falling RS line is a warning."
+    },
+    {
+      "key": "highRsLowRisk",
+      "myth": "High RS means low risk.",
+      "truth": "It means outperforming, not protected. In a falling market a leader can simply fall less."
+    }
+  ],
+  "tour": [
+    {
+      "body": "RS compares your stock with the S&P 500. A stock can go up and still lose the race.",
+      "title": "Beating the market, or just riding it?"
+    },
+    {
+      "body": "The RS line rises when the stock outperforms and falls when it lags. Where it sits beside price means nothing; it is not a moving average.",
+      "title": "Read the slope, not the level"
+    },
+    {
+      "body": "When the line tops its old high before price does, the stock is leading before the chart shows it.",
+      "title": "Watch for RS new highs"
+    },
+    {
+      "body": "Stocks that close green while the market sells off are showing demand you can see.",
+      "title": "Strong on a weak day"
+    },
+    {
+      "body": "Combine it with a base, volume and your own stop. High RS after a long run can mean the stock is extended, not safe. Navigate the market, effectively.",
+      "title": "RS says where to look, not when to act"
+    }
+  ],
+  "version": 1
+}

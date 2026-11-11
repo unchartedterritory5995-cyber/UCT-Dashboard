@@ -1,0 +1,560 @@
+"""W9-T3b: the per-row probe files of the strategy capture plan, GENERATED from one table.
+
+    python tools/vendor_harness/w9_probes.py            # write every probe under tools/visual_conformance/probes/
+    python tools/vendor_harness/w9_probes.py --check    # exit 1 if a committed probe differs from its generator
+
+docs/pine/W9-STRATEGY-DESIGN.md 5.1 / 5.2 (r3, GO-WITH-NOTES). ONE AUTHORITY: the standard plotted set (5.1)
+is written here ONCE and appended to every probe, so no probe can drift from it; `--check` (and
+`tests/test_w9_probes.py`) fail when a committed file is not exactly what this table writes.
+
+The standard set, per 5.1: `time` and `bar_index` (control); position_size, position_avg_price, opentrades,
+closedtrades, netprofit, equity, openprofit; for the last three closed trades entry and exit time, bar index
+and price, size, profit and commission; and a label per close carrying the entry id, exit id and exit comment.
+That rebuilds the trades from the chart model without the report reader (W9.1 and W9.2 do not wait on W9-C0).
+`bar_index` and the per-trade functions do not exist in Pine v2 / v4, so those dialects plot the subset they
+have and SAY so in the file; a compile failure on a probe is itself the datum (REFUSED_BY_TV), never a retry.
+
+⛔ NO PROBE HERE WAS COMPILED OR RUN. They are written from Pine's published syntax. The owner's capture is
+the first compile. Method (b) probes are made by `range_guard.rewrite` (the one authority for the guard).
+"""
+from __future__ import annotations
+
+import argparse
+import pathlib
+import sys
+
+HERE = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+import range_guard  # noqa: E402  (the guard writer, one authority)
+
+REPO = HERE.parents[1]
+PROBES = REPO / "tools" / "visual_conformance" / "probes"
+
+# Method (b) window of the SPY probes (5.1): X = 2023-01-03, Y = 2025-01-02, epoch ms of 00:00 UTC.
+RANGE_X_MS = 1672704000000
+RANGE_Y_MS = 1735776000000
+
+TRADE_FNS = ["entry_time", "exit_time", "entry_bar_index", "exit_bar_index",
+             "entry_price", "exit_price", "size", "profit", "commission"]
+BASE9 = [("S03_position_size", "strategy.position_size"), ("S04_position_avg_price", "strategy.position_avg_price"),
+         ("S05_opentrades", "strategy.opentrades"), ("S06_closedtrades", "strategy.closedtrades"),
+         ("S07_netprofit", "strategy.netprofit"), ("S08_equity", "strategy.equity"),
+         ("S09_openprofit", "strategy.openprofit")]
+
+SCAFFOLD = {
+    6: ("fast = ta.sma(close, 5)\nslow = ta.sma(close, 20)\nup = ta.crossover(fast, slow)\ndn = ta.crossunder(fast, slow)"),
+    5: ("fast = ta.sma(close, 5)\nslow = ta.sma(close, 20)\nup = ta.crossover(fast, slow)\ndn = ta.crossunder(fast, slow)"),
+    4: ("fast = sma(close, 5)\nslow = sma(close, 20)\nup = crossover(fast, slow)\ndn = crossunder(fast, slow)"),
+    2: ("fast = sma(close, 5)\nslow = sma(close, 20)\nup = crossover(fast, slow)\ndn = crossunder(fast, slow)"),
+}
+
+
+def plot_line(ver: int, expr: str, title: str) -> str:
+    return f'plot({expr}, "{title}")' if ver >= 5 else f'plot({expr}, title="{title}")'
+
+
+def std_block(ver: int) -> str:
+    out = ["// ── standard set (5.1), appended by tools/vendor_harness/w9_probes.py ──",
+           plot_line(ver, "time", "S01_time_CONTROL")]
+    if ver >= 3:
+        out.append(plot_line(ver, "bar_index", "S02_bar_index_CONTROL"))
+    else:
+        out.append("// Pine v2 has no bar_index: `time` is the control here")
+    for title, expr in BASE9:
+        out.append(plot_line(ver, expr, title))
+    if ver >= 5:
+        out.append("_nc = strategy.closedtrades")
+        n = 10
+        for k in range(3):
+            for fn in TRADE_FNS:
+                out.append(plot_line(ver, f"_nc > {k} ? strategy.closedtrades.{fn}(_nc - {k + 1}) : na", f"S{n}_c{k}_{fn}"))
+                n += 1
+        out += ["var int _seen = 0",
+                "if _nc > _seen",
+                "    for _i = _seen to _nc - 1",
+                '        label.new(bar_index, high, strategy.closedtrades.entry_id(_i) + ">" + strategy.closedtrades.exit_id(_i) + ":" + strategy.closedtrades.exit_comment(_i), style = label.style_label_down)',
+                "    _seen := _nc"]
+    else:
+        out.append(f"// Pine v{ver} has no strategy.closedtrades.*(i) functions and no per-close label: the trade list is not rebuilt here")
+    return "\n".join(out)
+
+
+def build(spec: dict) -> str:
+    ver = spec["ver"]
+    name = spec["name"]
+    title = "W9_" + name.upper().replace("-", "_")
+    decl = spec.get("decl", "")
+    args = ["overlay = false"] if ver >= 5 else ["overlay=false"]
+    if decl:
+        args.append(decl)
+    if ver >= 5:
+        args.append("max_labels_count = 500")
+    head = f'strategy("{title}", {", ".join(args)})' if ver >= 5 else f'strategy(title="{title}", {", ".join(args)})'
+    lines = [f"//@version={ver}", head, "",
+             f"// W9-T3b, GENERATED by tools/vendor_harness/w9_probes.py: do not edit by hand (`--check` fails on a diff).",
+             f"// Row {spec['row']} on {spec['chart']}. Settles: {spec['settles']}",
+             "// Capture with tools/vendor_harness/tv_capture.js (gradeMethod set; settings read back). Never the CSV, never exportData()."]
+    for note in spec.get("notes", []):
+        lines.append(f"// {note}")
+    lines.append("")
+    lines.append(spec["body"].replace("{SC}", SCAFFOLD[ver]).strip("\n"))
+    lines.append("")
+    for etitle, eexpr in spec.get("extras", []):
+        lines.append(plot_line(ver, eexpr, etitle))
+    lines.append("")
+    lines.append(std_block(ver))
+    return "\n".join(lines) + "\n"
+
+
+# ── the table ─────────────────────────────────────────────────────────────────────
+
+FIXED1 = "default_qty_type = strategy.fixed, default_qty_value = 1"
+PYR2 = "pyramiding = 2"
+
+LONGS = '''{SC}
+if up
+    strategy.entry("L", strategy.long)
+if dn
+    strategy.close("L")'''
+
+
+def P(name, row, settles, body, decl=FIXED1, ver=6, chart="NYSE:RDDT 1D", extras=(), notes=()):
+    return dict(name=name, row=row, settles=settles, body=body, decl=decl, ver=ver, chart=chart,
+                extras=list(extras), notes=list(notes))
+
+
+def specs() -> list:
+    s = []
+    # B. S1's rows
+    s.append(P("q-s1c-tie", "Q-S1c", "the path on a tie: a limit and a stop both inside one bar", '''{SC}
+if up
+    strategy.entry("L", strategy.long)
+if strategy.position_size > 0
+    strategy.exit("X", "L", limit = math.round_to_mintick(strategy.position_avg_price * 1.001), stop = math.round_to_mintick(strategy.position_avg_price * 0.999))''',
+                decl=FIXED1, notes=["Moves to AMEX:SPY 1D if RDDT shows no tie bar (a bar holding both levels)."]))
+    # W9 integration review N2 (2026-11-08): the S1 rule B-EXIT-BIND serves two full exits on one trade
+    # (each fills if reached first) while B-EXIT-QTY is unpinned; this row makes Q-S1-core's pin WITNESS
+    # that case instead of inferring it. X2 is called second and sits nearer, so it is reached first.
+    s.append(P("q-s1core-two-exits", "Q-S1-core-2x", "two full exits on one trade, the second-called reached first: "
+               "does it fill (S1, served while B-EXIT-QTY is unpinned) or does the first reserve the whole trade (B-EXIT-QTY)", '''{SC}
+if up
+    strategy.entry("L", strategy.long)
+if strategy.position_size > 0
+    strategy.exit("X1", "L", limit = math.round_to_mintick(strategy.position_avg_price * 1.08), comment = "x1")
+    strategy.exit("X2", "L", stop = math.round_to_mintick(strategy.position_avg_price * 0.98), comment = "x2")
+if dn
+    strategy.close_all(comment = "xall")''', decl=FIXED1,
+                extras=[("X01_last_exit_price", "strategy.closedtrades > 0 ? strategy.closedtrades.exit_price(strategy.closedtrades - 1) : na"),
+                        ("X02_last_entry_price", "strategy.closedtrades > 0 ? strategy.closedtrades.entry_price(strategy.closedtrades - 1) : na")]))
+    s.append(P("q-s1d-same-tick", "Q-S1d", "two orders on one bar: which fills first", '''{SC}
+if up
+    strategy.entry("A", strategy.long, comment = "ca")
+    strategy.entry("B", strategy.short, comment = "cb")
+if dn
+    strategy.close_all(comment = "xall")''', decl=FIXED1 + ", pyramiding = 2"))
+    s.append(P("q-s1e-live-past", "Q-S1e", "an exit whose level is already past when it is placed", '''{SC}
+if up
+    strategy.entry("L", strategy.long)
+if strategy.position_size > 0 and bar_index % 3 == 0
+    strategy.exit("X", "L", stop = math.round_to_mintick(close * 1.02))''', decl=FIXED1))
+    s.append(P("q-s1f-reversal-exit", "Q-S1f", "a reversal entry against an exit that names no from_entry", '''{SC}
+if up
+    strategy.entry("L", strategy.long)
+if strategy.position_size > 0
+    strategy.exit("X", limit = math.round_to_mintick(strategy.position_avg_price * 1.05))
+if dn
+    strategy.entry("S", strategy.short)''', decl=FIXED1))
+    s.append(P("q-s1g-pyr-limit", "Q-S1g", "a price entry at the limit while pyramiding", '''{SC}
+if up
+    strategy.entry("L1", strategy.long)
+if strategy.position_size > 0 and strategy.opentrades < 3
+    strategy.entry("L2", strategy.long, limit = math.round_to_mintick(close * 0.99))
+if dn
+    strategy.close_all()''', decl=FIXED1 + ", pyramiding = 3"))
+    s.append(P("q-s1h-fifo", "Q-S1h", "the FIFO split of a partial close across open entries", '''{SC}
+if up
+    strategy.entry("L1", strategy.long, qty = 2)
+if strategy.opentrades == 1 and bar_index % 2 == 0
+    strategy.entry("L2", strategy.long, qty = 3)
+if strategy.opentrades == 2
+    strategy.close("L1", qty = 3.5, comment = "part")
+if dn
+    strategy.close_all()''', decl=FIXED1 + ", pyramiding = 3",
+                extras=[("X01_closed0_size", "strategy.closedtrades > 0 ? strategy.closedtrades.size(0) : na"),
+                        ("X02_closed1_size", "strategy.closedtrades > 1 ? strategy.closedtrades.size(1) : na"),
+                        ("X03_closed1_entry_bar", "strategy.closedtrades > 1 ? strategy.closedtrades.entry_bar_index(1) : na")]))
+    s.append(P("q-s1i-funds", "Q-S1i", "margin call: an entry larger than the account funds (DEFERRED row)", '''{SC}
+if up
+    strategy.entry("L", strategy.long, qty = 5000)
+if dn
+    strategy.close_all()''', decl="initial_capital = 1000, margin_long = 100, margin_short = 100"))
+    s.append(P("q-s1j-stop-limit", "Q-S1j", "a stop-limit entry (stop and limit on one order)", '''{SC}
+if up
+    strategy.entry("L", strategy.long, stop = math.round_to_mintick(close * 1.01), limit = math.round_to_mintick(close * 1.012))
+if dn
+    strategy.close_all()''', decl=FIXED1))
+    s.append(P("q-s1k-exit-levels", "Q-S1k", "exit levels given as ticks (profit/loss) in v5", '''{SC}
+if up
+    strategy.entry("L", strategy.long)
+if strategy.position_size > 0
+    strategy.exit("X", "L", profit = 300, loss = 200)
+if dn
+    strategy.close_all()''', decl=FIXED1, ver=5))
+    s.append(P("q-s1k-exit-levels-v6", "Q-S1k", "exit levels given as ticks (profit/loss) in v6", '''{SC}
+if up
+    strategy.entry("L", strategy.long)
+if strategy.position_size > 0
+    strategy.exit("X", "L", profit = 300, loss = 200)
+if dn
+    strategy.close_all()''', decl=FIXED1, ver=6))
+    s.append(P("q-s1l-off-grid", "Q-S1l", "a fill price off the tick grid: rounded or kept", '''{SC}
+if up
+    strategy.entry("L", strategy.long)
+if strategy.position_size > 0
+    strategy.exit("X", "L", limit = strategy.position_avg_price * 1.0137)
+if dn
+    strategy.close_all()''', decl=FIXED1,
+                extras=[("X01_exit_price_full", "strategy.closedtrades > 0 ? strategy.closedtrades.exit_price(strategy.closedtrades - 1) : na"),
+                        ("X02_exit_price_in_ticks", "strategy.closedtrades > 0 ? strategy.closedtrades.exit_price(strategy.closedtrades - 1) / syminfo.mintick : na")]))
+    s.append(P("q-s1m-index", "Q-S1m", "an out-of-range trade index", '''{SC}
+if up
+    strategy.entry("L", strategy.long)
+if dn
+    strategy.close_all()''', decl=FIXED1,
+                extras=[("X01_open_entry_price_5", "strategy.opentrades.entry_price(5)"),
+                        ("X02_closed_exit_price_999", "strategy.closedtrades.exit_price(999)")]))
+    s.append(P("q-s1p-when", "Q-S1p", "the v5 `when` argument", '''{SC}
+strategy.entry("L", strategy.long, when = up)
+strategy.close("L", when = dn)''', decl=FIXED1, ver=5))
+    s.append(P("q-s1o-every-tick", "Q-S1o", "calc_on_every_tick on a live chart (DEFERRED; AMEX:SPY 5)", LONGS,
+               decl=FIXED1 + ", calc_on_every_tick = true", chart="AMEX:SPY 5"))
+    # Q-S1a: sizing
+    sz = "{SC}\nif up\n    strategy.entry(\"L\", strategy.long)\nif dn\n    strategy.close(\"L\")"
+    s.append(P("q-s1a-size-v6", "Q-S1a", "v6 default size with none declared", sz, decl="", ver=6,
+               extras=[("X01_open_size_0", "strategy.opentrades > 0 ? strategy.opentrades.size(0) : na"),
+                       ("X02_close", "close")]))
+    s.append(P("q-s1a-size-v5pct", "Q-S1a", "v5 percent_of_equity 10", sz, decl="default_qty_type = strategy.percent_of_equity, default_qty_value = 10", ver=5,
+               extras=[("X01_open_size_0", "strategy.opentrades > 0 ? strategy.opentrades.size(0) : na"),
+                       ("X02_close", "close")]))
+    s.append(P("q-s1a-size-v5cash", "Q-S1a", "v5 cash 10000", sz, decl="default_qty_type = strategy.cash, default_qty_value = 10000", ver=5,
+               extras=[("X01_open_size_0", "strategy.opentrades > 0 ? strategy.opentrades.size(0) : na"),
+                       ("X02_close", "close")]))
+    s.append(P("q-s1a-size-v4", "Q-S1a", "v4 default size with none declared (position_size only: v4 has no opentrades.size)", sz, decl="", ver=4,
+               extras=[("X02_close", "close")]))
+    v2body = '''{SC}
+strategy.entry("L", strategy.long, when = up)
+strategy.close("L", when = dn)'''
+    s.append(P("q-s1a-size-v2", "Q-S1a", "v2 default size with none declared (v2 has no `if`: `when` only)", v2body, decl="", ver=2,
+               extras=[("X02_close", "close")]))
+    # Q-S1b: capital and pyramiding defaults, per version
+    two = '''{SC}
+if up
+    strategy.entry("L1", strategy.long)
+if strategy.position_size > 0 and bar_index % 4 == 0
+    strategy.entry("L2", strategy.long)
+if dn
+    strategy.entry("S", strategy.short)'''
+    for v, nm in ((4, "v4"), (5, "v5"), (6, "v6")):
+        ex = [("X01_initial_capital", "strategy.initial_capital")]
+        if v >= 5:
+            ex.append(("X02_open_size_0", "strategy.opentrades > 0 ? strategy.opentrades.size(0) : na"))
+        s.append(P(f"q-s1b-defaults-{nm}", "Q-S1b", f"{nm} capital, margin and pyramiding defaults; the reversal", two, decl="", ver=v, extras=ex))
+    # C. new rule pins
+    s.append(P("d1-v6-defaults", "W9-D1", "v6 margin and leverage defaults (nothing declared)", LONGS, decl="", ver=6,
+               extras=[("X01_margin_liquidation_price", "strategy.margin_liquidation_price"), ("X02_initial_capital", "strategy.initial_capital")]))
+    s.append(P("d1-margin50", "W9-D1", "margin 50 on both sides", LONGS, decl=FIXED1 + ", margin_long = 50, margin_short = 50",
+               extras=[("X01_margin_liquidation_price", "strategy.margin_liquidation_price")]))
+    s.append(P("d2-currency", "W9-D2", "an account currency other than the symbol's", LONGS, decl=FIXED1 + ", currency = currency.EUR",
+               extras=[("X01_initial_capital", "strategy.initial_capital")]))
+    s.append(P("k1-commission-pct", "W9-K1", "commission, percent", LONGS, decl=FIXED1 + ", commission_type = strategy.commission.percent, commission_value = 0.1"))
+    s.append(P("k2-commission-contract", "W9-K2", "commission, cash per contract", LONGS, decl=FIXED1 + ", commission_type = strategy.commission.cash_per_contract, commission_value = 1.5"))
+    s.append(P("k3-commission-order", "W9-K3", "commission, cash per order", LONGS, decl=FIXED1 + ", commission_type = strategy.commission.cash_per_order, commission_value = 5"))
+    s.append(P("k4-slippage", "W9-K4", "slippage in ticks on market orders", LONGS, decl=FIXED1 + ", slippage = 3"))
+    s.append(P("p1-on-close", "W9-P1", "process_orders_on_close: timing, a bracket on the entry bar, a pyramided add, a close, with costs", '''{SC}
+if up
+    strategy.entry("L1", strategy.long)
+    strategy.exit("X", "L1", profit = 400, loss = 300)
+if strategy.position_size > 0 and bar_index % 5 == 0
+    strategy.entry("L2", strategy.long)
+if dn
+    strategy.close_all()''', decl=FIXED1 + ", pyramiding = 2, process_orders_on_close = true, commission_type = strategy.commission.percent, commission_value = 0.05, slippage = 2"))
+    s.append(P("p1b-on-close-fills", "W9-P1b", "process_orders_on_close with calc_on_order_fills: the re-run order", LONGS, decl=FIXED1 + ", process_orders_on_close = true, calc_on_order_fills = true",
+               extras=[("X01_run_counter", "_runs")], notes=["A counter that does not move on a re-run is itself the answer."]) | {"body": "varip int _runs = 0\n_runs += 1\n" + LONGS})
+    s.append(P("p2-order-fills", "W9-P2", "calc_on_order_fills", LONGS, decl=FIXED1 + ", calc_on_order_fills = true",
+               extras=[("X01_run_counter", "_runs")]) | {"body": "varip int _runs = 0\n_runs += 1\n" + LONGS})
+    # 2026-11-08 capture-queue hygiene: W9-P1b / W9-P2 WITHOUT `varip`. The two probes above count re-runs with a
+    # `varip` counter, and rule 11 refuses `varip` in broker mode (docs/pine/evidence/2026-11-08-w9-t6/EVIDENCE.md:
+    # "our side of the grade waits on T5 and on a `varip`-free variant"), so their capture could never grade. These
+    # keep the question (does a fill re-run the bar, and where do orders the re-run places fill) and witness the
+    # re-run by its ORDERS: L2 is placed only once a position is open, so a re-run on L1's fill places it on L1's
+    # own bar. The `varip` originals stay generated, byte for byte, and are disposed of in the queue doc (held).
+    pyr_add = """{SC}
+if up
+    strategy.entry("L1", strategy.long, comment = "e1")
+if strategy.position_size > 0 and strategy.opentrades == 1
+    strategy.entry("L2", strategy.long, comment = "e2")
+if dn
+    strategy.close_all(comment = "xall")"""
+    pyr_add_x = [("X01_open0_entry_bar", "strategy.opentrades > 0 ? strategy.opentrades.entry_bar_index(0) : na"),
+                 ("X02_open1_entry_bar", "strategy.opentrades > 1 ? strategy.opentrades.entry_bar_index(1) : na"),
+                 ("X03_open1_entry_price", "strategy.opentrades > 1 ? strategy.opentrades.entry_price(1) : na")]
+    s.append(P("p1b-on-close-fills-nv", "W9-P1b", "process_orders_on_close with calc_on_order_fills: does L1's fill AT THE CLOSE "
+               "re-run the bar, and does the add that re-run places fill at that close or at the next open (no varip)", pyr_add,
+               decl=FIXED1 + ", pyramiding = 2, process_orders_on_close = true, calc_on_order_fills = true", extras=pyr_add_x,
+               notes=["No varip (rule 11 refuses it in broker mode). The re-run is witnessed by L2: placed only once a position is open.",
+                      "X02 == X01: the re-run's add filled at L1's own close. X02 == X01 + 1 with X03 at that bar's CLOSE: no re-run (POC fills at the close);",
+                      "X02 == X01 + 1 with X03 at that bar's OPEN: a re-run whose add waited for the open. A bar whose open equals its close cannot tell those two apart.",
+                      "W9-P1b's varip twin is held (superseded)."]))
+    s.append(P("p2-order-fills-nv", "W9-P2", "calc_on_order_fills on history: does L1's fill tick run an extra execution, and "
+               "where does the add it places fill: on L1's bar (the next path tick) or at the next open (no varip)", pyr_add,
+               decl=FIXED1 + ", pyramiding = 2, calc_on_order_fills = true", extras=pyr_add_x,
+               notes=["No varip (rule 11 refuses it in broker mode). The extra execution is witnessed by L2: placed only once a position is open.",
+                      "X02 == X01: an extra execution ran on L1's fill tick and its add filled on L1's bar (B-FILLS as served: from the next tick).",
+                      "X02 == X01 + 1 (X03 at that bar's open) says only that the add did not fill on L1's bar: either no extra execution ran, or one ran",
+                      "and its add waited for the next open. This probe cannot tell those two apart; either one refutes B-FILLS as served. W9-P2's varip twin is held."]))
+    s.append(P("p3-every-tick-history", "W9-P3", "calc_on_every_tick on history", LONGS, decl=FIXED1 + ", calc_on_every_tick = true"))
+    s.append(P("x1-trail", "W9-X1", "a trailing exit", '''{SC}
+if up
+    strategy.entry("L", strategy.long)
+if strategy.position_size > 0
+    strategy.exit("T", "L", trail_points = 400, trail_offset = 200)
+if dn
+    strategy.close_all()''', decl=FIXED1))
+    s.append(P("x2-partial", "W9-X2", "partial exits by qty_percent", '''{SC}
+if up
+    strategy.entry("L", strategy.long, qty = 4)
+if strategy.position_size > 0
+    strategy.exit("P1", "L", qty_percent = 50, profit = 200)
+    strategy.exit("P2", "L", qty_percent = 100, profit = 500, loss = 300)
+if dn
+    strategy.close_all()''', decl=FIXED1,
+               extras=[("X01_closed0_size", "strategy.closedtrades > 0 ? strategy.closedtrades.size(0) : na"),
+                       ("X02_closed1_size", "strategy.closedtrades > 1 ? strategy.closedtrades.size(1) : na")]))
+    s.append(P("x3-oca", "W9-X3", "OCA cancel groups", '''{SC}
+if up
+    strategy.entry("A", strategy.long, oca_name = "g", oca_type = strategy.oca.cancel, limit = math.round_to_mintick(close * 0.995))
+    strategy.entry("B", strategy.short, oca_name = "g", oca_type = strategy.oca.cancel, limit = math.round_to_mintick(close * 1.005))
+if dn
+    strategy.close_all()''', decl=FIXED1))
+    s.append(P("x4-order", "W9-X4", "strategy.order, filled immediately", '''{SC}
+if up
+    strategy.order("O1", strategy.long, qty = 2)
+if dn
+    strategy.order("O2", strategy.short, qty = 2)''', decl=FIXED1,
+               extras=[("X01_open_size_0", "strategy.opentrades > 0 ? strategy.opentrades.size(0) : na")]))
+    # 2026-11-08 capture-queue hygiene: B-CANCEL had no capture row (brokerRules.js `capture: null`). Three cases,
+    # each in its own 60-bar phase so no two share a bar: (a) cancel an entry that would surely fill, on its own bar; (b) cancel an unfilled
+    # strategy.order and re-place its id later WITHOUT re-calling its exit (is the exit released, or does it bind
+    # the new order?); (c) cancel_all on the bar a bracket is bound to an open trade, beside an unfilled entry.
+    s.append(P("x5-cancel", "W9-X5", "strategy.cancel / cancel_all: an unfilled entry; an unfilled strategy.order and the exit "
+               "waiting on it (released or kept); an open trade's bracket and an unfilled entry under cancel_all", '''phase = bar_index % 60
+// (a) strategy.cancel(id) on an unfilled strategy.entry: a buy limit ABOVE the market, which fills at the next open if it lives,
+//     cancelled on the bar it is placed, so "no A trade" can only mean the cancel
+if phase == 5
+    strategy.entry("A", strategy.long, limit = math.round_to_mintick(close * 1.05), comment = "ea")
+    strategy.exit("XA", "A", profit = 400, loss = 300, comment = "xa")
+    strategy.cancel("A")
+// (b) strategy.cancel(id) on an unfilled strategy.order; the same id re-placed later, its exit NOT called again
+if phase == 20
+    strategy.order("O", strategy.long, qty = 2, limit = math.round_to_mintick(close * 0.9), comment = "eo")
+    strategy.exit("XO", "O", profit = 50, loss = 50, comment = "xo")
+if phase == 21
+    strategy.cancel("O")
+if phase == 25
+    strategy.order("O", strategy.long, qty = 2, comment = "eo2")
+// (c) strategy.cancel_all() after a bracket bound to an open trade and an unfilled entry, on the same bar
+if phase == 40
+    strategy.entry("C", strategy.long, comment = "ec")
+if phase == 41
+    strategy.exit("XC", "C", profit = 50, loss = 50, comment = "xc")
+    strategy.entry("D", strategy.long, limit = math.round_to_mintick(close * 0.9), comment = "ed")
+    strategy.cancel_all()
+// flat between the cases
+if phase == 15 or phase == 35 or phase == 55
+    strategy.close_all(comment = "flat")''', decl=FIXED1 + ", pyramiding = 2",
+               extras=[("X01_phase", "phase"),
+                       ("X02_open_size_0", "strategy.opentrades > 0 ? strategy.opentrades.size(0) : na"),
+                       ("X03_open0_entry_bar", "strategy.opentrades > 0 ? strategy.opentrades.entry_bar_index(0) : na")],
+               notes=["The exit id on each close's label answers (b) and (c): `xo` on eo2's close means the exit bound the re-placed order; "
+                      "`flat` means it was released. (c): `xc` means cancel_all left the bracket; `flat` means it cancelled it.",
+                      "Both brackets are 50 ticks wide, so a live one fills on its first bar: `flat` cannot be a bracket that was merely not reached."]))
+    s.append(P("r1-risk-allow", "W9-R1", "strategy.risk.allow_entry_in", '''strategy.risk.allow_entry_in(strategy.direction.long)
+{SC}
+if up
+    strategy.entry("L", strategy.long)
+if dn
+    strategy.entry("S", strategy.short)''', decl=FIXED1))
+    s.append(P("r1-risk-ddown", "W9-R1", "strategy.risk.max_drawdown", '''strategy.risk.max_drawdown(2, strategy.percent_of_equity)
+{SC}
+if up
+    strategy.entry("L", strategy.long)
+if dn
+    strategy.entry("S", strategy.short)''', decl=FIXED1))
+    s.append(P("r1-risk-intraday", "W9-R1i", "the intraday risk functions (method (b) variant made at capture time by range_guard.py; schedulable only after the 15-minute depth read)", '''strategy.risk.max_intraday_filled_orders(2)
+{SC}
+if up
+    strategy.entry("L", strategy.long)
+if dn
+    strategy.close_all()''', decl=FIXED1, chart="AMEX:SPY 15"))
+    # 2026-11-08 r2 (W9-T8 follow-ups, docs/pine/strategy-broker-spec.md "W9-T8"): every risk call v6, top level, literal,
+    # one per command, and nothing T8 refuses beside it (no POC, no order fills, no cost, no T7 kind). Each probe is
+    # sized so its limit IS reached on RDDT, and keeps signalling after, so the capture shows what the halt does.
+    halt_x = [("X01_signal_up", "up ? 1 : 0"), ("X02_signal_dn", "dn ? 1 : 0")]
+    s.append(P("r1b-ddown-reach", "W9-R1b", "strategy.risk.max_drawdown REACHED (cash 1500 on 100 shares): the bar it trips, "
+               "what is closed and cancelled, and that no order fills after", """strategy.risk.max_drawdown(1500, strategy.cash)
+{SC}
+if up
+    strategy.entry("L", strategy.long, comment = "el")
+    strategy.entry("P", strategy.long, limit = math.round_to_mintick(close * 0.9), comment = "ep")
+if dn
+    strategy.close_all(comment = "xall")""", decl="default_qty_type = strategy.fixed, default_qty_value = 100, pyramiding = 2",
+               extras=halt_x + [("X03_equity", "strategy.equity")],
+               notes=["W9-R1's ddown probe (2% of 100,000 on 1 share) can never reach its limit; this one is sized to.",
+                      "After the trip: X01/X02 keep signalling; a fill after it (S06 moving) means no halt. The close's label names the risk close.",
+                      "P is a pending far limit beside each entry: whether the trip cancels it shows as P never filling after."]))
+    s.append(P("r2-intraday-loss", "W9-R2", "strategy.risk.max_intraday_loss REACHED (cash 300 on 100 shares): the trip, the close, "
+               "and whether trading resumes the next day (on 1D: the next bar)", """strategy.risk.max_intraday_loss(300, strategy.cash)
+{SC}
+if up
+    strategy.entry("L", strategy.long, comment = "el")
+if dn
+    strategy.entry("S", strategy.short, comment = "es")""", decl="default_qty_type = strategy.fixed, default_qty_value = 100",
+               chart="NYSE:RDDT 1D and AMEX:SPY 15", extras=halt_x + [("X03_dayofmonth", "dayofmonth")],
+               notes=["Two charts. RDDT 1D: what a DAY is on a daily chart. AMEX:SPY 15: the intraday case the command is named for;",
+                      "that capture waits on the 15-minute depth read on the rig's plan (D4 not decided), as W9-R1i does."]))
+    s.append(P("r3-cons-loss-days", "W9-R3", "strategy.risk.max_cons_loss_days REACHED (2 days): which days count as a loss, the trip, "
+               "and that trading stops for good", """strategy.risk.max_cons_loss_days(2)
+{SC}
+if up
+    strategy.entry("L", strategy.long, comment = "el")
+if dn
+    strategy.entry("S", strategy.short, comment = "es")""", decl="default_qty_type = strategy.fixed, default_qty_value = 100",
+               extras=halt_x + [("X03_equity", "strategy.equity")],
+               notes=["Always in the market (a reversal on each signal), so every bar is a day with a P&L; X03 shows each day's equity."]))
+    s.append(P("r4-position-size", "W9-R4", "strategy.risk.max_position_size 3: an entry that would exceed it is reduced, and one "
+               "that cannot be reduced is not placed", """strategy.risk.max_position_size(3)
+{SC}
+if up
+    strategy.entry("A", strategy.long, qty = 2, comment = "ea")
+if strategy.position_size > 0 and bar_index % 3 == 0
+    strategy.entry("B", strategy.long, qty = 2, comment = "eb")
+if strategy.position_size > 0 and bar_index % 5 == 0
+    strategy.entry("C", strategy.long, qty = 2, comment = "ec")
+if dn
+    strategy.close_all(comment = "xall")""", decl="default_qty_type = strategy.fixed, default_qty_value = 1, pyramiding = 3",
+               extras=[("X01_open0_size", "strategy.opentrades > 0 ? strategy.opentrades.size(0) : na"),
+                       ("X02_open1_size", "strategy.opentrades > 1 ? strategy.opentrades.size(1) : na"),
+                       ("X03_open2_size", "strategy.opentrades > 2 ? strategy.opentrades.size(2) : na")],
+               notes=["A (2) then B (2, reduced to 1?) then C (2, not placed at size 3?): X01-X03 and S03 read the answer."]))
+    for state, flag in (("off", "false"), ("on", "true")):
+        s.append(P(f"m1-magnifier-{state}", "W9-M1", f"use_bar_magnifier = {flag} (DEFERRED)", '''{SC}
+if up
+    strategy.entry("L", strategy.long)
+if strategy.position_size > 0
+    strategy.exit("X", "L", profit = 300, loss = 300)
+if dn
+    strategy.close_all()''', decl=FIXED1 + f", use_bar_magnifier = {flag}"))
+    s.append(P("v1-values", "W9-V1", "the strategy.* values outside S1's set; position_entry_name by label", LONGS, decl=FIXED1,
+               extras=[("X01_avg_trade", "strategy.avg_trade"), ("X02_avg_winning_trade", "strategy.avg_winning_trade"),
+                       ("X03_avg_losing_trade", "strategy.avg_losing_trade"), ("X04_max_drawdown", "strategy.max_drawdown"),
+                       ("X05_max_runup", "strategy.max_runup"), ("X06_grossprofit", "strategy.grossprofit"),
+                       ("X07_grossloss", "strategy.grossloss"), ("X08_wintrades", "strategy.wintrades"),
+                       ("X09_losstrades", "strategy.losstrades"), ("X10_eventrades", "strategy.eventrades"),
+                       ("X11_max_contracts_held_all", "strategy.max_contracts_held_all"),
+                       ("X12_initial_capital", "strategy.initial_capital")],
+               notes=["A label per entry carries strategy.position_entry_name (see the tail of this file)."]) |
+             {"body": LONGS + '\nif strategy.position_size != nz(strategy.position_size[1])\n    label.new(bar_index, low, strategy.position_entry_name, style = label.style_label_up)'})
+    s.append(P("mk1-markers", "W9-MK1", "trade-marker presentation (read from graphics() and properties().state())", LONGS, decl=FIXED1))
+    s.append(P("s2-sharpe", "W9-S2", "Sharpe and Sortino at the default risk_free_rate", LONGS, decl=FIXED1))
+    s.append(P("s2-sharpe-rf0", "W9-S2", "Sharpe and Sortino at risk_free_rate = 0 (the second capture of the row)", LONGS, decl=FIXED1 + ", risk_free_rate = 0"))
+    return s
+
+
+S1_CORE = r'''//@version=5
+strategy("UCTPROBE_S1_BROKER", overlay = false, pyramiding = 2, default_qty_type = strategy.fixed, default_qty_value = 3, initial_capital = 100000, margin_long = 0, margin_short = 0)
+
+// S1 (2026-10-05): the broker rules docs/pine/strategy-broker-spec.md SERVES,
+// witnessed through PLOTTED broker values. Capture on NYSE:RDDT 1D (full history
+// from the listing, market closed) with `tools/vendor_harness/tv_capture.js`, and
+// ALSO export the Strategy Tester "List of trades" (entry/exit bar, price, qty,
+// profit) - docs/pine/capture-queue-2026-10-05-s1.md, Q-S1-core.
+//
+// Every price this probe hands the broker is on the tick grid (opens, or levels
+// rounded with math.round_to_mintick), every size is fixed, commission and
+// slippage are 0: nothing here touches an unsettled rule.
+
+plot(bar_index, "N01_bar_index_CONTROL")
+
+fast = ta.sma(close, 5)
+slow = ta.sma(close, 20)
+up = ta.crossover(fast, slow)
+dn = ta.crossunder(fast, slow)
+
+// market entries both ways (reversal), a pyramid add on a second signal
+if up
+    strategy.entry("L", strategy.long)
+if dn
+    strategy.entry("S", strategy.short)
+if strategy.position_size > 0 and close > open and bar_index % 7 == 0
+    strategy.entry("L", strategy.long)
+// a bracket on the long side with absolute levels on the tick grid
+if strategy.position_size > 0
+    strategy.exit("XL", "L", limit = math.round_to_mintick(strategy.position_avg_price * 1.15), stop = math.round_to_mintick(strategy.position_avg_price * 0.92))
+// a tick-distance bracket on the short side
+if strategy.position_size < 0
+    strategy.exit("XS", "S", profit = 500, loss = 300)
+// a market close on a time rule
+if bar_index % 40 == 0 and not up and not dn
+    strategy.close_all()
+
+plot(strategy.position_size, "N02_position_size")
+plot(strategy.position_avg_price, "N03_position_avg_price")
+plot(strategy.opentrades, "N04_opentrades")
+plot(strategy.closedtrades, "N05_closedtrades")
+plot(strategy.netprofit, "N06_netprofit")
+plot(strategy.equity, "N07_equity")
+plot(strategy.openprofit, "N08_openprofit")
+plot(strategy.wintrades, "N09_wintrades")
+plot(strategy.losstrades, "N10_losstrades")
+plot(strategy.grossprofit, "N11_grossprofit")
+plot(strategy.grossloss, "N12_grossloss")
+plot(strategy.closedtrades > 0 ? strategy.closedtrades.exit_price(strategy.closedtrades - 1) : na, "N13_last_exit_price")
+plot(strategy.opentrades > 0 ? strategy.opentrades.entry_bar_index(0) : na, "N14_first_open_entry_bar")
+'''
+
+
+def core_source() -> str:
+    """`s1-broker-core.pine`: S1's probe (pine/s1-strategy-broker @ 34da5eb926, the rules S1 named) with the
+    standard set appended. S1's N02..N14 are kept as the row's fields beyond std."""
+    return S1_CORE.rstrip("\n") + "\n\n" + std_block(5) + "\n"
+
+
+def all_files() -> dict:
+    files = {f"w9-{sp['name']}.pine": build(sp) for sp in specs()}
+    core = core_source()
+    files["s1-broker-core.pine"] = core
+    guarded, _ = range_guard.rewrite(core.replace("UCTPROBE_S1_BROKER", "UCTPROBE_S1_BROKER_RANGE", 1), RANGE_X_MS, RANGE_Y_MS)
+    files["s1-broker-core-range.pine"] = guarded
+    return files
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--check", action="store_true")
+    a = ap.parse_args(argv)
+    bad = 0
+    for name, text in sorted(all_files().items()):
+        path = PROBES / name
+        if a.check:
+            if not path.exists() or path.read_bytes().replace(b"\r\n", b"\n") != text.encode("utf-8"):
+                print(f"DIFFERS {name}")
+                bad += 1
+        else:
+            path.write_bytes(text.encode("utf-8"))
+    if a.check:
+        print(f"{'FAIL' if bad else 'OK'}: {len(all_files())} probes, {bad} differ")
+    return 1 if bad else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

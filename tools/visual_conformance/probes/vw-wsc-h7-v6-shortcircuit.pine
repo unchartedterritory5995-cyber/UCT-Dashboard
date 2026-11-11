@@ -1,0 +1,22 @@
+//@version=6
+indicator("UCTPROBE_VW_WSC_H7_V6_SHORTCIRCUIT", overlay = false, max_bars_back = 5000)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme, capture queue row H7
+// (docs/pine/capture-queue-2026-10-31-wsc-history.md section Q3). NEVER COMPILED ON TRADINGVIEW.
+// Pine v6 evaluates `and` / `or` lazily. Is the right operand's history then per RUN (the bars where
+// the left side did not decide the answer: `cond` true for `and`, false for `or`) or per bar?
+//   S01  cond and ta.rising(close, 2)
+//   S02  cond or ta.crossover(close, ta.sma(close, 5))
+//   E*   the right operands on every bar, and the test, for the reference
+// (vw-andor-history B05 asks S01 beside other rows; this file isolates the two shapes the row names.)
+// CHART: the row names none (the queue marks it NEEDS_CHART); vw-andor-history was written for
+// NYSE:RDDT 1D from the listing.
+
+cond = close > open
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(cond ? 1 : 0, "A01_cond_CONTROL")
+plot(ta.rising(close, 2) ? 1 : 0, "E01_rising2_every_bar")
+plot(ta.crossover(close, ta.sma(close, 5)) ? 1 : 0, "E02_crossover_every_bar")
+plot(cond and ta.rising(close, 2) ? 1 : 0, "S01_cond_and_rising2")
+plot(cond or ta.crossover(close, ta.sma(close, 5)) ? 1 : 0, "S02_cond_or_crossover")

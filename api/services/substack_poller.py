@@ -12,7 +12,7 @@ import re
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlencode, urlsplit, urlunsplit
 
 import requests
 
@@ -130,13 +130,13 @@ def parse_feed(xml_text: str, publication_id=None) -> list[dict]:
 
 # ── Archive API (full history) ──────────────────────────────────────────────────
 # Substack's RSS /feed only returns the ~20 most recent posts. The archive API
-# (/api/v1/archive?sort=new&offset=N&limit=L) paginates the ENTIRE back-catalog
+# (/api/v1/archive?sort=new&limit=L&cursor=C) paginates the ENTIRE back-catalog
 # and reliably carries cover_image + post_date, so we use it as the primary
 # source and keep RSS as a fallback.
 
-# Substack silently caps the archive `limit` at ~12 (asking for 50 returns a
-# short page; 100 errors). Request 12 and advance by the ACTUAL batch size so a
-# short page never ends pagination prematurely — only an empty page does.
+# Substack rejects `offset` and any `limit` above 12 with a 400. The body is
+# {"posts": [...], "nextCursor": "..."}; only a missing cursor ends the walk, so
+# a short page never ends pagination prematurely.
 _ARCHIVE_PAGE = 12          # items per request (Substack's effective max)
 _ARCHIVE_MAX = 2000         # safety cap on total posts pulled per publication
 
@@ -206,19 +206,25 @@ def fetch_archive(feed_url: str, publication_id=None, max_posts: int = _ARCHIVE_
     if not base:
         return []
     posts: list[dict] = []
-    offset = 0
-    while offset < max_posts:
-        url = f"{base}/api/v1/archive?sort=new&offset={offset}&limit={_ARCHIVE_PAGE}"
+    cursor = None
+    while len(posts) < max_posts:
+        params = {"sort": "new", "limit": _ARCHIVE_PAGE}
+        if cursor:
+            params["cursor"] = cursor
+        url = f"{base}/api/v1/archive?{urlencode(params)}"
         resp = requests.get(url, headers=_HEADERS, timeout=_TIMEOUT)
         resp.raise_for_status()
-        batch = resp.json()
-        if not isinstance(batch, list) or not batch:
-            break
+        page = resp.json()
+        batch = page.get("posts") if isinstance(page, dict) else None
+        if not isinstance(batch, list):
+            # Raise rather than return a partial roster: the caller's RSS
+            # fallback is what keeps new posts arriving if Substack moves again.
+            raise ValueError("unrecognised archive response")
         posts.extend(parse_archive_items(batch, publication_id=publication_id))
-        # Advance by the actual batch size (Substack may return fewer than asked).
-        offset += len(batch)
-        if len(batch) < _ARCHIVE_PAGE:
-            break  # final (partial) page — no more posts
+        next_cursor = page.get("nextCursor")
+        if not batch or not next_cursor or next_cursor == cursor:
+            break
+        cursor = next_cursor
     return posts
 
 

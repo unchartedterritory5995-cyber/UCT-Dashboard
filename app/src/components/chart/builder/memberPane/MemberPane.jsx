@@ -40,6 +40,7 @@
 // HANDED, never about pixels. Whether four series actually paint, whether Scale
 // Padding is invisible and scale-setting, and whether the sub-pane is a quarter
 // high are SCREENSHOT questions and are owed against the real chart.
+import { withoutGuardIds } from '../../engine/ast/guardIdText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import ChartPane from '../../pane/ChartPane'
 import * as engineRegistry from '../../engine/nativeRegistry'
@@ -259,7 +260,7 @@ export default function MemberPane({
   // this renders it verbatim rather than inventing a second wording.
   if (built && !built.ok) {
     return (
-      <div data-testid="pine-member-pane-refusal" role="status">{built.reason}</div>
+      <div data-testid="pine-member-pane-refusal" role="status">{withoutGuardIds(built.reason)}</div>
     )
   }
   if (!stored) return null
@@ -288,7 +289,7 @@ export default function MemberPane({
           in `closedTable.json::_alertconditions`. */}
       {disclosures.length > 0 && (
         <ul data-testid="pine-member-pane-notes" className={styles.notes}>
-          {disclosures.map((n) => <li key={n.name}>{n.note}</li>)}
+          {disclosures.map((n) => <li key={n.name}>{withoutGuardIds(n.note)}</li>)}
         </ul>
       )}
       {/* ⭐⭐ T5b — THE ONE CONTROL THAT LEAVES THE HARNESS. Present only when a

@@ -426,3 +426,59 @@ describe('C44 — the pairing: `na` is `na` on both sides, and only an object NO
     expect(pairObjects(capture([vbox(1, 10, 5)]), { held: [box(1, 10, 5, '#FF0000')] }).unpaired).toEqual({ ours: 0, vendor: 0 })
   })
 })
+
+// ─── ⭐ 2026-11-09 — the Vdubus "alpha 00 vs ff" was the PAIRING, not the colour ─────
+// `vdubus-pattern-gen-v2-restored-refined-spy-1d-2026-10-03` (triage COL): 2 of 272
+// line slots read vendor `#ff9800ff`, ours `#ff980000`. The script draws each leg
+// twice on one pair of prices — the visible line (`color = col`, width 1 or 2) and a
+// fill helper (`color.new(col, 100)`, width 0) — and both platforms colour both
+// correctly. Lines paired by prices alone met our helper with TradingView's visible
+// leg. `pairObjects` now prefers the line of the same WIDTH among same-price ones.
+// ⭐ RE-PINNED 2026-11-09 (fix/pine-c44-repin, engine 42) — DIV-1
+// (`fix/pine-harness-warm-history` 6891e3fe54) grades over the capture's deeper warm
+// history, so our side holds more objects and their ids moved: 452 paired line
+// slots (was 272), and the price-only pairing now mis-pairs lines #2154, #2162 and
+// #2786 (was #35, #356). Re-measured on the merged tree; the intent is unchanged.
+const LINE_SLOTS = 452
+const OLD_PAIRING_DIFFERS = ['line #2154', 'line #2162', 'line #2786']
+const HELPER_ID = 2154 // a width-0 fill helper the old pairing met with a visible leg
+describe('⭐ 2026-11-09 · lines at one pair of prices pair by width, so a fill helper meets a fill helper', () => {
+  const ID = 'vdubus-pattern-gen-v2-restored-refined-spy-1d-2026-10-03'
+  let graded
+  // the deeper DIV-1 replay grades in ~10-20 s on this box: an explicit ceiling, as b1Paints sets
+  beforeAll(() => { graded = gradeCapture(load(ID)) }, 120000)
+  const linesRow = (v) => v.objects.colours.find((r) => r.family === 'lines colour')
+
+  it(`every one of the ${LINE_SLOTS} paired line slots agrees in colour (price-only pairing: ${OLD_PAIRING_DIFFERS.length} differ)`, () => {
+    const row = linesRow(graded.verdict)
+    expect(row).toMatchObject({ slots: LINE_SLOTS, agreeing: LINE_SLOTS, differing: 0 })
+  })
+
+  it('the helper lines really are alpha 00 on BOTH sides: `color.new(col, 100)` is honoured, not defaulted', () => {
+    const helpers = graded.ours.objects.held.filter((o) => o.family === 'line' && o.props.width === 0)
+    expect(helpers.length).toBeGreaterThan(0)
+    for (const o of helpers) expect(String(o.props.color).slice(-2).toUpperCase(), `line #${o.id}`).toBe('00')
+    const rows = pairObjects(load(ID), graded.ours.objects).rows.filter((r) => r.kind === 'line')
+    const byId = new Map(rows.map((r) => [Number(r.where.replace('line #', '')), r]))
+    for (const o of helpers) if (byId.has(o.id)) expect(byId.get(o.id).vendor.slice(-2), `line #${o.id}`).toBe('00')
+  })
+
+  it('🔴 CONTROL — the width preference cannot hide a wrong colour: an opaque helper still differs', () => {
+    const objects = clone(graded.ours.objects)
+    const helper = objects.held.find((o) => o.id === HELPER_ID)
+    expect(helper.props).toMatchObject({ width: 0 })
+    expect(String(helper.props.color).slice(-2).toUpperCase()).toBe('00')
+    helper.props.color = String(helper.props.color).slice(0, 7)    // the same RGB, opaque
+    const rows = pairObjects(load(ID), objects).rows.filter((r) => r.where === `line #${HELPER_ID}`)
+    expect(rows).toHaveLength(1)
+    expect(rows[0].state).toBe('carriedDiffers')
+  })
+
+  it('🔴 CONTROL — with no width to prefer, the pairing is the old one, and its mis-paired slots differ again', () => {
+    const objects = clone(graded.ours.objects)
+    for (const o of objects.held) if (o.family === 'line') delete o.props.width
+    const differing = pairObjects(load(ID), objects).rows
+      .filter((r) => r.kind === 'line' && r.state !== 'agree' && r.state !== 'agreeByDefault')
+    expect(differing.map((r) => r.where).sort()).toEqual(OLD_PAIRING_DIFFERS)
+  })
+})

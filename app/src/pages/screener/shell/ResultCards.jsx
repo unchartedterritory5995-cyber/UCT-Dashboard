@@ -9,6 +9,10 @@ import { useFlagged } from '../../../hooks/useFlagged'
 import { COLUMN_DEFS } from '../columnDefs'
 import { REQUIRED_COLS } from './useScreenSpec'
 import styles from './ScannerShell.module.css'
+import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
+
+// The joystick's footprint above the safe area: its pad's offset plus its height.
+const HUB_BAND_PX = BOTTOM_OFFSET_PX + PAD_PX
 
 // The phone door: a virtualized card list. Line 1 = live dot + ticker + company
 // + price/chg (live-overlaid). Line 2 = the first THREE visible non-required
@@ -39,6 +43,9 @@ const ResultCards = forwardRef(function ResultCards({ rows, columns, livePrices,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 64,
     overscan: 8,
+    // B10: the list's last 152 px sit under the joystick's band (ScannerShell.module.css pads
+    // the scroller by the same sum), so a cursor step scrolls its card to just above it.
+    scrollPaddingEnd: HUB_BAND_PX,
     ...(virtualOpts || {}),
   })
 

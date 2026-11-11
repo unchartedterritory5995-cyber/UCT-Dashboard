@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom'
 import { AuthContext } from '../../../context/AuthContext'
 import useScreenerMeta from '../hooks/useScreenerMeta'
 import useScreenerScan from '../hooks/useScreenerScan'
+import { LIVE_REFRESH_MS } from '../hooks/liveRefresh'
 import useScreenerCount from '../hooks/useScreenerCount'
 import useSavedScreens from '../hooks/useSavedScreens'
 import useScreenSpec, { REQUIRED_COLS } from '../shell/useScreenSpec'
@@ -54,9 +55,8 @@ import useNewToday from './useNewToday'
 import { activeStructures, structureLabels, structureDescs } from './setupLine'
 import { plainColumnLabel } from './plainWords'
 import { sortableColumns } from './sortKeys'
-import { capToTopN, poolOf, withPool } from './counts'
-import useLazyCounts from './useLazyCounts'
-import { pickLanding, sameScreen, readLandingSeed, writeLandingSeed } from './landing'
+import { capToTopN, poolOf } from './counts'
+import { defaultLanding, sameScreen, readLandingSeed, writeLandingSeed, readLastScreen, writeLastScreen } from './landing'
 import { livePriceOf } from './livePrice'
 import ChartPane from './ChartPane'
 import PhoneChartSheet from './PhoneChartSheet'
@@ -77,6 +77,7 @@ import {
   saveFrozenList, saveStandingAlert, saveToNotebook,
 } from './focusActions'
 import styles from './FocusScreener.module.css'
+import { useScreenerAgentHost } from '../../../agent/hosts/usePageAgentHosts'
 
 // Every column the list, the chart header and the setup line read. Each must be a
 // real snapshot column: the scan refuses an unknown one with a 400. `bars_asof` (in
@@ -90,6 +91,7 @@ const POOL_KEYS = ['universe', 'list']
 const TOAST_MS = 4500
 // How long a bare first open waits for the saved screens and the member's preferences before
 // landing with whatever has answered (the whole universe if neither has).
+// (A last-used screen does not wait for anything; the wait only bounds a first-timer's reads.)
 const LANDING_WAIT_MS = 3000
 const readLS = (k, d) => { try { return localStorage.getItem(k) ?? d } catch { return d } }
 const writeLS = (k, v) => { try { localStorage.setItem(k, v) } catch { /* private mode */ } }
@@ -192,11 +194,15 @@ function FocusList({ mode, onMode }) {
   // lands (an answer for A arriving after the member moved to B is A's, not B's).
   const askedBy = useRef(new WeakMap())
   const scanSpec = useMemo(() => {
-    const sp = { ...s.scanSpec, columns, ...(retryNonce ? { _retry: retryNonce } : {}) }
+    // `columns` always goes last: the hook keys on this object's JSON, and useScreenSpec only
+    // puts `columns` in its spec once the filter registry has answered, so a registry answering
+    // after the landing scan otherwise reorders the JSON and asks the same screen again.
+    const { columns: _registryColumns, ...base } = s.scanSpec
+    const sp = { ...base, columns, ...(retryNonce ? { _retry: retryNonce } : {}) }
     askedBy.current.set(sp, { sig: screenSig, filters: s.filters, logic: s.logic, rank: s.rank, baseSpec: s.baseSpec })
     return sp
   }, [s.scanSpec, columns, retryNonce, screenSig, s.filters, s.logic, s.rank, s.baseSpec])
-  const { result, answeredSpec, isLoading, error } = useScreenerScan(landed ? scanSpec : null, { leading: true })
+  const { result, answeredSpec, isLoading, error } = useScreenerScan(landed ? scanSpec : null, { leading: true, refreshMs: LIVE_REFRESH_MS })
   const { count, isLoading: countLoading, error: countError } = useScreenerCount(landed ? s.baseSpec : null)
 
   // Each new scan answer is folded in ONCE, during render (React's "adjust state when an
@@ -540,26 +546,29 @@ function FocusList({ mode, onMode }) {
     setPinned(next); writeLS(PIN_KEY, JSON.stringify(next))
   }
   const applyScreen = (spec, item) => { ed.applySpec(spec); setCurrent({ id: item.id, name: item.name, kind: item.kind, spec }) }
-  // ── landing (owner decision 1, Perf 3) ─────────────────────────────────
-  // A bare first open (no spec, no door, no filter set) lands on the first pinned screen with at
-  // least LANDING_MIN_MATCHES matches, else the first pinned screen, through the same path the
-  // screen menu uses. The scan and the count stay held (`landed`) until that choice is made, so
-  // the page never asks for the whole universe first. The choice reads the batch counts the
-  // screen menu shares, and is bounded by LANDING_WAIT_MS: past it, an unanswered count no longer
-  // holds the page (it lands on the first pinned screen).
-  //  · Perf 3: the pinned screens as the server last answered them are kept in localStorage, so
-  //    the counts and the scan start at once instead of after the saved screens and prefs. When
-  //    the server answers, its choice replaces the seeded one, unless the member has already
-  //    pressed a key or the pointer, or scrolled, anywhere on the page (or the spec moved by any
-  //    other door). The seed is per member, and the switch is bounded by the same cap: a server
-  //    answer that lands after LANDING_WAIT_MS never moves the screen under the member.
-  //  · Without a seed the choice waits for the saved screens AND the prefs Pinned is migrated from.
+  // A screen the member chose is the one the next open lands on. Landing itself goes through
+  // applyScreen, so a member who only ever landed is still a first-timer.
+  const chooseScreen = (spec, item) => { writeLastScreen(uid, { ...item, spec }); applyScreen(spec, item) }
+  // ── landing (owner decision 2026-11-10, Perf 3) ────────────────────────
+  // A bare first open (no spec, no door, no filter set) lands at once: on the member's last-used
+  // screen, or on the first pinned screen for a first-timer. No count is waited on; the screen
+  // count and the menu's counts arrive into a page already showing its list.
+  //  · A last-used screen starts immediately, from localStorage. When the server answers it stands
+  //    unless the member has already acted or that screen no longer exists (then the default).
+  //  · Perf 3: the pinned screens as the server last answered them are kept in localStorage, so a
+  //    first-timer on a known browser also starts at once. When the server answers, its first
+  //    pinned screen replaces the seeded one unless the member has already pressed a key or the
+  //    pointer, or scrolled (or the spec moved by any other door). The seed is per member, and
+  //    the switch is bounded by LANDING_WAIT_MS: a later answer never moves the screen.
+  //  · With neither, the choice waits for the saved screens AND the prefs Pinned is migrated from.
   const [landPhase, setLandPhase] = useState(() => (arrivedBare.current ? 'pick' : 'final')) // 'pick' | 'reconcile' | 'final'
   const landedOn = useRef(null)
   const seedKept = useRef(false)   // the screen on view was chosen from the seed and kept
   const touched = useRef(false)
   const uid = useContext(AuthContext)?.user?.id
   const seedItems = useMemo(() => (arrivedBare.current ? readLandingSeed(uid) : null), []) // eslint-disable-line react-hooks/exhaustive-deps -- read once, at mount
+  const lastUsed = useMemo(() => (arrivedBare.current ? readLastScreen(uid) : null), []) // eslint-disable-line react-hooks/exhaustive-deps -- read once, at mount
+  const landedFromLast = useRef(false)
   const serverReady = savedLoaded && (!prefsLoading || landingWaitOver)
   const serverAnswered = savedLoaded && !prefsLoading
   const serverItems = useMemo(() => effectivePinned.map(id => {
@@ -572,49 +581,74 @@ function FocusList({ mode, onMode }) {
   useEffect(() => { if (serverAnswered) writeLandingSeed(uid, serverItems) }, [serverAnswered, uid, serverItems])
   const landingItems = landPhase === 'pick' ? (serverReady ? serverItems : seedItems)
     : landPhase === 'reconcile' && serverAnswered ? serverItems : null
-  const landPoolKey = JSON.stringify(poolOf(s.baseSpec))
-  // Each pinned screen is counted where it would run (the screen menu's rule, so the cache is shared).
-  const landingSpecs = useMemo(() => Object.fromEntries((landingItems || []).map(it => [String(it.id), withPool(it.spec, JSON.parse(landPoolKey))])),
-    [landingItems, landPoolKey])
-  const landingCounts = useLazyCounts(landingSpecs, !!landingItems?.length)
-  const countOf = id => capToTopN(landingCounts[String(id)], landingSpecs[String(id)])
   useEffect(() => {
     if (landPhase === 'final') return
     if (landPhase === 'pick') {
       // A member who already chose a screen or set a filter wins.
       if (current || Object.keys(s.filters).some(k => s.filters[k] && !POOL_KEYS.includes(k))) { setLanded(true); setLandPhase('final'); return }
+      if (lastUsed) {
+        setLanded(true)
+        applyScreen(lastUsed.spec || { filters: [] }, lastUsed)
+        landedOn.current = lastUsed
+        landedFromLast.current = true
+        seedKept.current = true
+        setLandPhase('reconcile')
+        return
+      }
       if (!landingItems) { if (landingWaitOver) { setLanded(true); setLandPhase('final') } return }
-      const r = pickLanding(landingItems, countOf, landingWaitOver)
-      if (!r.done) return
+      const hit = defaultLanding(landingItems)
       setLanded(true)
-      if (r.hit) applyScreen(r.hit.spec || { filters: [] }, r.hit)
-      landedOn.current = r.hit
-      seedKept.current = !serverReady && !!r.hit
-      setLandPhase(serverReady || !r.hit ? 'final' : 'reconcile')
+      if (hit) applyScreen(hit.spec || { filters: [] }, hit)
+      landedOn.current = hit
+      seedKept.current = !serverReady && !!hit
+      setLandPhase(serverReady || !hit ? 'final' : 'reconcile')
       return
     }
-    // reconcile: the seeded choice stands once the member has touched the page or the spec moved.
+    // reconcile: the choice stands once the member has touched the page or the spec moved.
     const was = landedOn.current
     if (touched.current || landingWaitOver || normalSpec(s.baseSpec) !== normalSpec(was.spec)) { setLandPhase('final'); return }
-    if (!landingItems) return
-    const r = pickLanding(landingItems, countOf, landingWaitOver)
-    if (!r.done) return
+    if (!serverAnswered) return
     setLandPhase('final')
-    if (r.hit && !sameScreen(r.hit, was)) { seedKept.current = false; applyScreen(r.hit.spec || { filters: [] }, r.hit) }
+    // A failed read says nothing about the screen: keep it, and let the kept-screen effect look
+    // again if a later read answers.
+    if (savedError) return
+    if (landedFromLast.current) {
+      seedKept.current = false
+      const srv = [...starters, ...saved].find(it => String(it.id) === String(was.id))
+      if (!srv) {
+        const hit = defaultLanding(serverItems)
+        if (hit) applyScreen(hit.spec || { filters: [] }, hit)
+        else setCurrent(null)
+      } else if (!sameScreen(srv, was)) {
+        // Untouched, so the member sees the screen as it now is, and the next open starts there.
+        const now = { ...srv, kind: was.kind }
+        writeLastScreen(uid, now)
+        applyScreen(srv.spec || { filters: [] }, now)
+      }
+      return
+    }
+    if (!landingItems) return
+    const hit = defaultLanding(landingItems)
+    if (hit && !sameScreen(hit, was)) { seedKept.current = false; applyScreen(hit.spec || { filters: [] }, hit) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [landPhase, landingItems, landingCounts, landingWaitOver, serverReady, current, s.filters, s.baseSpec])
+  }, [landPhase, landingItems, landingWaitOver, serverReady, serverAnswered, savedError, current, s.filters, s.baseSpec, starters, saved, serverItems])
   // A seeded screen the page kept (the member touched it, or the server answered past the cap)
   // may be an OLD copy of that screen: when the server's copy under the same id has another spec,
   // the screen on view is that screen EDITED, never silently labelled as the current version.
   useEffect(() => {
-    if (landPhase !== 'final' || !seedKept.current || !serverAnswered) return
+    if (landPhase !== 'final' || !seedKept.current || !serverAnswered || savedError) return
     seedKept.current = false
     const was = landedOn.current
-    const srv = serverItems.find(it => String(it.id) === String(was?.id))
-    if (srv && !sameScreen(srv, was)) {
+    const srv = [...starters, ...saved].find(it => String(it.id) === String(was?.id))
+    if (!srv) {
+      // The screen is gone: the list stays, but nothing may keep pointing Save or Rename at it.
+      setCurrent(c => (c && String(c.id) === String(was?.id) ? null : c))
+      return
+    }
+    if (!sameScreen(srv, was)) {
       setCurrent(c => (c && String(c.id) === String(srv.id) ? { ...c, name: srv.name, spec: srv.spec || { filters: [] } } : c))
     }
-  }, [landPhase, serverAnswered, serverItems])
+  }, [landPhase, serverAnswered, starters, saved, savedError])
   const markTouched = () => { touched.current = true }
   const myScans = useMemo(() => ((meta?.filters || []).find(f => f.key === 'scan')?.scans || [])
     .filter(x => x?.def_hash).map(x => ({ hash: x.def_hash, name: x.name || 'Untitled scan' })), [meta])
@@ -675,6 +709,7 @@ function FocusList({ mode, onMode }) {
     refresh()
     if (!out.ok) { say(out.error); return }
     setCurrent(c => ({ ...c, spec: s.baseSpec }))
+    writeLastScreen(uid, { ...current, spec: s.baseSpec })
     say(`Saved changes to "${current.name}"`)
   }
   const rename = async () => {
@@ -837,6 +872,8 @@ function FocusList({ mode, onMode }) {
     )
   }
 
+  // ⭐ W2-C1: what UCT Agent may read here and the door it opens a saved screen through (applyScreen — the Screen menu's own)
+  useScreenerAgentHost({ rows, total, current, edited: isEdited, filters: Object.keys(s.filters || {}), loading: isLoading, saved, starters, applyScreen: chooseScreen, refresh })
   return (
     <div ref={pageRef} className={styles.page} data-testid="focus-screener" data-mode="list" data-density={density} onKeyDown={shortcuts.onKeyDown}
       onKeyDownCapture={markTouched} onPointerDownCapture={markTouched} onWheelCapture={markTouched} onScrollCapture={markTouched}>
@@ -848,7 +885,7 @@ function FocusList({ mode, onMode }) {
       </SkipLinkPortal>
       <FocusTopBar
         screenMenu={<ScreenMenu apiRef={screenMenuApi} landing={!landed} pool={pool} currentName={current?.name} currentId={current?.id} isEdited={isEdited} count={pending ? null : shownTotal} countPending={pending && !error}
-          starters={starters} saved={saved} pinned={effectivePinned} onTogglePin={togglePin} onApply={applyScreen}
+          starters={starters} saved={saved} pinned={effectivePinned} onTogglePin={togglePin} onApply={chooseScreen}
           onSaveChanges={current?.kind === 'saved' && isEdited ? saveChanges : null}
           onSaveAsNew={savedLoaded && !savedError ? saveAsScreen : null}
           onRename={current?.kind === 'saved' ? rename : null}

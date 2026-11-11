@@ -2049,14 +2049,8 @@ export default function OptionsFlowDashboard({ initialMode = null, initialGexTic
   const wlBearRef = useRef(null);
   const screenshotWatchlist = async () => {
     if (!wlRef.current) return;
-    let h2c = window.html2canvas;
-    if (!h2c) {
-      const s = document.createElement("script");
-      s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-      document.head.appendChild(s);
-      await new Promise(r => { s.onload = r; s.onerror = () => r(); });
-      h2c = window.html2canvas;
-    }
+    let h2c;
+    try { ({ default: h2c } = await import("html2canvas")); } catch (e) { h2c = null; }
     if (!h2c) { alert("Could not load screenshot library"); return; }
     const canvas = await h2c(wlRef.current, { backgroundColor:P.bg, scale:2, useCORS:true });
     try {
@@ -2177,14 +2171,8 @@ export default function OptionsFlowDashboard({ initialMode = null, initialGexTic
   const screenshotPushDiscord = async () => {
     setDiscordImgPushing(true);
     try {
-      let h2c = window.html2canvas;
-      if (!h2c) {
-        const s = document.createElement("script");
-        s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-        document.head.appendChild(s);
-        await new Promise(r => { s.onload = r; s.onerror = () => r(); });
-        h2c = window.html2canvas;
-      }
+      let h2c;
+      try { ({ default: h2c } = await import("html2canvas")); } catch (e) { h2c = null; }
       if (!h2c) { setStatus(<><FlowIcon name="x"/> Could not load screenshot library</>); setDiscordImgPushing(false); return; }
 
       const dateRange = FD ? FD.dateRange || "" : "";
@@ -3976,7 +3964,11 @@ export default function OptionsFlowDashboard({ initialMode = null, initialGexTic
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setMarketIndices(d.indices || []); })
       .catch(e => { console.warn("Market indices error:", e); });
-    const narrative = fetch("/api/schwab/market-narrative")
+    // ⛔ BOUNDED. While this is pending the "Generating market summary…" dot pulses, and an endless
+    // animation makes the window draw at the display rate (2026-11-10: endless animations saturated
+    // the GPU process on the Charts board). A hung request must not keep it running: 15 s, then the
+    // catch below logs it and `finally` ends the loading state.
+    const narrative = fetch("/api/schwab/market-narrative", { signal: AbortSignal.timeout(15000) })
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setMarketNarrative(d.narrative || null); })
       .catch(e => { console.warn("Narrative error:", e); })

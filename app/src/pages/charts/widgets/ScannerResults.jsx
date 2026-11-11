@@ -17,6 +17,7 @@ import { useWorkspace } from '../WorkspaceContext'
 import styles from './ScannerResults.module.css'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import { fmtScanTime, scanPerfOverride, buildScanCapture } from './captures/scannerCapture'
+import { useWidgetDoor } from '../widgetDoors'
 
 // TERM-033: a failed read THROWS (sectionFetcher). It used to resolve to `null`, which the table
 // read as "Loading…" forever. A failure with nothing to stand on now says so and points at the
@@ -238,6 +239,10 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
   )
 
   const doorLabel = scanName || 'Scan'
+  useWidgetDoor(() => ({
+    capture: () => (captureEnabled() && symbols.length > 0 ? { kind: 'scanner', capture: doorCapture(), label: doorLabel } : null),
+    about: () => (SCAN_CRITERIA[scanKey] ? `criteria: ${SCAN_CRITERIA[scanKey].join('; ')}` : null),
+  }))
   // ⛔ The door is absent, not disabled, while the scan holds nothing: an empty
   // `rows` fails the registry's own `reconstructable` predicate, so such a capture
   // could only ever render as a placeholder chip. An offer to freeze nothing is
@@ -323,6 +328,7 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
         // flagged in BOTH. WatchlistWidget and ThemesWidget always passed both. 2026-08-29.
         activeRef={activeWatchlistRef}
         widgetKey={widgetId}
+        listView={{ type: 'scanner', color, key: scanKey }}
         colStorageKey={colStorageKey}
         scanEmptyText={scanEmptyText}
         defaultColCfg={defaultColCfg}

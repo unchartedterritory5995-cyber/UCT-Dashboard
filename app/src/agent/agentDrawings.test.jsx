@@ -108,7 +108,7 @@ describe('drawing.style / drawing.remove — ONE drawing, by id', () => {
     const a = store.addDrawing(SYM, { type: 'horizontal', points: [{ price: 1 }], color: '#111111', lineWidth: 1 })
     const b = store.addDrawing(SYM, { type: 'horizontal', points: [{ price: 2 }], color: '#222222', lineWidth: 1 })
     const { p, env } = await plan(h, [op('drawing.style', { drawing: b, color: 'pink', style: 'dashed', width: null })])
-    expect(p.lines[0]).toMatch(/^Restyled the .* colour #ec4899, dashed$/)
+    expect(p.lines[0]).toMatch(/^Restyled the .* colour pink, dashed$/)
     const res = await commitPlan(h, p, { env })
     expect(drawings().find(d => d.id === b)).toMatchObject({ color: '#ec4899', lineStyle: 'dashed' })
     expect(drawings().find(d => d.id === a).color).toBe('#111111')
@@ -117,7 +117,7 @@ describe('drawing.style / drawing.remove — ONE drawing, by id', () => {
     expect(back.color).toBe('#222222')
     expect(back.lineStyle).toBe(undefined)
   })
-  it('remove: gone from the store; Undo puts back the same drawing (a new id, same type, points and style)', async () => {
+  it('remove: gone from the store; Undo puts back the same drawing (its own id, type, points and style)', async () => {
     const h = host()
     const id = store.addDrawing(SYM, { type: 'rect', points: [{ time: '2026-09-01', price: 5 }, { time: '2026-09-05', price: 6 }], color: '#abcdef', lineWidth: 2 })
     const { p, env } = await plan(h, [op('drawing.remove', { drawing: id })])

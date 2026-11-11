@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
-// Notebook P1 round 4 (re-review 2, N-M7): pressing "Save this note's setup as a style" must not make the button
+// Notebook P1 round 4 (re-review 2, N-M7): pressing "Save as template with blocks" must not make the button
 // vanish while the chunk loads, and focus must not be dropped on the page. Its own file: the gate holds the
 // surfaces module back, and a module another test already loaded would not wait.
 const gate = vi.hoisted(() => ({ promise: null }))
@@ -17,7 +17,7 @@ import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/note
 
 afterEach(() => __resetNotebookFlags())
 
-const NAME = "Save this note's setup as a style"
+const NAME = "Save as template with blocks"
 
 describe('Save this note\'s setup as a style: while its chunk loads', () => {
   it('N-M7: the button keeps its place, label and focus, then focus goes into the form', async () => {
@@ -38,9 +38,9 @@ describe('Save this note\'s setup as a style: while its chunk loads', () => {
     expect(during.getAttribute('aria-expanded')).toBe('true')
     expect(during.className).toBe(before.className)
     expect(document.activeElement).toBe(during)
-    expect(screen.queryByRole('textbox', { name: 'Style name' })).toBeNull()
+    expect(screen.queryByRole('textbox', { name: 'Template name' })).toBeNull()
     release()
-    const input = await screen.findByRole('textbox', { name: 'Style name' }, { timeout: 10000 })
+    const input = await screen.findByRole('textbox', { name: 'Template name' }, { timeout: 10000 })
     expect(document.activeElement).toBe(input)
     expect(screen.getAllByRole('button', { name: NAME })).toHaveLength(1)
   })

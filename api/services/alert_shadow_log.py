@@ -356,40 +356,50 @@ def run_shadow_cycle() -> dict[str, Any]:
     # raising compute still costs exactly its own row and the group's other rows
     # still land — that property is what let a bad ticker never abort a cycle and
     # it is not traded away for the write.
-    for (sym, tf), alerts_in_group in groups.items():
-        try:
-            # The live cycle's own sizing — a shadow run measured against a
-            # NARROWER window than production reads would be comparing two
-            # different evaluators and calling the difference a lane difference.
-            bars = ev._fetch_bars_for_alert(
-                sym, tf, max(ev.bars_needed_for_alert(a) for a in alerts_in_group))
-        except Exception:
-            _logger.exception("[alert-shadow] fetch failed for %s/%s", sym, tf)
-            summary["errors"] += 1
-            continue
-        pending: list[tuple] = []
-        for alert in alerts_in_group:
+    # ⭐ 2026-11-07 (RS fix U1, review #28) — ONE RS PASS FOR THE SHADOW CYCLE, as
+    # the live cycle has (`_run_one_cycle`). Without it every RS alert here built
+    # a pass of its own and paid its own compute; inside it the benchmark is read
+    # once per (ticker, tf) and the cross-cycle column cache is shared with the
+    # live lane (`alert_rs_series.rs_pass`).
+    from api.services import alert_rs_series
+    with alert_rs_series.rs_pass():
+        for (sym, tf), alerts_in_group in groups.items():
             try:
-                value, triggered, bar_index = ev._evaluate_one_closed(
-                    alert, bars=bars)
-                if value is None:
-                    continue
-                summary["evaluated"] += 1
-                if triggered:
-                    summary["would_trigger"] += 1
-                pending.append(_row_tuple(alert["id"], bar_index, value, triggered))
+                # The live cycle's own sizing — a shadow run measured against a
+                # NARROWER window than production reads would be comparing two
+                # different evaluators and calling the difference a lane difference.
+                bars, host_bars, runtime_ids = ev.group_bars(sym, tf, alerts_in_group)
             except Exception:
-                _logger.exception(
-                    "[alert-shadow] eval failed for alert %s", alert.get("id"))
+                _logger.exception("[alert-shadow] fetch failed for %s/%s", sym, tf)
                 summary["errors"] += 1
-        if pending:
-            try:
-                summary["written"] += shadow_record_many(pending)
-            except Exception:
-                _logger.exception(
-                    "[alert-shadow] batch write failed for %s/%s (%d row(s))",
-                    sym, tf, len(pending))
-                summary["errors"] += 1
+                continue
+            pending: list[tuple] = []
+            # ⭐ W5-T13 -- the live cycle's own grouping: one runtime request per group.
+            from api.services import alert_user_series as _aus
+            with _aus.runtime_cycle_batch([a for a in alerts_in_group if id(a) in runtime_ids],
+                                          bars, sym, tf):
+                for alert in alerts_in_group:
+                    try:
+                        value, triggered, bar_index = ev._evaluate_one_closed(
+                            alert, bars=bars if id(alert) in runtime_ids else host_bars)
+                        if value is None:
+                            continue
+                        summary["evaluated"] += 1
+                        if triggered:
+                            summary["would_trigger"] += 1
+                        pending.append(_row_tuple(alert["id"], bar_index, value, triggered))
+                    except Exception:
+                        _logger.exception(
+                            "[alert-shadow] eval failed for alert %s", alert.get("id"))
+                        summary["errors"] += 1
+            if pending:
+                try:
+                    summary["written"] += shadow_record_many(pending)
+                except Exception:
+                    _logger.exception(
+                        "[alert-shadow] batch write failed for %s/%s (%d row(s))",
+                        sym, tf, len(pending))
+                    summary["errors"] += 1
 
     # Retention rides the cycle that causes the growth — throttled, never fatal.
     summary["pruned"] = int(_maybe_prune().get("deleted") or 0)
@@ -546,6 +556,11 @@ def validate_declaration(declared: dict, addresses: Optional[Iterable[str]] = No
         # `known` set here would call the one address Task 15 added to the diff
         # 'not in the catalog' — i.e. it would refuse the declaration that closes
         # the last coverage hole, which is the opposite of what this check is for.
+        # 2026-11-06 (RS 2b-05) — and STILL three, by decision: the diff this
+        # declaration bounds never drives a CLOSED-ONLY address (`ma_cross`, the
+        # eleven `rs_line.*` — `ev.CLOSED_ONLY_ADDRESSES`), so a row naming one
+        # would declare a comparison that is not made. `tools/alert_replay.py::
+        # lane_diff`'s catalog says why; the two enumerate the same three.
         addresses = (list(ev.INDICATOR_FUNCS) + list(ev.EVENT_FUNCS)
                      + list(ev.PRICE_FUNCS))
     known = set(addresses)

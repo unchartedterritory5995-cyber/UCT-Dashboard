@@ -9,7 +9,8 @@ Reads (nothing here asks the engine anything; it joins what the door answered):
   --ref        TradingView's own Pine v6 reference (tools/pine_survey/pine_reference_extract.js)
   <cache>/sample_manifest.json + census.jsonl   (fetch_sample.py, run_census.py)
   --verdicts   a fresh vendor-harness verdicts.json over tests/fixtures/vendor/harness
-  --engine-door  doorCoverage's probe of the engine's own declared functions
+  --engine-door  doorCoverage's probe of the engine's own declared functions. Optional: left out,
+                 engineTableThroughPineDoor is empty (not measured); named but missing, refused
 
 Writes coverage-map.json: deterministic (sorted keys, no wall-clock stamp unless
 --measured-on is passed), so a daily job can recompute and DIFF it.
@@ -86,7 +87,10 @@ BUCKET_LABEL = {
     "realtime-bar-state": "Forming-bar (realtime) state",
     "builtin-missing": "A built-in name the door does not know",
     "call-mapping": "A known name whose call shape / argument order is not mapped",
-    "drawing-objects": "Drawing objects (line/label/box/table/polyline/linefill): ops dropped or withheld",
+    "drawing-objects": "Drawing objects (line/label/box/table/polyline/linefill): an op the object program could not carry that no host guard explains, or a loss with nothing named",
+    "drawing-never-attempted": "Drawing script whose object program attempted NO op (nothing was dropped; nothing was built)",
+    "drawing-no-output-other": "Drawing script with an empty object program: ops attempted, none dropped and nothing else named",
+    "paint-withheld": "A per-bar paint the door withheld (colour typing), with the object program clean",
     "output-contract": "Script offers nothing the pane carries (no plot, hidden-only, constant-only)",
     "translator-robustness": "Translator timeout / crash / round-trip failure",
 }
@@ -342,7 +346,7 @@ def usage_of(src, inv):
         used.discard(kw)
         if feat in feats:
             used.add(kw)
-    return {"version": version, "items": used, "features": feats, "symbols": syms}
+    return {"version": version, "items": used, "features": feats, "symbols": syms, "orders": order_calls_in(code)}
 
 
 def data_limited(name):
@@ -354,7 +358,59 @@ def data_limited(name):
 
 KEYWORD_FEATURE = {"type": "udt", "in": "for-in", "as": "import", "import": "import", "method": "method-def",
                    "enum": "enum", "while": "while", "for": "for", "switch": "switch", "varip": "varip"}
-STRATEGY_ORDERS = {"strategy.entry", "strategy.order", "strategy.exit", "strategy.close", "strategy.close_all"}
+# ⭐ W9 T0 - ONE authority for "which calls place or manage orders": the engine's own
+# STRATEGY_ORDER_CALLS (pine.js), read from the source, never restated here (the old copy named 5 of the
+# engine's 13). Detection is from the SCRIPT'S TEXT, never from the reference inventory: a reference
+# extract that lacks a name (the 11-03 map's lacks strategy.entry / exit / order / position_size) makes
+# an inventory lookup say "no orders" and a strategy placing orders counted as transferring.
+PINE_JS = os.path.join(ROOT, "app", "src", "components", "chart", "engine", "ast", "pine.js")
+
+
+def engine_order_calls(path=PINE_JS):
+    """The names in pine.js's `export const STRATEGY_ORDER_CALLS = Object.freeze(new Set([...]))`."""
+    src = open(path, encoding="utf-8").read()
+    m = re.search(r"STRATEGY_ORDER_CALLS\s*=\s*Object\.freeze\(\s*new Set\(\s*\[(.*?)\]", src, re.S)
+    if not m:
+        raise SystemExit("coverage_map: STRATEGY_ORDER_CALLS not found in %s" % path)
+    names = re.findall(r"'([\w.]+)'", m.group(1))
+    if not names:
+        raise SystemExit("coverage_map: STRATEGY_ORDER_CALLS in %s is empty" % path)
+    return frozenset(names)
+
+
+STRATEGY_ORDERS = engine_order_calls()
+
+
+def order_calls_in(code, orders=None):
+    """The order-set names a script CALLS, read from its comment- and string-stripped code
+    (`strategy.entry(`, with whitespace around the dots allowed). Version-independent."""
+    names = sorted(orders if orders is not None else STRATEGY_ORDERS, key=len, reverse=True)
+    rx = r"(?<![\w.])(" + "|".join(r"\s*\.\s*".join(re.escape(p) for p in n.split(".")) for n in names) + r")\s*\("
+    return {re.sub(r"\s+", "", m.group(1)) for m in re.finditer(rx, code)}
+
+
+def places_orders(u):
+    """Whether a usage_of() result is a strategy that places or manages orders."""
+    return declaration_of(u) == "strategy" and bool(u["orders"])
+
+
+def strategy_on_block(scripts):
+    """⭐ W9 T0 - what the census knows about strategies, read from each script's text.
+    `orderSet` is the engine's own set; `byCall` counts the scripts calling each name; `doorCleanPlacingOrders`
+    counts the strategies whose plots the door draws and that still never transfer (their orders are not simulated)."""
+    strat = [s for s in scripts if s["declaration"] == "strategy"]
+    placing = [s for s in strat if s["placesOrders"]]
+    by_call = collections.Counter(n for s in placing for n in s["_orders"])
+    return {
+        "orderSet": sorted(STRATEGY_ORDERS), "orderSetSource": "app/src/components/chart/engine/ast/pine.js STRATEGY_ORDER_CALLS",
+        "strategies": len(strat), "placingOrders": len(placing), "notPlacingOrders": len(strat) - len(placing),
+        "byCall": dict(sorted(by_call.items())),
+        "doorCleanPlacingOrders": sum(1 for s in placing if s["doorClean"]),
+        "transferringPlacingOrders": sum(1 for s in placing if s["clean"]),
+        "wave": "W9",
+    }
+
+
 UNGRADED_PREFIXES = ("strategy", "alert", "alertcondition", "log.", "runtime.")
 
 DRAWING_CTORS = {"line.new", "label.new", "box.new", "table.new", "polyline.new", "linefill.new"}
@@ -369,7 +425,125 @@ def transfers_fully(census_row, u):
     AND not a strategy that places orders. Read by main() below and by
     tools/support_loop/remeasure.py, so the daily number and the map cannot disagree."""
     return bool((census_row or {}).get("clean")) and not (
-        declaration_of(u) == "strategy" and u["items"] & STRATEGY_ORDERS)
+        places_orders(u))
+
+
+# ⭐ W3W4-T0 - THE OBJECT PROGRAM'S OWN VERDICT, READ ON REFUSED STEPS TOO.
+# A door `pine:no-output` / `pine:objects-only` says "ZERO SURVIVING ops" (PJ `refusal: hardRefusals[0] || r`,
+# `draws = program.ops.length > 0`). That is three different facts, told apart by the step's own counters:
+#   dropped          attemptedOps > 0 and droppedOps > 0: an op was ATTEMPTED and DROPPED (named op + host guard);
+#   never attempted  attemptedOps == 0: the object pass never tried an op for a drawing constructor;
+#   no-output other  attemptedOps > 0, droppedOps == 0: the program is empty for a reason no counter names.
+# (W3W4-NEXT review B1: "39 dropped every op" was never established; the screener-lane why file split the 39
+# into 27 all-dropped, 10 partial and 2 zero-attempted.)
+OBJECT_PROGRAM_GUARDS = frozenset({"pine:no-output", "pine:objects-only"})
+BUCKET_NEVER_ATTEMPTED = "drawing-never-attempted"
+BUCKET_NO_OUTPUT_OTHER = "drawing-no-output-other"
+BUCKET_PAINT_WITHHELD = "paint-withheld"
+# a drop key naming a host guard: `guard:create <- pine:state`
+DROP_VIA = " <- "
+_HEAD_RX = re.compile(r"^([\w:.\-]+)@([\d?]+): (\S+)(?: (.*))?$")
+
+
+def parse_drop_heads(heads):
+    """[{op, line, guard, token}] from the census's `dropHeads` strings (`<op>@<line>: <guard>[ <subject>]`).
+    An unparseable string is kept as op None so a format drift shows up as an unresolved drop, not silence."""
+    out = []
+    for h in heads or []:
+        m = _HEAD_RX.match(str(h).strip())
+        if not m:
+            out.append({"op": None, "line": None, "guard": None, "token": None})
+            continue
+        g = m.group(3)
+        out.append({"op": m.group(1), "line": None if m.group(2) == "?" else int(m.group(2)),
+                    "guard": "unrecorded" if g in ("unrecorded", "no", "refused") else g,
+                    "token": (m.group(4) or "").strip("` ") or None})
+    return out
+
+
+def _drop_key_ops(key):
+    """The dropHeads `op` names a `dropReasons` key can be explained by: `guard:create` <- op `create`,
+    `create:line` <- op `create:line`, `cell:text` <- op `cell:text`. None for a key no guard explains
+    (`coll:*`, `loop:*`, `fn:*`, `update:props`, geometry)."""
+    kind, _, rest = key.partition(":")
+    if kind == "guard" and rest:
+        return {rest}
+    if key == "cell:text" or kind == "create":
+        return {key}
+    return None
+
+
+def drop_walls(st):
+    """[(key, guard)] the dropped ops of one door step name: ("drop", "<reason>") unchanged for a reason no
+    host guard explains, ("drop", "<reason> <- <guard>") once per distinct host guard that explains it."""
+    heads = parse_drop_heads(st.get("dropHeads"))
+    out = []
+    for k in sorted((st.get("dropReasons") or {}).keys()):
+        base = k.split(":")[0] + ":" + (k.split(":")[1] if ":" in k else "")
+        ops = _drop_key_ops(base)
+        guards = sorted({h["guard"] for h in heads if ops and h["op"] in ops and h["guard"]})
+        if guards:
+            for g in guards:
+                out.append((("drop", base + DROP_VIA + g), g))
+        else:
+            out.append((("drop", base), None))
+    return out
+
+
+def drop_guard_of(drop_value):
+    """The host guard a resolved drop label names, or None (`guard:create <- pine:state` -> `pine:state`)."""
+    if DROP_VIA not in drop_value:
+        return None
+    g = drop_value.split(DROP_VIA, 1)[1]
+    return None if g == "unrecorded" else g
+
+
+def object_program_walls(st, inv):
+    """(keys, named) for one door step's object program: the items the translation says it could not draw
+    (`unsupported`, `loopBlockedCalls`, `outOfScope`) and the dropped ops (`drop_walls`)."""
+    keys, named = set(), False
+    for nm in (st.get("unsupported") or []) + (st.get("loopBlockedCalls") or []):
+        it = inv.normalise(nm, 6)
+        if it:
+            keys.add(("item", it))
+            named = True
+    for ns in st.get("outOfScope") or []:
+        keys.add(("item", ns + ".*"))
+        named = True
+    for k, _ in drop_walls(st):
+        keys.add(k)
+        named = True
+    return keys, named
+
+
+def object_program_split(st):
+    """Which of the three the step's empty object program is: "dropped", "never-attempted", "no-output-other",
+    or None when the row carries no counters (a census older than the counters)."""
+    if st.get("attemptedOps") is None and st.get("droppedOps") is None:
+        return None
+    if (st.get("droppedOps") or 0) > 0 or st.get("dropReasons"):
+        return "dropped"
+    return "never-attempted" if not (st.get("attemptedOps") or 0) else "no-output-other"
+
+
+def object_program_row(st):
+    """The census step's object-program counters for the map: attempted / dropped ops and the three-way split."""
+    return {"attemptedOps": st.get("attemptedOps"), "droppedOps": st.get("droppedOps"), "split": object_program_split(st)}
+
+
+def refused_program_walls(st, inv, items):
+    """The walls of a refused step 0 whose guard is only `pine:no-output` / `pine:objects-only`: the dropped ops
+    (named op and host guard), else the never-attempted / no-output-other split, else nothing (the caller then
+    keeps the old bucket: a census row without counters, or no drawing constructor)."""
+    split = object_program_split(st)
+    if split is None:
+        return set()
+    keys, named = object_program_walls(st, inv)
+    if named:
+        return keys
+    if not (items & DRAWING_CTORS) and not st.get("attemptedOps"):
+        return set()
+    return {("bucket", BUCKET_NEVER_ATTEMPTED if split == "never-attempted" else BUCKET_NO_OUTPUT_OTHER)}
 
 
 def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
@@ -383,8 +557,20 @@ def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
             keys.add(("bucket", "translator-robustness"))
             detail.append(("threw", None))
             continue
+        # ⭐ W3W4-T0 - A REFUSED STEP 0 WHOSE ONLY WALL IS "NO SURVIVING OP" SPEAKS FOR ITS OBJECT PROGRAM.
+        # Only when no other guard is named beside it (those are the walls); only for a script that calls a
+        # drawing constructor (a `pine:no-output` with none is a genuine output-contract gap).
+        own_program = set()
+        if (si == 0 and not st.get("attached") and step0_guards & OBJECT_PROGRAM_GUARDS
+                and not any(GUARD_BUCKET.get(g) != "output-contract" and g not in OBJECT_PROGRAM_GUARDS
+                            for g in step0_guards if g)):
+            own_program = refused_program_walls(st, inv, items)
+            keys |= own_program
         for r in st.get("refusals") or []:
             g = r.get("guard") or "unnamed"
+            if own_program and g in OBJECT_PROGRAM_GUARDS:
+                detail.append((g, None))
+                continue
             # ⛔ PEEL ARTIFACTS ARE NOT WALLS. After step 0 the program has been edited:
             # an output-contract refusal there is the peel having removed the plots, a
             # round-trip / statement refusal on a `x = 0.0` line is the peel's own
@@ -414,20 +600,13 @@ def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
                 keys.add(("bucket", "translator-robustness"))
             lv = st.get("lossVerdict")
             if lv and lv != "clean" or st.get("withheldObjects") or (st.get("withheldPaints") or 0) > 0:
-                named = False
-                for nm in (st.get("unsupported") or []) + (st.get("loopBlockedCalls") or []):
-                    it = inv.normalise(nm, 6)
-                    if it:
-                        keys.add(("item", it))
-                        named = True
-                for ns in st.get("outOfScope") or []:
-                    keys.add(("item", ns + ".*"))
-                    named = True
-                for k in sorted((st.get("dropReasons") or {}).keys()):
-                    keys.add(("drop", k.split(":")[0] + ":" + (k.split(":")[1] if ":" in k else "")))
-                    named = True
+                ks, named = object_program_walls(st, inv)
+                keys |= ks
                 if not named:
-                    keys.add(("bucket", "drawing-objects"))
+                    # ⭐ W3W4-T0 - a withheld PAINT is not a drawing: with the object program clean, it is its own wall
+                    paint_only = ((st.get("withheldPaints") or 0) > 0 and not st.get("withheldObjects")
+                                  and lv in (None, "clean"))
+                    keys.add(("bucket", BUCKET_PAINT_WITHHELD if paint_only else "drawing-objects"))
     if row.get("stuck") == "killed":
         keys.add(("bucket", "translator-robustness"))
     # ⭐ "NOTHING THE PANE CARRIES" NAMES THE REAL WALL WHEN WE CAN: a strategy with no
@@ -469,16 +648,152 @@ def read_verdicts(path, lane, what):
     return vd
 
 
-def runtime_walls_of(row):
-    """The runtime lane's walls over every peel step of a runtime-on census row:
-    its probe's guard where it declined with a position, else its decline code, else
-    the host's guards (a refusal the runtime lane was never offered)."""
-    walls = []
+def read_engine_door(path):
+    """--engine-door: left out -> [] (not measured; engineTableThroughPineDoor is empty).
+    Named but missing -> REFUSED. It used to read as [] too, so a re-run that named the
+    probe's output without running the probe wrote "measured, and empty" with no error
+    (W0 review, 2026-11-02). main() asks this first, before any input is read."""
+    if not path:
+        return []
+    if not os.path.exists(path):
+        sys.exit("--engine-door %s does not exist: run the engine-door probe first (COVERAGE_DOOR_OUT=<file>, "
+                 "coverageMapDoorCensus.measure.test.js), or leave --engine-door out "
+                 "(engineTableThroughPineDoor is then empty: not measured)" % path)
+    return json.load(open(path, encoding="utf-8"))
+
+
+def norm_src(text):
+    """The key a vendor capture is joined to a sample script by: its source, whitespace-insensitive.
+    One rule for every such join (main() below, and tools/pine_coverage/w0/targets.py, which joins
+    the runtime-on parity changes to scripts with it)."""
+    return hashlib.sha1(re.sub(r"\s+", "", text).encode("utf-8")).hexdigest()
+
+
+def script_verdict(verdicts):
+    """One script's vendor verdict over its captures' verdicts: MATCH if any capture MATCHes,
+    else DIVERGE if any DIVERGEs, else INCONCLUSIVE; None for a script without a capture."""
+    v = set(verdicts)
+    return None if not v else ("MATCH" if "MATCH" in v else "DIVERGE" if "DIVERGE" in v else "INCONCLUSIVE")
+
+
+# ⭐ W4 T0 — the wall's DETAIL, for the one decision a label cannot carry: which wave owns it.
+# `runtime:loop` is `for … in` (W6) wherever the lane says so, and a bare `security(…)` (the
+# v1-v4 spelling) reaches `runtime:call-undeclared-builtin-state` as a token (W7). `targets.py`
+# reads these tags; no wall LABEL is changed by them.
+TAG_FOR_IN = "for-in"
+TAG_BARE_SECURITY = "bare-security"
+# ⭐ W6 T1 - the W6 guards whose label names a collection or a type that is not what is behind them
+# (W6-BREAKDOWN section 0, finding 3). Each tag is read off the step's own detail AND the script's
+# unpeeled source; `targets.py::rt_wave` re-waves the wall by it. No wall LABEL changes.
+#   ltf-array  `pine:collection` "`x` is read as an array here and nothing in this script creates it",
+#              where `x` is bound by `request.security_lower_tf(…)` in the unpeeled source: the peel
+#              removed that line, so the array is the lower-timeframe request's result (W7).
+#   tuple      `pine:collection` whose step text is a bare bracket list `[a, …]`. Pine has no array
+#              literal, so that statement is a tuple value (a function's or an `if` arm's), not a
+#              collection (W4, beside `runtime:block-value`).
+#   library    `pine:type` / `pine:member` whose head is an `import` alias, or a name declared with a
+#              library's type or from a library's call (`chr.DateTimeWindow x = …`, `x = chr.f(…)`) (W8).
+#   footprint  `pine:type` / `pine:member` whose head is declared a `footprint` / `volume_row` (the types
+#              `request.footprint` returns) or bound by `request.footprint(…)` (W7).
+TAG_LTF_ARRAY = "ltf-array"
+TAG_TUPLE = "tuple"
+TAG_LIBRARY = "library"
+TAG_FOOTPRINT = "footprint"
+
+_NOTHING_CREATES = re.compile(r"`([A-Za-z_]\w*)` is read as an array here and nothing in this script creates it")
+_LTF_BIND = re.compile(r"(\[[^\[\]]*\]|\b[A-Za-z_]\w*)\s*:?=\s*request\s*\.\s*security_lower_tf\s*\(")
+_TUPLE_TEXT = re.compile(r"^\[[^\[\]]*\]$")
+_IMPORT = re.compile(r"^[ \t]*import\s+[\w.-]+/(\w+)/\d+(?:[ \t]+as[ \t]+(\w+))?", re.M)
+
+
+class SourceFacts:
+    """What the W6 T1 tags read off a script's unpeeled source (comments and string contents removed)."""
+
+    def __init__(self, src):
+        self.code = strip_code(src or "")[0]
+        self.aliases = {m.group(2) or m.group(1) for m in _IMPORT.finditer(self.code)}
+        self.ltf = set()
+        for m in _LTF_BIND.finditer(self.code):
+            t = m.group(1)
+            self.ltf.update(re.findall(r"[A-Za-z_]\w*", t) if t.startswith("[") else [t])
+
+    def _decls(self, name):
+        # `[var] [Type | ns.Type[<…>][[]]] name = rhs` (or `:=`): (declared type, rhs) per binding of `name`
+        rx = (r"^[ \t]*(?:(?:var|varip)\s+)?(?:([A-Za-z_][\w.]*)(?:<[^>\n]*>)?(?:\[\])?[ \t]+)?%s[ \t]*:?=(?!=)[ \t]*([^\n]*)"
+              % re.escape(name))
+        return [(m.group(1) or "", m.group(2)) for m in re.finditer(rx, self.code, re.M)]
+
+    def library_head(self, head):
+        if head in self.aliases:
+            return True
+        for ty, rhs in self._decls(head):
+            if "." in ty and ty.split(".")[0] in self.aliases:
+                return True
+            m = re.match(r"([A-Za-z_]\w*)\s*\.", rhs)
+            if m and m.group(1) in self.aliases:
+                return True
+        return False
+
+    def footprint_head(self, head):
+        return any(ty in ("footprint", "volume_row") or re.match(r"request\s*\.\s*footprint\s*\(", rhs)
+                   for ty, rhs in self._decls(head))
+
+
+def _member_head(guard, probe):
+    """The name a `pine:type` / `pine:member` step's dotted read starts from: `pine:type`'s token is the
+    dotted name itself; `pine:member`'s token is the member, read back along the step text's chain."""
+    tok = probe.get("token") or ""
+    if not tok:
+        return None
+    if guard == "pine:type":
+        return tok.split(".")[0]
+    m = re.search(r"([A-Za-z_]\w*)(?:\s*\.\s*\w+|\s*\((?:[^()]|\([^()]*\))*\))*\s*\.\s*%s\b" % re.escape(tok),
+                  probe.get("text") or "")
+    return m.group(1) if m else None
+
+
+def _wall_tags(guard, probe, declined, facts=None):
+    tags = []
+    detail = (probe.get("message") or "") + (declined.get("why") or "")
+    if guard == "runtime:loop" and "for … in" in detail:
+        tags.append(TAG_FOR_IN)
+    if guard == "runtime:call-undeclared-builtin-state" and probe.get("token") == "security":
+        tags.append(TAG_BARE_SECURITY)
+    if guard == "pine:collection":
+        m = _NOTHING_CREATES.search(detail)
+        if m and facts is not None and m.group(1) in facts.ltf:
+            tags.append(TAG_LTF_ARRAY)
+        if _TUPLE_TEXT.match((probe.get("text") or "").strip()):
+            tags.append(TAG_TUPLE)
+    if guard in ("pine:type", "pine:member") and facts is not None:
+        head = _member_head(guard, probe)
+        if head and facts.library_head(head):
+            tags.append(TAG_LIBRARY)
+        elif head and facts.footprint_head(head):
+            tags.append(TAG_FOOTPRINT)
+    return tags
+
+
+def runtime_wall_steps(row, src=None):
+    """[(wall, tags)] over every peel step of a runtime-on census row: the runtime lane's own
+    walls, its probe's guard where it declined with a position and the probe AGREES with the door,
+    else the decline's code, else the host's guards (a refusal the runtime lane was never offered).
+
+    ⭐ W4 T0 - THE DECLINE'S CODE WINS WHEN THE PROBE DISAGREES. The probe is a second build run
+    beside the door (`coverageMapDoorCensus.measure.test.js::runtimeProbeOf`); the door's
+    `runtimeDeclined.code` is what actually declined the script. Taking the probe's guard first
+    called 79 steps `runtime:object-op` in the 2026-11-02 map, of which 2 agreed with the door
+    (W4-BREAKDOWN section 0, finding 2). A row from before `agrees` existed carries none: the probe
+    is then trusted, as it always was.
+
+    `src` is the script's unpeeled source; without it the W6 T1 tags that read the source are not set."""
+    out = []
+    facts = SourceFacts(src) if src is not None else None
     for si, st in enumerate(row.get("steps") or []):
         if st.get("attached"):
             break
         if st.get("threw"):
-            walls.append("threw")
+            out.append(("threw", []))
             continue
         pr = st.get("rtProbe") or {}
         rd = st.get("runtimeDeclined") or {}
@@ -486,17 +801,23 @@ def runtime_walls_of(row):
         # blanked (most often a tuple binding)
         if si > 0 and re.match(r"^[A-Za-z_]\w*\s*=\s*0\.0$", (pr.get("text") or "").strip()):
             continue
-        g = pr.get("guard") or rd.get("code")
+        g = (pr.get("guard") if pr.get("agrees") is not False else None) or rd.get("code") or pr.get("guard")
         if not g:
             gs = sorted({r.get("guard") for r in st.get("refusals") or []} - {None}) or [st.get("guard") or "unnamed"]
             g = "host:" + ",".join(gs)
         if si > 0 and g == "pine:undefined":
             continue
-        walls.append(g)
-    return walls
+        out.append((g, _wall_tags(g, pr, rd, facts)))
+    return out
 
 
-def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, orders_of, norm_src, inputs, N):
+def runtime_walls_of(row):
+    """The runtime lane's walls over every peel step of a runtime-on census row (see
+    `runtime_wall_steps`)."""
+    return [g for g, _ in runtime_wall_steps(row)]
+
+
+def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, orders_of, norm_src, inputs, N, inv=None):
     """⭐ The runtime-on lane, measured: see the module docstring."""
     rows = read_census(rt_cache, LANE_RUNTIME_ON, "--runtime-cache")
     missing = [s["key"] for s in scripts if s["key"] not in rows]
@@ -512,7 +833,8 @@ def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, o
     by_key = {s["key"]: s for s in scripts}
     on = {s["key"] for s in scripts if transfers(s["key"])}
     prod = {s["key"] for s in scripts if s["clean"]}
-    walls = {}
+    walls, wall_tags = {}, {}
+    dirty_walls = {}   # W3W4-T0: no runtime wall, attached and dirty: the HOST object program's walls, named
     touches, first, stuck = collections.Counter(), collections.Counter(), collections.Counter()
     enumerated = 0
     for s in scripts:
@@ -520,8 +842,17 @@ def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, o
         if k in on:
             continue
         r = rows[k]
-        ws = runtime_walls_of(r)
+        steps = runtime_wall_steps(r, open(inputs[k]["path"], encoding="utf-8").read())
+        ws = [g for g, _ in steps]
         walls[k] = ws
+        if not ws and inv is not None:
+            dirty_walls[k] = sorted(key_label(x) for x in walls_of(r, inv, s["version"], frozenset(s["_items"]))[0])
+        found = {}
+        for g, tg in steps:
+            if tg:
+                found.setdefault(g, set()).update(tg)
+        if found:
+            wall_tags[k] = {g: sorted(v) for g, v in sorted(found.items())}
         for w in set(ws):
             touches[w] += 1
         first[ws[0] if ws else "attached-dirty"] += 1
@@ -552,6 +883,9 @@ def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, o
             "first": dict(sorted(first.items(), key=lambda kv: (-kv[1], kv[0]))),
             "stuck": dict(sorted(stuck.items(), key=lambda kv: (-kv[1], kv[0]))),
             "byScript": {k: walls[k] for k in sorted(walls)},
+            # W4 T0 / W6 T1: the detail behind the walls whose WAVE depends on it (the TAG_* above)
+            "tags": {k: wall_tags[k] for k in sorted(wall_tags)},
+            "attachedDirtyWalls": {k: dirty_walls[k] for k in sorted(dirty_walls)},
         },
         "parity": None,
     }
@@ -590,7 +924,9 @@ def key_bucket(k, inv):
     if kind == "bucket":
         return v
     if kind == "drop":
-        return "drawing-objects"
+        # ⭐ W3W4-T0 - a drop a host guard explains belongs to THAT guard's capability
+        g = drop_guard_of(v)
+        return GUARD_BUCKET.get(g, "drawing-objects") if g else "drawing-objects"
     ns = v.split(".")[0] if "." in v else "(global)"
     if v.startswith("request."):
         return "request-security"
@@ -616,6 +952,7 @@ def main():
     ap.add_argument("--runtime-cache", default=None, help="a census cache run with run_census.py --runtime-on")
     ap.add_argument("--runtime-verdicts", default=None, help="verdicts.json from VENDOR_HARNESS_RUNTIME_ON=1")
     a = ap.parse_args()
+    engine_door = read_engine_door(a.engine_door)   # first: a named file that is not there stops here
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except Exception:  # noqa: BLE001
@@ -639,7 +976,7 @@ def main():
         m = manifest.get(key, {})
         decl = "strategy" if "strategy-decl" in u["features"] else "library" if "library-decl" in u["features"] else "indicator"
         walls, detail = walls_of(c, inv, u["version"], frozenset(u["items"]), decl)
-        if decl == "strategy" and u["items"] & STRATEGY_ORDERS:
+        if places_orders(u):
             walls.add(("bucket", "strategy"))   # orders are never simulated (see "clean" below)
         scripts.append({
             "key": key, "population": key.split(":")[0], "title": m.get("title"), "author": m.get("author"),
@@ -657,23 +994,25 @@ def main():
             # handed the script to the per-bar RUNTIME lane and attached it. The host
             # translation's refusals stay on that result by design, so `isClean` cannot
             # judge it; nothing here proves the runtime lane drew every output.
-            "runtimeClean": not (decl == "strategy" and u["items"] & STRATEGY_ORDERS) and (
+            "placesOrders": places_orders(u),
+            "runtimeClean": not places_orders(u) and (
                 bool((c.get("runtime") or {}).get("clean")) or (
                     bool((c.get("runtime") or {}).get("attached")) and (c.get("runtime") or {}).get("lane") == "runtime")),
             "peelSteps": c.get("peelSteps"), "reachedAfterPeel": c.get("reachedAfterPeel"), "stuck": c.get("stuck"),
             "firstGuards": sorted({r.get("guard") for r in ((c.get("steps") or [{}])[0].get("refusals") or [])} - {None}),
             "walls": sorted(key_label(k) for k in walls),
-            "_walls": walls, "_items": u["items"], "_features": u["features"], "_symbols": u["symbols"],
+            # ⭐ W3W4-T0 - step 0's object program, counters only (review B1): attempted / dropped / which of the three
+            "objectProgram": object_program_row((c.get("steps") or [{}])[0]),
+            "_walls": walls, "_items": u["items"], "_orders": u["orders"], "_features": u["features"], "_symbols": u["symbols"],
         })
     N = len(scripts)
     clean = [s for s in scripts if s["clean"]]
     decl_by_key = {s["key"]: s["declaration"] for s in scripts}
     items_by_key = {s["key"]: s["_items"] for s in scripts}
+    orders_by_key = {s["key"]: s["_orders"] for s in scripts}
 
     # ── vendor parity evidence
-    # a capture is joined to a sample script by its source, whitespace-insensitive
-    def norm_src(t):
-        return hashlib.sha1(re.sub(r"\s+", "", t).encode("utf-8")).hexdigest()
+    # a capture is joined to a sample script by its source, whitespace-insensitive (norm_src)
     by_norm = {norm_src(open(inputs[s["key"]]["path"], encoding="utf-8").read()): s for s in scripts}
     vd = read_verdicts(a.verdicts, LANE_PRODUCTION, "--verdicts")
     verified_items, diverge_items = collections.Counter(), collections.Counter()
@@ -699,8 +1038,7 @@ def main():
             tgt[it] += 1
     vcount = collections.Counter(r["verdict"] for r in cap_rows)
     for s in scripts:
-        v = s.pop("_captures", None)
-        s["vendorVerdict"] = None if not v else ("MATCH" if "MATCH" in v else "DIVERGE" if "DIVERGE" in v else "INCONCLUSIVE")
+        s["vendorVerdict"] = script_verdict(s.pop("_captures", ()))
     sample_parity = collections.Counter(
         ("transfers" if s["clean"] else "does-not-transfer") + ":" + s["vendorVerdict"]
         for s in scripts if s["vendorVerdict"])
@@ -740,8 +1078,6 @@ def main():
                 tok = inv.normalise((r.get("token") or "").strip(), s["version"]) if r.get("token") else None
                 if tok:
                     blocked[tok][r.get("guard")] += 1
-
-    engine_door = json.load(open(a.engine_door, encoding="utf-8")) if a.engine_door and os.path.exists(a.engine_door) else []
 
     def status_of(nm):
         dl = data_limited(nm)
@@ -918,10 +1254,11 @@ def main():
             "notClean": len(notclean), "wallsFullyEnumerated": len(enumerated),
         },
         "crossSymbolPrefixes": dict(sym_prefix.most_common()),
+        "strategyOn": strategy_on_block(scripts),
         "runtimeOn": runtime_on_section(
             os.path.abspath(a.runtime_cache), a.runtime_verdicts, vd, scripts,
-            None, lambda k: decl_by_key[k] == "strategy" and bool(items_by_key[k] & STRATEGY_ORDERS),
-            norm_src, inputs, N) if a.runtime_cache else None,
+            None, lambda k: bool(orders_by_key[k]) and decl_by_key[k] == "strategy",
+            norm_src, inputs, N, inv=inv) if a.runtime_cache else None,
         "engineTableThroughPineDoor": engine_door,
         "scripts": [{k: v for k, v in s.items() if not k.startswith("_")} for s in scripts],
     }

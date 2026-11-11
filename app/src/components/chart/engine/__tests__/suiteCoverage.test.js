@@ -208,6 +208,9 @@ const ACKNOWLEDGED_CHART = [
   'src/components/chart/legend',
   'src/components/chart/pane',
   'src/components/chart/patternShapes',
+  // Chart IQ (2026-11-01): the pattern-recognition overlay, panel, gate and the one-engine-at-a-time rail.
+  // Run green (2 files / 16 tests) BEFORE this line was added; `test:chart` covers it.
+  'src/components/chart/chartIq',
   // The Pine support loop, Phase A (2026-10-30, docs/pine/support-loop/PHASE-A.md).
   // Run green (4 files / 22 tests) BEFORE this line was added; `test:chart` covers it.
   'src/components/chart/supportLoop',

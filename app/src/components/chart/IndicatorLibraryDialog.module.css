@@ -119,6 +119,17 @@
   outline: none;
   border-color: var(--border);
 }
+/* ⭐ a11y — THE ROW WEARS THE APP'S FOCUS RING while its title button has keyboard
+   focus (2026-11-08). The hover tint alone (`--bg-hover` on the sheet) is about
+   1.1:1, so a keyboard member could not see which row ↓ had landed on. The ring
+   is the app's own (`tokens.css` :focus-visible, 2 px `--ut-gold`, the one every
+   other control wears), drawn INSIDE the row because the sheet body scrolls and
+   would clip an outset ring at its edges. It is the focus indicator, not
+   decoration, so the header's one-gold-element rule (the tier badge) stands. */
+.row:has(.primary:focus-visible) {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: -2px;
+}
 /* The title-line button, reset to the span it replaced. */
 .primary {
   margin: 0;
@@ -187,7 +198,11 @@
   padding-top: 2px;
   font-size: 13px;
   line-height: 1.2;
-  color: var(--gain);
+  /* ⭐ `--text-bright`, NEVER `--gain` (owner-delegated decision L3, 2026-11-07):
+     green means money going up, never "selected", and gold is rationed to the
+     header's one mark (`.tier`). The row's `.rowOn` fill and border already say
+     "on"; the tick only has to read clearly beside the name. */
+  color: var(--text-bright);
 }
 
 .main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
@@ -203,7 +218,7 @@
 
 .chip {
   padding: 1px 6px;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.04em;
   color: var(--text-muted);
   background: var(--bg-surface);
@@ -214,7 +229,7 @@
 /* "Intraday only" — a scope note, not a warning. */
 .pill {
   padding: 1px 6px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--info);
   background: var(--info-bg);
   border: 1px solid var(--info-border);
@@ -230,7 +245,7 @@
    reasoning is a reasoning nobody can find. */
 .badge {
   padding: 1px 6px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
   background: var(--bg-surface);
   border: 1px solid var(--border);
@@ -249,7 +264,7 @@
    (`.tier`). */
 .badgeRepaint {
   padding: 1px 6px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--ind-warn);
   background: var(--ind-warn-bg);
   border: 1px solid var(--ind-warn-border);
@@ -261,7 +276,7 @@
    this is a fact about who authored the row, not a warning and not a tier. */
 .mine {
   padding: 1px 6px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--info);
   background: var(--info-bg);
   border: 1px solid var(--info-border);
@@ -272,7 +287,7 @@
    no native declares today. */
 .tier {
   padding: 1px 6px;
-  font-size: 10px;
+  font-size: 11px;
   text-transform: capitalize;
   color: var(--ut-gold);
   background: var(--ut-gold-dim);
@@ -326,4 +341,55 @@
      button wrap under the text, aligned past the 16px check + its gap. */
   .row { flex-wrap: wrap; }
   .addAnother { margin-left: 26px; }
+}
+
+/* The search hint (Phase 4, unit 4-03): one muted row under the results when the
+   whole query equals a definition's declared hint query. Muted on purpose: it is a
+   pointer to another indicator, not a result. */
+.hintRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 10px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+}
+.hintLine {
+  flex: 1 1 220px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+.hintOn {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.hintButton {
+  flex: 0 0 auto;
+  min-height: var(--tap-min);
+  padding: 0 12px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.hintButton:hover, .hintButton:focus-visible {
+  color: var(--text-bright);
+  border-color: var(--border-accent);
+  outline: none;
+}
+
+/* ⭐ a11y (2026-11-08) — the three plain buttons on this surface keep the app's
+   own focus ring on keyboard focus instead of a border tint alone: the rules
+   above end in `outline: none` for hover's sake, and this restores the ring for
+   `:focus-visible` only, inset so the scrolling sheet never clips it. */
+.createRow:focus-visible,
+.addAnother:focus-visible,
+.hintButton:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: -2px;
 }

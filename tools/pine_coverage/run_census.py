@@ -108,6 +108,9 @@ def main():
     ap.add_argument("--cache", required=True)
     ap.add_argument("--ref", required=True)
     ap.add_argument("--max-restarts", type=int, default=40)
+    ap.add_argument("--census-test", default=CENSUS,
+                    help="the census test file, relative to app/ (default: the committed one). A before/after "
+                         "measurement of the instrument itself runs the OLD file beside the new")
     ap.add_argument("--runtime-on", action="store_true",
                     help="measure the RUNTIME-ON lane (runtime pane on at every peel step)")
     a = ap.parse_args()
@@ -155,7 +158,7 @@ def main():
             break
         if os.path.exists(cur):
             os.remove(cur)
-        rc = subprocess.call(["node", "node_modules/vitest/vitest.mjs", "run", CENSUS],
+        rc = subprocess.call(["node", "node_modules/vitest/vitest.mjs", "run", a.census_test],
                              cwd=APP, env=env)
         after = done_keys()
         print("attempt %d rc=%s rows %d -> %d / %d" % (attempt, rc, len(before), len(after), len(items)), flush=True)

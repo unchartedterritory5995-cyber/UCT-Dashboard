@@ -6,8 +6,8 @@ fixtures `journal-styles.*` and `note-kinds.*`, tools/notebook_contract_fixtures
   POST   /api/j2/journal-styles                         create, or save a note's setup ({fromNoteId})
   POST   /api/j2/journal-styles/preview                 compose without writing ({styleId} or {style})
   POST   /api/j2/journal-styles/starter-packs/{pack}    install a starter pack's three firm styles (P5;
-                                                        404 while NOTEBOOK_STARTER_PACKS_ENABLED is off or
-                                                        for an unknown pack; 10/hour and 5/day per member)
+                                                        404 for an unknown pack; 10/hour and 5/day per
+                                                        member)
   GET    /api/j2/journal-styles/{style_id}              one style in full
   PUT    /api/j2/journal-styles/{style_id}              patch (a content change bumps the version)
   DELETE /api/j2/journal-styles/{style_id}              soft delete (Undo = restore)
@@ -42,17 +42,14 @@ fixtures `journal-styles.*` and `note-kinds.*`, tools/notebook_contract_fixtures
                                                         against. 409 stale base, 423 locked
 
 The rules (the template gallery router's):
-  * THE GATE IS A ROUTER DEPENDENCY: NOTEBOOK_JOURNAL_STYLES_ENABLED off answers the one 404 for
-    every route before the session, the plan or the body is read.
+  * Always on: NOTEBOOK_JOURNAL_STYLES_ENABLED (and the starter packs' switch) were retired 2026-11-04.
   * Every route takes this router's own `require_paid` (402, one sentence). journal_two's
-    `POST /api/j2/notes {styleId|kindId}` branch calls THIS module's `_require_enabled` and
-    `require_paid` too, so the switch and the plan check have one authority.
+    `POST /api/j2/notes {styleId|kindId}` branch calls THIS module's `require_paid` too, so the plan
+    check has one authority.
   * The body is read inside the dependency chain (`paid_body`), never as a FastAPI body parameter,
-    so a malformed body can never answer 422 ahead of the gate.
+    so a malformed body can never answer 422 ahead of the session check.
   * `/journal-styles/starter-packs/{pack}` (P5) is declared BEFORE every `/journal-styles/{style_id}...`
-    route (P5-R-C15), so the literal segment is never read as a style id. Its own switch is a ROUTE
-    dependency (`_require_starter_packs`), resolved after the router's gate and before `require_paid`:
-    the one 404 for every caller, paid, unpaid or signed out. RATE LIMITS, per member: 10/hour in the
+    route (P5-R-C15), so the literal segment is never read as a style id. RATE LIMITS, per member: 10/hour in the
     in-process limiter (scope `notebook-starter-pack`; ⚠️ PER-PROCESS STATE, a second web process doubles
     it) plus a DURABLE 5/day in `daily_usage_counters` (scope `notebook_starter_pack`), given back on a
     refusal. An unknown pack is refused before anything is charged.
@@ -98,14 +95,7 @@ STARTER_PACK_DAILY_CAP = 5
 STARTER_PACK_RATE_SENTENCE = "You've added a lot of starter packs today. Try again later."
 
 
-def _require_enabled() -> None:
-    """Router-level, so it runs BEFORE any route's own dependencies."""
-    if not js.enabled():
-        raise HTTPException(status_code=404, detail=NOT_FOUND)
-
-
-router = APIRouter(prefix="/api/j2", tags=["journal-2-0", "notebook-journal-styles"],
-                   dependencies=[Depends(_require_enabled)])
+router = APIRouter(prefix="/api/j2", tags=["journal-2-0", "notebook-journal-styles"])
 
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
@@ -243,14 +233,6 @@ def preview_endpoint(body: dict = Depends(paid_body), user: dict = Depends(requi
 
 # ── starter packs (P5): declared BEFORE every /journal-styles/{style_id} route ──────────────
 
-def _require_starter_packs() -> None:
-    """P5's switch for its one route, a ROUTE dependency (`dependencies=[...]`), which FastAPI resolves after
-    the router's gate and before the route's own parameters (the plan check): a switch-off pod answers every
-    caller with the router's one 404, exactly what a route that does not exist answers."""
-    if not starter_packs.enabled():
-        raise HTTPException(status_code=404, detail=NOT_FOUND)
-
-
 def _starter_pack_daily_cap() -> int:
     try:
         return max(0, int(os.environ.get(STARTER_PACK_DAILY_CAP_ENV, STARTER_PACK_DAILY_CAP)))
@@ -258,7 +240,7 @@ def _starter_pack_daily_cap() -> int:
         return STARTER_PACK_DAILY_CAP
 
 
-@router.post("/journal-styles/starter-packs/{pack}", dependencies=[Depends(_require_starter_packs)])
+@router.post("/journal-styles/starter-packs/{pack}")
 def install_starter_pack_endpoint(pack: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{installed: [{styleId, title}], alreadyHad: [title], skipped: [{title, reason}]}` -- the pack's three firm styles
     as the member's own copies (starter_packs.install). Idempotent: a style already had is named, never copied

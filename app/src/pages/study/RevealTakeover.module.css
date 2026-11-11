@@ -1,0 +1,106 @@
+/* RevealTakeover: a full-screen verdict. Gold for a right answer, red for a miss. */
+.wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(58, 49, 21, .55) 0%, rgba(8, 8, 8, .96) 60%, #070707 100%);
+  animation: fadeIn .22s ease-out both;
+}
+.bad { background: radial-gradient(120% 90% at 50% 0%, rgba(74, 26, 28, .55) 0%, rgba(8, 8, 8, .96) 60%, #070707 100%); }
+.panel {
+  margin: auto;
+  width: 100%;
+  max-width: 760px;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 26px max(16px, env(safe-area-inset-left, 0px)) calc(22px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-right, 0px));
+  animation: rise .42s cubic-bezier(.2, 1.15, .3, 1) both;
+}
+.art { position: relative; width: 140px; height: 140px; display: grid; place-items: center; margin-top: 6px; }
+.stamp {
+  position: absolute;
+  right: -6px;
+  bottom: -2px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 4px solid currentColor;
+  background: rgba(11, 11, 11, .9);
+  color: #4ad98a;
+  box-shadow: 0 0 30px rgba(47, 175, 104, .55), 0 8px 20px rgba(0, 0, 0, .6);
+  animation: stampIn .55s cubic-bezier(.2, 1.3, .3, 1) .12s both;
+}
+.bad .stamp { color: #ff6b6b; box-shadow: 0 0 30px rgba(223, 70, 70, .55), 0 8px 20px rgba(0, 0, 0, .6); }
+.hero {
+  margin: 0;
+  font-size: 48px;
+  font-weight: 900;
+  letter-spacing: -.02em;
+  line-height: 1;
+  text-align: center;
+  background: linear-gradient(180deg, #fff1c2, #dcbb5e 60%, #a8842c);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, .6));
+  animation: heroIn .4s cubic-bezier(.2, 1.2, .3, 1) .08s both;
+}
+.bad .hero { background: linear-gradient(180deg, #ffb3b3, #ef6b6b 55%, #9a2e2e); -webkit-background-clip: text; background-clip: text; }
+.answer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  text-align: center;
+}
+.answerLabel { font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: #9a958a; }
+.answerWord { font-size: 22px; font-weight: 800; color: #f2efe6; text-wrap: balance; }
+.lesson.lesson {
+  width: 100%;
+  max-height: none;
+  border: 1px solid #3a3115;
+  border-left-width: 1px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #171409, #0f0f0f);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, .55);
+  padding: 18px 20px 12px;
+  animation: rise .5s cubic-bezier(.2, 1.1, .3, 1) .16s both;
+}
+.bad .lesson.lesson { border-color: #4a1a1c; background: linear-gradient(180deg, #1a1011, #0f0f0f); }
+.cta { width: 100%; display: flex; justify-content: center; padding-top: 4px; }
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+@keyframes rise { from { transform: translateY(28px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+@keyframes heroIn { from { transform: scale(.7); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+@keyframes stampIn { from { transform: scale(2.4) rotate(-16deg); opacity: 0 } 60% { transform: scale(.92) rotate(3deg); opacity: 1 } to { transform: scale(1) rotate(0); opacity: 1 } }
+@media (prefers-reduced-motion: reduce) { .wrap, .panel, .hero, .stamp, .lesson.lesson { animation: none; } }
+@media (max-width: 640px) {
+  .hero { font-size: 40px; }
+  .art { width: 120px; height: 120px; }
+  .panel { gap: 10px; padding-top: 18px; }
+}
+
+/* round 17b: the stamp slams across the screen first, then the card settles under it */
+.slam { position: absolute; left: 50%; top: 38%; z-index: 3; width: 220px; height: 220px; margin: -110px 0 0 -110px; border-radius: 50%; display: grid; place-items: center; border: 10px solid currentColor; color: #4ad98a; background: rgba(11, 11, 11, .55); box-shadow: 0 0 60px rgba(47, 175, 104, .55); pointer-events: none; animation: slam .55s cubic-bezier(.2, 1.3, .3, 1) both, slamOut .5s ease-in 1.1s forwards; }
+.bad .slam { color: #ff6b6b; box-shadow: 0 0 60px rgba(223, 70, 70, .55); }
+@keyframes slam { from { transform: scale(3.2) rotate(-18deg); opacity: 0 } 55% { transform: scale(.92) rotate(4deg); opacity: 1 } to { transform: scale(1) rotate(0); opacity: 1 } }
+@keyframes slamOut { to { transform: scale(1.3); opacity: 0 } }
+.panel { animation-delay: .35s; gap: 14px; }
+.art { width: 160px; height: 160px; }
+.hero { font-size: 64px; }
+.answerWord { font-size: 26px; }
+.lesson.lesson [class*="partLabel"] { font-size: 13px; letter-spacing: .22em; color: #e9cd77; }
+.lesson.lesson [class*="partText"] { font-size: 17px; line-height: 1.5; }
+.lesson.lesson [class*="lesson"] { font-size: 17px; line-height: 1.5; }
+@media (prefers-reduced-motion: reduce) { .slam { animation: none; opacity: 0; } }
+@media (max-width: 640px) { .hero { font-size: 46px; } .art { width: 128px; height: 128px; } .slam { width: 170px; height: 170px; margin: -85px 0 0 -85px; } }

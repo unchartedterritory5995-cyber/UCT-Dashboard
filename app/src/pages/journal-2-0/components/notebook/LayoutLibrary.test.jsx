@@ -1,3 +1,4 @@
+// S7 fix round 1 (audit 2026-11-05): an outline card's "Use template" COPIES (no note), so it says so: "Add to my templates". One word, one outcome.
 // P4b Task 7: shared PAGE LAYOUTS in the community library, end to end in the client: the Page layouts chip and its
 // gate (capabilities.layoutSharing, P4b-R-T3-2), a layout card, Preview, the adopt confirm with what changes, Undo,
 // a refused adopt, a failed preference write and Try again, the readFailed refusal, a layout that cannot be used
@@ -181,7 +182,7 @@ describe('1. the Page layouts chip is gated on capabilities.layoutSharing (P4b-R
         .map((t) => t.label)])   // wave 11 is off here too, so no tool chips (W11-R17)
     expect(within(types).queryByRole('button', { name: 'Page layouts' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: ROW.title })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: `Use template ${ROW.title}` })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: `Add ${ROW.title} to my templates` })).not.toBeInTheDocument()
   })
 
   it('true: the chip shows and filters the URL', async () => {
@@ -211,7 +212,7 @@ describe('1. the Page layouts chip is gated on capabilities.layoutSharing (P4b-R
     expect(within(types).getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true')
     expect(within(types).queryByRole('button', { name: 'Page layouts' })).not.toBeInTheDocument()
     expect(listCalls()[0].search).toContain('type=page_layout')               // control: it did start there
-    expect(screen.queryByText("Couldn't load the community gallery.")).not.toBeInTheDocument()
+    expect(screen.queryByText("Couldn't load the Template library.")).not.toBeInTheDocument()
   })
 
   it('choosing the chip sends library_viewed {type: page_layout, view: browse}', async () => {
@@ -232,7 +233,7 @@ describe('2. a layout card', () => {
     expect(within(card).getByText(new RegExp('· Swing'))).toBeInTheDocument()
     expect(within(card).getByRole('button', { name: `Helpful: ${ROW.title}` })).toHaveAttribute('aria-pressed', 'false')
     expect(within(card).getByRole('button', { name: `See what ${ROW.author} shared` })).toBeInTheDocument()
-    expect(within(card).queryByRole('button', { name: `Use template ${ROW.title}` })).not.toBeInTheDocument()  // X8
+    expect(within(card).queryByRole('button', { name: `Add ${ROW.title} to my templates` })).not.toBeInTheDocument()  // X8
   })
 
   it('on your own item: no Helpful, no Report', async () => {

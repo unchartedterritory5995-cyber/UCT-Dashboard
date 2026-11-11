@@ -2,12 +2,91 @@
    bar, never a modal. Verdict words in gold / muted ink; never green or red. */
 
 .card {
+  /* THEME ISLAND (2026-11-08, real-screen check): the card paints a FIXED dark surface (the gradient below), so its
+     inks must not follow the page theme. On the light theme they did: the lesson text went dark grey on near-black
+     (about 1.2:1). Every themed token is pinned to its :root (dark) value, generated from tokens.css;
+     styles/themeIslands.test.js fails if one goes missing or drifts. */
+  --theme-island: study-reveal-card;
+  --bg: #101012;
+  --bg-elevated: #1d1f23;
+  --bg-hover: #24262b;
+  --bg-surface: #17181b;
+  --border: #2a2c31;
+  --border-accent: #383b41;
+  --danger-ink: #e87878;
+  --field-edge: #6a6f7c;
+  --gain: #2faf68;
+  --gain-bg: #2faf6815;
+  --gain-border: #2faf6835;
+  --glass-border-neutral: rgba(224, 218, 200, 0.10);
+  --glass-chrome: rgba(20, 22, 18, 0.94);
+  --glass-elevated: rgba(42, 45, 36, 0.58);
+  --glass-surface: rgba(34, 37, 30, 0.55);
+  --header-line: rgba(255, 255, 255, 0.11);
+  --header-shadow: 0 8px 18px -10px rgba(0, 0, 0, 0.55);
+  --hub-glass-tint: color-mix(in srgb, var(--text-heading) 8%, transparent);
+  --hub-glass-tint-strong: color-mix(in srgb, var(--text-heading) 20%, transparent);
+  --hub-rim: color-mix(in srgb, var(--text-heading) 18%, transparent);
+  --ind-warn: #ff8100;
+  --ind-warn-bg: #ff810015;
+  --ind-warn-border: #ff810035;
+  --info: #5ea8f7;
+  --info-bg: #5ea8f712;
+  --info-border: #5ea8f730;
+  --link-group-1: #f472b6;
+  --link-group-2: #fb923c;
+  --link-group-3: #2dd4bf;
+  --link-group-4: #facc15;
+  --link-group-5: #a3e635;
+  --link-group-6: #38bdf8;
+  --link-group-7: #e879f9;
+  --link-group-8: #f87171;
+  --link-group-a: #c9a84c;
+  --link-group-b: #60a5fa;
+  --link-group-c: #4ade80;
+  --link-group-d: #c084fc;
+  --loss: #df4646;
+  --loss-bg: #df464615;
+  --loss-border: #df464635;
+  --on-gain: #000000;
+  --on-loss: #000000;
+  --score-elite: #3cb868;
+  --score-neutral: #c9a84c;
+  --score-poor: #e74c3c;
+  --score-strong: #7fb84e;
+  --score-weak: #e08a3c;
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.5);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.4);
+  --shadow-modal: 0 20px 50px rgba(0,0,0,0.5);
+  --shadow-popover: 0 8px 24px rgba(0,0,0,0.5);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --success-ink: var(--gain);
+  --text: #f0efea;
+  --text-bright: #f8f7f3;
+  --text-heading: #ffffff;
+  --text-muted: #cfcac0;
+  --ut-cream: #d4c9a8;
+  --ut-gold: #dcbb5e;
+  --ut-gold-dim: #dcbb5e15;
+  --ut-gold-glow: #dcbb5e35;
+  --ut-green: #2d8c4e;
+  --ut-green-bright: #34d17c;
+  --ut-green-dim: #2d8c4e18;
+  --ut-green-glow: #2d8c4e40;
+  --ut-red: #c0392b;
+  --ut-red-bright: #f24b42;
+  --ut-red-dim: #c0392b18;
+  --warn: #dcbb5e;
+  --warn-bg: #dcbb5e15;
+  --warn-border: #dcbb5e35;
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
   padding: var(--space-md) var(--space-lg) var(--space-sm);
   border-top: 1px solid var(--border);
-  background: var(--bg-surface);
+  border-left: 3px solid var(--ut-gold);
+  background: linear-gradient(180deg, #171717, #0f0f0f);
   max-height: 45vh;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -19,14 +98,16 @@
   flex-wrap: wrap;
   gap: var(--space-sm);
   margin: 0;
-  font-size: var(--text-xl);
-  font-weight: 600;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -.01em;
   line-height: var(--lh-tight);
 }
 .verdictIcon { display: inline-flex; width: 20px; height: 20px; }
-.verdictCorrect .verdictWord { color: var(--ut-gold); }
-.verdictWrong .verdictWord { color: var(--text-muted); }
-.verdictWrong .verdictIcon { color: var(--text-muted); }
+/* the verdict wears the card colours of the workbench: green right, red wrong */
+.verdictCorrect .verdictWord { color: var(--color-success); }
+.verdictWrong .verdictWord { color: var(--color-danger); }
+.verdictWrong .verdictIcon { color: var(--color-danger); }
 .verdictKey {
   flex-basis: 100%;
   color: var(--text);
@@ -245,3 +326,6 @@
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
+
+/* the mark reacts to the verdict (happy / oops), top right, clear of the text */
+.mark { position: absolute; top: var(--space-sm); right: var(--space-md); }

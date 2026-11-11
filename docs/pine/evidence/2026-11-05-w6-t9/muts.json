@@ -1,0 +1,158 @@
+[
+ [
+  "M0-noop-control",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "  const receiverTypesServed = !atObjectDoor\n",
+  "  const receiverTypesServed = !atObjectDoor // noop\n"
+ ],
+ [
+  "M1-dispatch-by-declaration-order",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "    const exact = sigs.findIndex((t) => tyKey(t) === tyKey(recvTy))\n",
+  "    const exact = 0\n"
+ ],
+ [
+  "M2-untyped-shadowing",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "    return sigs.some((t) => tyCompatible(t, recvTy))\n  }\n",
+  "    return true\n  }\n"
+ ],
+ [
+  "M3-no-slot-refinement",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "    if (!receiverTypesServed) return init\n    if (init && !(init.kind === 'array' && !init.elem)) return init\n",
+  "    return init\n"
+ ],
+ [
+  "M4-no-U1-guard",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "        if (added && builtinTakesCall(recvTy, method, 1 + rest.length)) {",
+  "        if (false) {"
+ ],
+ [
+  "M5-served-at-door",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "  const receiverTypesServed = !atObjectDoor\n",
+  "  const receiverTypesServed = true\n"
+ ],
+ [
+  "M6-copy-aliases",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "    return { kind: 'user', fn: null, call: { type: 'call', name: `${typeName}.new`, tok, args } }",
+  "    return { kind: 'user', fn: null, call: recv }"
+ ],
+ [
+  "M7-int-float-not-detected",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "    if (new Set(keys).size !== keys.length) {",
+  "    if (false) {"
+ ],
+ [
+  "M8-pick-first-fit",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "if (fits.length === 1 && !tyComplete(recvTy) && !mayBeBuiltinMember(recvTy, name)) return chosen(fits[0])",
+  "if (fits.length >= 1) return chosen(fits[0])"
+ ],
+ [
+  "M9-namespace-is-a-receiver",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "        if (udtCtorOf(node) || isNamespaceRecv(uf.recv, scope)) return null",
+  "        if (udtCtorOf(node)) return null"
+ ],
+ [
+  "M10-member-no-exprType",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "    || (receiverTypesServed ? udtNameOf(exprType(recv, scope)) : null)",
+  "    || null"
+ ],
+ [
+  "M11-no-route-claim",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "    if (isReceiverCall(node, scope)) return true\n",
+  "\n"
+ ],
+ [
+  "M12-copy-any-receiver",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "    if (!t || !recv || recv.type !== 'name' || exprType(recv, scope) === null",
+  "    if (!t || !recv || exprType(recv, scope) === null"
+ ],
+ [
+  "M13-no-drawing-chain-claim",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "    if (node.type === 'method' && objectMethodTarget(node, scope)) return true\n    try {",
+  "    try {"
+ ],
+ [
+  "M14-overload-unknown-receiver-binds",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "    if (why || !recvTy) {\n      if (quiet)",
+  "    if (why) {\n      if (quiet)"
+ ],
+ [
+  "G01-door-methodCallOf",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "    if (receiverTypesServed && scope) {",
+  "    if (scope) {"
+ ],
+ [
+  "G02-door-overloadRefusal",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "    if (!receiverTypesServed) return 'Pine chooses among them",
+  "    if (false) return 'Pine chooses among them"
+ ],
+ [
+  "G04-door-isReceiverCall",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "    if (!receiverTypesServed || !node || (node.type !== 'call' && node.type !== 'method')) return false",
+  "    if (!node || (node.type !== 'call' && node.type !== 'method')) return false"
+ ],
+ [
+  "G05-door-memberRecvUdt",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "    || (receiverTypesServed ? udtNameOf(exprType(recv, scope)) : null)",
+  "    || udtNameOf(exprType(recv, scope))"
+ ],
+ [
+  "G07-door-receiverCallOf",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "    if (!receiverTypesServed || !node || !scope) return null",
+  "    if (!node || !scope) return null"
+ ],
+ [
+  "G08-door-userMethodShadows",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "    if (!receiverTypesServed || !scope || !methodDecls.has(method) || plainFnNames.has(method)) return true",
+  "    if (!scope || !methodDecls.has(method) || plainFnNames.has(method)) return true"
+ ],
+ [
+  "G09-door-receiverInitTy",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "    if (!receiverTypesServed) return init\n",
+  "\n"
+ ],
+ [
+  "G13-door-callArm",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "        if (receiverTypesServed) {\n          const rc = receiverCallOf(node, scope)",
+  "        if (true) {\n          const rc = receiverCallOf(node, scope)"
+ ],
+ [
+  "N2-number-overload-chosen",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "      if (!tyHasNumber(sig)) return { fn: overloadFnName(name, sig) }",
+  "      if (true) return { fn: overloadFnName(name, sig) }"
+ ],
+ [
+  "N4-same-receiver-message",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "      return tyHasNumber(dup)\n",
+  "      return true\n"
+ ],
+ [
+  "MA-tyCompatible-ignores-name",
+  "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "    if (a.name && b.name && a.name !== b.name) return false\n",
+  "\n"
+ ]
+]

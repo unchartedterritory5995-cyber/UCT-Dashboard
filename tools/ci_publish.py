@@ -202,6 +202,31 @@ def write_step_summary(text, path=None):
         return "UNREADABLE: could not write step summary (%s)" % e
 
 
+def record_dest(results_root, run_id, run_attempt):
+    """(dest_dir, None) — or (None, reason) when publishing would OVERWRITE a record.
+
+    ⛔⛔ **NO RETRY LAUNDERING.** Nothing in this pipeline retries automatically, and a
+    failed shard is INVALID, not retried. If a run is ever re-run BY HAND (the Actions
+    "Re-run" button), GitHub keeps the same `run_id` and bumps `run_attempt` — and the
+    publish step used to `cp -r` into `results/<run_id>/` regardless, so attempt 2 would
+    silently REPLACE attempt 1's failures with whatever passed the second time.
+    ⭐ Attempt 1 is THE record: it publishes to `results/<run_id>/`. Any later attempt
+    publishes to `results/<run_id>/attempt-<n>/`, beside it, where `ci_inventory`'s record
+    readers never mistake it for the run — and `ci_inventory.rerun_flaky` names a test that
+    failed on attempt 1 and passed later as FLAKY, never as green.
+    ⛔ And an existing record is never overwritten, at any attempt."""
+    try:
+        n = int(run_attempt or 1)
+    except (TypeError, ValueError):
+        return None, "run_attempt %r is not a number" % (run_attempt,)
+    base = pathlib.Path(results_root) / str(run_id)
+    dest = base if n <= 1 else base / ("attempt-%d" % n)
+    if (dest / "summary.json").exists():
+        return None, ("%s/summary.json already exists — a record is never overwritten "
+                      "(attempt %d)" % (dest.as_posix(), n))
+    return dest, None
+
+
 def _self_check() -> int:
     ok = True
     slept = []
@@ -379,7 +404,13 @@ def _self_check() -> int:
         for line in body[k:].splitlines():
             t = line.strip()
             if t.startswith("python ") and "--self-check" not in t:
-                out.append(t.split()[1].strip('"').strip("'"))
+                script = t.split()[1].strip('"').strip("'")
+                # ⚰️ `python - <<'PY'` (the `gate` job's heredoc, which this body reaches
+                # because it runs to the end of the file) reads its program from STDIN — no
+                # path the checkout could delete. Counting `-` as a path made this check
+                # fail a correct workflow; it was red at b554908dda before this change.
+                if script != "-":
+                    out.append(script)
         return out
 
     wf = pathlib.Path(__file__).resolve().parents[1] / ".github/workflows/full-suite-report.yml"
@@ -412,6 +443,21 @@ def _self_check() -> int:
         print("  [workflow not found — UNREADABLE, not a pass]")
         ok = False
 
+    # 6 — ⛔ NO RETRY LAUNDERING: attempt 1 is never overwritten by a manual re-run.
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        d1, why1 = record_dest(td, "42", "1")
+        show("attempt 1 publishes to results/<run>", d1.name if d1 else why1, "42")
+        d1.mkdir(parents=True)
+        (d1 / "summary.json").write_text("{}", encoding="utf-8")
+        d2, _ = record_dest(td, "42", "2")
+        show("attempt 2 publishes BESIDE it, not over it",
+             d2.relative_to(td).as_posix() if d2 else None, "42/attempt-2")
+        d1b, why1b = record_dest(td, "42", "1")
+        show("an existing attempt-1 record is REFUSED, never overwritten",
+             (d1b, "never overwritten" in (why1b or "")), (None, True))
+        show("a non-numeric attempt is refused", record_dest(td, "43", "x")[0], None)
+
     # ⛔ NON-VACUITY: the three outcomes must be distinguishable
     outs = {push_with_retry(runner=make_runner([0]), sleep=lambda s: None)[0],
             push_with_retry(runner=make_runner([1]), sleep=lambda s: None)[0]}
@@ -427,6 +473,10 @@ def main(argv=None) -> int:
     ap.add_argument("--check-artifact", action="append", default=[])
     ap.add_argument("--summary-file")
     ap.add_argument("--self-check", action="store_true")
+    ap.add_argument("--record-dest", nargs=2, metavar=("RUN_ID", "RUN_ATTEMPT"),
+                    help="print where this attempt's record goes under --results-root; "
+                         "exit 1 rather than overwrite an existing record")
+    ap.add_argument("--results-root", default="results")
     # ⚰️⚰️ E CP17 — WITHOUT THIS FLAG, ASKING THIS TOOL TO *CHECK A FILE* ALSO PUSHED.
     # `main()` called `push_with_retry` unconditionally, so the workflow's artifact-check
     # step — `ci_publish.py --check-artifact jobs.json … || true`, which runs BEFORE the
@@ -443,6 +493,14 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     if a.self_check:
         return _self_check()
+
+    if a.record_dest:
+        dest, why = record_dest(a.results_root, *a.record_dest)
+        if dest is None:
+            print("::error title=publish refused::%s" % why, file=sys.stderr)
+            return FAIL
+        print(dest.as_posix())
+        return OK
 
     for path in a.check_artifact:
         print("[ci-publish] " + report_artifact(path))

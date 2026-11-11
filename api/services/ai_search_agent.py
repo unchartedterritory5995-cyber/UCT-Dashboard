@@ -171,9 +171,10 @@ def run_agent(query: str, system: str, history: list | None, user: dict | None,
             return {"answer": "", "error": "cancelled",
                     "citations": citations, "tools_used": tools_used}
         try:
-            resp = client.with_options(timeout=50).messages.create(
-                model=model, max_tokens=_MAX_TOKENS, system=sys_blocks,
-                tools=tools, messages=messages)
+            request = dict(model=model, max_tokens=_MAX_TOKENS, system=sys_blocks,
+                           tools=tools, messages=messages)
+            with guard.charge_if_failed("ai_search_agent", request):
+                resp = client.with_options(timeout=50).messages.create(**request)
         except Exception as e:
             log.warning("agent llm call failed: %s", e)
             return {"answer": "", "error": "agent llm error",

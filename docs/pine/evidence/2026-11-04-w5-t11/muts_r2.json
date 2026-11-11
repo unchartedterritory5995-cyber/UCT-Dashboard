@@ -1,0 +1,32 @@
+[
+ [
+  "CONTROL r2 no-op comment",
+  "api/services/pine_runtime_client.py",
+  "# --- the client ---",
+  "# --- the client (control) ---"
+ ],
+ [
+  "V01 warm-up curtain not checked",
+  "api/services/pine_runtime_client.py",
+  "            if any(v == v for v in col[:wb]):",
+  "            if False:"
+ ],
+ [
+  "V02 curtain checks one bar short",
+  "api/services/pine_runtime_client.py",
+  "            if any(v == v for v in col[:wb]):",
+  "            if any(v == v for v in col[:wb - 1]):"
+ ],
+ [
+  "V03 curtain checks the first column only",
+  "api/services/pine_runtime_client.py",
+  "        for key, col in columns.items():\n            if any(v == v for v in col[:wb]):",
+  "        for key, col in list(columns.items())[:1]:\n            if any(v == v for v in col[:wb]):"
+ ],
+ [
+  "V04 curtain over-reaches one bar (refuses a real value)",
+  "api/services/pine_runtime_client.py",
+  "            if any(v == v for v in col[:wb]):",
+  "            if any(v == v for v in col[:wb + 1]):"
+ ]
+]

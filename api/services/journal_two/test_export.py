@@ -206,9 +206,8 @@ def test_the_why_text_is_exported_next_to_its_own_trade(route_client, tmp_path):
     assert j["TSLA"]["entryWhy"] is None and j["NVAX"]["entryWhy"] is None
 
 
-def test_the_why_is_exported_even_while_the_entry_context_switch_is_off(route_client, tmp_path, monkeypatch):
-    """They are the member's words. Turning the feature off must not hide them from their export."""
-    monkeypatch.delenv("NOTEBOOK_ENTRY_CONTEXT_ENABLED", raising=False)
+def test_the_why_is_exported(route_client, tmp_path, monkeypatch):
+    """They are the member's words, so the member's export carries them."""
     _why(str(tmp_path / "j2_export.db"), "NVDA", "2026-04-19", "still mine")
     rows = list(csv.reader(io.StringIO(route_client.get("/api/j2/trades/export?format=csv&symbol=NVDA").text)))
     assert rows[1][-2] == "still mine"

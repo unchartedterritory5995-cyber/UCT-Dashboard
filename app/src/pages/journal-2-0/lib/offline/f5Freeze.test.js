@@ -241,8 +241,10 @@ describe('⛔⛔ Q1-F5 FREEZE — the append doors do not move until they are pr
       ...[...editor.matchAll(/settleMetadataRevision\(await update\(\{\s*(\w+)/g)].map((m) => m[1]),
       ...[...editor.matchAll(/settleMetadataRevision\(await patchTags\(/g)].map(() => 'tags'),
     ].sort()
+    // Audit 2026-11-05 fix round 1 (review finding 1): "Make this a thesis" writes the note's kind
+    // (`properties`) and is a METADATA door like the other three, so it settles the same way.
     expect(settles, 'the settle-with-local-state path belongs to the metadata doors only')
-      .toEqual(['folderId', 'tags', 'ticker'])
+      .toEqual(['folderId', 'properties', 'tags', 'ticker'])
 
     const settleSrc = read('app/src/pages/journal-2-0/lib/offline/settleNoteWrite.js')
     const code = settleSrc.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')

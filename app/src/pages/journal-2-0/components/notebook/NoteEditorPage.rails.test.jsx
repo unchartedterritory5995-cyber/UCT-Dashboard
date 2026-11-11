@@ -130,10 +130,13 @@ describe('NoteEditorPage editor toolbar row', () => {
    * History, right beside where this button now lives, has always had one.
    * Competitive audit finding UX #5, 2026-09-22.
    */
+  // S10 (audit 2026-11-05, M4): Find left the header for the first row of "More note actions"; it is still a
+  // labelled, visible button one press away (the door this rail exists for), never Ctrl+F alone.
   it('a visible Find button opens NoteFindBar, the same as Ctrl+F', async () => {
     const NoteEditorPage = (await import('./NoteEditorPage')).default
     render(<MemoryRouter><NoteEditorPage noteId="n1" onBack={() => {}} /></MemoryRouter>)
     expect(screen.queryByRole('search', { name: 'Find in note' })).toBeNull()
+    fireEvent.click(await screen.findByRole('button', { name: 'More note actions' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Find in note' }))
     expect(screen.getByRole('search', { name: 'Find in note' })).toBeInTheDocument()
   })

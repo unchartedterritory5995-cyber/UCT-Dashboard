@@ -1,0 +1,26 @@
+[
+ [
+  "control:noop-comment",
+  "../tools/pine_runtime_host_parity.mjs",
+  "// \u2500\u2500\u2500 HP-4: the mutation control",
+  "// \u2500\u2500\u2500 HP-4: the mutation control (noop)"
+ ],
+ [
+  "dist:one-digest-ok",
+  "../tools/pine_runtime_host_parity.mjs",
+  "if (new Set(all).size < 2) return",
+  "if (new Set(all).size < 1) return"
+ ],
+ [
+  "check:distinguish-unchecked",
+  "../tools/pine_runtime_host_parity.mjs",
+  "if (nd) { code = 1; lines.push(`RED corpus: ${nd}`) }",
+  "if (false) { code = 1 }"
+ ],
+ [
+  "node:session-on",
+  "../tools/pine_runtime_host_parity.mjs",
+  "rt.computeRuntimeColumns(c.def, rows, c.ctx, { incremental: false })",
+  "rt.computeRuntimeColumns(c.def, rows, c.ctx, {})"
+ ]
+]

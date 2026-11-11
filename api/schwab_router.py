@@ -3,6 +3,8 @@ FastAPI router for Schwab API integration.
 Add to main.py: from schwab_router import router as schwab_router
                  app.include_router(schwab_router)
 """
+import os
+from api.services import llm_models
 from fastapi import APIRouter, Request, Query, Depends
 from fastapi.responses import RedirectResponse, JSONResponse
 from urllib.parse import urlparse, parse_qs, quote
@@ -258,6 +260,13 @@ async def market_summary():
     """Fetch current prices for SPY, QQQ, DIA, IWM, VIX."""
     results = await schwab.get_market_summary()
     return {"indices": results}
+# What a failed narrative call is charged per SDK attempt. `web_search` is capped at max_uses=3 (2026-11-10),
+# so the searches are a true bound: 3 searches of about 10K result tokens plus the prompt's 4K.
+_NARRATIVE_SDK_ATTEMPTS = 3         # this client keeps the SDK default of 2 retries
+_NARRATIVE_MAX_TOKENS = 250
+_NARRATIVE_MODEL = os.environ.get("SCHWAB_NARRATIVE_MODEL", llm_models.SONNET)
+_NARRATIVE_WORST_SEARCHES = 3
+_NARRATIVE_WORST_INPUT_TOKENS = 34_000
 @router.get("/market-narrative")
 @market_narrative_swr.serve_last_good
 def market_narrative(_auth: dict = Depends(require_flow_user)):
@@ -281,6 +290,7 @@ def market_narrative(_auth: dict = Depends(require_flow_user)):
         return JSONResponse(status_code=500, content={"error": "ANTHROPIC_API_KEY not set"})
     if narrative_cost_guard.over_budget("schwab_market_narrative"):
         return JSONResponse(status_code=429, content={"error": "Daily narrative budget reached."})
+    response = None
     try:
         today_str = today.strftime("%A, %B %d, %Y")
         weekday = today.weekday()
@@ -296,17 +306,18 @@ def market_narrative(_auth: dict = Depends(require_flow_user)):
             # Sonnet versions roll forward without another 404 outage. If you
             # ever need to pin to a specific version, use a dated string from
             # https://docs.anthropic.com/en/docs/about-claude/models
-            model="claude-sonnet-4-6",
-            max_tokens=250,
+            model=_NARRATIVE_MODEL,
+            max_tokens=_NARRATIVE_MAX_TOKENS,
+            **llm_models.plain(_NARRATIVE_MODEL),
             metadata={"user_id": "market_narrative:global"},
             system="You are a financial news writer. Respond with ONLY 2-3 concise sentences. No preamble. No search commentary. No disclaimers. No 'based on my search' or 'I found'. Just the market summary as if writing a Bloomberg terminal flash.",
-            tools=[{"type": "web_search_20250305", "name": "web_search"}],
+            tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": _NARRATIVE_WORST_SEARCHES}],
             messages=[{
                 "role": "user",
                 "content": f"Today is {today_str}{day_note}. Write 2-3 sentences: How did US markets close on the most recent trading day? Include S&P 500, Nasdaq, Dow moves and the main catalyst."
             }],
         )
-        narrative_cost_guard.record_from_response("schwab_market_narrative", "claude-sonnet-4-6", response)
+        narrative_cost_guard.record_from_response("schwab_market_narrative", _NARRATIVE_MODEL, response)
         text = " ".join(
             block.text for block in response.content
             if hasattr(block, "text")
@@ -319,6 +330,14 @@ def market_narrative(_auth: dict = Depends(require_flow_user)):
             cache.set(cache_key, text, ttl=1800)
         return {"narrative": text if text else "Market summary unavailable."}
     except Exception as e:
+        if response is None:
+            from api.services.uct_agent import budget
+            if not budget._is_provider_error_response(e):
+                # No usage came back and each SDK attempt may have been billed: worst case x (retries + 1).
+                narrative_cost_guard.record("schwab_market_narrative", _NARRATIVE_MODEL,
+                                            _NARRATIVE_WORST_INPUT_TOKENS * _NARRATIVE_SDK_ATTEMPTS,
+                                            _NARRATIVE_MAX_TOKENS * _NARRATIVE_SDK_ATTEMPTS,
+                                            _NARRATIVE_WORST_SEARCHES * _NARRATIVE_SDK_ATTEMPTS)
         return JSONResponse(status_code=500, content={"error": str(e)})
 # ─── Daily Tracker Endpoints ──────────────────────────────────────────────────
 @router.post("/track-contracts")

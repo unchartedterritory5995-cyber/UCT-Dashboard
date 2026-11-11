@@ -247,7 +247,7 @@ export async function executeDefinitionAction(plan, ctx = {}, deps = {}) {
   // PLUS the script it was translated from, and its engine stamp (`meta.engineVersion`) is
   // only kept by a save that carries that script (`saveUserDefinition`). Reading the
   // document alone made Undo restore the maths and silently drop both.
-  const before = await read(plan.defId, { source: true })
+  const before = await read(plan.defId, { withSource: true })
   if (!before.ok || !before.row.definition) return { status: REASONS.UNCONFIRMED, reason: REASONS.UNCONFIRMED, receipt: receiptOf(plan, REASONS.UNCONFIRMED), error: before.error || 'Could not read the definition before deleting it; nothing was deleted.' }
   const pineSource = scriptOf(before.row)
   // ⛔ EXACT OR NOTHING: a row that holds a script we did not get back, or a stamped
@@ -271,7 +271,7 @@ export async function executeDefinitionAction(plan, ctx = {}, deps = {}) {
   }
 }
 
-/** The stored Pine script on a row read with `{source: true}`, or null. */
+/** The stored Pine script on a row read with `{withSource: true}`, or null. */
 function scriptOf(row) {
   return row && typeof row.pine_source === 'string' && row.pine_source.trim() ? row.pine_source : null
 }
@@ -305,7 +305,7 @@ export async function undoDefinitionAction(undo, ctx = {}, deps = {}) {
     }
     const res = await save(undo.definition, undo.defId, null, Object.keys(options).length ? options : null)
     if (!res.ok) return { status: REASONS.NOT_LANDED, reason: REASONS.NOT_LANDED, receipt: { ...base, status: REASONS.NOT_LANDED }, error: res.error }
-    const back = await read(undo.defId, { source: true })
+    const back = await read(undo.defId, { withSource: true })
     if (!back.ok) return { status: REASONS.UNCONFIRMED, reason: REASONS.UNCONFIRMED, receipt: { ...base, status: REASONS.UNCONFIRMED } }
     // ⛔ CONFIRMED MEANS EXACT. The read-back must hold the same script and the same engine
     // stamp the deleted row held; anything else is reported, never called confirmed.

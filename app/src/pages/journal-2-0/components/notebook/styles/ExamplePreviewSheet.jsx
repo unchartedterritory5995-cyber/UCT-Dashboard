@@ -36,7 +36,7 @@ import styles from './ExampleNote.module.css'
 
 export const PREVIEW_TITLE = 'Preview your example'
 export const SHARE_IMAGE_LABEL = 'Share this image'
-export const EXAMPLE_SENT_SENTENCE = 'Sent for review. It will show on your style once approved.'
+export const EXAMPLE_SENT_SENTENCE = 'Sent for review. It will show on your template once approved.'
 export const OCR_UNREAD_SENTENCE = "We couldn't read this image yet. Check it yourself before switching it on."
 export const CONFIRM_SENTENCE = 'This image may show an account detail. Share it anyway?'
 // M-8: the sheet offers no "pick another" control, so the sentence names none.

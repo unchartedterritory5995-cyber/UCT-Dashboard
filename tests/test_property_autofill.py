@@ -223,8 +223,11 @@ def test_a_property_that_already_has_a_value_is_never_suggested(app, client, gat
 
 def test_nothing_to_fill_and_an_empty_note_are_sentences_that_cost_nothing(app, client, gate_on, stub, db_path):
     _as_member(app, "u1")
+    # Kind of note is offered to every member since journal styles were retired as always on (2026-11-04),
+    # so a note with nothing left to fill carries a kind too.
     full = _note("u1", properties={"builtin:thesis_status": "active", "builtin:confidence": "high",
-                                   "builtin:research_type": "long_thesis", "builtin:review_date": "2026-10-14"})
+                                   "builtin:research_type": "long_thesis", "builtin:review_date": "2026-10-14",
+                                   "builtin:note_kind": "thesis"})
     r = client.post(URL.format(full["id"]), json={})
     assert r.status_code == 422 and r.json()["detail"] == pa.NOTHING_TO_FILL_SENTENCE
     empty = _note("u1", text="")

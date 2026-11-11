@@ -627,6 +627,26 @@ def bulk_add_items(user_id: str, wl_id: str, symbols: list[str]) -> dict | None:
     return out
 
 
+def replace_items(user_id: str, wl_id: str, items: list) -> bool:
+    """Make the list's items exactly ``items`` (``[{sym, notes}]``, in order) in ONE transaction:
+    the managed prebuilt lists' in-place rebuild (`watchlist_prebuilt.write_rs_list`). A symbol
+    that stays keeps its row id. ``False`` when the list is not this user's."""
+    before = versioned_content(user_id, wl_id)
+    conn = get_connection()
+    try:
+        if not conn.execute("SELECT 1 FROM watchlists WHERE id = ? AND user_id = ?",
+                            (wl_id, user_id)).fetchone():
+            return False
+        _write_items(conn, wl_id, items)
+        conn.execute("UPDATE watchlists SET updated_at = ? WHERE id = ?",
+                     (datetime.now(timezone.utc).isoformat(), wl_id))
+        conn.commit()
+    finally:
+        conn.close()
+    _version(user_id, wl_id, before)
+    return True
+
+
 def update_item_notes(user_id: str, wl_id: str, item_id: str, notes: str) -> dict | None:
     before = versioned_content(user_id, wl_id)
     out = _update_item_notes_unversioned(user_id, wl_id, item_id, notes)

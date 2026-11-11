@@ -1,0 +1,19 @@
+{
+  "vault_id": "vault-1",
+  "self_path": "Notes/Src.md",
+  "vault_paths": [
+    "People/Dr.Smith.csv", "People/Dr.Smith.md",
+    "Reviews/Q3.Review.xlsx", "Reviews/Q3.Review.md",
+    "v1.2 notes.md",
+    "Files/report.pdf", "Files/report.pdf.md",
+    "Brief.txt.md",
+    "Ghost.md", "Ghost.Name.csv",
+    "Reviews/Q3.md", "Q3.Plan.xlsx",
+    "archive.tar.gz",
+    "Notes/Plan.md.bak", "Notes/Plan.md",
+    "A/Deep/Plan.md", "B/Plan.md",
+    "Z/Setup.md", "B/Setup.md", "A/Deep/Setup.md",
+    "img/chart.png",
+    "Notes/Src.md"
+  ]
+}

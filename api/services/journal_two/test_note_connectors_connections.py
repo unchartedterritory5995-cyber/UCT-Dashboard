@@ -294,3 +294,35 @@ def test_broken_source_rejoins_list_due_sources_after_an_ok_sync(db):
     conn.close()
 
     assert src["id"] in {s["id"] for s in db.list_due_sources(30)}
+
+
+# ── Plan D task 1: pending-removal read + lastFullSyncAt ────────────────────
+
+def _seed_index(user_id, source_id, remote_id, miss_streak):
+    conn = auth_db.get_connection()
+    conn.execute(
+        "INSERT INTO j2_note_remote_index "
+        "(user_id, source_id, remote_id, import_key, seen_at, miss_streak) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (user_id, source_id, remote_id, f"fake:g/{remote_id}",
+         "2026-08-11T00:00:00+00:00", miss_streak),
+    )
+    conn.commit()
+    conn.close()
+
+
+def test_pending_removal_counts_counts_only_rows_at_strike_one_or_more(db):
+    s1 = db.create_source("u1", "fake", "g1")["id"]
+    s2 = db.create_source("u1", "fake", "g2")["id"]
+    _seed_index("u1", s1, "a", 0)
+    _seed_index("u1", s1, "b", 1)
+    _seed_index("u1", s1, "c", 1)
+    _seed_index("u1", s2, "d", 0)
+    assert db.pending_removal_counts("u1", [s1, s2]) == {s1: 2}
+    assert db.pending_removal_counts("u1", []) == {}
+    assert db.pending_removal_counts("u2", [s1]) == {}  # user-scoped
+
+
+def test_source_dict_carries_last_full_sync_at(db):
+    s = db.create_source("u1", "fake", "g")
+    assert db.get_source_by_id(s["id"])["lastFullSyncAt"] is None

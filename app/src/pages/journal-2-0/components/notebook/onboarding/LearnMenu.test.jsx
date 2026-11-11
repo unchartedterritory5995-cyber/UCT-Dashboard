@@ -82,6 +82,8 @@ function renderMenu({ isPaid = false, hasAnyNotes = false } = {}) {
 }
 
 const menuItems = () => within(screen.getByRole('menu', { name: 'Learn: walkthroughs' })).getAllByRole('menuitem')
+// S14: a tour item's text is its NAME span (the ✓ / New mark beside it is its description, not its name)
+const itemText = (el) => el.firstChild.textContent
 
 // Residual round (R25): the menu BEHIND the Learn button is a lazy chunk, fetched on the first press
 // (LearnMenu.jsx -> LearnMenuPanel.jsx). React.lazy resolves once per page, so one warm-up press here
@@ -137,15 +139,15 @@ describe('what it lists -- DERIVED from the registry', () => {
     renderMenu()
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
     expect(screen.getByRole('button', { name: 'Learn' })).toHaveAttribute('aria-expanded', 'true')
-    expect(menuItems().map((el) => el.textContent)).toEqual(['Notebook basics tour', 'All walkthroughs in Help'])
+    expect(menuItems().map(itemText)).toEqual(['Notebook basics', 'All walkthroughs in Help'])
   })
 
   it('arming the fake tour\'s flag adds it, in registry order; the passive explainer never appears', () => {
     latchNotebookFlags({ ...WAVE14, notebook_formulas_enabled: true })
     renderMenu()
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
-    expect(menuItems().map((el) => el.textContent))
-      .toEqual(['Notebook basics tour', 'Formulas tour', 'All walkthroughs in Help'])
+    expect(menuItems().map(itemText))
+      .toEqual(['Notebook basics', 'Formulas', 'All walkthroughs in Help'])
     expect(screen.queryByText(/An explainer/)).toBeNull()
   })
 
@@ -153,16 +155,16 @@ describe('what it lists -- DERIVED from the registry', () => {
     latchNotebookFlags({ ...WAVE14, notebook_voice_notes_enabled: true })
     renderMenu({ hasAnyNotes: false })
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
-    expect(screen.queryByRole('menuitem', { name: 'Voice notes tour' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Voice notes' })).toBeNull()
     // the other live tours are untouched (non-vacuity: the menu really did render its tours)
-    expect(menuItems().map((el) => el.textContent)).toEqual(['Notebook basics tour', 'What your Notebook can do', 'All walkthroughs in Help'])
+    expect(menuItems().map(itemText)).toEqual(['Notebook basics', 'What your Notebook can do', 'All walkthroughs in Help'])
   })
 
   it('I3: the voice-notes tour IS offered once the member has notes (and by default, when the caller does not say)', () => {
     latchNotebookFlags({ ...WAVE14, notebook_voice_notes_enabled: true })
     const first = renderMenu({ hasAnyNotes: true })
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
-    expect(menuItems().map((el) => el.textContent)).toEqual(['Notebook basics tour', 'Voice notes tour', 'What your Notebook can do', 'All walkthroughs in Help'])
+    expect(menuItems().map(itemText)).toEqual(['Notebook basics', 'Voice notes', 'What your Notebook can do', 'All walkthroughs in Help'])
     first.unmount()
     render(
       <AuthContext.Provider value={{ isPaid: false }}>
@@ -170,7 +172,7 @@ describe('what it lists -- DERIVED from the registry', () => {
       </AuthContext.Provider>,
     )
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
-    expect(screen.getByRole('menuitem', { name: 'Voice notes tour' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Voice notes' })).toBeInTheDocument()
   })
 
   it('the Help link goes to Help > Walkthroughs', () => {
@@ -194,7 +196,7 @@ describe('choosing a tour -- the existing start path', () => {
     const base = vi.fn()
     window.addEventListener(REGISTRY_TOUR_OPEN_EVENT, reg)
     window.addEventListener(TOUR_OPEN_EVENT, base)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Formulas tour' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Formulas' }))
     window.removeEventListener(REGISTRY_TOUR_OPEN_EVENT, reg)
     window.removeEventListener(TOUR_OPEN_EVENT, base)
     expect(reg).toHaveBeenCalledTimes(1)
@@ -210,7 +212,7 @@ describe('choosing a tour -- the existing start path', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
     const base = vi.fn()
     window.addEventListener(TOUR_OPEN_EVENT, base)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Notebook basics tour' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Notebook basics' }))
     window.removeEventListener(TOUR_OPEN_EVENT, base)
     expect(base).toHaveBeenCalledTimes(1)
   })
@@ -224,17 +226,17 @@ describe('keyboard and screen reader -- the menu button pattern', () => {
     const btn = screen.getByRole('button', { name: 'Learn' })
     btn.focus()
     await user.keyboard('{Enter}')
-    expect(document.activeElement).toHaveTextContent('Notebook basics tour')
+    expect(document.activeElement).toHaveTextContent('Notebook basics')
     await user.keyboard('{ArrowDown}')
-    expect(document.activeElement).toHaveTextContent('Formulas tour')
+    expect(document.activeElement).toHaveTextContent('Formulas')
     await user.keyboard('{End}')
     expect(document.activeElement).toHaveTextContent('All walkthroughs in Help')
     await user.keyboard('{ArrowDown}')
-    expect(document.activeElement).toHaveTextContent('Notebook basics tour')   // wraps
+    expect(document.activeElement).toHaveTextContent('Notebook basics')   // wraps
     await user.keyboard('{ArrowUp}')
     expect(document.activeElement).toHaveTextContent('All walkthroughs in Help')
     await user.keyboard('{Home}')
-    expect(document.activeElement).toHaveTextContent('Notebook basics tour')
+    expect(document.activeElement).toHaveTextContent('Notebook basics')
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('menu')).toBeNull()
     expect(btn).toHaveAttribute('aria-expanded', 'false')
@@ -250,7 +252,7 @@ describe('keyboard and screen reader -- the menu button pattern', () => {
     await user.keyboard('{ArrowDown}')
     const menu = screen.getByRole('menu')
     expect(btn).toHaveAttribute('aria-controls', menu.id)
-    expect(document.activeElement).toHaveTextContent('Notebook basics tour')
+    expect(document.activeElement).toHaveTextContent('Notebook basics')
   })
 
   it('a press outside closes it', () => {
@@ -299,14 +301,14 @@ describe('the open menu stays on screen', () => {
 
 // ── P0.12: the menu is grouped ─────────────────────────────────────────────────────────────
 describe('grouped by what a member is trying to do', () => {
-  it('groups tours under Basics, Writing and capture, Trading, Research (only the non-empty ones)', () => {
+  it('groups tours under Write, Organize, Live data, Trading tools, AI (only the non-empty ones)', () => {
     latchNotebookFlags(flagged('notebook_chart_plan_enabled', 'notebook_formulas_enabled'))
     renderMenu()
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
     const groups = screen.getAllByRole('group').map((g) => g.getAttribute('aria-label'))
-    expect(groups).toEqual(expect.arrayContaining(['Basics', 'Trading']))
-    // an empty group is not drawn (no Research tour is live in this registry)
-    expect(groups).not.toContain('Research')
+    expect(groups).toEqual(expect.arrayContaining(['Write', 'Trading tools']))
+    // an empty group is not drawn (no Live data tour is live in this registry)
+    expect(groups).not.toContain('Live data')
   })
 
   it('each tour sits in the group learnTourGroup names, and the groups read in the declared order', () => {
@@ -314,20 +316,20 @@ describe('grouped by what a member is trying to do', () => {
     renderMenu()
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
     const menu = screen.getByRole('menu', { name: 'Learn: walkthroughs' })
-    const basics = within(within(menu).getByRole('group', { name: 'Basics' })).getAllByRole('menuitem').map((e) => e.textContent)
-    const trading = within(within(menu).getByRole('group', { name: 'Trading' })).getAllByRole('menuitem').map((e) => e.textContent)
-    expect(basics).toEqual(['Notebook basics tour', 'Formulas tour'])   // formulas is not in the map: it falls back to Basics
-    expect(trading).toEqual(['Chart plan basics tour'])
+    const basics = within(within(menu).getByRole('group', { name: 'Write' })).getAllByRole('menuitem').map(itemText)
+    const trading = within(within(menu).getByRole('group', { name: 'Trading tools' })).getAllByRole('menuitem').map(itemText)
+    expect(basics).toEqual(['Notebook basics', 'Formulas'])   // formulas is not in the map: it falls back to the first group
+    expect(trading).toEqual(['Chart plan basics'])
     const order = screen.getAllByRole('group').map((g) => g.getAttribute('aria-label'))
-    expect(order.indexOf('Basics')).toBeLessThan(order.indexOf('Trading'))
+    expect(order.indexOf('Write')).toBeLessThan(order.indexOf('Trading tools'))
   })
 
   it('a group heading is visible text, not only a label', () => {
     latchNotebookFlags(flagged('notebook_chart_plan_enabled'))
     renderMenu()
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
-    const trading = screen.getByRole('group', { name: 'Trading' })
-    expect(within(trading).getByText('Trading')).toBeInTheDocument()
+    const trading = screen.getByRole('group', { name: 'Trading tools' })
+    expect(within(trading).getByText('Trading tools')).toBeInTheDocument()
   })
 })
 
@@ -387,8 +389,8 @@ describe('"Add the sample notebook"', () => {
     const btn = screen.getByRole('button', { name: 'Learn' })
     btn.focus()
     await user.keyboard('{Enter}')
-    expect(menuItems().map((el) => el.textContent))
-      .toEqual(['Notebook basics tour', 'Add the sample notebook', 'All walkthroughs in Help'])
+    expect(menuItems().map(itemText))
+      .toEqual(['Notebook basics', 'Add the sample notebook', 'All walkthroughs in Help'])
     await user.keyboard('{ArrowDown}')
     expect(document.activeElement).toHaveTextContent('Add the sample notebook')
   })
@@ -442,8 +444,8 @@ describe('on a phone the menu opens as a sheet', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
     expect(screen.getByRole('dialog', { name: LEARN_COPY.menuLabel })).toBeTruthy()
     // the same menu, inside it
-    expect(within(screen.getByRole('dialog')).getAllByRole('menuitem').map((e) => e.textContent))
-      .toEqual(['Notebook basics tour', 'All walkthroughs in Help'])
+    expect(within(screen.getByRole('dialog')).getAllByRole('menuitem').map(itemText))
+      .toEqual(['Notebook basics', 'All walkthroughs in Help'])
   })
 
   it('on a desktop it is the anchored popover, not a dialog', () => {
@@ -462,7 +464,7 @@ describe('on a phone the menu opens as a sheet', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
     const base = vi.fn()
     window.addEventListener(TOUR_OPEN_EVENT, base)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Notebook basics tour' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Notebook basics' }))
     window.removeEventListener(TOUR_OPEN_EVENT, base)
     expect(base).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -478,7 +480,7 @@ describe('on a phone the menu opens as a sheet', () => {
     btn.focus()
     await user.keyboard('{Enter}')
     expect(screen.getByRole('dialog', { name: LEARN_COPY.menuLabel })).toBeInTheDocument()
-    expect(document.activeElement).toHaveTextContent('Notebook basics tour')
+    expect(document.activeElement).toHaveTextContent('Notebook basics')
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(btn).toHaveAttribute('aria-expanded', 'false')
@@ -518,8 +520,8 @@ describe('"What your Notebook can do" -- the Learn item', () => {
     latchNotebookFlags(flagged('notebook_playbook_enabled'))
     renderMenu({ isPaid: true })
     openLearn()
-    expect(menuItems().map((el) => el.textContent)).toEqual([
-      'Notebook basics tour', CATALOG, 'Add the sample notebook', 'All walkthroughs in Help',
+    expect(menuItems().map(itemText)).toEqual([
+      'Notebook basics', CATALOG, 'Add the sample notebook', 'All walkthroughs in Help',
     ])
   })
 

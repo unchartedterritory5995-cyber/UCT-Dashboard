@@ -165,3 +165,24 @@ describe('RevealCard lesson parts and feedback', () => {
     expect(screen.queryByTestId('feedback-open')).not.toBeInTheDocument()
   })
 })
+
+// Round 23 (the owner's rule 8, on every screen that teaches a setup): a setup item's reveal carries its trade plan
+// (api/services/study_trade.py); the answer card reviews it against the bars that followed.
+describe('RevealCard trade review', () => {
+  const bar = (t, o, h, l, c) => ({ t, o, h, l, c, v: 100 })
+  const item = { id: 'si_k', skill_id: 'setup.family3.kicker', bars: { bars: [bar(20240101, 10, 10.3, 9.9, 10.1), bar(20240102, 10.6, 10.7, 10.0, 10.05), bar(20240103, 10.2, 11.2, 10.5, 11.1)] } }
+  const trade = { skill: 'setup.family3.kicker', direction: 'bullish', entry: 10.71, stop: 10.5, t1: 11.13, t2: 11.34, enters_intraday: true,
+    entry_note: "over the red day's high, on the Kicker day", stop_note: "under the Kicker's low", trail: 'under each higher low' }
+  it('shows the entry, the stop, the trims and what happened', () => {
+    render(<RevealCard correct reveal={{ answer: 'Yes', trade, forward_bars: [bar(20240104, 11.1, 11.5, 10.9, 11.4)] }} item={item} fire={false} />)
+    const box = screen.getByTestId('trade-review')
+    expect(box).toHaveTextContent('The trade · your Kicker rules')
+    expect(box).toHaveTextContent('$10.71')
+    expect(box).toHaveTextContent('$11.13 · $11.34')
+    expect(box).toHaveTextContent('3R hit on session 1')
+  })
+  it('a reveal without a plan shows no trade', () => {
+    render(<RevealCard correct reveal={{ answer: 'Yes' }} item={item} fire={false} />)
+    expect(screen.queryByTestId('trade-review')).toBeNull()
+  })
+})

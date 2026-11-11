@@ -122,7 +122,7 @@ def conn():
 
 @pytest.fixture
 def on(monkeypatch):
-    monkeypatch.setenv(ectx.FLAG, "1")
+    """Was the flag's switch; the capability is always on since the flag was retired (2026-11-04)."""
 
 
 def _position(c, uid="u1", symbol="NVDA", entry=AT_1030_ET, source=None, estimated=0, closed=None,
@@ -317,14 +317,6 @@ def test_the_after_sync_hook_freezes_todays_entries_and_leaves_the_synced_rows_b
     assert {t: _dump(conn, t) for t in ("j2_positions", "j2_trades")} == synced
     assert {(r["user_id"], r["symbol"]) for r in conn.execute("SELECT * FROM j2_entry_context")} == \
         {("u1", "NVDA"), ("u2", "AMD"), ("u1", "MSFT")}
-
-
-def test_the_hook_is_inert_while_the_flag_is_off(conn, src, monkeypatch):
-    monkeypatch.delenv(ectx.FLAG, raising=False)
-    _position(conn, source="broker")
-    assert ectx.after_broker_sync(conn=conn, today=TODAY) == {"ok": True, "skipped": "flag off"}
-    assert ectx.on_position_added("u1", {"symbol": "NVDA", "entryDate": AT_1030_ET}) == {"status": "skipped"}
-    assert _dump_ctx(conn) == [] and src.calls == []
 
 
 def test_a_hook_exception_never_fails_the_sync_WITH_A_CONTROL(conn, src, on, monkeypatch):
@@ -557,16 +549,6 @@ def as_user(app, uid, plan=PAID):
 
 ROUTES = (("get", "/meta"), ("get", "?symbol=NVDA&entryDay=2026-10-02"), ("get", "/list"),
           ("get", "/position/p1"), ("get", "/trade/t1"), ("put", "/why"), ("post", "/backfill"))
-
-
-def test_every_route_is_404_while_the_flag_is_off_even_signed_out(client, monkeypatch):
-    monkeypatch.delenv(ectx.FLAG, raising=False)
-    for method, path in ROUTES:
-        r = getattr(client, method)("/api/j2/entry-context" + path)
-        assert r.status_code == 404, (path, r.status_code)
-    # CONTROL: the same routes exist and answer once the flag is on (401 signed out, not 404)
-    monkeypatch.setenv(ectx.FLAG, "1")
-    assert client.get("/api/j2/entry-context/meta").status_code == 401
 
 
 def test_a_free_plan_is_refused_and_a_paid_one_is_served(client, on):
@@ -865,15 +847,6 @@ def test_the_scheduled_capture_never_runs_on_the_callers_thread(src, on, monkeyp
     assert done.wait(5), "the capture never ran"
     ident, name, uid = ran[0]
     assert ident != threading.get_ident() and name.startswith("entry-context") and uid == "u1"
-
-
-def test_the_schedule_is_inert_while_the_flag_is_off(src, monkeypatch):
-    monkeypatch.delenv(ectx.FLAG, raising=False)
-    called = []
-    monkeypatch.setattr(ectx, "on_position_added", lambda *a: called.append(a))
-    assert ectx.schedule_position_capture("u1", {"symbol": "NVDA", "entryDate": AT_1030_ET}) == "skipped"
-    time.sleep(0.05)
-    assert called == []
 
 
 def test_one_member_cannot_queue_more_than_their_share_and_the_queue_is_bounded(src, on, monkeypatch):

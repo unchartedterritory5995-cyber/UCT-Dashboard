@@ -88,6 +88,22 @@ Output ONLY the JSON object — no markdown fences, no commentary, no
 "Rationale" section before or after it."""
 
 
+def _bucket(value, *, step: float | None = None, rel: float | None = None):
+    """A number reduced to its band for the skip hash; non-numbers pass through."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return value
+    if v != v:  # NaN
+        return None
+    import math
+    if rel is not None:
+        if v <= 0:
+            return 0
+        return round(math.log(v) / math.log(1 + rel))
+    return math.floor(v / step)
+
+
 def compute_signals_hash(candidate: dict) -> str:
     """SHA1 of a stable JSON serialization of the candidate's source signals.
     Used to skip re-synthesizing when nothing has changed."""
@@ -99,6 +115,13 @@ def compute_signals_hash(candidate: dict) -> str:
                    "gap_pct", "vol_x", "price", "hunter_headline",
                    "brain_grade", "av_news")
     payload = {k: candidate.get(k) for k in signal_keys}
+    # ⛔ The three live numbers move on every tick, so hashing them raw made "skip if
+    # nothing changed" never skip: ~22 ticks x top 12 names re-synthesized on Opus each
+    # weekday, held only by the dollar cap (2026-11-10 cost audit). Hash them BUCKETED,
+    # so a thesis refreshes when the move is material, not when the tape ticks.
+    payload["price"] = _bucket(candidate.get("price"), rel=0.02)     # 2% price bands
+    payload["gap_pct"] = _bucket(candidate.get("gap_pct"), step=2.0)  # 2-point gap bands
+    payload["vol_x"] = _bucket(candidate.get("vol_x"), step=0.5)      # 0.5x volume bands
     blob = json.dumps(payload, sort_keys=True, default=str)
     return hashlib.sha1(blob.encode("utf-8")).hexdigest()
 
@@ -311,6 +334,12 @@ def _call_anthropic(model: str, prompt: str, system: str) -> tuple:
         else:
             raise
     return msg, msg.usage.input_tokens, msg.usage.output_tokens
+
+
+def _ledger_request(prompt: str, system: str) -> dict:
+    """What a failed `_call_anthropic` asked for, for the worst-case charge."""
+    return {"system": system, "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": SYNTH_MAX_TOKENS}
 
 
 def _extract_text(msg) -> str:
@@ -544,6 +573,9 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
             logger.warning("[catalyst-synth] %s model %s failed for %s: %s: %s",
                            stage, model, candidate["ticker"],
                            type(e).__name__, str(e)[:300])
+            cost_guard.charge_unreported_call(
+                market_date, candidate["ticker"], model,
+                _ledger_request(prompt, system_prompt), e)
             continue
         got_output = True
         in_tokens += in_i
@@ -581,14 +613,11 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
 
     # No-sources enforcement: re-prompt once if missing required phrase
     if not _validate_no_sources_phrasing(parsed, has_sources):
+        retry_prompt = (prompt + "\n\nIMPORTANT: This ticker has no real source signals. "
+                                "Your thesis MUST contain the literal phrase 'no clear catalyst'. "
+                                "Re-output the JSON.")
         try:
-            msg2, in2, out2 = _call_anthropic(
-                used_model,
-                prompt + "\n\nIMPORTANT: This ticker has no real source signals. "
-                        "Your thesis MUST contain the literal phrase 'no clear catalyst'. "
-                        "Re-output the JSON.",
-                system_prompt,
-            )
+            msg2, in2, out2 = _call_anthropic(used_model, retry_prompt, system_prompt)
             in_tokens += in2
             out_tokens += out2
             cost_guard.record(market_date, candidate["ticker"], used_model,
@@ -605,7 +634,10 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
                     "catalyst_type": "None",
                     "source_urls": [],
                 }
-        except Exception:
+        except Exception as e:
+            cost_guard.charge_unreported_call(
+                market_date, candidate["ticker"], used_model,
+                _ledger_request(retry_prompt, system_prompt), e)
             parsed = {
                 "thesis": "No clear catalyst identified. Source pool was thin.",
                 "tag": candidate.get("tag", CATALYST_TAG.GAPPER),

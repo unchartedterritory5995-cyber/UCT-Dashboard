@@ -26,8 +26,13 @@ import { planIndicatorMutation, applyIndicatorMutation, confirmIndicatorMutation
 import { instancesOf } from '../../components/chart/builder/agentSeams'
 import { catalogRows, userCatalogRows } from '../../components/chart/indicatorCatalog'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
+import { visibleInputs } from '../../components/chart/indicatorRegistry'
+import { serverDeclares, isCatalogRowOffered } from '../../components/chart/engine/serverCompute'
+import { enumOptionRequiresServer } from '../../components/chart/engine/defSchema'
 import { afterRender } from '../frames'
 import { wordsSelect } from '../routing'
+import { savedReferent } from './indicatorAuthoring'
+import { colorName } from './chart'
 
 const REF = 'ixe:'
 const refOf = (chartRef) => `${REF}${chartRef}`
@@ -66,10 +71,12 @@ export function addableRows() {
   const owned = new Set(ownedIds())
   let shipped = []
   let mine = []
-  try { shipped = catalogRows(nativeRegistry).filter(r => !!nativeRegistry.getDefinition(r.id)) } catch { shipped = [] }
+  // ⭐ RS split U1 — and only what the live server lists: a `meta.requiresServer` definition is not
+  // offered until its row exists (`isCatalogRowOffered`, the same gate the library and the sheet read).
+  try { shipped = catalogRows(nativeRegistry).filter(r => !!nativeRegistry.getDefinition(r.id) && isCatalogRowOffered(r, nativeRegistry)) } catch { shipped = [] }
   try { mine = userCatalogRows(nativeRegistry).filter(r => owned.has(r.id)) } catch { mine = [] }
   return [...shipped, ...mine].map(r => {
-    const settings = settingsLine(r.inputs)
+    const settings = settingsLine(r.inputs, r.id)
     return settings ? { defId: r.id, name: r.name, settings } : { defId: r.id, name: r.name }
   })
 }
@@ -80,11 +87,36 @@ export function addableRows() {
 //   "period int 1-500 (5); maType sma|ema|wma|… (sma)". Colours, sources and text are left
 // out — the Agent sets lengths, multipliers, types and switches, not paint.
 const SETTABLE = new Set(['int', 'float', 'enum', 'bool'])
-export function settableInputs(inputs) {
-  return (Array.isArray(inputs) ? inputs : []).filter(i => i && SETTABLE.has(i.type))
+// ⭐ UCT RS 3-14 — AND ONLY WHAT THE SETTINGS SURFACES SHOW. With `defId`, the list follows
+// the one visibility model the dialog, the phone sheet and the inspector read
+// (`indicatorRegistry.visibleInputs` over `serverCompute.serverDeclares`): a `requiresServer`
+// input or option the live row has not declared is not offered (fail closed while unknown),
+// and a `legacy` input only while its `mapsTo` successor is still gated off. A definition
+// that marks nothing gated or legacy is returned exactly as before.
+const optionValueOf = (o) => (Array.isArray(o) ? o[0] : (o && typeof o === 'object' && 'value' in o ? o.value : o))
+const gatedDef = (def) => !!def && Array.isArray(def.inputs) && def.inputs.some(i => i && (i.legacy === true
+  || i.requiresServer === true || (Array.isArray(i.options) && i.options.some(enumOptionRequiresServer))))
+function shownInputsOf(defId) {
+  let def = null
+  try { def = defId ? nativeRegistry.getDefinition(defId) : null } catch { def = null }
+  if (!gatedDef(def)) return null
+  let declared = null
+  try { declared = serverDeclares(defId) } catch { declared = null }
+  return new Map(visibleInputs(def, declared).map(i => [i.key, i]))
 }
-function settingsLine(inputs) {
-  return settableInputs(inputs).map(i => {
+export function settableInputs(inputs, defId) {
+  const list = (Array.isArray(inputs) ? inputs : []).filter(i => i && SETTABLE.has(i.type))
+  const shown = shownInputsOf(defId)
+  if (!shown) return list
+  return list.filter(i => shown.has(i.key)).map(i => {
+    const v = shown.get(i.key)
+    if (i.type !== 'enum' || !Array.isArray(i.options) || !Array.isArray(v.options)) return i
+    const ok = new Set(v.options.map(optionValueOf))
+    return { ...i, options: i.options.filter(o => ok.has(optionValueOf(o))) }
+  })
+}
+function settingsLine(inputs, defId) {
+  return settableInputs(inputs, defId).map(i => {
     const kind = i.type === 'enum' ? (i.options || []).map(o => String(o.value)).join('|')
       : i.type === 'bool' ? 'true|false'
         : `${i.type}${Number.isFinite(i.min) || Number.isFinite(i.max) ? ` ${i.min ?? ''}-${i.max ?? ''}` : ''}`
@@ -95,7 +127,7 @@ function settingsLine(inputs) {
 export function inputsOfDef(defId) {
   try {
     const row = [...catalogRows(nativeRegistry), ...userCatalogRows(nativeRegistry)].find(r => r.id === defId)
-    return settableInputs(row && row.inputs)
+    return settableInputs(row && row.inputs, defId)
   } catch { return [] }
 }
 
@@ -141,10 +173,21 @@ export function unsettableInput(defId, inputs) {
   if (!inputs) return null
   let declared = []
   try { declared = (nativeRegistry.getDefinition(defId) || {}).inputs || [] } catch { declared = [] }
+  const shown = shownInputsOf(defId)
   for (const key of Object.keys(inputs)) {
     const d = declared.find(i => i && i.key === key)
     if (d && !SETTABLE.has(d.type)) {
       return `I can't change an indicator's ${UNSETTABLE_WORD[d.type] || `“${d.label || key}” setting`} yet — use that indicator's settings on the chart.`
+    }
+    // ⭐ 3-14: a setting the settings surfaces do not show (gated off by the server, or a
+    // retired legacy switch) is not written either — the Agent writes what it advertises.
+    if (d && shown) {
+      const v = shown.get(key)
+      const value = inputs[key]
+      const optionHidden = v && d.type === 'enum' && Array.isArray(v.options)
+        && Array.isArray(d.options) && d.options.some(o => optionValueOf(o) === value)
+        && !v.options.some(o => optionValueOf(o) === value)
+      if (!v || optionHidden) return `“${d.label || key}”${optionHidden ? ` set to ${JSON.stringify(value)}` : ''} isn't available on this indicator yet, so I didn't change anything.`
     }
   }
   return null
@@ -216,16 +259,27 @@ export function refusalSentence(res, { chart = 'that chart', op = null } = {}) {
   }
 }
 
-const P2_OPS = new Set(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'movePane', 'setPaneSize', 'duplicate', 'copyFrom'])
+// ⭐ UCT RS Phase 2a (2a-12b): `setDotSize` — the Dot size control (small / medium / large), one of the STYLE ops
+const P2_OPS = new Set(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'setVisibility', 'setDotSize', 'movePane', 'setPaneSize', 'duplicate', 'copyFrom'])
 const severText = (list) => (list || []).map(d => (d.kind === 'infoValue' ? `a header value reading it` : `${d.name}'s ${d.key || 'source'} input`))
 
+// ⭐ PACKAGE 3: one of the member's OWN indicators is said by its saved NAME ("Volume Thrust Days"), not the legend's
+// 12-character chip cut of it ("Volume" — which reads as the built-in Volume). A name that reads like a formula keeps the chip.
+const OWN_DEF = /^u_[0-9a-z]+$/i
+export function ownIndicatorName(defId) {
+  if (!OWN_DEF.test(String(defId || ''))) return null
+  let n = null
+  try { n = nativeRegistry.getDefinition(defId)?.meta?.name || null } catch { n = null }
+  n = typeof n === 'string' ? n.trim() : ''
+  return n && n.length <= 40 && !/[<>=+*^[\]·−×÷]|&&|\|\|/.test(n) ? n : null
+}
 /** The receipt sentence — only from a CONFIRMED receipt. */
 export function receiptLine(receipt, chart) {
-  const name = receipt.name || 'the indicator'
+  const name = ownIndicatorName(receipt.defId) || receipt.name || 'the indicator'
   const where = chart ? ` on ${chart}` : ''
   if (receipt.op === 'undo') {
     // ⭐ P2: style / placement / pane edits put back exactly; a duplicate or a copy removed again
-    if (['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget'].includes(receipt.undoOf)) return `Put ${name}${where} back as it was.`
+    if (['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'setVisibility', 'setDotSize'].includes(receipt.undoOf)) return `Put ${name}${where} back as it was.`
     if (receipt.undoOf === 'movePane' || receipt.undoOf === 'setPaneSize') return `Put the ${name} pane${where} back as it was.`
     if (receipt.undoOf === 'duplicate' || receipt.undoOf === 'copyFrom') return `Removed the ${name} I added${where}.`
     if (receipt.undoOf === 'remove') {
@@ -262,18 +316,26 @@ export function receiptLine(receipt, chart) {
 const STYLE_WORD = { lineWidth: 'line width', lineStyle: 'line style', overlap: 'overlap' }
 export const placeWord = (t) => (t === 'price' ? 'on the price pane' : t === 'volume' ? 'on the volume pane' : t === 'pane' ? 'in its own pane' : typeof t === 'string' && t.startsWith('@') ? 'in another indicator\'s pane' : String(t || 'where it was'))
 export const shareWord = (s) => (s == null ? 'automatic height' : `${Math.round(s * 100)}% of the chart's height`)
+// "Daily only" → "Daily charts", "Daily + Weekly" → "Daily + Weekly charts", "Intraday only" → "intraday charts" (Indicators' visibilitySummary words)
+const showWord = (v) => { const t = String(v || 'All timeframes').replace(/ only$/, ''); return t === 'All timeframes' ? 'all timeframes' : `${/^(Intraday|Daily & above)$/.test(t) ? t.toLowerCase() : t} charts` }
+// ⭐ 2a-12b: the Dot size words as the control shows them — "medium" is the declared size, labelled "Default" (`DOT_SIZE_OPTIONS`)
+export const dotSizeWord = (w) => (w === 'medium' ? 'Default' : String(w || 'Default'))
 export function extReceiptLine(receipt, name, where) {
   const c = receipt.change || {}
   switch (receipt.op) {
     case 'setAppearance': return `Changed ${name}'s ${STYLE_WORD[c.key] || c.key}${where} — ${c.before} → ${c.after}.`
+    // ⭐ 2a-12b: `plotKey` only when ONE dot output was sized (absent = the instance level, as the Dot size control writes it)
+    case 'setDotSize': return `Changed ${name}'s dot size${c.plotKey ? ` (${c.plotKey})` : ''}${where} — ${dotSizeWord(c.before)} → ${dotSizeWord(c.after)}.`
     case 'setPlotStyle': return `Changed how ${name}${c.plotKey ? ` (${c.plotKey})` : ''} is drawn${where} — ${c.before || 'default'} → ${c.after}.`
-    case 'setColor': return `Changed ${name}'s ${String(c.target || '').startsWith('sign:') ? `${c.target === 'sign:up' ? 'up' : 'down'} colour` : 'colour'}${where} to ${c.after}.`
+    case 'setColor': return `Changed ${name}'s ${String(c.target || '').startsWith('sign:') ? `${c.target === 'sign:up' ? 'up' : 'down'} colour` : 'colour'}${where} to ${colorName(c.after)}.`
+    case 'setVisibility': return c.after === 'All timeframes' ? `${name}${where} shows on all timeframes again (was ${showWord(c.before)}).` : `${name}${where} now shows on ${showWord(c.after)} only (was ${showWord(c.before)}).`
     case 'setDisplayTarget': return `Moved ${name} ${placeWord(c.after)}${where}${(c.guests || []).length ? ` — ${c.guests.map(g => g.name).join(', ')} moved with it` : ''}.`
     case 'movePane': return `Moved the ${name} pane${where} — now ${paneOrderWord(c.after, c.paneKey)}.`
     case 'setPaneSize': return `Set the ${name} pane${where} to ${shareWord(c.after)}.`
     case 'duplicate': return `Added a copy of ${receipt.from || name}${where} (${name}).`
     case 'copyFrom': {
-      const done = (receipt.copied || []).map(x => x.name)
+      // PACKAGE 3: one of the member's own indicators by its saved name (its instance id carries its definition)
+      const done = (receipt.copied || []).map(x => ownIndicatorName(/^inst:(u_[0-9a-z]+):/i.exec(String(x.instanceId || ''))?.[1]) || x.name)
       const had = (receipt.already || []).map(x => x.name)
       return `Copied ${done.join(', ') || name}${where}${had.length ? ` · already there: ${had.join(', ')}` : ''}.`
     }
@@ -339,6 +401,10 @@ export const indicatorEditsKind = {
   noun: 'chart',                 // what a local "which one?" asks for
   // Its target IS a chart: the mutation policy counts "this chart's indicators" and "this chart" as one.
   groupOf: (ref) => chartRefOf(ref) ?? ref,
+  // …and the inverse (W1-B B-07): a step aimed at a chart another step of the same request CREATES ("open two charts
+  // … with the 9 and 20 ema on both") is re-aimed from the chart's real ref to this kind's ref once it exists (useAgent
+  // landDeferred) — the same chart, the same interface, no second way in.
+  fromChart: (chartRef) => refOf(chartRef),
   selfDescribing: true,
   list: (host) => (host?.charts ? host.charts.list().map(c => snapOf(host, c)) : []),
   read: (host, ref) => {
@@ -384,7 +450,8 @@ export const indicatorEditsKind = {
       mentioned = [...mentioned, ...r.instanceIds.map(id => ({ chartRef, instanceId: id }))].slice(-48)
     }
     if (!patch.undo && r.op === 'duplicate' && patch.change?.plan?.preview?.from) r.from = patch.change.plan.preview.from
-    return { lines: [receiptLine(done.receipt, label)], undoData: done.undo || null }
+    // (`note`: what a capability adds to the receipt that the mutation cannot know, e.g. which saved template it came from)
+    return { lines: [receiptLine(done.receipt, label), ...(patch.change?.note ? [patch.change.note] : [])], undoData: done.undo || null }
   },
   // `confirmIndicatorMutation` already verified the read-back inside commit.
   landed: () => true,
@@ -710,7 +777,10 @@ export function registerIndicatorEditCapabilities() {
     // with parameters, or a near-name, goes to the model; the check below still decides.
     // ⭐ Phase 2 — "add another 20 EMA" / "a second RSI" / "RSI again": the member's explicit copy (agent/duplicates.js
     // reuses an identical one otherwise).
-    fast: ({ lower }) => {
+    fast: ({ lower, raw, host }) => {
+      // PACKAGE 3: "apply it" right after the Agent SAVED an indicator (no draft active) = add that saved definition
+      const saved = savedReferent(host, raw)
+      if (saved) return { defId: saved.defId, inputs: null, __target: refOf(saved.chart), __explicit: true }
       const m = /^(?:please )?(?:add|put|apply|plot)(?: another| a second| one more| an extra| an?| the| my)? (.+?)(?: indicator| study)?(?: again)?(?: (?:on|to|onto|in) (?:my|the|this) chart)?(?: again)?$/.exec(lower)
       if (!m) return null
       const defId = defIdOfWords(m[1])

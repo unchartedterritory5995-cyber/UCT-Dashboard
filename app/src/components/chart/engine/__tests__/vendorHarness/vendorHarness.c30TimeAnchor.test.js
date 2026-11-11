@@ -12,7 +12,8 @@
 // answers an open from bars before our window; those bars (and the bar that reads
 // one back through `ta.change`) are WITHHELD — `na` on our side, never a value.
 //
-// ⚠️ THE PROBE ITSELF STAYS REFUSED AT THE DOOR, on ONE row: T16 (`input.time`,
+// ⚰️ (RULING-0927, 2026-11-07: T16 is served now; the replay below is kept as it was.)
+// ⚠️ THE PROBE ITSELF STAYED REFUSED AT THE DOOR, on ONE row: T16 (`input.time`,
 // `pine:input-kind` — a ruled wall that is not a clock question). So the replay
 // grades a DERIVED capture — that one row cut from the source, its column dropped,
 // re-sealed — only after the PARENT capture's own receipt and source sha verify.
@@ -113,14 +114,20 @@ describe('C30 — the parent capture, and the door on the probe as captured', ()
     expect(CAPTURE.bars.rows.length).toBe(900)
   })
 
-  it('the probe as captured still refuses at the door — on a row OUTSIDE this lane, by name', () => {
+  // ⚰️ THIS SAID "the probe as captured still refuses at the door" on T16 (`input.time`,
+  // `pine:input-kind`). RULING-0927 (2026-11-07) serves T16's own form, so the probe now passes
+  // the door: T16 matches on every bar, nothing is refused and nothing diverges.
+  it('RULING-0927 — the probe as captured passes the door; T16 matches on every bar', () => {
     const { verdict } = gradeCapture(CAPTURE)
-    expect(verdict.verdict).toBe('INCONCLUSIVE')
-    expect(verdict.reason).toMatch(/member door refused \(pine:input-kind\)/)
-    // the refusal is `input.time` alone — never a `time(<timeframe>)` row (C36 serves T05 / T06)
+    const VERDICT = verdict
+    expect(verdict.reason).not.toMatch(/member door refused/)
+    const t16 = VERDICT.plots.find((p) => p.title === 'T16_input_time_default_DAYS')
+    expect(t16 && t16.stats, 'T16 was not graded').toBeTruthy()
+    expect([t16.stats.valueMismatches, t16.stats.naMismatches, t16.stats.matching]).toEqual([0, 0, t16.stats.bars])
+    expect(verdict.plots.filter((p) => p.verdict === 'DIVERGE').map((p) => p.title)).toEqual([])
     const t = translatePine(CAPTURE.source.text, { strict: true, basePeriod: 'D' })
     const refusedTitles = t.outputs.map((o, i) => (o.refusal ? CAPTURE.study.plots[i].title : null)).filter(Boolean)
-    expect(refusedTitles).toEqual(OUT_OF_SCOPE)
+    expect(refusedTitles).toEqual([])
   })
 })
 
@@ -147,12 +154,14 @@ describe('C30 — date for date against TradingView (derived capture, the real m
   }
 
   for (const title of Object.keys(CHANGES)) {
-    it(`${title}: the new-period event agrees on every bar but bar 0, which reads the anchor of a bar before the series`, () => {
+    // ⭐ DIV-1 RE-PIN (2026-11-09): was "every bar but bar 0, which reads the anchor of a bar
+    // before the series". The capture is now replayed over SPY's proved history from its
+    // 1993 listing (the member's daily chart computes the same series), so the bar before
+    // bar 0 IS in the series and bar 0 agrees too.
+    it(`${title}: the new-period event agrees on all 900 bars, bar 0 included (DIV-1)`, () => {
       const p = byTitle.get(title)
-      expect(p.stats.valueMismatches).toBe(0)
-      expect(p.stats.naMismatches).toBe(1)
-      expect(p.stats.matching).toBe(899)
-      expect(p.stats.firstDivergence).toMatchObject({ bar: 0, kind: 'na', ours: null })
+      expect(p.verdict, p.reason).toBe('MATCH')
+      expect(p.stats).toMatchObject({ matching: 900, valueMismatches: 0, naMismatches: 0 })
     })
   }
 
@@ -234,7 +243,11 @@ describe('C30 — the object lane withholds what it cannot know, and prints what
     expect(ours.objects.texts.labels).toEqual([String(vendorW[vendorW.length - 1])])
   })
 
-  it('⭐ C49 — a label on the FIRST bar (inside the partial week) prints the vendor\'s offset to an open this series does not hold — never an `na`', () => {
+  // ⭐ DIV-1 RE-PIN (2026-11-09): was "prints the vendor's offset on the window's first bar
+  // (-3)". The capture is now replayed from SPY's 1993 listing, so `barstate.isfirst` is the
+  // LISTING bar — Fri 1993-01-29, whose week opened Mon 1993-01-25: -4 — exactly what a
+  // member's daily chart (which starts at the listing) prints. Still never an `na`.
+  it('⭐ C49 / DIV-1 — a label on the FIRST bar prints its week offset from the series\' own first bar (the listing, -4) — never an `na`', () => {
     const ours = on(pine([
       'd = na(time("W")) ? -99999 : (time("W") - time) / 86400000',
       'if barstate.isfirst',
@@ -242,9 +255,10 @@ describe('C30 — the object lane withholds what it cannot know, and prints what
     ]))
     expect(ours.objects.ok).toBe(true)
     expect(ours.objects.texts.labels).not.toContain('-99999')
-    // Fri 2023-02-24 → Tue 02-21 (Presidents' Day Monday is a closure the calendar applies)
+    // the window's own first bar (Fri 2023-02-24 → Tue 02-21) is no longer the series' first
     expect(vendorW[0]).toBe(-3)
-    expect(ours.objects.texts.labels).toEqual([String(vendorW[0])])
+    expect(ours.historyReplay.kind).toBe('replayed')
+    expect(ours.objects.texts.labels).toEqual(['-4'])
   })
 
   it('CONTROL: the same first-bar label over a known clock IS drawn — the withholding is the anchor\'s', () => {

@@ -60,10 +60,11 @@ import {
   bindingKey,
   lineStyleValue,
   OHLC_POOL_KEYS,
+  plotActiveFor,
 } from './pool'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 import { createFillPrimitive, createFillLayerGroup } from './fillPrimitive'
-import { MAIN_PRICE_SCALE_ID } from './placement'
+import { MAIN_PRICE_SCALE_ID, applyAxisTenancy } from './placement'
 import { fillOpacityOf, fillPaint, staticFillOf } from './fillPaint'
 import { opaqueOf } from '../designTokens'
 import { createBackgroundPrimitive, isNaColour, staticPaintColour } from './paintPrimitive'
@@ -75,18 +76,25 @@ import { semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES } from './definitionSemantics
 import { evaluateObjects } from './objectRuntime'
 // ⭐⭐ RT5 — a runtime document's drawings, made by its own run (imports nothing).
 import { runtimeObjectsOf, drawsRuntimeObjects } from './runtime/runtimeObjects.js'
+// ⭐⭐ W9-T12 — a strategy's trade markers, from the run's record (refused by name until W9-MK1)
+import { drawsTradeMarkers, memberTradeMarkers, tradeMarkerObjects, publishTradeMarkers, markersWithheldWith,
+  joinMarkersToState } from './runtime/tradeMarkers.js'
 import { objectReaderFor } from './objectColumns'
 import { toRenderState } from './objectRenderState'
 // ⭐ C43 — a script whose own `runtime.error` is reached draws nothing; the
 // binder is where that is known per INSTANCE, so it publishes the sentence for
 // the disclosure strip (`runtimeErrorNotice.js`), exactly as the object layer
 // publishes a scaled table (`paneFitNotice.js`).
-import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf, columnErrors } from './nativeRegistry'
+import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf, runtimeColourStopOf, columnErrors } from './nativeRegistry'
 import { setRuntimeErrorNotice } from './runtimeErrorNotice'
+// W9-T13b: a strategy run's record, published for the (dark) report panel
+import { setStrategyRecord } from './strategyReportNotice'
+import { runtimeStrategyOf } from './runtime/strategyRecord.js'
+import { isStrategyWindowDefinition } from './strategyWindow'
 import { chartThemeOf } from './objectTheme'
 
 import {
-  sourceInputsOf, parseSource, barFieldSeries, orderByDependency,
+  sourceInputsOf, parseSource, barFieldSeries, orderByDependency, sourceLineIntact,
 } from './sourceRef'
 import { projectionFor, clippedBarsFor } from './symbolProjection'
 import { fundamentalColumnWithAuthority } from './marketCapAuthority'
@@ -103,6 +111,7 @@ import { SOURCE_STATUS } from './secondaryBars'
 import { otherSymbolsSignature } from './otherSymbols'
 import { lowerTfSignature } from './lowerTf'
 import { setChartClockNotes } from './chartClockNotice'
+import { serverDeclares } from './serverCompute'
 // ⭐ P2b — what a render state dropped, for the member's drawing note.
 import { setObjectRenderDrops, renderDroppedCount, renderHeldCount } from './objectRenderNotice'
 import { ThinVolumeSeries } from '../thinVolumeSeries'
@@ -133,6 +142,16 @@ function rthFrameBars(fbars) {
 
 /** Projection memo: frame column set → (chart bars → projected set). */
 const _projMemo = new WeakMap()
+
+/** ⭐ UCT RS design round (2026-11-08) — is this band switched on for the
+ *  binding's instance? A fill that declares no `activeWhen` always is; one that
+ *  does reads the inputs' condition grammar through the SAME evaluator a plot's
+ *  `activeWhen` uses (`pool.plotActiveFor`: stored value, else the declared
+ *  default), so a band and a guide can never disagree about one switch. */
+function fillActiveFor(fillSpec, b) {
+  if (!fillSpec || fillSpec.activeWhen === undefined) return true
+  return plotActiveFor({ activeWhen: fillSpec.activeWhen }, b && b.def, (b && b.inst && b.inst.inputs) || {})
+}
 
 /** A STATIC fill's colour and opacity -- `fillPaint.staticFillOf`, the one
  *  authority both band paths share (the per-bar half is `bandColoursFor`).
@@ -225,6 +244,67 @@ function ohlcPayload(bars) {
   return { kind: OHLC_KIND, bars: Array.isArray(bars) ? bars : [] }
 }
 
+// ─── W4-T13 · A CANDLE / BAR FROM FOUR COMPUTED COLUMNS ─────────────────────────────────
+//
+// A document row whose style is `candles` / `ohlcBars` and which names its price columns
+// (`plots[].ohlc`, validated by `defSchema.validateOhlc`) is drawn from the SAME run that computed
+// them: bar i is `{open, high, low, close}` read from the four columns at i, and the colours of its
+// body, wick and border from the colour columns `ohlcColors` names (a packed `0xTTBBGGRR` integer,
+// NaN where the script's colour is `na`). The payload is the one the symbol path hands the series
+// (`ohlcPayload`), so the series, the legend and the last-value tag read it unchanged.
+//
+// ⛔ A BAR WITH ANY NON-FINITE PRICE IS WHITESPACE (`toOhlcPoints`), so an `na` open hides the
+// candle exactly as TradingView draws nothing for it. ⛔ A COLOUR THAT IS `na` IS THE TRANSPARENT
+// ENTRY, never the series colour: the script chose nothing there, so a stand-in would be a colour it
+// never wrote. ⛔ MEMOISED ON THE IDENTITY OF EVERY COLUMN IT READS AND THE CHART'S BARS, so an
+// unchanged run hands the point memo the SAME payload (a fresh object each sync would rebuild the
+// points, and re-set the series data, every second).
+const _computedOhlcMemo = new WeakMap()
+
+function computedOhlcDeclared(plot) {
+  return !!plot && (plot.style === 'candles' || plot.style === 'ohlcBars')
+    && !!plot.ohlc && typeof plot.ohlc === 'object'
+}
+
+/** The PAYLOAD (not the bars) is what is memoised: its identity is what the point memo keys on. */
+export function computedOhlcPayload(plot, cols, bars) {
+  if (!computedOhlcDeclared(plot)) return null
+  const close = cols[plot.key]
+  const read = {
+    o: cols[plot.ohlc.open], h: cols[plot.ohlc.high], l: cols[plot.ohlc.low], c: close,
+  }
+  if (!read.o || !read.h || !read.l || !close) return null
+  const colourCols = {}
+  for (const [part, key] of Object.entries(plot.ohlcColors || {})) {
+    if (cols[key]) colourCols[part] = cols[key]
+  }
+  const sources = [read.o, read.h, read.l, ...Object.keys(colourCols).sort().map((k) => colourCols[k])]
+  const sig = Object.keys(colourCols).sort().join('|')
+  const memo = _computedOhlcMemo.get(close)
+  if (memo && memo.bars === bars && memo.sig === sig && memo.sources.length === sources.length
+      && memo.sources.every((s, i) => s === sources[i])) return memo.payload
+  const packed = { transparency: null }
+  const colourAt = (part, i) => {
+    const col = colourCols[part]
+    if (!col) return undefined
+    return packedPointColour(packed, col[i]) || PACKED_NA_POINT
+  }
+  const out = new Array(bars.length)
+  for (let i = 0; i < bars.length; i++) {
+    const bar = { t: bars[i].t, o: read.o[i], h: read.h[i], l: read.l[i], c: close[i] }
+    const body = colourAt('body', i)
+    const wick = colourAt('wick', i)
+    const border = colourAt('border', i)
+    if (body !== undefined) bar.color = body
+    if (wick !== undefined) bar.wickColor = wick
+    if (border !== undefined) bar.borderColor = border
+    out[i] = bar
+  }
+  const payload = ohlcPayload(out)
+  _computedOhlcMemo.set(close, { bars, sig, sources, payload })
+  return payload
+}
+
 /** Is this binding payload the coordinated bar shape rather than a column? */
 function isOhlcPayload(v) {
   return !!v && typeof v === 'object' && v.kind === OHLC_KIND
@@ -259,6 +339,11 @@ function toOhlcPoints(payload, adjustTime) {
       continue
     }
     out[i] = { time, open: b.o, high: b.h, low: b.l, close: b.c }
+    // W4-T13 - the colours a COMPUTED candle carries per bar (a symbol's bars carry none, so
+    // theirs are unchanged): the library lets a point's own colours beat the series options.
+    if (b.color !== undefined) out[i].color = b.color
+    if (b.wickColor !== undefined) out[i].wickColor = b.wickColor
+    if (b.borderColor !== undefined) out[i].borderColor = b.borderColor
   }
   return out
 }
@@ -1043,6 +1128,18 @@ export function createBinder({ chart, LWC, scope = '' }) {
     if (n) dropsPublished.add(instanceId)
     else dropsPublished.delete(instanceId)
   }
+  // ⭐⭐ W9-T12 — the marker outcome per instance (served, or the refusal's sentence), for the
+  // member surface that shows it (T13b). Zero calls for a chart with no strategy on it.
+  const markersPublished = new Set()
+  const publishMarkers = (instanceId, result) => {
+    if (!result && !markersPublished.has(instanceId)) return
+    attempt(() => publishTradeMarkers(instanceId, result, noticeScope))
+    if (result) markersPublished.add(instanceId)
+    else markersPublished.delete(instanceId)
+  }
+  const pruneMarkers = (keep) => {
+    for (const id of [...markersPublished]) if (!keep || !keep.has(id)) publishMarkers(id, null)
+  }
   const pruneDrops = (keep) => {
     for (const id of [...dropsPublished]) if (!keep || !keep.has(id)) publishDrops(id, null)
   }
@@ -1064,6 +1161,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
     const alive = new Set()
     if (typeof make === 'function') ensureObjectRangeSubscription()
     const theme = chartThemeOf(ctx.cs)
+    // ⭐ W9-T12 r2 (N1) — each strategy's marker outcome, published once AFTER its picture is
+    // decided, so the outcome never says `ok` over a layer this sync cleared (and never flickers).
+    const markOutcomes = new Map()
     for (const inst of instances) {
       if (!inst || typeof inst.instanceId !== 'string' || inst.hidden === true) continue
       const def = ctx.registry && attempt(() => ctx.registry.getDefinition(inst.defId)).value
@@ -1071,47 +1171,70 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // already computed (one run, both answers), drawn by the same render state.
       // ⛔ No columns yet (a worker run in flight) or a run that computed nothing
       // draws nothing — never a stale picture, never the host program's.
-      if (drawsRuntimeObjects(def)) {
+      // ⭐⭐ W9-T12 — A STRATEGY'S TRADE MARKERS: asked of the committed ledger at the member door
+      // (`memberTradeMarkers`) and published BEFORE either drawing path, then merged into
+      // WHICHEVER layer draws this instance (the run's objects below, or the host program's).
+      // ⛔ An indicator never reaches `memberTradeMarkers` (`drawsTradeMarkers` is false), so its
+      // path is unchanged. ⚰️ The first cut sent every strategy into the run's branch, and a
+      // strategy whose drawings come from the HOST program (`definition.objects`, no
+      // `compute.objects`) drew nothing at all (review F1).
+      const markersHere = drawsTradeMarkers(def)
+      const marks = markersHere
+        ? attempt(() => memberTradeMarkers((computeMemo.get(inst.instanceId) || {}).cols)).value || null : null
+      if (markersHere) markOutcomes.set(inst.instanceId, marks)
+      const markersCleared = () => { if (markersHere) markOutcomes.set(inst.instanceId, markersWithheldWith(marks)) }
+      const markLive = marks ? attempt(() => tradeMarkerObjects(marks)).value || [] : []
+      const markSig = markersHere ? `:mk:${markLive.map((o) => `${o.id}=${o.props.text}`).join(',')}` : ''
+      // the run's branch: a document whose run draws its objects, or a strategy with no host program
+      if (drawsRuntimeObjects(def) || (markersHere && !(def && def.objects))) {
         alive.add(inst.instanceId)
-        if (typeof make !== 'function') continue
+        const memo = computeMemo.get(inst.instanceId)
+        // (r3) no object layer on this surface, or one that could not be made: nothing is drawn
+        if (typeof make !== 'function') { markersCleared(); continue }
         let rlayer = objectLayers.get(inst.instanceId)
         if (!rlayer) {
           const made = attempt(() => make(inst))
           rlayer = made.ok ? made.value : null
-          if (!rlayer) continue
+          if (!rlayer) { markersCleared(); continue }
           objectLayers.set(inst.instanceId, rlayer)
         }
-        const memo = computeMemo.get(inst.instanceId)
-        const payload = runtimeObjectsOf(memo && memo.cols)
+        const objPayload = runtimeObjectsOf(memo && memo.cols)
+        const payload = objPayload && !markLive.length ? objPayload
+          : objPayload ? { ...objPayload, live: objPayload.live.concat(markLive) }
+            : markLive.length ? { live: markLive, withheld: {}, reason: null, stats: { nextId: `mk${markLive.length}` }, pineVersion: null }
+              : null
         if (!payload) { publishDrops(inst.instanceId, null); attempt(() => rlayer.set(null, '')); continue }
         const rstate = attempt(() => toRenderState(payload.live,
           { bars, tf: ctx.tf, theme, pineVersion: payload.pineVersion })).value
-        if (!rstate) { publishDrops(inst.instanceId, null); attempt(() => rlayer.set(null, '')); continue }
+        if (!rstate) { markersCleared(); publishDrops(inst.instanceId, null); attempt(() => rlayer.set(null, '')); continue }
         publishDrops(inst.instanceId, rstate)
         const rsig = `rt:${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${(payload.stats || {}).nextId}:${theme.fg || ''}/${theme.bg || ''}`
-        attempt(() => rlayer.set(rstate, rsig, {
+          + markSig
+        const rset = attempt(() => rlayer.set(rstate, rsig, {
           liveIds: payload.live.map((o) => o.id),
           createdBars: payload.live.map((o) => o.createdBar),
           lane: 'runtime',
           withheld: payload.withheld || {},
           reason: payload.reason || null,
         }))
+        if (!rset.ok) markersCleared()
         continue
       }
       const program = def && def.objects
       if (!program) continue
       alive.add(inst.instanceId)
-      if (typeof make !== 'function') continue
+      if (typeof make !== 'function') { markersCleared(); continue }
       let layer = objectLayers.get(inst.instanceId)
       if (!layer) {
         const made = attempt(() => make(inst))
         layer = made.ok ? made.value : null
-        if (!layer) continue
+        if (!layer) { markersCleared(); continue }
         objectLayers.set(inst.instanceId, layer)
       }
       // ⭐⭐ RT4 — A RUNTIME DOCUMENT'S DRAWINGS GO WITH ITS RUN: what step 1
       // computed for this instance on THIS chart decides (`runtimeObjectsWithheld`).
       if (runtimeObjectsWithheld(def, runCols ? runCols.get(inst.instanceId) : undefined)) {
+        markersCleared()
         publishClock(inst.instanceId, 'objects', [])
         publishDrops(inst.instanceId, null)
         attempt(() => layer.set(null, ''))
@@ -1204,7 +1327,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         }
       })
       publishClock(inst.instanceId, 'objects', built.ok && built.value ? built.value.chartClock : [])
-      if (!built.ok || !built.value) { publishDrops(inst.instanceId, null); attempt(() => layer.set(null, '')); continue }
+      if (!built.ok || !built.value) { markersCleared(); publishDrops(inst.instanceId, null); attempt(() => layer.set(null, '')); continue }
       // ⭐ THE SIGNATURE IS THE BARS PLUS THE PROGRAM. Same script over the same
       // series is the same picture, so a poll that changed nothing repaints
       // nothing — the memo discipline the column path above already keeps.
@@ -1237,16 +1360,31 @@ export function createBinder({ chart, LWC, scope = '' }) {
           dropped: built.value.state.dropped,
         },
       }
-      publishDrops(inst.instanceId, built.value.state)
-      attempt(() => layer.set(built.value.state, sig, meta))
+      // ⭐ W9-T12 — served markers join the host program's picture (one layer per instance)
+      // (r2, N2): ids and bars kept in step, a marker the chart cannot place counted in the note
+      let hstate = built.value.state
+      if (markLive.length) {
+        const joined = attempt(() => joinMarkersToState(hstate, meta.liveIds, meta.createdBars, markLive,
+          { bars, tf: ctx.tf, theme })).value
+        if (joined) {
+          hstate = joined.state
+          meta.liveIds = joined.liveIds
+          meta.createdBars = joined.createdBars
+          meta.stats.dropped = hstate.dropped
+        } else markersCleared()
+      }
+      publishDrops(inst.instanceId, hstate)
+      if (!attempt(() => layer.set(hstate, sig + markSig, meta)).ok) markersCleared()
     }
     for (const [id, layer] of objectLayers) {
       if (alive.has(id)) continue
       attempt(() => layer.clear())
       objectLayers.delete(id)
     }
+    for (const [id, out] of markOutcomes) publishMarkers(id, out)
     pruneClock('objects', alive)
     pruneDrops(alive)
+    pruneMarkers(alive)
   }
 
   /** instanceId → `{registry, def, bars, sig, cols}`. */
@@ -1356,7 +1494,23 @@ export function createBinder({ chart, LWC, scope = '' }) {
   /** ⭐ C43 — the instances this binder has published a `runtime.error` stop for,
    *  so a removed, hidden or released instance takes its sentence with it. */
   const stoppedIds = new Set()
+  /** ⭐ W9-T13b — the instances THIS binder has published a strategy record for
+   *  (`strategyReportNotice.js`). Rides every call site of `noteRuntimeErrorStop`, so a
+   *  removed, hidden or recomputed instance takes its record with it. */
+  const strategyIds = new Set()
+  const noteStrategyRecord = (instanceId, cols) => {
+    const rec = cols ? runtimeStrategyOf(cols) : null
+    if (rec) strategyIds.add(instanceId)
+    else if (!strategyIds.has(instanceId)) return
+    else strategyIds.delete(instanceId)
+    attempt(() => setStrategyRecord(instanceId, rec, noticeScope))
+  }
+  const clearStrategyRecords = () => {
+    for (const id of strategyIds) attempt(() => setStrategyRecord(id, null, noticeScope))
+    strategyIds.clear()
+  }
   const noteRuntimeErrorStop = (instanceId, cols, def = null) => {
+    noteStrategyRecord(instanceId, cols)
     const stop = cols ? runtimeErrorStopOf(cols) : null
     let sentence = stop && stop.reached ? stop.sentence : null
     // ⭐⭐ RF — a RUNTIME document whose run computed nothing on this chart says
@@ -1365,6 +1519,12 @@ export function createBinder({ chart, LWC, scope = '' }) {
     if (!sentence && def) {
       const ran = runtimeRunStopOf(def, cols)
       if (ran) sentence = ran.sentence
+    }
+    // ⭐ DIV-4 r1 — a host document's `barcolor` whose run-read colour is not served
+    // on this chart says why on the same strip (`nativeRegistry.runtimeColourStopOf`).
+    if (!sentence && def) {
+      const paint = runtimeColourStopOf(def, cols)
+      if (paint) sentence = paint.sentence
     }
     if (sentence) stoppedIds.add(instanceId)
     else if (!stoppedIds.has(instanceId)) return
@@ -1390,10 +1550,12 @@ export function createBinder({ chart, LWC, scope = '' }) {
     pruneClock('plots', null)
     pruneClock('objects', null)
     pruneDrops(null)
+    pruneMarkers(null)
     held = []
     lastColumnErrors = new Map()
     for (const id of stoppedIds) setRuntimeErrorNotice(id, null, noticeScope)
     stoppedIds.clear()
+    clearStrategyRecords()
     computeMemo = new Map()
     pointMemo = new Map()
     pendingLayout = null
@@ -1501,6 +1663,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
       pruneClock('plots', null)
       pruneClock('objects', null)
       pruneDrops(null)
+      pruneMarkers(null)
       // ⭐ RF — and a stopped run's sentence, for the same reason: a runtime pane
       // that drew nothing binds NO series, so `held` is empty exactly when there
       // is a "not drawn because …" sentence to take down. Zero calls when none.
@@ -1508,6 +1671,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         for (const id of stoppedIds) setRuntimeErrorNotice(id, null, noticeScope)
         stoppedIds.clear()
       }
+      clearStrategyRecords()
       // ⛔ THE TENANT IS GONE, SO THE AXIS GOES. See `assertLeftAxis` — deleting
       // the last indicator arrives HERE, not at pass two.
       assertLeftAxis(false)
@@ -1587,6 +1751,11 @@ export function createBinder({ chart, LWC, scope = '' }) {
     // binding can tell the legend which observation PERIOD each bar shows.
     const econObs = new Map()
     const dependedOn = new Set()
+    // ⭐ LINE IDENTITY — the instance a source names, to ask whether the line it
+    // recorded is still the line under that key (`sourceRef.sourceLineIntact`).
+    const instanceById = new Map()
+    for (const inst of instances) if (inst && typeof inst.instanceId === 'string') instanceById.set(inst.instanceId, inst)
+    const defOfReg = (id) => registry.getDefinition(id)
     for (const inst of instances) {
       if (!inst || inst.hidden === true) continue
       const idef = registry.getDefinition(inst.defId)
@@ -1659,6 +1828,12 @@ export function createBinder({ chart, LWC, scope = '' }) {
           series = (frame
             ? frameColumns.get(bindingKey(parsed.instanceId, parsed.plotKey))
             : columns.get(bindingKey(parsed.instanceId, parsed.plotKey))) || null
+          // ⛔⛔ LINE IDENTITY (owner decision 2026-11-02): the key still exists, but a
+          // DIFFERENT line now holds it (removed, then re-added). Exactly a missing
+          // column — never the new line's numbers, which nobody chose.
+          if (series && !sourceLineIntact(inst, key, parsed, instanceById.get(parsed.instanceId), defOfReg)) {
+            series = null
+          }
         } else if (parsed && parsed.kind === 'symbol' && frame) {
           // ⭐ ANOTHER SYMBOL AT THIS FRAME — the same exact-t rule, on the frame's
           // own bars (both sides are that frame's canonical bars).
@@ -1743,8 +1918,42 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // every document that reads none (one property read).
       const lowerTf = ctx.lowerTf && typeof ctx.lowerTf.get === 'function' ? ctx.lowerTf : null
       const lowerSig = frame ? '' : lowerTfSignature(def, lowerTf)
+      // ⭐⭐ W9-T11-F1 — THE CHART LANE'S STRATEGY WINDOW (design 3.4, "The chart"). A strategy
+      // document (stamped `strategy-window`, possible only with the broker gate on) is handed the
+      // window the caller holds, `ctx.historyWindowBars`: the server's `bars_window` value, read once
+      // per tab through `GET /api/pine/history-window` (`strategyWindow.js`), never a literal here.
+      // The runtime decides the rest (`runtimeColumns.js::computeStrategyWindow`, `vm.js`): bars
+      // from the listing that fit the window run; anything else refuses by name (more bars than
+      // the window → the cut window is off the listing → Q-S1n; no window → `runtime:strategy-start`).
+      // A served run therefore always starts at the listing bar, so a new bar never slides it.
+      // ⛔ Only the chart's OWN series: a framed instance's bars are not what the window describes.
+      // ⛔ Every other document is handed nothing, so an indicator's ctx and memo key are unchanged.
+      // ⛔ The value is forwarded as held: what is not a window is the VM's to refuse by name
+      // (`vm.js`, `runtime:strategy-start`), one author, never a second check here.
+      const ownStrategy = !frame && isStrategyWindowDefinition(def)
+      const strategyWindow = ownStrategy && ctx.historyWindowBars != null ? ctx.historyWindowBars : null
+      // ⭐ r1 (review N3) — THE WINDOW HAS BEEN ASKED FOR AND NOT ANSWERED YET
+      // (`ctx.historyWindowPending`, `useStrategyHistoryWindow`). The run is HELD, not refused: no
+      // columns, no record, no notice, so first paint never flashes `runtime:strategy-start`. When
+      // the answer lands the caller re-syncs and the run computes; when the ask FAILS, pending is
+      // false with no window, and the run refuses by name.
+      if (ownStrategy && strategyWindow === null && ctx.historyWindowPending === true) {
+        computeMemo.delete(inst.instanceId)
+        noteRuntimeErrorStop(inst.instanceId, null)
+        runCols.set(inst.instanceId, null)
+        continue
+      }
+      // ⭐ U2b — what the compute reads BEYOND bars and inputs that can change under
+      // an unchanged key (a server definition's live benchmark tail, `plots[].
+      // liveTail`): the registry says so through one optional hook
+      // (`nativeRegistry.computeSignature`), so a landed benchmark quote is a memo
+      // miss and not another paint of the stale forming bar. `''` for every native.
+      const liveSig = typeof registry.computeSignature === 'function'
+        ? (registry.computeSignature(def, inst.inputs, { sym: ctx.sym, tf: frame || ctx.tf }) || '') : ''
       const sig = inputsSignature(inst.inputs) + sourceSig + (otherSig ? `|os:${otherSig}` : '')
         + (lowerSig ? `|ltf:${lowerSig}` : '')
+        + (liveSig ? `|live:${liveSig}` : '')
+        + (strategyWindow !== null ? `|hw${strategyWindow}` : '')
         + (!frame && ctx.historyFromListing === true ? '|listing' : '')
         + (!frame && ctx.barIndexFromFirstBar === true ? '|bar0' : '')
       const memo = computeMemo.get(inst.instanceId)
@@ -1795,6 +2004,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
             // ⭐ C45 — the same restriction, for the same reason: a frame's bars are
             // not the series the caller described.
             ...(!frame && ctx.barIndexFromFirstBar === true ? { barIndexFromFirstBar: true } : {}),
+            // ⭐⭐ W9-T11-F1 — a strategy run's window (see `strategyWindow` above)
+            ...(strategyWindow !== null ? { historyWindowBars: strategyWindow } : {}),
             // ⭐⭐ C26 — the other symbols a Pine document may read: the chart's
             // secondary bars and our store's exchange per ticker, decided by
             // `otherSymbols.js`. A FRAMED instance reads none (its bars are the
@@ -1889,12 +2100,22 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // (the projection, `computeFor`, the memo) is untouched, which is why
         // `MA(QQQ)` and a QQQ line are byte-identical.
         const ohlcBars = ohlcBarsForPlot(def, inst, plotKey)
+        // W4-T13 - …or a row that names its own four columns, drawn from the run.
+        const computedPlot = ohlcBars ? null : (def.plots || []).find((pl) => pl && pl.key === plotKey)
+        const computedBars = computedPlot && computedOhlcDeclared(computedPlot)
+          && isOhlcPlotStyle(resolvePlotStyle(inst, computedPlot, { ohlcCapable: true }))
+          ? computedOhlcPayload(computedPlot, cols, bars) : null
+        // ⛔ A DECLARED OHLC ROW WHOSE COLUMNS ARE MISSING DRAWS NOTHING: the scalar close must never
+        // be handed to a candlestick series. (`validateOhlc` makes it unreachable for a valid document.)
+        const declaredNoColumns = computedPlot && computedOhlcDeclared(computedPlot) && !computedBars
+          && isOhlcPlotStyle(resolvePlotStyle(inst, computedPlot, { ohlcCapable: true }))
         columns.set(bindingKey(inst.instanceId, plotKey),
-          ohlcBars ? ohlcPayload(ohlcBars) : cols[plotKey])
+          ohlcBars ? ohlcPayload(ohlcBars) : (computedBars || (declaredNoColumns ? ohlcPayload([]) : cols[plotKey])))
       }
     }
     for (const id of computeMemo.keys()) if (!computedIds.has(id)) computeMemo.delete(id)
     for (const id of [...stoppedIds]) if (!computedIds.has(id)) noteRuntimeErrorStop(id, null)
+    for (const id of [...strategyIds]) if (!computedIds.has(id)) noteStrategyRecord(id, null)
     pruneClock('plots', clockSeen)
     // ⭐ A FRAME THE CHART HAS OUTRUN IS REPORTED, never silently held: the host
     // refetches it (`useCalcFrames.refreshFrame`, throttled per window) and the
@@ -1979,6 +2200,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // Chart Theme is chosen, so a signed histogram that stores no colour of its
       // own follows the theme for free — one palette, not a second one.
       candles: (ctx.cs && ctx.cs.candles) || null,
+      // ⭐ UCT RS 3-14 — what the live server row declares, so a guide gated on a
+      // value that row drops (a v4 Reading under a v3 server) is not drawn.
+      serverDeclares,
     })
 
     // HAND-BACK (W1b.5, minor 4): reassign a hidden carrier's guides onto its
@@ -2072,14 +2296,33 @@ export function createBinder({ chart, LWC, scope = '' }) {
     // scale, the guides and the data. Both walk `bind` in the same order, so
     // insertion order — which IS z-order — is unchanged.
     const prepared = []
-    for (const b of bind) {
+    // ⭐ A4 — EVERY PLACEMENT IS RESOLVED BEFORE ANY SERIES IS TOUCHED, because one
+    // answer now depends on the others: a pane's axis hides only when every tenant
+    // on it asks (`placement.applyAxisTenancy`), and a tenant's `priceScaleId` is
+    // part of the series options built just below. `resolvePlacement` is pure, so
+    // resolving early changes no call the renderer sees; the orphans still happen
+    // in the loop, in the order they always did.
+    //
+    // ⛔ IDENTITY WITHOUT A HIDDEN ASK: tenancy returns every answer it does not
+    // change as the same object, so a chart with no `placement.axis: 'hidden'`
+    // definition binds exactly as before. And it is wrapped like every other
+    // placement call — if it throws, the per-instance answers stand.
+    const resolved = bind.map((b) => (
+      (b.plot && b.plot.hidden === true) ? null : attempt(() => resolvePlacement(b.inst, b.def, ctx))
+    ))
+    const tenancy = attempt(() => applyAxisTenancy(resolved.map((r) => (r && r.ok ? r.value : null)), ctx))
+    const settled = (tenancy.ok && Array.isArray(tenancy.value) && tenancy.value.length === resolved.length)
+      ? tenancy.value
+      : resolved.map((r) => (r && r.ok ? r.value : null))
+    for (let bi = 0; bi < bind.length; bi++) {
+      const b = bind[bi]
       // ⭐ W1b — `plots[].hidden`: COMPUTED, NEVER DRAWN. The column still reaches
       // the scan and the alert seam through `computeFor`; the chart gets no
       // series. A series this binding was carrying goes back to the renderer.
       if (b.plot && b.plot.hidden === true) { orphan(b); continue }
-      const placement = attempt(() => resolvePlacement(b.inst, b.def, ctx))
-      if (!placement.ok || !placement.value) { orphan(b); continue }
-      const { paneIndex, scaleId, scaleOptions, autoscale, lastValue, autoscaleRange } = placement.value
+      const placementValue = settled[bi]
+      if (!placementValue) { orphan(b); continue }
+      const { paneIndex, scaleId, scaleOptions, autoscale, lastValue, autoscaleRange } = placementValue
       // ⭐ A series on the CANDLES' OWN AXIS ('right' in the price pane) takes the chart's
       // axis format (`ctx.mainPriceFormat`, StockChart's `priceFormat` prop). The library
       // formats an axis with the series on it added FIRST, and an MA is usually added
@@ -2310,7 +2553,10 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // guides use, and it detaches here for the same reason.
       let fill = (b.from && b.from.fill) || null
       const fillSpec = b.plot && b.plot.fill
-      const fillWith = fillSpec && typeof fillSpec.with === 'string' ? fillSpec.with : null
+      // ⭐ UCT RS design round (2026-11-08) — `fill.activeWhen`: a band the member
+      // switches (the RS line's "Shade vs average"). Off ⇒ exactly the no-fill
+      // path below: the primitive comes off, the columns are untouched.
+      const fillWith = fillSpec && typeof fillSpec.with === 'string' && fillActiveFor(fillSpec, b) ? fillSpec.with : null
       if (fill && (b.source !== 'same' || !fillWith)) {
         attempt(() => series.detachPrimitive(fill.primitive))
         fill = null
@@ -2374,7 +2620,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         const kept = new Map()
         for (const hp of ((b.def && b.def.plots) || [])) {
           if (!hp || hp.hidden !== true) continue
-          const hw = hp.fill && typeof hp.fill.with === 'string' ? hp.fill.with : null
+          const hw = hp.fill && typeof hp.fill.with === 'string' && fillActiveFor(hp.fill, b) ? hp.fill.with : null
           if (!hw || hw === hp.key) continue
           const upper = displacedColumn(columns.get(bindingKey(b.instanceId, hp.key)), drawShiftOf(hp))
           const lower = displacedColumn(columns.get(bindingKey(b.instanceId, hw)), plotShift(hw))

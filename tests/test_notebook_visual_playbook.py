@@ -125,7 +125,7 @@ def test_only_tagged_blocks_show_with_image_fingerprint_and_outcome(conn):
     assert by["AMD"]["outcome"] == "loss"
     assert by["TSLA"]["outcome"] == "none" and by["TSLA"]["trades"] == []
     assert out["facets"]["setups"] == {"VCP": 2, "Bull Flag": 1}
-    assert out["regime"]["available"] is False and "13E" in out["regime"]["reason"]
+    assert out["regime"]["available"] is True
 
 
 def test_the_outcome_joins_on_the_stable_trade_ref_and_survives_a_broker_resync(conn):
@@ -333,23 +333,8 @@ def _auth_conn():
 BASE = "/api/j2/notebook-visual-playbook"
 
 
-def test_every_route_is_404_while_the_flag_is_off_even_signed_out(client, monkeypatch):
-    monkeypatch.delenv(vp.FLAG, raising=False)
-    for path in ("/cards", "/cards?setup=VCP&range=rs_rank:90:", "/trades/t1/before-after"):
-        assert client.get(BASE + path).status_code == 404, path
-
-
-def test_the_flag_is_read_per_request(client, monkeypatch):
-    as_user(client, "m1")
-    monkeypatch.setenv(vp.FLAG, "1")
-    assert client.get(BASE + "/cards").status_code == 200
-    monkeypatch.setenv(vp.FLAG, "0")
-    assert client.get(BASE + "/cards").status_code == 404
-
-
 def test_the_grid_and_before_after_both_need_a_paid_plan(client, monkeypatch):
     """Before/after was session-only; owner ruling 2026-10-02 (security review I-7) closed it."""
-    monkeypatch.setenv(vp.FLAG, "1")
     as_user(client, "m1", FREE)
     assert client.get(BASE + "/cards").status_code == 402
     assert client.get(BASE + "/trades/nope/before-after").status_code == 402
@@ -358,7 +343,6 @@ def test_the_grid_and_before_after_both_need_a_paid_plan(client, monkeypatch):
 
 
 def test_the_routes_serve_filters_and_scope_to_the_member(client, monkeypatch):
-    monkeypatch.setenv(vp.FLAG, "1")
     c = _auth_conn()
     try:
         _seed_route(c)

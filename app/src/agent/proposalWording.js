@@ -14,7 +14,7 @@ export const PAST_TO_PENDING = Object.freeze({
   Added: 'Add', Removed: 'Remove', Deleted: 'Delete', Saved: 'Save', Created: 'Create', Renamed: 'Rename',
   Changed: 'Change', Switched: 'Switch', Moved: 'Move', Cleared: 'Clear', Hid: 'Hide', Showed: 'Show',
   Opened: 'Open', Closed: 'Close', Set: 'Set', Turned: 'Turn', Applied: 'Apply', Reset: 'Reset',
-  Linked: 'Link', Unlinked: 'Unlink', Resized: 'Resize', Swapped: 'Swap', Arranged: 'Arrange', Drew: 'Draw', Restyled: 'Restyle',
+  Linked: 'Link', Unlinked: 'Unlink', Resized: 'Resize', Swapped: 'Swap', Arranged: 'Arrange', Drew: 'Draw', Restyled: 'Restyle', Exited: 'Exit',
   Selected: 'Select', Updated: 'Update', Restored: 'Restore', Put: 'Put', Made: 'Make', Enabled: 'Enable',
   Disabled: 'Disable', Replaced: 'Replace', Duplicated: 'Duplicate', Copied: 'Copy', Pinned: 'Pin', Undid: 'Undo',
   // Charts operator P1
@@ -23,6 +23,8 @@ export const PAST_TO_PENDING = Object.freeze({
 // phrases that state a RESULT as already true
 const PHRASES = [
   [/\(now open\)/g, '(it becomes the open layout)'],
+  // review t4 M2: a replace says what it WILL remove — the receipt (after approval) keeps "removed"
+  [/ — replacing your (charts|board): removed /g, ' — replacing your $1: will remove '],
 ]
 const VERB = new RegExp(`^(${Object.keys(PAST_TO_PENDING).join('|')})\\b`)
 

@@ -10,6 +10,7 @@ import path from 'node:path'
 import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import Support, { FAQS, inferSourceTopic, visibleFaqs } from './Support'
 import { AuthContext } from '../context/AuthContext'
@@ -265,7 +266,9 @@ describe('Walkthroughs (the tour registry\'s Help list)', () => {
     expect(screen.queryByRole('link', { name: 'Replay' })).toBeNull()
   })
 
-  it('lists the base tour by name, with a Replay link into the Notebook, independent of seen-state', async () => {
+  // S14 (audit 2026-11-05, detail #68): the verb now READS the seen-state -- Start for a tour never taken, Replay
+  // for one taken (Support.whatsNew.test.jsx drives both). This member has no record, so it says Start.
+  it('lists the base tour by name, with a Start link into the Notebook (never taken)', async () => {
     latchNotebookFlags({ notebook_task_reminders_enabled: false, notebook_onboarding_enabled: true, notebook_getting_started_enabled: true })
     renderSupport()
     await quickAnswer('How do I get started with the Notebook?')
@@ -274,10 +277,10 @@ describe('Walkthroughs (the tour registry\'s Help list)', () => {
     expect(within(list).getByText('Notebook basics')).toBeInTheDocument()
     // Lane FIN-A11Y (review R4, M-14): every row said just "Replay", twenty links with one
     // name. The visible word stays; the link's NAME now says which tour it replays.
-    const replay = within(list).getByRole('link', { name: 'Replay the Notebook basics tour' })
+    const replay = within(list).getByRole('link', { name: 'Start the Notebook basics tour' })
     expect(replay).toHaveAttribute('href', '/journal/notebook')
-    expect(replay).toHaveTextContent(/^Replay$/)
-    expect(within(list).queryByRole('link', { name: 'Replay' })).toBeNull()
+    expect(replay).toHaveTextContent(/^Start$/)
+    expect(within(list).queryByRole('link', { name: 'Start' })).toBeNull()
     const names = within(list).getAllByRole('link').map((a) => a.getAttribute('aria-label'))
     expect(new Set(names).size).toBe(names.length)
   })
@@ -345,5 +348,91 @@ describe('votes work with the new ids', () => {
     expect(JSON.parse(init.body)).toEqual({ helpful: true })
     const row = screen.getByText('Was this helpful?').parentElement
     expect(within(row).getByRole('button', { name: 'Yes, this was helpful' })).toHaveTextContent('1')
+  })
+})
+
+// ⛔ Audit 2026-11-05, spec S5 (B14): the Linking answer read "Unlinked mentionsshows notes ...".
+// JSX drops a line break between a closing tag and the next word, so `</strong>` at a line's end
+// glued itself to the word on the next line. Checked as RENDERED text for every answer on the page:
+// an inline element is never glued to a word on either side.
+describe('no answer glues a word to a bold, code or link (B14)', () => {
+  const INLINE = new Set(['STRONG', 'CODE', 'KBD', 'EM', 'A', 'B', 'I'])
+  const glued = (container) => {
+    const out = []
+    container.querySelectorAll('*').forEach((el) => {
+      if (!INLINE.has(el.tagName)) return
+      const next = el.nextSibling
+      if (next?.nodeType === 3 && /^[A-Za-z0-9]/.test(next.textContent)) out.push(`${el.textContent}|${next.textContent.slice(0, 12)}`)
+      const prev = el.previousSibling
+      if (prev?.nodeType === 3 && /[A-Za-z0-9]$/.test(prev.textContent) && !/^\s/.test(el.textContent)) {
+        out.push(`${prev.textContent.slice(-12)}|${el.textContent}`)
+      }
+    })
+    return out
+  }
+
+  it('the Linking answer says "Unlinked mentions shows"', () => {
+    const faq = FAQS.find((f) => f.id === 'notebook-linking-notes')
+    const { container } = render(<MemoryRouter><div>{faq.a}</div></MemoryRouter>)
+    expect(container.textContent).toContain('Unlinked mentions shows notes')
+  })
+
+  it('every answer, every topic', () => {
+    const bad = []
+    for (const f of FAQS) {
+      if (!f.a || typeof f.a === 'string') continue
+      const { container, unmount } = render(<MemoryRouter><div>{f.a}</div></MemoryRouter>)
+      for (const g of glued(container)) bad.push(`${f.id}: ${g}`)
+      unmount()
+    }
+    expect(bad).toEqual([])
+  })
+})
+
+// S14 (audit 2026-11-05): the Help menu's landings and the in-feature "?" (HelpAnswerLink.jsx) land on Quick answers.
+describe('Quick answers: Help landings (S14)', () => {
+  const renderAt = (hash) => render(
+    <AuthContext.Provider value={{ user: { id: 'u1', email: 'm@local.dev' }, plan: 'pro', isPaid: true }}>
+      <MemoryRouter initialEntries={[{ pathname: '/support', hash }]}>
+        <Support />
+      </MemoryRouter>
+    </AuthContext.Provider>,
+  )
+
+  it('#answer-<id> opens THAT answer and puts focus on its question', async () => {
+    renderAt('#answer-notebook-import')
+    const q = await screen.findByRole('button', { name: 'How do I import notes from Notion, Obsidian or Evernote?' })
+    await waitFor(() => expect(q).toHaveAttribute('aria-expanded', 'true'))
+    await waitFor(() => expect(document.activeElement).toBe(q))
+    expect(q.closest('[id]').id).toBe('answer-notebook-import')
+    // CONTROL: only that one is open
+    expect(screen.getByRole('button', { name: 'How do I link notes together?' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('an unknown answer id opens nothing (never a wrong answer)', async () => {
+    renderAt('#answer-nope')
+    await quickAnswer('How do I link notes together?')
+    expect(screen.queryAllByRole('button', { expanded: true }).filter((b) => b.closest('[id^="answer-"]'))).toEqual([])
+  })
+
+  it('#help-search focuses Search help, which filters the answers and says so when nothing matches', async () => {
+    const user = userEvent.setup()
+    renderAt('#help-search')
+    const box = await screen.findByRole('searchbox', { name: 'Search help' })
+    await waitFor(() => expect(document.activeElement).toBe(box))
+    await user.type(box, 'export formats')
+    expect(screen.getByRole('button', { name: 'How do I export my notes, and what does each format keep?' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'How do I link notes together?' })).toBeNull()
+    await user.clear(box)
+    await user.type(box, 'zzqqxx')
+    expect(screen.getAllByRole('status').some((s) => /No answer matches/.test(s.textContent))).toBe(true)
+    // review Important 3: the sentence's "open a ticket" is the door to the new-ticket form
+    expect(screen.getByRole('link', { name: 'open a ticket' })).toHaveAttribute('href', '/support?view=new')
+  })
+
+  it('#quick-answers focuses the Quick answers heading', async () => {
+    renderAt('#quick-answers')
+    const h = await screen.findByRole('heading', { level: 2, name: 'Quick answers' })
+    await waitFor(() => expect(document.activeElement).toBe(h))
   })
 })

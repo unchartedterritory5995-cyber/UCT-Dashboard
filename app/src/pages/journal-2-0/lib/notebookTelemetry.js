@@ -38,6 +38,16 @@
  * P5 (starter packs, Task 6): `style_applied` (a note made from a style, or a style switched or updated on a note,
  * after the server's yes), `style_created` (a new style from the editor, a duplicate or a note) and `block_used`
  * (a trader block inserted into a note). Closed enums only: never a style id, a name, a note or a block's params.
+ *
+ * Audit 2026-11-05, S16 and S20 (the return metrics). `first_run_completed` (the 60-second first run's Build: how many
+ * names, which pack, whether today's plan was written) and `first_run_skipped`; `first_live_widget` (once per browser:
+ * the first time a widget shows the member's OWN tickers -- the "aha", read against the first `notebook_tab_visit`);
+ * `recap_written` (today's recap landed in the daily note); `trust_incident` (a publish undone within 10 minutes, or a
+ * widget deleted and then brought back by undo). Day-1 return, Day-7 return and the morning open rate need no new
+ * event: they are read from `notebook_tab_visit`'s own timestamps. The admin read is
+ * api/services/journal_two/notebook_return_metrics.py. Counts, enums and booleans only: never a ticker or a title.
+ * Audit 2026-11-05, S15: `today_opened` (the Today home opened: the ET session it opened in, and whether that open
+ * made the day's note) -- the morning open counted at the surface built for it, beside the visit timestamps.
  */
 
 export const NOTEBOOK_EVENTS = Object.freeze({
@@ -61,6 +71,12 @@ export const NOTEBOOK_EVENTS = Object.freeze({
   STYLE_APPLIED: 'style_applied',
   STYLE_CREATED: 'style_created',
   BLOCK_USED: 'block_used',
+  FIRST_RUN_COMPLETED: 'first_run_completed',
+  FIRST_RUN_SKIPPED: 'first_run_skipped',
+  FIRST_LIVE_WIDGET: 'first_live_widget',
+  RECAP_WRITTEN: 'recap_written',
+  TRUST_INCIDENT: 'trust_incident',
+  TODAY_OPENED: 'today_opened',
 })
 
 /**
@@ -194,6 +210,34 @@ export const EVENT_SCHEMAS = Object.freeze({
   block_used: {
     kind: oneOf('chart', 'preEntryChecklist', 'priceStamps', 'positionSizing', 'myRules', 'prepWire', 'prepEarnings', 'prepMovers', 'prepLevels', 'tradeReview', 'moodCheckIn', 'marketcontext', 'reminder'),
   },
+  // S16: the first run's Build. `names` is a COUNT, never the tickers; `pack` is a starter pack key or 'none'.
+  first_run_completed: {
+    names: num,
+    pack: oneOf('swing', 'day', 'prop', 'options', 'earnings', 'none'),
+    plan: bool,
+    ms: num,
+  },
+  first_run_skipped: {
+    step: num,
+  },
+  // S20 "First aha": fired once per browser; the admin read takes each member's FIRST one.
+  first_live_widget: {
+    source: oneOf('watchlist', 'reporting', 'first_run'),
+    names: num,
+  },
+  recap_written: {
+    created: bool,
+  },
+  // S20 "Trust incidents": a publish undone within 10 minutes; a widget deleted then restored by undo.
+  trust_incident: {
+    kind: oneOf('publish_undone', 'widget_restored'),
+    ms: num,
+  },
+  // S15 + S20 "Morning open rate": the Today home opened, in which ET session, and whether it made the day's note.
+  today_opened: {
+    session: oneOf('premarket', 'open', 'after_close', 'closed'),
+    created: bool,
+  },
 })
 
 const KNOWN = new Set(Object.values(NOTEBOOK_EVENTS))
@@ -236,6 +280,15 @@ export function trackNotebookEvent(event, props, { fetchImpl } = {}) {
   } catch { /* the action being measured already happened */ }
   return clean
 }
+
+// The suites written before S20 pin "this widget renders without a fetch"; the "first live widget" mark is off there
+// by default (src/test-setup.js), and on in the rails that measure it. Always on in the app. The mark itself is
+// per ACCOUNT (lib/firstLiveWidget.js, Tier 3a fix round 1, review minor 9).
+let firstLiveOn = true
+/** Tests only. */
+export function __setFirstLiveWidgetForTests(on) { firstLiveOn = on !== false }
+/** Whether the first-live-widget mark may run (always, outside the older suites). */
+export function firstLiveWidgetOn() { return firstLiveOn }
 
 /**
  * `note_open_ms` helper: start when the member asks for a note, stop when its

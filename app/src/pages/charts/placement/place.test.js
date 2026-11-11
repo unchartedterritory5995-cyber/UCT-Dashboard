@@ -84,6 +84,43 @@ describe('planPlacement — general behavior', () => {
     }
   })
 
+  test('a board of charts too short to stack: the new chart splits one sideways, on-screen, overlapping nothing', () => {
+    // 2 × 3 charts: no gap, none tall enough to halve, a strip would cut a whole row. The old last resort
+    // placed the chart ON TOP of the board and the grid pushed a chart off the bottom.
+    const layout = []
+    for (const [i, y, h] of [[0, 0, 7], [1, 7, 7], [2, 14, 6]]) {
+      layout.push({ id: `l${i}`, type: 'chart', x: 0, y, w: 12, h }, { id: `r${i}`, type: 'chart', x: 12, y, w: 12, h })
+    }
+    const { place, mutations } = planPlacement(layout, 'chart', COLS, ROWS)
+    expect(mutations).toHaveLength(1)
+    const board = layout.map(w => { const m = mutations.find(x => x.id === w.id); return m ? { ...w, ...m } : w })
+    expect(place.x + place.w).toBeLessThanOrEqual(COLS)
+    expect(place.y + place.h).toBeLessThanOrEqual(ROWS)
+    expect(place.w).toBeGreaterThanOrEqual(6)
+    expect(place.h).toBeGreaterThanOrEqual(6)
+    expect(board.filter(w => w.x < place.x + place.w && place.x < w.x + w.w && w.y < place.y + place.h && place.y < w.y + w.h)).toEqual([])
+  })
+
+  test('a board with no room at all: no place, nothing resized, so the caller refuses the add', () => {
+    // 12 charts at their minimum (6 wide; 6-7 high): none can give up room for a chart
+    const layout = []
+    for (let c = 0; c < 4; c++) for (const [i, y, h] of [[0, 0, 7], [1, 7, 7], [2, 14, 6]]) layout.push({ id: `c${c}${i}`, type: 'chart', x: c * 6, y, w: 6, h })
+    expect(planPlacement(layout, 'chart', COLS, ROWS)).toEqual({ place: null, mutations: [] })
+  })
+
+  test('a split that would overlap a neighbour is not a plan', () => {
+    // the only tall widget is a 3-wide rail: a chart (min 6 wide) stacked into it would be widened over the chart beside it
+    const layout = [
+      { id: 'rail', type: 'watchlist', x: 0, y: 0, w: 3, h: 20 },
+      ...Array.from({ length: 3 }, (_, c) => [[0, 7], [7, 7], [14, 6]].map(([y, h], i) => ({ id: `c${c}${i}`, type: 'chart', x: 3 + c * 7, y, w: 7, h }))).flat(),
+    ]
+    const { place, mutations } = planPlacement(layout, 'chart', COLS, ROWS)
+    if (place) {
+      const board = layout.map(w => { const m = mutations.find(x => x.id === w.id); return m ? { ...w, ...m } : w })
+      expect(board.filter(w => w.x < place.x + place.w && place.x < w.x + w.w && w.y < place.y + place.h && place.y < w.y + w.h)).toEqual([])
+    } else expect(mutations).toEqual([])
+  })
+
   test('a panel with no matching rail carves one beside the widest widget', () => {
     const layout = [{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20 }]
     const { place, mutations } = planPlacement(layout, 'themes', COLS, ROWS)

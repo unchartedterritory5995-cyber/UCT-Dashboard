@@ -95,35 +95,21 @@ def _find(obj, key):
     return None
 
 
-def test_the_gate_is_DARK_unless_set_and_rides_the_auth_payload():
-    assert auth_router.NOTEBOOK_FLAGS[FLAG] is False
-    assert _find(_payload(**{FLAG: None}), KEY) is False
-    assert _find(_payload(**{FLAG: "1"}), KEY) is True
-    assert _find(_payload(**{FLAG: "0"}), KEY) is False
-    # an unrecognised value takes the default (OFF), never its opposite
-    assert _find(_payload(**{FLAG: "maybe"}), KEY) is False
+def test_the_capability_is_always_on_and_rides_the_auth_payload():
+    """The flag was retired as ALWAYS ON (2026-11-04): the payload key is hard-coded True,
+    and no value of the old variable turns it off."""
+    assert FLAG not in auth_router.NOTEBOOK_FLAGS
+    assert KEY in auth_router.NOTEBOOK_ALWAYS_ON_KEYS
+    for raw in (None, "1", "0", "maybe"):
+        assert _find(_payload(**{FLAG: raw}), KEY) is True
 
 
-def test_the_ledger_entry_for_the_gate_is_decided_and_agrees_with_itself():
-    """The ledger is the record of what was decided; this test READS it and never restates it.
-
-    It used to assert `status == "dark"`. The gate was armed on web on 2026-10-03 (the owner's
-    flip, recorded in the entry by PR #267, a0509fae96), and the test stayed red from that day:
-    a second copy of a status is wrong the moment the first one moves. What is held here is
-    that the entry is a decided state that agrees with itself, whichever state that is:
-      * dark:  set on no service;
-      * armed: names the service it is set on, and the note records when it was armed.
-    The code default is NOT the ledger's business and is railed above (unset reads False)."""
-    ledger = json.loads(open("docs/feature_flags.json", encoding="utf-8").read())["flags"]
-    row = ledger[FLAG]
-    assert row["status"] in ("dark", "armed"), row["status"]
-    if row["status"] == "dark":
-        assert row["where"] == []
-    else:
-        assert row["where"], "an armed gate names the service it is set on"
-        import re
-        assert re.search(r"ARMED on \w+ \d{4}-\d{2}-\d{2}", row["note"]), "an armed gate records when it was armed"
-    assert "never-revert" in row["note"].lower() and "tradeCanvas" in row["note"]
+def test_the_ledger_records_the_gate_as_retired_always_on():
+    """The ledger is the record of what was decided; this test READS it and never restates it."""
+    doc = json.loads(open("docs/feature_flags.json", encoding="utf-8").read())
+    assert FLAG not in doc["flags"]
+    row = doc["retired"][FLAG]
+    assert row["state"] == "always on" and row["retired"] == "2026-11-04"
 
 
 # ── the schema level (never-revert) ─────────────────────────────────────────
@@ -131,7 +117,9 @@ def test_the_ledger_entry_for_the_gate_is_decided_and_agrees_with_itself():
 
 def test_the_canvas_node_is_schema_level_3_on_the_server():
     assert nbs.NOTEBOOK_TYPE_SCHEMA["tradeCanvas"] == 3
-    assert max(nbs.NOTEBOOK_TYPE_SCHEMA.values()) == 3
+    # The canvas is level 3's only type. ⚰️ This pinned `max(...) == 3` until connector
+    # fidelity (2026-11) added `importNotice` at 5; the claim is about the canvas, not the top.
+    assert [t for t, lvl in nbs.NOTEBOOK_TYPE_SCHEMA.items() if lvl == 3] == ["tradeCanvas"]
     assert nbs.required_schema(canvas_doc()) == 3
     # CONTROL: an ordinary body needs nothing newer than before
     assert nbs.required_schema({"type": "doc", "content": [{"type": "paragraph"}]}) == 0

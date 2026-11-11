@@ -17,7 +17,7 @@ ruling; no committed capture of a STRATEGY exists (none of the 139 harness captu
 | # | capture | settles |
 |---|---|---|
 | Q-S1a | `r1-strategy-draws.pine` as written (a `strategy(...)`), NYSE:RDDT **1D**, full history, market closed | what the strategy draws |
-| Q-S1b | the same file with line 2 replaced by `indicator("UCTPROBE_R1_STRATEGY", overlay = false)` and the five `strategy.*` order lines deleted, same chart | what the indicator with the same body draws |
+| Q-S1b | `r1-strategy-draws-indicator.pine`: Q-S1a's body declared with `indicator("UCTPROBE_R1_STRATEGY", overlay = false)` and its `strategy.*` order lines removed, NYSE:RDDT **1D**, full history, market closed | what the indicator with the same body draws |
 
 Read: every plot `N01`..`N05` equal bar for bar between Q-S1a and Q-S1b. If any differs, the rule
 is wrong for that shape (the likely suspects are the `var` rows after a fill bar) and both lanes

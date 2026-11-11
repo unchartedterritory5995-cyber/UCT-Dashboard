@@ -56,6 +56,7 @@ vi.mock('../components/notebook/ResearchHome', () => ({
 }))
 
 import NotebookTab from './NotebookTab'
+import { currentView, viewOption } from './__tests__/toolbarDoors'
 
 const NOTES = [
   { id: 'n1', title: 'First note', updatedAt: '2026-09-18T00:00:00Z' },
@@ -81,13 +82,13 @@ function renderTab(entry = '/journal?view=all') {
   )
 }
 
-const graphBtn = () => screen.getByRole('button', { name: /graph view/i })
+const graphBtn = () => viewOption('Graph')
 
 describe('NotebookTab — graph view wiring', () => {
   it('offers a graph view beside list and table', () => {
     renderTab()
-    expect(screen.getByRole('button', { name: /list view/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /table view/i })).toBeInTheDocument()
+    expect(viewOption('List')).toBeInTheDocument()
+    expect(viewOption('Table')).toBeInTheDocument()
     expect(graphBtn()).toBeInTheDocument()
   })
 
@@ -100,29 +101,31 @@ describe('NotebookTab — graph view wiring', () => {
     // ⛔ THE SECOND ASSERTION IS THE LOAD-BEARING ONE. "graph is pressed" alone
     // still passes if every button reports pressed; what makes it a single
     // selection is that exactly ONE does.
-    const pressedNames = () => screen.getAllByRole('button')
-      .filter((b) => b.getAttribute('aria-pressed') === 'true')
-      .map((b) => b.getAttribute('aria-label'))
+    // S11 (audit 2026-11-05): the seven icon toggles became ONE labelled View menu. Its rows are
+    // `menuitemradio` with `aria-checked`, and the trigger itself SAYS the mode ("View: Graph"), so the
+    // load-bearing check is the same: exactly ONE row is checked.
+    const checkedNames = () => { viewOption('List'); return screen.getAllByRole('menuitemradio')
+      .filter((b) => b.getAttribute('aria-checked') === 'true')
+      .map((b) => b.textContent.trim()) }
 
-    it('marks exactly one view mode pressed, and moves it on click', () => {
+    it('marks exactly one view mode checked, and moves it on click', () => {
       renderTab()
-      expect(pressedNames()).toEqual(['List view'])
+      expect(checkedNames()).toEqual(['List'])
+      expect(currentView()).toBe('List')
 
       fireEvent.click(graphBtn())
-      expect(pressedNames()).toEqual(['Graph view'])
+      expect(checkedNames()).toEqual(['Graph'])
+      expect(currentView()).toBe('Graph')
 
-      fireEvent.click(screen.getByRole('button', { name: /table view/i }))
-      expect(pressedNames()).toEqual(['Table view'])
+      fireEvent.click(viewOption('Table'))
+      expect(checkedNames()).toEqual(['Table'])
     })
 
-    it('gives every toggle the attribute, not just the active one', () => {
+    it('gives every row the attribute, not just the active one', () => {
       renderTab()
-      // ⛔ An unselected toggle needs aria-pressed="false", not a missing
-      // attribute: absent means "not a toggle at all", which is a different
-      // announcement. This is what a per-button hand-written copy gets wrong.
-      for (const name of [/list view/i, /table view/i, /board view/i, /calendar view/i, /graph view/i]) {
-        const btn = screen.getByRole('button', { name })
-        expect(btn.getAttribute('aria-pressed')).toMatch(/^(true|false)$/)
+      // ⛔ An unselected row needs aria-checked="false", not a missing attribute.
+      for (const name of ['List', 'Table', 'Board', 'Calendar', 'Graph']) {
+        expect(viewOption(name).getAttribute('aria-checked')).toMatch(/^(true|false)$/)
       }
     })
   })
@@ -198,19 +201,20 @@ describe('NotebookTab — graph view wiring', () => {
       renderTab('/journal?view=graph')
       await screen.findByTestId('note-graph')
       expect(screen.queryByTestId('research-home')).not.toBeInTheDocument()
-      expect(graphBtn()).toHaveAttribute('aria-pressed', 'true')
+      expect(currentView()).toBe('Graph')
     })
 
     it('?view=table renders the table view directly (not just graph)', () => {
       renderTab('/journal?view=table')
       expect(screen.getByTestId('notes-table')).toBeInTheDocument()
       expect(screen.queryByTestId('research-home')).not.toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /table view/i })).toHaveAttribute('aria-pressed', 'true')
+      expect(currentView()).toBe('Table')
     })
 
-    it('a bare /journal (no view param) still renders Research Home — the fix does not widen isHome', () => {
+    it('a bare /journal (no view param) still renders Research Home — the fix does not widen isHome', async () => {
       renderTab('/journal')
-      expect(screen.getByTestId('research-home')).toBeInTheDocument()
+      // Tier 3b fix round 1 (I1): Research Home is a lazy view now, so it arrives a tick later.
+      expect(await screen.findByTestId('research-home')).toBeInTheDocument()
     })
   })
 

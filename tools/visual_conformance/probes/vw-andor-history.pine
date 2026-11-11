@@ -1,0 +1,34 @@
+//@version=6
+indicator("UCTPROBE_VW_ANDOR_HISTORY", overlay = false, max_bars_back = 5000)
+
+// --- 2026-10-31 prod-ternary - A `ta.*` ON THE RIGHT OF A v6 `and` / `or` ---
+//
+// Pine v6 evaluates `and` / `or` lazily (to-v6 guide, whose own example is
+// `close > open and ta.rsi(close, 14) > 50`: "the ta.rsi() call is not evaluated on
+// every bar, which interferes with the internal history that the RSI function stores
+// for its calculation"). The plot lane withholds such a plot by name
+// (`pine.js::stampLogicRight`) on that DOCUMENT; no capture witnesses it. The right
+// side's history should then be the history of the bars where the left side did not
+// decide the answer (`up` true for `and`, false for `or`). The rows are chosen so the
+// per-run and every-bar readings differ on many bars - measured on the vw-arm-history
+// RDDT bars by the per-run reference that matched T03-T05 there: B01 differs on 84 of
+// 636 bars, B02 on 53, B03 on 7.
+//
+//   B*  the booleans, 0 / 1 (per run vs every bar shows as a different 0 / 1)
+//   E*  the every-bar answers and the test, for the reference
+//
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults; AMEX:SPY 1D second.
+// NEVER COMPILED ON TRADINGVIEW: a row that does not compile names its line.
+
+up = close > open
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(ta.change(close), "E05_change_every_bar")
+plot(ta.sma(close, 5), "E03_sma_every_bar")
+plot(up ? 1 : 0, "E07_test_CONTROL")
+
+plot(up and ta.change(close) > 0 ? 1 : 0, "B01_and_change_positive")
+plot(up and close > ta.sma(close, 5) ? 1 : 0, "B02_and_close_above_sma")
+plot(up and ta.crossover(close, ta.sma(close, 5)) ? 1 : 0, "B03_and_crossover")
+plot(up or ta.change(close) > 0 ? 1 : 0, "B04_or_change_positive")
+plot(up and ta.rising(close, 2) ? 1 : 0, "B05_and_rising2")

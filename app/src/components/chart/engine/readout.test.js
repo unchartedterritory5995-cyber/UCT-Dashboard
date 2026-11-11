@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { TIER1_CHIPS } from './__tests__/tier1Library.fixture'
-import { engineChips, chipsFrom, legendChips, disambiguateLabels, siblingSuffixes, chipValueText } from './readout'
+import {
+  engineChips, chipsFrom, legendChips, disambiguateLabels, siblingSuffixes, chipValueText,
+  paneReadoutLabel, resolvedInputsOf,
+} from './readout'
 import * as engineRegistry from './nativeRegistry'
+import { validateDefinition } from './defSchema'
 // ⛔ DERIVED FROM THE SHIPPED ARTIFACT, NEVER HAND-TYPED — and shared with
 // `__tests__/legendFromDefinitions.test.jsx`, which gates the same nine chips
 // through the DOM. See that module's header for why a second copy would have
@@ -302,6 +306,9 @@ describe('the chip declarations cannot silently lose — or gain — a chip', ()
    */
   const NOT_IN_THE_SHIPPED_LEGEND = [
     'rsLine::rsLine',
+    // ⭐ UCT RS split, unit U6 (2026-11-09): the three server definitions cut out of
+    // `rsLine` postdate the shipped legend for the same reason it does.
+    'rsRating::ratingLine', 'rsPhases::divergence', 'rsVsEma::dist',
     // ⭐ `dataSeries` POSTDATES THE SHIPPED LEGEND ENTIRELY — it is registry-native
     // and there is no pre-B4 `legChips` entry for it to have dropped. Excluded
     // here for exactly the reason the ten below are: this list is the membership
@@ -667,5 +674,219 @@ describe('⛔⛔ `chipValueText` IS THE ONE ANSWER, INCLUDING WHEN A PANE ALREAD
     expect(chipValueText(null)).toBe('')
     // ⚠️ a NON-string `valueText` is not an answer and must not be printed.
     expect(chipValueText({ value: 12.345, valueText: 99 })).toBe('12.35')
+  })
+})
+
+// ─── PHASE 2a · THE PANE SUFFIX AND THE READOUT ROWS (unit 2a-09) ───────────
+//
+// ⚰️ MEASURED ON A REAL SCREENSHOT (2026-11-06): the RS pane read `UCT Relative
+// Strength 0.2477` with no benchmark anywhere on the chart. The chip label had
+// it — `chipLabel` prints `name(params)` from `meta.legendParams`, so the strip
+// read `UCT RS(SPY)` — and `paneReadoutLabel` dropped it with the rest of the
+// parameter list, as it must for `RSI(14)`. The fix rides on `chip.suffix`, the
+// field the pane label already prints, and touches neither `label` nor `text`:
+// the three byte-exact chip rails above are the proof, and they did not move.
+describe('⭐⭐ the pane suffix — a NAMED legend param reaches the pane; a number does not', () => {
+  const RS = engineRegistry.getDefinition('rsLine')
+  const RSI = engineRegistry.getDefinition('rsi')
+  const rsBinding = (instanceId = 'inst:rsLine:1') =>
+    ({ ...binding('rsLine', 'rsLine', instanceId), lastValue: 0.2477 })
+  const rsInst = (inputs = {}, over = {}) =>
+    ({ instanceId: 'inst:rsLine:1', defId: 'rsLine', inputs, hidden: false, ...over })
+
+  it('the RS pane names its benchmark: `UCT Relative Strength · SPY` by default, `· QQQ` when the member chose it', () => {
+    expect(RS.meta.legendParams, 'the rule reads the declaration').toEqual(['benchmark'])
+    const spy = legendChips([rsBinding()], null, engineRegistry, [rsInst({})])[0]
+    expect(spy.suffix).toBe(' · SPY')
+    expect(paneReadoutLabel(spy, RS, null)).toBe(`${RS.meta.name} · SPY`)
+    expect(chipValueText(spy), 'the value the pane prints beside it').toBe('0.2477')
+    const qqq = legendChips([rsBinding()], null, engineRegistry, [rsInst({ benchmark: 'QQQ' })])[0]
+    expect(qqq.suffix).toBe(' · QQQ')
+    expect(paneReadoutLabel(qqq, RS, null)).toBe(`${RS.meta.name} · QQQ`)
+    // ⛔ and the chip label is what it always was — the strip is untouched
+    expect(spy.label).toBe('UCT RS(SPY)')
+    expect(spy.text).toBe('UCT RS(SPY) 0.2477')
+    expect(qqq.label).toBe('UCT RS(QQQ)')
+    expect(qqq.text).toBe('UCT RS(QQQ) 0.2477')
+  })
+
+  it('⛔ a NUMERIC legend param stays out of the pane name — RSI(14) is still `Relative Strength Index`', () => {
+    const b = { ...binding('rsi', 'rsi'), lastValue: 54.321 }
+    const chip = legendChips([b], null, engineRegistry,
+      [{ instanceId: 'legacy:rsi', defId: 'rsi', inputs: { period: 14 } }])[0]
+    expect('suffix' in chip, 'a numeric param minted a pane suffix').toBe(false)
+    expect('readout' in chip, 'no reader was given, so no readout rides the chip').toBe(false)
+    expect(paneReadoutLabel(chip, RSI, null)).toBe(RSI.meta.name)
+    expect(chip.text).toBe('RSI(14) 54.3')
+  })
+
+  it('⛔ and nothing else moved: exactly the definitions whose legendParams name an enum/string input gain a suffix', () => {
+    // Derived from the registry, never typed: the rule is by declared input
+    // type, so the set is whatever declares one — and the control below says it
+    // is not empty.
+    const defs = engineRegistry.listDefinitions()
+    const named = new Set(defs.filter((d) => ((d.meta && d.meta.legendParams) || []).some((k) => {
+      const inp = (d.inputs || []).find((i) => i && i.key === k)
+      return inp && ['enum', 'string'].includes(inp.type)
+    })).map((d) => d.id))
+    expect(named.size, 'the rule is vacuous — no definition names a choice in its legendParams').toBeGreaterThan(0)
+    expect(named.has('rsLine')).toBe(true)
+    const instances = defs.map((d, i) => ({ instanceId: `inst:${d.id}:${i}`, defId: d.id, inputs: {}, hidden: false }))
+    for (const c of legendChips([], null, engineRegistry, instances)) {
+      expect('suffix' in c, `${c.defId}::${c.plotKey} ${'suffix' in c ? 'gained' : 'lacks'} a pane suffix`)
+        .toBe(named.has(c.defId))
+    }
+  })
+
+  it('a hidden RS instance keeps the suffix with no value', () => {
+    const chip = legendChips([], null, engineRegistry, [rsInst({ benchmark: 'IWM' }, { hidden: true })])[0]
+    expect(chip.hidden).toBe(true)
+    expect(chip.value).toBe(null)
+    expect(chip.suffix).toBe(' · IWM')
+    expect(chip.text).toBe('UCT RS(IWM)')
+    expect(paneReadoutLabel(chip, RS, null)).toBe(`${RS.meta.name} · IWM`)
+  })
+
+  it('composes with the sibling suffix: two copies on one benchmark read `· SPY (maLength 50)`', () => {
+    const a = rsBinding('inst:rsLine:a')
+    const b = rsBinding('inst:rsLine:b')
+    const chips = engineChips([a, b], seriesData([[a, 0.2], [b, 0.3]]), engineRegistry, [
+      rsInst({ maLength: 21 }, { instanceId: 'inst:rsLine:a' }),
+      rsInst({ maLength: 50 }, { instanceId: 'inst:rsLine:b' }),
+    ])
+    // the sibling grammar is untouched on the label…
+    expect(chips.map((c) => c.label)).toEqual(['UCT RS(SPY) (maLength 21)', 'UCT RS(SPY) (maLength 50)'])
+    // …and the pane suffix carries the identity FIRST, then what differs
+    expect(chips.map((c) => c.suffix)).toEqual([' · SPY (maLength 21)', ' · SPY (maLength 50)'])
+    expect(chips.map((c) => paneReadoutLabel(c, RS, null)))
+      .toEqual([`${RS.meta.name} · SPY (maLength 21)`, `${RS.meta.name} · SPY (maLength 50)`])
+  })
+})
+
+describe('⭐⭐ `opts.scalarsOf` — the readout rows ride the chip; the label does not move', () => {
+  const RS = engineRegistry.getDefinition('rsLine')
+  const RSI = engineRegistry.getDefinition('rsi')
+  // The registered definition declares no `readout[]` yet (unit 2a-14 writes it).
+  // A stand-in registry serves a copy that does, validated by the schema so the
+  // block here is one the registry would accept.
+  const READOUT = [
+    { key: 'benchmark', label: 'Benchmark', source: 'scalar:benchmark.resolved', format: 'text', chip: true },
+    { key: 'rating', label: 'Rating', source: 'scalar:rating.ibd', format: 'int', chip: true, fallback: 'not yet rated' },
+    { key: 'fromMa', label: 'From average', source: 'scalar:legend.pctFromMa', format: 'pct' },
+  ]
+  const RS_READOUT = (() => {
+    const r = validateDefinition({ ...RS, readout: READOUT })
+    if (!r.ok) throw new Error(r.errors.join('\n'))
+    return r.def
+  })()
+  const registry = {
+    getDefinition: (id) => (id === 'rsLine' ? RS_READOUT : engineRegistry.getDefinition(id)),
+    listDefinitions: () => engineRegistry.listDefinitions(),
+  }
+  const rsBinding = () => ({ ...binding('rsLine', 'rsLine', 'inst:rsLine:1'), lastValue: 0.2477 })
+  const rsInst = (inputs = {}, over = {}) =>
+    ({ instanceId: 'inst:rsLine:1', defId: 'rsLine', inputs, hidden: false, ...over })
+  const PAYLOAD = {
+    benchmark: { requested: 'SECTOR', resolved: 'XLK', label: 'Technology (XLK)', fallback: null, bars: 330 },
+    legend: { pctFromMa: 1.84, maSlope: 1, above: true },
+    rating: { ibd: 94, fast: 91, asof: '2026-11-05' },
+  }
+  // UCT RS split, U2: the RS line plot declares `endLabel`, so a reader also stamps `endLabel`.
+  const strip = (c) => { const o = { ...c }; delete o.readout; delete o.suffix; delete o.paneTable; delete o.endLabel; return o }
+
+  it('⛔ the label and the text are BYTE-IDENTICAL with and without a reader — only readout and suffix (and the declared pane table) are added', () => {
+    const without = legendChips([rsBinding()], null, registry, [rsInst({ benchmark: 'SECTOR' })])
+    const withReader = legendChips([rsBinding()], null, registry, [rsInst({ benchmark: 'SECTOR' })],
+      { scalarsOf: () => PAYLOAD })
+    expect(withReader.map((c) => c.label)).toEqual(without.map((c) => c.label))
+    expect(withReader.map((c) => c.text)).toEqual(without.map((c) => c.text))
+    expect(withReader.map(strip)).toEqual(without.map(strip))
+    for (const c of withReader) {
+      const extra = Object.keys(c).filter((k) => !(k in without[0]))
+      // `suffix` was already there (` · SECTOR`). Design round (2026-11-08): the RS
+      // definition declares `meta.paneTable` and this payload carries a rating row,
+      // so the chip also carries `paneTable`, from the same scalars, and nothing else.
+      // UCT RS split, U2: the `rsLine` plot declares `endLabel` (`RS 94` at the line's
+      // end), stamped from the same scalars — the third and last reader-added field.
+      expect(extra.sort()).toEqual(['endLabel', 'paneTable', 'readout'])
+    }
+    // …and the same holds through `chipsFrom` directly, with a crosshair value
+    const e = { defId: 'rsLine', plotKey: 'rsLine', series: { __id: 'x' }, instanceId: 'inst:rsLine:1' }
+    const inputsFor = () => ({ benchmark: 'SECTOR' })
+    const a = chipsFrom([e], seriesData([[e, 0.5]]), registry, inputsFor)
+    const b = chipsFrom([e], seriesData([[e, 0.5]]), registry, inputsFor, null, null, { scalarsOf: () => PAYLOAD })
+    expect(b[0].text).toBe(a[0].text)
+    expect(b[0].label).toBe(a[0].label)
+  })
+
+  it('⭐ the RESOLVED benchmark replaces the requested one in the pane suffix, and the chip rows follow it', () => {
+    const chip = legendChips([rsBinding()], null, registry, [rsInst({ benchmark: 'SECTOR' })],
+      { scalarsOf: () => PAYLOAD })[0]
+    expect(chip.label, 'the strip still says what was asked for').toBe('UCT RS(SECTOR)')
+    expect(chip.suffix).toBe(' · XLK · 94')
+    expect(paneReadoutLabel(chip, RS_READOUT, null)).toBe(`${RS.meta.name} · XLK · 94`)
+    expect(chip.readout.map((r) => [r.key, r.text, r.muted])).toEqual([
+      ['benchmark', 'XLK', false], ['rating', '94', false], ['fromMa', '+1.8%', false],
+    ])
+  })
+
+  it('until the payload lands the REQUESTED benchmark stands; a fallback row is muted and never in the suffix', () => {
+    const nothingYet = legendChips([rsBinding()], null, registry, [rsInst({ benchmark: 'SECTOR' })],
+      { scalarsOf: () => null })[0]
+    expect(nothingYet.suffix).toBe(' · SECTOR')
+    expect(nothingYet.readout).toEqual([])
+    const noRating = legendChips([rsBinding()], null, registry, [rsInst({ benchmark: 'SECTOR' })],
+      { scalarsOf: () => ({ benchmark: { resolved: 'XLK' } }) })[0]
+    expect(noRating.suffix).toBe(' · XLK')
+    expect(noRating.readout.map((r) => [r.key, r.text, r.muted]))
+      .toEqual([['benchmark', 'XLK', false], ['rating', 'not yet rated', true]])
+  })
+
+  it('a reader that THROWS is "no scalars", never a legend that disappears', () => {
+    const chip = legendChips([rsBinding()], null, registry, [rsInst({ benchmark: 'QQQ' })],
+      { scalarsOf: () => { throw new Error('cache moved') } })[0]
+    expect(chip.text).toBe('UCT RS(QQQ) 0.2477')
+    expect(chip.suffix).toBe(' · QQQ')
+    expect(chip.readout).toEqual([])
+  })
+
+  it('a definition without readout[] gets `readout: []` and `suffix: ""` under a reader — and the reader is never called for it', () => {
+    const calls = []
+    const b = { ...binding('rsi', 'rsi'), lastValue: 54.321 }
+    const chip = legendChips([b], null, engineRegistry,
+      [{ instanceId: 'legacy:rsi', defId: 'rsi', inputs: { period: 14 } }],
+      { scalarsOf: (def) => { calls.push(def.id); return PAYLOAD } })[0]
+    expect(chip.readout).toEqual([])
+    expect(chip.suffix).toBe('')
+    expect(chip.text).toBe('RSI(14) 54.3')
+    expect(paneReadoutLabel(chip, RSI, null)).toBe(RSI.meta.name)
+    expect(calls).toEqual([])
+    // a hidden instance of a readout definition is still read and still suffixed
+    const hidden = legendChips([], null, registry, [rsInst({ benchmark: 'SECTOR' }, { hidden: true })],
+      { scalarsOf: () => PAYLOAD })[0]
+    expect(hidden.value).toBe(null)
+    expect(hidden.suffix).toBe(' · XLK · 94')
+    expect(hidden.readout).toHaveLength(3)
+  })
+
+  it('⛔ the reader receives the inputs AS THE COMPUTE READS THEM — declared defaults under the stored values', () => {
+    // `computeFor` keys the server fetch with `resolveInputs(def, inputs)`
+    // (nativeRegistry.js), so a reader handed the raw stored object would miss
+    // the cache for every untouched instance.
+    let seen = null
+    legendChips([rsBinding()], null, registry, [rsInst({ benchmark: 'QQQ' })],
+      { scalarsOf: (def, inputs) => { seen = inputs; return null } })
+    expect(seen).toEqual(resolvedInputsOf(RS_READOUT, { benchmark: 'QQQ' }))
+    expect(seen.benchmark).toBe('QQQ')
+    expect(seen.maLength, 'a declared default the instance never stored').toBe(21)
+    expect(seen.lookback).toBe(252)
+  })
+
+  it('never throws on the shapes a caller can actually hand it', () => {
+    expect(legendChips([rsBinding()], null, registry, [rsInst()], {})).toHaveLength(1)
+    expect(legendChips([rsBinding()], null, registry, [rsInst()], { scalarsOf: 42 })).toHaveLength(1)
+    expect(legendChips([rsBinding()], null, registry, [rsInst()], { scalarsOf: () => 'junk' })[0].readout).toEqual([])
+    expect(legendChips([rsBinding()], null, registry, [rsInst()], { scalarsOf: () => [1, 2] })[0].readout).toEqual([])
+    expect(legendChips(null, null, null, null, { scalarsOf: () => PAYLOAD })).toEqual([])
   })
 })

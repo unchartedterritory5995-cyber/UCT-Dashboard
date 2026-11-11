@@ -1,0 +1,18 @@
+{
+  "_comment": "D2 item 8: a wikilink's display text, as Obsidian shows it, the same on both lanes: a heading link reads `Note > Heading`, a block link `Note`, this note's own heading `Heading`, a missing #-named file its name; a missing note embed reads as the note's name. Live audit 2026-11-03 (F3): `![[missing.png]]`, a missing FILE embed, is a not-found notice on both lanes; its `missing` ref is what the plugin sends. The file LINKS carry no ref here (see fixture 20).",
+  "vault_id": "vault-1",
+  "self_path": "a.md",
+  "vault_paths": [
+    "a.md",
+    "Other note.md"
+  ],
+  "attachments": [
+    {
+      "original": "![[missing.png]]",
+      "embed": true,
+      "path": "missing.png",
+      "size": 0,
+      "status": "missing"
+    }
+  ]
+}

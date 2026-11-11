@@ -59,6 +59,7 @@ import { DRAWING_NOTE_NAME, withRenderDrops } from '../engine/ast/objectLoss'
 import { TABLES_FIT } from '../engine/objectTableDom'
 import * as defaultRegistry from '../engine/nativeRegistry'
 import { requirementNote } from '../engine/ast/parse'
+import { withoutGuardIds } from '../engine/ast/guardIdText'
 import styles from './AttachedPineDisclosures.module.css'
 
 /** The definitions this chart is actually DRAWING, resolved through the registry.
@@ -263,6 +264,8 @@ export default function AttachedPineDisclosures({
   // ⛔ ONCE, however many panes scaled. Two attached documents on one phone are
   // one fact about the screen, not two sentences.
   // ⭐ C43 — a stopped script leads: it is why its pane is empty.
+  // ⛔ NO GUARD ID REACHES THE DOM: every note passes `withoutGuardIds` (engine/ast/sentence.js) at
+  // the one place this strip prints text; composers keep their ids for rails.
   const all = [
     ...stopped,
     ...rows,
@@ -273,7 +276,7 @@ export default function AttachedPineDisclosures({
   if (!all.length) return null
   return (
     <ul data-testid="pine-attached-disclosures" className={styles.notes}>
-      {all.map((n) => <li key={`${n.name}::${n.note}`}>{n.note}</li>)}
+      {all.map((n) => <li key={`${n.name}::${n.note}`}>{withoutGuardIds(n.note)}</li>)}
     </ul>
   )
 }

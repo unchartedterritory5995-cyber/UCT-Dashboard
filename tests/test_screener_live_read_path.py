@@ -457,11 +457,13 @@ def test_the_CONTROL_the_armed_run_scan_DOES_execute_the_join(served, monkeypatc
     query.run_scan(_OVER_3_TODAY)
     # `query.stale_gate`'s MIN/MAX read of `bars_asof` is excluded by name: it
     # asks whether ANY row is behind the snapshot's newest, which is a fact
-    # about the nightly table and correctly names no overlay.
+    # about the nightly table and correctly names no overlay. The fingerprint
+    # read that keeps that answer between rebuilds is the same kind of fact.
     executed = [s for c in seen for s in c.sql
                 if s.lstrip().upper().startswith("SELECT")
                 and "sqlite_master" not in s
-                and not s.startswith('SELECT MAX(CAST("bars_asof"')]
+                and not s.startswith('SELECT MAX(CAST("bars_asof"')
+                and not s.startswith('SELECT COUNT(*), MAX(rowid), MAX(built_at)')]
     assert len(executed) == 2
     assert all(f"LEFT JOIN {live_tier.LIVE_TABLE} l ON" in s for s in executed)
 

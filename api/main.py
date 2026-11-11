@@ -85,6 +85,7 @@ from api.routers import journal_two as journal_two_router
 # note id. Pinned by tests/test_main_router_order.py.
 from api.routers import notebook_insights as notebook_insights_router
 from api.routers import client_errors as client_errors_router
+from api.routers import desktop_events as desktop_events_router
 from api.routers import notebook_soak as notebook_soak_router
 from api.routers import notebook_link_preview as notebook_link_preview_router
 from api.routers import hub_planned_trades as hub_planned_trades_router
@@ -115,52 +116,52 @@ from api.routers import notebook_shares as notebook_shares_router
 from api.routers import notebook_publish as notebook_publish_router
 from api.routers import notebook_export as notebook_export_router
 from api.routers import notebook_onboarding as notebook_onboarding_router
-# Wave 12 lane 12A: the community template gallery (/api/j2/template-gallery/*), dark
-# behind NOTEBOOK_TEMPLATE_GALLERY_ENABLED; mounted with the other Notebook routers.
+# Wave 12 lane 12A: the community template gallery (/api/j2/template-gallery/*), always on (its flag
+# was retired 2026-11-04); mounted with the other Notebook routers.
 from api.routers import notebook_template_gallery as notebook_template_gallery_router
 # Notebook P1: journal styles + kinds of note (/api/j2/journal-styles, /api/j2/note-kinds, and two
-# /api/j2/notes/{id}/... "Update layout" routes), dark behind NOTEBOOK_JOURNAL_STYLES_ENABLED, paid.
+# /api/j2/notes/{id}/... "Update layout" routes), paid; always on (its flag was retired 2026-11-04).
 from api.routers import notebook_journal_styles as notebook_journal_styles_router
-# Notebook P2 Tier 2 part A: the smart chips' one ticker check (POST /api/j2/smart-chips/tickers), dark
-# behind NOTEBOOK_SMART_CHIPS_ENABLED, paid.
+# Notebook P2 Tier 2 part A: the smart chips' one ticker check (POST /api/j2/smart-chips/tickers), paid;
+# always on (its flag was retired 2026-11-04).
 from api.routers import notebook_smart_chips as notebook_smart_chips_router
 
 # Wave 13 lane 13I-1: the technical fingerprint + chart-block index
-# (/api/j2/notebook-fingerprint/*), dark behind NOTEBOOK_TA_FINGERPRINT_ENABLED.
+# (/api/j2/notebook-fingerprint/*), always on (its flag was retired 2026-11-04).
 from api.routers import notebook_fingerprint as notebook_fingerprint_router
 
-# Wave 13 lane 13C: earnings prep (/api/j2/earnings-prep/*), dark behind
-# NOTEBOOK_EARNINGS_PREP_ENABLED (router-level 404); mounted with the other Notebook routers.
+# Wave 13 lane 13C: earnings prep (/api/j2/earnings-prep/*), always on (its flag was retired
+# 2026-11-04); mounted with the other Notebook routers.
 from api.routers import notebook_earnings_prep as notebook_earnings_prep_router
 # Wave 13 lane 13H-1: the chart plan -- sizing from drawn levels, alerts at drawn levels
-# (/api/j2/chart-plan/*), dark behind NOTEBOOK_CHART_PLAN_ENABLED.
+# (/api/j2/chart-plan/*), always on (its flag was retired 2026-11-04).
 from api.routers import notebook_chart_alerts as notebook_chart_alerts_router
 
-# Wave 13 lane 13A: plan vs execution grading (/api/j2/plan-grades/*), dark behind
-# NOTEBOOK_PLAN_GRADING_ENABLED (router-level 404).
+# Wave 13 lane 13A: plan vs execution grading (/api/j2/plan-grades/*), always on (its flag was retired 2026-11-04).
 from api.routers import notebook_plan_grades as notebook_plan_grades_router
 
-# Wave 13 lane 13E-1: the market context frozen at the fill (/api/j2/entry-context/*), dark
-# behind NOTEBOOK_ENTRY_CONTEXT_ENABLED (router-level 404).
+# Wave 13 lane 13E-1: the market context frozen at the fill (/api/j2/entry-context/*), always on
+# (its flag was retired 2026-11-04).
 from api.routers import notebook_entry_context as notebook_entry_context_router
 # Wave 13 lane 13G-1: research capture -- a transcript passage into a note as a cited
-# excerpt, and the passed-setups journal (/api/j2/research-capture/*), dark behind
-# NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED and NOTEBOOK_PASSED_SETUPS_ENABLED (one gate per router).
+# excerpt, and the passed-setups journal (/api/j2/research-capture/*), both always on (their
+# flags were retired 2026-11-04).
 from api.routers import notebook_research_capture as notebook_research_capture_router
+# Import a tweet (/api/j2/research-capture/tweets/*), dark behind NOTEBOOK_TWEET_IMPORT_ENABLED.
+from api.routers import notebook_tweet_capture as notebook_tweet_capture_router
 
 # Wave 13 lane 13G-2: thesis chips on Positions/Holdings/Watchlist rows (/api/j2/thesis-chips),
-# dark behind NOTEBOOK_THESIS_CHIPS_ENABLED (router-level 404).
+# always on (its flag was retired 2026-11-04).
 from api.routers import notebook_thesis_chips as notebook_thesis_chips_router
 
 # Wave 13 lane 13I-2: the visual playbook + before/after (/api/j2/notebook-visual-playbook/*),
-# dark behind NOTEBOOK_VISUAL_PLAYBOOK_ENABLED (router-level 404).
+# always on (its flag was retired 2026-11-04).
 from api.routers import notebook_visual_playbook as notebook_visual_playbook_router
 
 # Wave 13 lane 13J: the active setups board (/api/j2/setups-board) and find more like this
-# (/api/j2/similar-names/*), each dark behind its own gate (router-level 404).
+# (/api/j2/similar-names/*), both always on (their flags were retired 2026-11-04).
 from api.routers import notebook_setups_board as notebook_setups_board_router
-# Wave 13 lane 13B: My Playbook (/api/j2/my-playbook), dark behind
-# NOTEBOOK_PLAYBOOK_ENABLED (router-level 404).
+# Wave 13 lane 13B: My Playbook (/api/j2/my-playbook), always on (its flag was retired 2026-11-04).
 from api.routers import notebook_playbook as notebook_playbook_router
 # P2 Tier 3 Task 6: Checklist from my winners (/api/j2/insights/checklist-suggestions), dark
 # behind JOURNAL_TIER3_ENABLED (router-level 404), with its own paid gate.
@@ -168,8 +169,7 @@ from api.routers import notebook_winners_checklist as notebook_winners_checklist
 # P2 Tier 3 Task 7: Your trading year (/api/j2/wrapped/{year}), dark behind JOURNAL_TIER3_ENABLED
 # (router-level 404), with its own paid gate.
 from api.routers import notebook_wrapped as notebook_wrapped_router
-# Wave 13 lane 13F: reviews that write themselves (/api/j2/review-drafts/...), dark behind
-# NOTEBOOK_REVIEW_DRAFTS_ENABLED (router-level 404).
+# Wave 13 lane 13F: reviews that write themselves (/api/j2/review-drafts/...), always on (its flag was retired 2026-11-04).
 from api.routers import notebook_review_drafts as notebook_review_drafts_router
 from api.routers import community as community_router
 from api.routers import watchlists as watchlists_router
@@ -190,11 +190,15 @@ from api.routers import backtest as backtest_router
 from api.routers import rare_preview as rare_preview_router  # rare-pattern admin preview, DARK
 from api.routers import patterns as patterns_router
 from api.routers import admin_patterns as admin_patterns_router
+from api.routers import chart_iq as chart_iq_router   # Chart IQ (pattern recognition on the chart): gated per call, CHART_IQ_ENABLED / CHART_IQ_MEMBERS_ENABLED
 from api.routers import tweets as tweets_router
 from api.routers import admin_twitter as admin_twitter_router
 from api.routers import admin_purge as admin_purge_router
 from api.routers import desk as desk_router
 from api.routers import admin_api_health as admin_api_health_router
+from api.routers import admin_llm_usage as admin_llm_usage_router  # /admin/ai-spend: every Claude call, by feature
+from api.services import llm_usage as _llm_usage
+_llm_usage.install()  # hook the Anthropic SDK once: every model call lands in the AI-spend ledger
 from api.routers import provider_coverage as provider_coverage_router
 from api.routers import fmp_adapter_status as fmp_adapter_status_router
 from api.routers import massive_adapter_status as massive_adapter_status_router
@@ -219,6 +223,7 @@ from api.routers import workspace_doc as workspace_doc_router
 from api.routers import artifact_versions as artifact_versions_router
 from api.routers import charts_list_sources as charts_list_sources_router
 from api.routers import discord_interactions as discord_interactions_router
+from api.routers import rs_discord as rs_discord_router  # UCT RS nightly Discord post: admin door + status (2b-08)
 from api.routers import user_definitions as user_definitions_router
 from api.routers import theme_index as theme_index_router
 from api.routers import theme_engine as theme_engine_router
@@ -241,7 +246,7 @@ from api.routers import earnings_intel as earnings_intel_router
 from api.routers import ticker_logos as ticker_logos_router
 from api.routers import hub_reports as hub_reports_router  # joystick hub owner reports (W2/R2)
 from api.routers import broker_sync as broker_sync_router  # broker-sync (SnapTrade) -- MERGE AS A UNIT with include_router + scheduler below
-from api.routers import note_sync as note_sync_router  # note connectors (Roam/Craft/Notion/Dropbox) -- router mounts unconditionally; scheduler gated by NOTE_SYNC_ENABLED below
+from api.routers import note_sync as note_sync_router  # note connectors (Roam/Craft/Notion/Obsidian/Evernote; Dropbox/OneNote/OneDrive archived 2026-11-04) -- router mounts unconditionally; scheduler gated by NOTE_SYNC_ENABLED below
 from api.routers import desk_zoom_webhook as desk_zoom_webhook_router
 from api.routers import tsdr_lessons as tsdr_lessons_router
 from api.routers import media_evidence_bridge as media_evidence_bridge_router
@@ -1192,6 +1197,28 @@ def _buzz_poll() -> None:
         log.warning("[buzz] digest catch-up error: %s", e)
 
 
+def _llm_budget_watch() -> None:
+    """AI-spend watchdog (api/services/llm_budget.py): posts to the ops channel once per
+    (day, budget, level) at 80% / 100% / projected-over. Never raises."""
+    try:
+        from api.services import llm_budget
+        sent = llm_budget.watch()
+        if sent:
+            logging.getLogger(__name__).warning("[llm-budget] alerts sent: %s", [s["door"] for s in sent])
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).warning("[llm-budget] watch failed", exc_info=True)
+
+
+def _llm_spend_digest() -> None:
+    """Daily AI-spend digest to the ops channel (llm_budget.digest): the whole day's
+    bill by feature and segment vs yesterday and the trailing week. Never raises."""
+    try:
+        from api.services import llm_budget
+        llm_budget.digest()
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).warning("[llm-budget] digest failed", exc_info=True)
+
+
 def _tsdr_lessons_tick() -> None:
     """One #tsdr video-lessons pass (scan → recap/post → YouTube). Never raises."""
     log = logging.getLogger(__name__)
@@ -2129,6 +2156,352 @@ def _check_nightly_finished() -> None:
         print(f"[scheduler] could not run the screener nightly watchdog: {e}")
 
 
+# -- UCT Relative Strength: the IBD-style rating history (engineering map --------
+# docs/superpowers/plans/2026-11-06-uct-rs-phase2-engineering-map.md, unit 2a-04)
+#
+# `rs_history.nightly_job()` rates the cap universe for the settled session into
+# `rs_rating_history` and records a receipt row in `rs_history_runs`, both side
+# tables in screener.db (the `volume_curve` recipe). The module reads NO
+# environment variable by design (`tests/test_rs_rating_history.py` pins it); the
+# flag is read HERE, per call, so arming and rollback are one Railway variable.
+# The job itself is registered in `register_screener_jobs` (`rs_history_nightly`).
+
+#: The share of a run's targets that may go unrated (short history, stale bars,
+#: no bars) before the run is reported as short. The map's figure.
+RS_HISTORY_SHORT_SHARE = 0.20
+
+
+def rs_history_enabled() -> bool:
+    """`RS_HISTORY_ENABLED` read per call: a flip needs no restart. Only "1" arms it
+    (the `_wire_enabled` convention: "true", "yes" and typos all mean off). The ONE
+    reader -- `/api/screener/snapshot-status` imports this, so the job and the
+    surface cannot disagree about the switch."""
+    return os.environ.get("RS_HISTORY_ENABLED", "0") == "1"
+
+
+def _rs_history_shortfall(receipt: dict):
+    """Why a rating-history run fell short, in words, or None when it rated enough.
+
+    Short = more than RS_HISTORY_SHORT_SHARE of `targets` went unrated
+    (`short_history + stale + no_bars`), OR nothing was rated at all. A run the
+    module could not store carries `rated == 0`, so it lands here through the
+    second rule and the message names the module's own reason."""
+    if receipt.get("crashed"):
+        return f"the job crashed ({receipt['crashed']})"
+    targets = int(receipt.get("targets") or 0)
+    rated = int(receipt.get("rated") or 0)
+    note = receipt.get("note") if isinstance(receipt.get("note"), dict) else {}
+    if rated == 0:
+        reason = note.get("error") or note.get("reason")
+        return (f"no name was rated out of {targets:,} targets"
+                + (f" ({reason})" if reason else ""))
+    missed = sum(int(receipt.get(k) or 0) for k in ("short_history", "stale", "no_bars"))
+    if targets and missed > targets * RS_HISTORY_SHORT_SHARE:
+        return (f"{missed:,} of {targets:,} targets went unrated "
+                f"(short_history={receipt.get('short_history')}, stale={receipt.get('stale')}, "
+                f"no_bars={receipt.get('no_bars')})")
+    return None
+
+
+# TERM-018: observed red-before-green; the record is
+# docs/terminal-research/12-decisions/gates/term-018-guard-observations.json.
+def _alert_if_rs_history_short(receipt: dict) -> None:
+    """ONE warning per short run, keyed `rs_history_short:{session}`, through the
+    emitter the screener build uses for its own shortfall (`_alert_if_nightly_short`
+    above), so it lands where the owner already watches. Never raises."""
+    why = _rs_history_shortfall(receipt)
+    if not why:
+        return
+    try:
+        from api.services import chart_health_alerts
+        session = receipt.get("session") or datetime.now(_ET).strftime("%Y-%m-%d")
+        chart_health_alerts.emit(
+            f"rs_history_short:{session}", "warning",
+            f"The UCT RS rating history fell short for {session}: {why}. Until the next "
+            "full run, rs_rating_history carries fewer rated names for that session.",
+            {**{k: receipt.get(k) for k in ("session", "targets", "rated", "rows",
+                                          "short_history", "stale", "no_bars",
+                                          "split_guard", "duration_ms", "crashed")},
+             "note": receipt.get("note")},
+        )
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] could not raise the rs history alert: {e}")
+
+
+def _run_rs_history() -> None:
+    """The `rs_history_nightly` job. Never raises.
+
+    Off (`RS_HISTORY_ENABLED` unset or not "1"): returns before touching the DB --
+    the side tables are created on first WRITE, so a dark pod carries no table.
+    On: one `rs_history.nightly_job()` with the module's own defaults (it resolves
+    the settled session, the cap universe, the ETF set and the bars reader itself);
+    the receipt it recorded is then read for the shortfall rule above.
+    """
+    try:
+        if not rs_history_enabled():
+            logging.getLogger(__name__).debug(
+                "[scheduler] rs history: RS_HISTORY_ENABLED is off; nothing touched")
+            return
+        from api.services.screener import rs_history
+        receipt = rs_history.nightly_job()
+        print(f"[scheduler] rs history: session={receipt.get('session')} "
+              f"rated={receipt.get('rated')} targets={receipt.get('targets')} "
+              f"rows={receipt.get('rows')} short={receipt.get('short_history')} "
+              f"stale={receipt.get('stale')} no_bars={receipt.get('no_bars')} "
+              f"ms={receipt.get('duration_ms')}")
+        _alert_if_rs_history_short(receipt)
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] rs history error: {e}")
+        _alert_if_rs_history_short({"crashed": f"{type(e).__name__}: {e}"})
+
+
+def _run_rs_evidence_pull() -> None:
+    """The `rs_evidence_pull` job (engineering map unit 2b-03). Never raises.
+
+    One `rs_evidence_pull.pull_once()` with its defaults: `data_sync.get_bytes`
+    on `rs_evidence.ARTIFACT_KEY` (`rs/evidence.json`, published by the worker's
+    evidence job after its 21:30 ET run), landed atomically at
+    `<DATA_DIR>/rs_evidence.json`; then ONE log line with the receipt.
+
+    NO FEATURE FLAG, on purpose, so this is the one job in the family with no
+    per-call switch. A missing R2 object is a refused pull (`reason=no_r2_object`,
+    nothing written, the prior file kept) and the chart's readout cards print the
+    honesty sentence from `payload.evidence` instead of a number -- so a dark
+    worker (`RS_EVIDENCE_ENABLED` off, unit 2b-02) makes this a no-op, and the
+    worker's flag is the only switch there is. A gate here would be a second
+    switch over one fact, and the ledger would owe an entry for a flag that can
+    change nothing the worker's flag does not already decide.
+    """
+    try:
+        from api.services import rs_evidence_pull
+        r = rs_evidence_pull.pull_once()
+        print(f"[scheduler] rs evidence pull: pulled={r.get('pulled')} reason={r.get('reason')} "
+              f"bytes={r.get('bytes')} asof={r.get('asof')} path={r.get('path')}")
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] rs evidence pull error: {e}")
+
+
+def _run_rs_lists() -> None:
+    """The `rs_lists_nightly` job (Phase 4 unit 4-01, 04:40 ET). Never raises.
+
+    One `rs_lists.nightly_job()`: the module reads `RS_LISTS_ENABLED` per call (off, it
+    returns before reading or writing anything), applies its guards (the rating history
+    must have caught up to the screener session; an empty list never replaces a full one
+    unless the session is fresh), rebuilds RS Leaders and RS Emerging in place through
+    `watchlist_prebuilt.write_rs_list`, and records its receipt (read back on
+    `snapshot_db.status()` as `rs_lists`). One log line here.
+    """
+    try:
+        from api.services import rs_lists
+        r = rs_lists.nightly_job()
+        lists = r.get("lists") or {}
+        print(f"[scheduler] rs lists: enabled={r.get('enabled')} session={r.get('session')} "
+              f"rs_session={r.get('rs_session')} fresh={r.get('fresh')} "
+              f"skipped={r.get('skipped')} "
+              + " ".join(f"{k.replace(' ', '_')}={v.get('status')}:{v.get('names')}"
+                         for k, v in lists.items()))
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] rs lists error: {e}")
+
+
+# -- UCT Relative Strength: the nightly Discord leaders post (engineering map ----
+# docs/superpowers/plans/2026-11-06-uct-rs-phase2-engineering-map.md, unit 2b-08;
+# the poster itself is `api.services.rs_discord_post`, unit 2b-07)
+#
+# Two cron registrations of ONE function (`rs_discord_post` 04:45 ET and
+# `rs_discord_post_retry` 05:15 ET, both in `register_screener_jobs` below), the
+# real readers behind the poster's two seams, the session resolver, and the boot
+# line. The module's own `enabled()` (`RS_DISCORD_POST_ENABLED`, read per call)
+# is the ONLY switch: nothing here reads the flag or the webhook variable, so the
+# flag ledger has one gate and the channel census one member-room variable.
+
+#: The job ids, in fire order (`api.routers.rs_discord.JOB_IDS` is the same
+#: tuple; the status readback lists them and a test pins the two equal).
+RS_DISCORD_POST_JOBS = ("rs_discord_post", "rs_discord_post_retry")
+
+#: The signals the post's evidence line reports, in print order: the headline RS
+#: new high and the two sub-signals the post lists names for. The rating list
+#: has no signal in the v1 artifact (`rs_evidence_pull.CARD_SIGNALS`).
+RS_DISCORD_EVIDENCE_SIGNALS = ("rs_new_high", "rs_new_high_before_price", "rs_new_high_red_day")
+
+#: Receipt reasons the retry pass acts on: the first pass built a valid post and
+#: the TRANSPORT refused it (`rs_discord_post._deliver`). Every other reason --
+#: not enabled, no webhook, already posted, no leaders, below the floor, refused
+#: by the validator -- is a judgement the retry must not overturn.
+RS_DISCORD_TRANSPORT_REASONS = ("rate-limited", "http ", "send failed")
+
+
+#: The benchmark the RS line, the red-day flag and the post's red-day line are
+#: all measured against (`rs_columns`: SPY is the ratio's denominator).
+RS_DISCORD_BENCHMARK = "SPY"
+
+
+def _rs_leaders_for(session) -> dict:
+    """`leaders_fn` for `rs_discord_post.post_rs_summary`: the nightly screener
+    rows of ONE settled session in the seam's mapping shape,
+    `{"leaders": [rows in the `normalise_leaders` shape], "spy_change_pct": x}`.
+
+    `spy_change_pct` is SPY's own screener row's `chg_pct_1d` for the same
+    session -- the close-to-close change of the same settled SPY bars the
+    builder's `rs_nh_red_day` flag reads (`relative_strength.pct_change` and
+    `technicals`' `chg_pct_1d` are one formula), so the post's "SPY was not a
+    red day (+0.4%)" line (decision P1, 2026-11-07) states the number the
+    red-day judgement was made on. None when SPY's row is missing for the
+    session or its change is NULL: the line then reads "none", never a guess.
+    SPY is never one of the leaders: its RS line against itself is a constant
+    1.0, which ties its own 252-bar high every session. No ETF is either
+    (`is_etf = 1`, 2026-11-07): the post lists stock leaders, the rating
+    already excludes ETFs, and on a red day an inverse fund (SH, SQQQ) or a
+    haven (GLD, TLT) making an RS new high is the market, not a leader.
+
+    Selects `screener_rows` whose `bars_asof` is the session -- the builder
+    stamps a row's price date as YYYYMMDD (`snapshot_builder._asof_of`), and
+    `rs_history.session_ymd` turns the YYYY-MM-DD session key into that shape,
+    so a row whose bars never caught up to the session is left out rather than
+    reported as that session's leader -- AND (`rs_new_high = 1` OR
+    `rs_rating_ibd >= LIMITS["rating_min"]`). The RS flags are the 2a-05
+    columns (`rs_new_high`, `rs_nh_before_price`, `rs_nh_red_day`,
+    `rs_line_above_ma`), the rating is the 2a-06 column `rs_rating_ibd` (NULL
+    while the rating job is dark or the name is unrated: the seam renders
+    "(unrated)", never a number), the sector is the screener's own `sector`
+    column and the name its `company`. Raises on a missing DB or table: the
+    poster reports `leaders_fn failed: <Error>` and posts nothing.
+    """
+    from api.services import rs_discord_post as rp
+    from api.services.screener import rs_history, snapshot_db
+    ymd = str(rs_history.session_ymd(session))
+    rating_min = int(rp.LIMITS["rating_min"])
+    bench = RS_DISCORD_BENCHMARK
+    sql = ("SELECT ticker, company, sector, rs_rating_ibd, rs_new_high, rs_nh_before_price, "
+           "rs_nh_red_day, rs_line_above_ma FROM screener_rows "
+           "WHERE bars_asof = ? AND ticker != ? AND COALESCE(is_etf, 0) != 1 "
+           "AND (rs_new_high = 1 OR rs_rating_ibd >= ?)")
+    conn = snapshot_db.connect()
+    try:
+        rows = conn.execute(sql, (ymd, bench, rating_min)).fetchall()
+        spy = conn.execute("SELECT chg_pct_1d FROM screener_rows WHERE bars_asof = ? AND ticker = ?",
+                           (ymd, bench)).fetchone()
+    finally:
+        conn.close()
+    leaders = [{
+        "ticker": r["ticker"],
+        "name": r["company"],
+        "sector": r["sector"],
+        "rating": r["rs_rating_ibd"],
+        "new_high": r["rs_new_high"] == 1,
+        "before_price": r["rs_nh_before_price"] == 1,
+        "red_day": r["rs_nh_red_day"] == 1,
+        "rs_line_above": r["rs_line_above_ma"] == 1,
+    } for r in rows]
+    return {"leaders": leaders, "spy_change_pct": rp.spy_change(spy["chg_pct_1d"]) if spy else None}
+
+
+def _rs_evidence_for(session) -> list[dict] | None:
+    """`evidence_fn` for the poster: the measured numbers of the signals the post
+    names (`RS_DISCORD_EVIDENCE_SIGNALS`) at the card's horizon
+    (`rs_evidence_pull.DEFAULT_HORIZON`, 63 bars), read from the artifact the
+    04:30 pull landed. One dict per DISPLAYABLE signal (2b-03's floor and
+    completeness rule), with `signal` set to the artifact's plural label (the
+    noun phrase `evidence_line` prints) and `outcome` the pull's own phrase
+    (`rs_evidence_pull.outcome_phrase`, carried on the dict): the share that
+    beat the benchmark from the next session's open (owner decision N6), so the
+    post and the chart card state one base. None when nothing is displayable,
+    which prints the honesty line. `session` is unused on purpose: the artifact
+    is one measured window, refreshed nightly, and the sentence states its dates.
+    """
+    from api.services import rs_evidence_pull as ep
+    out = []
+    for sig in RS_DISCORD_EVIDENCE_SIGNALS:
+        ev = ep.evidence_for(sig, ep.DEFAULT_HORIZON)
+        if not ev or not ev.get("displayable"):
+            continue
+        out.append({**ev, "signal": ev["label"]})
+    return out or None
+
+
+def _rs_discord_session() -> str:
+    """The settled session the way `rs_history` resolves it (its `session_fn`
+    default, `snapshot_builder.settled_session` through the module's lazy
+    import), as the YYYY-MM-DD key the poster and its marker use. "" when the
+    calendar does not cover the date: the poster answers `no session`."""
+    from api.services.screener import rs_history
+    d = rs_history.settled_session()
+    return rs_history.session_key(d) if d else ""
+
+
+def _rs_discord_transport_failure(receipt) -> bool:
+    """Did a first pass build a valid post that the transport then refused?
+    Only such a receipt is worth a retry; a landed post, a dry run and every
+    judgement reason are not."""
+    if not isinstance(receipt, dict) or receipt.get("posted") or receipt.get("dry_run"):
+        return False
+    return str(receipt.get("reason") or "").startswith(RS_DISCORD_TRANSPORT_REASONS)
+
+
+def _run_rs_discord_post(retry: bool = False) -> None:
+    """The `rs_discord_post` (04:45 ET) and `rs_discord_post_retry` (05:15 ET)
+    jobs: ONE function, two registrations. Never raises.
+
+    First pass: resolve the settled session, call `post_rs_summary` with the
+    real readers above -- every gate (the flag, the webhook, the marker, the
+    floor, the validator) is the module's -- record the receipt where the admin
+    door's status readback and the retry pass read it, and print one line.
+
+    Retry pass (`retry=True`): posts ONLY when this process's scheduled receipt
+    for the SAME session says the first pass was refused by the transport
+    (`RS_DISCORD_TRANSPORT_REASONS`: `rate-limited`, `http NNN`, `send failed`).
+    A first pass that was not enabled, had no webhook, found the session marked,
+    fell under the floor or was refused by the validator is a judgement the
+    retry does not overturn; a first pass that landed is in the marker and the
+    module would refuse it as already posted anyway. No scheduled receipt for
+    the session (the pod restarted in between, or the first pass has not run)
+    is "nothing to retry": the first pass's own `misfire_grace_time` covers a
+    restart that spans 04:45, and a retry that posted on an unknown first pass
+    would be a second judgement over the same session.
+    """
+    label = "rs discord post retry" if retry else "rs discord post"
+    try:
+        from api.routers import rs_discord as door
+        session = _rs_discord_session()
+        if retry:
+            first = door.last_receipt("scheduled")
+            if not first or first.get("session") != session:
+                print(f"[scheduler] {label}: session={session} nothing to retry "
+                      "(no scheduled receipt for this session)")
+                return
+            if not _rs_discord_transport_failure(first):
+                print(f"[scheduler] {label}: session={session} nothing to retry "
+                      f"(first pass: {first.get('reason')})")
+                return
+        from api.services import rs_discord_post as rp
+        receipt = rp.post_rs_summary(session, leaders_fn=_rs_leaders_for, evidence_fn=_rs_evidence_for)
+        door.record_receipt(receipt, "retry" if retry else "scheduled")
+        print(f"[scheduler] {label}: session={receipt.get('session')} posted={receipt.get('posted')} "
+              f"reason={receipt.get('reason')} leaders={receipt.get('leaders')} "
+              f"chars={receipt.get('chars')} attempts={receipt.get('attempts')} "
+              f"marked={receipt.get('marked')}")
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] {label} error: {e}")
+
+
+def _rs_discord_post_boot_line(scheduler=None) -> str:
+    """`[startup] rs-discord-post: enabled=<0|1> webhook=<set|unset>
+    last_posted=<date|none> jobs=<ids read back out of the scheduler>`. The URL
+    is NEVER printed: a webhook in a boot log is a webhook in a log aggregator.
+    Never raises (it sits inside the screener registration's try)."""
+    try:
+        from api.services import rs_discord_post as rp
+        jobs = ""
+        if scheduler is not None:
+            present = [jid for jid in RS_DISCORD_POST_JOBS if scheduler.get_job(jid) is not None]
+            jobs = " jobs=" + (",".join(present) if present else "NONE REGISTERED")
+        return (f"[startup] rs-discord-post: enabled={1 if rp.enabled() else 0} "
+                f"webhook={'set' if rp.configured_webhook() else 'unset'} "
+                f"last_posted={rp.last_posted() or 'none'}{jobs}")
+    except Exception as e:  # noqa: BLE001
+        return f"[startup] rs-discord-post: status unavailable ({type(e).__name__})"
+
+
 def register_screener_jobs(scheduler):
     """Register the nightly full-market screener snapshot build (03:00 ET, after
     the ratings nightly at 02:30). Gated by SCREENER_SNAPSHOT_ENABLED (default on).
@@ -2193,6 +2566,97 @@ def register_screener_jobs(scheduler):
     scheduler.add_job(_check_nightly_finished,
                       trigger=CronTrigger(hour=NIGHTLY_WATCHDOG_HOUR_ET, minute=0, timezone=_ET),
                       id="screener_nightly_watchdog", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=3600)
+
+    # -- UCT Relative Strength rating history: its OWN cron at 04:15 ET ---------
+    #
+    # ⛔ NOT A LINE APPENDED TO `_run` ABOVE. The engineering map (unit 2a-04)
+    # allows the inline path -- under `_nightly_shortfall(stats) is None`, the way
+    # membership is chained -- only once the step is MEASURED under three minutes,
+    # and the sweep block below refuses unmeasured work in the build's
+    # `max_instances=1` slot. It has not been measured on the web pod (the box
+    # that wrote this has no bars.db), so this is the own-cron path. ⏳ THE
+    # ALTERNATIVE, once the first production receipts (`rs_history_runs`'s
+    # `duration_ms`, read back as `rs_history.last_run` on
+    # `/api/screener/snapshot-status`) show a run under 180,000 ms: move the call
+    # inline after `membership.record_all()` and delete this registration; the
+    # flag read and the alert stay as they are.
+    #
+    # 04:15 ET is the map's hour: the 03:00 build took 44 minutes on 2026-10-16
+    # and this reads the daily bars that build just caught up; the 05:00 sweep
+    # reads nothing from this table.
+    #
+    # `coalesce=True, misfire_grace_time=3600`: the watchdog's settings, for the
+    # watchdog's reason -- under apscheduler's 1-second default grace a restart
+    # spanning 04:15 drops the whole session from the history, silently. ⚠️ The
+    # build job above carries NO grace at all, so "match the build job" would
+    # mean one second, which is the hole and not the fix; 3600 is what every
+    # once-a-day sibling here uses. A late start is safe: a rerun for the same
+    # session is INSERT OR REPLACE in `rs_history.store_rows`.
+    #
+    # ⛔ REGISTERED UNCONDITIONALLY (depth 0 under `_add_job_gate_depth` in
+    # tests/test_scan_live_sweep.py): `RS_HISTORY_ENABLED` is read PER CALL inside
+    # `_run_rs_history`, so arming and rollback are one Railway variable with no
+    # deploy. Off, the job returns before touching the DB.
+    scheduler.add_job(_run_rs_history,
+                      trigger=CronTrigger(hour=4, minute=15, timezone=_ET),
+                      id="rs_history_nightly", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=3600)
+
+    # -- UCT Relative Strength evidence: the web pull of the worker's artifact --
+    #
+    # 04:30 ET (unit 2b-03): after the worker's 21:30 ET evidence run has
+    # published `rs/evidence.json` and after the 04:15 rating job above, so the
+    # first chart of the morning reads last night's numbers. Same `coalesce` and
+    # grace as its siblings, for the same reason (a restart spanning 04:30 would
+    # otherwise skip the day under apscheduler's 1-second default); a late start
+    # is safe because the pull is idempotent and refuses rather than overwrites
+    # on anything but a full, well-formed artifact (`rs_evidence_pull.pull_once`).
+    #
+    # REGISTERED UNCONDITIONALLY (depth 0 under `_add_job_gate_depth`) and with
+    # NO flag of its own: `_run_rs_evidence_pull` says why.
+    scheduler.add_job(_run_rs_evidence_pull,
+                      trigger=CronTrigger(hour=4, minute=30, timezone=_ET),
+                      id="rs_evidence_pull", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=3600)
+
+    # -- UCT Relative Strength: the RS Leaders and RS Emerging lists (unit 4-01) --
+    #
+    # 04:40 ET: after the 04:15 rating job (the lists read that session's ratings and
+    # refuse to write while the history is behind the screener session) and before the
+    # 04:45 Discord post. Same `coalesce` and grace as the siblings, for the same reason;
+    # a late or doubled fire is safe because the write makes each list exactly the rule's
+    # answer for the session (in place, idempotent).
+    #
+    # REGISTERED UNCONDITIONALLY (depth 0 under `_add_job_gate_depth`): the switch is
+    # `rs_lists.enabled()` (`RS_LISTS_ENABLED`, read per call), so arming and rollback are
+    # one Railway variable with no deploy.
+    scheduler.add_job(_run_rs_lists,
+                      trigger=CronTrigger(hour=4, minute=40, timezone=_ET),
+                      id="rs_lists_nightly", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=3600)
+
+    # -- UCT Relative Strength: the nightly Discord leaders post (unit 2b-08) --
+    #
+    # 04:45 ET: after the 04:15 rating job and the 04:30 evidence pull above, so
+    # the post carries the session's ratings (once the rating job is armed) and
+    # last night's measured evidence. A retry pass at 05:15 ET re-posts ONLY a
+    # transport refusal (`_run_rs_discord_post`: rate-limited, http NNN, send
+    # failed); it is the SAME function, told apart by `kwargs`. Same `coalesce`
+    # and grace as the siblings, for the same reason (a restart spanning the
+    # minute would otherwise skip the day). A late or doubled fire is safe: the
+    # module's marker records a landed session and its lock refuses an overlap.
+    #
+    # REGISTERED UNCONDITIONALLY (depth 0 under `_add_job_gate_depth`): the
+    # switch is the module's own `enabled()` (`RS_DISCORD_POST_ENABLED`, read
+    # per call), so arming and rollback are one Railway variable with no deploy.
+    scheduler.add_job(_run_rs_discord_post,
+                      trigger=CronTrigger(hour=4, minute=45, timezone=_ET),
+                      id="rs_discord_post", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    scheduler.add_job(_run_rs_discord_post, kwargs={"retry": True},
+                      trigger=CronTrigger(hour=5, minute=15, timezone=_ET),
+                      id="rs_discord_post_retry", max_instances=1,
                       replace_existing=True, coalesce=True, misfire_grace_time=3600)
 
     # -- the scan sweep: a SEPARATE job at a LATER hour ------------------------
@@ -3286,6 +3750,85 @@ def _pattern_vision_contract_line() -> str:
             f"confirmed_only={'on' if conf_only is True else 'OFF'}[api_default]")
 
 
+def register_chart_iq_pack_jobs(scheduler):
+    """Chart IQ nightly pack (api/services/chart_iq/pack.py): every stock's latest-session read, so a member's read is one lookup.
+    The lab PC builds it (fast local disk, ~10 min) and uploads one file to R2; this pod pulls it every 15 minutes (sync_from_r2).
+    The server-side build is the FALLBACK: 23:00 ET and 06:30 ET weekdays, and only when the installed pack is behind the latest
+    session (build_if_behind), so a missing upload never leaves the pack stale. Gate: CHART_IQ_PACK_ENABLED=1. Returns True if
+    registered."""
+    import os
+    if os.environ.get("CHART_IQ_PACK_ENABLED", "").strip() != "1":
+        return False
+    from apscheduler.triggers.cron import CronTrigger
+    from apscheduler.triggers.interval import IntervalTrigger
+
+    def _sync():
+        try:
+            from api.services.chart_iq import pack
+            pack.sync_from_r2()
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger(__name__).warning("[chart_iq_pack] sync job error: %s", exc)
+
+    def _fallback():
+        try:
+            from api.services.chart_iq import pack
+            pack.build_if_behind()
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger(__name__).warning("[chart_iq_pack] fallback job error: %s", exc)
+
+    try:   # boot: page the installed pack in now, so the first member after a deploy is not the one who waits on the disk
+        from api.services.chart_iq import pack as _ciq_pack
+        _ciq_pack.warm_file(_ciq_pack._path())
+    except Exception:  # noqa: BLE001
+        pass
+    scheduler.add_job(_sync, trigger=IntervalTrigger(minutes=15), id="chart_iq_pack_sync", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=600)
+    def _behind_alert():
+        try:
+            from api.services.chart_iq import pack
+            pack.alert_if_behind()
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger(__name__).warning("[chart_iq_pack] behind-alert job error: %s", exc)
+
+    # After the PC's build window (nightly 22:30 CT + 15 min sync) and after its 06:00 CT retry: page ops if members are
+    # still reading an older session than the market's last one.
+    scheduler.add_job(_behind_alert, trigger=CronTrigger(day_of_week="tue-sat", hour=0, minute=20, timezone=_ET),
+                      id="chart_iq_pack_behind_evening", max_instances=1, replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    scheduler.add_job(_behind_alert, trigger=CronTrigger(day_of_week="mon-fri", hour=7, minute=35, timezone=_ET),
+                      id="chart_iq_pack_behind_morning", max_instances=1, replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    from api.services.chart_iq import pack as _ciq_pack_gate
+    if not _ciq_pack_gate.server_build_allowed():   # the in-pod build took the pod down 11/02; the PC owns the build
+        return True
+    scheduler.add_job(_fallback, trigger=CronTrigger(day_of_week="mon-fri", hour=23, minute=0, timezone=_ET),
+                      id="chart_iq_pack_evening", max_instances=1, replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    scheduler.add_job(_fallback, trigger=CronTrigger(day_of_week="mon-fri", hour=6, minute=30, timezone=_ET),
+                      id="chart_iq_pack_morning", max_instances=1, replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    return True
+
+
+def register_chart_iq_prewarm_jobs(scheduler):
+    """Chart IQ group pre-warm (api/services/chart_iq/prewarm.py): after the close, warm the rows cache for the industries members
+    opened in the last few days, so the first chart of each industry on the new session is not the 5-25 s cold read. 18:30 ET
+    (the day's bars have landed) and 07:00 ET (a late landing or a restart) on weekdays. Gate: CHART_IQ_PREWARM_ENABLED=1, read
+    again inside warm() together with CHART_IQ_ENABLED. Returns True if registered."""
+    import os
+    if os.environ.get("CHART_IQ_PREWARM_ENABLED", "").strip() != "1":
+        return False
+    from apscheduler.triggers.cron import CronTrigger
+
+    def _run_prewarm():
+        try:
+            from api.services.chart_iq import prewarm
+            prewarm.warm()
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger(__name__).warning("[chart_iq_prewarm] job error: %s", exc)
+
+    for hh, mm, jid in ((18, 30, "chart_iq_prewarm_evening"), (7, 0, "chart_iq_prewarm_morning")):
+        scheduler.add_job(_run_prewarm, trigger=CronTrigger(day_of_week="mon-fri", hour=hh, minute=mm, timezone=_ET),
+                          id=jid, max_instances=1, replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    return True
+
+
 def register_call_recap_warm_jobs(scheduler):
     """Pre-generate call recaps so the modal is a point-read, not a ~39s wait.
 
@@ -3574,9 +4117,13 @@ def register_pattern_vision_jobs(scheduler):
                     "ticker": _sym, "tf": "D", "setup": None, "asof_date": None,
                     "path": "truncated",
                     "message": f"beyond PATTERN_VISION_MAX_PER_RUN={cap}"})
+            # Batch lane (half price): judgements queue here and the reaper job
+            # stores each verdict when its batch lands. PATTERN_VISION_BATCH=0 = live.
+            pv_batch = (pv_orch.JudgeBatch()
+                        if pv_orch.batch_enabled() else None)
             for t in active:
                 cur = t
-                r = pv_orch.judge_ticker(t) or {}
+                r = pv_orch.judge_ticker(t, batch=pv_batch) or {}
                 agg["judged"] += r.get("judged", 0)
                 agg["skipped"] += r.get("skipped", 0)
                 agg["capped"] += 1 if r.get("cost_capped") else 0
@@ -3585,6 +4132,8 @@ def register_pattern_vision_jobs(scheduler):
                 problems.extend(r.get("problems") or [])
                 asofs.extend(r.get("asof_dates") or [])
             cur = None
+            if pv_batch is not None and pv_batch.items:
+                print(f"[scheduler] pattern_vision batch {pv_batch.submit()}")
         except Exception as e:
             err = e
             print(f"[scheduler] pattern_vision job error: {e}")
@@ -3634,6 +4183,27 @@ def register_pattern_vision_jobs(scheduler):
                       id="pattern_vision_judge", max_instances=1,
                       replace_existing=True)
     return True
+
+
+def register_pattern_vision_batch_reaper(scheduler) -> None:
+    """The pattern-vision Batch lane's collector: stores each batched verdict when its
+    batch lands. A no-op when nothing is pending; reaping is idempotent. Registered
+    whenever the judge is, so a batch queued before a PATTERN_VISION_BATCH=0 rollback
+    is still collected."""
+    from apscheduler.triggers.cron import CronTrigger
+    from api.services.pattern_vision import orchestrator as pv_orch
+
+    def _reap():
+        try:
+            out = pv_orch.reap_batches()
+            if out.get("batches"):
+                print(f"[scheduler] pattern_vision reaped {out}")
+        except Exception as e:
+            print(f"[scheduler] pattern_vision reaper error: {e}")
+
+    scheduler.add_job(_reap, trigger=CronTrigger(minute="*/10", timezone=_ET),
+                      id="pattern_vision_batch_reap", max_instances=1,
+                      replace_existing=True)
 
 
 def idb_cache_logic_version(src_path: str | None = None) -> int | None:
@@ -4137,6 +4707,28 @@ async def lifespan(app: FastAPI):
     except Exception:
         logging.getLogger(__name__).exception("[startup] could not schedule the terminal seed")
 
+    # Plan A Task 2 (L-2): internal link MARKS already stored become note links.
+    # A flag-file one-shot on a daemon thread with its OWN connection, started HERE --
+    # after `_init_auth_db()` has committed -- never from inside `ensure_schema`, where
+    # it raced the boot connection's remaining schema writes (fix round 1, I1). It
+    # scans ids unlocked and writes in small chunks; see its docstring.
+    try:
+        from api.services.journal_two.db import start_internal_link_projection_backfill
+        start_internal_link_projection_backfill()
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "[startup] could not schedule the internal-link projection backfill")
+
+    # Audit 2026-11-05 S20, Tier 3a re-review R4: the Notebook return metrics' first-visit index, built HERE -- after
+    # `_init_auth_db()` has committed, on its own daemon thread and connection, retried on failure -- never inside the
+    # auth schema script, where a lock on a big CREATE INDEX would skip every later migration. Until it exists the
+    # admin read answers "warming" and reads nothing.
+    try:
+        from api.services.journal_two.notebook_return_metrics import start_activity_index_build
+        start_activity_index_build()
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] could not schedule the return-metrics index build")
+
     # ⛔ The buzz schema is created HERE, unconditionally — not by the poller.
     # It used to be created only inside _buzz_poll, AFTER its
     # `if not ingest_enabled(): return` guard and only when this process holds
@@ -4266,6 +4858,20 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).info("[startup] indicator alert evaluator started")
     except Exception:
         logging.getLogger(__name__).exception("[startup] indicator alert evaluator failed to start")
+
+    # Price alerts: scheduled server-side evaluation, so an alert on a symbol no
+    # client is polling still fires. The thread always starts and sleeps; every
+    # cycle re-reads PRICE_ALERT_EVALUATOR_ENABLED (default off) from os.environ,
+    # which is fixed at process start: a Railway change takes effect only on a
+    # new boot. Stop it with `--set ...=0` (redeploys), or after a `variable
+    # delete` run `railway redeploy --service web --yes` and confirm the fresh
+    # boot from the pod.
+    try:
+        from api.services import price_alert_evaluator
+        price_alert_evaluator.start_evaluator(interval_sec=60)
+        logging.getLogger(__name__).info("[startup] price alert evaluator thread started (flag-gated)")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] price alert evaluator failed to start")
 
     # Awareness Engine (M1): durable regime-label ledger. Cheap + idempotent;
     # initialized unconditionally (like indicator_alert_service) so local
@@ -4598,6 +5204,45 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).info("[startup] realtime_candle reconciliation_worker scheduled")
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule reconciliation_worker: %s", e)
+
+    # ── Schwab proactive token refresh ───────────────────────────────────────
+    #
+    # ⚰️ `schwab_service.start_auto_refresh()` HAS EXISTED AND HAS NEVER BEEN CALLED.
+    # Measured 2026-11-09: zero callers anywhere in the tree, while
+    # `_auto_refresh_loop`'s own docstring claims "As long as the app is running, users
+    # never need to re-authenticate." Two separate false claims in one function — the
+    # loop never ran, AND Schwab caps the refresh token at 7 days regardless, so a
+    # weekly manual OAuth is unavoidable either way.
+    #
+    # The observable consequence, measured the same evening: web's access token sat
+    # **53.4 minutes old** with an unchanged value, i.e. expired (they live 1800s),
+    # because the ONLY thing that ever refreshed was an on-demand `get_valid_token()`
+    # call and nothing had asked after hours.
+    #
+    # ⛔ WHY IT MATTERS NOW, AND WHY IT IS HERE RATHER THAN IN THE PUSHER. The token
+    # replication added alongside this ships ONLY the access token to flow-worker, and
+    # flow-worker cannot refresh by design (it never holds a refresh token). So
+    # flow-worker's coverage is exactly as fresh as web's last refresh. The pusher
+    # deliberately refuses to ship an expired token, so without a proactive refresh on
+    # web there are windows where there is nothing good to send. Refreshing from the
+    # pusher was rejected: it runs on a BackgroundScheduler THREAD, and driving an
+    # async refresh from there means a second event loop touching `_TOKEN_REFRESH_LOCK`
+    # — a second authority over the one thing that must stay single-flight.
+    #
+    # ⛔ MUST be created here, inside the async lifespan: `start_auto_refresh` calls
+    # `asyncio.create_task`, which needs the running loop.
+    #
+    # DARK by default — arm with the replication flags, not before, since its only
+    # purpose here is keeping the replicated token fresh.
+    try:
+        if os.environ.get("SCHWAB_AUTO_REFRESH_ENABLED", "0") == "1":
+            from api import schwab_service as _schwab
+            _schwab.start_auto_refresh()
+            logging.getLogger(__name__).info(
+                "[startup] schwab auto-refresh task started (25 min cadence)")
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            "[startup] failed to start schwab auto-refresh: %s", e)
 
     # Live options-flow SSE tailer (2026-07-08) — the instant-tape backend.
     # Reads flow.db for new prints and pushes them to connected browsers. Inert
@@ -5149,7 +5794,7 @@ async def lifespan(app: FastAPI):
         "fmp_tz_fix=on yfinance_tz_fix=on heal_v1=ran-once heal_v2=ran-once heal_v3_60day=ran-once "
         "needs_fresh_post_market=on "
         "swr_refresh_interval=30s_intraday "
-        "tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds "
+        "tf60_ws_streaming=on bucket_canonical=bar_rollup.tv_bucket_bounds(via bars_fetch.bucket_60_et_unix_seconds,grid=rth) "
         f"delta_intraday_filter=>= idb_cache_logic_version={_idb_ver if _idb_ver is not None else 'unreadable'} "
         "weekly_dating=friday-close heal_weekly_close=ran-once "
         f"reconciliation_worker={'on' if os.environ.get('RECONCILE_ENABLED', '1') != '0' else 'off'}"
@@ -6161,6 +6806,28 @@ async def lifespan(app: FastAPI):
         except Exception as _e_ocr_sweep:
             print(f"[startup] j2 ocr recovery sweep skip: {_e_ocr_sweep}")
 
+        # Plan F Task 7 re-review I-5: a document row left `pending` was never extracted (a
+        # crash or redeploy mid-queue, or a row the import repair created: that short-lived
+        # process never extracts). Re-queue the stale ones through the same bounded pool, a few
+        # per tick, on a scheduler thread (off the event loop). Ungated, like PDF extraction.
+        try:
+            from api.services.journal_two import document_extraction as _doc_pending
+
+            def _doc_requeue_pending() -> None:
+                # One tick: waits out a startup grace (round 2 S-2), then re-queues.
+                out = _doc_pending.pending_sweep_tick()
+                if out.get("requeued") or out.get("failed"):
+                    logging.getLogger(__name__).info(
+                        "[doc-extract] sweep re-queued %s pending document(s), failed %s",
+                        out.get("requeued", 0), out.get("failed", 0))
+
+            _scheduler.add_job(
+                _doc_requeue_pending,
+                CronTrigger(minute="7/10"),
+                id="j2_doc_pending_sweep", replace_existing=True, max_instances=1)
+        except Exception as _e_doc_sweep:
+            print(f"[startup] j2 document pending sweep skip: {_e_doc_sweep}")
+
         # live room is never a dead room. Self-gates on COMMUNITY_CHAT_ENABLED at
         # run time (no-op while dark) — NOT a Compass LLM job, so registered directly.
         try:
@@ -6679,6 +7346,18 @@ async def lifespan(app: FastAPI):
                     optionsflow_etf_push.reconcile()
                 except Exception as _e:
                     logging.getLogger(__name__).warning("[of-etf-push] post-sync reconcile failed: %s", _e)
+                # The ROUTING classification, replicated to flow-worker (owner decision
+                # 2026-11-08). ⛔ ITS OWN try/except, not folded into the one above: these
+                # are two independent replications with two independent flags, and a fault
+                # in either must not stop the other or make the canonical sync look failed.
+                # DARK until TICKER_TYPES_REPLICA_PUSH_ENABLED=1 on web AND
+                # TICKER_TYPES_REPLICA_RECEIVE_ENABLED=1 on flow-worker.
+                try:
+                    from api.services import ticker_types_push
+                    ticker_types_push.reconcile()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning(
+                        "[ticker-types-push] post-sync reconcile failed: %s", _e)
             _scheduler.add_job(_ticker_types_sync, trigger=CronTrigger(hour=5, minute=30, timezone=_ET),
                                id="ticker_types_daily_sync", max_instances=1, replace_existing=True)
 
@@ -6695,6 +7374,52 @@ async def lifespan(app: FastAPI):
             _scheduler.add_job(_of_etf_reconcile, "interval", minutes=30,
                                id="optionsflow_etf_replica_reconcile",
                                max_instances=1, coalesce=True, replace_existing=True)
+
+        # ── Schwab access token -> flow-worker ────────────────────────────────
+        #
+        # ⚰️ WHY THIS EXISTS. Schwab's OAuth callback can only land on `web`, and
+        # `/data/schwab_token.json` is on a PER-SERVICE volume. Measured 2026-11-09,
+        # minutes after a successful re-auth: web's token 0.0 days old, flow-worker's
+        # **113.4 days** old and failing `invalid_grant` on every cycle, silently
+        # covered by the Massive OI fallback. The owner read that as "every deploy I
+        # have to log in again" — the login fixed the pod they were looking at and
+        # never the one serving the data. `/data` survives deploys; nothing propagated.
+        #
+        # ⛔ NOT FOLDED INTO THE TICKER_TYPES BLOCK ABOVE, and not under its flag.
+        # Those carry datasets on a daily/30-min cadence; this carries a 30-MINUTE
+        # CREDENTIAL and must run far more often. Its own flag, its own job id, its
+        # own try/except — a fault in either must not stop the other.
+        #
+        # ⛔ A PUSH IS NOT THE PRIMARY PATH — `save_tokens` already pushes on every
+        # login and every refresh. This is the self-healing cadence, and it is what
+        # covers the case the owner actually hits: a flow-worker DEPLOY, which boots
+        # with whatever token the volume last held and cannot pull (web is IPv4-only
+        # on an IPv6 private network, so pull was disproved). A current pod costs one
+        # status probe and transfers nothing.
+        #
+        # ⚠️ THIS DOES NOT REMOVE THE WEEKLY RE-AUTH. Schwab caps the refresh token at
+        # 7 days and refreshing does not extend it. One manual OAuth per week on web
+        # is unavoidable; what this removes is the per-pod and per-deploy half.
+        #
+        # DARK until SCHWAB_TOKEN_PUSH_ENABLED=1 on web AND
+        # SCHWAB_TOKEN_REPLICA_RECEIVE_ENABLED=1 on flow-worker.
+        try:
+            def _schwab_token_push():
+                try:
+                    from api.services import schwab_token_push
+                    schwab_token_push.reconcile()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning(
+                        "[schwab-token-push] reconcile raised: %s", _e)
+
+            _scheduler.add_job(
+                _schwab_token_push, "interval",
+                minutes=int(os.environ.get("SCHWAB_TOKEN_PUSH_INTERVAL_MIN", "5")),
+                id="schwab_token_replica_push",
+                max_instances=1, coalesce=True, replace_existing=True)
+        except Exception as _e:
+            logging.getLogger(__name__).warning(
+                "[schwab-token-push] could not register job: %s", _e)
 
         # Breadth live -- rebuild the day's reference levels BEFORE the open.
         #
@@ -7182,7 +7907,7 @@ async def lifespan(app: FastAPI):
                   f"{_broker_sync_engine._default_interval_min()}m; recent-orders poll 5m mkt-hours; "
                   "nightly reconcile 2:30am ET; fleet monitor :37 hourly)")
 
-        # Note Connectors (Roam/Craft/Notion/Dropbox) -- background sync of
+        # Note Connectors (Roam/Craft/Notion/Obsidian/Evernote) -- background sync of
         # external note libraries into the Notebook. Gated by
         # NOTE_SYNC_ENABLED (default OFF -> fully inert); the router above
         # mounts UNCONDITIONALLY (endpoints check per-provider config), only
@@ -7200,6 +7925,15 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(minute=23, timezone=_ET),
                 id="note_sync_due", max_instances=1, replace_existing=True,
             )
+            # Quick follow-up passes (live gate 2026-11-03): a source a provider's rate limit
+            # cut short (Evernote's per-minute tool limit) is stamped a few minutes ahead and
+            # synced again here instead of waiting for the hourly tick. A cheap no-op when no
+            # source is stamped; bounded per source per hour in the engine.
+            _scheduler.add_job(
+                _note_sync_scheduler.run_follow_up_sync_blocking,
+                trigger=IntervalTrigger(minutes=int(os.getenv("NOTE_SYNC_FOLLOW_UP_INTERVAL_MIN", "2"))),
+                id="note_sync_follow_up", max_instances=1, replace_existing=True,
+            )
             # Nightly FULL-listing pass (MUST-RESOLVE #2, distinct minute
             # offset from the tick above) -- delete detection (engine.py's
             # 2-strike miss_streak + the list_deleted wiring) ONLY runs on a
@@ -7216,19 +7950,17 @@ async def lifespan(app: FastAPI):
         # Wave 13 lane 13E-1: freeze the market context at the fill. A sweep every 10 minutes
         # in market hours, plus a listener that queues one capture AFTER each broker-sync job
         # finishes (no broker code is edited; the hook only reads j2_positions / j2_trades and
-        # never raises). Both read NOTEBOOK_ENTRY_CONTEXT_ENABLED per run: inert while dark.
+        # never raises).
         from api.services.journal_two import entry_context as _entry_context
         if _entry_context.install_scheduler_hooks(_scheduler, CronTrigger, _ET):
-            print("[startup] Entry-context capture hooks registered (inert unless "
-                  "NOTEBOOK_ENTRY_CONTEXT_ENABLED)")
+            print("[startup] Entry-context capture hooks registered")
 
         # Wave 13 lane 13J: find more like this, precomputed NIGHTLY (mon-fri 05:45 ET, after the
-        # 03:00 snapshot and the 05:00 scan sweep) on a worker thread, off the event loop. Reads
-        # NOTEBOOK_FIND_SIMILAR_ENABLED per run: inert while dark. The request path only reads.
+        # 03:00 snapshot and the 05:00 scan sweep) on a worker thread, off the event loop. The
+        # request path only reads.
         from api.services.journal_two import similar_matches as _similar_matches
         if _similar_matches.install_scheduler_hook(_scheduler, CronTrigger, _ET):
-            print("[startup] Similar-matches nightly job registered (inert unless "
-                  "NOTEBOOK_FIND_SIMILAR_ENABLED)")
+            print("[startup] Similar-matches nightly job registered")
 
         def _cot_daily_catchup():
             try:
@@ -7308,6 +8040,12 @@ async def lifespan(app: FastAPI):
         # -- Full-market screener nightly snapshot build (spec 2026-06-19) --
         try:
             register_screener_jobs(_scheduler)
+            # UCT RS Discord post (2b-08): one fingerprint, never the URL.
+            print(_rs_discord_post_boot_line(_scheduler))
+            if register_chart_iq_pack_jobs(_scheduler):
+                logging.getLogger(__name__).info("[startup] chart-iq pack: R2 sync every 15 min; fallback build 23:00 / 06:30 ET if behind")
+            if register_chart_iq_prewarm_jobs(_scheduler):
+                logging.getLogger(__name__).info("[startup] chart-iq group pre-warm: 18:30 / 07:00 ET weekdays")
             if register_call_recap_warm_jobs(_scheduler):
                 logging.getLogger(__name__).info(
                     "[startup] call-recap warm sweeps: 07:30/12:30/17:15/21:30 ET")
@@ -7479,6 +8217,19 @@ async def lifespan(app: FastAPI):
                 misfire_grace_time=300, max_instances=1, coalesce=True,
             )
             print("[startup] tsdr video lessons scheduled (every 15 min)")
+            _scheduler.add_job(
+                _llm_budget_watch,
+                trigger=CronTrigger(minute="2,17,32,47", timezone=_ET),
+                id="llm_budget_watch", replace_existing=True,
+                misfire_grace_time=300, max_instances=1, coalesce=True,
+            )
+            print("[startup] AI-spend budget watchdog scheduled (every 15 min)")
+            _scheduler.add_job(
+                _llm_spend_digest,
+                trigger=CronTrigger(hour=23, minute=55, timezone=_ET),
+                id="llm_spend_digest", replace_existing=True,
+                misfire_grace_time=3600, max_instances=1, coalesce=True,
+            )
         except Exception as e:
             print(f"[scheduler] tsdr lessons registration error: {e}")
         if os.environ.get("THEME_INDEX_PREWARM_ENABLED", "1") != "0":
@@ -7495,6 +8246,7 @@ async def lifespan(app: FastAPI):
         # -- Opus-vision pattern judge (spec 2026-06-19) -------------------
         try:
             if register_pattern_vision_jobs(_scheduler):
+                register_pattern_vision_batch_reaper(_scheduler)
                 # ⛔⛔ THE STEP THAT HELD THE BOOT, incident 2026-10-02. The contract
                 # line resolves the active set, which reads bars.db
                 # (`_resolve_active_set_for_patterns` -> `nth_recent_trading_date`, a
@@ -7550,8 +8302,11 @@ async def lifespan(app: FastAPI):
 
             _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="4-9", minute="*/2", timezone=_ET),
                                id="tweet_poll_burst_premarket", max_instances=1, replace_existing=True)
-            _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="9", minute="30-58/2", timezone=_ET),
-                               id="tweet_poll_burst_open", max_instances=1, replace_existing=True)
+            # tweet_poll_burst_open (09:30-09:58 every 2 min) was REMOVED 2026-11-07:
+            # the premarket job above already fires every 2 min through 09:58, so it
+            # polled the open twice per tick -- billed twice under the timeline mode.
+            # ⛔ replace_existing does not delete a job id that is no longer added;
+            # the scheduler's job store is in-memory, so a restart is what retires it.
             _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="15", minute="30-58/2", timezone=_ET),
                                id="tweet_poll_burst_close", max_instances=1, replace_existing=True)
             _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="16-19", minute="*/2", timezone=_ET),
@@ -7564,6 +8319,13 @@ async def lifespan(app: FastAPI):
                                id="tweet_poll_slow", max_instances=1, replace_existing=True)
             _scheduler.add_job(_tw_cleanup, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
                                id="tweet_cleanup_daily", max_instances=1, replace_existing=True)
+            # Saved Notebook posts that left X: two checks at least 10 minutes apart. Each job
+            # returns at once while NOTEBOOK_TWEET_IMPORT_ENABLED is off (read per run).
+            from api.services.journal_two import tweet_capture_sync as _tw_capture_sync
+            _scheduler.add_job(_tw_capture_sync.run_sweep, trigger=CronTrigger(hour=3, minute=10, timezone=_ET),
+                               id="notebook_tweet_capture_sweep", max_instances=1, replace_existing=True)
+            _scheduler.add_job(_tw_capture_sync.run_confirm, trigger=CronTrigger(hour=3, minute=25, timezone=_ET),
+                               id="notebook_tweet_capture_confirm", max_instances=1, replace_existing=True)
             print("[scheduler] tweet poll jobs registered")
 
         # -- The Desk -> Substack articles poller -------------------------------
@@ -7704,6 +8466,9 @@ async def lifespan(app: FastAPI):
                 id="study_gen_detections", max_instances=1, replace_existing=True)
             threading.Thread(target=_study_jobs.job_weekly_close_catchup, daemon=True,
                              name="study-weekly-close-catchup").start()
+            # the Hard / Spot the Setup pool sweep, warmed once after boot so no member waits on it (study_jobs)
+            threading.Thread(target=_study_jobs.job_warm_hard_pool, daemon=True,
+                             name="study-hard-pool-warm").start()
             print("[scheduler] study jobs registered (reminders */15, weekly close Sun 23:59 ET, "
                   "detections 02:30 ET weekdays; weekly-close catch-up on boot)")
         except Exception as e:
@@ -7756,6 +8521,20 @@ async def lifespan(app: FastAPI):
             _scheduler.add_job(_earn_analysis_warm,
                 trigger=CronTrigger(day_of_week="mon-fri", hour="8,9,11,16,17,20", minute=35, timezone=_ET),
                 id="earnings_analysis_warm", max_instances=1, replace_existing=True)
+            # The preview warm's Batch lane collector (half-price previews). A no-op
+            # while nothing is pending; reaping is idempotent (the ledger row drops
+            # once collected), and every 10 min puts a result close to its finish.
+            def _reap_earnings_preview_batches():
+                try:
+                    from api.services import earnings_preview_warm as _epw
+                    out = _epw.reap_preview_batches()
+                    if out.get("batches"):
+                        print(f"[earn-warm] batch reaper {out}")
+                except Exception as exc:
+                    print(f"[earn-warm] batch reaper failed: {exc}")
+            _scheduler.add_job(_reap_earnings_preview_batches,
+                trigger=CronTrigger(minute="*/10", timezone=_ET),
+                id="earnings_preview_batch_reap", max_instances=1, replace_existing=True)
 
         # -- AI Search member briefings (2026-08-28) ------------------------
         # Standing questions ("brief me on CRM every morning") answered through
@@ -9442,13 +10221,13 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] notebook routine reminders registration failed (non-fatal): {e}")
         # Tier 2 part B (R-T2B-2): Notebook earnings follow-up notices. The registrar wires 16:45 ET and
-        # 18:00 ET mon-fri and a one-shot boot catch-up; NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED (and the
-        # journal styles switch) are read at every RUN, never here. In-app bell only.
+        # 18:00 ET mon-fri and a one-shot boot catch-up (always on: its flag was retired 2026-11-04).
+        # In-app bell only.
         try:
             from api.services.journal_two import earnings_followup as _j2_followup
             if _j2_followup.register_followup_jobs(_scheduler):
                 print("[startup] notebook earnings follow-ups registered (16:45 + 18:00 ET mon-fri, boot "
-                      "catch-up; inert unless NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED)")
+                      "catch-up)")
         except Exception as e:
             print(f"[startup] notebook earnings follow-ups registration failed (non-fatal): {e}")
         # Wave 7 (controller wiring, lane H) — Notebook semantic-search index
@@ -9493,9 +10272,26 @@ async def lifespan(app: FastAPI):
             print("[startup] notebook SLO check registered (every 15 min) + digest (17:10 ET)")
         except Exception as e:
             print(f"[startup] notebook SLO registration failed (non-fatal): {e}")
+        # Desktop plan 5.1 -- desktop telemetry alerts: each new halt trigger (same crash or
+        # update error on 2+ machines, or a launch-failure loop) posts once to OPS, plus one
+        # digest a day after 07:00 ET. Never raises past the job; claims dedupe across pods.
+        try:
+            from api.services import desktop_events as _desktop_events
+            def _desktop_events_tick():
+                try:
+                    _desktop_events.alert_tick()
+                except Exception as _e:  # noqa: BLE001
+                    print(f"[desktop-event] alert tick failed: {_e}")
+            _scheduler.add_job(_desktop_events_tick,
+                               trigger=CronTrigger(minute=23, timezone=_ET),
+                               id="desktop_events_alerts", max_instances=1, coalesce=True,
+                               misfire_grace_time=1800, replace_existing=True)
+            print("[startup] desktop telemetry alerts registered (hourly at :23)")
+        except Exception as e:
+            print(f"[startup] desktop telemetry alerts registration failed (non-fatal): {e}")
         # Wave 13 lane 13G-1 -- the passed-setups nightly refresh: every member with a row has
         # new saves collected and open rows scored from the stored daily bars (no vendor call).
-        # A no-op while NOTEBOOK_PASSED_SETUPS_ENABLED is off; never raises. 17:40 ET weekdays,
+        # Never raises. 17:40 ET weekdays,
         # after the EOD bars; grace 3600 s like the digest above.
         try:
             from api.services.journal_two import passed_setups as _j2_passed_setups
@@ -9503,7 +10299,7 @@ async def lifespan(app: FastAPI):
                                trigger=CronTrigger(day_of_week="mon-fri", hour=17, minute=40, timezone=_ET),
                                id="notebook_passed_setups_nightly", max_instances=1, coalesce=True,
                                misfire_grace_time=3600, replace_existing=True)
-            print("[startup] notebook passed-setups nightly registered (17:40 ET weekdays; dark unless NOTEBOOK_PASSED_SETUPS_ENABLED)")
+            print("[startup] notebook passed-setups nightly registered (17:40 ET weekdays)")
         except Exception as e:
             print(f"[startup] notebook passed-setups registration failed (non-fatal): {e}")
     else:
@@ -9797,6 +10593,36 @@ def _process_rss_mb():
     return None
 
 
+_BUILD_ID_CACHE = None  # None = not read yet; "" = read, nothing usable
+
+
+def _bundle_build_id() -> str:
+    """The SPA entry bundle path (e.g. ``assets/index-abc123.js``), read once.
+
+    Source: the ``isEntry`` row for ``index.html`` in ``<DIST>/.vite/manifest.json``
+    (``DIST`` is the same ``app/dist`` the SPA catch-all serves index.html from).
+    Normalised to no leading slash so it equals ``getClientBuildId`` on the page.
+    Railway's healthcheck calls this: it caches the first answer, and returns ""
+    on ANY failure -- it must never raise.
+    """
+    global _BUILD_ID_CACHE
+    cached = _BUILD_ID_CACHE
+    if cached is not None:
+        return cached
+    result = ""
+    try:
+        import json as _json
+
+        with open(os.path.join(DIST, ".vite", "manifest.json"), encoding="utf-8") as f:
+            row = _json.load(f).get("index.html")
+        if isinstance(row, dict) and row.get("isEntry") and isinstance(row.get("file"), str):
+            result = row["file"].lstrip("/")
+    except Exception:
+        result = ""
+    _BUILD_ID_CACHE = result
+    return result
+
+
 @app.get("/api/health")
 def health():
     from api.services.cache import cache
@@ -9809,6 +10635,8 @@ def health():
         # Pod resource observability (2026-06-09 thread-exhaustion incident).
         "thread_count": threading.active_count(),
         "rss_mb": _process_rss_mb(),
+        # Bundle identity for the "new version available" watcher.
+        "build_id": _bundle_build_id(),
     }
 
 
@@ -10056,6 +10884,16 @@ app.include_router(scan_run_router.router)
 from api.routers import screener_backtest as screener_backtest_router
 if os.environ.get("SCREEN_BACKTEST_ENABLED", "0") == "1":
     app.include_router(screener_backtest_router.router)
+# W9-T14 -- server-side strategy backtests (W9 design 3.4, ruling D5). MOUNTED so the E-3 census
+# (tests/test_scan_evaluator_off_request_path.py) walks it, and DARK INSIDE: `_require_open` answers
+# 404 to every caller `runtime_definitions.server_permitted` does not admit (PINE_RUNTIME_SERVER_STAGE
+# unset = off = nobody), before the plan gate and before any read. No flag of its own.
+from api.routers import pine_strategy_backtest as pine_strategy_backtest_router
+app.include_router(pine_strategy_backtest_router.router)
+# W9-T11-F1 -- the chart lane's strategy window (design 3.4 "The chart", section 9 item 6): a
+# signed-in read of `bars_window.HISTORY_WINDOW_BARS`. Asked only by a build with the broker gate on.
+from api.routers import pine_history_window as pine_history_window_router
+app.include_router(pine_history_window_router.router)
 # RETIRED 2026-08-09 -- the /api/trades personal trade log was deprecated
 # 2026-06-02 when Model Book was rebuilt as a curated library of top stocks
 # (api/routers/modelbook.py). It was kept unmounted as a rollback backup on a
@@ -10069,6 +10907,12 @@ app.include_router(push.router)
 app.include_router(quote_of_the_day_router.router)   # public: the day's quote, same for site + letter
 app.include_router(charts.router, dependencies=_OPEN_READS)
 app.include_router(discord_interactions_router.router)
+# UCT RS nightly Discord post: the admin door + status readback (unit 2b-08). The
+# door posts through the SAME readers and session resolver the 04:45 job uses,
+# injected here so a hand-fired post cannot differ from the scheduled one.
+rs_discord_router.configure(leaders_fn=_rs_leaders_for, evidence_fn=_rs_evidence_for,
+                            session_fn=_rs_discord_session)
+app.include_router(rs_discord_router.router)
 app.include_router(bars_router.router, dependencies=_OPEN_READS)
 app.include_router(cot_router.router)
 app.include_router(breadth_monitor_router.router, dependencies=_OPEN_READS)
@@ -10134,6 +10978,8 @@ app.include_router(alerts_router.router)
 # (lane F's report; rail tests/test_main_router_order.py).
 app.include_router(notebook_insights_router.router)
 app.include_router(client_errors_router.router)
+# Desktop plan 5.1: the desktop shell's enum-only telemetry door (session optional) + admin read.
+app.include_router(desktop_events_router.router)
 # Wave 9 lane 9C (controller wiring): GET /api/admin/notebook-soak -- the soak's
 # one admin read (ruling D-9C2). Must precede the SPA catch-all like every /api route.
 app.include_router(notebook_soak_router.router)
@@ -10171,12 +11017,12 @@ app.include_router(notebook_journal_styles_router.router)
 # /api/j2/smart-chips prefix; no journal_two route can shadow it).
 app.include_router(notebook_smart_chips_router.router)
 
-# Wave 13 lane 13I-1 (router-level 404 while NOTEBOOK_TA_FINGERPRINT_ENABLED is off).
+# Wave 13 lane 13I-1: the technical fingerprint.
 app.include_router(notebook_fingerprint_router.router)
 
 # Wave 13 lane 13C: outside /api/j2/notes/..., so mount order against journal_two does not matter.
 app.include_router(notebook_earnings_prep_router.router)
-# Wave 13 lane 13H-1 (router-level 404 while NOTEBOOK_CHART_PLAN_ENABLED is off). Outside
+# Wave 13 lane 13H-1: the chart plan. Outside
 # /api/j2/notes/..., so mount order against journal_two does not matter.
 app.include_router(notebook_chart_alerts_router.router)
 
@@ -10190,12 +11036,13 @@ app.include_router(notebook_entry_context_router.router)
 # so mount order against journal_two does not matter.
 app.include_router(notebook_research_capture_router.transcripts_router)
 app.include_router(notebook_research_capture_router.passed_router)
+app.include_router(notebook_tweet_capture_router.tweets_router)
 
-# Wave 13 lane 13G-2 (router-level 404 while NOTEBOOK_THESIS_CHIPS_ENABLED is off). Outside
+# Wave 13 lane 13G-2: thesis chips. Outside
 # /api/j2/notes/..., so mount order against journal_two does not matter.
 app.include_router(notebook_thesis_chips_router.router)
 
-# Wave 13 lane 13I-2 (router-level 404 while NOTEBOOK_VISUAL_PLAYBOOK_ENABLED is off). Outside
+# Wave 13 lane 13I-2: the visual playbook. Outside
 # /api/j2/notes/..., so mount order against journal_two does not matter.
 app.include_router(notebook_visual_playbook_router.router)
 
@@ -10253,6 +11100,7 @@ app.include_router(backtest_router.router)
 app.include_router(rare_preview_router.router)
 app.include_router(patterns_router.router)
 app.include_router(admin_patterns_router.router)
+app.include_router(chart_iq_router.router)
 # TERM-053: the GEX family is gated at its MOUNT, not per route. OI-17 put
 # `get_current_user` on `/data` and `/compare` four lines below it stayed
 # anonymous (ARCH-06 §2.2) — the omission class recurring one route apart. A
@@ -10296,6 +11144,8 @@ app.include_router(admin_twitter_router.router)
 app.include_router(admin_purge_router.router)
 app.include_router(desk_router.router)
 app.include_router(admin_api_health_router.router)
+app.include_router(admin_llm_usage_router.router)
+app.include_router(admin_llm_usage_router.internal_router)  # PUSH_SECRET ingest from other services / sibling repos
 app.include_router(provider_coverage_router.router, dependencies=_OPEN_READS)  # /api/admin/provider-coverage — Task 22/23
 app.include_router(fmp_adapter_status_router.router, dependencies=_OPEN_READS)  # /api/admin/fmp-adapter-status — D1 §7.3
 app.include_router(massive_adapter_status_router.router, dependencies=_OPEN_READS)  # /api/admin/massive-adapter-status — D1 §7.3
@@ -10542,6 +11392,24 @@ def _csv_response(csv_path: str, filename: str):
             "Content-Disposition": f'inline; filename="{filename}"',
         })
     return JSONResponse(status_code=404, content={"error": f"{filename} not found"})
+
+@app.get("/api/brand/massive-card-logo.png")
+async def _massive_card_logo():
+    """Public author-icon for the Massive Discord cards (the UCT Logo).
+
+    Discord fetches an embed's ``icon_url`` anonymously, so the image MUST be
+    publicly reachable. The embed used to point at the GitHub raw URL for
+    ``app/public/UCT_logo_512.png``, but this repo is private -> GitHub returns
+    404 to Discord -> the card showed a broken-image placeholder. Serve a small
+    (256px) copy from here instead; ``UCT_LOGO_URL`` points the embed at this
+    route. Keep it public (no auth) so Discord can load it.
+    """
+    p = os.path.join(PUBLIC, "massive-card-logo.png")
+    if os.path.exists(p):
+        return FileResponse(p, media_type="image/png", headers={
+            "Cache-Control": "public, max-age=86400",
+        })
+    return JSONResponse(status_code=404, content={"error": "massive-card-logo.png not found"})
 
 @app.get("/api/admin/massive/diagnose")
 async def _massive_diagnose():
@@ -12570,14 +13438,7 @@ def serve_indexes_csv():
     return _csv_response(os.path.join(PUBLIC, "Indexes-data.csv"), "Indexes-data.csv")
 
 # --- Serve React build (JS/CSS assets + SPA fallback) ------------------------
-class _ImmutableStaticFiles(StaticFiles):
-    async def get_response(self, path, scope):
-        response = await super().get_response(path, scope)
-        if response.status_code == 200:
-            response.headers["Cache-Control"] = (
-                "public, max-age=31536000, immutable, no-transform"
-            )
-        return response
+from api.services.static_assets import ImmutableStaticFiles as _ImmutableStaticFiles  # noqa: E402
 
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
 

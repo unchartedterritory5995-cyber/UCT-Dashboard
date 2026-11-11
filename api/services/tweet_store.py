@@ -6,6 +6,7 @@ WAL mode for concurrent reads during background polling.
 from __future__ import annotations
 
 import contextlib
+import json
 import os
 import re
 import sqlite3
@@ -83,6 +84,28 @@ CREATE TABLE IF NOT EXISTS tweet_poll_state (
   total_tweets_seen  INTEGER DEFAULT 0,
   FOREIGN KEY (handle) REFERENCES twitter_accounts(handle) ON DELETE CASCADE
 );
+
+-- Roster-search cursor (tweet_poller search/shadow modes). One row per mode,
+-- deliberately NOT in tweet_poll_state: that table's handle is a foreign key
+-- to twitter_accounts, and a cursor is not an account.
+CREATE TABLE IF NOT EXISTS tweet_search_state (
+  key          TEXT PRIMARY KEY,
+  since_id     TEXT,
+  started_at   INTEGER,
+  updated_at   INTEGER,
+  last_status  TEXT,
+  last_error   TEXT
+);
+
+-- Shadow comparison: when the roster search first saw each tweet. The timeline
+-- side needs no column -- tweets.ingested_at already is its first-seen time.
+CREATE TABLE IF NOT EXISTS tweet_search_shadow (
+  id              TEXT PRIMARY KEY,
+  author_handle   TEXT NOT NULL,
+  created_at      INTEGER NOT NULL,
+  search_seen_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tss_created ON tweet_search_shadow(created_at);
 """
 
 
@@ -108,6 +131,14 @@ def _init_db() -> None:
         # columns — try + swallow duplicate-column.
         try:
             c.execute("ALTER TABLE twitter_accounts ADD COLUMN is_official INTEGER DEFAULT 0")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" not in str(e).lower():
+                raise
+        # Account kind: 'news' (headline wire) or 'commentary' (a trader's takes).
+        # Powers the Notebook tweet-import Headlines filter. DEFAULT reads every
+        # existing account as commentary.
+        try:
+            c.execute("ALTER TABLE twitter_accounts ADD COLUMN content_kind TEXT NOT NULL DEFAULT 'commentary'")
         except sqlite3.OperationalError as e:
             if "duplicate column name" not in str(e).lower():
                 raise
@@ -200,6 +231,17 @@ def delete_tweets_by_ids(ids: list[str]) -> int:
         return cur.rowcount
 
 
+def oldest_tweet_ids(limit: int, exclude: Iterable[str] = ()) -> list[str]:
+    """The oldest stored tweet ids, leaving out `exclude`. The oldest because the deletion sync has
+    had the longest to drop any that left X."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT id FROM tweets WHERE id NOT IN (SELECT value FROM json_each(?))"
+            " ORDER BY created_at, id LIMIT ?",
+            (json.dumps([str(i) for i in exclude]), limit)).fetchall()
+    return [row[0] for row in rows]
+
+
 # ---- account CRUD ----------------------------------------------------------
 
 # Curated FinTwit accounts seeded idempotently on startup. INSERT OR IGNORE
@@ -285,6 +327,19 @@ def set_account_official(handle: str, official: bool) -> None:
         c.commit()
 
 
+CONTENT_KINDS = ("news", "commentary")
+
+
+def set_account_content_kind(handle: str, kind: str) -> None:
+    """Mark an account as 'news' or 'commentary'. Raises ValueError otherwise."""
+    if kind not in CONTENT_KINDS:
+        raise ValueError(f"content_kind must be one of {CONTENT_KINDS}, got {kind!r}")
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute("UPDATE twitter_accounts SET content_kind=? WHERE handle=?",
+                  (kind, handle))
+        c.commit()
+
+
 def list_accounts(enabled_only: bool = False) -> list[dict]:
     sql = "SELECT * FROM twitter_accounts"
     if enabled_only:
@@ -321,6 +376,107 @@ def get_poll_state(handle: str) -> Optional[dict]:
     with contextlib.closing(_connect()) as c:
         row = c.execute("SELECT * FROM tweet_poll_state WHERE handle=?", (handle,)).fetchone()
         return dict(row) if row else None
+
+
+# ---- roster-search cursor + shadow log ---------------------------------------
+
+def get_search_state(key: str) -> Optional[dict]:
+    with contextlib.closing(_connect()) as c:
+        row = c.execute("SELECT * FROM tweet_search_state WHERE key=?", (key,)).fetchone()
+        return dict(row) if row else None
+
+
+def update_search_state(key: str, *, status: str, since_id: Optional[str] = None,
+                        error: Optional[str] = None) -> None:
+    """since_id=None keeps the stored cursor (a failed poll never moves it)."""
+    now = int(time.time())
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(
+            """INSERT INTO tweet_search_state
+               (key, since_id, started_at, updated_at, last_status, last_error)
+               VALUES (?, ?, ?, ?, ?, ?)
+               ON CONFLICT(key) DO UPDATE SET
+                 since_id = COALESCE(excluded.since_id, since_id),
+                 updated_at = excluded.updated_at,
+                 last_status = excluded.last_status,
+                 last_error = excluded.last_error
+            """,
+            (key, since_id, now, now, status, error),
+        )
+        c.commit()
+
+
+def record_shadow_seen(tweets: Iterable[dict]) -> int:
+    """First time the roster search saw each tweet. Never overwrites."""
+    now = int(time.time())
+    rows = [(t["id"], t.get("author_handle") or "", int(t.get("created_at") or 0), now)
+            for t in tweets if t.get("id")]
+    if not rows:
+        return 0
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.executemany(
+            "INSERT OR IGNORE INTO tweet_search_shadow "
+            "(id, author_handle, created_at, search_seen_at) VALUES (?, ?, ?, ?)",
+            rows,
+        )
+        c.commit()
+        return cur.rowcount
+
+
+def shadow_report(since_unix: int, settle_seconds: int = 300) -> dict:
+    """Compare the timeline poller (tweets.ingested_at) with the roster search
+    (tweet_search_shadow.search_seen_at) for tweets CREATED in
+    [since_unix, now - settle_seconds], enabled accounts only.
+
+    The settle margin keeps a tweet posted seconds ago, which one side may
+    simply not have polled for yet, out of both 'only' buckets. Handles compare
+    case-insensitively: the roster stores what an admin typed, the API returns
+    the account's canonical casing."""
+    until = int(time.time()) - settle_seconds
+    with contextlib.closing(_connect()) as c:
+        enabled = {r["handle"].lower() for r in
+                   c.execute("SELECT handle FROM twitter_accounts WHERE enabled=1")}
+        tl = {r["id"]: (r["author_handle"], r["ingested_at"]) for r in c.execute(
+            "SELECT id, author_handle, ingested_at FROM tweets "
+            "WHERE created_at BETWEEN ? AND ?", (since_unix, until))}
+        sh = {r["id"]: (r["author_handle"], r["search_seen_at"]) for r in c.execute(
+            "SELECT id, author_handle, search_seen_at FROM tweet_search_shadow "
+            "WHERE created_at BETWEEN ? AND ?", (since_unix, until))}
+    tl = {k: v for k, v in tl.items() if (v[0] or "").lower() in enabled}
+    sh = {k: v for k, v in sh.items() if (v[0] or "").lower() in enabled}
+    both = tl.keys() & sh.keys()
+    only_tl = sorted(tl.keys() - sh.keys())
+    only_sh = sorted(sh.keys() - tl.keys())
+    # Positive lead = the search saw it first, by that many seconds.
+    leads = sorted(tl[i][1] - sh[i][1] for i in both)
+
+    def pct(p):
+        return leads[min(len(leads) - 1, int(p * len(leads)))] if leads else None
+
+    by_handle: dict[str, dict] = {}
+    for i in only_tl:
+        by_handle.setdefault(tl[i][0], {"only_timeline": 0, "only_search": 0})["only_timeline"] += 1
+    for i in only_sh:
+        by_handle.setdefault(sh[i][0], {"only_timeline": 0, "only_search": 0})["only_search"] += 1
+    return {
+        "window": {"from": since_unix, "to": until},
+        "both": len(both),
+        "only_timeline": len(only_tl),
+        "only_search": len(only_sh),
+        "only_timeline_ids": only_tl[:50],
+        "only_search_ids": only_sh[:50],
+        "by_handle": by_handle,
+        "search_lead_seconds": {"p10": pct(0.10), "median": pct(0.50), "p90": pct(0.90),
+                                "n": len(leads)},
+    }
+
+
+def delete_shadow_older_than(days: int) -> int:
+    cutoff = int(time.time()) - days * 86400
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute("DELETE FROM tweet_search_shadow WHERE created_at < ?", (cutoff,))
+        c.commit()
+        return cur.rowcount
 
 
 # ---- queries ---------------------------------------------------------------
@@ -403,22 +559,45 @@ def feed(hours: int = 12, limit: int = 50, official_only: bool = False) -> list[
                    LIMIT ?""",
                 (since, limit),
             ).fetchall()
-        tweets = [dict(r) for r in rows]
-        if tweets:
-            ids = [t["id"] for t in tweets]
-            placeholders = ",".join("?" * len(ids))
-            links = c.execute(
-                f"""SELECT tweet_id, ticker FROM tweet_tickers
-                    WHERE tweet_id IN ({placeholders})""",
-                ids,
-            ).fetchall()
-            by_id: dict[str, list[str]] = {}
-            for lr in links:
-                by_id.setdefault(lr["tweet_id"], []).append(lr["ticker"])
-            for t in tweets:
-                t["tickers"] = by_id.get(t["id"], [])
-                t["media"] = _extract_media(t.get("raw_json"))
-        return tweets
+        return _attach_links(c, [dict(r) for r in rows])
+
+
+def _attach_links(c: sqlite3.Connection, tweets: list[dict]) -> list[dict]:
+    """Add `tickers` (joined) and `media` (from raw_json) to each row, in place."""
+    if tweets:
+        ids = [t["id"] for t in tweets]
+        placeholders = ",".join("?" * len(ids))
+        links = c.execute(
+            f"""SELECT tweet_id, ticker FROM tweet_tickers
+                WHERE tweet_id IN ({placeholders})""",
+            ids,
+        ).fetchall()
+        by_id: dict[str, list[str]] = {}
+        for lr in links:
+            by_id.setdefault(lr["tweet_id"], []).append(lr["ticker"])
+        for t in tweets:
+            t["tickers"] = by_id.get(t["id"], [])
+            t["media"] = _extract_media(t.get("raw_json"))
+    return tweets
+
+
+def with_links(tweets: list[dict]) -> list[dict]:
+    """`tweets` (rows from `tweets_for_ticker`, say) with `tickers` and `media`
+    attached the way `feed` does. Read-only; the input rows are not mutated."""
+    rows = [dict(t) for t in tweets]
+    if not rows:
+        return rows
+    with contextlib.closing(_connect()) as c:
+        return _attach_links(c, rows)
+
+
+def get_tweet(tweet_id: str) -> Optional[dict]:
+    """One stored tweet by its id, with `tickers` and `media`, or None."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute("SELECT * FROM tweets WHERE id = ?", (str(tweet_id),)).fetchone()
+        if row is None:
+            return None
+        return _attach_links(c, [dict(row)])[0]
 
 
 def batch_counts(tickers: Iterable[str], hours: int = 24) -> dict[str, int]:

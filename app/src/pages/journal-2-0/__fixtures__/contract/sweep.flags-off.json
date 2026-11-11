@@ -2,22 +2,22 @@
   "_contract": {
     "case": "error",
     "endpoint": "every route",
-    "note": "Every flag off, no session: the gate answers before the session is read.",
+    "note": "Every flag off, no session: the gate answers before the session is read (404); a route with no flag gate answers the session's 401.",
     "path": "",
     "status": 404
   },
   "body": {
     "DELETE /api/j2/journal-styles/{style_id}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "DELETE /api/j2/note-kinds/{kind_id}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "DELETE /api/j2/onboarding/sample-notebook": {
       "body": {
@@ -27,69 +27,69 @@
     },
     "DELETE /api/j2/research-capture/passed-setups/{item_id}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "DELETE /api/j2/template-gallery/authors/{handle}/follow": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "DELETE /api/j2/template-gallery/{gallery_id}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "DELETE /api/j2/template-gallery/{gallery_id}/helpful": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/chart-plan/benchmarks": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/earnings-prep/soon": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/entry-context": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/entry-context/list": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/entry-context/meta": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/entry-context/position/{position_id}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/entry-context/trade/{trade_id}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/insights/checklist-suggestions": {
       "body": {
@@ -99,15 +99,15 @@
     },
     "GET /api/j2/journal-styles": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/journal-styles/{style_id}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/journal-styles/{style_id}/used-in": {
       "body": {
@@ -117,63 +117,63 @@
     },
     "GET /api/j2/my-playbook": {
       "body": {
-        "detail": "Not Found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/note-kinds": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/note-kinds/mapping-offer": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/notebook-fingerprint/blocks": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/notebook-fingerprint/blocks/{note_id}/{embed_key}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/notebook-fingerprint/compute": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/notebook-fingerprint/meta": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/notebook-visual-playbook/cards": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/notebook-visual-playbook/trades/{trade_id}/before-after": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/notes/{note_id}/style-update-plan": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/onboarding/sample-notebook": {
       "body": {
@@ -183,99 +183,99 @@
     },
     "GET /api/j2/plan-grades/discipline": {
       "body": {
-        "detail": "Not Found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/plan-grades/status": {
       "body": {
-        "detail": "Not Found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/plan-grades/trades/{trade_id}": {
       "body": {
-        "detail": "Not Found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/research-capture/passed-setups": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/research-capture/transcripts/{symbol}/quarters": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/research-capture/transcripts/{symbol}/{quarter}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/review-drafts/daily": {
       "body": {
-        "detail": "Not Found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/review-drafts/monthly": {
       "body": {
-        "detail": "Not Found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/review-drafts/weekly": {
       "body": {
-        "detail": "Not Found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/setups-board": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/similar-names/templates": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/similar-names/{note_id}/{embed_key}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/template-gallery": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/template-gallery/admin/queue": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/template-gallery/authors/{handle}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/template-gallery/feed": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/template-gallery/layouts/status": {
       "body": {
@@ -297,63 +297,63 @@
     },
     "GET /api/j2/template-gallery/updates": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/template-gallery/updates/{style_id}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/template-gallery/{gallery_id}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/template-gallery/{gallery_id}/images/{n}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/trader-blocks/market-context": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/trader-blocks/prep/{part}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/trader-blocks/review/trades": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/trader-blocks/review/{trade_key}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/trader-blocks/rules/{rule_id}/before-after": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/trader-blocks/rules/{rule_id}/versions": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "GET /api/j2/wrapped/years": {
       "body": {
@@ -369,57 +369,57 @@
     },
     "PATCH /api/j2/template-gallery/admin/items/{gallery_id}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "PATCH /api/j2/template-gallery/admin/reports/{report_id}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/chart-plan/alerts": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/chart-plan/size": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/earnings-prep/{symbol}/draft": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/entry-context/backfill": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/journal-styles": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/journal-styles/preview": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/journal-styles/starter-packs/{pack}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/journal-styles/{style_id}/archive": {
       "body": {
@@ -429,9 +429,9 @@
     },
     "POST /api/j2/journal-styles/{style_id}/default": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/journal-styles/{style_id}/delete": {
       "body": {
@@ -447,9 +447,9 @@
     },
     "POST /api/j2/journal-styles/{style_id}/restore": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/journal-styles/{style_id}/unarchive": {
       "body": {
@@ -459,27 +459,27 @@
     },
     "POST /api/j2/note-kinds": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/note-kinds/mapping-offer": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/notebook-fingerprint/blocks/{note_id}/{embed_key}/freeze": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/notes/{note_id}/apply-style-update": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/onboarding/sample-notebook": {
       "body": {
@@ -489,51 +489,51 @@
     },
     "POST /api/j2/plan-grades/trades/{trade_id}/relink": {
       "body": {
-        "detail": "Not Found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/research-capture/passed-setups": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/research-capture/transcripts/save": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/smart-chips/tickers": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/template-gallery": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/template-gallery/authors/{handle}/follow": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/template-gallery/examples": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/template-gallery/examples/preview": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/template-gallery/layouts": {
       "body": {
@@ -549,9 +549,9 @@
     },
     "POST /api/j2/template-gallery/styles": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/template-gallery/tools": {
       "body": {
@@ -567,15 +567,15 @@
     },
     "POST /api/j2/template-gallery/updates/{style_id}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/template-gallery/{gallery_id}/adopt": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/template-gallery/{gallery_id}/adopt-layout": {
       "body": {
@@ -591,9 +591,9 @@
     },
     "POST /api/j2/template-gallery/{gallery_id}/helpful": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/template-gallery/{gallery_id}/helpful-prompt": {
       "body": {
@@ -609,15 +609,15 @@
     },
     "POST /api/j2/template-gallery/{gallery_id}/report": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/template-gallery/{gallery_id}/use": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/template-gallery/{gallery_id}/use-template": {
       "body": {
@@ -627,33 +627,33 @@
     },
     "POST /api/j2/thesis-chips": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "POST /api/j2/trader-blocks/price-stamp": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "PUT /api/j2/entry-context/why": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "PUT /api/j2/journal-styles/{style_id}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "PUT /api/j2/note-kinds/{kind_id}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "PUT /api/j2/onboarding/tours/{tour_id}": {
       "body": {
@@ -663,15 +663,15 @@
     },
     "PUT /api/j2/trader-blocks/positions/{position_id}/pre-entry": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     },
     "PUT /api/j2/trader-blocks/rules/{rule_id}": {
       "body": {
-        "detail": "Not found"
+        "detail": "Not authenticated"
       },
-      "status": 404
+      "status": 401
     }
   }
 }

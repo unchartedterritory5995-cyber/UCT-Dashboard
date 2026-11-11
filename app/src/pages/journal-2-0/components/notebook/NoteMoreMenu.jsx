@@ -77,7 +77,12 @@ function readIsPhone() {
  *   phone (see the header comment). `close()` closes the panel, for an action that puts the
  *   member back on the note (Find) rather than opening a dialog of its own.
  */
-export default function NoteMoreMenu({ children, buttonClassName = '', phoneItems = null }) {
+/**
+ * @param leadItems  `({ close, trigger }) => ReactNode` -- audit 2026-11-05, spec S10 (M4): the actions the header moved
+ *   into this panel on EVERY width (Find, Outline). Rendered first, after any phone items, then a separator. `trigger`
+ *   is this panel's own button, the one control that stays on screen, for an action that hands focus back later.
+ */
+export default function NoteMoreMenu({ children, buttonClassName = '', phoneItems = null, leadItems = null, phoneTail = null }) {
   const [open, setOpen] = useState(false)
   const [onPhone, setOnPhone] = useState(false)
   const panelId = useId()
@@ -163,9 +168,18 @@ export default function NoteMoreMenu({ children, buttonClassName = '', phoneItem
         {onPhone && phoneItems && (
           <>
             {phoneItems({ close })}
+            {!leadItems && <div className={styles.sep} role="separator" />}
+          </>
+        )}
+        {leadItems && (
+          <>
+            {leadItems({ close, trigger: triggerRef.current })}
             <div className={styles.sep} role="separator" />
           </>
         )}
+        {/* Final polish: a phone-only item AFTER the lead group (the Journal tools door on a note), so Ask, Find and
+            Outline stay first and Move to Trash stays last. */}
+        {onPhone && phoneTail && phoneTail({ close })}
         <MoreMenuOpenContext.Provider value={openPanel}>{children}</MoreMenuOpenContext.Provider>
       </div>
     </span>

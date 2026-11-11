@@ -16,7 +16,7 @@ import json
 import re
 import sqlite3
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -40,7 +40,6 @@ def _fresh_state(monkeypatch):
     monkeypatch.setattr(nw, "_POOL", nw.BoundedPool(nw.WIDGET_POOL_WORKERS, "nb-wnotes-test",
                                                     reserve=nw.WIDGET_POOL_RESERVE))
     # W10-R62: "Kind of note" is offered only while journal styles are on; these tests read kinds
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
     wrun._reset_state()
     yield
     wrun._reset_state()
@@ -206,6 +205,9 @@ def test_a_note_whose_kind_changed_lands_in_its_new_kind(conn, monkeypatch):
     """W10-R60: `kind_id` is provenance and never updated; the current kind is the
     `builtin:note_kind` property, set through the note's own write door."""
     seen: list[str] = []
+    # The scans below run on the pinned RUN_TODAY; the note's own stamps must be pinned before it, or
+    # once the wall clock passes RUN_TODAY the note is "created in the future" and no range holds it.
+    monkeypatch.setattr(j2_notes, "_now_iso", lambda: (RUN_NOW - timedelta(hours=1)).isoformat())
     note = j2_notes.create_note(UID, {"title": "plan"}, conn=conn,
                                 properties={NOTE_KIND: "thesis"})
     conn.commit()
@@ -699,12 +701,11 @@ def test_select_checkbox_and_date_properties_filter_through_the_authority(conn):
 
 def _catalog_fields(monkeypatch, on: bool) -> list[str]:
     import api.routers.notebook_widget_definitions as wdr
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1" if on else "0")
     notes = next(s for s in wdr._static_vocabulary(True, True)["sources"] if s["key"] == "notes")
     return [f["key"] for f in notes["fields"]]
 
 
-@pytest.mark.parametrize("on", [False, True])
+@pytest.mark.parametrize("on", [True])   # note kinds are always on since their switch was retired (2026-11-04)
 def test_kind_is_offered_only_while_note_kinds_are(conn, monkeypatch, on):
     """Off: no kind in the catalog, `?field=kind` is refused, and a plan that filters, splits or
     has a formula read by kind is the plain unknown-field sentence (never a 500). On: all three."""
@@ -713,7 +714,6 @@ def test_kind_is_offered_only_while_note_kinds_are(conn, monkeypatch, on):
     import api.routers.notebook_widget_definitions as wdr
     from api.middleware.auth_middleware import get_current_user, get_current_user_with_plan
     # the predicate is note_kinds' own reader, asked of the kind property
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1" if on else "0")
     assert sources.note_kinds_offered() is on
     assert sources.field_offered("notes", "kind") is on
     assert sources.field_offered("notes", "folder") is True        # control: ungated fields stay

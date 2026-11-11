@@ -24,19 +24,32 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
+import { SkeletonLine } from '../../../../components/Skeleton'
+import { BUSY_DETAIL } from '../../hooks/useNoteConnectors'
 import { timeAgo } from '../../../../utils/timeAgo'
 import styles from './ConnectedAppsCard.module.css'
+
+// Evernote rate-limit fix round 1 (I3): what a Sync now press says when the server ran it in the
+// background (a provider whose pass can wait out a rate limit). Never an error.
+export const BACKGROUND_SYNC_NOTICE = 'Syncing in the background. Progress shows here as notes come in.'
 
 function freshnessTone(source) {
   if (source.status === 'broken' || source.lastSyncStatus === 'error') return 'red'
   if (!source.syncEnabled) return 'amber'
+  // D4-2: waiting for one of the server's shared pass slots: neither running nor a problem.
+  if (source.queued) return 'neutral'
+  if (source.syncing) return 'progress'
+  // A first import a provider's rate limit cut short (live gate 2026-11-03): the engine records
+  // `importing` ONLY when nothing but those leftovers remains, and books a quick follow-up pass.
+  // In progress, not a warning, even though `lastSyncError` carries the progress sentence.
+  if (source.lastSyncStatus === 'importing') return 'progress'
   // ⛔ `lastSyncError` on its own has to move the dot. The engine records a
   // PARTIAL failure as status "ok" plus per-note error text — by design, since
   // the batch really did commit what it could. But that left a source that
   // failed to store some of the member's notes showing a GREEN dot with the
   // reason hidden in text below it, which is the green-dot-over-a-failure
   // shape this surface keeps producing.
-  if (source.warmingUntil || source.lastSyncStatus === 'warning' || source.lastSyncError) return 'amber'
+  if (source.lastSyncStatus === 'warning' || source.lastSyncError) return 'amber'
   if (source.lastSyncAt) return 'green'
   return 'amber'
 }
@@ -44,6 +57,11 @@ function freshnessTone(source) {
 function freshnessLabel(source) {
   if (source.status === 'broken') return 'reconnect needed'
   if (!source.syncEnabled) return 'sync paused'
+  if (source.queued) return 'queued'
+  if (source.syncing) return 'syncing now'
+  if (source.lastSyncStatus === 'importing') {
+    return source.lastSyncAt ? `still importing, last batch ${timeAgo(source.lastSyncAt)}` : 'still importing'
+  }
   // A pass that fetched notes and stored NONE of them sets lastSyncAt like
   // any other, so this read "synced 2 minutes ago" over a warning saying
   // nothing landed — literally true, and the line a member scans first.
@@ -76,8 +94,69 @@ function freshnessLabel(source) {
   return 'not synced yet'
 }
 
-export default function SourceRow({ source, providerSourceCount = 1, onSync, onTogglePause, onDisconnect, onReconnect }) {
+function plural(n, one, many) {
+  return n === 1 ? one : many
+}
+
+// One notice line for a finished press. Detail strings are only shown when
+// they are real strings: a FastAPI 422 carries an array, which must never
+// reach the page raw. A 409 is always the fixed busy sentence.
+function errorNotice(err) {
+  if (err && err.status === 409) return BUSY_DETAIL
+  if (err && typeof err.detail === 'string' && err.detail) return err.detail
+  return 'Sync failed. Try again shortly.'
+}
+
+function removalNotice(removalCheck, providerLabel) {
+  if (!removalCheck) return null
+  // A refusal arrives with `ran: true` (enumeration ran, the <50% guard refused),
+  // so it is checked before the `ran` early-return.
+  if (removalCheck.reason === 'refused') {
+    return `Couldn't confirm removals this time: ${providerLabel} returned far fewer notes than expected, so nothing was changed.`
+  }
+  if (removalCheck.ran) return null
+  if (removalCheck.reason === 'rate_limited') {
+    const when = removalCheck.nextAllowedAt ? new Date(removalCheck.nextAllowedAt) : null
+    const time = when && !Number.isNaN(when.getTime())
+      ? when.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+      : null
+    return 'Removals were checked less than 10 minutes ago, so this sync brought in new and edited notes only. '
+      + (time ? `Press Sync now again after ${time} to check for removals.` : 'Press Sync now again in a few minutes to check for removals.')
+  }
+  if (removalCheck.reason === 'enumeration_failed') {
+    return `Couldn't check ${providerLabel} for removals this time. New and edited notes were still synced.`
+  }
+  return null
+}
+
+function logRowLine(r) {
+  let line = `${timeAgo(r.at)}: ${r.created} new, ${r.updated} updated, ${r.skipped} unchanged`
+  if (r.conflicts > 0) line += `, ${r.conflicts} conflicts`
+  if (r.sourceDeleted > 0) line += `, ${r.sourceDeleted} removed`
+  return line
+}
+
+export default function SourceRow({
+  source,
+  providerSourceCount = 1,
+  providerLabel = 'the source app',
+  onSync,
+  onTogglePause,
+  onDisconnect,
+  onReconnect,
+  onLoadLog,
+  // The server will not sync this provider for this member now: Sync now, pause and Reconnect would
+  // fail, so only Disconnect (and the log) are offered.
+  syncOff = false,
+}) {
   const [syncing, setSyncing] = useState(false)
+  const [notice, setNotice] = useState(null)
+  const [logOpen, setLogOpen] = useState(false)
+  const [logState, setLogState] = useState({ phase: 'idle', rows: [], error: null })
+  const logRequested = useRef(false)
+  const logOpenRef = useRef(false)
+  const logSeq = useRef(0)
+  const lastSeenSyncAt = useRef(source.lastSyncAt)
   const [pauseBusy, setPauseBusy] = useState(false)
   const [armed, setArmed] = useState(false)
   const armTimer = useRef(null)
@@ -94,14 +173,72 @@ export default function SourceRow({ source, providerSourceCount = 1, onSync, onT
   const handleSync = async () => {
     if (syncing) return
     setSyncing(true)
+    setNotice(null)
     try {
-      await onSync(source)
-    } catch {
-      /* the row's own lastSyncError/status reflects the failure on refresh */
+      const result = await onSync(source)
+      setNotice(result && result.status === 'started'
+        ? BACKGROUND_SYNC_NOTICE
+        : removalNotice(result && result.removalCheck, providerLabel))
+      refreshLog()
+    } catch (err) {
+      setNotice(errorNotice(err))
     } finally {
       setSyncing(false)
     }
   }
+
+  const loadLog = async () => {
+    const seq = ++logSeq.current
+    setLogState({ phase: 'loading', rows: [], error: null })
+    try {
+      const rows = await onLoadLog(source)
+      if (seq !== logSeq.current) return
+      setLogState({ phase: 'ready', rows: Array.isArray(rows) ? rows : [], error: null })
+    } catch (err) {
+      if (seq !== logSeq.current) return
+      setLogState({
+        phase: 'error',
+        rows: [],
+        error: (err && typeof err.message === 'string' && err.message) || 'Could not load recent syncs.',
+      })
+    }
+  }
+
+  // A finished run makes the loaded rows stale: drop them, and reload now if
+  // the list is open (otherwise the next expand loads fresh).
+  const refreshLog = () => {
+    if (!onLoadLog) return
+    logRequested.current = false
+    if (logOpenRef.current) {
+      logRequested.current = true
+      loadLog()
+    }
+  }
+
+  useEffect(() => {
+    if (lastSeenSyncAt.current === source.lastSyncAt) return
+    lastSeenSyncAt.current = source.lastSyncAt
+    refreshLog()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source.lastSyncAt])
+
+  const toggleLog = () => {
+    const next = !logOpen
+    logOpenRef.current = next
+    setLogOpen(next)
+    if (next && !logRequested.current) {
+      logRequested.current = true
+      loadLog()
+    }
+  }
+
+  const pending = source.pendingRemoval || 0
+  const failedCount = source.lastFailureCount || 0
+  const failuresUnreadable = !!source.lastFailuresUnreadable
+  const showLog = !!onLoadLog && (!!source.lastSyncAt || failedCount > 0 || failuresUnreadable)
+  const logLabelSuffix = failedCount > 0
+    ? ` · ${failedCount} ${plural(failedCount, 'item', 'items')} didn't come over`
+    : failuresUnreadable ? " · details of the last sync couldn't be read" : ''
 
   const handleTogglePause = async () => {
     if (pauseBusy) return
@@ -137,6 +274,7 @@ export default function SourceRow({ source, providerSourceCount = 1, onSync, onT
       <div className={styles.counts}>
         <Stat label="Created" value={counts.notesCreated} />
         <Stat label="Updated" value={counts.notesUpdated} />
+        <Stat label="Unchanged" value={counts.notesSkipped} title="Already up to date in your Notebook" />
         {conflicts > 0 && <Stat label="Conflicts" value={conflicts} warn />}
         {sourceDeleted > 0 && <Stat label="Removed" value={sourceDeleted} warn />}
       </div>
@@ -168,26 +306,101 @@ export default function SourceRow({ source, providerSourceCount = 1, onSync, onT
         </p>
       )}
 
-      {source.lastSyncError && <p className={styles.sourceErr}>{source.lastSyncError}</p>}
+      {pending > 0 && (
+        <p className={styles.conflictHint}>
+          {`${pending} ${plural(pending, 'note looks', 'notes look')} removed in ${providerLabel}; confirming on the next check.`}
+        </p>
+      )}
+
+      {source.lastSyncError && (
+        <p className={source.lastSyncStatus === 'importing' ? styles.sourceProgress : styles.sourceErr}>
+          {source.lastSyncError}
+        </p>
+      )}
+
+      {/* A device on plugin 0.1.x reports pluginSupportsAttachments false.
+          Only an explicit false shows this: null means an older server. */}
+      {source.provider === 'obsidian' && source.pluginSupportsAttachments === false && (
+        <p className={styles.conflictHint}>
+          Images and files from this vault aren't syncing yet. Update UCT Notebook Sync in Obsidian to bring images and files over (Settings, Community plugins, Check for updates).
+        </p>
+      )}
+
+      {notice && <p className={styles.syncNotice} role="status">{notice}</p>}
+
+      {showLog && (
+        <div className={styles.recentSyncs}>
+          <button
+            type="button"
+            className={styles.logToggle}
+            aria-expanded={logOpen}
+            onClick={toggleLog}
+          >
+            {`Recent syncs${logLabelSuffix}`}
+          </button>
+          {logOpen && (
+            <div className={styles.historyList}>
+              {logState.phase === 'loading' && (
+                <>
+                  <SkeletonLine width="70%" height={12} />
+                  <SkeletonLine width="50%" height={12} />
+                </>
+              )}
+              {logState.phase === 'error' && (
+                <p className={styles.sourceErr}>
+                  {logState.error}{' '}
+                  <button type="button" className={styles.logToggle} onClick={loadLog}>Try again</button>
+                </p>
+              )}
+              {logState.phase === 'ready' && logState.rows.length === 0 && (
+                <p className={styles.logLine}>No syncs recorded yet.</p>
+              )}
+              {logState.phase === 'ready' && logState.rows.map((r, i) => (
+                <div key={r.id ?? i} className={styles.logEntry}>
+                  <p className={styles.logLine}>{logRowLine(r)}</p>
+                  {r.failuresUnreadable && (
+                    <p className={styles.sourceErr}>Details for this sync couldn't be read.</p>
+                  )}
+                  {r.failures.length > 0 && (
+                    <ul className={styles.failureList}>
+                      {r.failures.map((f, j) => (
+                        <li key={j}>{`${f.noteTitle}: ${f.name ? `${f.name}, ` : ''}${f.reason}`}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className={styles.sourceActions}>
-        {source.status === 'broken' && onReconnect && (
+        {!syncOff && source.status === 'broken' && onReconnect && (
           <button type="button" className="btn btn-primary" onClick={() => onReconnect(source)}>
             Reconnect
           </button>
         )}
-        <button type="button" className="btn btn-ghost" disabled={syncing} onClick={handleSync}>
-          {syncing ? 'Syncing…' : 'Sync now'}
-        </button>
-        <label className={styles.toggle} title="Pause background sync">
-          <input
-            type="checkbox"
-            checked={!!source.syncEnabled}
-            disabled={pauseBusy}
-            onChange={handleTogglePause}
-          />
-          <span>{source.syncEnabled ? 'On' : 'Paused'}</span>
-        </label>
+        {!syncOff && (
+          <button type="button" className="btn btn-ghost" disabled={syncing} onClick={handleSync}>
+            {syncing ? 'Syncing…' : 'Sync now'}
+          </button>
+        )}
+        {!syncOff && (
+          <label className={styles.toggle} title="Pause background sync">
+            {/* L1 (live audit 2026-11-03): the accessible name was just the visible "On", so a
+                member with two sources heard two identical checkboxes. The name says which
+                source and which app; the visible On/Paused stays, and `checked` carries the state. */}
+            <input
+              type="checkbox"
+              aria-label={`Sync ${source.displayName || source.remoteId} from ${providerLabel}`}
+              checked={!!source.syncEnabled}
+              disabled={pauseBusy}
+              onChange={handleTogglePause}
+            />
+            <span>{source.syncEnabled ? 'On' : 'Paused'}</span>
+          </label>
+        )}
         <button
           type="button"
           className={`${styles.dangerBtn} ${armed ? styles.dangerArmed : ''}`}
@@ -206,9 +419,9 @@ export default function SourceRow({ source, providerSourceCount = 1, onSync, onT
   )
 }
 
-function Stat({ label, value, warn }) {
+function Stat({ label, value, warn, title }) {
   return (
-    <div className={styles.stat}>
+    <div className={styles.stat} title={title}>
       <span className={`${styles.statValue} ${warn ? styles.statWarn : ''}`}>{value ?? 0}</span>
       <span className={styles.statLabel}>{label}</span>
     </div>

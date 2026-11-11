@@ -26,9 +26,10 @@ describe('RRG point labels', () => {
   })
 
   it('draws the labels larger on phones', () => {
-    const css = readFileSync(join(here, 'comparePanels.module.css'), 'utf8')
+    // The rule moved with the graph to components/rotation/RrgGraph.module.css (unit 3-12).
+    const css = readFileSync(join(here, '..', '..', '..', 'components', 'rotation', 'RrgGraph.module.css'), 'utf8')
     const phone = css.match(/@media \(max-width: 640px\)\s*\{([\s\S]*?)\n\}/)
-    expect(phone, 'a phone block in comparePanels.module.css').not.toBeNull()
+    expect(phone, 'a phone block in RrgGraph.module.css').not.toBeNull()
     const size = phone[1].match(/\.pointLabel\s*\{[^}]*font-size:\s*(\d+)px/)
     expect(Number(size?.[1])).toBeGreaterThanOrEqual(18)
   })

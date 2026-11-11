@@ -1,8 +1,8 @@
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState, lazy } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import NavBar from './NavBar'
 import MobileNav from './MobileNav'
-import CommandPalette from './CommandPalette'
+import CommandPaletteGate from './CommandPaletteGate'
 import CaptureHost from '../pages/journal-2-0/components/notebook/CaptureHost'
 // Wave 14 (lane W14-C1): the ONE mount of the registered-tour gate. Tours start on Journal pages
 // (a trade, My Playbook, the setups board) as well as the Notebook, and a tour must survive the
@@ -12,6 +12,7 @@ import RegistryToursGate from '../pages/journal-2-0/components/notebook/onboardi
 import { OTHER_TOURS } from '../pages/journal-2-0/components/notebook/onboarding/tourRegistry'
 import FeedbackWidget from './FeedbackWidget'
 import { registerFirstRunSlot } from './firstRun/firstRunStage'
+import ChartsDeskHost from '../pages/charts/ChartsDeskHost'
 import HubRoot from '../hub/HubRoot'
 import NotebookHubSection from '../hub/sections/NotebookHubSection'
 import HomeHubSection from '../hub/sections/HomeHubSection'
@@ -27,6 +28,10 @@ import { APP_THEME_BY_ID, isUctTheme, uctThemeId, applyAppTheme, clearAppThemeVa
 import { titleForPath } from '../surfaces/pageTitle.js'
 import { SkipLinkSlotContext, MAIN_CONTENT_ID } from './skipLinks'
 import styles from './Layout.module.css'
+
+// Off first load, so it costs the Notebook's byte budget nothing. Plain lazy with a null fallback:
+// the toast must never reload the page or reach an error screen.
+const UpdateReadyToast = lazy(() => import('./UpdateReadyToast').catch(() => ({ default: () => null })))
 
 function usePageTracking() {
   const location = useLocation()
@@ -69,7 +74,7 @@ function usePageTitle() {
     if (path === lastPath.current) return
     lastPath.current = path
 
-    const title = titleForPath(path)
+    const title = titleForPath(path, location.search)
     if (title) document.title = title
   }, [location.pathname])
 }
@@ -107,9 +112,10 @@ export default function Layout({ children }) {
       // Unknown uct id (e.g. a retired theme): fall back to OLED, cleanly.
     }
     clearAppThemeVars(el)
-    // Default (no stored pref) = the neutral-graphite base in tokens.css :root
-    // (data-theme "dark" has no override block, so :root shows through). 'oled'
-    // and 'light' remain explicit choices.
+    // A member with no saved theme gets OLED: usePreferences DEFAULTS.theme is
+    // 'oled' (since 6279fec750). 'dark' = the Graphite theme, whose palette IS the
+    // tokens.css :root ramp (data-theme "dark" has no override block, so :root
+    // shows through). 'light' is the other explicit base.
     el.dataset.theme = t === 'light' ? 'light' : t === 'oled' ? 'oled' : 'dark'
   }, [prefs.theme])
 
@@ -193,10 +199,22 @@ export default function Layout({ children }) {
 
                   Rail: components/Layout.routeSuspense.test.jsx. */}
               {/* Wave 10 follow-up F5: the first-run slot. A one-time card (the voice orb's
-                  "Meet Compass") is portaled HERE, so it sits in the page flow and pushes the
-                  page down instead of floating over a control. Empty, it has no box at all.
+                  "Meet Compass", the "New in your Notebook" offer) is portaled HERE. Both cards are
+                  toasts (position: fixed, VIS-4 and its Tier 2 follow-up), so their arrival moves
+                  nothing on the page; the slot itself is empty and has no box at all.
                   components/firstRun/firstRunStage.js; rail Layout.firstRunSlot.test.jsx. */}
               <div ref={registerFirstRunSlot} data-first-run-slot="" />
+              {/* "A new version is ready." position: fixed like the first-run cards, so it moves
+                  nothing; all of its state lives in the leaf (components/UpdateReadyToast.jsx). */}
+              <Suspense fallback={null}><UpdateReadyToast /></Suspense>
+              {/* The Charts workspace, kept mounted while a board is popped out so changing page does
+                  not close the windows on the other monitors. Before the Suspense below on purpose:
+                  a page that suspends must not take the board with it. A Layout rendering explicit
+                  children has no routes, so no workspace either. The state lives in this leaf, not in
+                  Layout (pages/charts/ChartsDeskHost.jsx). */}
+              {children == null && (
+                <ChartsDeskHost fallback={<div className={styles.routeFallback} aria-busy="true" />} />
+              )}
               <Suspense fallback={<div className={styles.routeFallback} aria-busy="true" />}>
                 {children ?? <Outlet />}
               </Suspense>
@@ -235,7 +253,7 @@ export default function Layout({ children }) {
           </HubProvider>
           <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
           <TickerHubSheet />
-          <CommandPalette ref={paletteRef} />
+          <CommandPaletteGate ref={paletteRef} />
           {/* The ONE capture dialog, mounted once app-wide so every door -- palette,
               hotkey, note, research workspace, surfaces -- opens the same product. */}
           <CaptureHost />

@@ -1,0 +1,17 @@
+//@version=6
+indicator("vw-w4t11-b-tonumber-replace")
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from the inline shape in
+// docs/pine/capture-queue-2026-11-04-w4-t11.md, W4-T11-b (rows B01-B06, B07/B08). The code below these comments is that doc's text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: which texts str.tonumber reads as numbers, and str.replace occurrence counting. B09 (empty target) is its own file: vw-w4t11-b09-replace-empty.pine.
+// CAPTURE: AMEX:SPY 1D, inputs at defaults.
+
+plot(str.tonumber("  5 "), "B01_padded")
+plot(str.tonumber("+5"), "B02_plus_sign")
+plot(str.tonumber("5."), "B03_trailing_dot")
+plot(str.tonumber(".5"), "B04_leading_dot")
+plot(str.tonumber("1e5"), "B05_exponent")
+plot(str.tonumber(""), "B06_empty")
+plot(str.length(str.replace("aaaa", "aa", "X", 1)), "B07_overlap_expect_3_if_non_overlapping")
+plot(str.length(str.replace("abc", "b", "XY", 3)), "B08_missing_occurrence_expect_3")

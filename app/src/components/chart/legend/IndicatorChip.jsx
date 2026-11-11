@@ -154,8 +154,23 @@ export default function IndicatorChip({
   // chevron and its own per-PLOT popover, because a sibling whose click did
   // nothing is the exact complaint that produced the all-rows rule.
   secondary = false,
+  // ⭐⭐ PHASE 2a (A5a / A9) — THE TEXT CHIP. Three opt-in props, all absent for
+  // every definition without a readout (`readout.readoutChipName` answers null
+  // for them), so every other chip renders exactly as before.
+  //   `name`          the short name in the one grammar, `UCT RS · SPY`, printed
+  //                   in place of `chip.label` (which keeps `UCT RS(SPY)` for the
+  //                   byte rails that read it).
+  //   `textChip`      on the PHONE the chip stays TEXT (`UCT RS · SPY 0.4187`)
+  //                   with a 6 px dot, instead of collapsing to a 10 px dot: the
+  //                   phone hides pane labels, so this chip is the only thing that
+  //                   names the bottom pane. The caller also keeps it out of the
+  //                   `+N` fold.
+  //   `fallbackValue` `{text, muted}` — A8: the last known value with its date,
+  //                   muted, when the live value is missing. Never on a hidden chip.
+  name = null, textChip = false, fallbackValue = null,
 }) {
   const interactive = typeof onMenu === 'function'
+  const label = typeof name === 'string' && name ? name : chip.label
 
   // ONE binding, both inputs (`mobile/useLongPress`): a 450 ms press on touch and
   // a right-click on desktop. Called unconditionally — hooks are not conditional —
@@ -173,7 +188,7 @@ export default function IndicatorChip({
   const longPress = useLongPress(openMenu)
 
   const cls = [styles.chip, chip.hidden ? styles.chipHidden : null,
-    chip.computed === false ? styles.chipEmpty : null, className]
+    chip.computed === false ? styles.chipEmpty : null, textChip ? styles.chipText : null, className]
     .filter(Boolean).join(' ')
 
   /** The VALUE, formatted the way the inline chip's own text is.
@@ -202,9 +217,9 @@ export default function IndicatorChip({
 
   // One sentence, both layouts.
   const chipTitle = chip.computed === false
-    ? `${chip.label} — no value on these bars. Its window reaches back further `
+    ? `${label} — no value on these bars. Its window reaches back further `
       + 'than the history loaded here; try a longer timeframe or a shorter length.'
-    : (interactive ? `${chip.label} — click for options` : undefined)
+    : (interactive ? `${label} — click for options` : undefined)
 
   // ⛔ THE CONTROL, THE RAIL, THE REPAINT MARK AND EVERY DATA ATTRIBUTE ARE BUILT
   // ONCE AND SHARED BY BOTH LAYOUTS. Two copies of a control is two places for
@@ -216,7 +231,7 @@ export default function IndicatorChip({
           className={styles.chipRepaint}
           data-repaint={repaint.mode}
           role="img"
-          aria-label={`${chip.label} ${String(repaint.mode).replace(/-/g, ' ')} — ${repaint.sentence}`}
+          aria-label={`${label} ${String(repaint.mode).replace(/-/g, ' ')} — ${repaint.sentence}`}
           title={`${String(repaint.mode).replace(/-/g, ' ')} — ${repaint.sentence}`}
         ><UIcon name="warning" size={11} gold={false} /></span>
       )}
@@ -250,7 +265,8 @@ export default function IndicatorChip({
      *  screen-reader user is pointed at it. The LABEL is the stable half, and it
      *  is the half the menu is about. Same shape as `LegendRow`'s, so the two
      *  kinds of row in one legend announce alike. */
-    'aria-label': `${chip.label} options`,
+    'aria-label': `${label} options`,
+    'data-guide': 'chart.chip',
     onKeyDown: (e) => {
       if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return
       e.preventDefault()
@@ -272,14 +288,42 @@ export default function IndicatorChip({
    * with `inherit`, so the row has exactly one source of colour. */
   // ⛔ a colour reaches CSS only through `safeCssColour` (objectColour.js) — a stored or shared value may carry anything
   const chipColor = safeCssColour(chip.color)
-  const ink = chipColor ? { color: chipColor } : undefined
+  // ⭐ A5a — a HIDDEN text chip prints its name in the muted ink, not the line's
+  // colour: the line is not drawn, so the colour would name nothing.
+  const ink = chipColor && !(textChip && chip.hidden) ? { color: chipColor } : undefined
   const valInk = chipColor ? { color: 'inherit' } : undefined
+
+  // ⭐ A8 — the last known value, muted, with its date, when the live one is
+  // missing. Never on a hidden chip (a number there reads out an undrawn line).
+  const fallback = !chip.hidden && !valueText && fallbackValue && typeof fallbackValue.text === 'string'
+    && fallbackValue.text ? fallbackValue : null
 
   // The value, as its own ink. Absent (hidden / off-cursor / never computed) the
   // chip prints `chip.text`, which in that case IS the bare label.
-  const body = valueText
-    ? <>{chip.label}{' '}<span className={styles.chipVal} style={valInk}>{valueText}</span></>
-    : chip.text
+  let body
+  if (textChip || label !== chip.label) {
+    // ⭐ THE TEXT CHIP'S NAME TRUNCATES IN THE MIDDLE, NEVER THE VALUE: the stem
+    // (`UCT RS`) is the part that ellipsizes on a phone; what it is measured
+    // against (` · SPY`) and the number keep their width.
+    const cut = label.indexOf(' · ')
+    const nameNode = textChip && cut > 0
+      ? <span className={styles.chipTextName}><span className={styles.chipTextHead}>{label.slice(0, cut)}</span><span className={styles.chipTextTail}>{label.slice(cut)}</span></span>
+      : label
+    body = (
+      <>
+        {nameNode}
+        {valueText
+          ? <>{' '}<span className={styles.chipVal} style={valInk}>{valueText}</span></>
+          : (fallback
+            ? <>{' '}<span className={`${styles.chipVal} ${styles.chipValStale}`} data-stale-value="">{fallback.text}</span></>
+            : null)}
+      </>
+    )
+  } else {
+    body = valueText
+      ? <>{chip.label}{' '}<span className={styles.chipVal} style={valInk}>{valueText}</span></>
+      : chip.text
+  }
 
   if (grid) {
     // ⛔ THREE CELLS, LIKE EVERY OTHER ROW IN THAT GRID. A two-cell row would let
@@ -319,7 +363,7 @@ export default function IndicatorChip({
           data-plot-key={chip.plotKey}
           data-hidden={chip.hidden ? 'true' : 'false'}
           data-computed={chip.computed === false ? 'false' : undefined}
-        >{chip.label}{marks}</span>
+        >{label}{marks}</span>
         {/* ⛔ THE CALLER'S CLASS IS ON THE ROW, NOT ON EACH CELL. The one it
             passes here is `.chipFolded` — `display: none` — and hiding one cell
             of three would leave the value occupying a track with nothing in front
@@ -332,7 +376,8 @@ export default function IndicatorChip({
               member had picked. The label keeps the hue — it is the identity — and the
               number is always the same crisp white, so the eye lands on it first at
               every hue. */}
-        <span className={styles.chipGridVal}>{valueText}</span>
+        <span className={styles.chipGridVal}>{valueText || (fallback
+          ? <span className={styles.chipValStale} data-stale-value="">{fallback.text}</span> : null)}</span>
         {/* ⛔ THE THIRD CELL IS STILL EMITTED, EMPTY. `.legendVertical` is ONE grid
             for the whole legend and fills by ORDER, so a two-cell row would let
             the next row's label fall into the third track and cascade the legend

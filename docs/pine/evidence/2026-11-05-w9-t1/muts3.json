@@ -1,0 +1,5 @@
+[
+ ["control-noop", "src/components/chart/engine/strategyBrokerGateRegistry.js", "let reader = () => false", "let  reader = () => false"],
+ ["drop-gate", "src/components/chart/engine/strategyBrokerGateRegistry.js", "let reader = () => false", "let reader = () => true"],
+ ["gate-read-in-closure", "src/components/chart/engine/strategyBrokerGateRegistry.js", "export const strategyBrokerGateOn = () => reader() === true", "import { strategyBrokerEnabled as _x } from './strategyBrokerGate.js'\nexport const strategyBrokerGateOn = () => _x()"]
+]

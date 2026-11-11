@@ -26,6 +26,52 @@
 //   ⛔ Never bump it for a change that does not move translator output: every
 //   bump costs one translation + one write per saved script per member.
 //
+// ⛔⛔ ENGINE BUMP RUNBOOK — read before AND after every bump.
+//   • ⭐ BUMP ONE NUMBER: this one. The server (the alert/scan/backtest lanes have no
+//     browser to ask) READS this declaration (`user_definitions.read_script_engine_version`;
+//     keep it `export const SCRIPT_ENGINE_VERSION = <n>` on one line — any other shape
+//     reads as unreadable, and unreadable fails CLOSED: every recorded refusal binds).
+//     ⛔ Do not add a server literal back: that is the drift this replaced.
+//   • A TRANSLATOR REGRESSION CAN MARK GOOD SCRIPTS 'refused' SERVER-SIDE. A browser
+//     running the bumped engine records each refusal (`definition_engine_status`, with
+//     the engine number that refused), and every server lane — alerts, scans, backtests —
+//     then WITHHOLDS that definition by name, for every device. A save that does not come
+//     from the script path (stamped >= the refusing engine, script attached) CARRIES the
+//     refusal to the new version, refusing engine and all; so do a fork, a share install
+//     and a delete/resurrect.
+//   • A VERDICT (RECORDED OR CARRIED) BINDS ONLY WHILE ITS ENGINE IS TODAY'S. Browser
+//     (`savedScriptUpgrade.upgradeKindOf`) and server (`engine_withheld_reason`) answer
+//     identically once this number moves past it:
+//       – a version that HOLDS its script stays held until today's engine re-answers: the
+//         member's next chart load re-translates it (accepted → written back from the
+//         script path, lifted; refused → a new verdict at today's number);
+//       – a version WITHOUT its script (a studio / Formula hand edit of a refused script,
+//         a share-installed copy) EXPIRES and runs as stored ONLY WHEN ITS MATHS DIFFERS
+//         from the refused maths (the server's `same_maths`, from the store's maths
+//         identity). A no-op Undo, a presentation-only studio save or a share install
+//         carries the refused calculation unchanged and STAYS HELD until it is saved from
+//         a script today's engine accepts. Chosen over carrying the script forward:
+//         re-translating the ancestor's script would overwrite the member's hand edit
+//         (the L2 rule — a hand edit is the member's own maths).
+//       – a `write-failed` (the store refused the write-back, e.g. a 422 repaint ack)
+//         NEVER clears an older refusal: the alerts keep withholding the stored maths and
+//         the chart draws today's translation, without PUTting it again, and offers the
+//         Builder.
+//   • ⛔ A SCRIPT-HOLDING VERSION WHOSE MEMBER NEVER OPENS A CHART STAYS WITHHELD
+//     SERVER-SIDE INDEFINITELY. Only a chart load re-translates it; until then every
+//     alert, scan and backtest on it is withheld by name. Nothing on the server re-asks.
+//     Owner follow-up, not built: "server-side upgrade for members who never open a
+//     chart" (re-translate in the pod with the shipped translator, or notify the member).
+//   • RECOVERY IS TO SHIP ANOTHER BUMP (the fixed translator with this number + 1). Every
+//     refused script is re-asked on its next chart load (see the bullet above for a
+//     member who never opens one), and every scriptless carry whose maths differs from
+//     the refused maths expires.
+//   • AFTER EVERY BUMP, CHECK THE REFUSED COUNT: in the web pod, against
+//     user_definitions.db, `SELECT engine, COUNT(*) FROM definition_engine_status WHERE
+//     status='refused' GROUP BY engine` — a jump on the new engine is a regression signal,
+//     not a population of bad scripts. (Read-only; never DELETE from that table — the
+//     next bump is the fix.)
+//
 // ⛔ IT IS NOT `memberDocumentMigration.DOOR_VERSION`. That number versions the
 // band-opacity RULE a door applied (its rule table must carry an entry per
 // version, railed), and a document's bytes can be repaired from it without the
@@ -33,7 +79,55 @@
 // with the script in hand. Two questions, two numbers.
 
 /** 1 = the first stamped engine (C45/C48 `blockRuns` withholding is in it). */
-export const SCRIPT_ENGINE_VERSION = 1
+/** 2 = the first real bump (2026-11-02): saved scripts re-translate once with every engine
+ *  change merged since 1 was stamped (#610), now that refusals are remembered (#673). */
+/** 3 = P3 WS-A: the C18 object door refuses by name the master-wrong block shapes (readSelf,
+ *  v6 unmatched bool, moved for-bound, continued switch arms). */
+/** 4 = the plot lane withholds a var filled from a ta.* call in a block that skips (C48);
+ *  a function reading a var written later is refused; hiding colours withhold the whole output. */
+/** 5 = W1: Pine v4-v6 builtin names and lookback reads (#736). */
+/** 6 = W4 T4: a v6 root `?:` arm with sma/ema/rma/change runs only when chosen; a `?:` off the
+ *  column route no longer steps unchosen arms every bar (now refused by name). */
+/** 7 = W4-T3 (train): session/timeframe text fixed before bar 0 (own timeframe via a parameter, joined texts, an unreassigned var) is served on the runtime lane */
+/** 8 = W3 (train): refusals name their text shape; a {N} message number that rounds across a digit (999.9996 -> 1000) is withheld */
+/** 9 = W4-T7 (train): an expression's own series inside a function body (per call site) is served instead of refused */
+/** 10 = W4-T2 (train): simple-qualifier folding (reassignment under an invariant test, an unreassigned var, arithmetic over an input) serves values where it refused */
+/** 11 = W4-T9 (train): offsets bounded by simple values and frame parameters are served */
+/** 12 = W4-T8 (train): series int window lengths (v5 and v6) are served on the runtime lane */
+/** 13 = W4-T10 (train): state kernels over runtime values (ta.cum, 3-arg pivothigh/low, ta.stoch, ta.vwap(source)) are served */
+/** 14 = W4-T11 (train): runtime text values are served on the runtime lane */
+/** 15 = W4-T12 (train): paint typing: colours proven through blocks, functions and colour arrays; fill() over a ?:-chosen plot id */
+/** 16 = W4-T13 (train): plotcandle / plotbar are served (OHLC payload from four columns; colours a call omits stay withheld) */
+/** 17 = W4-T15 (train): function and statement forms (named/default user args, one-line binding bodies, loop-end values, log.* statements) are served on the runtime lane */
+/** 18 = W6-T3a: one static type descriptor per value; runtime lane serves matrix./map. method forms and some former refusals */
+/** 19 = W6-T2: v3/v4 `method` is a callable name and keyword misreads are refused by name rather than served */
+/** 20 = W6-T6: `for … in` over arrays and line/box/label.all is served on the runtime lane (one shared walk rule) */
+/** 21 = W6-T5: array.* reference-formula members are served on the runtime lane; unpinned conventions are refused by name */
+/** 22 = W34-I6a: a `switch` arm that wraps onto a continuation line is served on the runtime lane; an arm mixing wrap and block lines is refused by name */
+/** 23 = W34-I4b: a v1/v2 (or no-pragma) self-reference's bar 0 on a run from the listing is withheld unless both seeds (na, 0) agree, not guessed */
+/** 24 = W34-I4: a v1/v2 self-referencing definition whose every self read is `nz(x[k])` runs as a slot on the runtime lane instead of refusing `pine:state` */
+/** 25 = W34-I6c: v4 per-bar window lengths (highestbars/lowestbars and the series-int family) are served on the runtime lane; v1-v4 bare highestbars/lowestbars give Pine's <=0 offset */
+/** 26 = W6-T7: matrix.* members are served on the runtime lane (gated at the object door) */
+/** 27 = W6-T9: receiver types (overloads by receiver type, chains, members on typed receivers, a record's shallow copy) are served on the runtime lane; the object door keeps master's answer */
+/** 28 = W6-T8: map.* members are served on the runtime lane (gated at the object door) */
+/** 29 = W34-I6b: v6 bool-residue items 1, 2 and 4 are served on the runtime lane; the object door keeps Q-A3 */
+/** 30 = W6-T10: `enum` declarations and `input.enum` are served on the runtime lane; the object door is unchanged */
+/** 31 = W6-T6-N1b: two indirect for-in shapes that served without a capture now refuse by name (Q-W6T6-H); runtime lane only, the object door is unchanged */
+/** 32 = W6-T10-N: v5 enum names footprint/volume_row and capitalised enum names serve per the manual's case-sensitivity; runtime lane only, the object door is unchanged */
+/** 33 = RULING-0927: input.time serves only its T16 default form on the host lane (other forms refuse by name); barstate.isnew stays refused with a sharper reason */
+/** 34 = I6a-N4: a block body at a non-multiple-of-4 indent refuses pine:indent with the manual's reason, on both lanes and the door */
+/** 35 = PT-GAPS: six host-lane engine gaps (L3, L4, L6, G-c, G-d, G-h) fixed per existing captures; G-f and G-i queued as Q-PT6/Q-PT7 */
+/** 36 = HONESTY-SWEEP: the 2026-11-07 honesty sweep (probes vw-hs1..hs7; see docs/pine/evidence/2026-11-07-honesty-sweep) */
+/** 37 = STRAT-COLOR: a `strategy.*` read reaching a plot's presentation (colour) or a drawing step is withheld by name (`pine:strategy-call`); the broker is not simulated */
+/** 38 = DELETE STACK (IDX-DELETE, CHAINED-REMOVAL, UDT-FIELD-CREATES, SILENT-CREATE-GAPS) + STRAT-NOTE: object removals and creates the chart cannot follow are withheld and named; a drawing withheld for a strategy read says why (see the lanes' EVIDENCE) */
+/** 39 = W9 BROKER INTEGRATION (T4 sizing, T6 fill timing, T7 exits, T13a broker report, N7): the strategy broker's integration lands; see the lanes' EVIDENCE */
+/** 40 = W9-T12 trade markers, W9-T13b report panel, NO-GUARD-IDS (guard ids hidden on member surfaces except the Pine editor); see the lanes' EVIDENCE */
+/** 41 = W9 T5 costs, T8 risk, T4-F1 min-contract source, T11-F1 chart window, T7-F1 order log; see the lanes' EVIDENCE */
+/** 42 = CUM-OFF-LISTING: off-listing running totals (ta.cum/obv/pvt/wad/accdist/nvi/pvi) are withheld by name unless they cancel (served member output changes; translator output unchanged); with DIV-1 harness warm-history grading */
+/** 43 = LIMITS: runtime limit refusals say their limit in plain words, and the stopping bar number is fixed (member-visible sentences); the service does not emit `limit` (EMIT_REFUSAL_LIMIT=false) */
+/** 44 = VAR-OFF: off-listing `var` values that cannot be known are withheld by name, with new sentences (member-visible output); see the lane's EVIDENCE */
+/** 45 = DIV-4 paint/colour: translator output changes for paints with a foldable non-literal offset (HP-1 does not digest paints); runtime colour reasons name their limit */
+export const SCRIPT_ENGINE_VERSION = 45
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
@@ -72,4 +166,15 @@ export function withoutEngineStamp(def) {
   const meta = { ...def.meta }
   delete meta[ENGINE_STAMP_KEY]
   return { ...def, meta }
+}
+
+/** ⛔ L6 — the store's cap on a stored script (`api/services/user_definitions.py
+ *  ::MAX_PINE_SOURCE_BYTES`, pinned equal by `tests/test_saved_script_prebump.py`).
+ *  A script over it is never sent: the store would refuse the whole request. */
+export const PINE_SOURCE_MAX_BYTES = 256 * 1024
+
+/** Does this script fit the store's cap, measured in UTF-8 bytes as the store does? */
+export function withinPineSourceCap(source) {
+  if (typeof source !== 'string') return false
+  try { return new TextEncoder().encode(source).length <= PINE_SOURCE_MAX_BYTES } catch { return source.length * 4 <= PINE_SOURCE_MAX_BYTES }
 }

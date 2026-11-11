@@ -57,7 +57,7 @@ from api.services import watchlist_alert_service as wls            # noqa: E402
 # entire per-plot assertion checking nothing while staying green. `len(...) == 28`
 # survives `rsi` being renamed to `rsi2`; the list does not.
 BASELINE_INDICATOR_FUNCS = 28
-BASELINE_CATALOG_GROUPS = 16
+BASELINE_CATALOG_GROUPS = 20  # 2026-11-10 (RS split, S2): 18 -> 20, +rs_phases +rs_vs_ema; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
 
 #: Every address the GLOBAL space holds, in catalog order — the order the
 #: dropdown renders and the order `build_alert_grid` iterates.
@@ -68,6 +68,16 @@ BASELINE_ADDRESSES = [
     "donchian.upper", "donchian.middle", "donchian.lower", "ichimoku.tenkan",
     "ichimoku.kijun", "ichimoku.spanA", "ichimoku.spanB", "ichimoku.chikou",
     "sar.priceCrossedSar", "sar.trendFlipped", "close",
+    # 2026-11-04 — the CROSS partition (global, NOT a user address).
+    "ma_cross",
+    # 2026-11-07: +rs_line (UCT RS, unit 2b-05) — the 5th partition, appended last, catalog order.
+    "rs_line.value", "rs_line.ma", "rs_line.above", "rs_line.crossUp", "rs_line.crossDown",
+    "rs_line.newHigh", "rs_line.newHighBeforePrice", "rs_line.newHighRed", "rs_line.mansfield",
+    "rs_line.mansfieldCrossUp", "rs_line.mansfieldCrossDown",
+    # 2026-11-07 (RS 2b-06): +rs_line.rating — the twelfth RS address, appended last.
+    "rs_line.rating",
+    # 2026-11-10 (RS split, S2): +4 split addresses, appended after the rating.
+    "rs_phases.flipBlue", "rs_phases.flipRed", "rs_vs_ema.crossUp", "rs_vs_ema.crossDown",
 ]
 
 USER_A = "user-a"
@@ -75,6 +85,21 @@ USER_B = "user-b"
 DEF_ID = "u_0123456789ab"
 OTHER_DEF_ID = "u_ba9876543210"
 ADDRESS = f"{DEF_ID}.value"
+
+
+# 2026-11-07 (RS fix U1, review #2) -- PIN MOVED. The RS alert catalog and the
+# create door now follow `registry_defs.RS_V2_ENABLED` (and, for `rs_line.rating`,
+# `api.main.rs_history_enabled()`), dark by default; registration is unchanged.
+# The pins in this file describe the LIT shape (BASELINE_CATALOG_GROUPS counts the
+# `rs_line` group), so both flags are lit here, deterministically. The dark shape
+# is railed in tests/test_rs_fix_u1_alert_lane.py.
+@pytest.fixture(autouse=True)
+def _rs_alert_flags_lit(monkeypatch):
+    from api.services.signature import registry_defs as _rs_flag_defs
+    monkeypatch.setattr(_rs_flag_defs, "RS_V2_ENABLED", True)
+    import api.main  # noqa: F401 -- import BEFORE lighting RS_SPLIT_ENABLED: api.main registers providers for the split rows, which registry_defs only built if the flag was on at ITS import
+    monkeypatch.setattr(_rs_flag_defs, "RS_SPLIT_ENABLED", True)  # 2026-11-10 (RS split, S2): the lit shape includes the split alerts
+    monkeypatch.setenv("RS_HISTORY_ENABLED", "1")
 
 
 def _ast_sma(period: int = 20) -> dict:
@@ -331,7 +356,7 @@ def test_the_fourth_partition_is_NOT_in_ADDRESS_PARTITIONS(defs_db, real_bars):
     address into a global enumeration and change the shape of a 685,193-fire log.
     """
     assert all(p is not aus.USER_FUNCS for p in ev.ADDRESS_PARTITIONS)
-    assert len(ev.ADDRESS_PARTITIONS) == 3
+    assert len(ev.ADDRESS_PARTITIONS) == 5  # 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
 
     save(USER_A, defn())
     aus.admit_user_definition(USER_A, DEF_ID, bars=real_bars)
@@ -758,6 +783,17 @@ def _every_gate_message(real_bars, monkeypatch) -> dict:
         {"plots": [{"key": "rsi", "style": "line"}, {"key": "levels", "style": "hlines", "levels": [70, 30]}],
          "compute": {"kind": "ast", "ast": _ast_sma(), "trees": {"rsi": _ast_sma()}, "scanPlot": "rsi"}}))
 
+    # ⭐ 2026-11-02 — DRIVEN DIRECTLY: an alert row bound to a line its key no longer
+    # names (a key deleted and typed again). The product-path drives — a real save
+    # sequence, the cache-hit path, a pre-identity row — are in
+    # `tests/test_line_identity.py`.
+    def _a_different_line():
+        def fn(bars, params):
+            return None
+        fn.line_id = "p_" + "1" * 12
+        aus._check_line({"plot_uid": "p_" + "2" * 12, "user_id": USER_A}, ADDRESS, fn)
+    capture("line", _a_different_line)
+
     save(USER_B, defn(), repaint={"value": "repaints"})
     capture("repaint", lambda: aus.admit_user_definition(USER_B, DEF_ID, bars=real_bars))
 
@@ -782,6 +818,26 @@ def _every_gate_message(real_bars, monkeypatch) -> dict:
     save("user-e", defn(), requirements=tags[:1])
     capture("requirements",
             lambda: aus.admit_user_definition("user-e", DEF_ID, bars=real_bars))
+
+    # ⭐ W5-T13 -- the two runtime doors, DRIVEN: the real `server_lane_refusal` (no
+    # stage variable set on a test box, so it refuses) and the arm-time run answering
+    # a run-wide refusal (the client is stubbed: no network).
+    runtime_row = {"def_id": DEF_ID, "user_id": USER_A, "version": 1, "definition": {
+        "compute": {"kind": "runtime", "source": "//@version=6\nindicator('x')\nplot(close)\n",
+                    "outputs": {"value": 0}}, "plots": [{"key": "value"}], "inputs": []}}
+    for var in ("PINE_RUNTIME_STAGE", "PINE_RUNTIME_SERVER_STAGE"):
+        monkeypatch.delenv(var, raising=False)
+    capture("server-lane", lambda: aus._gate_lane(runtime_row))
+    from api.services import pine_runtime_client as _prc
+
+    class _Withholds:
+        def run(self, *, jobs, **kw):
+            return [_prc.JobResult(job=j.job, status="withheld", refusals=(
+                _prc.Refusal("*", "runtime:limit", "the run went over its instruction budget"),))
+                for j in jobs]
+    monkeypatch.setattr(aus, "_runtime_client", lambda: _Withholds())
+    capture("server-run", lambda: aus._gate_runtime_service(
+        runtime_row, runtime_row["definition"], DEF_ID, real_bars, sym="SPY", tf="5", params={}))
 
     with lane_disagreement(monkeypatch, at_bar=200, by=1e-6):
         capture("cross-lane",

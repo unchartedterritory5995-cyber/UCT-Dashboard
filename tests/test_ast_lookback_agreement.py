@@ -75,6 +75,25 @@ def test_the_oracle_really_carries_the_shapes_this_rail_exists_for():
     assert any(not r["shapes"] for r in rows)
 
 
+def test_no_timed_out_script_contributes_a_tree():
+    """⛔ ALL OR NOTHING. A script whose walk ended in ``pine:timeout`` contributed
+    whatever it finished before it stopped, so the oracle changed with machine
+    load (608, 607, 605 trees on one commit, 2026-11-06). The writer now drops such
+    a unit whole and names it in ``timed_out``, sorted; this reads that list back
+    and refuses a row from any unit on it."""
+    doc = _load()
+    units = doc["timed_out"]
+    assert isinstance(units, list)
+    keys = [(u["from"], u["lane"]) for u in units]
+    assert keys == sorted(keys), "timed_out must be sorted, so the file is stable"
+    out = set(keys)
+    leaked = [f"  {r['from']} [{r['lane']}] {r['hash']}" for r in doc["rows"]
+              if (r["from"], r["lane"]) in out]
+    assert not leaked, (
+        "trees from a script whose walk ended in `pine:timeout`:\n"
+        + "\n".join(leaked[:8]))
+
+
 def test_both_python_readers_answer_the_same_number_on_every_tree():
     bad = []
     for r in _load()["rows"]:

@@ -1,4 +1,6 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useCallback } from 'react'
+import { WidgetDoorContext } from './widgetDoors'
+import { PanelSlotContext } from './panelSlot'
 import ChartWidget from './widgets/ChartWidget'
 import WatchlistWidget from './widgets/WatchlistWidget'
 import ThemesWidget from './widgets/ThemesWidget'
@@ -26,6 +28,7 @@ import WidgetHeader from './WidgetHeader'
 import { effectiveGroup } from './colorGroups'
 import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 import ErrorBoundary from '../../components/ErrorBoundary'
+import { noteChartFault } from './chartFaults'
 import { useWorkspace } from './WorkspaceContext'
 import usePlacedTheme, { PlacedThemeContext } from '../../hooks/usePlacedTheme'
 import {
@@ -116,7 +119,7 @@ function WidgetErrorFallback({ type, onRemove, withHeader = false }) {
   )
 }
 
-function WidgetBody({ groupId, type, color, opts, onOptsChange }) {
+function WidgetBody({ groupId, type, color, opts, onOptsChange, slotReady }) {
   // Color 'N' = "not linked": give the surface a UNIQUE group key so it reads/writes
   // its own ticker instead of sharing a color group with anything else (every widget
   // links purely off this `color` prop via groupSyms[color]). `groupId` is per-TAB,
@@ -134,9 +137,13 @@ function WidgetBody({ groupId, type, color, opts, onOptsChange }) {
   // resets a tripped boundary if the widget's identity changes under it (a tab
   // swap reusing the same DOM slot), so a stale error state can't outlive its cause.
   return (
-    <ErrorBoundary key={groupId} fallback={<WidgetErrorFallback type={type} />}>
+    <ErrorBoundary key={groupId} fallback={<WidgetErrorFallback type={type} />} onError={type === 'chart' ? () => noteChartFault(String(groupId).replace(':', '~')) : undefined}>
       <Suspense fallback={<div style={{ padding: 14, fontSize: 12, color: 'var(--text-muted, #8b8674)' }}>Loading…</div>}>
-        <Widget {...binding.props({ colorKey: key, opts, onOptsChange, groupId })} />
+        <WidgetDoorContext.Provider value={groupId}>
+          <PanelSlotContext.Provider value={slotReady}>
+            <Widget {...binding.props({ colorKey: key, opts, onOptsChange, groupId })} />
+          </PanelSlotContext.Provider>
+        </WidgetDoorContext.Provider>
       </Suspense>
     </ErrorBoundary>
   )
@@ -150,7 +157,10 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // boards, the single popout window, every existing test) is unaffected. Only
   // the main board's renderGrid call site passes false while this widget is
   // still queued behind PANEL_MOUNT_CAP concurrent mounts.
-  mounted = true }) {
+  mounted = true,
+  // The main board's mount queue: called with this widget's id once its first content is up.
+  onPanelReady }) {
+  const slotReady = useCallback(() => onPanelReady?.(widget.id), [onPanelReady, widget.id])
   // The slot can hold several widgets of different types as tabs; resolve the one
   // currently showing. A tab-less slot resolves to the base widget unchanged.
   const active = resolveActiveTab(widget)
@@ -303,6 +313,7 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
             color={active.color}
             opts={active.opts}
             onOptsChange={handleActiveOptsChange}
+            slotReady={onPanelReady ? slotReady : null}
           />
         )
         // Header/chrome above still renders — RGL's geometry and the layout the

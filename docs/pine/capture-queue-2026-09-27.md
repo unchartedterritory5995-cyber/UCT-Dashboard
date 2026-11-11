@@ -118,12 +118,24 @@ masked by a library import, so it unblocks nothing today.
 
 ## Blocked by a RULING, not by a missing capture — for the owner
 
+⭐ **All four ruled 2026-11-07 (RULING-0927, desktop coordinator by owner delegation).** Evidence and rails: `docs/pine/evidence/2026-11-07-ruling-0927/EVIDENCE.md`.
+
 | name | evidence on disk | ruling that blocks it | scripts |
 |---|---|---|---|
-| `barstate.isnew` | `barstate-full-spy-1d-closed-2026-09-10.json`: `1` on every historical bar, `0` on the newest bar of a closed chart | `closedTable.json::_barstate.refused.isnew` — "requires per-tick evaluation" | first wall of 2; last wall of 0 (next walls `pine:request`, `pine:reassign`) |
-| `input.time` | none needed for the default value (T16 confirms it) | `pine:input-kind` — "under the threshold", item (c) | sole last wall of `session-hilo__WM2g5GtC4h` (1) |
-| `ta.nvi` / `ta.pvi` | nvi seed + rule; pvi unread | `_functions_excluded.nvi` / `.pvi` — fetch-dependent level | joint last wall of 2 |
-| `time(<session>)` on daily bars | 5m only | the refusal text: "This engine screens daily bars" | sole last wall of 1 |
+| `barstate.isnew` | `barstate-full-spy-1d-closed-2026-09-10.json`: `1` on every historical bar, `0` on the newest bar of a closed chart | ✅ **RULED 2026-11-07 (RULING-0927): STAYS REFUSED, reason rewritten.** History is 1 (barstate-full tail). On the NEWEST bar the vendor's `isnew` equals its own `ishistory`: 0 on six rows of `barstate-daily-timeline.json` (16:17–20:55 ET), 1 on three (23:57–07:38 ET), while our clock answered "not forming" at all nine, so nothing we receive decides it; a forming-bar update was never captured. Refused by name on pane, screen and runtime (`closedTable.json::_barstate.refused.isnew`). Rail `ast/ruling0927.test.js` | first wall of 2; last wall of 0 (next walls `pine:request`, `pine:reassign`) |
+| `input.time` | T16 witnesses ONE form, `timestamp("D MMM YYYY hh:mm +0000")`, no `confirm` | ✅ **RULED 2026-11-07 (RULING-0927, narrowed in r1): SERVED for that form only, on every lane.** T16 (`vw-time-tf-spy-1d-2026-09-27.json`) = 19130 on all 8472 bars = the timestamp in ms. The one reader every lane calls (`runtimeInputs.js::timeInputDefaultOf`, gate `WITNESSED_TIME_DEFAULT`) serves it, directly or through a name binding, with `confirm` absent or `false`. Every other form refuses by name (`pine:input-kind` on the translator, `runtime:statement` on the runtime lane, same sentence) and is queued below. A member value on the translator lane is refused by name. Rail `ast/ruling0927.test.js` | `session-hilo__WM2g5GtC4h` (both defaults in the captured form) now attaches at `memberPaneDefinition` |
+| `ta.nvi` / `ta.pvi` | nvi seed + rule; pvi unread | ✅ **RULED (Phase 1, 2026-10-30; pinned by RULING-0927):** pane serves the level as `exp(cum(ln(1+chg)))`, `window_dependent` and badged; a screen refuses by name. Matches `vw-nvi-pvi-spy-1d-full-2026-09-27.json` to <1e-9 relative when the fetch starts at the symbol's first bar; a 5,000-bar fetch reads 9.07x/2.87x low (measured above). Rails `pinePhase1Builtins.test.js`, `ast/ruling0927.test.js` | both scripts attach |
+| `time(<session>)` on daily bars | 1D + 60m captured 09-27/28 | ✅ **RULED (C8/Q-T1, BUILT 09-28; pinned by RULING-0927):** pane serves it (bar's OPEN time, half-open window); a screen refuses by name (its stored daily bars carry a date, not an opening instant). Rails `sessionClockDailyBars.test.js`, `pineVocabularyWave.test.js`, `ast/ruling0927.test.js` | served |
+
+### RULING-0927 r1 — the `input.time` default forms no capture holds (refused by name until captured)
+
+| row | form | probe | what decides it |
+|---|---|---|---|
+| Q-D1 (queued 10-31) | no zone (`"20 Feb 2020"`, `"20 Feb 2020 15:30"`), ISO date (`"2020-02-20"`) | `tools/visual_conformance/probes/vw-input-time-default.pine` | GMT+0 (the reference) or the exchange's zone |
+| Q-D2 (queued 10-31) | `"… GMT+10"`, `"… +530"`, tz argument `"UTC+5:30"` | `vw-input-time-zones.pine` | the SIGN of `GMT±N` (`Etc/GMT+10` is UTC−10) and the short offset |
+| Q-D4 (new) | ISO date-time, seconds with `+0000`, `+0530`, `GMT-5`, tz argument `"UTC"`, a literal ms count | `vw-input-time-forms.pine` (F00 is the T16 form, must read 19130) | each row's value against our reader |
+| Q-D5 (new) | `confirm = true` | `vw-input-time-confirm.pine` | the default, the picked time, or no run until picked |
+| Q-D3 (queued 10-31) | a member's value set in the dialog | `vw-input-time-member.pine` | the zone the dialog takes a time in |
 
 ## CAPTURED — 2026-09-27, the parent session (rig layout 01f1AcIj)
 
@@ -306,3 +318,14 @@ our store spells it (`GET /api/ticker-meta/<SYM>` → `exchange`). ⛔ The warra
 preferred legs are the open risk in what already ships: they carry the SAME store exchange as
 common stock (`NASDAQ`, `NYSE`) and have never been captured. If any reads other than
 `1 / 100`, the NASDAQ/NYSE rows are too broad and must be narrowed before anything else.
+
+## Not capture questions (queue dispositions)
+
+Read by `tools/vendor_harness/evidence_engine.py queue`: each row named here leaves `rowsNeedingProbe` and is listed, with this reason, in `rowsNotCaptureQuestions` (dispositions: `DISPOSITIONS` in the engine).
+
+| not a capture | disposition | reason |
+|---|---|---|
+| `barstate.isnew` | ruling | blocked by a RULING, not by a missing capture: `closedTable.json::_barstate.refused.isnew`, "requires per-tick evaluation" (owner ruling, lane RULING-0927) |
+| `input.time` | ruling | blocked by a RULING, not by a missing capture: `pine:input-kind`, "under the threshold", item (c); T16 already confirms the default value (lane RULING-0927) |
+| `ta.nvi` / `ta.pvi` | ruling | blocked by a RULING, not by a missing capture: `_functions_excluded.nvi` / `.pvi`, fetch-dependent level; the ruling stands until the owner reopens it (lane RULING-0927) |
+| `time(<session>)` on daily bars | ruling | blocked by a RULING, not by a missing capture: the refusal "This engine screens daily bars" (lane RULING-0927) |

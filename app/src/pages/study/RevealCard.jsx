@@ -21,9 +21,14 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import UIcon from '../../components/ui/UIcon'
-import { appendForwardBars, studyFetch } from './useStudySession'
+import StudyMark from '../../components/study/StudyMark'
+import { appendForwardBars, normalizeBars, studyFetch } from './useStudySession'
 import { feedbackPrefs, revealFeedback } from './studyFeedback'
-import { FEEDBACK_KINDS, VERDICTS, feedbackUrl, lessonParts } from './revealCardHelpers'
+import { FEEDBACK_KINDS, VERDICTS, answerWord, feedbackUrl, lessonParts } from './revealCardHelpers'
+import { brandWords } from './drills/types'
+import Emph from './ui/emphasize'
+import TradeReview from './ui/TradeReview'
+import { setupName } from './challenges/challengeBank'
 import styles from './RevealCard.module.css'
 
 export { appendForwardBars }
@@ -37,16 +42,6 @@ export function lessonHrefFor(reveal) {
   return `/desk?section=courses&lesson=${encodeURIComponent(key)}`
 }
 
-function answerWord(reveal) {
-  const a = reveal?.answer
-  if (a == null) return null
-  if (typeof a === 'string' || typeof a === 'number') return String(a)
-  if (typeof a === 'object') {
-    if (a.answer != null && typeof a.answer !== 'object') return String(a.answer)
-    if (a.shares != null) return `${a.shares} shares${a.dollars != null ? `, $${Math.round(a.dollars)} at risk` : ''}`
-  }
-  return null
-}
 
 function dateRange(reveal) {
   const from = reveal?.start || reveal?.from
@@ -128,7 +123,7 @@ export function FeedbackBar({ itemId, attemptId = null, reviewer = false, post =
 
 export default function RevealCard({
   correct, reveal, item, profile, onContinue, fire = true, className = '',
-  attemptId = null, reviewer = false, feedback = true, post = studyFetch,
+  attemptId = null, reviewer = false, feedback = true, post = studyFetch, hideVerdict = false,
 }) {
   const fired = useRef(false)
   useEffect(() => {
@@ -147,16 +142,21 @@ export default function RevealCard({
   const href = lessonHrefFor(reveal)
   const key = answerWord(reveal)
   const forwardCount = Array.isArray(reveal?.forward_bars) ? reveal.forward_bars.length : 0
+  // the setup's trade, reviewed against what followed (the owner's rule 8, on every screen that teaches a setup):
+  // the plan comes with the reveal (api/services/study_trade.py), the signal is the item's last visible bar
+  const vis = reveal?.trade ? normalizeBars(item?.bars) : []
+  const signal = vis.length ? vis[vis.length - 1] : null
 
   return (
     <section className={`${styles.card} ${className}`.trim()} data-testid="reveal-card" data-correct={correct ? '1' : '0'}>
-      <p className={`${styles.verdict} ${correct ? styles.verdictCorrect : styles.verdictWrong}`} role="status" aria-live="polite">
+      {!hideVerdict && <StudyMark mood={correct ? 'happy' : 'oops'} size={44} className={styles.mark} />}
+      {!hideVerdict && <p className={`${styles.verdict} ${correct ? styles.verdictCorrect : styles.verdictWrong}`} role="status" aria-live="polite">
         <span className={styles.verdictIcon} aria-hidden="true">
           <UIcon name={correct ? 'check' : 'x'} size={20} gold={!!correct} />
         </span>
         <span className={styles.verdictWord}>{correct ? CORRECT_WORD : WRONG_WORD}</span>
         {!correct && key && <span className={styles.verdictKey}>The answer: {key}</span>}
-      </p>
+      </p>}
       {(sym || dates || ref) && (
         <p className={styles.meta}>
           {sym && <span className={styles.sym}>{sym}</span>}
@@ -170,13 +170,14 @@ export default function RevealCard({
           {parts.map((p) => (
             <div key={p.key} className={styles.part}>
               <dt className={styles.partLabel}>{p.label}</dt>
-              <dd className={styles.partText}>{p.text}</dd>
+              <dd className={styles.partText}><Emph>{brandWords(p.text)}</Emph></dd>
             </div>
           ))}
         </dl>
       ) : (
-        lesson && <p className={styles.lesson}>{lesson}</p>
+        lesson && <p className={styles.lesson}><Emph>{brandWords(lesson)}</Emph></p>
       )}
+      {reveal?.trade && signal ? <TradeReview plan={reveal.trade} signal={signal} forward={normalizeBars(reveal.forward_bars)} name={setupName(item?.skill_id)} /> : null}
       <details className={styles.why}>
         <summary className={styles.whySummary}>Why</summary>
         <div className={styles.whyBody}>
@@ -189,7 +190,7 @@ export default function RevealCard({
           {next && (
             <p className={styles.whyLine}>
               <span className={styles.whyLabel}>What happened next</span>
-              {next}
+              {brandWords(next)}
             </p>
           )}
           {!next && forwardCount > 0 && (

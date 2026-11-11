@@ -31,6 +31,13 @@ where it came from.
 vela-pinets). Nothing about them belongs in this file, because nothing about them is
 permitted to influence this codebase.
 
+## Runtime dependencies with notable licences
+
+Installed from PyPI via `requirements.txt`, not vendored. Listed because one carries an LGPL component.
+
+- **pi-heif** (BSD-3-Clause), HEIC/HEIF decode for imported photos. Its wheels bundle **libheif** and **libde265** (both LGPL-3.0-or-later) as unmodified shared libraries; this is the decode-only build of pillow-heif, with no x265 encoder (GPL) included. Pillow's own wheels bundle libavif for AVIF decode.
+- **linkify-it-py** (MIT), the Python port of markdown-it's `linkify-it`; finds bare URLs in imported text on the server.
+
 ## Pine Script®
 
 Pine Script® is a trademark of TradingView, Inc. This project is not affiliated with,

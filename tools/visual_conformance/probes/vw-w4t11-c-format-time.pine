@@ -1,0 +1,16 @@
+//@version=6
+indicator("vw-w4t11-c-format-time")
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from the inline shape in
+// docs/pine/capture-queue-2026-11-04-w4-t11.md, W4-T11-c (rows C01, C02-C05, C06). The code below these comments is that doc's text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: str.format_time letters, zones and an na time, each as the LENGTH of the text.
+// CAPTURE: AMEX:SPY 1D, inputs at defaults.
+
+t = time
+plot(str.length(str.format_time(t, "yyyy-MM-dd HH:mm:ss")), "C01_basic_expect_19")
+plot(str.length(str.format_time(t, "hh:mm a")), "C02_twelve_hour")
+plot(str.length(str.format_time(t, "EEE MMM")), "C03_names")
+plot(str.length(str.format_time(t, "HH:mm Z")), "C04_zone_letter")
+plot(str.length(str.format_time(t, "HH:mm", "UTC")), "C05_other_zone")
+plot(str.length(str.format_time(na, "yyyy")), "C06_na_time")

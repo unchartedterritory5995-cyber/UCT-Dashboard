@@ -77,7 +77,7 @@ describe('Show me — the new walkthroughs point at one real control each and ch
     const { say } = p.mount(...ONE())
     const out = await say('show me where the grid lines setting is')
     expect(out).toMatch(/already part of the way there/)
-    await waitFor(() => expect(cardText()).toMatch(/Open Canvas — the background, grid, crosshair/))
+    await waitFor(() => expect(cardText()).toMatch(/Open Canvas\./))
   }, 30000)
 
   it('the layouts walkthrough reaches the library\'s own menu (and says where save / rename / duplicate are)', () => {
@@ -89,7 +89,7 @@ describe('Show me — the new walkthroughs point at one real control each and ch
   it('more specific features win over the general ones whose words they share', () => {
     expect(matchFeature('how do I link my charts')?.id).toBe('link')
     expect(matchFeature('how do i hide my drawings')?.id).toBe('hideDrawings')
-    expect(matchFeature('where is the crosshair setting')?.id).toBe('canvas')
+    expect(matchFeature('where is the crosshair setting')?.id).toBe('chartSetting')
     expect(matchFeature('how do i draw a trendline')?.id).toBe('drawing')
     expect(matchFeature('where are the chart settings')?.id).toBe('settings')
     expect(matchFeature('how do i change the symbol')?.id).toBe('symbol')

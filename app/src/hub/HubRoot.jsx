@@ -78,7 +78,7 @@ function HubShell({ setToastMsg }) {
   // artifact the spec names — focus in a text field — and covers the cases a resize never reports
   // (no visualViewport, a hardware keyboard, a contenteditable that raises nothing). Both, OR-ed.
   const textInputFocused = useTextInputFocus()
-  const { scrimExcludeBottom, hidden: viewportHidden } = useHubViewport()
+  const { scrimExcludeBottom, hidden: viewportHidden, touchTucked } = useHubViewport()
   const { settings, updateHubSettings } = useHubSettings()
   const {
     mode, activeModeConfig, symbol, timeframe, activeScan, selectedPosition,
@@ -460,6 +460,11 @@ function HubShell({ setToastMsg }) {
   }, [setToastMsg])
 
   const hidden = keyboardVisible || textInputFocused || viewportHidden
+  // ⭐ Decision B3 — while a finger is on the chart shell's chart the pad, the knob and the
+  // pill fade out of the way of the newest bars and come back a short idle after it lifts.
+  // Never while the hub itself is in use: an open fan, or a press or drag on the pad, is the
+  // member looking AT the hub.
+  const touchTuck = touchTucked && !state.open && !state.pressing && !state.dragging
   const selectedId = state.target?.action?.id ?? null
 
   // An action whose `requires` the current context cannot satisfy renders DISABLED, never hidden
@@ -508,7 +513,14 @@ function HubShell({ setToastMsg }) {
       ref={rootRef}
       data-testid="hub-root"
       hidden={hidden}
+      data-touch-tucked={touchTuck ? '' : undefined}
       style={{
+        // B3's tuck. `visibility` (inherited by every fixed child, and never hit-tested)
+        // switches only AFTER the fade on the way out and at once on the way back, so the
+        // pad is never an invisible target and never a late one.
+        opacity: touchTuck ? 0 : 1,
+        visibility: touchTuck ? 'hidden' : 'visible',
+        transition: touchTuck ? 'opacity 160ms ease, visibility 0s linear 160ms' : 'opacity 160ms ease',
         position: 'fixed',
         // ⛔ THE CONTAINER MIRRORS TOO — it was the one piece that did not.
         //
@@ -608,7 +620,6 @@ function HubShell({ setToastMsg }) {
         // ring during a sticky-open fan nobody is touching.
         ringName={state.dragging && state.ring != null ? RING_NAMES[state.ring] : null}
         mirrored={mirrored}
-        modeColor={activeModeConfig?.color}
         // G3-15 — the chip clears the Actions button by the button's own measured width.
         actionsWidthPx={actionsWidthPx}
       />
@@ -747,11 +758,24 @@ export default function HubRoot() {
     return () => el.removeAttribute('data-hub-contrast')
   }, [eligible, highContrast])
 
+  // VIS-4 (audit 2026-11-05, visual issue 9): the hub cursor's outline is painted only while the hub is
+  // ENGAGED -- eligible and on screen. `useHubCursor` marks a row `data-hub-cursor="active"` on every page
+  // whether or not a hub exists to drive it, so on a desktop (no hub) the gold outline sat on a row that was
+  // not open: a second, wrong "selected" state. tokens.css scopes its one cursor rule to this attribute. The
+  // cleanup is load-bearing, the same as data-hub-contrast's: it must not outlive the hub.
+  const visible = resolveVisible(settings.enabled, sessionOverride)
+  useEffect(() => {
+    const el = typeof document !== 'undefined' ? document.documentElement : null
+    if (!el) return undefined
+    if (eligible && visible) el.setAttribute('data-hub-engaged', '')
+    else el.removeAttribute('data-hub-engaged')
+    return () => el.removeAttribute('data-hub-engaged')
+  }, [eligible, visible])
+
   // Not eligible = kill switch off, or a browser/viewport that cannot draw the hub. Nothing
   // renders, not even the restore tab: there would be nothing to restore.
   if (!eligible) return null
 
-  const visible = resolveVisible(settings.enabled, sessionOverride)
   const mirrored = settings.handedness === 'left'
   // `persistent` only changes the toast copy: the tab itself appears for a session hide and a
   // stored hide alike, because a member who cannot find their way back does not care which

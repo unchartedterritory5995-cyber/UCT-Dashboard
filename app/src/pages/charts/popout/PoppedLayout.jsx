@@ -16,7 +16,7 @@ import PopoutShell from './PopoutShell'
  * breakpoints, viewport lock), and a second copy of that config would be free to
  * drift out of sync with the main board.
  */
-export default function PoppedLayout({ theme, title, initialWidgets, onClose, onBlocked, renderGrid, computeRowHeight, initialRowHeight, merged = false }) {
+export default function PoppedLayout({ theme, title, windowName = '', initialWidgets, onClose, onBlocked, onWidgetsChange, renderGrid, computeRowHeight, initialRowHeight, merged = false }) {
   const [widgets, setWidgets] = useState(initialWidgets)
 
   // This board is viewport-locked to ITS window, not the one it came from, so it
@@ -68,8 +68,15 @@ export default function PoppedLayout({ theme, title, initialWidgets, onClose, on
 
   // onClose needs the widgets as they stand when the window actually closes, not
   // as they were when the handler was created.
+  // The same commit tells the caller, whose desk record has to follow every edit
+  // made on this monitor. Through a ref so a new inline callback re-runs nothing.
   const widgetsRef = useRef(widgets)
-  useEffect(() => { widgetsRef.current = widgets }, [widgets])
+  const onWidgetsChangeRef = useRef(onWidgetsChange)
+  onWidgetsChangeRef.current = onWidgetsChange
+  useEffect(() => {
+    widgetsRef.current = widgets
+    onWidgetsChangeRef.current?.(widgets)
+  }, [widgets])
 
   const handlers = useMemo(() => ({
     onLayoutChange: (rglLayout) => setWidgets(prev => {
@@ -113,6 +120,7 @@ export default function PoppedLayout({ theme, title, initialWidgets, onClose, on
   return (
     <PopoutWindow
       title={title}
+      windowName={windowName}
       width={winW}
       height={winH}
       onClose={handleClose}

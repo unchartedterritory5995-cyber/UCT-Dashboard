@@ -1,0 +1,25 @@
+<!doctype html>
+<!--
+  SCAN DECK — SYNTHETIC HARNESS. The REAL BreadthDrillModal (Scan Deck header,
+  rail, real Watchlists table, real ChartWidget) fed ENTIRELY by synthetic data:
+  every /api request is answered in the page with fictional tickers and generated
+  bars. Nothing reaches a backend, so no real market value can appear on screen.
+
+  ⛔ It cannot write a preference or a layout. Dev-server only — `vite build`
+  takes index.html as its single input; railed by
+  src/testing/createIndicator/createIndicatorHarnessAbsent.test.js.
+
+  Run:  npx vite --host 127.0.0.1 --port <free>   (from app/; NO backend needed)
+  Then: http://127.0.0.1:<port>/scan-deck-harness.html
+-->
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Scan Deck harness</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/testing/scanDeck/scanDeckHarness.jsx"></script>
+  </body>
+</html>

@@ -1,0 +1,512 @@
+{
+  "contract": "uct.converse-eval.cases/1",
+  "_": "The fixed cases of docs/indicators/E2E-EVAL-DESIGN-2026-11-02.md: the owner's three examples (all seven steps, create + edit) and five negative controls. `expect.outputs` are REFERENCE trees: a produced output passes hash-equal to one, else value-equal on every synthetic bar, else fails. Synthetic chart symbol only; no member text.",
+  "chart": {
+    "sym": "TEST",
+    "tf": "D"
+  },
+  "corpus": {
+    "path": "tests/fixtures/authoring/plain_english_chart_door.json",
+    "note": "Lives on feat/indicators-plain-english (#670), absent on this base; pass --corpus <path>. Graded on steps 1-3 (refused pins: refused with no model call; terms/not_terms: the functions the change uses)."
+  },
+  "cases": [
+    {
+      "id": "ex1-ema-cross",
+      "group": "example",
+      "turns": [
+        {
+          "words": "Highlight when the 9 EMA crosses above the 20 EMA.",
+          "expect": {
+            "kind": "change",
+            "outputs": [
+              {
+                "type": "condition",
+                "tree": {
+                  "type": "call",
+                  "name": "crossOver",
+                  "args": [
+                    {
+                      "type": "call",
+                      "name": "ema",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 9
+                        }
+                      ]
+                    },
+                    {
+                      "type": "call",
+                      "name": "ema",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 20
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ],
+            "presentation": {
+              "marker": true
+            },
+            "readback_mentions": [
+              "9",
+              "20"
+            ]
+          }
+        },
+        {
+          "words": "make it the 10 and 30",
+          "expect": {
+            "kind": "change",
+            "outputs": [
+              {
+                "type": "condition",
+                "tree": {
+                  "type": "call",
+                  "name": "crossOver",
+                  "args": [
+                    {
+                      "type": "call",
+                      "name": "ema",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 10
+                        }
+                      ]
+                    },
+                    {
+                      "type": "call",
+                      "name": "ema",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 30
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ],
+            "presentation": {
+              "marker": true
+            },
+            "presentation_unchanged": true,
+            "allowed_changes": [
+              "slot-set",
+              "tree-replaced"
+            ],
+            "readback_mentions": [
+              "10",
+              "30"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ex2-rsi-average",
+      "group": "example",
+      "turns": [
+        {
+          "words": "RSI 28 with a 5-period moving average of the RSI.",
+          "expect": {
+            "kind": "change",
+            "outputs": [
+              {
+                "type": "series",
+                "key": "rsi",
+                "tree": {
+                  "type": "call",
+                  "name": "rsi",
+                  "args": [
+                    {
+                      "type": "series",
+                      "name": "close"
+                    },
+                    {
+                      "type": "num",
+                      "value": 28
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "series",
+                "key": "avg",
+                "tree": {
+                  "type": "call",
+                  "name": "sma",
+                  "args": [
+                    {
+                      "type": "call",
+                      "name": "rsi",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 28
+                        }
+                      ]
+                    },
+                    {
+                      "type": "num",
+                      "value": 5
+                    }
+                  ]
+                }
+              }
+            ],
+            "readback_mentions": [
+              "28",
+              "5"
+            ]
+          }
+        },
+        {
+          "words": "make the average 9",
+          "expect": {
+            "kind": "change",
+            "outputs": [
+              {
+                "type": "series",
+                "key": "rsi",
+                "tree": {
+                  "type": "call",
+                  "name": "rsi",
+                  "args": [
+                    {
+                      "type": "series",
+                      "name": "close"
+                    },
+                    {
+                      "type": "num",
+                      "value": 28
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "series",
+                "key": "avg",
+                "tree": {
+                  "type": "call",
+                  "name": "sma",
+                  "args": [
+                    {
+                      "type": "call",
+                      "name": "rsi",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 28
+                        }
+                      ]
+                    },
+                    {
+                      "type": "num",
+                      "value": 9
+                    }
+                  ]
+                }
+              }
+            ],
+            "unchanged_outputs": [
+              "rsi"
+            ],
+            "allowed_changes": [
+              "slot-set",
+              "tree-replaced"
+            ],
+            "readback_mentions": [
+              "9"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ex3-background",
+      "group": "example",
+      "turns": [
+        {
+          "words": "Background green when the 9 EMA is above the 20 EMA.",
+          "expect": {
+            "kind": "change",
+            "outputs": [
+              {
+                "type": "condition",
+                "tree": {
+                  "type": "op",
+                  "name": ">",
+                  "args": [
+                    {
+                      "type": "call",
+                      "name": "ema",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 9
+                        }
+                      ]
+                    },
+                    {
+                      "type": "call",
+                      "name": "ema",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 20
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ],
+            "presentation": {
+              "paints": {
+                "bgcolor": "green"
+              }
+            },
+            "readback_mentions": [
+              "9",
+              "20"
+            ]
+          }
+        },
+        {
+          "words": "make it blue",
+          "expect": {
+            "kind": "change",
+            "outputs": [
+              {
+                "type": "condition",
+                "tree": {
+                  "type": "op",
+                  "name": ">",
+                  "args": [
+                    {
+                      "type": "call",
+                      "name": "ema",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 9
+                        }
+                      ]
+                    },
+                    {
+                      "type": "call",
+                      "name": "ema",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 20
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ],
+            "presentation": {
+              "paints": {
+                "bgcolor": "blue"
+              }
+            },
+            "allowed_changes": [
+              "paint-set"
+            ],
+            "unchanged_outputs": [
+              "above"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ctl-mcginley",
+      "group": "control",
+      "turns": [
+        {
+          "words": "Add the McGinley Dynamic",
+          "model_expected": false,
+          "expect": {
+            "kind": "refused",
+            "max_model_calls": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "ctl-other-symbol",
+      "group": "control",
+      "turns": [
+        {
+          "words": "Highlight when the close is above the SPY close",
+          "expect": {
+            "kind": "safe-change-allowed",
+            "named_symbols": [
+              "SPY"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ctl-screener-text",
+      "group": "control",
+      "turns": [
+        {
+          "words": "Highlight it when the sector is Technology",
+          "expect": {
+            "kind": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ctl-ambiguous",
+      "group": "control",
+      "turns": [
+        {
+          "words": "Show RSI 14 above 70.",
+          "role": "setup",
+          "expect": {
+            "kind": "change",
+            "outputs": [
+              {
+                "type": "condition",
+                "tree": {
+                  "type": "op",
+                  "name": ">",
+                  "args": [
+                    {
+                      "type": "call",
+                      "name": "rsi",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 14
+                        }
+                      ]
+                    },
+                    {
+                      "type": "num",
+                      "value": 70
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "words": "add volume confirmation",
+          "expect": {
+            "kind": "clarify",
+            "name_fixed": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "ctl-rename-nothing",
+      "group": "control",
+      "turns": [
+        {
+          "words": "Show RSI 14 above 70.",
+          "role": "setup",
+          "expect": {
+            "kind": "change",
+            "outputs": [
+              {
+                "type": "condition",
+                "tree": {
+                  "type": "op",
+                  "name": ">",
+                  "args": [
+                    {
+                      "type": "call",
+                      "name": "rsi",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 14
+                        }
+                      ]
+                    },
+                    {
+                      "type": "num",
+                      "value": 70
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "words": "rename it",
+          "expect": {
+            "kind": "none",
+            "name_fixed": true
+          }
+        }
+      ]
+    }
+  ]
+}

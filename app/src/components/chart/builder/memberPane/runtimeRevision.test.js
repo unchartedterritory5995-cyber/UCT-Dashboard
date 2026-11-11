@@ -88,7 +88,8 @@ describe('⭐⭐ a revision, and the instances that already use the document', (
     const v = install(mint(runaway))
     const err = Object.values(registry.columnErrors(registry.computeFor(v, bars, undefined, CTX)))[0]
     expect(err.guard).toBe('runtime:limit')
-    expect(err.message).toMatch(/INSTRUCTIONS_PER_BAR|LOOP_ITERATIONS/)
+    expect(err.message).toMatch(/the number of (steps a script may take on one bar|loop passes a script may make)/)
+    expect(err.message).not.toMatch(/INSTRUCTIONS_PER_BAR|LOOP_ITERATIONS/)
   })
 
   it('the version saved before the revision still runs exactly as it did', () => {

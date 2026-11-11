@@ -623,6 +623,12 @@ def build_alert_grid(fixture: str, bars: list[dict], tf: str,
     ledger and the evaluator's own comment both claim 25 addresses and there are
     28, so a hand-written list would have been wrong before it was committed.
 
+    2026-11-06 (RS 2b-05): STILL 28. The eleven `rs_line.*` addresses are a FIFTH
+    partition (`ev.RS_FUNCS`), excluded from `INDICATOR_FUNCS` by that dict's own
+    comprehension for the reason `sar`, `close` and `ma_cross` were: a 29th key
+    here moves every recorded digest. They do not join the diff either — see the
+    catalog note in `lane_diff`.
+
     Params are left at their defaults on purpose. `tests/fixtures/indicator_alert_baseline.json`
     already replays 5,040 combinations ACROSS PARAMS on a fixed series; this log's
     job is the orthogonal one — the same params walked bar by bar down real tape.
@@ -1440,6 +1446,13 @@ def lane_diff(names: Optional[list[str]] = None, k: int = DIFF_K,
             if n:
                 rows.append({"address": addr, "direction": direction, "count": n})
 
+    # 2026-11-06 (RS 2b-05) — THREE PARTITIONS STILL, BY DECISION (the `ma_cross`
+    # precedent): a CLOSED-ONLY address (`ev.CLOSED_ONLY_ADDRESSES` — `ma_cross`
+    # and the eleven `rs_line.*`) is judged on the closed lane under either
+    # mode, so a forming-vs-closed diff of it compares the closed lane with
+    # itself; and an RS column also reads a BENCHMARK the frozen corpus does not
+    # carry. `test_the_diff_covers_EVERY_address_in_the_catalog` pins the set
+    # this leaves out to exactly that declared set.
     catalog = (list(ev.INDICATOR_FUNCS) + list(ev.EVENT_FUNCS)
                + list(ev.PRICE_FUNCS))
     return {

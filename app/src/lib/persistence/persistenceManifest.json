@@ -699,6 +699,17 @@
       ]
     },
     {
+      "key": "uct.deskUsage.sent",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Platform",
+      "kind": "internal",
+      "label": "Daily usage report marker",
+      "files": [
+        "app/src/hooks/useDeskUsage.js"
+      ]
+    },
+    {
       "key": "volume_scan_lists",
       "store": "server-preference",
       "scope": "cross-device",
@@ -1182,7 +1193,18 @@
       "scope": "device-local",
       "surface": "App",
       "kind": "state",
-      "label": "Day the intro animation last played",
+      "label": "Day the intro animation last played (the old daily key: read once into the weekly key, then removed)",
+      "files": [
+        "app/src/components/intro/introStorage.js"
+      ]
+    },
+    {
+      "key": "uct_intro_last_full_et_day",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "App",
+      "kind": "state",
+      "label": "Day the intro animation last played in full (it plays once a week)",
       "files": [
         "app/src/components/intro/introStorage.js"
       ]
@@ -1885,6 +1907,18 @@
       ]
     },
     {
+      "key": "uct.desk.v1:*:*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "work",
+      "label": "Popped-out chart boards, kept so a reload or crash does not lose them",
+      "pattern": true,
+      "files": [
+        "app/src/pages/charts/popout/deskStore.js"
+      ]
+    },
+    {
       "key": "uct.draw.recentTools",
       "store": "localStorage",
       "scope": "device-local",
@@ -2469,6 +2503,18 @@
       ]
     },
     {
+      "key": "uct.screener.lastScreen:*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "state",
+      "label": "The screen the Screener reopens on, per member",
+      "pattern": true,
+      "files": [
+        "app/src/pages/screener/focus/landing.js"
+      ]
+    },
+    {
       "key": "uct.screener.layout",
       "store": "localStorage",
       "scope": "device-local",
@@ -2922,6 +2968,29 @@
       "label": "Terminal layout to return to after opening a shared board",
       "files": [
         "app/src/pages/terminal/TerminalShell.jsx"
+      ]
+    },
+    {
+      "key": "notebook_tips",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Notebook",
+      "kind": "state",
+      "label": "One-time Notebook tips already seen",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/NotebookTipSlot.jsx"
+      ]
+    },
+    {
+      "key": "uct.debug.layoutShift",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "App",
+      "kind": "internal",
+      "label": "Debug only: log layout shifts to the console (off unless set by hand)",
+      "files": [
+        "app/src/lib/clsDebug.js"
       ]
     }
   ]

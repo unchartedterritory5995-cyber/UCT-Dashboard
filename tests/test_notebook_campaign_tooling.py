@@ -1957,12 +1957,12 @@ def test_i6_the_served_env_is_hermetic(tmp_path):
     assert dict(os.environ) == before                                      # never writes this process's env
 
 
-def test_g3_the_served_trees_ledger_arms_example_notes_so_the_campaign_serves_them():
-    """The real ledger (this tree's docs/feature_flags.json, the file flag_sets reads): example notes are armed on web
-    in production, so P48's example pages are checked against production's shape."""
-    led = json.loads((REPO / "docs" / "feature_flags.json").read_text(encoding="utf-8"))["flags"]
-    led = led if isinstance(led, dict) else {f.get("name"): f for f in led}
-    assert "NOTEBOOK_EXAMPLE_NOTES_ENABLED" in rc.armed_on_web(led, ())
+def test_g3_the_served_trees_ledger_retires_example_notes_so_the_campaign_serves_them():
+    """The real ledger (this tree's docs/feature_flags.json): example notes were retired as ALWAYS ON (2026-11-04),
+    so there is no switch to arm and P48's example pages are served in every sandbox, as in production."""
+    doc = json.loads((REPO / "docs" / "feature_flags.json").read_text(encoding="utf-8"))
+    assert "NOTEBOOK_EXAMPLE_NOTES_ENABLED" not in doc["flags"]
+    assert doc["retired"]["NOTEBOOK_EXAMPLE_NOTES_ENABLED"]["state"] == "always on"
 
 
 def test_g3_both_campaign_sandboxes_read_the_derived_flag_sets_and_the_hermetic_env():
@@ -2785,7 +2785,8 @@ def test_i2_the_obscured_suppression_is_the_d005_geometry_only_and_is_recorded()
 
 
 def test_i3_the_moved_lines_are_pinned_to_the_served_tree():
-    want = {"key_in_flight": 4318, "key_reused": 4317, "listing_moved": 3273, "helpful_days": 5220}
+    # re-pinned 2026-11-04: template_gallery.py lost the retired library/example switches' lines above these
+    want = {"key_in_flight": 4221, "key_reused": 4220, "listing_moved": 3185, "helpful_days": 5121}
     for k, line in want.items():
         assert SPEC["sentences"][k]["source"].endswith(f":{line}"), (k, SPEC["sentences"][k]["source"])
 

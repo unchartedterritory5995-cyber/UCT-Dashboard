@@ -66,8 +66,12 @@ export async function captureElementPng(el) {
   }
   const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1
   const { domToBlob } = await shot
-  return domToBlob(el, { type: 'image/png', scale: Math.max(1, dpr) })
+  return domToBlob(el, { type: 'image/png', scale: Math.max(1, dpr), filter: keepInArchive })
 }
+
+/** Tier 4 fix round 1 (review 1): an element marked `data-archive-exclude` (the phone chart's tap-to-full-screen
+ *  layer) is device chrome, never evidence, so the archive raster drops it and everything inside it. */
+export const keepInArchive = (node) => !(node && node.nodeType === 1 && node.hasAttribute?.('data-archive-exclude'))
 
 /** Upload an archive PNG through the existing note-image pipeline (PNG is
  *  already on the server's allowlist; auth-scoped serving; R2-backed-up).

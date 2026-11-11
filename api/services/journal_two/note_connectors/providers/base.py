@@ -28,7 +28,7 @@ from urllib.parse import urljoin, urlsplit
 import httpx
 
 from ...notes import _MAX_FILE_BYTES
-from ..errors import NoteConnTransient, NoteConnUnsupported
+from ..errors import NoteConnTooLarge, NoteConnTransient, NoteConnUnsafeAddress, NoteConnUnsupported
 
 
 @dataclass
@@ -100,6 +100,44 @@ class NoteProvider(ABC):
     # `list[RemoteRef]` return contract, and widening it to a tuple for one
     # provider would be a breaking change to three others for no reason.
     opaque_cursor: str | None = None
+
+    #: Plan E Task 9 fix round 1 (C1): True only when `fetch(creds, ref)` builds the WHOLE note
+    #: (title, folder, tags, body) from the ref alone, with no state a listing call filled. Only
+    #: then may the engine fetch a note this pass did not list, to retry its pending media
+    #: (`engine._pending_media_refs`). OneNote's `fetch` reads `_page_meta`, OneDrive's and
+    #: Dropbox's read their listing's item metadata: a fetch outside the listing would rebuild the
+    #: note as its raw id at the folder root. Default False; Evernote declares True.
+    fetch_is_listing_independent: bool = False
+
+    #: Live gate 2026-11-03: True when this provider's per-note `fetch` raises
+    #: `NoteConnRateLimited` for a note the provider's own rate limit left unread (Evernote's
+    #: per-minute tool limit). Only then does a pass that ends with such notes left over stamp the
+    #: source for a quick follow-up pass (`engine._schedule_follow_up`) and tell the member it is
+    #: still importing instead of that notes couldn't be read. Default False: every other provider's
+    #: pass reads exactly as it did.
+    follow_up_on_rate_limit: bool = False
+
+    #: L1 fix round 1 (2026-11-03): True when the provider's complete listing is AUTHORITATIVE:
+    #: a path missing from it is gone at the source, never a listing that came back short (an API
+    #: page cap, a search index lag, a permission blip). Only then does delete detection skip its
+    #: <50% guard on a small source (`engine.DELETE_GUARD_MIN_KNOWN`). Obsidian's manifest is the
+    #: plugin's own walk of the vault, refused by staging when empty or padded: True there. Every
+    #: API-listed provider keeps the full guard at any size. Default False.
+    enumeration_is_authoritative: bool = False
+
+    def listing_revision(self, ref: RemoteRef) -> str | None:
+        """Fix round 1 (D1): the note revision the LISTING reported for `ref`, when the
+        provider has a real one (the same field its `fetch` stores as the note's revision), else
+        None. The engine skips fetching a listed note only when this equals the stored
+        `import_remote_rev`. Default None: nothing is ever skipped."""
+        return None
+
+    #: Plan E Task 9 fix round 1 (concern 5): True when this provider types media from a declared
+    #: MIME that may be generic (Evernote's `application/octet-stream`), so content must win: a
+    #: file-kind item whose downloaded bytes carry a raster signature (PNG, JPEG, GIF, WebP; never
+    #: SVG) is stored as an inline image and its placeholder becomes an image. Default False: every
+    #: other provider keeps its file intent exactly as before.
+    promote_raster_files: bool = False
 
     def import_key(self, source_remote_id: str, remote_id: str) -> str:
         """Formats the durable `import_key` a synced note upserts under
@@ -223,9 +261,15 @@ def _is_disallowed_ip(addr: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bo
     each is named explicitly so a refusal reads as "this is a loopback
     address" rather than an opaque "this is private," and so the check
     doesn't silently stop covering a category if a future Python release
-    ever narrows what `is_private` means."""
+    ever narrows what `is_private` means.
+
+    Task 9 fix round 1 (I1): and anything that is not GLOBAL -- carrier-grade
+    NAT (100.64.0.0/10), benchmarking, documentation and the other ranges the
+    stdlib does not call global. A media fetch only ever needs the public
+    internet."""
     return (
-        addr.is_private
+        not addr.is_global
+        or addr.is_private
         or addr.is_loopback
         or addr.is_link_local
         or addr.is_multicast
@@ -234,10 +278,20 @@ def _is_disallowed_ip(addr: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bo
     )
 
 
-async def assert_public_https(url: str, *, what: str = "media reference") -> str:
+#: Plan A Task 9 (I-5): the schemes `allow_http=True` admits. Nothing else, ever: a
+#: `javascript:`/`data:`/`file:`/`ftp:` URL is refused with or without the flag.
+_HTTP_SCHEMES = frozenset({"http", "https"})
+
+
+async def assert_public_https(url: str, *, what: str = "media reference", allow_http: bool = False) -> str:
     """SSRF guard for a `ref` taken from content an attacker fully controls.
     Enforces: (1) `https://` scheme -- never bare `http://` or any other
-    scheme; (2) every IP address the host resolves to is a PUBLIC address --
+    scheme, unless `allow_http` (Plan A Task 9: a hotlinked image in note
+    content is DOWNLOADED and rehosted, so `http://` is acceptable for that
+    download -- what the member is served is always our own URL; `http` and
+    `https` then both pass, and no other scheme ever does); (2) every IP
+    address the host resolves to is a PUBLIC address -- unchanged by
+    `allow_http`, and run on every redirect hop by the two helpers below --
     a hostname that merely LOOKS public but resolves (via attacker-influenced
     DNS, or simply because someone registered it) to a loopback/private/
     link-local/metadata address is refused exactly like a literal
@@ -259,16 +313,32 @@ async def assert_public_https(url: str, *, what: str = "media reference") -> str
     can answer differently between the two lookups. See the module-level
     comment above this section for why that gap is accepted here (no
     credential ever rides on this fetch) rather than closed with a
-    connect-by-pinned-IP transport."""
+    connect-by-pinned-IP transport. Task 9 fix round 1 (I1): the two helpers
+    below close that gap on a plain-http hop -- they connect to the exact
+    address this check passed (`_checked_addresses`), with the original Host
+    header; an https hop keeps the hostname, where the certificate binds the
+    connection to the name."""
+    await _checked_addresses(url, what=what, allow_http=allow_http)
+    return url
+
+
+async def _checked_addresses(
+    url: str, *, what: str, allow_http: bool,
+) -> list[ipaddress.IPv4Address | ipaddress.IPv6Address]:
+    """`assert_public_https`'s whole check, returning the addresses that passed it
+    (never empty) so a caller can connect to exactly one of them."""
     parsed = urlsplit(url)
-    if (parsed.scheme or "").lower() != "https":
-        raise NoteConnUnsupported(
+    # Every refusal below is the TYPE `NoteConnUnsafeAddress` (a `NoteConnUnsupported`, so no
+    # caller's handling changes): the engine maps the type to an `unsafe` notice (Plan A Task 8).
+    scheme = (parsed.scheme or "").lower()
+    if not (scheme == "https" or (allow_http and scheme in _HTTP_SCHEMES)):
+        raise NoteConnUnsafeAddress(
             f"Cannot fetch {what} over a non-https URL ({parsed.scheme or 'no scheme'!r})",
             reason="Media reference is not a secure (https) URL",
         )
     host = parsed.hostname
     if not host:
-        raise NoteConnUnsupported(
+        raise NoteConnUnsafeAddress(
             f"Cannot fetch {what}: URL has no host",
             reason="Media reference has no host",
         )
@@ -281,14 +351,36 @@ async def assert_public_https(url: str, *, what: str = "media reference") -> str
             raise NoteConnTransient(
                 f"Could not resolve host for {what} ({host!r}): {exc}",
             ) from exc
-        addrs = [ipaddress.ip_address(a) for a in resolved]
+        try:
+            addrs = [ipaddress.ip_address(a) for a in resolved]
+        except ValueError as exc:      # e.g. a scoped `fe80::1%eth0`: never public
+            raise NoteConnUnsafeAddress(
+                f"Cannot fetch {what}: host resolves to an unreadable address ({exc})",
+                reason="Media reference points at a private/internal network address",
+            ) from exc
+    if not addrs:
+        raise NoteConnTransient(f"Could not resolve host for {what} ({host!r}): no addresses")
     for addr in addrs:
         if _is_disallowed_ip(addr):
-            raise NoteConnUnsupported(
+            raise NoteConnUnsafeAddress(
                 f"Cannot fetch {what}: host resolves to a non-public address ({addr})",
                 reason="Media reference points at a private/internal network address",
             )
-    return url
+    return addrs
+
+
+def _pinned_request(url: str, addr: ipaddress.IPv4Address | ipaddress.IPv6Address) -> tuple[str, dict[str, str]]:
+    """Task 9 fix round 1 (I1): the request for a plain-http hop, sent to the exact address
+    `_checked_addresses` passed -- the URL's host replaced by that IP (IPv6 bracketed) and
+    the original authority sent as `Host` -- so a rebinding resolver gets no second answer.
+    An https hop is never pinned: there the certificate binds the connection to the name."""
+    parsed = urlsplit(url)
+    ip = f"[{addr}]" if addr.version == 6 else str(addr)
+    netloc = ip if parsed.port is None else f"{ip}:{parsed.port}"
+    host_header = parsed.hostname if parsed.port is None else f"{parsed.hostname}:{parsed.port}"
+    if ":" in (parsed.hostname or "") and not host_header.startswith("["):
+        host_header = f"[{parsed.hostname}]" + ("" if parsed.port is None else f":{parsed.port}")
+    return parsed._replace(netloc=netloc).geturl(), {"Host": host_header}
 
 
 _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
@@ -331,8 +423,8 @@ async def _read_side_body(response: httpx.Response) -> bytes:
     return bytes(out)
 
 
-def _over_cap(what: str, max_bytes: int, how: str) -> NoteConnUnsupported:
-    return NoteConnUnsupported(
+def _over_cap(what: str, max_bytes: int, how: str) -> NoteConnTooLarge:
+    return NoteConnTooLarge(
         f"Cannot fetch {what}: exceeds the {max_bytes}-byte cap ({how})",
         reason=f"{what} is larger than the allowed size limit",
     )
@@ -394,6 +486,29 @@ async def _read_content_capped(response: httpx.Response, *, max_bytes: int, what
     return b"".join(pieces)
 
 
+# Sent on EVERY media hop (live gate 2026-11-02): with no User-Agent, httpx announces
+# itself as `python-httpx/<v>` and hosts with a bot policy refuse it -- Wikimedia answered
+# 403 to a hotlinked image a browser loads fine, so the import left a marker instead of the
+# image. Per hop, never on the client: provider clients also make JSON API calls, and an
+# image-only `Accept` there would be wrong. `identity` keeps the byte cap honest.
+MEDIA_USER_AGENT = "UCTIntelligenceNotebook/1.0 (+https://uctintelligence.com)"
+MEDIA_REQUEST_HEADERS = {
+    "User-Agent": MEDIA_USER_AGENT,
+    "Accept": "image/*,*/*;q=0.8",
+    "Accept-Encoding": "identity",
+}
+
+
+def media_http_client(**kwargs: Any) -> httpx.AsyncClient:
+    """THE constructor for every client a media hop can ride: each provider's own client
+    (its `fetch_media` sends content URLs through it) and the hotlink fetch door's.
+    `trust_env=False` (final review, promoted minor): an `HTTP(S)_PROXY`/`ALL_PROXY` variable can
+    never route a hop through a proxy. Through a proxy the PROXY resolves the name again, so
+    the address `_checked_addresses` passed -- and the http hop pinned to it -- would mean
+    nothing. (It also stops `.netrc` credentials riding on a hop.)"""
+    return httpx.AsyncClient(trust_env=False, **kwargs)
+
+
 #: The byte budget `guarded_media_get` reads a media body to when its caller
 #: names none: `notes._MAX_FILE_BYTES` (25 MiB), IMPORTED, never retyped. It is
 #: the largest body the importer would keep -- every `fetch_media` result lands
@@ -412,7 +527,7 @@ _TRANSFER_HEADERS = frozenset({"content-encoding", "content-length", "transfer-e
 
 async def guarded_media_get(
     client: httpx.AsyncClient, url: str, *, what: str = "media reference", max_redirects: int = 5,
-    max_bytes: int | None = None,
+    max_bytes: int | None = None, allow_http: bool = False, allowed_host: str | None = None,
 ) -> httpx.Response:
     """Guarded stand-in for `client.get(url, follow_redirects=True)` on a
     content-controlled `ref`. `follow_redirects=True` alone re-validates
@@ -450,7 +565,8 @@ async def guarded_media_get(
     above this section."""
     budget = MEDIA_MAX_BYTES if max_bytes is None else max_bytes
     content, streamed = await guarded_media_stream(
-        client, url, what=what, max_redirects=max_redirects, max_bytes=budget,
+        client, url, what=what, max_redirects=max_redirects, max_bytes=budget, allow_http=allow_http,
+        allowed_host=allowed_host,
     )
     headers = [(k, v) for k, v in streamed.headers.multi_items() if k.lower() not in _TRANSFER_HEADERS]
     return httpx.Response(streamed.status_code, headers=headers, content=content, request=streamed.request)
@@ -458,19 +574,17 @@ async def guarded_media_get(
 
 async def guarded_media_stream(
     client: httpx.AsyncClient, url: str, *, what: str = "media reference",
-    max_redirects: int = 5, max_bytes: int,
+    max_redirects: int = 5, max_bytes: int, allow_http: bool = False,
+    allowed_host: str | None = None,
 ) -> tuple[bytes, httpx.Response]:
     """STREAMED sibling of `guarded_media_get`, added for the msgraph
-    fix-round-1 review (Important #2): `guarded_media_get` calls
-    `client.get(...)`, which httpx fully buffers into memory BEFORE the
-    caller ever gets a chance to check its size -- fine for a small note
-    body, but OneDrive's PRIMARY content path (both `fetch()`'s note bodies
-    and same-drive `fetch_media`) routes every download through the guarded
-    helper, so an ordinary large synced file would buffer whole and could
-    OOM the single web pod. This function bounds memory to `max_bytes`
-    (REQUIRED, no default -- every caller must be explicit about its cap,
-    mirroring `dropbox.py`'s own `_MAX_FILE_BYTES` usage) the same way
-    `DropboxProvider._download_streamed` already does: reject via
+    fix-round-1 review (Important #2; OneDrive, its first caller, was
+    archived 2026-11-04 -- Notion media and `guarded_media_get` itself use it
+    now): `guarded_media_get` calls `client.get(...)`, which httpx fully
+    buffers into memory BEFORE the caller ever gets a chance to check its
+    size, so an ordinary large file would buffer whole and could OOM the
+    single web pod. This function bounds memory to `max_bytes` (REQUIRED, no
+    default -- every caller must be explicit about its cap): reject via
     `Content-Length` BEFORE reading any body bytes when the server supplies
     one, and unconditionally via a running total while streaming (the
     backstop regardless of whether Content-Length was present/honest).
@@ -499,19 +613,31 @@ async def guarded_media_stream(
     callers do with THEIR returned response. Raises `NoteConnUnsupported`
     on either size trip (never returns a partial or oversized buffer) and
     `NoteConnTransient` on a network-level failure -- same taxonomy members
-    `guarded_media_get` and `DropboxProvider._download_streamed` already
-    use for the equivalent conditions, so no call site's error handling
+    `guarded_media_get` already uses for the equivalent conditions, so no call site's error handling
     needs a new branch.
 
     ⚠️ Inherits `guarded_media_get`'s NOT-rebinding-proof caveat identically
     (see that function's and `assert_public_https`'s own docstrings)."""
     next_url = url
     for _ in range(max_redirects + 1):
-        await assert_public_https(next_url, what=what)
+        # Plan E Task 5: `allowed_host` pins every hop (the first and every redirect) to one exact
+        # host, checked BEFORE the hop's request is sent, on top of the address guard below.
+        if allowed_host is not None and (urlsplit(next_url).hostname or "") != allowed_host.lower():
+            raise NoteConnUnsafeAddress(
+                f"Cannot fetch {what}: a hop left the allowed host {allowed_host}",
+                reason=f"{what} pointed outside {allowed_host}",
+            )
+        # ⛔ EVERY hop, `allow_http` or not (Plan A Task 9): the address check is the guard.
+        addrs = await _checked_addresses(next_url, what=what, allow_http=allow_http)
+        request_url, headers = next_url, dict(MEDIA_REQUEST_HEADERS)
+        if urlsplit(next_url).scheme.lower() == "http":
+            # Fix round 1 (I1): no TLS on this hop, so nothing binds the connection to the
+            # name -- connect to the address that passed, never a second DNS answer.
+            request_url, host = _pinned_request(next_url, addrs[0])
+            headers.update(host)
         try:
             async with client.stream(
-                "GET", next_url, follow_redirects=False,
-                headers={"Accept-Encoding": "identity"},
+                "GET", request_url, follow_redirects=False, headers=headers,
             ) as response:
                 if response.status_code in _REDIRECT_STATUSES:
                     location = response.headers.get("location")
@@ -528,7 +654,7 @@ async def guarded_media_stream(
                 if content_length is not None:
                     try:
                         if int(content_length) > max_bytes:
-                            raise NoteConnUnsupported(
+                            raise NoteConnTooLarge(
                                 f"Cannot fetch {what}: exceeds the {max_bytes}-byte cap "
                                 f"(reported size {content_length} bytes)",
                                 reason=f"{what} is larger than the allowed size limit",
@@ -542,3 +668,19 @@ async def guarded_media_stream(
         f"Too many redirects fetching {what}",
         reason="Media reference redirected too many times",
     )
+
+
+async def fetch_content_url(client: httpx.AsyncClient, url: str, *, what: str) -> tuple[bytes, str]:
+    """Plan A Task 9 (I-5): the ONE way a provider (or the member media-fetch door) copies in a
+    URL taken from note CONTENT -- a hotlinked image on someone else's server. It is downloaded
+    here and rehosted by the caller, never kept as a hotlink. `http://` is allowed for this
+    download only (`allow_http=True`), redirects are followed, and `assert_public_https` runs
+    on every hop, so a public URL that 302s to `169.254.169.254` is refused as
+    `NoteConnUnsafeAddress` before that hop's request leaves this process. No credential ever
+    rides on this request. Any non-2xx final answer (a 404, a redirect with no Location) is
+    `NoteConnTransient` carrying the status. Returns `(bytes, declared content type)`."""
+    response = await guarded_media_get(client, url, what=what, allow_http=True)
+    if not 200 <= response.status_code < 300:
+        raise NoteConnTransient(f"Failed to download {what} ({response.status_code})",
+                                status=response.status_code)
+    return response.content, response.headers.get("content-type", "application/octet-stream")

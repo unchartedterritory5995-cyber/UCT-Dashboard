@@ -1,0 +1,148 @@
+{
+  "doc": {
+    "content": [
+      {
+        "content": [
+          {
+            "text": "Code mark exclusivity (D3 item 2). The editor's ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "type": "code"
+              }
+            ],
+            "text": "code",
+            "type": "text"
+          },
+          {
+            "text": " mark excludes every other mark: a code run inside a link keeps the LINK and drops the code mark, and a code run inside bold or italic keeps only the code mark.",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "See ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "attrs": {
+                  "href": "https://example.com/plan"
+                },
+                "type": "link"
+              }
+            ],
+            "text": "the x plan",
+            "type": "text"
+          },
+          {
+            "text": " and ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "attrs": {
+                  "href": "https://example.com/deck"
+                },
+                "type": "link"
+              }
+            ],
+            "text": "deck",
+            "type": "text"
+          },
+          {
+            "text": ".",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "Bold code ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "type": "code"
+              }
+            ],
+            "text": "risk",
+            "type": "text"
+          },
+          {
+            "text": " and italic code ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "type": "code"
+              }
+            ],
+            "text": "size",
+            "type": "text"
+          },
+          {
+            "text": " and ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "type": "code"
+              }
+            ],
+            "text": "both",
+            "type": "text"
+          },
+          {
+            "text": ".",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "A ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "attrs": {
+                  "href": "https://example.com/y"
+                },
+                "type": "link"
+              },
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "bold y link",
+            "type": "text"
+          },
+          {
+            "text": " keeps link and bold.",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "links": [],
+  "media": []
+}

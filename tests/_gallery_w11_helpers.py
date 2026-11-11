@@ -53,8 +53,6 @@ def db(monkeypatch, tmp_path):
     importlib.reload(auth_db)
     auth_db.init_db()
     waves(monkeypatch, *ALL_WAVES)
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
     monkeypatch.setattr(js, "_SLOT_POOL", nw.BoundedPool(js.SLOT_POOL_WORKERS, "nb-w11-gallery-test"))
     monkeypatch.setattr(js, "_MEMBER_IN_FLIGHT", {})
     monkeypatch.setattr(nw, "_POOL", nw.BoundedPool(nw.WIDGET_POOL_WORKERS, "nb-w11-gallery-pool",

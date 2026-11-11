@@ -81,6 +81,19 @@ LEGACY_WEBHOOKS: dict[str, tuple[str, str]] = {
     "DISCORD_EVENT_CALENDAR_WEBHOOK_URL": ("event_calendar", "api/services/calendar_week_poster.py"),
     "DISCORD_EVENT_CALENDAR_TEST_WEBHOOK_URL": ("event_calendar_test", "api/services/calendar_week_poster.py"),
     "DISCORD_RENDER_ALERT_WEBHOOK": ("render_ops", "api/services/discord_render/observe.py"),
+    # UCT RS nightly leaders post (engineering map unit 2b-07; template docs/alerts/RS-DISCORD-POST.md,
+    # decided 2026-11-07). Member-facing: the room is #uncharted-scanners, through a webhook the owner
+    # creates there (decision P7; the bot token is 403 in that channel). Blank posts nowhere.
+    "DISCORD_RS_WEBHOOK_URL": ("rs_leaders", "api/services/rs_discord_post.py (#uncharted-scanners webhook, "
+                                             "owner-created; dark behind RS_DISCORD_POST_ENABLED)"),
+    # The admin door's TEST room for that post (unit 2b-08, `target=test`): a second webhook the
+    # owner creates in a test room of his choosing; a test post goes there, never to #uncharted-scanners, and
+    # never touches the session marker.
+    "DISCORD_RS_TEST_WEBHOOK_URL": ("rs_leaders_test", "api/routers/rs_discord.py (admin door target=test; "
+                                                       "the owner's test-room webhook)"),
+    # Breadth alerts (the owner's breadth channel; `breadth_alerts.WEBHOOK_ENV`). The reader
+    # predates this registry; the census named it unlisted from 2026-11-05 until this row (2026-11-07).
+    "DISCORD_BREADTH_WEBHOOK_URL": ("breadth", "api/services/breadth_alerts.py"),
 }
 
 _BY_PURPOSE = {purpose: name for name, (purpose, _owner) in LEGACY_WEBHOOKS.items()}

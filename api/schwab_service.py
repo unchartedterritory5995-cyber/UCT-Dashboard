@@ -56,6 +56,13 @@ _CHAIN_SEMAPHORE = asyncio.Semaphore(20)
 # task does the refresh, the rest read the freshly-saved token from disk.
 _TOKEN_REFRESH_LOCK = asyncio.Lock()
 
+# How often _auto_refresh_loop WAKES UP, not how long a token lives. It refreshes only
+# when _is_expiring() says so, so polling often is cheap (a dict read off the volume) and
+# is what makes the loop correct across redeploys — see bug 3 in its docstring. It used to
+# be a bare `sleep(25 * 60)`, which silently required the pod to stay up longer than the
+# interval to ever run once.
+_AUTO_REFRESH_POLL_SEC = int(os.environ.get("SCHWAB_AUTO_REFRESH_POLL_SEC", "60"))
+
 
 # ─── Token Management ────────────────────────────────────────────────────────────
 def _get_basic_auth():
@@ -65,11 +72,26 @@ def _get_basic_auth():
 
 
 def save_tokens(tokens: dict):
-    """Persist tokens to disk (Railway volume or /tmp fallback)."""
+    """Persist tokens to disk (Railway volume or /tmp fallback).
+
+    ⛔ THE REPLICATION HOOK IS DELIBERATELY HERE, not at the two call sites. Both the
+    OAuth exchange and every refresh land in this one function, so hooking it means a
+    login reaches flow-worker in seconds rather than at the next scheduler tick —
+    which is the whole complaint this answers ("every deploy I need to log in again").
+    """
     tokens["saved_at"] = time.time()
     TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
     TOKEN_FILE.write_text(json.dumps(tokens, indent=2))
     print(f"[schwab] Tokens saved to {TOKEN_FILE}")
+
+    # ⛔ AFTER the write, fire-and-forget, never raising: a flow-worker outage must not
+    # be able to fail a login or a refresh. No-ops unless SCHWAB_TOKEN_PUSH_ENABLED=1,
+    # so it is inert on flow-worker (and on web until armed).
+    try:
+        from api.services import schwab_token_push
+        schwab_token_push.reconcile_async()
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def load_tokens() -> dict | None:
@@ -149,16 +171,46 @@ async def refresh_access_token() -> dict | None:
         return new_tokens
 
 
+def _is_expiring(tokens: dict) -> bool:
+    """Is this token within 60s of its ~30 min expiry (or already past it)?"""
+    saved_at = tokens.get("saved_at", 0)
+    expires_in = tokens.get("expires_in", 1800)
+    return (time.time() - saved_at) > (expires_in - 60)  # refresh 1 min early
+
+
 async def get_valid_token() -> str | None:
-    """Get a valid access token, refreshing if needed."""
+    """Get a valid access token, refreshing if needed.
+
+    ⚰️ SINGLE-FLIGHT, AND IT WAS NOT. This function used to call
+    `refresh_access_token()` with no lock, so every parallel caller that found an
+    expired token fired its OWN refresh. Measured on flow-worker 2026-11-09 against a
+    dead grant: **215 of 500 log lines (43%)** were `invalid_grant` failures, dozens
+    inside the SAME SECOND — one per concurrent chain/quote/OI caller. That noise is
+    what buried the onset minute of the flow.db corruption the same day, and against a
+    LIVE grant it is a burst of redundant token calls into Schwab's rate limit.
+
+    ⛔ `_TOKEN_REFRESH_LOCK` already existed for exactly this, but only
+    `_refresh_if_stale` (the 401 path) took it. This is the other door.
+
+    ⛔ DOUBLE-CHECKED: the token is re-read from disk AFTER acquiring the lock, so the
+    N-1 callers queued behind the one that refreshed return the fresh token instead of
+    refreshing again. Without the re-read the lock only serialises the storm.
+    """
     tokens = load_tokens()
     if not tokens:
         return None
 
-    # Check if access token is still valid (~30 min lifetime)
-    saved_at = tokens.get("saved_at", 0)
-    expires_in = tokens.get("expires_in", 1800)
-    if time.time() - saved_at > (expires_in - 60):  # refresh 1 min early
+    if not _is_expiring(tokens):
+        return tokens.get("access_token")
+
+    async with _TOKEN_REFRESH_LOCK:
+        # Re-read: another task may have refreshed while we waited.
+        tokens = load_tokens()
+        if not tokens:
+            return None
+        if not _is_expiring(tokens):
+            return tokens.get("access_token")
+
         logger.info("Access token expired, refreshing...")
         tokens = await refresh_access_token()
         if not tokens:
@@ -649,22 +701,75 @@ async def get_market_summary() -> list[dict]:
 
 # ─── Background Auto-Refresh ────────────────────────────────────────────────────
 async def _auto_refresh_loop():
-    """Refresh access token every 25 minutes so it never expires.
+    """Refresh the access token every 25 minutes so it never expires.
+
     Schwab access tokens last 30 min; refresh tokens last 7 days.
-    As long as the app is running, users never need to re-authenticate.
+
+    ⚰️ THIS DOCSTRING USED TO END "As long as the app is running, users never need to
+    re-authenticate." BOTH HALVES OF THAT WERE FALSE and it was load-bearing
+    misinformation — it is the sentence that made "why do I keep having to log in?" look
+    like a mystery.
+
+      1. **Nothing ever started this loop.** `start_auto_refresh()` had ZERO callers in
+         the tree (measured 2026-11-09). The only thing that ever refreshed was an
+         on-demand `get_valid_token()`, so web's token was measured sitting 53.4 minutes
+         old — expired — simply because nothing had asked after hours. It is now started
+         from web's lifespan behind `SCHWAB_AUTO_REFRESH_ENABLED`.
+      2. **Refreshing does not extend the 7-day refresh token.** Schwab caps the GRANT,
+         not the access token, so a manual OAuth re-auth roughly weekly is unavoidable no
+         matter how reliably this loop runs. Do not re-add a promise that it is not.
+
+    What this loop genuinely buys, now that it runs: web always holds a fresh access
+    token, which matters because `schwab_token_push` replicates that token to flow-worker
+    and flow-worker cannot refresh on its own by design.
+
+    ⛔⛔ IT CHECKS BEFORE IT SLEEPS, AND THAT ORDER IS THE WHOLE FIX (2026-11-10).
+    This loop used to `await asyncio.sleep(25 * 60)` FIRST. Two consequences, both
+    measured on web the night the replication flags were armed:
+
+      3. **A boot inherits whatever token is on the volume**, and the old order left it
+         alone for 25 minutes. Observed: web booted holding a 17-minute-old token, so the
+         token EXPIRED at the 30-minute mark with the loop still on its first sleep.
+      4. **Every redeploy restarts the 25-minute clock.** web booted three times in 35
+         minutes that night (01:12, 01:34, 01:46 UTC — a variable set, then two
+         promotions). The first check was never reached even once, and the token was
+         measured **45 minutes old and expired** while this loop was "running".
+         A service that redeploys more often than its own poll interval never polls.
+
+    ⛔ AND ONE TICK'S EXCEPTION MUST NOT END THE LOOP. There was no try/except, so a
+    single raise from the refresh — one transient network blip — exited `while True` and
+    killed the task for the LIFE OF THE PROCESS. Nothing restarts it: `start_auto_refresh`
+    is called once from the lifespan, and its `_refresh_task.done()` guard is never
+    re-evaluated. Silent, permanent, and indistinguishable from the loop working.
+
+    ⭐ The refresh is routed through `get_valid_token()` rather than calling
+    `refresh_access_token()` directly, so it shares the `_TOKEN_REFRESH_LOCK`
+    single-flight with every on-demand caller. Calling the refresh directly here would
+    reintroduce the refresh-storm this lock exists to prevent, just with the loop as one
+    of the racers.
     """
     while True:
-        await asyncio.sleep(25 * 60)  # 25 minutes
-        tokens = load_tokens()
-        if tokens and "refresh_token" in tokens:
-            logger.info("[schwab] Auto-refreshing access token...")
-            result = await refresh_access_token()
-            if result:
-                logger.info("[schwab] Token auto-refreshed successfully.")
-            else:
-                logger.warning("[schwab] Token auto-refresh FAILED. Users may need to re-auth.")
-        else:
-            logger.info("[schwab] No refresh token found, skipping auto-refresh.")
+        try:
+            tokens = load_tokens()
+            if not tokens or "refresh_token" not in tokens:
+                # flow-worker legitimately lands here: its replica deliberately holds no
+                # refresh token, so there is nothing to refresh and that is not an error.
+                logger.info("[schwab] no refresh token on this pod; auto-refresh idle")
+            elif _is_expiring(tokens):
+                logger.info("[schwab] access token is expiring; auto-refreshing...")
+                if await get_valid_token():
+                    logger.info("[schwab] token auto-refreshed successfully")
+                else:
+                    logger.warning(
+                        "[schwab] token auto-refresh FAILED — a manual OAuth re-auth is "
+                        "likely needed (the 7-day grant cap is not extended by refreshing)")
+        except asyncio.CancelledError:
+            raise  # stop_auto_refresh() must still be able to stop us
+        except Exception:  # noqa: BLE001
+            logger.exception(
+                "[schwab] auto-refresh tick raised — THE LOOP CONTINUES (see bug 4)")
+        # Read the interval from the module each pass so it stays patchable in tests.
+        await asyncio.sleep(_AUTO_REFRESH_POLL_SEC)
 
 
 def start_auto_refresh():

@@ -47,22 +47,6 @@ def test_adopt_counts_once_per_member_and_is_404_when_not_listed(conn, lib_on):
     assert gallery.adopt_style("member2", item["id"], notify=False, conn=conn) is None
 
 
-def test_adopt_needs_the_journal_styles_switch(conn, lib_on, monkeypatch):
-    item = listed_style(conn)
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "0")
-    with pytest.raises(gallery.GalleryConflict) as e:
-        gallery.adopt_style("member", item["id"], notify=False, conn=conn)
-    assert str(e.value) == gallery.ADOPT_NEEDS_STYLES_SENTENCE
-    assert conn.execute("SELECT COUNT(*) FROM j2_journal_styles WHERE user_id = 'member'").fetchone()[0] == 0
-
-
-def test_adopt_is_none_while_the_library_is_off(conn, lib_on, monkeypatch):
-    item = listed_style(conn)
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    assert gallery.adopt_style("member", item["id"], notify=False, conn=conn) is None
-    assert gallery.list_updates("member", conn=conn) == []
-
-
 def test_an_outline_item_cannot_be_adopted_as_a_style(conn, lib_on):
     # The fixture empties the firm outlines, so insert one: the control is that it IS an outline row.
     gid = _row(conn, item_type="outline", status="approved", user_id="author", title="O")
@@ -422,10 +406,6 @@ def test_post_adopt_refusals_give_the_daily_charge_back(api, conn, lib_on, monke
     assert _used() == before
     conn.execute("UPDATE j2_template_gallery SET hidden = 0 WHERE id = ?", (item["id"],))
     conn.commit()
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "0")
-    refused = api.post(f"{URL}/{item['id']}/adopt", json={})
-    assert refused.status_code == 409 and refused.json()["detail"] == gallery.ADOPT_NEEDS_STYLES_SENTENCE
-    assert _used() == before                                                  # an error gave it back too
 
 
 def test_post_adopt_with_a_bad_notify_is_refused_and_not_charged(api, conn, lib_on):
@@ -465,30 +445,6 @@ def test_adopt_has_a_durable_daily_cap_that_outlives_the_process_limiter(api, co
     monkeypatch.delenv("NOTEBOOK_GALLERY_ADOPT_DAILY_CAP")
     from api.routers import notebook_template_gallery as router_mod
     assert router_mod._cap("NOTEBOOK_GALLERY_ADOPT_DAILY_CAP", 50) == 50
-
-
-def test_every_style_route_is_the_one_404_for_everyone_while_the_library_is_off(api, conn, lib_on, monkeypatch):
-    # R-P3-10: gated by a ROUTE DEPENDENCY ahead of the plan check and the body, so a paid member, an
-    # unpaid member and a signed-out caller with a malformed body all get the same 404.
-    from api.middleware import auth_middleware as authmw
-    item = listed_style(conn)
-    mine = gallery.adopt_style("member", item["id"], notify=False, conn=conn)["style"]
-    _bump(conn, item, blocks=[_blk("myRules")])
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    calls = (("GET", f"{URL}/updates"), ("GET", f"{URL}/updates/{mine['id']}"),
-             ("POST", f"{URL}/updates/{mine['id']}"), ("POST", f"{URL}/{item['id']}/adopt"))
-    for method, url in calls:
-        _as(api, "member")
-        paid = api.request(method, url, json={"takeOutline": False, "baseUpdatedAt": mine["updatedAt"]})
-        _as(api, "member", plan="free")
-        unpaid = api.request(method, url, json={})
-        api.app.dependency_overrides.pop(authmw.get_current_user, None)
-        api.app.dependency_overrides.pop(authmw.get_current_user_with_plan, None)
-        signed_out = api.request(method, url, content=b"{bad")
-        assert (paid.status_code, unpaid.status_code, signed_out.status_code) == (404, 404, 404), (method, url)
-        assert paid.json() == unpaid.json() == signed_out.json(), (method, url)
-    assert _used() == 0                                                       # never charged
-    assert js.get_style("member", mine["id"], conn)["sourceVersion"] == 1     # and the update did not run
 
 
 def test_the_style_routes_need_a_paid_plan_while_the_library_is_on(api, conn, lib_on):

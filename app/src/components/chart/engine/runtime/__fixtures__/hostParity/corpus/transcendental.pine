@@ -1,0 +1,12 @@
+//@version=5
+indicator("hp transcendental", overlay=false)
+lr = math.log(close / close[1])
+e = math.exp(lr * 10)
+p = math.pow(close, 0.37)
+tr = math.sin(bar_index / 7.0) * math.cos(close / 50.0) + math.atan(lr * 100)
+sq = math.sqrt(volume) / math.log10(volume + 10)
+plot(lr, "logret")
+plot(e, "exp")
+plot(p, "pow")
+plot(tr, "trig")
+plot(sq, "sqrt")

@@ -32,6 +32,11 @@ MISSED_WEIGHT = 2.0
 MAX_WALKTHROUGHS = 3
 #: Teaching types the daily set and practise NEVER draw (study_store.UNSCORED_TYPES).
 UNSCORED_TYPES = study_store.UNSCORED_TYPES
+#: Scored types the PLAYER cannot show yet: "Mark the levels" (Draw-it) and the
+#: trade plan are spec phase 2 (lab pieces 43 / 44); their bank items (levels.kicker,
+#: 2026-11-04) are drafts for the owner, and an approval must not put one in a
+#: member's set before the drill exists. The PR that ships the drill removes its type.
+UNPLAYABLE_TYPES = ("levels", "plan")
 #: (type, minimum, maximum) — the §4.5 mix. "chart" counts any item with bars;
 #: recall is the unbounded filler (None), the others are capped so a set of
 #: ten is never half regime calls and the chart cap keeps "no two charts back
@@ -40,7 +45,9 @@ TYPE_MIX = (("regime", 1, 1), ("chart", 2, 3), ("size", 1, 1), ("recall", 1, Non
 
 
 def _unscored(row: dict) -> bool:
-    return str(row.get("type") or "") in UNSCORED_TYPES
+    """Never drawn: a teaching type, or a scored type the player cannot show yet."""
+    t = str(row.get("type") or "")
+    return t in UNSCORED_TYPES or t in UNPLAYABLE_TYPES
 
 
 def compose_unit(user_id: str, skill_id: str, bank_query: Callable[[], Iterable[dict]], *,

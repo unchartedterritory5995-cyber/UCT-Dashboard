@@ -29,6 +29,7 @@ vi.mock('../components/notebook/ResearchHome', () => ({ default: () => <div data
 vi.mock('../lib/offline/useBlockedNotes', () => ({ useBlockedNotes: () => ({ blocked: new Set() }) }))
 
 import NotebookTab from './NotebookTab'
+import { chooseView, currentView, offersSaveView } from './__tests__/toolbarDoors'
 
 const TASKS = {
   today: '2026-09-25',
@@ -65,24 +66,25 @@ describe('the Tasks view is mounted (review I-2)', () => {
     expect(screen.getByText('To tick a task off, open its note.')).toBeInTheDocument()
     expect(screen.queryByTestId('research-home')).toBeNull()
     expect(global.fetch.mock.calls.some(([u]) => String(u) === '/api/j2/notes/tasks?status=open')).toBe(true)
-    // A one-shot instruction: applied, then the URL is the explicit All-notes state.
-    await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('?view=all'))
-    expect(screen.getByRole('button', { name: 'Tasks view' })).toHaveAttribute('aria-pressed', 'true')
+    // S11 (audit 2026-11-05): the view LIVES in the address now -- it stays `?view=tasks`, so a reload
+    // reopens it. (It was a one-shot instruction rewritten to `?view=all`.)
+    await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('?view=tasks'))
+    expect(currentView()).toBe('Tasks')
   })
 
   it('is offered in the view switcher, beside the others', async () => {
     renderTab('/journal/notebook?view=all')
     expect(screen.queryByText('Trim NVDA into earnings')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Tasks view' }))
+    chooseView('Tasks')
     expect(await screen.findByText('Trim NVDA into earnings')).toBeInTheDocument()
   })
 
   it('offers no Save view — a tasks list is not a saveable view type', async () => {
     renderTab('/journal/notebook?view=all')
-    expect(screen.getByRole('button', { name: /save view/i })).toBeInTheDocument()  // control
-    fireEvent.click(screen.getByRole('button', { name: 'Tasks view' }))
+    expect(offersSaveView()).toBe(true)  // control
+    chooseView('Tasks')
     await screen.findByText('Trim NVDA into earnings')
-    expect(screen.queryByRole('button', { name: /save view/i })).toBeNull()
+    expect(offersSaveView()).toBe(false)
   })
 
   it('a task row opens its note AT that task, through the tab’s own door', async () => {

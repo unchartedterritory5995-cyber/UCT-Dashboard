@@ -131,10 +131,10 @@ describe('S8 — the stop beacon', () => {
 
   it('a limit name is kept only when it is a declared limit, and only on runtime:limit', () => {
     const def = docOf(PLAIN)
-    const lim = (message) => runtimeStopBeaconOf(def, bars(), { guard: 'runtime:limit', message }, 5, 'worker')
-    expect(lim('… (MEMORY: at most 1, it reached 2) …').limit).toBe('MEMORY')
-    expect(lim('… (SECRET_THING: at most 1, it reached 2) …').limit).toBeUndefined()
-    expect(runtimeStopBeaconOf(def, bars(), { guard: 'runtime:failed', message: '(MEMORY: at most 1' }, 5, 'main'))
+    const lim = (limit) => runtimeStopBeaconOf(def, bars(), { guard: 'runtime:limit', message: 'x', limit }, 5, 'worker')
+    expect(lim('MEMORY').limit).toBe('MEMORY')
+    expect(lim('SECRET_THING').limit).toBeUndefined()
+    expect(runtimeStopBeaconOf(def, bars(), { guard: 'runtime:failed', message: 'x', limit: 'MEMORY' }, 5, 'main'))
       .toEqual({ guard: 'runtime:failed', hash: runtimeSourceHash(PLAIN).slice(0, 12), bars: 40, ms: 5, lane: 'main' })
     expect(runtimeStopBeaconOf(def, bars(), { guard: 'runtime:killed' }, 5, 'worker')).toBeNull()
     expect(RUNTIME_STOP_BEACON_GUARDS).not.toContain('runtime:killed')

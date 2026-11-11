@@ -82,13 +82,16 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
     const m = new Map((meta?.categories || []).map(c => [c.key, []]))
     for (const f of meta?.filters || []) {
       if (inCommon.has(f.key)) continue
+      // S1: a picker-hidden control stays valid (saved screens, chips) but is not
+      // offered, unless the member already has it switched on.
+      if (f.picker_hidden && !activeFilters?.[f.key]) continue
       if (m.has(f.category)) m.get(f.category).push(f)
     }
     for (const c of meta?.categories || []) {
       out.push({ key: c.key, label: c.label, icon: CAT_ICON[c.key] || 'tag', all: m.get(c.key) })
     }
     return out.map(g => ({ ...g, list: needle ? g.all.filter(f => f.label.toLowerCase().includes(needle)) : g.all }))
-  }, [meta, needle, commonSig])
+  }, [meta, needle, commonSig, activeFilters])
   // startCollapsed mode reads each group's remembered choice ONCE per set of groups (not
   // every render); after that the member's clicks live in `open`.
   const groupKeys = groups.map(g => g.key).join('|')
@@ -232,7 +235,7 @@ export default function FilterRail({ meta, activeFilters, onChange, onClear, var
   }
 
   return (
-    <div ref={railRootRef} className={variant === 'sheet' ? styles.railSheet : styles.rail} data-testid="filter-rail">
+    <div ref={railRootRef} className={variant === 'sheet' ? styles.railSheet : styles.rail} data-testid="filter-rail" data-guide="screener.filters">
       <div className={styles.railSearchRow}>
         <UIcon name="search" size={12} />
         <Input ref={searchRef} className={styles.railSearch}

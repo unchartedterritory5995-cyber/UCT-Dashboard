@@ -112,8 +112,10 @@ describe('⭐⭐⭐ graph-vs-runtime differential — every declared member (§4
     // (`rt7Fixnan.test.js` holds the second to a hand replay).
     // ⭐ P3 WS-B — and a third, `rsiPine` (`runtimeRsiHma.test.js` holds it to
     // the shipped `computeRSI`).
+    // ⭐ W4 T10 — and three more: `cumPine`, `pivotHighPine`, `pivotLowPine`
+    // (`w4StateKernels.test.js` holds them to the columnar lane).
     expect(MEMBERS.length - MIRRORED.length, 'no member is runtime-only any more —'
-      + ' if that is deliberate, delete MIRRORED rather than leaving it inert').toBe(3)
+      + ' if that is deliberate, delete MIRRORED rather than leaving it inert').toBe(6)
   })
 
   for (const fn of MIRRORED) {

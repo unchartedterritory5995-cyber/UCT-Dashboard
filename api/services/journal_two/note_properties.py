@@ -39,20 +39,10 @@ _VALID_TYPES = ("text", "number", "select", "multi_select", "date", "checkbox", 
 
 # Wave 11 (lane 11B): the two COMPUTED types, `formula` and `rollup`. Kept OUT of
 # `_VALID_TYPES` on purpose -- that tuple is pinned to the client's always-offered
-# NEW_PROPERTY_TYPES, and these two are offered only while NOTEBOOK_FORMULAS_ENABLED
-# is on. ⛔ ONE FACT IN TWO FILES with the client's COMPUTED_PROPERTY_TYPES
-# (PropertiesSection.jsx), pinned by tests/test_notebook_formula_properties.py.
-# With the flag off a computed definition is invisible to EVERY read below
-# (`_computed_hidden`), so existing notes and property types behave as before.
+# NEW_PROPERTY_TYPES. ⛔ ONE FACT IN TWO FILES with the client's COMPUTED_PROPERTY_TYPES
+# (PropertiesSection.jsx), pinned by tests/test_notebook_formula_properties.py. Always
+# offered since NOTEBOOK_FORMULAS_ENABLED was retired as always on (2026-11-04).
 from api.services.journal_two.note_computed import COMPUTED_TYPES as _COMPUTED_TYPES  # noqa: E402
-
-
-def _computed_hidden() -> bool:
-    from api.services.journal_two.note_computed import formulas_enabled
-    return not formulas_enabled()
-
-
-_HIDE_COMPUTED_SQL = " AND type NOT IN ('formula', 'rollup')"
 
 # A relation holds at most this many notes; each id is at most this long.
 MAX_RELATION_NOTES = 50
@@ -184,10 +174,9 @@ def list_property_defs(user_id: str, conn: sqlite3.Connection | None = None) -> 
     owned = conn is None
     conn = conn or get_connection()
     try:
-        hide = _HIDE_COMPUTED_SQL if _computed_hidden() else ""
         rows = conn.execute(
-            "SELECT * FROM j2_note_properties WHERE user_id = ? AND deleted_at IS NULL" + hide
-            + " ORDER BY sort_order, name",
+            "SELECT * FROM j2_note_properties WHERE user_id = ? AND deleted_at IS NULL"
+            " ORDER BY sort_order, name",
             (user_id,),
         ).fetchall()
         return [_builtin_def(user_id, d["id"], conn) for d in BUILTIN_PROPERTY_DEFS] + [_def_row_to_dict(r) for r in rows]
@@ -202,9 +191,8 @@ def get_property_def(user_id: str, property_id: str, conn: sqlite3.Connection | 
     owned = conn is None
     conn = conn or get_connection()
     try:
-        hide = _HIDE_COMPUTED_SQL if _computed_hidden() else ""
         r = conn.execute(
-            "SELECT * FROM j2_note_properties WHERE id = ? AND user_id = ? AND deleted_at IS NULL" + hide,
+            "SELECT * FROM j2_note_properties WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
             (property_id, user_id),
         ).fetchone()
         return _def_row_to_dict(r) if r else None
@@ -224,7 +212,7 @@ def create_property_def(
     name = (name or "").strip()
     if not name:
         raise PropertyValidationError("Property name is required")
-    computed = type_ in _COMPUTED_TYPES and not _computed_hidden()
+    computed = type_ in _COMPUTED_TYPES
     if type_ not in _VALID_TYPES and not computed:
         raise PropertyValidationError(f"Unsupported property type: {type_!r}")
     opts_json = None
@@ -824,11 +812,8 @@ def split_computed(
     """Wave 11: take the formula/rollup conditions and sort OUT of a list
     request, validated, so they can be applied in memory (`note_computed`)
     while every ordinary condition stays in SQL. Returns (plain filter,
-    computed filters as (def, op, value), computed sort as (def, direction)).
-    With the flag off a computed definition is unknown, so nothing splits."""
+    computed filters as (def, op, value), computed sort as (def, direction))."""
     if not property_filter and not property_sort:
-        return property_filter, [], None
-    if _computed_hidden():
         return property_filter, [], None
     from api.services.journal_two.note_computed import ComputedConfigError, check_filter
     plain: list[dict[str, Any]] = []

@@ -148,6 +148,46 @@ def retrieve(user_id: str, scope: str, target: str | None, query: str,
     return ar.retrieve(user_id, q, conn=conn)
 
 
+def _count_phrase(by_kind: dict[str, int]) -> tuple[str, int]:
+    """("1 attached image and 2 attached documents", 3) -- images first, then documents."""
+    parts = []
+    total = 0
+    for kind in ("image", "document"):
+        n = by_kind.get(kind, 0)
+        if n:
+            parts.append(f"{n} attached {kind}{'s' if n != 1 else ''}")
+            total += n
+    return " and ".join(parts), total
+
+
+def _unsearchable_sentence(detail: Any) -> str | None:
+    """Audit 2026-11-05, spec S4: say what could not be searched, and why, in the member's words.
+    `detail` is coverage()'s `{kind: {status: n}}`; None when it is absent or malformed (the caller
+    then says the older count sentence)."""
+    if not isinstance(detail, dict) or not detail:
+        return None
+    unread: dict[str, int] = {}
+    waiting: dict[str, int] = {}
+    try:
+        for kind, statuses in detail.items():
+            if kind not in ("image", "document") or not isinstance(statuses, dict):
+                return None
+            unread[kind] = int(statuses.get("no_text", 0) or 0) + int(statuses.get("processing_failed", 0) or 0)
+            waiting[kind] = int(statuses.get("pending", 0) or 0)
+    except (TypeError, ValueError):
+        return None
+    out = []
+    what, n = _count_phrase(unread)
+    if n:
+        out.append(f"{what} {'has' if n == 1 else 'have'} no readable text, "
+                   f"so I couldn't search {'it' if n == 1 else 'them'}.")
+    what, n = _count_phrase(waiting)
+    if n:
+        out.append(f"{what} {'is' if n == 1 else 'are'} still being read, "
+                   f"so I couldn't search {'it' if n == 1 else 'them'} yet.")
+    return " ".join(out) or None
+
+
 def coverage_notice(scope: str, result: dict[str, Any]) -> str | None:
     """A trust-affecting limitation, or nothing (§11).
 
@@ -158,6 +198,9 @@ def coverage_notice(scope: str, result: dict[str, Any]) -> str | None:
     cov = result.get("coverage") or {}
     missing = int(cov.get("documents_not_searchable", 0) or 0)
     if missing:
+        said = _unsearchable_sentence(cov.get("documents_not_searchable_detail"))
+        if said:
+            return said
         return (f"{missing} attached document"
                 f"{'s' if missing != 1 else ''} couldn't be searched yet "
                 "(no readable text, or still processing).")

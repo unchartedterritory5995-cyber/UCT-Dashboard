@@ -61,10 +61,11 @@ class TestTheWindowIsSizedFromTheTree:
         original constants; this reads them and fails if either side moves, so
         the copy in the alert lane cannot become a second authority."""
         from api.services.screener import scan_evaluator
+        from api.services.bars_window import HISTORY_WINDOW_BARS
         assert (ev.BARS_MIN, ev.BARS_MAX) == (scan_evaluator._MIN_BARS,
-                                              scan_evaluator._MAX_BARS)
+                                              HISTORY_WINDOW_BARS)
         for lookback in (0, 1, 200, 300, 500, 4_999, 50_000):
-            scan_want = min(scan_evaluator._MAX_BARS,
+            scan_want = min(HISTORY_WINDOW_BARS,
                             max(scan_evaluator._MIN_BARS,
                                 lookback + scan_evaluator._MIN_BARS))
             assert ev.bars_wanted(lookback) == scan_want

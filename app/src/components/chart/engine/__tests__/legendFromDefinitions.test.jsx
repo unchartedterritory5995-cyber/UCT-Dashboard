@@ -236,6 +236,12 @@ const ALL_NINE_ON = () => mergeChartSettings({
     [...new Set(CHIPS.map(([k]) => k.split('::')[0]))].map(id => [id, { enabled: true }])),
 })
 
+/** `n` moving averages on PRICE — the chips the inline fold counts (decision C4). */
+const NINE_ON_PRICE = (n = 9) => mergeChartSettings({
+  indicatorInstances: Array.from({ length: n }, (_, i) => (
+    { instanceId: `ma-${i}`, defId: 'movingAverage', inputs: { period: 5 + i }, hidden: false })),
+})
+
 const draw = (settings) => render(
   <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings)} />,
 )
@@ -925,8 +931,11 @@ describe('B4 Task 10 — the legend renders from the definitions, on both lanes'
     // box for the whole chart (controller ruling: per-pane placement is out of
     // scope), so the threshold is over the strip and the tail is FOLDED rather
     // than dropped — see `CHIP_COLLAPSE_AT` in StockChart.jsx.
-    const view = draw(ALL_NINE_ON())
-    await settledLegend(view, crosshairWith({ 'rsi::rsi': 54.321 }))
+    // ⭐ Decision C4 (2026-11-07): only PRICE-pane chips fold. A chip drawn in a
+    // pane of its own is a text chip that names that pane and never folds (the
+    // case below), so the fold is exercised with nine averages on Price.
+    const view = draw(NINE_ON_PRICE())
+    await settledLegend(view, crosshairWith())
     const els = chipEls(view)
     expect(els).toHaveLength(9)
 
@@ -977,16 +986,59 @@ describe('B4 Task 10 — the legend renders from the definitions, on both lanes'
     view.unmount()
   })
 
+  // C4's surface: the phone chart shell (it passes `onLegendStudyTap`) at phone width.
+  const drawPhoneShell = (settings) => {
+    const real = window.matchMedia
+    window.matchMedia = (q) => ({ matches: q === '(max-width: 640px)', media: q, onchange: null,
+      addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return false } })
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings)}
+      onLegendStudyTap={() => {}} />)
+    const unmount = view.unmount
+    view.unmount = () => { unmount(); window.matchMedia = real }
+    return view
+  }
+
+  it('⭐ C4 — on the phone shell a chip is TEXT exactly when its plot is drawn in a pane of its own, and a text chip never folds', async () => {
+    const view = drawPhoneShell(ALL_NINE_ON())
+    await settledLegend(view, crosshairWith({ 'rsi::rsi': 54.321 }))
+    const els = chipEls(view)
+    expect(els).toHaveLength(9)
+    // the answer comes from each definition's declared placement, never a typed list
+    const inPane = new Set(CHIPS
+      .filter(([key]) => registry.getDefinition(key.split('::')[0]).placement.target !== 'price')
+      .map(([, meta]) => meta.label))
+    expect(inPane.size, 'the fixture has no pane chip — this case would prove nothing').toBeGreaterThan(0)
+    expect(inPane.size, 'the fixture has no price chip — the control half is missing').toBeLessThan(9)
+    const labelOf = (el) => el.getAttribute('aria-label')?.replace(/ options$/, '') ?? el.textContent.split(' ')[0]
+    const text = els.filter(el => el.className.includes('chipText'))
+    expect(text.map(labelOf).sort()).toEqual([...inPane].sort())
+    for (const el of text) expect(el.className, `${labelOf(el)} was folded`).not.toContain('chipFolded')
+    // the fold counts only the price chips: none of these exceed four, so nothing folds
+    const priceCount = els.length - text.length
+    expect(priceCount).toBeLessThanOrEqual(4)
+    expect(els.filter(el => el.className.includes('chipFolded'))).toHaveLength(0)
+    expect(moreButtonOf(view), 'a +N rendered with nothing it may fold').toBeNull()
+    view.unmount()
+  })
+
+  it('⛔ C4 control (review, 2026-11-07): a desktop inline legend keeps pane chips as dots, folded with the rest', async () => {
+    // Model Book, the pop-out and gallery cells share this legend branch. Only the
+    // phone shell hides pane labels, so only there may a pane chip become text.
+    const view = draw(ALL_NINE_ON())
+    await settledLegend(view, crosshairWith({ 'rsi::rsi': 54.321 }))
+    const els = chipEls(view)
+    expect(els).toHaveLength(9)
+    expect(els.filter(el => el.className.includes('chipText')), 'no text chip off the phone shell').toHaveLength(0)
+    expect(moreButtonOf(view), 'nine chips fold to four plus +N, as before C4').not.toBeNull()
+    view.unmount()
+  })
+
   it('⛔ …and the control: at or below FOUR chips nothing folds and there is no button', async () => {
     // Without this the case above would pass on a legend that folds everything,
     // or on one that always shows a `+N`. Four is the boundary, so this is the
-    // ON side of it.
-    const four = mergeChartSettings({
-      indicators: Object.fromEntries(['rsi', 'stoch', 'atr'].map(id => [id, { enabled: true }])),
-    })
-    const view = draw(four)
-    await settledLegend(view, crosshairWith({ 'rsi::rsi': 54.321 }))
-    // rsi(1) + stoch(%K,%D) + atr(1) = 4 — the threshold exactly.
+    // ON side of it — four PRICE chips, the only kind the fold counts (C4).
+    const view = draw(NINE_ON_PRICE(4))
+    await settledLegend(view, crosshairWith())
     expect(chipEls(view), 'the fixture no longer draws exactly four chips').toHaveLength(4)
     expect(chipEls(view).filter(e => e.className.includes('chipFolded')),
       'a chip is folded at the threshold — the comparison is off by one').toHaveLength(0)
@@ -1341,7 +1393,7 @@ describe('⭐ TASK 2 — every definition that draws a line can name itself', ()
         'donchian::middle', 'mfi::mfi', 'obv::obv', 'vwap::vwap', 'williamsR::williams_r',
         // …and the ten that already shipped, untouched by it.
         'atr::atr', 'ichimoku::kijun', 'ichimoku::tenkan', 'macd::macd', 'macd::signal',
-        'rsLine::rsLine', 'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k',
+        'rsLine::rsLine', 'rsPhases::divergence', 'rsRating::ratingLine', 'rsVsEma::dist', 'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k',
         // ⭐ 2026-10-01 — the Technical library's Tier 1: forty-two chips, decided
         // and written down (`tier1Library.fixture.js`), not grown by accident.
         ...TIER1_CHIPS,

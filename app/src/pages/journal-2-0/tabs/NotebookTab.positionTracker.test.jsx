@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 /**
  * Wave 12, lane 12B-2 -- the Position Tracker through the REAL NotebookTab create path
  * (`?new=position-tracker` -> createFromTemplate -> createNote -> createNoteViaApi), in
- * BOTH states of NOTEBOOK_FORMULAS_ENABLED. The network is a recording fake; the sidebar
+ * BOTH states of the notebook_formulas_enabled key. The network is a recording fake; the sidebar
  * and editor are stubbed, as in NotebookTab.templates.test.jsx.
  *
  * What it holds: the member's definitions are read, then created, THEN the note is made;
@@ -81,7 +81,10 @@ const renderDeepLink = () => render(
   <MemoryRouter initialEntries={['/journal?new=position-tracker']}><NotebookTab /></MemoryRouter>,
 )
 // Every write but telemetry (the Notebook counts a template pick; that is not a note write).
-const writes = () => calls.filter((c) => c.method !== 'GET' && !c.url.startsWith('/api/j2/telemetry'))
+// (Audit 2026-11-05, S5/B3: a template create also ticks the Get started step -- a preference
+// write, a side channel like telemetry, not one of the note's writes.)
+const writes = () => calls.filter((c) => c.method !== 'GET' && !c.url.startsWith('/api/j2/telemetry')
+  && !c.url.startsWith('/api/auth/preferences'))
 const noteCreates = () => calls.filter((c) => c.url === '/api/j2/notes' && c.method === 'POST')
 
 async function opened() {

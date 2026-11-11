@@ -903,9 +903,7 @@ NOTEBOOK_PAID_BY_RULING: set[tuple[str, str]] = {
 #: only: with a flag off every caller gets the one 404, which says nothing about
 #: the plan gate.
 NOTEBOOK_RULING_FLAGS = (
-    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "NOTEBOOK_PLAN_GRADING_ENABLED", "NOTEBOOK_PLAYBOOK_ENABLED",
-    "NOTEBOOK_REVIEW_DRAFTS_ENABLED", "NOTEBOOK_SETUPS_BOARD_ENABLED",
-    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED", "NOTEBOOK_CHART_PLAN_ENABLED", "NOTEBOOK_ONBOARDING_ENABLED",
+    "NOTEBOOK_ONBOARDING_ENABLED",
 )
 
 #: ✋ NOT PAID, AND PINNED SO THAT CHANGES ONLY ON PURPOSE. None of these is new
@@ -1035,11 +1033,16 @@ def test_an_ANONYMOUS_caller_is_refused_on_every_route_the_ruling_closed(app, cl
 
 def test_CONTROL_with_the_flags_off_the_same_requests_are_not_plan_refusals(app, clean_overrides, monkeypatch):
     """The 402s above come from the plan gate and not from the harness: with the flags off the
-    same free member gets the dark 404 on every one of them."""
+    same free member gets the dark 404 on every one of them. Only the routes still behind a
+    flag gate are dark (the rest were retired as always on, 2026-11-04)."""
     for flag in NOTEBOOK_RULING_FLAGS:
         monkeypatch.delenv(flag, raising=False)
+    routes = _notebook_routes(app)
+    gated = [key for key in sorted(NOTEBOOK_PAID_BY_RULING)
+             if any(getattr(d, "__name__", "") == "_require_enabled" for d in _dep_objects(routes[key]))]
+    assert gated, "non-vacuity: at least one ruling route is still behind a flag gate"
     client = _client(app, FREE_USER)
-    for key in sorted(NOTEBOOK_PAID_BY_RULING):
+    for key in gated:
         assert client.request(key[0], _notebook_request(key)).status_code == 404, key
 
 

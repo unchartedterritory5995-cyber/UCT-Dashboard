@@ -10,6 +10,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { registerBuiltins } from './builtins'
 import { fastParse } from './fastPath'
+import { getCapability } from './capabilities'
 import * as screenerMod from './capabilities/screener'
 import { makeBoard } from './__fixtures__/board'
 
@@ -79,22 +80,32 @@ describe('1 · "Show me my strongest stocks." and its follow-up — the Screener
     expect(fastParse('now only the ones above 50', { host })).toBeNull()     // "50" what? not instant
   })
 
-  it('through the panel: the screen runs (RS Rank desc, no list filter), then the follow-up REFINES it with price > $50', async () => {
+  it('through the panel: the strongest phrase is REFUSED locally (SC-1 §2d, F-16): 0 model calls, the sentence, no scan', async () => {
     const b = board()
     render(<AgentPanel host={b.host} onClose={() => {}} />)
     await screenerMod.loadMeta()
     await waitFor(() => expect(screen.getByLabelText('Message UCT Agent').disabled).toBe(false))
     type('Show me my strongest stocks.')
-    await waitFor(() => expect(screen.getAllByText(/PLTR/).length).toBeGreaterThan(0))
-    expect(scans).toHaveLength(1)
-    expect(scans[0].sort).toEqual({ key: 'rs_rank', dir: 'desc' })
-    expect(scans[0].filters.some(f => f.key === 'list')).toBe(false)          // the whole market, not Momentum
+    await waitFor(() => expect(screen.getAllByText(/UCT Agent can't screen on UCT's proprietary ratings and scores/).length).toBeGreaterThan(0))
+    expect(scans).toHaveLength(0)                                              // nothing ran, nothing substituted
     expect(turnBodies).toHaveLength(0)                                         // no model call
+    expect(b.state.widgets.find(w => w.id === 'wl').opts).toEqual({ watchKey: 'user:m1' })
+  })
+
+  it('through the panel: a public screen runs (no list filter), then the follow-up REFINES it with price > $50', async () => {
+    const b = board()
+    render(<AgentPanel host={b.host} onClose={() => {}} />)
+    await screenerMod.loadMeta()
     await waitFor(() => expect(screen.getByLabelText('Message UCT Agent').disabled).toBe(false))
+    const a = await getCapability('screener.run').answer(null, { filters: [], sort_field: 'price', sort_dir: 'desc', mode: 'new', show: null, as: null, within: null }, b.host)
+    expect(a.table.rows.map(r => r.ticker)).toContain('PLTR')
+    expect(scans).toHaveLength(1)
+    expect(scans[0].sort).toEqual({ key: 'price', dir: 'desc' })
+    expect(scans[0].filters.some(f => f.key === 'list')).toBe(false)          // the whole market, not Momentum
     type('Now only the ones above $50.')
     await waitFor(() => expect(scans.length).toBeGreaterThan(1))
     const refined = scans[scans.length - 1]
-    expect(refined.sort).toEqual({ key: 'rs_rank', dir: 'desc' })            // the SAME screen, kept
+    expect(refined.sort).toEqual({ key: 'price', dir: 'desc' })              // the SAME screen, kept
     const price = refined.filters.find(f => f.key === 'price')
     expect(price.op).toBe('gt')
     expect(price.min ?? price.value).toBe(50)

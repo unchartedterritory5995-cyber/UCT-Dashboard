@@ -1,0 +1,29 @@
+[hl] 18:29:26 free RAM 2405 MB before 'w2-lane-rails'
+[heavy-lock] 'w2-lane-rails' waiting: held by 'w2-rf-readiness' (pid 2460) for 4.1 min
+
+ RUN  v4.0.18 C:/Users/pgosz/uct-worktrees/pine-w2/app
+
+ ✓ src/components/chart/engine/ast/listingSeed.test.js (25 tests) 2861ms
+     ✓ a pass whose trajectories × bars would pass the ceiling is NOT taken — the bounded window answers  1980ms
+ ✓ src/components/chart/engine/runtime/__tests__/carriedState.test.js (81 tests) 521ms
+ ✓ src/components/chart/engine/runtime/__tests__/conditionalCallSite.test.js (23 tests) 237ms
+ ✓ src/components/chart/engine/__tests__/vendorHarness/vendorHarness.h4Loops.test.js (14 tests) 891ms
+ ✓ src/components/chart/engine/runtime/__tests__/conditionalReviewFollowups.test.js (34 tests) 493ms
+ ✓ src/components/chart/engine/runtime/__tests__/c18WhileAndLastBar.test.js (25 tests) 272ms
+ ✓ src/components/chart/engine/runtime/__tests__/conditionalArmsParams.test.js (15 tests) 298ms
+ ✓ src/components/chart/engine/runtime/__tests__/elseIfChain.test.js (14 tests) 129ms
+ ✓ src/components/chart/engine/runtime/__tests__/arrays.test.js (22 tests) 96ms
+ ✓ src/components/chart/engine/runtime/__tests__/functionBodyBlockValue.test.js (9 tests) 127ms
+ ✓ src/components/chart/engine/runtime/__tests__/blockValuedBinding.test.js (11 tests) 134ms
+ ✓ src/components/chart/engine/runtime/__tests__/elseGuardShape.test.js (8 tests) 218ms
+ ✓ src/components/chart/engine/runtime/__tests__/callForEffect.test.js (15 tests) 91ms
+ ✓ src/components/chart/engine/runtime/__tests__/loops.test.js (18 tests) 111ms
+ ✓ src/components/chart/engine/runtime/__tests__/declarationPersistence.test.js (8 tests) 50ms
+ ✓ src/components/chart/engine/runtime/__tests__/functionGlobalReads.test.js (11 tests) 27ms
+
+ Test Files  16 passed (16)
+      Tests  333 passed (333)
+   Start at  18:34:33
+   Duration  39.38s (transform 12.18s, setup 8.61s, import 24.24s, tests 6.56s, environment 33.82s)
+
+[heavy-lock] 'w2-lane-rails' released after 42s

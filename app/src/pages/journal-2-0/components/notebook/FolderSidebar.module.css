@@ -13,6 +13,8 @@
    narrow widths, and portaled so it lands as an early Tab stop rather than after the sidebar
    content it exists to bypass. */
 .skipLink {
+  /* VIS-5 (audit 2026-11-05, issue 25): a skip link wrapped onto two lines when it took focus */
+  white-space: nowrap;
   position: absolute;
   top: 8px;
   left: 8px;
@@ -42,7 +44,7 @@
 }
 .section { display: flex; flex-direction: column; gap: 2px; }
 .sectionLabel {
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1.2px;
   color: var(--text-muted);
@@ -55,7 +57,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1.2px;
   color: var(--text-muted);
@@ -90,7 +92,7 @@
   border-radius: var(--radius-md);
   color: var(--text-muted);
   cursor: pointer;
-  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+  transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
 }
 .sbHeaderBtn:hover { color: var(--accent); background: var(--bg-hover); }
 .sbHeaderBtnActive { color: var(--accent); background: rgba(220, 187, 94, 0.14); }
@@ -173,7 +175,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
 }
 .searchFilterField input, .searchFilterField select {
@@ -200,7 +202,7 @@
 }
 .searchFilterClear:hover { color: var(--text-bright); }
 .searchCount {
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--text-muted);
@@ -297,7 +299,7 @@
    is NOT an excerpt of their prose: it is the structured record beside it, and
    styling the two identically would read as more of the same sentence. */
 .searchResultMeta {
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.02em;
   color: var(--ut-gold);
   overflow: hidden;
@@ -317,6 +319,10 @@
   padding: 12px 6px;
   line-height: 1.5;
 }
+/* Audit 2026-11-05, spec S4 (B18): the meaning index's "{n} are waiting" line under an empty search. */
+.searchEmptyHint {
+  margin: 6px 0 0;
+}
 .row {
   display: flex;
   align-items: center;
@@ -330,6 +336,8 @@
   border-radius: var(--radius-md);
   font-size: 13px;
   text-align: left;
+  /* VIS-6 (issue 23): the sidebar rows (All notes, Today, each folder) had no transition at all. */
+  transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
 .row:hover { background: var(--bg-hover); }
 .rowActive { background: rgba(220, 187, 94, 0.15); color: var(--accent); }
@@ -343,6 +351,7 @@
   border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 12px;
+  transition: border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
 .addBtn:hover { border-color: var(--ut-gold); color: var(--accent); }
 .editInput {
@@ -380,7 +389,7 @@
   padding: 0;
 }
 .disclosureBtn:hover { color: var(--accent); background: var(--bg-hover); }
-.chevron { transform: rotate(-90deg); transition: transform 150ms ease; }
+.chevron { transform: rotate(-90deg); transition: transform var(--duration-fast) var(--ease-out); }
 .chevronOpen { transform: rotate(0deg); }
 .childrenList { display: flex; flex-direction: column; gap: 2px; position: relative; }
 /* Obsidian-style vertical indent guide: a faint line down the left of an
@@ -406,7 +415,7 @@
   color: var(--text-muted);
   cursor: pointer;
   border-radius: var(--radius-md);
-  font-size: 12.5px;
+  font-size: 12px;
   text-align: left;
 }
 .noteRow:hover { background: var(--bg-hover); color: var(--text-bright); }
@@ -423,7 +432,7 @@
   color: var(--text-muted);
   cursor: pointer;
   border-radius: var(--radius-md);
-  font-size: 12.5px;
+  font-size: 12px;
   text-align: left;
 }
 .starterViewsBtn:hover { background: var(--bg-hover); color: var(--accent); }
@@ -434,7 +443,7 @@
 .searchResultSkeletonRow { display: flex; flex-direction: column; gap: 6px; }
 .noteIcon { flex: 0 0 auto; opacity: 0.75; }
 .noteTitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.actions { display: flex; gap: 4px; opacity: 0; transition: opacity 100ms ease; margin-left: auto; }
+.actions { display: flex; gap: 4px; opacity: 0; transition: opacity var(--duration-fast) var(--ease-out); margin-left: auto; }
 .row:hover .actions { opacity: 1; }
 /* UX #1, 2026-09-22: Saved Views' rename/delete affordance reuses
    `.actions`/`.iconBtn` (the same hover-reveal pattern folder rows use).
@@ -461,7 +470,8 @@
   min-height: 24px;
   color: var(--text-muted);
   cursor: pointer;
-  border-radius: 3px;
+  border-radius: var(--radius-sm); /* VIS-6: 3 px snapped to the 4 px token */
+  transition: color var(--duration-fast) var(--ease-out);
   /* a <button> as well as a <span>: no native chrome */
   border: none;
   background: transparent;
@@ -562,7 +572,7 @@
   .searchInput { font-size: 16px; min-height: var(--tap-min, 44px); }
   .searchResultRow { min-height: var(--tap-min, 44px); }
   .row { min-height: var(--tap-min, 44px); font-size: 16px; }
-  .noteRow { min-height: var(--tap-min, 44px); font-size: 15px; }
+  .noteRow { min-height: var(--tap-min, 44px); font-size: 14px; }
   .addBtn { min-height: var(--tap-min, 44px); font-size: 14px; }
   .editInput { font-size: 16px; min-height: var(--tap-min, 44px); }
   .tagFilterInput { font-size: 16px; min-height: var(--tap-min, 44px); }

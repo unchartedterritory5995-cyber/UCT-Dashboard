@@ -29,8 +29,8 @@ At each surface, at 1200 / 820 / 390 px:
 And once: the offer never takes focus (activeElement polled from before it mounts until
 1.5 s after).
 
-CONTROL phase ("off"): a second sandbox with `NOTEBOOK_ONBOARDING_ENABLED` and
-`NOTEBOOK_GETTING_STARTED_ENABLED` UNSET (production's default for an unset gate) and the tour
+CONTROL phase ("off"): a second sandbox with `NOTEBOOK_ONBOARDING_ENABLED` UNSET (production's
+default for an unset gate; the checklist's own switch was retired as always on) and the tour
 capability flag still on. The first-run screen must be exactly the pre-wave-14 shape: title,
 hint, one row of the base buttons (Start a note, Create a thesis, Import notes, and Today when
 passed), no sample / tour door, no preview, no checklist, no tour dialog.
@@ -82,8 +82,9 @@ TAB_CAP = 400
 # meets today, and the one capability line the welcome preview can show) and the template gallery
 # (a second offerable tour, so What's new has more than the declined one). The offer's title is READ
 # from the card, never assumed: registry order decides it (tours/b1Core.js).
-ONBOARDING_FLAGS = ["NOTEBOOK_ONBOARDING_ENABLED", "NOTEBOOK_GETTING_STARTED_ENABLED"]
-CAPABILITY_FLAGS = ["NOTEBOOK_WRITING_HELP_ENABLED", "NOTEBOOK_TEMPLATE_GALLERY_ENABLED"]
+# (The checklist's and the gallery's switches were retired as always on, 2026-11-04: nothing to arm.)
+ONBOARDING_FLAGS = ["NOTEBOOK_ONBOARDING_ENABLED"]
+CAPABILITY_FLAGS = ["NOTEBOOK_WRITING_HELP_ENABLED"]
 BASE_TOUR_TITLE = "Notebook basics"
 BASE_STEP1_TITLE = "Welcome to your Notebook"
 
@@ -535,14 +536,15 @@ def _walk_on_page(pg, ctx, base: str, width: int) -> None:
         replay.first.wait_for(timeout=15000)
         rows = pg.locator("li", has=pg.get_by_role("link", name="Replay", exact=True)).all_inner_texts()
         record(P, width, "S4 Help", "Walkthroughs lists the base tour and every armed capability's tour",
-               len(rows) == 1 + len(CAPABILITY_FLAGS) and any(BASE_TOUR_TITLE in r for r in rows), rows=rows)
+               # `>=`: the capabilities retired as always on (2026-11-04) list their tours too, unarmed
+               len(rows) >= 1 + len(CAPABILITY_FLAGS) and any(BASE_TOUR_TITLE in r for r in rows), rows=rows)
         wn = pg.locator("section[aria-labelledby='support-whats-new']")
         wn.first.wait_for(timeout=10000)
         starts = [a.get_attribute("aria-label") for a in wn.first.get_by_role("link").all()]
         offered = REPORT.get("offered", {}).get(str(width), "")
         names = [t.removeprefix("Start the ").removesuffix(" tour") for t in starts if t]
         record(P, width, "S4 Help", "What's new lists every armed tour not taken, the declined one included",
-               len(starts) == len(CAPABILITY_FLAGS) and any(offered.endswith(n) for n in names),
+               len(starts) >= len(CAPABILITY_FLAGS) and any(offered.endswith(n) for n in names),
                starts=starts, offered=offered)
         pg.wait_for_timeout(500)
         # What's new (a labelled section) and the Walkthroughs list (its <ul>; every row links into
@@ -605,8 +607,10 @@ def walk_off(browser, admin_req, base: str, width: int, height: int) -> None:
     except h.SetupFailed as e:
         record(P, width, "setup", "fresh paid member", False, error=str(e))
         return
-    record(P, width, "setup", "fresh paid member, onboarding gates OFF",
-           me.get("notebook_onboarding_enabled") is False and me.get("notebook_getting_started_enabled") is False,
+    # The checklist's own switch was retired as always on (2026-11-04): its key reads True, and onboarding
+    # OFF alone keeps the checklist away (the client rule needs both).
+    record(P, width, "setup", "fresh paid member, onboarding gate OFF",
+           me.get("notebook_onboarding_enabled") is False,
            email=email, flags={k: me.get(k) for k in ("notebook_onboarding_enabled", "notebook_getting_started_enabled",
                                                      "notebook_template_gallery_enabled")})
     pg = ctx.new_page()

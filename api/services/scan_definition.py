@@ -648,9 +648,12 @@ def assert_scannable(definition: Any) -> dict:
     withheld = ast_interpret.whole_series_withheld(
         tree, ast_interpret.DATE_KEYED_PROBE_BARS,
         opts={"tf": SWEEP_TF,
-              "barIndexAbsolute": ast_interpret.bar_index_absolute_for(definition)})
+              "barIndexAbsolute": ast_interpret.bar_index_absolute_for(definition),
+              # 2026-11-09 -- the same declaration: a Pine `var` began on the first bar
+              "varOriginAbsolute": ast_interpret.bar_index_absolute_for(definition)})
     if withheld:
         index = any(code.startswith("bar-index:") for code in withheld)
+        held = any(code.startswith("var-origin:") for code in withheld)
         raise ScanRefused(
             "withheld",
             "the sweep cannot answer this on any bar (%s): %s. Every symbol would "
@@ -659,6 +662,8 @@ def assert_scannable(definition: Any) -> dict:
             % (", ".join(withheld),
                "it depends on the count of bars since the symbol's first, which a "
                "window of bars cannot know" if index else
+               "it reads a `var` that holds what it was given on the symbol's first "
+               "bar, which a window of bars cannot know" if held else
                "it reads a period's time, and the sweep's daily bars carry a date "
                "and no clock"),
         )

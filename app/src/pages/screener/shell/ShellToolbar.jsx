@@ -3,6 +3,7 @@ import UIcon from '../../../components/ui/UIcon'
 import { COLUMN_DEFS } from '../columnDefs'
 import ColumnPicker from './ColumnPicker'
 import { DEFAULT_VIEW } from './specUrl'
+import { usePhonePanel } from './phonePanel'
 import styles from './ScannerShell.module.css'
 
 // ── THE SEAL SAYS WHICH TIER YOU ARE LOOKING AT, ALWAYS ──────────────────────
@@ -107,6 +108,9 @@ function LiveBlock({ live }) {
 function Seal({ snapshot, snapshotDate }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
+  // B10: on a phone the toolbar scrolls sideways, and a scroller clips an absolute popover,
+  // so the provenance panel opens pinned to the viewport there, like the Columns picker.
+  const phonePanel = usePhonePanel(open, ref)
   useEffect(() => {
     if (!open) return undefined
     const onDoc = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
@@ -139,7 +143,8 @@ function Seal({ snapshot, snapshotDate }) {
         ))}
       </button>
       {open && snapshot && (
-        <div className={styles.sealPop} role="dialog" aria-label="Snapshot provenance">
+        <div className={styles.sealPop} role="dialog" aria-label="Snapshot provenance"
+          style={phonePanel} data-phone-panel={phonePanel ? '' : undefined}>
           <div className={styles.sealRow}><span>Rows served</span><b>{snapshot.rows?.toLocaleString()}</b></div>
           <div className={styles.sealRow}><span>Most built</span>
             <b>{snapshot.snapshot_date} ({snapshot.rows_on_snapshot_date?.toLocaleString()})</b></div>
@@ -228,7 +233,7 @@ export default function ShellToolbar({ meta, view, onView, visibleColumns, allCo
       <Seal snapshot={snapshot} snapshotDate={snapshotDate} />
       <span className={styles.toolGroup}>
         <span className={styles.pickerAnchor} ref={pickerAnchorRef}>
-          <button type="button" className={styles.toolBtn} aria-label="Choose columns"
+          <button type="button" className={styles.toolBtn} data-guide="screener.columns" aria-label="Choose columns"
             aria-expanded={pickerOpen} onClick={() => setPickerOpen(o => !o)}>
             <UIcon name="columns" size={13} /> Columns
           </button>

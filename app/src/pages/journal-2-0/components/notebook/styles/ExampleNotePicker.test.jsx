@@ -1,3 +1,4 @@
+// S7 fix round 2 (audit 2026-11-05, re-review R1-1): the copy these rails pin was renamed (style -> template).
 // P3b Task 5 — the author's door to "Add an example note": in the Share form of a style already in the library,
 // and on the author's own style in Your submissions; the picker of the author's notes of the style's kind; and
 // the hand-off to the preview sheet. Through the REAL clients (lib/styleLibrary.js) with only the network faked.
@@ -96,7 +97,7 @@ const tree = (node) => (
   </MemoryRouter>
 )
 const shareForm = () => render(tree(<ShareStyleForm style={MEMBER} onShared={vi.fn()} onClose={vi.fn()} />))
-const shareDialog = () => screen.findByRole('dialog', { name: `Share ${MEMBER.name} to community` })
+const shareDialog = () => screen.findByRole('dialog', { name: `Share ${MEMBER.name} to the Template library` })
 
 describe('the recorded answers hold what these rails read (non-vacuity)', () => {
   it('the author\'s list carries the capability, a pending style naming the style it shares, and an example', () => {
@@ -243,7 +244,7 @@ describe('2. the picker', () => {
       ? Promise.resolve({ ok: true, status: 200, json: async () => ({ template: { ...STYLE_ITEM, payload: {} } }) })
       : orig(input, init)))
     const picker = await openPicker()
-    expect(await within(picker).findByRole('alert')).toHaveTextContent("This style has no kind of note, so it can't have an example.")
+    expect(await within(picker).findByRole('alert')).toHaveTextContent("This template has no note type, so it can't have an example.")
     expect(got('/api/j2/notes')).toHaveLength(0)
   })
 })
@@ -299,7 +300,7 @@ describe('the door on the author\'s own listed style in Your submissions', () =>
     const list = await submissions()
     const row = (await within(list).findByText(EXAMPLE_ROW.title)).closest('li')
     fireEvent.click(within(row).getByRole('button', { name: `Unpublish ${EXAMPLE_ROW.title}` }))
-    expect(within(row).getByText(`Withdraw the example “${EXAMPLE_ROW.title}”? It will no longer show on your style.`))
+    expect(within(row).getByText(`Withdraw the example “${EXAMPLE_ROW.title}”? It will no longer show on your template.`))
       .toBeInTheDocument()
     expect(within(row).queryByText(/out of the gallery/)).toBeNull()
   })

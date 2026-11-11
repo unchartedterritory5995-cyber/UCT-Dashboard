@@ -209,6 +209,7 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
         onExitPick={exitPick}
         activeRef={activeWatchlistRef}
         widgetKey={widgetId}
+        listView={{ type: 'watchlist', color, key: watchKey }}
         settingsOverride={wlSettingsOverride}
         onSettingsPersist={persistWlSettings}
         defaultColCfg={_prebuiltCfg}

@@ -1,0 +1,10 @@
+//@version=5
+indicator("hp arrays", overlay=false)
+var a = array.new_float(0)
+array.push(a, close)
+if array.size(a) > 30
+    array.shift(a)
+plot(array.avg(a), "avg")
+plot(array.stdev(a), "stdev")
+plot(array.max(a) - array.min(a), "range")
+plot(array.median(a), "median")

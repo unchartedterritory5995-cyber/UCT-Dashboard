@@ -1,0 +1,54 @@
+{
+  "doc": {
+    "content": [
+      {
+        "content": [
+          {
+            "text": "Octet PNG:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "href": "import-ref://evernote-res://11111111-0000-4000-8000-000000000012/9cf11463434d3f4c630afecc396501c8",
+          "name": "shot.png"
+        },
+        "type": "attachmentChip"
+      },
+      {
+        "content": [
+          {
+            "text": "Octet SVG:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "href": "import-ref://evernote-res://11111111-0000-4000-8000-000000000012/f951b382d6bf89942d5b6a116cf26a2c",
+          "name": "logo.svg"
+        },
+        "type": "attachmentChip"
+      }
+    ],
+    "type": "doc"
+  },
+  "links": [],
+  "media": [
+    {
+      "kind": "file",
+      "mime": "application/octet-stream",
+      "name": "shot.png",
+      "ref": "evernote-res://11111111-0000-4000-8000-000000000012/9cf11463434d3f4c630afecc396501c8"
+    },
+    {
+      "kind": "file",
+      "mime": "application/octet-stream",
+      "name": "logo.svg",
+      "ref": "evernote-res://11111111-0000-4000-8000-000000000012/f951b382d6bf89942d5b6a116cf26a2c"
+    }
+  ]
+}

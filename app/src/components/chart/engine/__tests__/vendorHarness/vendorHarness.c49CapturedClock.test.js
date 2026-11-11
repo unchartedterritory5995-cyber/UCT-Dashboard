@@ -240,7 +240,12 @@ describe('C49 · 2 — AMEX:SPY 1D from the listing, through the real member doo
 
   it('the derived captures are sealed and valid; as captured each still refuses on a row outside this lane, by name', () => {
     expect(T.integrity.ok && Q.integrity.ok).toBe(true)
-    expect(gradeCapture(CAP.D_T).verdict.reason).toMatch(/member door refused \(pine:input-kind\)/)
+    // ⚰️ RULING-0927 (2026-11-07): T16 is served now, so D_T no longer refuses on `input.time`.
+    const VERDICT = gradeCapture(CAP.D_T).verdict
+    expect(VERDICT.reason).not.toMatch(/member door refused \(pine:input-kind\)/)
+    const t16 = VERDICT.plots.find((p) => p.title === 'T16_input_time_default_DAYS')
+    expect(t16 && t16.stats, 'T16 was not graded').toBeTruthy()
+    expect([t16.stats.valueMismatches, t16.stats.naMismatches, t16.stats.matching]).toEqual([0, 0, t16.stats.bars])
     expect(gradeCapture(CAP.D_Q).verdict.reason).toMatch(/time_close\("3M"\)/)
   })
 
@@ -703,11 +708,20 @@ describe('C49 · 8 — packet #3: `request.security(tickerid, "D", close)` on AM
     it(`⭐ through the member door, ${name}: the four request rows draw NOTHING — 0 wrong values, all ${n} bars withheld, by name`, () => {
       const { verdict } = gradeCapture(cap)
       const byTitle = new Map(verdict.plots.map((p) => [p.title, p]))
+      // ⭐ 2026-11-09 — withheld by name on every bar, so NOT COMPARED: INCONCLUSIVE,
+      // with the code (it read DIVERGE as `naMismatches: n` until the WN grading fix)
       for (const title of ['R1_close_D_lookahead_ON', 'R2_close_D_lookahead_OFF', 'R3_DELTA_on_minus_off', 'R7_prev_D_close_OFF']) {
-        expect(byTitle.get(title).stats, title).toMatchObject({ matching: 0, valueMismatches: 0, naMismatches: n })
+        expect(byTitle.get(title), title).toMatchObject({ verdict: 'INCONCLUSIVE', withheld: 'request:other-timeframe' })
+        expect(byTitle.get(title).reason, title).toMatch(/by name \(request:other-timeframe\)/)
       }
       expect(byTitle.get('R6_chart_close').verdict).toBe('MATCH')
       const ours = runOurSide(cap)
+      // 0 wrong values: the four rows hold no number on any of the n bars
+      for (const title of ['R1_close_D_lookahead_ON', 'R2_close_D_lookahead_OFF', 'R3_DELTA_on_minus_off', 'R7_prev_D_close_OFF']) {
+        const col = Array.from(ours.plots.find((p) => p.title === title).column)
+        expect(col.length, title).toBe(n)
+        expect(col.every(Number.isNaN), title).toBe(true)
+      }
       // wave 12 (C45): plus the probe's `bar_index` control row, withheld by name off the listing
       expect(noteCodes(ours)).toEqual(['bar-index:window', 'request:other-timeframe'])
       expect(ours.notes.join('\n')).toMatch(/This chart's timeframe is `5`/)
@@ -748,7 +762,10 @@ describe('C49 · 8 — packet #3: `request.security(tickerid, "D", close)` on AM
     }
     const daily = on(CAP.D900, src)
     expect(noteCodes(daily)).toEqual([])
-    expect(column(daily, 0).filter(Number.isNaN).length).toBe(1)             // the first partial week: no closed week before it
+    // ⭐ DIV-1 RE-PIN (2026-11-09): was 1 (the first partial week had no closed week before
+    // it). The daily capture is now replayed over SPY's proved history from its listing, as
+    // the member's daily chart computes it, so the week before the window IS closed: 0.
+    expect(column(daily, 0).filter(Number.isNaN).length).toBe(0)
     // ⚠️ WHY the intraday resample was not the answer: on the 60-minute chart its "weekly close" is the last
     // HOURLY bar's close, which is not the daily bar's — the same gap the 5-minute capture shows for the day
     const h = CAP.I60.bars.rows

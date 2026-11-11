@@ -1,0 +1,32 @@
+[
+ [
+  "J1-peel-back-to-one-physical-line",
+  "../tools/pine_coverage/census_peel.mjs",
+  "    const path = pathTo(stmts, line)\n    if (!path) return one\n",
+  "    const path = pathTo(stmts, line)\n    if (!path || true) return one\n"
+ ],
+ [
+  "J2-body-not-taken-with-header",
+  "../tools/pine_coverage/census_peel.mjs",
+  "const lastLine = (st) => (st.body.length ? st.body[st.body.length - 1].line : headEnd(st))",
+  "const lastLine = (st) => headEnd(st)"
+ ],
+ [
+  "J3-emptied-block-keeps-its-header",
+  "../tools/pine_coverage/census_peel.mjs",
+  "    while (depth > 0 && path[depth].list.length === 1",
+  "    while (false && depth > 0 && path[depth].list.length === 1"
+ ],
+ [
+  "J4-else-left-behind",
+  "../tools/pine_coverage/census_peel.mjs",
+  "    if (opensIf(list[i])) {",
+  "    if (false) {"
+ ],
+ [
+  "J6-probe-ignores-the-drawing-build",
+  "src/components/chart/engine/ast/coverageMapDoorCensus.measure.test.js",
+  "    if (!p.ok && (p.refusal || {}).guard === VALUE_BUILD_DRAWING_GUARD) {",
+  "    if (false) {"
+ ]
+]

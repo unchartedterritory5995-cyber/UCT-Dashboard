@@ -70,17 +70,8 @@ import math
 from typing import Any, Callable
 
 from api.services.journal_two.timeutil import ET
-from api.services.notebook_flags import flag_on
 
 log = logging.getLogger(__name__)
-
-#: The enablement gate for the fingerprint routes (unset = OFF; plan section 3.6).
-FLAG = "NOTEBOOK_TA_FINGERPRINT_ENABLED"
-
-
-def enabled() -> bool:
-    """The gate, read PER CALL through the one Notebook flag parse (default OFF)."""
-    return flag_on(FLAG, False)
 
 
 #: Bumped only if a field's MEANING changes. A frozen fingerprint keeps the

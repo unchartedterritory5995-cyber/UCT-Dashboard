@@ -5,20 +5,20 @@
  * prompt_json: { story, question, choices: [..] }
  * Answer: {choice}
  */
-import ChoiceList from './ChoiceList'
-import { choiceAnswer, choiceAnswerable, choicesFromPrompt, questionOf } from './types'
+import ChoiceList, { revealLabels } from './ChoiceList'
+import { brandWords, choiceAnswer, choiceAnswerable, choicesFromPrompt, questionOf } from './types'
 import styles from './drills.module.css'
 
 export function choicesOf(item) {
   return choicesFromPrompt(item)
 }
 
-export function Body({ item, state, setState, locked }) {
+export function Body({ item, state, setState, locked, reveal }) {
   const story = item?.prompt_json?.story
   return (
     <div>
-      {story && <p className={styles.story}>{story}</p>}
-      <ChoiceList
+      {story && <p className={styles.story}>{brandWords(story)}</p>}
+      <ChoiceList {...revealLabels(reveal, state)}
         choices={choicesOf(item)}
         value={state?.choice ?? null}
         onChange={(choice) => setState({ choice })}

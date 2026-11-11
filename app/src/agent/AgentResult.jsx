@@ -3,7 +3,7 @@
 // figures, a period, rows, headlines or prose — with the full answer one tap away under "Details".
 // Sized by the PANEL (container queries in AgentResult.module.css), never by the window: a narrow
 // panel stacks a table into one card per row; nothing scrolls sideways.
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useInRouterContext } from 'react-router-dom'
 import styles from './AgentResult.module.css'
 import { chartTarget } from './present'
@@ -64,6 +64,35 @@ function Headlines({ items }) {
   )
 }
 
+// RS-1 research: the three sections the contract names, then the dated sources. Facts first (UCT's own data,
+// each sentence naming its source and time); web commentary is labelled as such and never mixed into the facts.
+const RESEARCH_SECTIONS = [['facts', "What UCT's data shows"], ['interpretation', 'Interpretation (web commentary, not UCT data)'], ['unknown', 'Not known / not available']]
+function Research({ view }) {
+  return (
+    <div className={styles.research} data-testid="agent-result-research">
+      {RESEARCH_SECTIONS.map(([key, label]) => (view[key]?.length > 0 && (
+        <section key={key} className={styles.section} data-testid={`agent-research-${key}`}>
+          <h4 className={styles.sectionTitle}>{label}</h4>
+          <ul className={styles.sectionList}>{view[key].map((s, i) => <li key={i}>{s}</li>)}</ul>
+        </section>
+      )))}
+      {view.cited?.length > 0 && (
+        <section className={styles.section} data-testid="agent-research-sources">
+          <h4 className={styles.sectionTitle}>Sources</h4>
+          <ul className={styles.cited}>
+            {view.cited.map((c, i) => (
+              <li key={i}>
+                <span className={styles.meta}>{c.when}</span>
+                {c.url ? <a href={c.url} target="_blank" rel="noreferrer noopener">{c.title}</a> : <span>{c.title}</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  )
+}
+
 function OpenLink({ link }) {
   const inRouter = useInRouterContext()
   return inRouter
@@ -99,9 +128,13 @@ function Details({ details, sources }) {
 function OpenChart({ target, onOpen, disabled }) {
   // "Opening…" while THIS card's click runs (the panel's busy state disables every card's button)
   const [opening, setOpening] = useState(false)
+  // The open can outlive the card (the panel closes, the conversation changes, a test tears down): the
+  // "Opening…" state is only cleared while the button still exists.
+  const alive = useRef(true)
+  useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
   const click = () => {
     setOpening(true)
-    Promise.resolve().then(() => onOpen(target)).finally(() => setOpening(false))
+    Promise.resolve().then(() => onOpen(target)).finally(() => { if (alive.current) setOpening(false) })
   }
   return (
     <button type="button" className={styles.chartAction} onClick={click} disabled={disabled || opening}
@@ -122,7 +155,7 @@ const METRIC = new Set(['value', 'comparison', 'metrics', 'range'])
 
 // structured views use the column's width (so their figures sit side by side); a single figure and
 // short prose stay as compact as their content
-const FULL = new Set(['comparison', 'metrics', 'range', 'table', 'headlines'])
+const FULL = new Set(['comparison', 'metrics', 'range', 'table', 'headlines', 'research'])
 
 export default function AgentResult({ view, onOpenChart = null, busy = false }) {
   const body = (() => {
@@ -147,6 +180,14 @@ export default function AgentResult({ view, onOpenChart = null, busy = false }) 
           <>
             {view.title && <div className={styles.title}>{view.title}</div>}
             <Headlines items={view.headlines} />
+          </>
+        )
+      case 'research':
+        return (
+          <>
+            {view.title && <div className={styles.title}>{view.title}</div>}
+            <Research view={view} />
+            {view.note && <div className={styles.note}>{view.note}</div>}
           </>
         )
       default:

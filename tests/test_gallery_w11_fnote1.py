@@ -477,6 +477,13 @@ def test_get_item_with_wave_11_off_is_byte_identical_to_before_task_11_8(db, mon
                                        default=str)
                 for gid in (g_p3a, g_shared, g_tool) for who in (MEMBER, "admin")}
     waves(monkeypatch, *[w for w in ALL_WAVES if w != 11])
+    # The pre-11.8 module still reads the switches retired as always on (2026-11-04): give it production's values,
+    # and the starter-packs reader it calls (gone from the live module), so both answer the same world.
+    for name in ("NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "NOTEBOOK_STYLE_LIBRARY_ENABLED", "NOTEBOOK_EXAMPLE_NOTES_ENABLED",
+                 "NOTEBOOK_STARTER_PACKS_ENABLED", "NOTEBOOK_JOURNAL_STYLES_ENABLED"):
+        monkeypatch.setenv(name, "1")
+    from api.services.journal_two import starter_packs
+    monkeypatch.setattr(starter_packs, "enabled", lambda: True, raising=False)
     live_off, old_off = reads(gallery), reads(old)
 
     # W11-R76 (review I-3, live on master) is the ONE deliberate change to the wave-off answer: a card line that is
@@ -536,8 +543,8 @@ ADDRESS_FORMS = {
                                                   _lk(ACCT, f"https://{HOST}/acct/{ACCT}/", BOLD)],
     "LF inside one text node": [_lk(f"https://{HOST}/acct/\n{ACCT}")],
     "CRLF inside one text node": [_lk(f"https://{HOST}/acct/\r\n{ACCT}")],
-    "U+2028 inside one text node": [_lk(f"https://{HOST}/acct/ {ACCT}")],
-    "U+2029 inside one text node": [_lk(f"https://{HOST}/acct/ {ACCT}")],
+    "U+2028 inside one text node": [_lk(f"https://{HOST}/acct/\u2028{ACCT}")],
+    "U+2029 inside one text node": [_lk(f"https://{HOST}/acct/\u2029{ACCT}")],
     "TAB inside one text node": [_lk(f"https://{HOST}/acct/\t{ACCT}")],
     "ideographic space inside": [_lk(f"https://{HOST}/acct/　{ACCT}")],
     "LF inside the bare host form": [_lk(f"{HOST}/acct/\n{ACCT}")],
@@ -647,7 +654,7 @@ def test_a_line_break_between_two_different_links_does_not_join_them(db):
 def test_the_skeleton_is_nfkc_casefold_letters_and_digits():
     """W11-R47's skeleton, exactly: NFKC, casefold, then only `[a-z0-9]` (the ruling's) or only alphanumerics (every
     script). A fullwidth letter folds, capitals fold, and every space, line break, mark, blank and punctuation goes."""
-    s = "ＡB\n c d̲e⠀f.-_g9é　h\t​i"
+    s = "ＡB\n c\u2028d̲e⠀f.-_g9é　h\t​i"
     assert gallery._skeleton(s, latin=True) == "abcdefg9hi"
     assert gallery._skeleton(s, latin=False) == "abcdefg9éhi"
 
@@ -1485,7 +1492,6 @@ def gallery_client(db, monkeypatch):
     from api.limiter import limiter
     from api.middleware import auth_middleware as authmw
     from api.routers import notebook_template_gallery
-    monkeypatch.setenv("NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "1")
     limiter.reset()
     fa = FastAPI()
     fa.include_router(notebook_template_gallery.router)

@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { Suspense, lazy as plainLazy } from 'react'
 // Route-level Suspense fallback: BrandSplash as before, plus a recovery panel
 // after ~20s of continuous mounting — a lazy chunk that never settles (503
 // storm, dropped connection) otherwise strands "Loading page" forever, and
@@ -15,11 +15,14 @@ import { isDiscordLaunch } from './utils/discordLaunch'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { VoiceProvider } from './context/VoiceContext'
+// ⭐ W2-C1: UCT Agent's app-level host (admin + per-browser switch; dark otherwise) — the panel on pages that register a host
+import AgentProvider from './agent/AgentProvider'
 import AuthGuard from './components/AuthGuard'
 import Layout from './components/Layout'
 import RouteErrorBoundary from './components/RouteErrorBoundary'
 import IntroAnimation from './components/intro/IntroAnimation'
 import LogoPrewarm from './components/LogoPrewarm'
+import { isDesktopApp } from './lib/desktopBridge'
 import GlobalVideoLayer from './components/video/GlobalVideoLayer'
 // Journal 2.0 P4 runtime shell kill-switch (Task A1). Eager (tiny — only imports
 // react) so window.__uctJ2Shell is wired at app boot and the /journal selector
@@ -45,6 +48,11 @@ import { CalendarRoute, TerminalRoute } from './pages/terminal/TerminalRoutes'
 // Layout.jsx's feedback-FAB gate so the two can never drift (spec v1.5 exception (h)).
 import useHubActive from './hub/useHubActive'
 import { shouldRetryOnErrorAppWide } from './lib/swrRetry'
+import { isAppVisible } from './lib/deskVisibility'
+// /charts is mounted by ChartsDeskHost (inside Layout) so it can outlive a route change while a
+// board is popped out; the route itself renders nothing. Eager and tiny; the page chunk stays lazy.
+import { ChartsRouteSlot } from './pages/charts/ChartsDeskHost'
+import { importChartsWorkspace } from './pages/charts/chartsWorkspaceImporter'
 
 // ─── Route chunk prefetch ────────────────────────────────────────────────────
 // React.lazy only begins downloading a page's chunk when that component first
@@ -68,6 +76,11 @@ function lazyPage(path, importer) {
   return lazy(importer)
 }
 
+// Off first load, so it costs the Notebook's byte budget nothing. Plain lazy with a null fallback:
+// a usage report must never reload the page or reach an error screen.
+const DeskUsageReporter = plainLazy(() => import('./components/DeskUsageReporter').catch(() => ({ default: () => null })))
+// The desktop shell's messages. Only ever fetched inside the app (see the mount), so browsers pay nothing.
+const DesktopBridgeSync = plainLazy(() => import('./components/DesktopBridgeSync').catch(() => ({ default: () => null })))
 const Landing = lazy(() => import('./pages/Landing'))
 const ComingSoon = lazy(() => import('./pages/ComingSoon'))
 const Login = lazy(() => import('./pages/Login'))
@@ -156,7 +169,7 @@ const J2WrappedSurface = lazy(() => import('./pages/journal-2-0/surfaces/Wrapped
 const J2RouteFocus = lazy(() => import('./pages/journal-2-0/lib/routeFocus'))
 const GlobalAddPositionProvider = lazy(() => import('./pages/journal-2-0/GlobalAddPositionProvider'))
 const Watchlists = lazy(() => import('./pages/Watchlists'))
-const ChartsWorkspace = lazyPage('/charts', () => import('./pages/charts/ChartsWorkspace'))
+pageImporters.set('/charts', importChartsWorkspace)
 
 // Start the CURRENT route's chunk NOW — module scope, so it fires as soon as the
 // entry bundle parses rather than waiting on React to mount, AuthGuard to clear,
@@ -204,6 +217,7 @@ const Admin = lazy(() => import('./pages/Admin'))
 const ChartHealth = lazy(() => import('./pages/admin/ChartHealth'))
 const PatternAdmin = lazy(() => import('./pages/admin/PatternAdmin'))
 const LandingAnalytics = lazy(() => import('./pages/admin/LandingAnalytics'))
+const AiSpend = lazy(() => import('./pages/admin/AiSpend'))
 const PatternReview = lazy(() => import('./pages/admin/PatternReview'))
 const RarePreview = lazy(() => import('./pages/admin/RarePreview'))
 const WisdomAdmin = lazy(() => import('./pages/admin/wisdom/WisdomAdmin'))
@@ -211,6 +225,7 @@ const Terms = lazy(() => import('./pages/Terms'))
 const Privacy = lazy(() => import('./pages/Privacy'))
 const Methodology = lazy(() => import('./pages/Methodology'))
 const MeasuredEdgeMethod = lazy(() => import('./pages/MeasuredEdgeMethod'))
+const RsGlossary = lazy(() => import('./pages/RsGlossary'))
 const ProvenanceDemo = lazy(() => import('./pages/ProvenanceDemo'))
 const Compare = lazy(() => import('./pages/Compare'))
 const BrokersPage = lazy(() => import('./pages/BrokersPage'))
@@ -321,6 +336,9 @@ const SWR_CONFIG = {
   // No retry on a 4xx except 408 and 429: the rule and its reason live in
   // lib/swrRetry.js, so a hook that adds to it calls the same function.
   shouldRetryOnError: shouldRetryOnErrorAppWide,
+  // Polls pause while nobody can see the app: a hidden browser tab, or a desktop desk whose every
+  // window is hidden or minimized (lib/deskVisibility.js). Live streams and alerts are not SWR polls.
+  isVisible: isAppVisible,
 }
 
 /** Journal 2.0 P4 shell selector — the Task A1 seam (runtime kill-switch).
@@ -439,8 +457,12 @@ export default function App() {
             at app load, so opening a list paints real logos with no monogram flash.
             Null render; no-op when logged out. */}
         <LogoPrewarm />
+        {/* Desktop-plan G2 measurement: one coarse usage report per member per day. Null render. */}
+        <Suspense fallback={null}><DeskUsageReporter /></Suspense>
+        {isDesktopApp() && <Suspense fallback={null}><DesktopBridgeSync /></Suspense>}
         {/* Persistent Desk video player — one instance, survives all routing. */}
         <GlobalVideoLayer />
+        <AgentProvider>
         <RouteErrorBoundary>
           <Suspense fallback={
             <StalledLoadFallback label="Loading page" />
@@ -498,6 +520,10 @@ export default function App() {
             {/* The "Measured edge" chip's Method link (owner decision 2): how the outcome replay works. Public,
                 same class as /methodology; the path is api/services/measured_edge.METHOD_URL. */}
             <Route path="/methodology/measured-edge" element={<MeasuredEdgeMethod />} />
+            {/* The public Relative Strength glossary (RS unit 4-06, engineering map D15): static terms, misconceptions,
+                the shipped formulas and outside references. No member data, the same class as the measured-edge page.
+                D15: the RS About page links here; it is not a NAV_ITEMS entry. */}
+            <Route path="/methodology/relative-strength" element={<RsGlossary />} />
             {/* ⚰️ /provenance-demo lived HERE, public/no-gate, until 2026-09-25 — it
                 was "same class as /methodology" only while /api/provenance/quote was
                 itself public. OI-17 gated the sibling market-data endpoints on
@@ -616,7 +642,7 @@ export default function App() {
                 <Route path="/morning-wire" element={<MorningWire />} />
                 <Route path="/uct-20" element={<UCT20 />} />
                 <Route path="/breadth" element={<Breadth />} />
-                <Route path="/charts" element={<ChartsWorkspace />} />
+                <Route path="/charts" element={<ChartsRouteSlot />} />
                 <Route path="/theme-tracker" element={<LegacyRedirect />} />
                 <Route path="/watchlists" element={<LegacyRedirect />} />
                 <Route path="/multi-chart" element={<LegacyRedirect />} />
@@ -738,6 +764,10 @@ export default function App() {
                   {/* Wave 13 lane 13J: the setups board. The page reads its two flags itself and
                       fetches nothing while both are off; every route it calls 404s while dark. */}
                   <Route path="notebook/setups" element={<SetupsBoard />} />
+                  {/* S13 (audit 2026-11-05, detail #67): My Playbook INSIDE the Journal shell, the Notebook sidebar's
+                      door to it (the Journal tabs stay above it; "Back to Notebook"). Same page, same read: the
+                      standalone /journal-2-0/playbook route below stays for Insights and every existing link. */}
+                  <Route path="notebook/playbook" element={<J2MyPlaybook />} />
                   {/* Legacy grouped route — redirects to calendar/notebook. */}
                   <Route path="journal" element={<JournalSurface />} />
                   <Route path="insights" element={<InsightsSurface />} />
@@ -764,6 +794,7 @@ export default function App() {
                 <Route path="/admin/pattern-review" element={<PatternReview />} />
                 <Route path="/admin/rare-preview" element={<RarePreview />} />
                 <Route path="/admin/landing-analytics" element={<LandingAnalytics />} />
+                <Route path="/admin/ai-spend" element={<AiSpend />} />
                 <Route path="/admin/wisdom" element={<WisdomAdmin />} />
               </Route>
             </Route>
@@ -773,6 +804,7 @@ export default function App() {
           </Routes>
           </Suspense>
         </RouteErrorBoundary>
+        </AgentProvider>
         <GlobalVoiceGate />
         </VoiceProvider>
       </AuthProvider>

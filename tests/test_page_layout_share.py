@@ -18,8 +18,9 @@ from tests._style_library_helpers import (  # noqa: F401
 ROOT = Path(__file__).resolve().parents[1]
 PAGE_LAYOUTS_JS = ROOT / "app" / "src" / "pages" / "journal-2-0" / "lib" / "pageLayouts.js"
 
-@pytest.mark.parametrize("combo", list(itertools.product((False, True), repeat=3)))
-def test_layout_sharing_needs_all_three_switches(monkeypatch, combo):
+@pytest.mark.parametrize("combo", list(itertools.product((False, True), repeat=len(SWITCHES))))
+def test_layout_sharing_needs_both_its_switches(monkeypatch, combo):
+    # (the third, the style library's, was retired as always on, 2026-11-04)
     _set(monkeypatch, dict(zip(SWITCHES, combo)))
     assert gallery.layout_sharing_enabled() is all(combo)
 
@@ -27,7 +28,7 @@ def test_layout_sharing_needs_all_three_switches(monkeypatch, combo):
 def test_an_unset_sharing_switch_is_off(monkeypatch):
     """Production's state: the sharing switch is not set at all (`_set` always writes "0" or "1")."""
     _set(monkeypatch, {n: True for n in SWITCHES})
-    assert gallery.layout_sharing_enabled() is True                       # control: all three on reads on
+    assert gallery.layout_sharing_enabled() is True                       # control: both on reads on
     monkeypatch.delenv("NOTEBOOK_LAYOUT_SHARING_ENABLED")
     assert gallery.layout_sharing_enabled() is False
 
@@ -128,21 +129,16 @@ def test_layout_rows_vanish_unless_all_three_switches_are_on(conn, monkeypatch, 
     assert all(r["id"] != pending for r in queue)                        # a PENDING layout row
     assert pending_outline in [r["id"] for r in queue]                    # non-vacuity: the queue was read
     handle = gallery.author_handle("u1", conn)
-    # P4b-R-X3: with the library off the author page is None (the library's own gate); otherwise it is read
-    # and carries the outline but never a layout.
+    # P4b-R-X3: the author page is read and carries the outline but never a layout.
     page = gallery.author_page("v", handle, conn=conn)
-    if off == "NOTEBOOK_STYLE_LIBRARY_ENABLED":
-        assert page is None
-    else:
-        assert [i["title"] for i in page["items"]] == ["O"]              # non-vacuity: the page was read
-    assert all(i["itemType"] != "page_layout" for i in (page or {"items": []})["items"])
-    # The feed, the same care (P4b-R-X3): [] with the library off, never a layout otherwise.
+    assert [i["title"] for i in page["items"]] == ["O"]                  # non-vacuity: the page was read
+    assert all(i["itemType"] != "page_layout" for i in page["items"])
+    # The feed, the same care (P4b-R-X3): never a layout.
     conn.execute("INSERT INTO j2_gallery_follows (follower_id, author_id, created_at) VALUES ('v', 'u1', 'x')")
     conn.commit()
     followed = gallery.feed("v", conn=conn)
     assert all(i["itemType"] != "page_layout" for i in followed)
-    if off != "NOTEBOOK_STYLE_LIBRARY_ENABLED":
-        assert [i["title"] for i in followed] == ["O"]                   # non-vacuity: the feed was read
+    assert [i["title"] for i in followed] == ["O"]                       # non-vacuity: the feed was read
 
 
 def test_layout_rows_list_when_all_three_are_on(conn, monkeypatch):
@@ -163,11 +159,11 @@ def test_layout_rows_list_when_all_three_are_on(conn, monkeypatch):
 
 def test_one_rule_decides_type_visibility(monkeypatch):
     # P4b final T1: the type rule covers the NON-STYLE types only (an example note, a layout); style rows are
-    # `_hidden_styles`'s. With the library off both of those are hidden; with every switch on, neither is.
-    monkeypatch.setenv("NOTEBOOK_EXAMPLE_NOTES_ENABLED", "1")
-    _set(monkeypatch, {"NOTEBOOK_STYLE_LIBRARY_ENABLED": False})
-    # Wave 11 (Task 11.7): the three tool types are the rule's too, hidden while the library or wave 11 is off.
-    assert set(gallery._hidden_item_types()) == {"example_note", "page_layout", *gallery.TOOL_ITEM_TYPES}
+    # `_hidden_styles`'s. With layout sharing off a layout is hidden; with every switch on, nothing is. (An example
+    # note is never hidden: its switch, and the library's, were retired as always on, 2026-11-04.)
+    _set(monkeypatch, {})
+    # Wave 11 (Task 11.7): the three tool types are the rule's too, hidden while wave 11 is off.
+    assert set(gallery._hidden_item_types()) == {"page_layout", *gallery.TOOL_ITEM_TYPES}
     assert "style" not in gallery._hidden_item_types()
     _set(monkeypatch, {n: True for n in SWITCHES})
     monkeypatch.setenv("NOTEBOOK_WIDGETS_W11_ENABLED", "1")
@@ -273,7 +269,7 @@ def test_status_names_the_members_own_items_only(conn, sharing_on):
 
 
 def test_publish_layout_is_none_while_sharing_is_off(conn, monkeypatch):
-    _set(monkeypatch, {"NOTEBOOK_STYLE_LIBRARY_ENABLED": True, "JOURNAL_PAGE_LAYOUTS_ENABLED": True})
+    _set(monkeypatch, {"JOURNAL_PAGE_LAYOUTS_ENABLED": True})
     _save_pref(conn, "author", {"version": 1, "trade": TRADE})
     assert _publish(conn) is None
     assert gallery.layout_status("author", conn=conn) is None
@@ -503,7 +499,7 @@ def _as(api, who):
 
 
 def test_the_layout_routes_are_the_one_404_for_everyone_while_sharing_is_off(api, conn, monkeypatch):
-    _set(monkeypatch, {"NOTEBOOK_STYLE_LIBRARY_ENABLED": True, "JOURNAL_PAGE_LAYOUTS_ENABLED": True})
+    _set(monkeypatch, {"JOURNAL_PAGE_LAYOUTS_ENABLED": True})
     _save_pref(conn, "author", {"version": 1, "trade": TRADE})
     one_404 = api.get("/api/j2/template-gallery/no-such-item")              # the gallery's own not-found
     assert one_404.status_code == 404

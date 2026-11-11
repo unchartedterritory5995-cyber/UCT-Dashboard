@@ -370,13 +370,6 @@ describe('ImportWizard — connect tiles (Task 12)', () => {
       if (String(url).includes('/api/j2/notes/connectors/status')) {
         return new Response(JSON.stringify({ providers }))
       }
-      // MUST come before the '/connect' check below — '/api/j2/notes/
-      // connectors/dropbox/folders' contains the substring '/connect' as a
-      // prefix of '/connectors', so a naive ordering would misroute the
-      // Dropbox folder-picker GET into the OAuth-connect branch.
-      if (String(url).includes('/dropbox/folders')) {
-        return new Response(JSON.stringify({ folders: [] }))
-      }
       if (String(url).includes('/connect')) {
         return new Response(JSON.stringify({ redirectUrl: 'https://api.notion.com/v1/oauth/authorize?x=1' }))
       }
@@ -390,7 +383,6 @@ describe('ImportWizard — connect tiles (Task 12)', () => {
       roam: { configured: true, sources: [] },
       craft: { configured: false, sources: [] },
       notion: { configured: false, sources: [] },
-      dropbox: { configured: false, sources: [] },
     })
     render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
 
@@ -405,7 +397,6 @@ describe('ImportWizard — connect tiles (Task 12)', () => {
       roam: { configured: false, sources: [] },
       craft: { configured: false, sources: [] },
       notion: { configured: false, sources: [] },
-      dropbox: { configured: false, sources: [] },
     })
     render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
 
@@ -421,7 +412,6 @@ describe('ImportWizard — connect tiles (Task 12)', () => {
       roam: { configured: true, connected: true, sources: [{ id: 's1', provider: 'roam', displayName: 'My Graph', syncEnabled: true, counts: {} }] },
       craft: { configured: false, sources: [] },
       notion: { configured: false, sources: [] },
-      dropbox: { configured: false, sources: [] },
     })
     render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
 
@@ -434,7 +424,6 @@ describe('ImportWizard — connect tiles (Task 12)', () => {
       roam: { configured: false, sources: [] },
       craft: { configured: false, sources: [] },
       notion: { configured: true, sources: [] },
-      dropbox: { configured: false, sources: [] },
     })
     render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
 
@@ -454,27 +443,28 @@ describe('ImportWizard — connect tiles (Task 12)', () => {
     })
   })
 
-  // Task 12b: the OAuth return always redirects to /settings (the router
-  // hardcodes it), so this surface never auto-opens the picker — but a user
-  // can still arrive here later with Dropbox connected-but-sourceless
-  // (connected via Settings, closed the picker without picking, then opened
-  // the wizard). The tile must read that state honestly rather than showing
-  // a misleadingly-healthy "Dropbox connected" pill with a dead Sync.
-  it('a connected-but-sourceless Dropbox tile reads "Choose a folder", not "Dropbox connected" — and opens the same picker', async () => {
+  // Dropbox, OneNote and OneDrive were archived on 2026-11-04 with their folder picker. Even a
+  // status payload that still names them (a stale server, or a stored row) renders no tile, no
+  // "Choose a folder" state and no picker, and nothing asks for a folder list.
+  it('an archived provider (dropbox/onenote/onedrive) renders no tile and no folder picker, even when the payload names it connected', async () => {
     mockConnectorsFetch({
-      roam: { configured: false, sources: [] },
+      roam: { configured: true, sources: [] },
       craft: { configured: false, sources: [] },
       notion: { configured: false, sources: [] },
       dropbox: { configured: true, connected: true, sources: [] },
+      onenote: { configured: true, connected: true, sources: [] },
+      onedrive: { configured: true, connected: true, sources: [] },
     })
     render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
 
-    const tile = await screen.findByTestId('connect-tile-dropbox')
-    expect(tile).toHaveTextContent(/choose a folder/i)
-    expect(tile).not.toHaveTextContent('Dropbox connected')
-
-    fireEvent.click(tile)
-    expect(await screen.findByText('Choose a Dropbox folder')).toBeInTheDocument()
+    // non-vacuity: the strip did render, from the same payload
+    expect(await screen.findByTestId('connect-tile-roam')).toBeInTheDocument()
+    for (const gone of ['dropbox', 'onenote', 'onedrive']) {
+      expect(screen.queryByTestId(`connect-tile-${gone}`)).not.toBeInTheDocument()
+    }
+    expect(screen.queryByText(/choose a (dropbox|onedrive) folder/i)).not.toBeInTheDocument()
+    // (the wizard's own '/note-folders' read is not a connector folder list)
+    expect(vi.mocked(fetch).mock.calls.some((c) => /\/connectors\/[^/]+\/folders/.test(String(c[0])))).toBe(false)
   })
 })
 
@@ -1149,5 +1139,87 @@ describe('import_used — the finished import counts itself, and nothing the fil
       { event: 'import_used', props: { source: 'file', created: 1, updated: 0, failed: 0 } },
     ])
     expect(JSON.stringify(telemetry())).not.toMatch(/hello|n1/)
+  })
+})
+
+describe('ImportWizard — re-import to recover (Plan B Task 11)', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  function mockServer({ existing = {} } = {}) {
+    const confirms = []
+    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+      const u = String(url)
+      if (u.endsWith('/import/check')) return new Response(JSON.stringify({ existing }))
+      if (u.endsWith('/import/confirm')) {
+        confirms.push(JSON.parse(opts.body))
+        return new Response(JSON.stringify({ created: [], updated: [], skipped: [],
+          recovered: [{ importKey: 'file:hello.md', id: 'n1', updatedAt: '2026-11-01T00:00:00Z' }], keptEdited: [] }))
+      }
+      if (u.endsWith('/note-folders')) return new Response(JSON.stringify({ folders: [] }))
+      if (u.endsWith('/enrichment/scan')) return new Response(JSON.stringify({ candidates: [], scanned: 0 }))
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+    return confirms
+  }
+
+  it('offers recover mode only on a re-import and sends it when ticked', async () => {
+    // A first import: nothing to recover, so no offer.
+    mockServer()
+    const first = render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    fireEvent.change(screen.getByTestId('import-file-input'), { target: { files: [mdFile] } })
+    await waitFor(() => expect(screen.getByText(/1 note/i)).toBeInTheDocument(), { timeout: 10000 })
+    expect(screen.queryByTestId('import-recover-mode')).toBeNull()
+    first.unmount()
+
+    // A re-import of a note that already exists: offered, off by default, sent when ticked.
+    const confirms = mockServer({ existing: { 'file:hello.md': { id: 'n1', updatedAt: '2026-10-01T00:00:00Z', importHash: null } } })
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    fireEvent.change(screen.getByTestId('import-file-input'), { target: { files: [mdFile] } })
+    await waitFor(() => expect(screen.getByText(/update 1/i)).toBeInTheDocument(), { timeout: 10000 })
+    const box = screen.getByTestId('import-recover-mode')
+    expect(box).not.toBeChecked()
+    expect(screen.getByLabelText('Re-import to recover missing pictures and links')).toBe(box)
+    expect(screen.getByText(
+      "Notes you haven't changed since they were imported are rebuilt from this export. Notes you've edited are left exactly as they are.",
+    )).toBeInTheDocument()
+    fireEvent.click(box)
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
+    await waitFor(() => expect(confirms).toHaveLength(1), { timeout: 10000 })
+    expect(confirms[0].mode).toBe('recover')
+    await waitFor(() => expect(screen.getByText(/Recovered: 1/)).toBeInTheDocument(), { timeout: 10000 })
+  })
+
+  it('an untouched checkbox sends an ordinary import with no mode', async () => {
+    const confirms = mockServer({ existing: { 'file:hello.md': { id: 'n1', updatedAt: '2026-10-01T00:00:00Z', importHash: null } } })
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    fireEvent.change(screen.getByTestId('import-file-input'), { target: { files: [mdFile] } })
+    await waitFor(() => expect(screen.getByText(/update 1/i)).toBeInTheDocument(), { timeout: 10000 })
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
+    await waitFor(() => expect(confirms).toHaveLength(1), { timeout: 10000 })
+    expect('mode' in confirms[0]).toBe(false)
+  })
+
+  // Plan F Task 10: the one-time repair notice opens the wizard with the box already ticked.
+  it('initialRecover ticks the recover box once a re-import is possible', async () => {
+    const existing = { 'file:hello.md': { id: 'n1', updatedAt: '2026-10-01T00:00:00Z', importHash: null } }
+    const confirms = mockServer({ existing })
+    // Mounted closed first, the way NotebookTab's lazy dialog keeps it: the tick must land on OPEN.
+    const view = render(<ImportWizard open={false} initialRecover onClose={() => {}} onImported={() => {}} />)
+    view.rerender(<ImportWizard open initialRecover onClose={() => {}} onImported={() => {}} />)
+    // A first-import scan has nothing to recover, so nothing is offered yet.
+    expect(screen.queryByTestId('import-recover-mode')).toBeNull()
+    fireEvent.change(screen.getByTestId('import-file-input'), { target: { files: [mdFile] } })
+    await waitFor(() => expect(screen.getByText(/update 1/i)).toBeInTheDocument(), { timeout: 10000 })
+    expect(screen.getByTestId('import-recover-mode')).toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
+    await waitFor(() => expect(confirms).toHaveLength(1), { timeout: 10000 })
+    expect(confirms[0].mode).toBe('recover')
+
+    // Closed and reopened by an ordinary Import (no initialRecover): off again.
+    view.rerender(<ImportWizard open={false} onClose={() => {}} onImported={() => {}} />)
+    view.rerender(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    fireEvent.change(screen.getByTestId('import-file-input'), { target: { files: [mdFile] } })
+    await waitFor(() => expect(screen.getByText(/update 1/i)).toBeInTheDocument(), { timeout: 10000 })
+    expect(screen.getByTestId('import-recover-mode')).not.toBeChecked()
   })
 })

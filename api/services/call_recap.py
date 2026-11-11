@@ -14,6 +14,7 @@ All functions:
 Model: claude-opus-4-7 per feedback_opus_for_synthesis.
 """
 from __future__ import annotations
+from api.services import llm_models
 
 import datetime
 import json
@@ -48,7 +49,7 @@ _SENTIMENT_TTL = 12 * 3600  # 12 hours
 _WEBCAST_TTL  = 24 * 3600   # 24 hours
 _RATINGS_TTL  = 6 * 3600    # 6 hours
 
-_OPUS_MODEL = os.environ.get("CATALYST_OPUS_MODEL", "claude-opus-4-7")
+_OPUS_MODEL = os.environ.get("CATALYST_OPUS_MODEL", llm_models.OPUS)
 
 # ── lazy imports ─────────────────────────────────────────────────────────────
 
@@ -176,6 +177,7 @@ def _anthropic_client():
         api_key=api_key,
         timeout=llm_timeouts.seconds("CALL_RECAP_LLM_TIMEOUT_SECS",
                                      llm_timeouts.REQUEST_PATH_LONG),
+        max_retries=0,
     )
 
 
@@ -381,7 +383,7 @@ def _web_fallback_synthesis(sym: str, ck: str):
             max_tokens=800,
             messages=[{"role": "user", "content": prompt}],
         )
-        raw = (response.content[0].text or "").strip()
+        raw = llm_models.text_of(response).strip()
 
         # Record cost
         guard.record(
@@ -541,7 +543,7 @@ def _web_sentiment(sym: str, ck: str, market_date) -> Optional[dict[str, Any]]:
             max_tokens=400,
             messages=[{"role": "user", "content": prompt}],
         )
-        raw = (response.content[0].text or "").strip()
+        raw = llm_models.text_of(response).strip()
 
         guard.record(
             market_date=market_date,

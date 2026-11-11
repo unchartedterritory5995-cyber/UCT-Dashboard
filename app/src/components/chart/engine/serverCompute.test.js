@@ -401,4 +401,102 @@ describe('⭐ the lane is GENERIC — a fourth tenant needs no code in it', () =
       expect(code.includes(word), `serverCompute.js decides entitlement (${word})`).toBe(false)
     }
   })
+
+  it('⭐ 2a-09 — and neither does the READOUT resolver: `readoutSchema.js` names no tenant', () => {
+    // The scalars a tenant sends beside its columns are turned into rows by
+    // `engine/readoutSchema.js` from the definition's own `readout[]`. A format
+    // or a row keyed on a definition id there would be the fourth tenant's
+    // code in the lane by another door, so the same scan reads that file.
+    const schemaSrc = readFileSync(
+      resolve(process.cwd(), 'src/components/chart/engine/readoutSchema.js'), 'utf8')
+    const code = schemaSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+    expect(code.length, 'the resolver is empty — the scan is vacuous').toBeGreaterThan(500)
+    for (const id of listDefinitions().map(d => d.id)) {
+      expect(code.includes(`'${id}'`), `readoutSchema.js hardcodes the definition id ${id}`).toBe(false)
+      expect(code.includes(`"${id}"`), `readoutSchema.js hardcodes the definition id ${id}`).toBe(false)
+    }
+    // …nor a tenant's PAYLOAD KEYS: a resolver that knew `benchmark` or
+    // `lastRsHigh` by name would print one tenant's rows and nobody else's.
+    for (const key of ['benchmark', 'lastRsHigh', 'pctFromMa', 'rsLine']) {
+      expect(code.includes(key), `readoutSchema.js knows the payload key ${key}`).toBe(false)
+    }
+  })
+})
+
+// ─── UCT Relative Strength v2: the envelope's scalars, the server-only key, rev gating ─
+// Plan: docs/superpowers/specs/2026-11-05-uct-relative-strength-indicator-design.md §8.3.
+import { pickServerInputs, revMismatch, scalarsFor } from './serverCompute'
+
+describe('⭐ the envelope\'s scalars ride beside the columns (plan §8.3)', () => {
+  beforeEach(() => clearServerColumns())
+
+  it('keeps `payload` and `rev` when the wire carries them, and NOTHING else when it does not', () => {
+    const bare = columnsFromWire({ columns: { a: [1] }, times: [1] })
+    expect(Object.keys(bare).sort()).toEqual(['columns', 'times'])
+    const rich = columnsFromWire({ columns: { a: [1] }, times: [1], rev: 2, payload: { legend: { above: true } }, asOf: 5 })
+    expect(rich.rev).toBe(2)
+    expect(rich.payload).toEqual({ legend: { above: true } })
+    expect(rich.asOf).toBeUndefined()
+    // a payload that is not a plain object is not a payload
+    expect(columnsFromWire({ columns: {}, times: [], payload: [1, 2] }).payload).toBeUndefined()
+  })
+
+  it('`pickServerInputs` sends only the keys the definition names, else everything', () => {
+    const def = { meta: { serverInputs: ['benchmark', 'lookback'] } }
+    expect(pickServerInputs(def, { benchmark: 'SPY', lookback: 252, lineColor: '#fff', lineWidth: 2 }))
+      .toEqual({ benchmark: 'SPY', lookback: 252 })
+    expect(pickServerInputs({ meta: {} }, { a: 1, b: 2 })).toEqual({ a: 1, b: 2 })
+  })
+
+  it('a colour change does NOT re-key the fetch for a definition that names its server inputs', async () => {
+    const def = getDefinition('rsLine')
+    expect(def.meta.serverInputs).toContain('benchmark')
+    expect(def.meta.serverInputs).not.toContain('lineColor')
+    const calls = []
+    const fetcher = (url) => { calls.push(url); return Promise.resolve({ columns: { rsLine: [1] }, times: [20260105], rev: 2 }) }
+    const bars = [{ t: '2026-01-05', c: 1 }]
+    const base = { benchmark: 'SPY', lookback: 252, lineColor: '#111111' }
+    serverColumnsFor(def, bars, base, { sym: 'NVDA', tf: 'D', fetcher })
+    await Promise.resolve(); await Promise.resolve()
+    serverColumnsFor(def, bars, { ...base, lineColor: '#222222' }, { sym: 'NVDA', tf: 'D', fetcher })
+    expect(calls.length, 'one fetch for two colours').toBe(1)
+    expect(calls[0]).not.toContain('lineColor')
+  })
+
+  it('⛔ A DIFFERENT SERVER REV IS DRAWN, NOT RE-ASKED — the flag-off (v1) envelope renders the line and never loops', async () => {
+    const def = getDefinition('rsLine')
+    expect(def.compute.rev).toBe(5)   // v2 at Phase 1; v3 since 2a-14 (the Mansfield columns); v4 since 3-08; v5 since Deepvue round 2
+    const inputs = { benchmark: 'SPY' }
+    const ctx = { sym: 'NVDA', tf: 'D' }
+    // the dark default: the server row is v1 (one column, rev 1) while the client definition is v3
+    const calls = []
+    const fetcher = (url) => { calls.push(url); return Promise.resolve({ columns: { rsLine: [0.5] }, times: [20260105], rev: 1 }) }
+    const bars = [{ t: '2026-01-05', c: 1 }]
+    expect(serverColumnsFor(def, bars, inputs, { ...ctx, fetcher })).toEqual({})     // nothing landed yet
+    await new Promise((r) => setTimeout(r, 0))
+    expect(calls.length).toBe(1)
+    for (let i = 0; i < 5; i++) {
+      const drawn = serverColumnsFor(def, bars, inputs, { ...ctx, fetcher })
+      expect(Array.from(drawn.rsLine), 'the v1 answer is drawn').toEqual([0.5])
+      expect(drawn.rsMa, 'and the columns the v1 server does not send are simply absent').toBeUndefined()
+    }
+    await new Promise((r) => setTimeout(r, 0))
+    expect(calls.length, 'no re-ask: five renders, one fetch').toBe(1)
+    // the mismatch is still visible as a signal
+    expect(revMismatch(cachedColumns('rsLine', 'NVDA', 'D', inputs), def)).toBe(true)
+  })
+
+  it('`scalarsFor` reads the landed payload and never asks', () => {
+    const def = getDefinition('rsLine')
+    const inputs = { benchmark: 'SPY', lineColor: '#abc' }
+    const ctx = { sym: 'NVDA', tf: 'D' }
+    expect(scalarsFor(def, inputs, ctx)).toBeNull()
+    primeServerColumns('rsLine', 'NVDA', 'D', pickServerInputs(def, inputs),
+      { columns: { rsLine: [0.5] }, times: [20260105], rev: 2, payload: { benchmark: { resolved: 'SPY' } } })
+    expect(scalarsFor(def, inputs, ctx)).toEqual({ benchmark: { resolved: 'SPY' } })
+    // a v1 server sends no payload, so the readout simply has none
+    primeServerColumns('rsLine', 'NVDA', 'D', pickServerInputs(def, inputs),
+      { columns: { rsLine: [0.5] }, times: [20260105], rev: 1 })
+    expect(scalarsFor(def, inputs, ctx)).toBeNull()
+  })
 })

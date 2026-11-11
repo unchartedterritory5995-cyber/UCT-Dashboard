@@ -27,6 +27,8 @@ vi.mock('../../components/StockChart', () => ({
       <span>drawingTools:{String(props.showDrawingTools)}</span>
       <span>feeds:{String(props.settingsOverride?.markers?.news)}/{String(props.settingsOverride?.markers?.desk)}</span>
       <span>instances:{(props.settingsOverride?.indicatorInstances || []).map((i) => i.instanceId).join('|') || '-'}</span>
+      {/* the library's click, which a touch tap also raises: a BusinessDay time, the cursor's price, the point */}
+      <button type="button" data-testid="chart-lib-tap" onClick={() => props.onChartTap?.({ time: { year: 2025, month: 1, day: 6 }, price: 104.2, point: { x: 40, y: 20 } })}>lib-tap</button>
     </div>
   ),
 }))
@@ -51,6 +53,7 @@ const item = (type, id, prompt, withBars = false) => ({
 
 const recall = (id, q = 'What is a pivot?') => item('recall', id, { question: q, kind: 'mcq', choices: ['The buy point', 'The stop', 'The target', 'The low'] })
 const spot = (id) => item('spot', id, { question: 'Which setup is this?', choices: ['VCP', 'Flat base', 'Cup'] }, true)
+const tap = (id) => item('tap', id, { question: 'Tap the pivot.', target: 'the pivot' }, true)
 const walk = (id, order = 1) => item('walkthrough', id, { q: 'Regime', order, steps: ['The score maps to a band.', 'A band is permission, not prediction.'] })
 
 function makeFetcher(payload, { postFail = 0 } = {}) {
@@ -98,11 +101,12 @@ async function answerChoice(label) {
 }
 
 describe('DrillPlayer', () => {
-  it('shows the ten-segment progress strip as "Question N of 10" and advances it', async () => {
+  it('shows the status line as "Question N of 10" and advances it', async () => {
     const fetcher = makeFetcher(tenSet())
     render(<DrillPlayer open onClose={() => {}} fetcher={fetcher} />)
     expect(await screen.findByText('Question 1 of 10')).toBeInTheDocument()
-    expect(screen.getByTestId('progress-strip').querySelectorAll('li')).toHaveLength(10)
+    // Hard mode's status line (2026-11-08): ten stops on the track, the step named in words
+    expect(screen.getByRole('group', { name: 'Lesson, question 1 of 10, 0 right' })).toBeInTheDocument()
 
     await answerChoice('VCP')
     fireEvent.click(screen.getByTestId('primary-action'))
@@ -123,6 +127,10 @@ describe('DrillPlayer', () => {
     expect(btn).not.toBeDisabled()
     fireEvent.click(btn)
     await waitFor(() => expect(screen.getByTestId('primary-action')).toHaveTextContent('Continue'))
+    // the answer takes over the screen (rule 15), with the verdict; its button opens the lesson
+    expect(screen.getByTestId('drill-takeover')).toHaveTextContent('Correct')
+    fireEvent.click(screen.getByTestId('drill-takeover-go'))
+    expect(screen.queryByTestId('drill-takeover')).not.toBeInTheDocument()
     expect(screen.getByText('Correct')).toBeInTheDocument()
     fireEvent.click(screen.getByTestId('primary-action'))
     await waitFor(() => expect(screen.getByTestId('primary-action')).toHaveTextContent('Check'))
@@ -151,7 +159,8 @@ describe('DrillPlayer', () => {
     expect(screen.getByText('frozen:true')).toBeInTheDocument()
     expect(screen.getByText('liveUpdates:false')).toBeInTheDocument()
     expect(screen.getByText('hideWatermark:true')).toBeInTheDocument()
-    expect(screen.getByText('showBrandMark:false')).toBeInTheDocument()
+    // rule 1 of the owner's principles (docs/study/OWNER_PRINCIPLES.md): the member's own widget, with our logo
+    expect(screen.getByText('showBrandMark:true')).toBeInTheDocument()
     expect(screen.getByText('drawingTools:false')).toBeInTheDocument()
     expect(screen.getByText('feeds:false/false')).toBeInTheDocument()
     expect(chart).toHaveAttribute('data-first', '2025-01-02')
@@ -244,7 +253,11 @@ describe('DrillPlayer', () => {
     await waitFor(() => expect(screen.getByRole('radio', { name: 'The buy point' })).toHaveAttribute('aria-checked', 'true'))
     fireEvent.keyDown(document.body, { key: 'Enter' })
     await waitFor(() => expect(screen.getByTestId('primary-action')).toHaveTextContent('Continue'))
-    expect(screen.getByRole('status')).toHaveTextContent('Correct')
+    // Enter belongs to the takeover while it holds the screen: it opens the lesson, it never skips it
+    expect(screen.getByTestId('drill-takeover')).toHaveTextContent('Correct')
+    fireEvent.keyDown(window, { key: 'Enter' })
+    await waitFor(() => expect(screen.queryByTestId('drill-takeover')).not.toBeInTheDocument())
+    expect(screen.getByTestId('primary-action')).toHaveTextContent('Continue')
   })
 })
 
@@ -328,5 +341,19 @@ describe('DrillPlayer screen feedback (owner 2026-10-21)', () => {
     fireEvent.keyDown(box, { key: 'Enter' })
     expect(screen.getByTestId('primary-action')).toHaveTextContent('Check')       // not checked
     expect(screen.getByRole('radio', { name: 'VCP' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('a chart tap from the library (a touch tap on a phone) places the marker without a crosshair move', async () => {
+    const set = { ...tenSet(), items: [tap('si_tap1'), recall('si_2')] }
+    render(<DrillPlayer open onClose={() => {}} fetcher={makeFetcher(set)} />)
+    expect(await screen.findByTestId('tap-hud')).toHaveTextContent('Tap the pivot')
+    // no crosshair payload was ever delivered; the touch tap is the only event
+    fireEvent.click(screen.getByTestId('chart-lib-tap'))
+    expect(screen.getByTestId('tap-hud')).toHaveTextContent('Tap Check, or tap again to move')
+    // (this fixture's bars carry raw YYYYMMDD keys; the product's go through normalizeBars to YYYY-MM-DD)
+    expect(screen.getByTestId('tap-status')).toHaveTextContent(/Marker on 2025-?01-?06 at 104\.20\./)
+    // the container click right after the library's click is the SAME click (mouse): it must not double-handle
+    fireEvent.click(screen.getByTestId('chart-box'))
+    expect(screen.getByTestId('tap-status')).toHaveTextContent(/Marker on 2025-?01-?06 at 104\.20\./)
   })
 })

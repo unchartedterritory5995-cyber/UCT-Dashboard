@@ -34,6 +34,11 @@ from api.services.alert_destination import ops_webhook as _ops_webhook
 from fastapi import FastAPI
 import uvicorn
 
+# ⛔ SECURITY (2026-11-10): redact credential query params (Massive `apiKey=`) in
+# every log record -- this pod runs bars_fetch/httpx, whose URLs carry the key.
+from api.services.log_redaction import install as _install_log_redaction
+_install_log_redaction()
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(message)s",
@@ -55,6 +60,8 @@ log = logging.getLogger("worker")
 _uploader_state = {
     "last_attempt_at": None,   # int unix seconds, or None before first loop
     "last_outcome": None,      # "success" | "no_data" | "error" | None
+    "base_started_at": None,   # int unix seconds while a daily base is building
+    "base_last_outcome": None, # "base" | "no_data" | "no_credentials" | "error" | None
 }
 _uploader_state_lock = threading.Lock()
 
@@ -143,6 +150,10 @@ def _start_massive_ws():
         log.exception(f"Massive WS consumer failed to start (non-fatal): {e}")
 
 
+#: How long the day's full base waits for the boot's first delta to finish.
+BASE_WAITS_FOR_DELTA_SECONDS = 3600
+
+
 def _start_uploader():
     """Push a snapshot to R2 every SNAPSHOT_INTERVAL_SECONDS."""
     from api.services import data_sync
@@ -161,6 +172,8 @@ def _start_uploader():
         from zoneinfo import ZoneInfo
         return _dt.datetime.now(ZoneInfo("America/New_York")).date().isoformat()
 
+    first_delta_done = threading.Event()
+
     def loop():
         while True:
             # Default to "error" so an exception below leaves the right
@@ -172,24 +185,14 @@ def _start_uploader():
                 if not data_sync.credentials_ok():
                     outcome = "no_credentials"
                 elif data_sync.DELTA_ENABLED:
-                    # One full base per ET day; deltas the rest of the time.
-                    today = _et_today()
-                    if _last_base_day["d"] != today:
-                        ts = data_sync.upload_snapshot(force=True)  # full base
-                        if ts and ts != data_sync.SNAPSHOT_UNCHANGED:
-                            _last_base_day["d"] = today
-                            data_sync.set_last_base_day(today)
-                            outcome = "base"
-                            log.info(f"uploaded base snapshot {ts}")
-                        else:
-                            outcome = "no_data"
+                    # The day's full base runs on its own thread (base_loop).
+                    started = time.monotonic()
+                    ts = data_sync.upload_delta()
+                    if ts:
+                        outcome = "delta"
+                        log.info(f"uploaded delta {ts} in {time.monotonic() - started:.0f}s")
                     else:
-                        ts = data_sync.upload_delta()
-                        if ts:
-                            outcome = "delta"
-                            log.info(f"uploaded delta {ts}")
-                        else:
-                            outcome = "unchanged"  # nothing in the window
+                        outcome = "unchanged"  # nothing in the window
                 else:
                     ts = data_sync.upload_snapshot()
                     if ts == data_sync.SNAPSHOT_UNCHANGED:
@@ -204,9 +207,49 @@ def _start_uploader():
             with _uploader_state_lock:
                 _uploader_state["last_attempt_at"] = int(time.time())
                 _uploader_state["last_outcome"] = outcome
+            first_delta_done.set()
             # Adaptive cadence: 5 min in the active data window, slow overnight/
             # weekends. With skip-if-unchanged this drops the round-the-clock
             # 688 MB upload firehose to near-zero when the market's closed.
+            time.sleep(data_sync.snapshot_interval_seconds())
+
+    def base_loop():
+        # ⛔ The base gets its OWN thread so it can never hold up the deltas.
+        # It takes hours on a 40 GB bars.db and a master merge restarts this
+        # process, so on 2026-11-09 every base was killed before finishing and,
+        # sharing the delta loop, no delta shipped after the restore. A base stamped
+        # after deltas that ran during its build is safe: each delta carries a
+        # full 7-45 day window, so the next one restores anything a pod skipped.
+        #
+        # ⛔ The boot's first delta goes first. While the base copied bars.db on
+        # 2026-11-09 a delta wrote 286 KB in 10 minutes, then 12 MB a minute once
+        # the copy ended, so running them together lost the short gap between deploys.
+        first_delta_done.wait(BASE_WAITS_FOR_DELTA_SECONDS)
+        while True:
+            outcome = None
+            try:
+                today = _et_today()
+                if not data_sync.credentials_ok():
+                    outcome = "no_credentials"
+                elif _last_base_day["d"] != today:
+                    with _uploader_state_lock:
+                        _uploader_state["base_started_at"] = int(time.time())
+                    outcome = "error"
+                    ts = data_sync.upload_snapshot(force=True)
+                    if ts and ts != data_sync.SNAPSHOT_UNCHANGED:
+                        _last_base_day["d"] = today
+                        data_sync.set_last_base_day(today)
+                        outcome = "base"
+                        log.info(f"uploaded base snapshot {ts}")
+                    else:
+                        outcome = "no_data"
+            except Exception as e:
+                outcome = "error"
+                log.exception(f"base upload error (non-fatal): {e}")
+            if outcome is not None:
+                with _uploader_state_lock:
+                    _uploader_state["base_started_at"] = None
+                    _uploader_state["base_last_outcome"] = outcome
             time.sleep(data_sync.snapshot_interval_seconds())
 
     log.info(
@@ -214,6 +257,8 @@ def _start_uploader():
         f"({data_sync.SNAPSHOT_INTERVAL_SECONDS // 60}-min cadence)"
     )
     threading.Thread(target=loop, daemon=True, name="s3_upload").start()
+    if data_sync.DELTA_ENABLED:
+        threading.Thread(target=base_loop, daemon=True, name="s3_base_upload").start()
 
 
 def _start_breadth_backfill():
@@ -339,6 +384,188 @@ def _start_combined_pass():
 
     threading.Thread(target=run, daemon=True, name="breadth_combined_pass").start()
     log.info(f"breadth combined pass armed -> {artifact}")
+
+
+# ── UCT RS evidence job (WORKER, dark): a nightly SUBPROCESS at 21:30 ET ─────────
+# Engineering map docs/superpowers/plans/2026-11-06-uct-rs-phase2-engineering-map.md,
+# unit 2b-02. The job itself is `python -m api.services.rs_evidence` (unit 2b-01); its
+# settings travel on argv, built here. ⚠️ ONE ENVIRONMENT VARIABLE IS READ: the split
+# guard (decision N5, 2026-11-07) asks FMP for declared split lists through
+# `bars_sanitize._fetch_meta`, which reads `FMP_API_KEY` from the inherited environment.
+# Without it every list is unknown, the guard checks nothing, and the artifact's
+# `split_lists.no_key` says so. The worker service needs the key before arming.
+RS_EVIDENCE_FIRE_ET = (21, 30)
+"""HH:MM America/New_York of the nightly pass. After the bars day is settled (the
+worker's daily store is final by the evening) and clear of the worker's overnight
+passes and the web pod's 03:00 ET screener build."""
+RS_EVIDENCE_START_DELAY_S = 180
+"""Seconds the thread sleeps before its first look at the clock, so a pass never
+competes with the boot prewarm (the combined pass waits 45 s; this is heavier)."""
+RS_EVIDENCE_TIMEOUT_S = 2 * 3600
+"""The subprocess budget. A pass still running at the limit is killed and the
+`rs_evidence` health key says so."""
+RS_EVIDENCE_DEFAULT_SESSIONS = 5           # --sessions when RS_EVIDENCE_SESSIONS is unset
+RS_EVIDENCE_DB_NAME = "rs_evidence.db"     # under DATA_DIR (the worker's own volume)
+RS_EVIDENCE_ARTIFACT_KEY = "rs/evidence.json"
+"""The R2 key the pass publishes to. Equal to api.services.rs_evidence.ARTIFACT_KEY
+(pinned by tests/test_rs_evidence_worker_arming.py rather than imported: the job
+package stays out of this process). The CLI REQUIRES --dest; it never defaults."""
+_RS_EVIDENCE_CWD = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+"""The repo root (the parent of api/), so `-m api.services.rs_evidence` resolves in
+the child whatever directory the worker was launched from."""
+_RS_EVIDENCE_HEALTH_KEYS = ("last_start", "last_end", "exit_code", "duration_s",
+                            "last_receipt_line", "error")
+_rs_evidence_state = {k: None for k in _RS_EVIDENCE_HEALTH_KEYS}
+_rs_evidence_state_lock = threading.Lock()
+
+
+def _rs_evidence_health() -> dict:
+    """The `rs_evidence` health key: the latest pass, every field None before one."""
+    with _rs_evidence_state_lock:
+        return dict(_rs_evidence_state)
+
+
+def _rs_evidence_set(**fields) -> None:
+    unknown = set(fields) - set(_RS_EVIDENCE_HEALTH_KEYS)
+    assert not unknown, unknown
+    with _rs_evidence_state_lock:
+        _rs_evidence_state.update(fields)
+
+
+def _rs_evidence_next_fire(now):
+    """The next RS_EVIDENCE_FIRE_ET wall-clock instant in America/New_York STRICTLY
+    after `now` (an aware datetime in any zone). Built from the ET date and the wall
+    time, never by adding 24 h, so a DST change moves the fire by the clock (21:30 ET
+    on both sides of it) and the day it falls on is 23 or 25 hours long."""
+    import datetime as _dt
+    from zoneinfo import ZoneInfo
+    et = ZoneInfo("America/New_York")
+    local = now.astimezone(et)
+    hh, mm = RS_EVIDENCE_FIRE_ET
+    fire = _dt.datetime.combine(local.date(), _dt.time(hh, mm), tzinfo=et)
+    if fire <= local:
+        fire = _dt.datetime.combine(local.date() + _dt.timedelta(days=1), _dt.time(hh, mm), tzinfo=et)
+    return fire
+
+
+def _rs_evidence_sleep_until(fire, *, sleep=time.sleep, clock=None) -> None:
+    """Sleep in bounded chunks, re-reading the clock, until `fire` has passed. A
+    single 24 h sleep would wake early on some platforms and re-fire within the
+    same minute; this returns only once the instant is behind us."""
+    import datetime as _dt
+    clock = clock or (lambda: _dt.datetime.now(_dt.timezone.utc))
+    while True:
+        remaining = (fire - clock()).total_seconds()
+        if remaining <= 0:
+            return
+        sleep(min(remaining, 3600.0))
+
+
+def _rs_evidence_command(data_dir: str, sessions: int) -> list:
+    """The exact argv of one pass: the module CLI of unit 2b-01 with its REQUIRED
+    --db and --dest. `--publish` without `--dest` is a usage error there (exit 2)."""
+    return [sys.executable, "-m", "api.services.rs_evidence",
+            "--db", os.path.join(data_dir, RS_EVIDENCE_DB_NAME),
+            "--sessions", str(int(sessions)),
+            "--publish", "--dest", RS_EVIDENCE_ARTIFACT_KEY]
+
+
+def _rs_evidence_receipt_line(text):
+    """The CLI prints ONE `receipt {json}` line (last); keep the newest, bounded."""
+    if isinstance(text, bytes):
+        text = text.decode("utf-8", "replace")
+    if not text:
+        return None
+    for line in reversed(text.splitlines()):
+        if line.startswith("receipt "):
+            return line[:4000]
+    return None
+
+
+def _run_rs_evidence_once(cmd, *, timeout_s=RS_EVIDENCE_TIMEOUT_S) -> dict:
+    """ONE pass as a SUBPROCESS (the combined-pass recipe: its own interpreter and
+    GIL, so the worker's prewarm and uploader keep their share). Records the
+    `rs_evidence` health key and NEVER raises: a non-zero exit, the timeout and a
+    spawn failure each land in `error`, and the scheduling thread lives on."""
+    import datetime as _dt
+    import subprocess
+    t0 = time.time()
+    _rs_evidence_set(last_start=_dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
+                     last_end=None, exit_code=None, duration_s=None, error=None)
+    log.info(f"rs evidence pass spawning: {' '.join(cmd)}")
+    exit_code, receipt, error = None, None, None
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s, cwd=_RS_EVIDENCE_CWD)
+        exit_code = r.returncode
+        receipt = _rs_evidence_receipt_line(r.stdout)
+        if exit_code != 0:
+            tail = ((r.stderr or "").strip() or (r.stdout or "").strip())[-600:].replace("\n", " ")
+            error = f"exit {exit_code}: {tail}".strip()
+    except subprocess.TimeoutExpired as e:
+        receipt = _rs_evidence_receipt_line(e.stdout)
+        error = f"timeout after {timeout_s}s; the process was killed"
+    except Exception as e:                              # noqa: BLE001 - the health key is the report
+        error = f"{type(e).__name__}: {e}"[:600]
+    duration = round(time.time() - t0, 1)
+    _rs_evidence_set(last_end=_dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
+                     exit_code=exit_code, duration_s=duration, last_receipt_line=receipt, error=error)
+    if error:
+        log.warning(f"rs evidence pass FAILED after {duration}s: {error}")
+    else:
+        log.info(f"rs evidence pass exited rc={exit_code} after {duration}s: {receipt}")
+    return _rs_evidence_health()
+
+
+def _start_rs_evidence_pass():
+    """UCT RS evidence job on the WORKER (unit 2b-02): a daemon thread that sleeps
+    RS_EVIDENCE_START_DELAY_S, then runs `python -m api.services.rs_evidence` as a
+    SUBPROCESS once a night at RS_EVIDENCE_FIRE_ET (21:30 ET).
+
+    ⛔ DARK by default: RS_EVIDENCE_ENABLED must be literally "1" at boot, read HERE
+    and once, like every sibling start function (a flip needs a worker redeploy).
+    ⛔ The weekly `--sessions 1250` backfill is NOT scheduled here. The first
+    production run is the owner's manual `--dry-run --sessions 5` on the worker, to
+    measure the runtime and the `no_bars` count before arming; a full-history pass
+    is a manual invocation too, never a thread.
+    RS_EVIDENCE_SESSIONS (default 5) is the `--sessions` argument of every pass.
+    RS_EVIDENCE_RUN_ON_BOOT=1 runs ONE pass right after the start delay and then
+    follows the schedule: the first production receipt without waiting for 21:30 ET.
+    """
+    if os.environ.get("RS_EVIDENCE_ENABLED") != "1":
+        log.info("rs evidence pass not started (RS_EVIDENCE_ENABLED=0)")
+        return
+    data_dir = os.environ.get("DATA_DIR", "/data")
+    raw = os.environ.get("RS_EVIDENCE_SESSIONS", str(RS_EVIDENCE_DEFAULT_SESSIONS))
+    try:
+        sessions = int(raw)
+        if sessions < 0:
+            raise ValueError(raw)
+    except ValueError:
+        log.warning(f"RS_EVIDENCE_SESSIONS={raw!r} is not a count; using {RS_EVIDENCE_DEFAULT_SESSIONS}")
+        sessions = RS_EVIDENCE_DEFAULT_SESSIONS
+    run_on_boot = os.environ.get("RS_EVIDENCE_RUN_ON_BOOT") == "1"
+    cmd = _rs_evidence_command(data_dir, sessions)
+
+    def loop():
+        import datetime as _dt
+        time.sleep(RS_EVIDENCE_START_DELAY_S)       # never compete with the boot prewarm
+        if run_on_boot:
+            _run_rs_evidence_once(cmd)
+        while True:
+            try:
+                now = _dt.datetime.now(_dt.timezone.utc)
+                fire = _rs_evidence_next_fire(now)
+                log.info(f"rs evidence pass next fire {fire.isoformat(timespec='minutes')} "
+                         f"(in {int((fire - now).total_seconds())}s)")
+                _rs_evidence_sleep_until(fire)
+                _run_rs_evidence_once(cmd)
+            except Exception as e:                  # noqa: BLE001 - the schedule outlives any surprise
+                log.exception(f"rs evidence scheduler error (non-fatal): {e}")
+                time.sleep(300)
+
+    threading.Thread(target=loop, daemon=True, name="rs_evidence").start()
+    log.info(f"rs evidence pass armed: {RS_EVIDENCE_FIRE_ET[0]:02d}:{RS_EVIDENCE_FIRE_ET[1]:02d} ET nightly, "
+             f"sessions={sessions}, run_on_boot={run_on_boot}, db={cmd[4]}, dest={RS_EVIDENCE_ARTIFACT_KEY}")
 
 
 def _start_wick_backfill():
@@ -717,6 +944,8 @@ def _build_app() -> FastAPI:
         with _uploader_state_lock:
             last_attempt_at = _uploader_state["last_attempt_at"]
             last_outcome = _uploader_state["last_outcome"]
+            base_started_at = _uploader_state["base_started_at"]
+            base_last_outcome = _uploader_state["base_last_outcome"]
         seconds_since_attempt = (
             int(time.time()) - last_attempt_at
             if last_attempt_at is not None else None
@@ -747,12 +976,18 @@ def _build_app() -> FastAPI:
             "uploader_last_attempt_at": last_attempt_at,
             "uploader_last_outcome": last_outcome,
             "uploader_seconds_since_attempt": seconds_since_attempt,
+            # The daily full base runs apart from the deltas above.
+            "base_upload_started_at": base_started_at,
+            "base_upload_last_outcome": base_last_outcome,
             # PREWARMER liveness + DAILY store freshness — the signals whose absence
             # let the 2026-08-11 week-long freeze go undetected. `prewarm.alive`
             # false or `bars_daily.stale` true means warming has stopped.
             "prewarm": _prewarm_health(),
             "bars_daily": _bars_daily_health(),
             "universe_crawler": _universe_crawler_health(),
+            # UCT RS evidence job (unit 2b-02): the latest nightly pass, every
+            # field None while RS_EVIDENCE_ENABLED is off or before the first run.
+            "rs_evidence": _rs_evidence_health(),
         }
 
     # /api/health is exposed so the worker satisfies the shared
@@ -834,7 +1069,22 @@ from api.flow_router_mount import mount_flow_routers as _mount_flow_routers  # n
 
 
 def main():
+    try:  # AI-spend ledger: set LLM_USAGE_FORWARD_URL on this service so rows reach web's ledger
+        from api.services import llm_usage
+        llm_usage.install()
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).warning('llm_usage install failed (non-fatal)', exc_info=True)
     log.info("worker boot starting")
+    # An unreadable bars.db makes init_db raise, so repair comes first.
+    try:
+        from api.services import bars_restore as _br
+        _alert_url = _ops_webhook()
+        _br.repair_at_boot(int(os.environ.get("PORT", "8080")),
+                           notify=(lambda m: _post_discord(_alert_url, m)) if _alert_url else None)
+    except Exception as e:
+        log.exception(f"bars.db repair failed: {e}")
+        sys.exit(1)
+
     # Bring up SQLite (needed by the prewarmer)
     try:
         from api.services import bars_sqlite as _bs
@@ -891,6 +1141,11 @@ def main():
     _start_prewarmer()
     _start_universe_crawler()
     _start_bars_freshness_watchdog()
+    try:   # Chart IQ pack backup builder: OFF unless CHART_IQ_PACK_WORKER_ENABLED=1 (api/services/chart_iq/pack_backup.py)
+        from api.services.chart_iq import pack_backup as _ciq_backup
+        _ciq_backup.start_loop()
+    except Exception as e:
+        log.warning(f"chart-iq pack backup did not start (non-fatal): {e}")
     _start_deep_history_warm()
     _start_massive_ws()
     _start_keepwarm()
@@ -916,7 +1171,20 @@ def main():
     _probe_flatfile_access()
     _start_wick_backfill()
     _start_combined_pass()
+    # UCT RS evidence job (unit 2b-02): nightly 21:30 ET subprocess, dark unless
+    # RS_EVIDENCE_ENABLED=1; the start function only spawns a thread and returns.
+    try:
+        _start_rs_evidence_pass()
+    except Exception as e:
+        log.warning(f"rs evidence pass failed to start (non-fatal): {e}")
     _start_memwatch()
+    # OBSERVE ONLY (2026-11-06): one [memobs] line per 10 min -- RSS vs page cache and the suspect structures'
+    # sizes, so a memory limit is chosen from a measured trading day. Reads only; MEM_OBSERVE_ENABLED=0 stops it.
+    try:
+        from api.services import mem_observe
+        mem_observe.start("worker", mem_observe.WORKER_TARGETS)
+    except Exception as e:  # noqa: BLE001 -- observation must never stop the worker booting
+        log.warning(f"[memobs] not started: {type(e).__name__}")
     # Historical PIT fundamentals V5: SEC ingestion -> derive -> validate -> immutable versioned publication.
     # The WORKER is the ONE owner (it holds the stores); dark unless FUNDAMENTALS_PIT_V5_PIPELINE=1 and the V5
     # live store exists; single-instance by locks on the volume. Never writes V4.

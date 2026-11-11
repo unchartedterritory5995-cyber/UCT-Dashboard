@@ -246,6 +246,31 @@ def test_no_bulk_filled_column_gains_an_invented_threshold():
 
 # ───────────────── the enum options come off the artifact ───────────────────
 
+def _rs_flags_on(monkeypatch):
+    """Arm both RS flags for one test (moved 2026-11-07, review finding #14 / unit
+    U6): `meta()` now leaves out an RS family whose writer's flag is off, so a rail
+    that reads the WHOLE family off `meta()` arms both flags first. The flags are
+    set where they live: `registry_defs.RS_V2_ENABLED`, and `api.main`'s
+    `rs_history_enabled` (a stand-in module when the app is not imported, so this
+    never builds the app). The dark behaviour itself is railed in
+    `tests/test_rs_fix_u6_screener_surfaces.py`."""
+    import sys
+    import types
+    from api.services.signature import registry_defs
+    monkeypatch.setattr(registry_defs, "RS_V2_ENABLED", True)
+    # Unit 3-11: the Phase 3 family follows RS_V3 too (`snapshot_builder.rs_v3_enabled`
+    # reads this attribute; `raising=False` until unit 3-05 declares it).
+    monkeypatch.setattr(registry_defs, "RS_V3_ENABLED", True, raising=False)
+    main = sys.modules.get("api.main")
+    if main is not None:
+        monkeypatch.setattr(main, "rs_history_enabled", lambda: True, raising=False)
+    else:
+        stub = types.ModuleType("api.main")
+        stub.rs_history_enabled = lambda: True
+        stub.app = types.SimpleNamespace(dependency_overrides={})
+        monkeypatch.setitem(sys.modules, "api.main", stub)
+
+
 def _snapshot(tmp_path, monkeypatch, rows):
     monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "s.db"))
     import api.services.screener.snapshot_db as db
@@ -898,6 +923,7 @@ def test_a_measured_band_is_NOT_an_editorial_preset(tmp_path, monkeypatch):
     it as one.
     """
     _snapshot(tmp_path, monkeypatch, _band_rows())
+    _rs_flags_on(monkeypatch)   # 2026-11-07 (U6): every deferred control is served
     by_key = {f["key"]: f for f in filters.meta()["filters"]}
 
     deferred = {k: f for k, f in filters.FILTERS.items()
@@ -1173,3 +1199,278 @@ def test_the_list_option_helper_actually_returns_options(tmp_path, monkeypatch):
     # ⛔ and the wrapping keeps the two colliding ids apart
     assert ",head_shoulders," not in ",inverse_head_shoulders,"
     importlib.reload(snapshot_db)
+
+
+# ───────── UCT RELATIVE STRENGTH (Phase 2a, unit 2a-08) ─────────────────────
+#
+# ⛔ DERIVED FROM THE TWO WRITERS, never a list retyped here. The ten bar-derived
+# columns are `rs_columns.COLUMNS` (its `FLAG_COLUMNS` says which are 0/1); the
+# seven rating columns are the keys of `snapshot_builder._RS_HISTORY_COLUMNS`.
+# A column either writer gains tomorrow is covered the day it lands, and a
+# column that leaves a writer stops being asserted about, correctly.
+
+RS_CATEGORY = "relative_strength"
+
+
+def _rs_bar_columns():
+    from api.services.screener import rs_columns
+    return tuple(rs_columns.COLUMNS), frozenset(rs_columns.FLAG_COLUMNS)
+
+
+def _rs_rating_columns():
+    from api.services.screener import snapshot_builder
+    return tuple(snapshot_builder._RS_HISTORY_COLUMNS)
+
+
+def test_the_rs_writers_are_read_and_disjoint():
+    """Non-vacuity for everything below: both writers name columns, the two
+    sets do not overlap, and every one is a real snapshot column."""
+    bars, flags = _rs_bar_columns()
+    ratings = _rs_rating_columns()
+    assert len(bars) == 10 and len(ratings) == 8, (bars, ratings)  # 7 -> 8 on 2026-11-10: rs_rating_9m (S1)
+    assert flags and flags < set(bars)
+    assert not (set(bars) & set(ratings))
+    assert set(bars) | set(ratings) <= set(snapshot_db.COLUMNS)
+
+
+def test_every_rs_column_has_a_control_in_ONE_family_and_a_seat_in_ITS_view(monkeypatch):
+    """⛔ A FILLED COLUMN IS A SCREENABLE ONE, and a family with no view is half
+    shipped. Every RS column has a control keyed by its own name (so the
+    column's `desc` reaches the control — `ColumnDesc` joins on filter.key),
+    sits in the one Relative Strength category, and has a seat in the family's
+    own view. The category is rendered (CATEGORIES) and served (meta)."""
+    _rs_flags_on(monkeypatch)   # 2026-11-07 (U6): served while both writers are armed
+    bars, _flags = _rs_bar_columns()
+    for col in (*bars, *_rs_rating_columns()):
+        f = filters.FILTERS.get(col)
+        assert f is not None, f"{col} is written nightly and has no control"
+        assert f["column"] == col, (col, f["column"])
+        assert f["category"] == RS_CATEGORY, (col, f["category"])
+        assert col in filters.VIEWS[RS_CATEGORY]["columns"], col
+    assert {"key": RS_CATEGORY, "label": "Relative Strength"} in filters.CATEGORIES
+    assert RS_CATEGORY in {c["key"] for c in filters.meta()["categories"]}
+    # …and the three a trader asks of any list also sit in Momentum (map §2.5).
+    momentum = set(filters.VIEWS["momentum"]["columns"])
+    assert {"rs_rating_ibd", "rs_new_high", "rs_nh_before_price"} <= momentum
+
+
+def test_rs_flags_are_preset_free_bool_controls():
+    """⭐ THE CONTROL SHIPS AND NO OPINION SHIPS WITH IT. Yes/No over a stored
+    1/0 is what the flag IS — the `pattern_engine_*` / `optionable` reasoning —
+    so nothing editorial rides here. Derived from the writer's own flag set."""
+    _bars, flags = _rs_bar_columns()
+    for key in sorted(flags):
+        f = filters.FILTERS[key]
+        assert f["type"] == "bool", key
+        assert [p["label"] for p in f["presets"]] == ["Any", "Yes", "No"], key
+        yes = next(p for p in f["presets"] if p["label"] == "Yes")
+        no = next(p for p in f["presets"] if p["label"] == "No")
+        assert (yes["op"], yes["value"]) == ("eq", 1), key
+        assert (no["op"], no["value"]) == ("eq", 0), key
+        assert f["allow_custom"] is False and f["unit"] is None, key
+        # parses the one op a toggle emits; rejects the ones a range or an enum would
+        assert filters.is_valid_op(key, "eq"), key
+        for bad in ("gte", "lte", "between", "contains", "in", "not_in", "gt_col", "range", "nonsense"):
+            assert not filters.is_valid_op(key, bad), (key, bad)
+
+
+def test_rs_numbers_are_ranges_and_ship_BARE_except_the_published_rating():
+    """⭐ E-8's grounding rule, applied to the family. Ages, the count, the
+    Mansfield percent, the deltas and the component percentiles ship with `Any`
+    and a custom range only — no threshold on them is published. The ONE
+    exception is `rs_rating_ibd`, which may carry thresholds ONLY if `rs_rank`
+    already publishes the same numbers (engineering map §2.5 "Controls")."""
+    bars, flags = _rs_bar_columns()
+    numeric = [c for c in bars if c not in flags] + list(_rs_rating_columns())
+    assert len(numeric) == 13, numeric  # 12 -> 13 on 2026-11-10: rs_rating_9m (S1)
+    published = {(p["op"], p.get("min")) for p in filters.FILTERS["rs_rank"]["presets"]
+                 if p.get("op")}
+    assert published, "rs_rank publishes no thresholds — the exception below is vacuous"
+    for key in numeric:
+        f = filters.FILTERS[key]
+        assert f["type"] == "range", key
+        assert f["allow_custom"] is True, key
+        for op in ("gte", "lte", "between", "gt", "lt"):
+            assert filters.is_valid_op(key, op), (key, op)
+        for bad in ("contains", "in", "not_in", "range", "nonsense"):
+            assert not filters.is_valid_op(key, bad), (key, bad)
+        if key == "rs_rating_ibd":
+            assert not f.get("presets_deferred"), key
+            own = {(p["op"], p.get("min")) for p in f["presets"] if p.get("op")}
+            assert own and own <= published, (
+                f"rs_rating_ibd ships {own}; only rs_rank's published {published} may ride here")
+            continue
+        assert f.get("presets_deferred") is True, key
+        assert [p["label"] for p in f["presets"]] == ["Any"], (key, f["presets"])
+    # Mansfield is a SIGNED PERCENT (distance from its own average): the unit is
+    # what the chip prints and what `identities.percent_columns` derives from.
+    assert filters.FILTERS["mansfield"]["unit"] == "%"
+    assert "mansfield" in __import__("api.services.screener.identities",
+                                     fromlist=["identities"]).percent_columns()
+    # …and nothing in the family says "weekly": Mansfield is read on DAILY bars.
+    for key in (*bars, *_rs_rating_columns()):
+        assert "weekly" not in filters.FILTERS[key]["label"].lower(), key
+
+
+def test_rs_controls_run_end_to_end_with_NULL_as_neither(tmp_path, monkeypatch):
+    """Registry -> `build_where` -> SQL -> rows, on the shapes the panel emits.
+
+    🔴 THE NULL ROW IS THE POINT: a name whose window is short (or whose rating
+    job is dark) carries NULL, and NULL is neither Yes nor No, neither above
+    nor below. A screen for "RS new high = No" must not return it."""
+    _snapshot(tmp_path, monkeypatch, [
+        {"ticker": "LEAD", "rs_new_high": 1, "rs_nh_before_price": 1, "rs_nh_red_day": 0,
+         "rs_nh_bars_ago": 0, "green_on_red_20": 4, "rs_line_above_ma": 1,
+         "rs_cross_up_bars_ago": 3, "mansfield": 4.25, "mansfield_cross_bars_ago": 12,
+         "rs_benchmark_agree": 1, "rs_rating_ibd": 94, "rs_rating_chg_5": 6,
+         "rs_rating_chg_20": 11, "rs_rating_1m": 90, "rs_rating_3m": 95,
+         "rs_rating_6m": 92, "rs_rating_12m": 88,
+         "snapshot_date": "2026-11-06", "built_at": 1},
+        {"ticker": "LAG", "rs_new_high": 0, "rs_nh_before_price": 0, "rs_nh_red_day": 0,
+         "rs_nh_bars_ago": 40, "green_on_red_20": 1, "rs_line_above_ma": 0,
+         "rs_cross_up_bars_ago": 60, "mansfield": -3.5, "mansfield_cross_bars_ago": 45,
+         "rs_benchmark_agree": 0, "rs_rating_ibd": 35, "rs_rating_chg_5": -4,
+         "rs_rating_chg_20": -9, "rs_rating_1m": 20, "rs_rating_3m": 30,
+         "rs_rating_6m": 40, "rs_rating_12m": 45,
+         "snapshot_date": "2026-11-06", "built_at": 1},
+        {"ticker": "SHORT", "snapshot_date": "2026-11-06", "built_at": 1},
+    ])
+    from api.services.screener import query
+    importlib.reload(query)
+
+    def tickers(*fs):
+        return sorted(r["ticker"] for r in query.run_scan({"filters": list(fs)})["rows"])
+
+    assert tickers({"key": "rs_new_high", "op": "eq", "value": 1}) == ["LEAD"]
+    assert tickers({"key": "rs_new_high", "op": "eq", "value": 0}) == ["LAG"]
+    assert tickers({"key": "rs_nh_before_price", "op": "eq", "value": 1}) == ["LEAD"]
+    assert tickers({"key": "rs_nh_red_day", "op": "eq", "value": 1}) == []
+    assert tickers({"key": "rs_benchmark_agree", "op": "eq", "value": 0}) == ["LAG"]
+    assert tickers({"key": "rs_nh_bars_ago", "op": "lte", "max": 5}) == ["LEAD"]
+    assert tickers({"key": "green_on_red_20", "op": "gte", "min": 3}) == ["LEAD"]
+    assert tickers({"key": "rs_cross_up_bars_ago", "op": "between", "min": 0, "max": 5},
+                   {"key": "rs_line_above_ma", "op": "eq", "value": 1}) == ["LEAD"]
+    # signed percent: a negative Mansfield is a real value, not a blank
+    assert tickers({"key": "mansfield", "op": "gt", "min": 0}) == ["LEAD"]
+    assert tickers({"key": "mansfield", "op": "between", "min": -5, "max": 0}) == ["LAG"]
+    assert tickers({"key": "mansfield_cross_bars_ago", "op": "lte", "max": 21},
+                   {"key": "mansfield", "op": "gt", "min": 0}) == ["LEAD"]
+    # the rating family: 1-99 ranges and signed deltas
+    assert tickers({"key": "rs_rating_ibd", "op": "gte", "min": 90}) == ["LEAD"]
+    assert tickers({"key": "rs_rating_ibd", "op": "between", "min": 30, "max": 50}) == ["LAG"]
+    assert tickers({"key": "rs_rating_chg_5", "op": "lte", "max": -1}) == ["LAG"]
+    assert tickers({"key": "rs_rating_chg_5", "op": "between", "min": -10, "max": 10}) == ["LAG", "LEAD"]
+    assert tickers({"key": "rs_rating_chg_20", "op": "gte", "min": 10}) == ["LEAD"]
+    assert tickers({"key": "rs_rating_3m", "op": "gte", "min": 90}) == ["LEAD"]
+    assert tickers({"key": "rs_rating_12m", "op": "lte", "max": 50}) == ["LAG"]
+    # …and the served meta types every RS control as the panel will render it
+    _rs_flags_on(monkeypatch)   # 2026-11-07 (U6): the family is served only when armed
+    served = {f["key"]: f["type"] for f in filters.meta()["filters"]}
+    bars, flags = _rs_bar_columns()
+    for key in (*bars, *_rs_rating_columns()):
+        assert served[key] == ("bool" if key in flags else "range"), key
+
+
+# ───────── UCT RELATIVE STRENGTH, PHASE 3 (unit 3-11) ───────────────────────
+#
+# ⛔ DERIVED FROM THE WRITER again: `rs_columns.PHASE3_COLUMNS` and
+# `PHASE3_TEXT_COLUMNS`, and the option lists from the writer's own names
+# (`relative_strength.RRG_QUADRANT_NAMES`, `rs_columns.VARS_STATE_NAMES`).
+
+def _rs_phase3():
+    from api.services.screener import rs_columns
+    return tuple(rs_columns.PHASE3_COLUMNS), frozenset(rs_columns.PHASE3_TEXT_COLUMNS)
+
+
+def test_every_phase3_column_has_a_control_in_the_rs_family_and_a_seat_in_its_view():
+    cols, text = _rs_phase3()
+    assert len(cols) == 3 and text < set(cols), (cols, text)
+    for col in cols:
+        f = filters.FILTERS.get(col)
+        assert f is not None, f"{col} is written nightly and has no control"
+        assert f["column"] == col and f["category"] == RS_CATEGORY, (col, f)
+        assert col in filters.VIEWS[RS_CATEGORY]["columns"], col
+        assert f["label"][:1].isupper(), f["label"]
+
+
+def test_phase3_text_columns_are_enums_whose_options_ARE_the_writers_names():
+    """An enum's option list is the set of values the column can hold — a
+    definition, not a threshold — read from the writer, so a renamed state
+    cannot leave the control offering a value no row carries."""
+    from api.services import relative_strength as rs
+    from api.services.screener import rs_columns
+    names = {"rrg_quadrant": rs.RRG_QUADRANT_NAMES,
+             "vars_state": rs_columns.VARS_STATE_NAMES}
+    _cols, text = _rs_phase3()
+    assert set(names) == set(text)
+    for key, want in names.items():
+        f = filters.FILTERS[key]
+        assert f["type"] == "enum" and f["allow_custom"] is False, key
+        assert f["presets"][0] == {"label": "Any"}, key
+        got = [(p["label"], p["op"], p["value"]) for p in f["presets"][1:]]
+        assert got == [(n, "eq", n) for n in want], key
+        assert filters.is_valid_op(key, "eq"), key
+        for bad in ("gte", "lte", "between", "range", "nonsense"):
+            assert not filters.is_valid_op(key, bad), (key, bad)
+    assert len(filters.FILTERS["rrg_quadrant"]["presets"]) == 5
+    assert len(filters.FILTERS["vars_state"]["presets"]) == 5
+
+
+def test_clenow_score_ships_BARE_and_says_no_percent():
+    """⭐ E-8 again: nobody here has published a "good" Clenow score, so the
+    control is `Any` plus the member's own range. It is a FRACTION (0.50 is 50 %
+    a year after the R² discount), so it carries no `%` unit, and it is not a
+    percent column."""
+    f = filters.FILTERS["clenow_score"]
+    assert f["type"] == "range" and f["allow_custom"] is True
+    assert f.get("presets_deferred") is True
+    assert [p["label"] for p in f["presets"]] == ["Any"]
+    assert f["unit"] is None
+    for op in ("gte", "lte", "between", "gt", "lt"):
+        assert filters.is_valid_op("clenow_score", op), op
+    from api.services.screener import identities
+    assert "clenow_score" not in identities.percent_columns()
+
+
+def test_phase3_controls_run_end_to_end_with_NULL_as_neither(tmp_path, monkeypatch):
+    """A dark build leaves the three NULL; NULL is no quadrant, no state and no
+    score, so a screen for any value must not return it."""
+    _snapshot(tmp_path, monkeypatch, [
+        {"ticker": "LEAD", "rrg_quadrant": "Leading", "clenow_score": 0.8512,
+         "vars_state": "Strong, rising", "snapshot_date": "2026-11-07", "built_at": 1},
+        {"ticker": "TURN", "rrg_quadrant": "Improving", "clenow_score": -0.1234,
+         "vars_state": "Weak, improving", "snapshot_date": "2026-11-07", "built_at": 1},
+        {"ticker": "DARK", "snapshot_date": "2026-11-07", "built_at": 1},
+    ])
+    from api.services.screener import query
+    importlib.reload(query)
+
+    def tickers(*fs):
+        return sorted(r["ticker"] for r in query.run_scan({"filters": list(fs)})["rows"])
+
+    assert tickers({"key": "rrg_quadrant", "op": "eq", "value": "Leading"}) == ["LEAD"]
+    assert tickers({"key": "rrg_quadrant", "op": "eq", "value": "Improving"}) == ["TURN"]
+    assert tickers({"key": "rrg_quadrant", "op": "eq", "value": "Lagging"}) == []
+    assert tickers({"key": "vars_state", "op": "eq", "value": "Weak, improving"}) == ["TURN"]
+    assert tickers({"key": "clenow_score", "op": "gt", "min": 0}) == ["LEAD"]
+    assert tickers({"key": "clenow_score", "op": "between", "min": -1, "max": 1}) == ["LEAD", "TURN"]
+    assert tickers({"key": "clenow_score", "op": "lt", "max": 0}) == ["TURN"]
+
+
+def test_s1_picker_hidden_keys_stay_filterable_and_follow_the_ibd_flag(monkeypatch):
+    """S1 (2026-11-10): chg_5 and agree are always picker-hidden; rs_rating_ibd only
+    while RS_RANK_IBD_ENABLED is on (read per call). Hidden is not removed: the
+    control stays in FILTERS and in meta() flagged, and the RS view order is pinned."""
+    from api.services.screener import filters as F
+    monkeypatch.delenv("RS_RANK_IBD_ENABLED", raising=False)
+    assert F.picker_hidden_keys() == {"rs_rating_chg_5", "rs_benchmark_agree"}
+    monkeypatch.setenv("RS_RANK_IBD_ENABLED", "1")
+    assert F.picker_hidden_keys() == {"rs_rating_chg_5", "rs_benchmark_agree", "rs_rating_ibd"}
+    for k in ("rs_rating_ibd", "rs_rating_chg_5", "rs_benchmark_agree", "rs_rating_9m"):
+        assert k in F.FILTERS
+    cols = F.VIEWS["relative_strength"]["columns"]
+    assert cols[4:10] == ["rs_rank", "rs_rating_1m", "rs_rating_3m", "rs_rating_6m",
+                          "rs_rating_9m", "rs_rating_12m"]
+    views = F._member_views(frozenset(), True, F.picker_hidden_keys())
+    rs = next(v for v in views if v["key"] == "relative_strength")["columns"]
+    assert not {"rs_rating_ibd", "rs_rating_chg_5", "rs_benchmark_agree"} & set(rs)

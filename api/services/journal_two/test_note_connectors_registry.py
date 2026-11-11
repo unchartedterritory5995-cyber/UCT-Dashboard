@@ -8,8 +8,8 @@ Covers:
   - `configured()` per provider (token providers always True; OAuth
     providers reflect their env gate)
   - `build_provider` dispatch to the right concrete class
-  - Task 11 MUST-RESOLVE #3: Dropbox folder-path threading from a
-    `j2_note_sources` row's `remoteId` through to `DropboxProvider`
+  - the 2026-11-04 archive: Dropbox, OneNote and OneDrive are gone from the
+    registry and named in `ARCHIVED_PROVIDERS`
 """
 
 from __future__ import annotations
@@ -22,18 +22,13 @@ import pytest
 def test_import_is_inert_with_zero_env_vars(monkeypatch):
     for var in (
         "NOTION_CLIENT_ID", "NOTION_CLIENT_SECRET",
-        "DROPBOX_APP_KEY", "DROPBOX_APP_SECRET",
-        "MSGRAPH_CLIENT_ID", "MSGRAPH_CLIENT_SECRET",
         "NOTE_SYNC_OBSIDIAN_ENABLED", "NOTE_ENCRYPTION_KEY", "NOTE_ENCRYPTION_KEYS_V1",
     ):
         monkeypatch.delenv(var, raising=False)
     from api.services.journal_two.note_connectors import registry
     importlib.reload(registry)  # re-run module body with the clean env -- must not raise
-    assert registry.names() == ["roam", "craft", "notion", "dropbox", "onenote", "onedrive", "obsidian"]
+    assert registry.names() == ["roam", "craft", "notion", "obsidian", "evernote"]  # Plan E Task 6
     assert registry.configured("notion") is False
-    assert registry.configured("dropbox") is False
-    assert registry.configured("onenote") is False
-    assert registry.configured("onedrive") is False
     assert registry.configured("obsidian") is False
     assert registry.configured("roam") is True
     assert registry.configured("craft") is True
@@ -47,22 +42,6 @@ def test_configured_reflects_env_for_oauth_providers(monkeypatch):
     monkeypatch.setenv("NOTION_CLIENT_ID", "cid")
     monkeypatch.setenv("NOTION_CLIENT_SECRET", "csecret")
     assert registry.configured("notion") is True
-
-    monkeypatch.delenv("DROPBOX_APP_KEY", raising=False)
-    monkeypatch.delenv("DROPBOX_APP_SECRET", raising=False)
-    assert registry.configured("dropbox") is False
-    monkeypatch.setenv("DROPBOX_APP_KEY", "key")
-    monkeypatch.setenv("DROPBOX_APP_SECRET", "secret")
-    assert registry.configured("dropbox") is True
-
-    monkeypatch.delenv("MSGRAPH_CLIENT_ID", raising=False)
-    monkeypatch.delenv("MSGRAPH_CLIENT_SECRET", raising=False)
-    assert registry.configured("onedrive") is False
-    assert registry.configured("onenote") is False
-    monkeypatch.setenv("MSGRAPH_CLIENT_ID", "mcid")
-    monkeypatch.setenv("MSGRAPH_CLIENT_SECRET", "mcsecret")
-    assert registry.configured("onedrive") is True
-    assert registry.configured("onenote") is True  # same Azure app backs both
 
 
 def test_configured_reflects_env_for_obsidian(monkeypatch):
@@ -89,8 +68,9 @@ def test_configured_reflects_env_for_obsidian(monkeypatch):
 
 def test_configured_is_false_not_raising_for_an_unknown_provider():
     from api.services.journal_two.note_connectors import registry
-    assert registry.configured("evernote") is False
-    assert registry.is_known("evernote") is False
+    # Plan E Task 6: "evernote" is a real provider now; this pins the contract on an unknown name.
+    assert registry.configured("evernote-legacy") is False
+    assert registry.is_known("evernote-legacy") is False
 
 
 def test_build_provider_dispatches_to_the_right_class():
@@ -98,39 +78,18 @@ def test_build_provider_dispatches_to_the_right_class():
     from api.services.journal_two.note_connectors.providers.roam import RoamProvider
     from api.services.journal_two.note_connectors.providers.craft import CraftProvider
     from api.services.journal_two.note_connectors.providers.notion import NotionProvider
-    from api.services.journal_two.note_connectors.providers.dropbox import DropboxProvider
-    from api.services.journal_two.note_connectors.providers.onenote import OneNoteProvider
-    from api.services.journal_two.note_connectors.providers.onedrive import OneDriveProvider
     from api.services.journal_two.note_connectors.providers.obsidian import ObsidianProvider
 
     assert isinstance(registry.build_provider("roam"), RoamProvider)
     assert isinstance(registry.build_provider("craft"), CraftProvider)
     assert isinstance(registry.build_provider("notion"), NotionProvider)
-    assert isinstance(registry.build_provider("dropbox"), DropboxProvider)
-    assert isinstance(registry.build_provider("onenote"), OneNoteProvider)
-    assert isinstance(registry.build_provider("onedrive"), OneDriveProvider)
     assert isinstance(registry.build_provider("obsidian"), ObsidianProvider)
 
 
 def test_build_provider_raises_not_configured_for_an_unknown_name():
     from api.services.journal_two.note_connectors import registry, errors
     with pytest.raises(errors.NoteConnNotConfigured):
-        registry.build_provider("evernote")
-
-
-def test_build_provider_threads_the_source_row_folder_path_to_dropbox():
-    """Task 11 MUST-RESOLVE #3: `source["remoteId"]` (the j2_note_sources
-    column spec §5 documents as "... / folder id" for Dropbox) reaches
-    `DropboxProvider`'s `folder_path` constructor kwarg."""
-    from api.services.journal_two.note_connectors import registry
-    p = registry.build_provider("dropbox", {"id": "src1", "remoteId": "/team notes"})
-    assert p._folder_path_override == "/team notes"
-
-
-def test_build_provider_with_no_source_leaves_dropbox_folder_path_unset():
-    from api.services.journal_two.note_connectors import registry
-    p = registry.build_provider("dropbox", None)
-    assert p._folder_path_override is None
+        registry.build_provider("evernote-legacy")
 
 
 def test_build_provider_ignores_source_for_token_providers():
@@ -140,35 +99,6 @@ def test_build_provider_ignores_source_for_token_providers():
     from api.services.journal_two.note_connectors.providers.roam import RoamProvider
     p = registry.build_provider("roam", {"id": "src1", "remoteId": "some-graph"})
     assert isinstance(p, RoamProvider)
-
-
-def test_build_provider_ignores_source_for_onenote():
-    """OneNote is whole-account (Notion's shape, `_build_onenote` mirrors
-    `_build_notion`) -- unlike Dropbox/OneDrive, there is no source-level
-    folder_path to thread through, so passing a source row must never raise
-    or change construction."""
-    from api.services.journal_two.note_connectors import registry
-    from api.services.journal_two.note_connectors.providers.onenote import OneNoteProvider
-    p = registry.build_provider("onenote", {"id": "src1", "remoteId": "me"})
-    assert isinstance(p, OneNoteProvider)
-    p2 = registry.build_provider("onenote", None)
-    assert isinstance(p2, OneNoteProvider)
-
-
-def test_build_provider_threads_the_source_row_folder_path_to_onedrive():
-    """Same one-connector-backs-multiple-folder-sources shape as Dropbox
-    (Task 3 of the msgraph wave, mirroring MUST-RESOLVE #3 verbatim):
-    `source["remoteId"]` reaches `OneDriveProvider`'s `folder_path` kwarg,
-    which despite the name carries a Graph drive-item id, not a path."""
-    from api.services.journal_two.note_connectors import registry
-    p = registry.build_provider("onedrive", {"id": "src1", "remoteId": "FOLDER-ITEM-ID"})
-    assert p._folder_id_override == "FOLDER-ITEM-ID"
-
-
-def test_build_provider_with_no_source_leaves_onedrive_folder_id_unset():
-    from api.services.journal_two.note_connectors import registry
-    p = registry.build_provider("onedrive", None)
-    assert p._folder_id_override is None
 
 
 def test_build_provider_threads_user_and_vault_to_obsidian():
@@ -194,7 +124,23 @@ def test_get_entry_exposes_connect_kind_for_the_router():
     assert registry.get_entry("roam").connect_kind == "token"
     assert registry.get_entry("craft").connect_kind == "token"
     assert registry.get_entry("notion").connect_kind == "oauth"
-    assert registry.get_entry("dropbox").connect_kind == "oauth"
-    assert registry.get_entry("onenote").connect_kind == "oauth"
-    assert registry.get_entry("onedrive").connect_kind == "oauth"
     assert registry.get_entry("obsidian").connect_kind == "device"
+
+
+@pytest.mark.parametrize("name", ["dropbox", "onenote", "onedrive"])
+def test_an_archived_provider_is_unknown_and_unbuildable_but_named(name):
+    """The 2026-11-04 archive: no door can connect, configure or build one, and the name is kept
+    in `ARCHIVED_PROVIDERS` so a stored row can still be recognised (the import repair's
+    classifier reads it)."""
+    from api.services.journal_two.note_connectors import errors, registry
+    assert registry.is_known(name) is False
+    assert registry.configured(name) is False
+    assert name not in registry.names()
+    assert name in registry.ARCHIVED_PROVIDERS
+    with pytest.raises(errors.NoteConnNotConfigured):
+        registry.build_provider(name, {"id": "s1", "userId": "u1", "remoteId": "/x"})
+
+
+def test_archived_providers_are_disjoint_from_the_registry():
+    from api.services.journal_two.note_connectors import registry
+    assert not (registry.ARCHIVED_PROVIDERS & set(registry.names()))

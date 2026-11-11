@@ -1,7 +1,7 @@
 {
   "_": "P2 policy slice shared fixture: the presentation vocabulary and cases held equal between the BROWSER validator (app/src/components/chart/engine/defSchema.js validateDefinition -- the authority the builder saves through) and the SERVER save door (api/services/presentation_schema.py, called by user_definitions.save). Each case patches a base three-plot document (value: line, cond: hidden line, sig: markers circle). `plots` patches fields by plot key (null deletes a field); `paints` replaces the document's paints. `expect` is ok|refused; a refused case names the server `code` and the browser error must mention `browser` (a fragment of defSchema's own sentence). The server must never refuse what the browser accepts.",
   "vocab": {
-    "plotStyles": ["line", "stepline", "histogram", "area", "baseline", "hlines", "markers", "band"],
+    "plotStyles": ["line", "stepline", "histogram", "area", "baseline", "hlines", "markers", "band", "candles", "ohlcBars"],
     "reservedPlotStyles": ["zones", "bgband", "barcolor", "fill", "cross"],
     "markerShapes": ["circle", "square", "arrowUp", "arrowDown"],
     "markerPositions": ["aboveBar", "belowBar", "inBar"],
@@ -42,6 +42,13 @@
     {"name": "plot column mode with a computed colour", "plots": {"cond": {"colorMode": "column:cond", "colorPacked": {"transparency": 20}}}, "expect": "ok"},
     {"name": "plot column mode with nothing to alternate", "plots": {"value": {"colorMode": "column:cond"}}, "expect": "refused", "code": "color-mode-colours", "browser": "must declare both colorUp and colorDown"},
     {"name": "plot palette without a column mode", "plots": {"value": {"colorPalette": ["#111", "#222"]}}, "expect": "refused", "code": "plot-colour-field", "browser": "colorPalette"},
-    {"name": "plot colorUp not a string", "plots": {"value": {"colorUp": 3}}, "expect": "refused", "code": "plot-colour-field", "browser": "colorUp"}
+    {"name": "plot colorUp not a string", "plots": {"value": {"colorUp": 3}}, "expect": "refused", "code": "plot-colour-field", "browser": "colorUp"},
+    {"name": "W4-T13 candles row names its columns", "plots": {"value": {"style": "candles", "ohlc": {"open": "cond", "high": "cond", "low": "sig"}, "ohlcColors": {"body": "cond", "wick": "cond", "border": "sig"}}}, "expect": "ok"},
+    {"name": "W4-T13 ohlcBars row with a body colour", "plots": {"value": {"style": "ohlcBars", "ohlc": {"open": "cond", "high": "cond", "low": "sig"}, "ohlcColors": {"body": "cond"}}}, "expect": "ok"},
+    {"name": "W4-T13 candles without ohlc", "plots": {"value": {"style": "candles"}}, "expect": "refused", "code": "plot-ohlc", "browser": "requires {open, high, low}"},
+    {"name": "W4-T13 ohlc on a line", "plots": {"value": {"ohlc": {"open": "cond", "high": "cond", "low": "sig"}}}, "expect": "refused", "code": "plot-ohlc", "browser": "only a \"candles\" or \"ohlcBars\" plot names OHLC columns"},
+    {"name": "W4-T13 ohlc names a missing column", "plots": {"value": {"style": "candles", "ohlc": {"open": "cond", "high": "cond", "low": "nowhere"}}}, "expect": "refused", "code": "plot-ohlc", "browser": "references a column no plot declares"},
+    {"name": "W4-T13 ohlc names the row's own column", "plots": {"value": {"style": "candles", "ohlc": {"open": "cond", "high": "value", "low": "sig"}}}, "expect": "refused", "code": "plot-ohlc", "browser": "is this plot's own column"},
+    {"name": "W4-T13 a bar has no wick colour", "plots": {"value": {"style": "ohlcBars", "ohlc": {"open": "cond", "high": "cond", "low": "sig"}, "ohlcColors": {"wick": "cond"}}}, "expect": "refused", "code": "plot-ohlc", "browser": "unknown part for"}
   ]
 }

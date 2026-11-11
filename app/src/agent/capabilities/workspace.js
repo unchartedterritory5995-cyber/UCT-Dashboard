@@ -34,7 +34,8 @@ import { WORKSPACE_MENU_TYPES, labelMap } from '../../widgets/registry'
 import { mark } from '../trace'
 import { afterRender } from '../frames'
 import { CHART_TIMEFRAMES, CHART_TYPE_IDS } from './chart'
-import { isPronounToken } from '../nl/tickers'
+import { isPronounToken, isReservedWord } from '../nl/tickers'
+import { boardRefusalSentence } from '../../pages/charts/boardBound'
 
 const LABEL = labelMap('menu')
 const label = (t) => LABEL[t] || t
@@ -55,19 +56,58 @@ const TICKER = /^[A-Z0-9.$:^_\-/]{1,24}$/
 // (the workspace's default for new widgets) and show A's ticker, and the follow-up "change it to
 // QQQ" would then change group A's symbol for every widget that follows A. The ticker must be
 // written in capitals (as the member typed it), so ordinary words never read as tickers.
-const NEW_CHART_TICKER = /^(?:please\s+)?(?:open|add|create|make|start|pull up|bring up|give me)(?:\s+me)?\s+(?:(?:a|an|another|one more)\s+)?(?:new\s+)?(?:(?:chart|graph)\s+(?:of|for|on|with)\s+\$?([A-Za-z][A-Za-z0-9.]{0,9})|\$?([A-Za-z][A-Za-z0-9.]{0,9})\s+(?:chart|graph))\s*(?:,?\s*please)?[.!]?$/i
+// W1.1 R-02 (LT-1, live 2026-11-03 "add a daily chart of nvda to this board"): a timeframe word before "chart" and "to this
+// board / workspace / layout" after the ticker are part of the same request (the ticker rule — capitals — is unchanged).
+const TF_WORD = '(?:(daily|weekly|monthly|hourly|\\d{1,3}[ -]?(?:minute|minutes|min|mins|m)|\\d{1,2}[ -]?(?:hour|hours|hr|hrs|h))\\s+)?'
+const BOARD_TAIL = '(?:\\s+(?:to|on|in|onto)\\s+(?:this|the|my)\\s+(?:board|workspace|layout))?(?:\\s+here)?'
+const NEW_CHART_TICKER = new RegExp(`^(?:please\\s+)?(?:open|add|create|make|start|pull up|bring up|give me)(?:\\s+me)?\\s+(?:(?:a|an|another|one more)\\s+)?(?:new\\s+)?(?:${TF_WORD}(?:chart|graph)\\s+(?:of|for|on|with)\\s+\\$?([A-Za-z][A-Za-z0-9.]{0,9})|${TF_WORD}\\$?([A-Za-z][A-Za-z0-9.]{0,9})\\s+(?:chart|graph))${BOARD_TAIL}\\s*(?:,?\\s*please)?[.!]?$`, 'i')
+const TF_OF_WORD = (w) => {
+  if (!w) return null
+  const s = String(w).toLowerCase().replace(/[ -]+/g, '')
+  if (s === 'daily') return 'D'
+  if (s === 'weekly') return 'W'
+  if (s === 'monthly') return 'M'
+  if (s === 'hourly') return '60'
+  const m = /^(\d+)(minutes?|mins?|m|hours?|hrs?|h)$/.exec(s)
+  if (!m) return undefined
+  const n = Number(m[1]) * (/^h/.test(m[2]) ? 60 : 1)
+  return TF_ENUM.includes(String(n)) ? String(n) : undefined       // a non-native interval → the model (custom timeframes)
+}
 // (2026-10-13) "Open NASDAQ:A50 in a new chart" — a series or ticker, then an explicit NEW / separate chart.
 // The symbol is written in capitals and may carry a breadth series' colon (US:A50, NYSE:A200).
 const IN_NEW_CHART = /^(?:please\s+)?(?:open|add|put|show|load|chart|pull up|bring up)\s+\$?([A-Z][A-Z0-9.]{0,9}(?::[A-Z0-9]{1,8})?)\s+(?:in|on|as|into)\s+(?:a|an|another|one more)\s+(?:new|separate|second|additional|fresh)\s+(?:chart|graph|chart widget)\s*(?:,?\s*please)?[.!]?$/i
 /** The ticker of a "new <TICKER> chart" request, or null. */
 export function newChartTicker(raw) {
+  return newChartRequest(raw)?.symbol || null
+}
+/** W1.1 R-02: the ticker AND the timeframe word of a "new <tf> <TICKER> chart" request: { symbol, timeframe } (timeframe
+ *  null when none was said), or null. A timeframe word UCT does not chart natively ("2 hour") returns null (the model's). */
+export function newChartRequest(raw) {
   const m = NEW_CHART_TICKER.exec(String(raw || '').trim())
   const w = m ? null : IN_NEW_CHART.exec(String(raw || '').trim())
-  if (w) return /^[A-Z][A-Z0-9.]{0,9}(?::[A-Z0-9]{1,8})?$/.test(w[1]) && !isPronounToken(w[1], raw) ? w[1] : null
-  const t = m ? (m[1] || m[2]) : null
+  if (w) return /^[A-Z][A-Z0-9.]{0,9}(?::[A-Z0-9]{1,8})?$/.test(w[1]) && !isPronounToken(w[1], raw) && !isReservedWord(String(raw).includes(`$${w[1]}`) ? `$${w[1]}` : w[1]) ? { symbol: w[1], timeframe: null } : null
+  const t = m ? (m[2] || m[4]) : null
   // ⛔ a pronoun is never a ticker — "OPEN A CHART OF IT" typed in capitals is still "it"
   const typed = t && String(raw).includes(`$${t}`) ? `$${t}` : t       // "$IT" is explicitly a ticker
-  return t && /^[A-Z][A-Z0-9.]{0,9}$/.test(t) && !/^(?:A|AN|NEW|MY|THE)$/.test(t) && !isPronounToken(typed, raw) ? t : null
+  if (!(t && /^[A-Z][A-Z0-9.]{0,9}$/.test(t) && !/^(?:A|AN|NEW|MY|THE)$/.test(t) && !isPronounToken(typed, raw) && !isReservedWord(typed))) return null
+  const timeframe = TF_OF_WORD(m[1] || m[3])
+  return timeframe === undefined ? null : { symbol: t, timeframe }
+}
+/** W1.1 R-02 (LT-1, model path): on a board with NO chart the planner put chart ops (symbol / timeframe / type) on a target that
+ *  is not a chart — the live planner used the workspace entry — and the browser refused "That target is not on the workspace".
+ *  Read as what the words meant: ONE new chart born on that symbol (widget.addCharts). Anything else is left exactly as planned. */
+const EMPTY_BOARD_OPS = new Set(['chart.setSymbol', 'chart.setTimeframe', 'chart.setType'])
+export function screenEmptyBoardChart(ops, host) {
+  const charts = (() => { try { return host?.charts?.list?.() || [] } catch { return [] } })()
+  if (charts.length || !Array.isArray(ops) || !ops.length || ops.length > 3) return { ops, corrected: false }
+  if (!ops.every(o => EMPTY_BOARD_OPS.has(o?.action))) return { ops, corrected: false }
+  if (new Set(ops.map(o => o?.target)).size !== 1) return { ops, corrected: false }
+  const sym = String(ops.find(o => o.action === 'chart.setSymbol')?.args?.symbol || '').trim().toUpperCase()
+  if (!sym || !TICKER.test(sym)) return { ops, corrected: false }
+  const timeframe = ops.find(o => o.action === 'chart.setTimeframe')?.args?.timeframe ?? null
+  const type = ops.find(o => o.action === 'chart.setType')?.args?.type ?? null
+  if ((timeframe != null && !TF_ENUM.includes(timeframe)) || (type != null && !TYPE_ENUM.includes(type))) return { ops, corrected: false }
+  return { ops: [{ action: 'widget.addCharts', target: 'workspace', args: { symbols: [sym], timeframe, chart_type: type, exact: null } }], corrected: true }
 }
 /** F4 (model path): a plan that adds ONE chart for a named ticker but drops the ticker is corrected to
  *  the born-on-its-ticker form. Anything else is left exactly as planned. */
@@ -88,8 +128,7 @@ function chartRoomProblem(st, snap, n) {
   if (!snap) return 'The workspace is not available.'
   const total = st.creates.length + n
   if (snap.count + total > snap.max) {
-    const free = Math.max(0, snap.max - snap.count - st.creates.length)
-    return `That needs ${n} new chart${n === 1 ? '' : 's'}, but the workspace has room for ${free} more widget${free === 1 ? '' : 's'} (it holds ${snap.max}). Close some first, or ask for fewer.`
+    return boardRefusalSentence(snap.count + total)
   }
   if (!snap.fitsSequence([...st.creates.map(c => c.type), ...Array(n).fill('chart')])) {
     const room = snap.capacity('chart', n)
@@ -168,8 +207,15 @@ export const workspaceKind = {
       const w = snap.widgets.find(x => x.id === id)
       // The ticker as the workspace holds it (same value a mounted chart shows), so a
       // chart that mounts after this fingerprint was taken never reads as edited.
-      const sym = host?.widgets?.configOf?.(id)?.symbol ?? host?.charts?.read(id)?.symbol ?? null
-      return w ? [w.id, w.x, w.y, w.w, w.h, w.color, w.optsSig, sym] : [id, 'gone']
+      const cfg = host?.widgets?.configOf?.(id) || null
+      const sym = cfg?.symbol ?? host?.charts?.read(id)?.symbol ?? null
+      // NLM1-G1: the timeframe compared as the workspace means it (an absent tf IS 'D' — configOf), never as stored: the
+      // exact Undo of a timeframe change writes 'D' back where nothing was, and that is no later edit. Everything else
+      // in the opts is still compared (optsSignature: null-valued keys are absent)
+      // ONLY a chart widget's main timeframe: ChartWidget loads `opts.tf || 'D'`, so an absent tf and 'D' are the SAME chart
+      // (a true no-op equivalence); any other value — and every other key, and every other widget type — is compared as stored
+      const opts = w && w.type === 'chart' && cfg && w.optsSigNoTf != null ? `${w.optsSigNoTf}|tf:${cfg.tf || 'D'}` : w?.optsSig
+      return w ? [w.id, w.x, w.y, w.w, w.h, w.color, opts, sym] : [id, 'gone']
     }))
   },
 }
@@ -231,7 +277,7 @@ export function registerWorkspaceCapabilities() {
       if (!snap) return 'The workspace is not available.'
       const n = st.creates.length + 1
       if (snap.count + n > snap.max) {
-        return `That would take the workspace to ${snap.count + n} widgets — it holds ${snap.max}. Close some first.`
+        return boardRefusalSentence(snap.count + n)
       }
       const seq = [...st.creates.map(c => c.type), type]
       if (!snap.fitsSequence(seq)) {
@@ -278,10 +324,29 @@ export function registerWorkspaceCapabilities() {
       required: ['symbols', 'timeframe', 'chart_type', 'exact'], additionalProperties: false,
     },
     inputs: { symbols: SYMBOLS },
-    // F4: "Open a QQQ chart" → one new chart born on QQQ, not linked
+    // W1.1 R-01 (LT-3, live "open the top two from <list> … with the 9 and 20 ema" refused as off-schema): the keys and words
+    // the planner uses for this op's args. Extra keys (indicators, a row) still refuse — `shape` tells the model they do not exist here.
+    argAliases: {
+      symbols: ['tickers', 'symbol', 'ticker', 'stocks', 'list'],
+      // ("from" / "top" at the top level: the reference written flat, as watchlist.add's 2026-10-08 production shape was)
+      'symbols.from': ['symbols.list', 'symbols.watchlist', 'symbols.source', 'symbols.ref', 'symbols.screen', 'symbols.of', 'from', 'source', 'watchlist'],
+      'symbols.top': ['symbols.count', 'symbols.n', 'symbols.limit', 'symbols.first', 'symbols.take', 'top', 'count', 'limit'],
+      timeframe: ['tf', 'interval', 'period', 'time_frame', 'timeFrame'],
+      chart_type: ['type', 'chartType', 'style', 'chart_style'],
+    },
+    coerce: {
+      timeframe: { daily: 'D', day: 'D', '1d': 'D', d1: 'D', '1day': 'D', weekly: 'W', week: 'W', '1w': 'W', monthly: 'M', month: 'M', '1mo': 'M', hourly: '60', hour: '60', '1h': '60', '60m': '60', '60min': '60', '1hr': '60', '5min': '5', '15min': '15', '30min': '30', '1min': '1', default: null, '': null },
+      chart_type: { candle: 'candles', candlestick: 'candles', candlesticks: 'candles', 'hollow candles': 'hollow', bar: 'bars', ohlc: 'bars', 'line chart': 'line', default: null, '': null },
+    },
+    shape: '{"symbols":["NVDA"],"timeframe":"D","chart_type":null,"exact":null} or {"symbols":{"from":"<watchlist ref or screen as>","top":2},'
+      + '"timeframe":null,"chart_type":null,"exact":null}; timeframe 1|5|15|30|60|D|W|M (D daily, W weekly, M monthly, 60 hourly). No other keys: '
+      + 'indicators, a row or a position cannot be set here — plan the charts alone and say in `reply` that indicators can be added next. '
+      + '⛔ With NO chart in <workspace_context>, "add / open / show a <timeframe> chart of <symbol>" is THIS op on the workspace entry — '
+      + 'never chart.setSymbol / chart.setTimeframe on a chart that does not exist.',
+    // F4: "Open a QQQ chart" → one new chart born on QQQ, not linked; W1.1 R-02: "add a daily NVDA chart to this board" → on the daily
     fast: ({ raw }) => {
-      const t = newChartTicker(raw)
-      return t ? { symbols: [t], timeframe: null, chart_type: null, exact: null } : null
+      const r = newChartRequest(raw)
+      return r ? { symbols: [r.symbol], timeframe: r.timeframe, chart_type: null, exact: null } : null
     },
     // Only ever PLANNED while its symbols are a pending reference (literal tickers
     // are expanded before planning). The check is the capacity gate the member sees

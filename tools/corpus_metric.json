@@ -1,8 +1,8 @@
 {
-  "measured_at": "2026-10-31",
+  "measured_at": "2026-11-10",
   "scripts": 266,
-  "host_ok": 82,
-  "screener_ok": 68,
+  "host_ok": 83,
+  "screener_ok": 69,
   "threw": [],
   "rows": [
     {
@@ -805,10 +805,10 @@
     },
     {
       "file": "flawless-victory-strategy__1BVZuaaWOU.pine",
-      "host": true,
+      "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:constant-only"
+        "pine:strategy-call"
       ],
       "screenerGuards": [
         "pine:declaration-strategy"
@@ -1047,14 +1047,13 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:arity",
         "pine:tuple",
         "pine:strategy-call"
       ],
       "screenerGuards": [
         "pine:declaration-strategy",
         "pine:strategy-call",
-        "pine:arity",
+        "pine:function",
         "pine:tuple"
       ]
     },
@@ -2067,14 +2066,10 @@
     },
     {
       "file": "session-hilo__WM2g5GtC4h.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:input-kind"
-      ],
-      "screenerGuards": [
-        "pine:input-kind"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "session-tpo-profile__41088ef96d.pine",
@@ -2622,11 +2617,9 @@
     },
     {
       "file": "visualizing-displacement-tfo__5b861441c2.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:no-output"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:no-output"
       ]

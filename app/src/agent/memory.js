@@ -98,6 +98,9 @@ export function createMemory({ now = () => Date.now() } = {}) {
 
     /** ⭐ PHASE 2: a new member message is being answered — its committed steps form one turn. */
     beginTurn() { turnId += 1; return turnId },
+    /** PLANNER v2: the turn now open, and re-opening a paused turn so the card's outcome joins ITS Undo group. */
+    currentTurn() { return turnId },
+    resumeTurn(id) { if (typeof id === 'number' && id > 0 && id <= turnId) turnId = id },
 
     /** The indicator a change added or edited (from the mutation module's own report). */
     noteIndicator({ chart, instanceId, defId = null, label = null, epoch = null }) {
@@ -147,7 +150,8 @@ export function createMemory({ now = () => Date.now() } = {}) {
       if (!fresh(turn) || !sameBoard(turn, epoch) || !turn.steps.length) return null
       const ops = turn.steps.flatMap(s => s.ops)
       const charts = [...new Set(ops.map(o => o.target).filter(t => typeof t === 'string'))]
-      return { ops, charts, undoIds: turn.steps.map(s => s.undoId).filter(Boolean) }
+      // `id`: the member message (beginTurn) that committed it — NLM-1's referent tracker reads which message that was
+      return { id: turn.id, ops, charts, undoIds: turn.steps.map(s => s.undoId).filter(Boolean) }
     },
     recentCorrections() { return corrections.filter(c => fresh(c)) },
 

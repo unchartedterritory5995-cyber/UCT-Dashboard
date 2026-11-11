@@ -1,0 +1,242 @@
+[
+ [
+  "CONTROL no-op comment",
+  "api/services/screener/scan_evaluator.py",
+  "# W5-T14 -- the RUNTIME document in the scan lanes",
+  "# W5-T14 -- the RUNTIME document in the scan lanes (control)"
+ ],
+ [
+  "M01 chunk size 500 not the client's 50",
+  "api/services/screener/scan_evaluator.py",
+  "_RUNTIME_CHUNK = pine_runtime_client.SWEEP_CHUNK",
+  "_RUNTIME_CHUNK = 500"
+ ],
+ [
+  "M02 nightly profile not sweep",
+  "api/services/screener/scan_evaluator.py",
+  "{NIGHTLY: \"sweep\", LIVE",
+  "{NIGHTLY: \"on-demand\", LIVE"
+ ],
+ [
+  "M03 on-demand profile not on-demand",
+  "api/services/screener/scan_evaluator.py",
+  "ON_DEMAND: \"on-demand\"}",
+  "ON_DEMAND: \"sweep\"}"
+ ],
+ [
+  "M04 per-chunk admission not asked",
+  "api/services/screener/scan_evaluator.py",
+  "        if refused is not None:\r\n            for sym in chunk:",
+  "        if False:\r\n            for sym in chunk:"
+ ],
+ [
+  "M05 door admission not asked",
+  "api/services/screener/scan_evaluator.py",
+  "    if refused is not None:\r\n        raise ScanRunRefused(\"not-scannable\", refused[1])",
+  "    if False:\r\n        raise ScanRunRefused(\"not-scannable\", refused[1])"
+ ],
+ [
+  "M06 live mode runs a runtime doc",
+  "api/services/screener/scan_evaluator.py",
+  "    if mode == LIVE:\r\n        raise ScanRunRefused(\r\n            \"cadence\",\r\n            \"a runtime",
+  "    if mode == \"x\":\r\n        raise ScanRunRefused(\r\n            \"cadence\",\r\n            \"a runtime"
+ ],
+ [
+  "M07 withheld not counted",
+  "api/services/screener/scan_evaluator.py",
+  "        guards[guard] = guards.get(guard, 0) + 1\r\n",
+  "        pass\r\n"
+ ],
+ [
+  "M08 bar time not converted to seconds",
+  "api/services/screener/scan_evaluator.py",
+  "out.append({**b, \"t\": secs})",
+  "out.append({**b})"
+ ],
+ [
+  "M09 bars after the session not cut",
+  "api/services/screener/scan_evaluator.py",
+  "seconds = _runtime_bar_seconds(bars[:index + 1])",
+  "seconds = _runtime_bar_seconds(bars)"
+ ],
+ [
+  "M10 non 0/1 plot answers",
+  "api/services/screener/scan_evaluator.py",
+  "            if odd is not None:",
+  "            if False:"
+ ],
+ [
+  "M11 na as-of bar answers",
+  "api/services/screener/scan_evaluator.py",
+  "            if math.isnan(value):",
+  "            if False:"
+ ],
+ [
+  "M12 per-plot refusal ignored",
+  "api/services/screener/scan_evaluator.py",
+  "            why = res.refusal_for(plot)\r\n            if why is not None:",
+  "            why = res.refusal_for(plot)\r\n            if False:"
+ ],
+ [
+  "M13 receipt filed despite withheld",
+  "api/services/screener/scan_evaluator.py",
+  "if mode == NIGHTLY and not history_withheld and not runtime_withheld:",
+  "if mode == NIGHTLY and not history_withheld:"
+ ],
+ [
+  "M14 receipt filed in every mode",
+  "api/services/screener/scan_evaluator.py",
+  "if mode == NIGHTLY and not history_withheld and not runtime_withheld:",
+  "if not history_withheld and not runtime_withheld:"
+ ],
+ [
+  "M15 two plots scannable",
+  "api/services/screener/scan_runtime.py",
+  "    if len(plots) != 1:",
+  "    if len(plots) < 1:"
+ ],
+ [
+  "M16 runtime prefix not checked",
+  "api/services/screener/scan_runtime.py",
+  "    if not handle.startswith(runtime_definitions.HASH_PREFIX):",
+  "    if False:"
+ ],
+ [
+  "M17 row without version accepted",
+  "api/services/screener/scan_evaluator.py",
+  " or row.get(\"version\") is None",
+  ""
+ ],
+ [
+  "M18 sweep filter admits unasked",
+  "api/services/screener/scan_evaluator.py",
+  "            if refused is not None:\r\n                not_admitted[",
+  "            if False:\r\n                not_admitted["
+ ],
+ [
+  "M19 sweep filter asks the wrong lane",
+  "api/services/screener/scan_evaluator.py",
+  "scan_runtime.runtime_admission(row, \"sweep\", plot)",
+  "scan_runtime.runtime_admission(row, \"alert\", plot)"
+ ],
+ [
+  "M20 run_sweep resolve refuses runtime",
+  "api/services/screener/scan_evaluator.py",
+  "    if runtime_definitions.is_runtime(definition):\r\n        return scan_runtime.runtime_scan_spec(definition)[\"def_hash\"]\r\n    return scan_definition.assert_scannable",
+  "    if False:\r\n        return scan_runtime.runtime_scan_spec(definition)[\"def_hash\"]\r\n    return scan_definition.assert_scannable"
+ ],
+ [
+  "M21 sweep dedupe key not the runtime handle",
+  "api/services/screener/scan_evaluator.py",
+  "    if runtime_definitions.is_runtime(definition):\r\n        return scan_runtime.runtime_scan_spec(definition)[\"def_hash\"]\r\n    return user_definitions.result_identity",
+  "    if False:\r\n        return scan_runtime.runtime_scan_spec(definition)[\"def_hash\"]\r\n    return user_definitions.result_identity"
+ ],
+ [
+  "M22 live cycle does not refuse runtime in phase 1",
+  "api/services/screener/scan_evaluator.py",
+  "            if runtime_definitions.is_runtime(definition):\r\n                # W5-T14: closed bars only",
+  "            if False:\r\n                # W5-T14: closed bars only"
+ ],
+ [
+  "M23 tf gate removed",
+  "api/services/screener/scan_evaluator.py",
+  "    if tf_code != DEFAULT_TF:\r\n        raise ScanRunRefused(\"tf\", _wrong_tf_reason(tf_code))\r\n    if mode == LIVE:",
+  "    if mode == LIVE:"
+ ],
+ [
+  "M24 job ids not unique per position",
+  "api/services/screener/scan_evaluator.py",
+  "job_id = f\"{start + offset}:{sym}\"",
+  "job_id = sym"
+ ],
+ [
+  "M25 admission failure admits",
+  "api/services/screener/scan_runtime.py",
+  "    except Exception:  # noqa: BLE001 -- an admission that cannot answer admits nothing",
+  "    except ZeroDivisionError:  # noqa: BLE001 -- an admission that cannot answer admits nothing"
+ ],
+ [
+  "M26 history gate not asked",
+  "api/services/screener/scan_evaluator.py",
+  "    want = _MAX_BARS\r\n    history_withheld = _history_withheld(want, limits)",
+  "    want = _MAX_BARS\r\n    history_withheld = False"
+ ],
+ [
+  "M27 evaluate_one never dispatches runtime",
+  "api/services/screener/scan_evaluator.py",
+  "    if runtime_definitions.is_runtime(definition):\r\n        # W5-T14: a stored runtime document is evaluated",
+  "    if False:\r\n        # W5-T14: a stored runtime document is evaluated"
+ ],
+ [
+  "M28 daily bar read as another timeframe",
+  "api/services/screener/scan_runtime.py",
+  "n % 100), \"D\")",
+  "n % 100), \"W\")"
+ ],
+ [
+  "M29 YYYYMMDD sent as it is",
+  "api/services/screener/scan_runtime.py",
+  "    if scan_store._AS_OF_MIN <= n <= scan_store._AS_OF_MAX:",
+  "    if False:"
+ ],
+ [
+  "M30 withheld guards not reported",
+  "api/services/screener/scan_evaluator.py",
+  "\"runtime_withheld_guards\": dict(sorted(guards.items())),",
+  "\"runtime_withheld_guards\": {},"
+ ],
+ [
+  "S01 on-demand door skips runtime admission",
+  "api/services/screener/scan_run.py",
+  "        if refused is not None:\r\n            raise RunRefused(\"gate:not-scannable\", refused[1])",
+  "        if False:\r\n            raise RunRefused(\"gate:not-scannable\", refused[1])"
+ ],
+ [
+  "S02 on-demand door asks the wrong lane",
+  "api/services/screener/scan_run.py",
+  "scan_runtime.runtime_admission(row, \"on-demand\", plot)",
+  "scan_runtime.runtime_admission(row, \"sweep\", plot)"
+ ],
+ [
+  "S03 refusal carries the guard word not the sentence",
+  "api/services/screener/scan_run.py",
+  "raise RunRefused(\"gate:not-scannable\", refused[1])",
+  "raise RunRefused(\"gate:not-scannable\", refused[0])"
+ ],
+ [
+  "S04 submit_run still refuses runtime as kind",
+  "api/services/screener/scan_run.py",
+  "        if runtime_definitions.is_runtime(definition):\r\n            # scannability was asked once, in `_load_definition`\r\n            definition = scan_runtime.runtime_scan_doc(row)",
+  "        if False:\r\n            # scannability was asked once, in `_load_definition`\r\n            definition = scan_runtime.runtime_scan_doc(row)"
+ ],
+ [
+  "N01 admission asked without the plot at the door",
+  "api/services/screener/scan_evaluator.py",
+  "    refused = scan_runtime.runtime_admission(row, profile, plot)\r\n    if refused is not None:\r\n        raise",
+  "    refused = scan_runtime.runtime_admission(row, profile, 'x')\r\n    if refused is not None:\r\n        raise"
+ ],
+ [
+  "N02 admission asked without the plot per chunk",
+  "api/services/screener/scan_evaluator.py",
+  "        refused = scan_runtime.runtime_admission(row, profile, plot)\r\n        if refused is not None:\r\n            for",
+  "        refused = scan_runtime.runtime_admission(row, profile, 'x')\r\n        if refused is not None:\r\n            for"
+ ],
+ [
+  "N03 warm-up na values counted as non-conditions",
+  "api/services/screener/scan_evaluator.py",
+  "x not in (0.0, 1.0)",
+  "x not in (0.0, 1.0) or True"
+ ],
+ [
+  "N04 na check skipped in the condition scan",
+  "api/services/screener/scan_evaluator.py",
+  "next((x for x in column if not math.isnan(x) and x not in",
+  "next((x for x in column if x not in"
+ ],
+ [
+  "T11a finite warm-up value accepted by the client (T11 check removed)",
+  "api/services/pine_runtime_client.py",
+  "            if any(v == v for v in col[:wb]):",
+  "            if False:"
+ ]
+]

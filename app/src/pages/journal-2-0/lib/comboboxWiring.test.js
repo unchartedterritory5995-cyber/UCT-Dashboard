@@ -75,3 +75,32 @@ describe('applyComboboxWiring — the editor root becomes a combobox while a sug
     expect(dom.getAttribute('aria-activedescendant')).toBe('uct-note-link-menu-opt-0')
   })
 })
+
+// Tier 4 fix round 2 (live scorecard): the note body is a named multi-line textbox at rest (NOTE_BODY_ARIA). A menu
+// borrows the root as a combobox and must hand it back as it found it: closing used to strip the role, which left
+// aria-label on a role-less div (axe `aria-prohibited-attr`, serious, at every profile).
+describe('applyComboboxWiring hands the editor back as it found it', () => {
+  const body = () => {
+    const dom = document.createElement('div')
+    dom.setAttribute('role', 'textbox'); dom.setAttribute('aria-multiline', 'true'); dom.setAttribute('aria-label', 'Note body')
+    return dom
+  }
+
+  it('while the menu shows it is a combobox WITHOUT aria-multiline (not allowed on a combobox)', () => {
+    const dom = body()
+    applyComboboxWiring(dom, { menuId: 'm', activeId: 'o', showing: true })
+    expect(dom.getAttribute('role')).toBe('combobox')
+    expect(dom.hasAttribute('aria-multiline')).toBe(false)
+  })
+
+  it('when it closes the role is textbox again and aria-multiline is back; a re-render while open saves nothing twice', () => {
+    const dom = body()
+    applyComboboxWiring(dom, { menuId: 'm', activeId: 'o', showing: true })
+    applyComboboxWiring(dom, { menuId: 'm', activeId: 'p', showing: true })
+    applyComboboxWiring(dom, { menuId: 'm', activeId: null, showing: false })
+    expect(dom.getAttribute('role')).toBe('textbox')
+    expect(dom.getAttribute('aria-multiline')).toBe('true')
+    expect(dom.getAttribute('aria-label')).toBe('Note body')
+    for (const attr of ['aria-autocomplete', 'aria-expanded', 'aria-controls', 'aria-activedescendant']) expect(dom.hasAttribute(attr)).toBe(false)
+  })
+})

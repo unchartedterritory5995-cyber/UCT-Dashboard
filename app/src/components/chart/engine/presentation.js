@@ -127,6 +127,15 @@ const RESTYLEABLE_DEF_STYLES = Object.freeze(
 )
 
 /**
+ * May a member restyle this output at all? `false` only when the definition says
+ * `restyle: false` on the plot (UCT RS's dot plots, Phase 2a visual A6). Absent
+ * means yes, so every definition that never heard of the field keeps its offer.
+ */
+export function isPlotRestyleable(plot) {
+  return !!plot && typeof plot === 'object' && plot.restyle !== false
+}
+
+/**
  * ⛔ STYLES THAT DO NOT BELONG ON A SHARED PANE, and why capability depends on
  * PLACEMENT and not only on the output.
  *
@@ -153,6 +162,12 @@ const isKnownStyle = (v) => typeof v === 'string' && PLOT_STYLES.includes(v)
 export function availableStyles(plot, ctx) {
   const declared = plot && plot.style
   if (!declared || !RESTYLEABLE_DEF_STYLES.has(declared)) return []
+  // ⭐ UCT RS PHASE 2a VISUAL (A6) — A PLOT MAY OPT OUT: `restyle: false`. A sparse
+  // dot column (one value every few dozen bars) restyled as a line or an area draws
+  // nothing, so offering it is the dropdown that lies, one plot at a time. The
+  // definition says so at the plot (`defSchema` validates the field); this answers
+  // "nothing to offer", so every Plot style surface drops the row by the same rule.
+  if (!isPlotRestyleable(plot)) return []
   const shared = ctx && ctx.target === 'volume'
   // ⛔⛔ CANDLES ARE NEVER OFFERED WITHOUT A SOURCE THAT CAN MEAN THEM. Every
   // other style is a property of the OUTPUT — any column can be drawn as an area
@@ -213,11 +228,16 @@ export function resolvePlotStyle(instance, plot, ctx) {
   const key = plot && plot.key
 
   let chosen = null
-  if (pres && pres.plots && typeof key === 'string' && key) {
+  // ⭐ A PLOT THAT OPTS OUT OF RESTYLING DRAWS AS DECLARED, whatever is stored. The
+  // menu stops offering it (`availableStyles`), and the resolver honours the same
+  // rule, so a style stored before the opt-out (or by an instance-level
+  // `plotStyle`) cannot turn a dot column into an empty line.
+  const optedOut = !isPlotRestyleable(plot)
+  if (!optedOut && pres && pres.plots && typeof key === 'string' && key) {
     const perOutput = pres.plots[key] && pres.plots[key].style
     if (isKnownStyle(perOutput)) chosen = perOutput
   }
-  if (!chosen && pres && isKnownStyle(pres.plotStyle)) chosen = pres.plotStyle
+  if (!optedOut && !chosen && pres && isKnownStyle(pres.plotStyle)) chosen = pres.plotStyle
 
   // ⭐⭐ THE SOURCE'S DEFAULT OUTRANKS THE DEFINITION'S — BUT ONLY FOR A ROW THAT *IS*
   // THE SOURCE, and that condition is the whole reason this is safe. `dataSeries`
@@ -235,7 +255,7 @@ export function resolvePlotStyle(instance, plot, ctx) {
   // ⚠️ IT SITS BELOW BOTH USER LEVELS ON PURPOSE. A member who chose Histogram keeps
   // Histogram; a default is what you get before you choose, never a correction of a
   // choice you already made.
-  if (!chosen && ctx && isKnownStyle(ctx.sourceDefaultStyle)) {
+  if (!optedOut && !chosen && ctx && isKnownStyle(ctx.sourceDefaultStyle)) {
     chosen = ctx.sourceDefaultStyle
   }
 
@@ -315,23 +335,65 @@ export function drawsHistory(style) {
  */
 export const DOT_SIZES = Object.freeze({ small: 1.5, medium: 2.5, large: 4 })
 export const DEFAULT_DOT_SIZE = 'medium'
+
+/**
+ * ⭐ THE SAME THREE WORDS ON A GLYPH (Phase 2a, unit 2a-13 / 2a-15). A `markers`
+ * plot WITH a `marker` block is not a point marker: lightweight-charts draws it
+ * as a series-marker glyph whose pixel size is `calculateShapeHeight(barSpacing)
+ * × marker.size`, double-clamped to 12..30 px (see `__tests__/markerPixels.test.js`,
+ * the mirror). `pointMarkersRadius` never reaches it, so the radius table above
+ * is the wrong quantity. For a glyph the word is a MULTIPLIER on the size its
+ * author declared: `medium` IS the declared look (× 1), `small` and `large` step
+ * away from it. The declared size is the author's, so Classic's gold dot at
+ * Default is byte-for-byte what it was before a member ever touched the control.
+ *
+ * ⚠️ WHAT THE FLOOR AND CEILING DO TO IT, so nobody promises more than the
+ * renderer draws. For UCT RS's gold dot (declared 1.6 since decision L1,
+ * 2026-11-07; a circle, coefficient 0.8):
+ *   · Default (× 1 → 1.6): 13 / 17 / 23 px at bar spacing ≤ 12 / 15 / 20+.
+ *   · Large (× 1.4 → 2.24): 17 px at spacing ≤ 12, then 23 px — larger than
+ *     Default up to the desktop daily zoom, and EQUAL to it from bar spacing 20,
+ *     because 23 is the biggest circle LWC draws (`size()` clamps the multiplied
+ *     height to 30, × 0.8 → 24, ceiled odd → 23).
+ *   · Small (× 0.6 → 0.96): 9 / 11 / 13 / 21 px at spacing ≤ 12 / 15 / 20 / 30.
+ */
+export const DOT_GLYPH_SCALE = Object.freeze({ small: 0.6, medium: 1, large: 1.4 })
+
+/** The `marker` block a glyph plot should draw at ONE dot-size word: the declared
+ *  block with `size` multiplied by `DOT_GLYPH_SCALE[word]`. A block that declares
+ *  no size is at LWC's multiplier 1, and scales from there. */
+export function scaledMarker(marker, word) {
+  const scale = DOT_GLYPH_SCALE[word]
+  if (!marker || typeof marker !== 'object' || !Number.isFinite(scale)) return marker
+  const declared = Number.isFinite(marker.size) ? marker.size : 1
+  return { ...marker, size: declared * scale }
+}
 export const DOT_SIZE_CHOICES = Object.freeze([
   { value: 'small', label: 'Small' },
   { value: 'medium', label: 'Medium' },
   { value: 'large', label: 'Large' },
 ])
 
-/** The stored dot size for one output, with the same override→fallback shape as
- *  the style itself. */
-export function resolveDotSize(instance, plot) {
+/** The dot size the member STORED for one output — per output over the instance
+ *  level, the same shape as the style — as its name, or `null` when nothing is
+ *  stored. ⭐ Distinct from `resolveDotSize`, which answers the default when nothing
+ *  is: `presentedPlot` needs the difference, because an output DECLARED `markers`
+ *  (SAR's radius 3, UCT RS's new-high dots at 2) keeps its declared radius until a
+ *  member chooses one. */
+export function storedDotSize(instance, plot) {
   const pres = instance && instance.presentation
   const key = plot && plot.key
   const read = (v) => (typeof v === 'string' && Object.prototype.hasOwnProperty.call(DOT_SIZES, v) ? v : null)
   const perOutput = pres && pres.plots && typeof key === 'string' && pres.plots[key]
     ? read(pres.plots[key].dotSize) : null
   if (perOutput) return perOutput
-  const instLevel = pres ? read(pres.dotSize) : null
-  return instLevel || DEFAULT_DOT_SIZE
+  return pres ? read(pres.dotSize) : null
+}
+
+/** The stored dot size for one output, with the same override→fallback shape as
+ *  the style itself. */
+export function resolveDotSize(instance, plot) {
+  return storedDotSize(instance, plot) || DEFAULT_DOT_SIZE
 }
 
 /** The two colours a candlestick wears. ⚠️ KEYS, NOT VALUES — the DEFAULTS are
@@ -406,7 +468,13 @@ export function presentedPlot(plot, instance, ctx) {
   // property is resolved here: a member turning sign colours on for an output that
   // was ALREADY a histogram would have been handed back the untouched plot and seen
   // nothing happen.
-  if (!styleChanged && !sign && !look && !bar && !levelOnly) return plot
+  // ⭐ A DOT'S SIZE IS A PRESENTATION TOO (2026-11-06, UCT RS unit 6). This returned
+  // the plot untouched when a member had stored ONLY `presentation.dotSize` on an
+  // output DECLARED `markers` — nothing else had changed, so "Dot size" did nothing
+  // for SAR or for the RS new-high dots. A STORED size is a change; the declared
+  // radius stands until one is.
+  const dotSized = effective === 'markers' && !styleChanged && storedDotSize(instance, plot) !== null
+  if (!styleChanged && !sign && !look && !bar && !levelOnly && !dotSized) return plot
   const next = { ...plot }
   // ⭐ A SIDE-BY-SIDE PARTICIPANT TAGS ITS OWN LATEST VALUE ON THE AXIS (owner,
   // 2026-09-30). In a COT pane the guests would otherwise defer to the host and the
@@ -418,7 +486,23 @@ export function presentedPlot(plot, instance, ctx) {
   if (look) Object.assign(next, look)
   // Dots carry their size in `width`, because that is the field the `markers`
   // branch of `seriesOptionsForPlot` already reads as the point radius.
-  if (defStyle === 'markers') next.width = DOT_SIZES[resolveDotSize(instance, plot)]
+  // ⛔ ONLY when the member restyled the output to dots or stored a size. A plot
+  // declared `markers` that reaches here for another reason (a `renderLook`, say)
+  // keeps the radius its author declared — this used to hand SAR 2.5 for 3.
+  //
+  // ⭐ A GLYPH IS THE OTHER RENDERER (2a-13). A `markers` plot WITH a `marker`
+  // block is drawn by the series-marker lane, which reads `marker.size` and never
+  // `width` (the pool draws no point marker under a glyph), so a stored word
+  // scales the DECLARED glyph size (`scaledMarker`) and leaves `width` alone —
+  // this is where Stress's `dotSize: {dotNHbeforePx: 'large'}` became pixels,
+  // having been stored and detected but visually inert at 2a-14.
+  if (defStyle === 'markers' && (styleChanged || dotSized)) {
+    if (dotSized && plot.marker && typeof plot.marker === 'object') {
+      next.marker = scaledMarker(plot.marker, resolveDotSize(instance, plot))
+    } else {
+      next.width = DOT_SIZES[resolveDotSize(instance, plot)]
+    }
+  }
   if (sign) {
     next.colorMode = 'sign'
     next.colorUp = sign.up

@@ -1,0 +1,9 @@
+//@version=6
+indicator("UCTPROBE_VW_W3N_DRAW_BLOCK_HISTORY_A", overlay = true, max_labels_count = 500)
+float p = na
+if close > open
+    s = ta.sma(close, 3)
+    label.new(bar_index, s, "A|" + str.tostring(s))
+    p := s
+plot(p, "D01_sma3_plot")
+plot(bar_index, "D00_bar_index_CONTROL")

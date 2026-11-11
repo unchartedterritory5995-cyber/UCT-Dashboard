@@ -45,7 +45,6 @@ PREP_SCAN = 200
 MATCH_DAYS = 3
 MAX_AGE_DAYS = 120
 DASH = "—"
-OFF_SENTENCE = "Earnings follow-ups are not on for you yet."
 NEEDS_TICKER_SENTENCE = "An earnings follow-up needs a ticker."
 DATE_SENTENCE = f"Choose a report date from the last {MAX_AGE_DAYS} days."
 #: The session that first trades a report closes at 16:00 ET (an early close only makes this later than needed).
@@ -121,9 +120,6 @@ def event_for(intel: Any, report_date: str) -> dict | None:
 
 def clean_request(raw: Any, *, kind_id: Any, ticker: str | None, today: date | None = None) -> str:
     """The `earningsFollowup` payload's report date, or a StyleValidationError with a fixed sentence."""
-    from api.services.journal_two import earnings_followup
-    if not earnings_followup.enabled():
-        raise _js.StyleValidationError(OFF_SENTENCE)
     if kind_id != FOLLOWUP_KIND or not valid_symbol(ticker):
         raise _js.StyleValidationError(NEEDS_TICKER_SENTENCE)
     rd = raw.get("reportDate") if isinstance(raw, dict) else None

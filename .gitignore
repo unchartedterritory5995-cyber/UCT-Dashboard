@@ -5,6 +5,8 @@ __pycache__/
 *.pyc
 node_modules/
 app/dist/
+# W5-T1/T19: the pine-runtime server bundle is a build output (app/scripts/build-pine-runtime.mjs); never committed
+app/dist-server/
 app/node_modules/
 *.egg-info/
 .pytest_cache/
@@ -251,3 +253,7 @@ tools/scan_handoff_out.json
 # Pine support loop working directory (member script source while a report is open; purged on close).
 # docs/pine/support-loop/PHASE-B.md
 /.support-loop-work/
+
+
+# flow-read gate run logs (tools/flow_read_gate.py)
+.flow_read_gate/

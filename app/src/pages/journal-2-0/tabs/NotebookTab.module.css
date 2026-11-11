@@ -1,5 +1,9 @@
 .wrap {
   display: flex;
+  /* Tier 4 fix round 2 (live scorecard): the body's 15 px (tokens.css, app-wide) was what every inheriting line in the
+     Notebook read ("Your notebook is empty.", the link buttons); 15 is off the V1 scale. The Notebook reads 14
+     (--text-lg, body UI). The note body sets its own 17 px reading size and is unchanged. */
+  font-size: var(--text-lg);
   min-height: 70vh;
   position: relative;
   /* Height is set in JS to fill the viewport below the journal chrome; overflow
@@ -29,7 +33,7 @@
   border-radius: 7px;
   color: var(--text-muted);
   cursor: pointer;
-  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+  transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
 }
 .sidebarToggle:hover {
   color: var(--accent);
@@ -44,12 +48,12 @@
   flex: 0 0 auto;
   width: var(--nb-sb-w, 260px);
   overflow: hidden;
-  transition: width 240ms ease;
+  transition: width var(--duration-base) var(--ease-out);
 }
 .sidebarInner {
   width: var(--nb-sb-w, 260px);
   height: 100%;
-  transition: transform 240ms ease;
+  transition: transform var(--duration-base) var(--ease-out);
 }
 .wrap.collapsed .sidebarSlot { width: 0; }
 .wrap.collapsed .sidebarInner { transform: translateX(-100%); }
@@ -72,7 +76,7 @@
   width: 1px;
   transform: translateX(-50%);
   background: var(--border);
-  transition: background 120ms ease, width 120ms ease;
+  transition: background var(--duration-fast) var(--ease-out), width var(--duration-fast) var(--ease-out);
 }
 .divider:hover::before,
 .wrap.dragging .divider::before { background: var(--ut-gold); width: 2px; }
@@ -157,38 +161,52 @@
 .wrap.collapsed .main { padding-left: 62px; }
 .toolbar {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
 }
+/* S11 + VIS-4 (audit 2026-11-05, V2): ONE 32 px row on desktop -- View, sort, Today, + New ▾, ⋯ -- all on
+   the buttons.css roles (`btn btn-* btn-sm`); this only pins the row's height. The touch tier's 44 px floor
+   comes from buttons.css's own `.btn` rule at <=1024px (min-height wins over height). */
+.toolBtn { height: 32px; padding-top: 0; padding-bottom: 0; }
+/* A menu hangs from its trigger's box. The View menu opens at the row's left, so it hangs left. */
+.menuSlot { position: relative; display: inline-flex; }
+.menuSlot:first-child > [role="menu"] { left: 0; right: auto; }
+/* "+ New" and its ▾: one split control, the row's only solid primary. */
+.newSplit { position: relative; display: inline-flex; }
+.newMain { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.newCaret {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  padding-inline: 8px;
+  border-left: 1px solid var(--bg);
+}
+/* A ⋯ row a phone needs (Today, From a template, Import) while "+ New" and Today give way to the floating
+   "+" (S12). Desktop has them on the row itself, so the menu leaves them out there. */
+.phoneOnlyItem { display: none !important; }
+.phoneFolders { display: none; }
 .search {
   flex: 1;
   min-width: 200px;
   background: var(--bg-surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-edge); /* a field edge: 3:1 on every surface (visual audit 10) */
   border-radius: var(--radius-md);
   padding: 7px 12px;
   color: var(--text-bright);
   font-size: 13px;
+  transition: border-color var(--duration-fast) var(--ease-out); /* VIS-6 (issue 23) */
 }
 .search:focus { outline: none; border-color: var(--ut-gold); }
 .sortSelect {
+  height: 32px;
   background: var(--bg-surface);
   border: 1px solid var(--field-edge);
   color: var(--text-bright);
   border-radius: var(--radius-md);
-  padding: 6px 8px;
+  padding: 0 8px;
   font-size: 12px;
-}
-.clear {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  padding: 6px 10px;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-size: 12px;
+  transition: border-color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out); /* VIS-6 (issue 23) */
 }
 /* Wave H: the "?ticker=" filter's own visible indicator (checkpoint
    decision 23) -- a member landing here via a workspace's "View all Notes"
@@ -224,127 +242,7 @@
      `.toolbar` above already wraps for exactly this reason. */
   flex-wrap: wrap;
 }
-.newBtn {
-  background: var(--ut-gold);
-  color: var(--bg);
-  border: none;
-  padding: 7px 14px;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-}
-.newBtn:hover { background: var(--ut-gold-bright); }
-.templatesBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(220, 187, 94, 0.08);
-  color: var(--accent);
-  border: 1px solid rgba(220, 187, 94, 0.4);
-  padding: 7px 14px;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-}
-.templatesBtn:hover { background: rgba(220, 187, 94, 0.16); }
-.importBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  color: var(--text-bright);
-  border: 1px solid var(--border);
-  padding: 7px 14px;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-}
-.importBtn:hover { background: var(--bg-surface); border-color: var(--ut-gold); }
-.exportBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  color: var(--text-bright);
-  border: 1px solid var(--border);
-  padding: 7px 14px;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  /* Base-rule floor (not scoped to a phone-only media query) so this clears
-     the 44px touch target on tablet too, not just phone -- this repo's
-     touch tier is <=1024px, not <=640px (see tapFloor.test.js). */
-  min-height: var(--tap-min, 44px);
-}
-.exportBtn:hover { background: var(--bg-surface); border-color: var(--ut-gold); }
-.newBtn:disabled, .templatesBtn:disabled { opacity: 0.6; cursor: default; }
 
-/* Wave E: List/Table toggle + Save view */
-.viewModeWrap {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  /* Wave 10 follow-up F5: at 390 px its seven 44 px view buttons plus Save view
-     came to 401 px inside a 350 px line, and <main> (which scrolls sideways as well
-     as down) grew to 445 px: the whole page panned sideways on 11 surfaces (proof
-     walk 10E-1 6b). Guards that never bind while there is room: it wraps onto a
-     second line instead. Rail: tabs/NotebookTab.viewSwitcherFits.test.js. */
-  flex-wrap: wrap;
-  max-width: 100%;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 2px;
-}
-/* FX2 (wave 10, proof-walk item 2): the ARIA group wrapper around the seven
-   view-mode toggle buttons. `display: contents` so it adds no box of its own —
-   the buttons stay direct flex items of `.viewModeWrap` (the flex-wrap fit
-   guard above, tabs/NotebookTab.viewSwitcherFits.test.js, still sees the same
-   flat list). A group role exists for assistive tech, not for layout. */
-.viewModeGroup { display: contents; }
-/* P0.11: the labelled View select is the phone's door to the same seven modes; desktop keeps the
-   icon buttons above. The swap is in the <=640px block below (one fact, one place). */
-.viewSelectWrap { display: none; }
-.viewSelect {
-  background: var(--bg-surface);
-  border: 1px solid var(--field-edge);
-  color: var(--text-bright);
-  border-radius: var(--radius-md);
-  padding: 6px 8px;
-  font-size: 12px;
-}
-.viewSelect:disabled { opacity: 0.4; cursor: default; }
-.viewModeBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  border-radius: var(--radius-sm, 4px);
-  cursor: pointer;
-  min-width: 32px;
-  min-height: 32px;
-}
-.viewModeBtn:hover { color: var(--text-bright); }
-.viewModeBtn:disabled { opacity: 0.4; cursor: default; }
-.viewModeActive { background: rgba(220, 187, 94, 0.16); color: var(--ut-gold); }
-.saveViewBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 12px;
-  padding: 0 8px;
-  cursor: pointer;
-  min-height: 32px;
-}
-.saveViewBtn:hover { color: var(--ut-gold); }
 .emptyImportPitch {
   display: flex;
   flex-direction: column;
@@ -352,12 +250,6 @@
   gap: 10px;
   margin-top: 4px;
 }
-.importBtnEmphasized {
-  background: rgba(220, 187, 94, 0.08);
-  color: var(--accent);
-  border-color: var(--accent);
-}
-.importBtnEmphasized:hover { background: rgba(220, 187, 94, 0.16); border-color: var(--ut-gold); }
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -412,6 +304,8 @@
   color: var(--text-muted);
 }
 .emptyHint { font-size: 13px; margin-top: 8px; }
+/* VIS-5: an empty folder's two next steps (New note here, Move notes…) */
+.emptyActions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
 .emptyPicker {
   max-width: 760px;
   margin: 24px auto 0;
@@ -446,19 +340,17 @@
 @media (max-width: 1024px) {
   .search,
   .sortSelect,
-  .viewSelect,
-  .newBtn,
-  .templatesBtn,
-  .importBtn,
-  .exportBtn,
-  .viewModeBtn,
-  .saveViewBtn {
+  .toolBtn,
+  .phoneFolders {
     min-height: var(--tap-min, 44px);
   }
-  /* Icon-only toggles need the WIDTH too — a 44px-tall, 32px-wide target is
+  /* The icon-only ⋯ and ▾ need the WIDTH too — a 44px-tall, 32px-wide target is
      still a miss on the axis the finger is moving along. */
-  .viewModeBtn { min-width: var(--tap-min, 44px); }
+  .toolBtn { min-width: var(--tap-min, 44px); }
 }
+
+/* S12 (B13): the in-note Folders door exists on a phone only (it opens the FolderSheet). */
+.noteFoldersBtn { display: none; }
 
 /* The toggle's word is phone-only: on a wider screen the icon sits beside the panel it opens. */
 .sidebarToggleLabel { display: none; }
@@ -501,7 +393,11 @@
      24 px side gutter, and the editor column adds its own for the block handles. This pane's 20 px
      on top of both left the note body 270 px wide on a 390 px screen. ⛔ ONE `.main` rule in this
      block: NotebookTab.fabOrbClearance.test.js reads the LAST one for the bottom clearance. */
-  .main { overflow: visible; padding-bottom: 150px; padding-left: 0; padding-right: 0; }
+  /* S12 (V4, issue 14): 96 px clears the ONE floating "+" (56 px at bottom 16 px); the Log-Trade FAB never rendered
+     on the Notebook and the orb gives way to the "+" here, so the old 150 px only cost the list a screen's end. */
+  .main { overflow: visible; padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); padding-left: 0; padding-right: 0; }
+  /* Tier 2 (390 px production check): 8 px above a list's filter row, not 16 (an open note keeps its 0). */
+  .main:not(.mainNote) { padding-top: 8px; }
   /* Phones stack the panel above the notes when it IS shown — the slide/resize
    * affordances stay desktop-only either way. D-7 fix: it is no longer forced
    * open regardless of `collapsed` — List's own landing still shows it (its
@@ -524,31 +420,30 @@
      is a labelled button in the page flow above the view, so the pad only cost a sixth of the
      screen's width (measured 2026-10-10: list content started at x=86 of 390). */
   .wrap.collapsed .main { padding-left: 0; }
-  /* Phone pass: Import / Export / Today / Templates show their icon only, so the action row is
-     one line beside "+ New note" instead of three (measured: ~350px of toolbar above the first
-     note at 390px). The words stay in the DOM, visually hidden, so each button keeps its name. */
-  .actionLabel {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-  .newWrap :is(.importBtn, .exportBtn, .templatesBtn) {
-    justify-content: center;
-    min-width: var(--tap-min, 44px);
-    padding-left: 0;
-    padding-right: 0;
-  }
-  /* 16px inputs avoid the iOS focus-zoom; let New note keep the row to itself */
-  .search, .sortSelect, .viewSelect { font-size: 16px; }
-  /* P0.11: a labelled View select replaces the seven icon-only buttons on a phone */
-  .viewSelectWrap { display: inline-flex; }
-  .viewModeGroup { display: none; }
-  /* position: the New note caret's menu (NewNoteMenu.module.css `.listCaret .menu`, railed by NewNoteMenu.listCaret.css.test.js) hangs from this row */
-  .newWrap { margin-left: 0; position: relative; }
+  /* S12 + VIS-4 (audit 2026-11-05, V4): content first. Folders, view and sort sit in ONE 44 px row of
+     labelled dropdowns; "+ New" and Today give way to the floating "+" (NotebookPlusFab), and the ⋯ menu
+     carries Today, From a template and Import here (`.phoneOnlyItem`). Measured before: the first note sat
+     at y=603 of 844. */
+  /* Fix round 1 (review Important 7): the row WRAPS. With only Folders, View, sort and ⋯ it is one line; a folder
+     plus a filter (its chip and Clear filter) takes a second line instead of clipping or panning the page sideways.
+     Rail: NotebookTab.toolbarFits.test.js. */
+  .toolbar { flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
+  .toolbar > * { max-width: 100%; }
+  .phoneFolders { display: inline-flex; }
+  .wrap[data-list-toolbar] > .sidebarToggle { display: none; }
+  .newWrap .newSplit,
+  .newWrap .todayBtn { display: none; }
+  .phoneOnlyItem { display: flex !important; }
+  /* 16px inputs avoid the iOS focus-zoom */
+  .search, .sortSelect { font-size: 16px; }
+  .sortSelect { max-width: 34vw; padding: 0 6px; }
+  /* Tier 2 (production check of Tier 1b, 390 px): Folders, View, sort and ⋯ on ONE line (V4) -- the ⋯ had
+     wrapped onto a row of its own. Tighter side padding on the row's labelled buttons pays for it. */
+  .toolbar .toolBtn, .toolbar .phoneFolders { padding-inline: 10px; }
+  /* position: the ⋯ menu hangs from this row, right-aligned (NewNoteMenu's phone rule hangs a menu from
+     its LEFT edge, which would run a row-end menu off a 390 px screen) */
+  .newWrap { margin-left: auto; position: relative; }
+  .newWrap [role="menu"] { left: auto; right: 0; }
 }
 
 /* A failed note action, said in the member's language — replaces a native
@@ -659,6 +554,8 @@
    Both are visually hidden until they take focus, then shown with the gold
    ring -- a focused thing nobody can see is not a focus indicator. */
 .skipLink {
+  /* VIS-5 (audit 2026-11-05, issue 25): a skip link wrapped onto two lines when it took focus */
+  white-space: nowrap;
   position: absolute;
   top: 8px;
   left: 8px;
@@ -751,6 +648,10 @@
   .wrap[data-note-open] .sidebarSlot {
     display: none;
   }
+  /* S12 (audit 2026-11-05, B13): inside a note, Folders is the in-note door, which opens the folders Sheet
+     (FolderSheet); the panel's own floating toggle steps aside there so there is one Folders. */
+  .noteFoldersBtn { display: inline-flex; }
+  .wrap[data-note-open] > .sidebarToggle:not(.noteFoldersBtn) { display: none; }
   /* Finish pass (2026-10-10): the way back shares the editor's action row instead of taking a
      row of its own above it: a 44 px chevron at the row's left, with the editor header padded
      by the same amount so its actions can never slide under it (`[data-note-header]`). The
@@ -760,6 +661,21 @@
      258 px), not only its header. */
   .mainNote { position: relative; }
   .mainNote [data-note-header] { padding-left: calc(var(--tap-min) + 8px); }
+  /* Final polish (WebKit at 390 px): Folders took a row of its own above the note. It joins the back button's row: a 44 px
+     icon door right of the chevron (its name, "Show folders", stays), and the header is padded past both. */
+  .wrap[data-note-open] > .noteFoldersBtn {
+    position: absolute;
+    top: var(--space-sm);
+    left: calc(var(--tap-min) + var(--space-sm));
+    z-index: 41;
+    width: var(--tap-min);
+    margin: 0;
+    padding: 0;
+    justify-content: center;
+    border-radius: var(--radius-pill);
+  }
+  .wrap[data-note-open] > .noteFoldersBtn .sidebarToggleLabel { display: none; }
+  .wrap[data-note-open] .mainNote [data-note-header] { padding-left: calc(2 * var(--tap-min) + 2 * var(--space-sm)); }
   .phoneBack {
     display: inline-flex;
     position: absolute;
@@ -798,10 +714,6 @@
   font-size: 12px;
   color: var(--text-muted);
 }
-.voiceStarts .templatesBtn { display: inline-flex; align-items: center; gap: 6px; }
-@media (max-width: 1024px) {
-  .voiceStarts .templatesBtn { min-height: var(--tap-min); }
-}
 /* Wave 11 lane 11D: the New note sheet's "Trade-plan canvas" start. */
 .canvasStart {
   display: flex;
@@ -813,8 +725,100 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
 }
-.canvasStart .templatesBtn { display: inline-flex; align-items: center; gap: 6px; }
 .canvasStartHint { color: var(--text-muted); font-size: 12px; flex: 1 1 220px; }
+
+/* ── Themed checkboxes, Notebook only (visual audit issue 5) ──────────────────
+   63 unchecked boxes rendered as the browser's white/grey squares in a black-
+   and-gold UI; `accent-color` only themes the CHECKED state. Every checkbox
+   inside the Notebook tab (cards, table rows, task lists, properties, wizards)
+   is still a REAL <input type="checkbox"> -- semantics, keyboard, the TipTap
+   task-list click and the card-selection click are unchanged. Only the paint.
+
+   ⭐ ZERO specificity (:where), on purpose: every component rule that SIZES a
+   checkbox (the 24 px WCAG 2.5.8 floors in NoteCard / NotesTableView, the
+   20-22 px touch boxes, PropertiesSection's padded 44 px hit area) still wins,
+   so no target shrinks. That is also why the drawn box lives in ::before at a
+   fixed 16x16, centred: the element can be 24 px or 44 px of padding and the
+   box a member sees is the same 16 px square, never a frame round the padding.
+   The global :focus-visible ring (tokens.css) draws on the element itself. */
+:where(.wrap input[type="checkbox"]) {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  vertical-align: middle;
+  cursor: pointer;
+  flex: none;
+}
+:where(.wrap input[type="checkbox"])::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  transform: translate(-50%, -50%);
+  border: 1.5px solid var(--field-edge);
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+}
+:where(.wrap input[type="checkbox"]:checked)::before {
+  background: var(--ut-gold);
+  border-color: var(--ut-gold);
+}
+/* The tick: a mask painted in --bg, the same ink .btn-primary puts on gold, so
+   it is dark on the dark themes' bright gold and light on the light theme's
+   dark gold (#7a5c16). A fixed-colour SVG could not follow the theme. */
+:where(.wrap input[type="checkbox"]:checked)::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  transform: translate(-50%, -50%);
+  background: var(--bg);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.4 2.4 4.6-5' fill='none' stroke='%23000' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.4 2.4 4.6-5' fill='none' stroke='%23000' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+:where(.wrap input[type="checkbox"]:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Audit 2026-11-05, S15: a bare Notebook while the member's landing is still being read. It holds the space the
+   landing will fill, so the page does not jump when it arrives. */
+.landingPending {
+  min-height: 60vh;
+}
+
+/* VIS-6 (live finding, 390 px): the sort's face. Not drawn above the touch tier. At <=1024 px the select (16 px,
+   so iOS never zooms) is a transparent layer over a face drawn with View's own button classes, so the three
+   dropdowns in the row read the same size and weight. Rail: NotebookTab.sortFace.test.js. */
+.sortWrap { display: contents; }
+.sortFace { display: none; }
 @media (max-width: 1024px) {
-  .canvasStart .templatesBtn { min-height: var(--tap-min); }
+  .sortWrap { display: inline-flex; position: relative; }
+  .sortFace { display: inline-flex; pointer-events: none; }
+  .sortWrap > .sortSelect {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    opacity: 0;
+    cursor: pointer;
+  }
+  /* Fix round 1 (review 3): KEYBOARD focus only. A tapped select does not match :focus-visible, so the face never
+     keeps a ring after the native picker closes. Hover is the face's too (the select above it takes the pointer). */
+  .sortWrap:has(> .sortSelect:focus-visible) > .sortFace { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+  /* Fix round 3 (R3): a hover rule for a pointer that hovers; a tap must not leave it lit. */
+  @media (hover: hover) {
+    .sortWrap:hover > .sortFace { background: var(--bg-hover); border-color: var(--border-accent); }
+  }
 }

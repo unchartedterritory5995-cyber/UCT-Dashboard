@@ -1,4 +1,4 @@
-import { cloneElement } from 'react'
+import { cloneElement, useState } from 'react'
 import BlockedBadge from './BlockedBadge'
 import LockedGlyph from './LockedGlyph'
 import { ComputedChips } from './ComputedValue'
@@ -25,6 +25,22 @@ function cardThumb(note) {
   const h = note.heroImageUrl
   if (typeof h === 'string' && h && !/youtube\.com|youtu\.be/.test(h)) return h
   return null
+}
+
+// Visual audit issue 6: a thumbnail whose URL no longer resolves (a deleted
+// upload, an expired signed link -- six or more in Trash) painted Chrome's
+// broken-image glyph in a white box. On a load error the whole thumb box goes,
+// and the card falls back to its no-image layout, the same one a note without
+// a picture already has. Keyed by src at the call site, so a NEW url gets a
+// fresh try.
+function CardThumb({ src }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) return null
+  return (
+    <div className={styles.thumb} aria-hidden="true" data-card-thumb="">
+      <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} />
+    </div>
+  )
 }
 
 // `onRestore`, when passed, renders a trashed note: opening it would 404
@@ -122,11 +138,7 @@ function renderCard({ note, title, onOpen, onRestore, blocked }) {
             Restore
           </button>
         </div>
-        {thumb && (
-          <div className={styles.thumb} aria-hidden="true">
-            <img src={thumb} alt="" loading="lazy" />
-          </div>
-        )}
+        {thumb && <CardThumb key={thumb} src={thumb} />}
       </div>
     )
   }
@@ -145,15 +157,11 @@ function renderCard({ note, title, onOpen, onRestore, blocked }) {
           <LockedGlyph note={note} />
           {blocked && <BlockedBadge />}
         </div>
-        {/* Wave 11 (lane 11B): formula + rollup values. `computed` is on a row only
-            while NOTEBOOK_FORMULAS_ENABLED is on, so off this renders nothing. */}
+        {/* Wave 11 (lane 11B): formula + rollup values. A row without `computed`
+            renders nothing here. */}
         <ComputedChips computed={note.computed} className={styles.computed} />
       </div>
-      {thumb && (
-        <div className={styles.thumb} aria-hidden="true">
-          <img src={thumb} alt="" loading="lazy" />
-        </div>
-      )}
+      {thumb && <CardThumb key={thumb} src={thumb} />}
     </button>
   )
 }

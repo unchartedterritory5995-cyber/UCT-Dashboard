@@ -37,11 +37,13 @@ def test_the_guarded_actions_are_a_deliberate_list():
     # ⛔ changing this list changes what UCT asks before doing -- the browser rail
     # (agentOperatorLive.test.jsx L3) pins the same list
     assert GUARDED == ["alert.create", "alert.delete", "chart.applyTemplate", "chart.resetDefaults", "chartSetup.copyLook",
-                       "chartSetup.deleteTemplate", "definition.delete", "definition.duplicate", "drawing.clear",
-                       "indicator.discardDraft", "indicator.remove", "indicator.saveDraft", "layout.create", "layout.delete",
+                       "chartSetup.deleteTemplate", "definition.delete", "definition.duplicate", "drawing.clear", "drawing.setAlert",
+                       "indicator.discardDraft", "indicator.remove", "indicator.saveDraft",
+                       # W1-B B-03 (owner's Wave 1 directive): create = confirm; delete is a hard delete in the product
+                       "indicatorAlert.create", "indicatorAlert.delete", "indicatorTemplate.delete", "layout.create", "layout.delete",
                        "layout.duplicate", "layout.rename", "layout.saveAs", "layout.saveCurrent", "screener.deleteSaved",
                        "screener.duplicateSaved", "screener.renameSaved", "screener.saveAs", "watchlist.clear",
-                       "watchlist.create", "watchlist.delete", "watchlist.rename"]
+                       "watchlist.create", "watchlist.delete", "watchlist.keepOnly", "watchlist.rename", "widget.sendToJournal"]
 
 
 @pytest.mark.parametrize("action", [a for a in GUARDED if a not in turn.EXPLICIT_OK_ACTIONS])

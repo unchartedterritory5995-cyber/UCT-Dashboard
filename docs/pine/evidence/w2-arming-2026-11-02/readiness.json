@@ -1,0 +1,1413 @@
+{
+ "generatedBy": "app/src/components/chart/engine/__tests__/vendorHarness/runtimePaneReadiness.measure.test.js",
+ "budgetMs": 1000,
+ "runs": 3,
+ "lengths": [
+  "D 5000",
+  "D 11534",
+  "5m 20208",
+  "5m 32000"
+ ],
+ "scripts": [
+  {
+   "slug": "adx-and-di-for-v4",
+   "file": "corpus/committed/adx-and-di-for-v4__932.pine",
+   "plots": 3,
+   "withheld": [],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "non-repainting",
+   "doorColdMs": 34.2,
+   "doorWarmMedianMs": 22.5,
+   "doorRuntimeOffMedianMs": 7.5,
+   "runtimeProbeMedianMs": 5.5,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 21.1,
+     "maxMs": 114,
+     "peakHeapMB": 0,
+     "columnBytes": 120000,
+     "error": null
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 35.1,
+     "maxMs": 129.4,
+     "peakHeapMB": 21.3,
+     "columnBytes": 276816,
+     "error": null
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 48.6,
+     "maxMs": 130.6,
+     "peakHeapMB": 24.4,
+     "columnBytes": 484992,
+     "error": null
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 62.2,
+     "maxMs": 228.2,
+     "peakHeapMB": 0,
+     "columnBytes": 768000,
+     "error": null
+    }
+   ],
+   "productIntraday": "runtime:warmup-never-converges",
+   "budget": []
+  },
+  {
+   "slug": "atr-stepped-pdf-ma-loxx",
+   "file": "corpus/committed/atr-stepped-pdf-ma-loxx__9b90a3f7bb.pine",
+   "plots": 1,
+   "withheld": [],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "non-repainting",
+   "doorColdMs": 34.8,
+   "doorWarmMedianMs": 35.6,
+   "doorRuntimeOffMedianMs": 7.7,
+   "runtimeProbeMedianMs": 3.5,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 7.6,
+     "maxMs": 403.7,
+     "peakHeapMB": 33.1,
+     "columnBytes": 80000,
+     "error": null
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 19.9,
+     "maxMs": 841,
+     "peakHeapMB": 33.8,
+     "columnBytes": 184544,
+     "error": null
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 45.9,
+     "maxMs": 2508.3,
+     "peakHeapMB": 34.9,
+     "columnBytes": 323328,
+     "error": null
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 34.6,
+     "maxMs": 2969.9,
+     "peakHeapMB": 4,
+     "columnBytes": 512000,
+     "error": null
+    }
+   ],
+   "productIntraday": "runtime:warmup-never-converges",
+   "budget": [
+    {
+     "length": "D 11534",
+     "stopped": null
+    },
+    {
+     "length": "5m 20208",
+     "stopped": "runtime:time-budget",
+     "message": "this script took more than 1000 ms to draw bar by bar (it had reached bar 9521 of 20208), which is this pane's budget for one indicator, so it is stopped and nothing is drawn rather than part of it."
+    },
+    {
+     "length": "5m 32000",
+     "stopped": null
+    }
+   ]
+  },
+  {
+   "slug": "cc-yata",
+   "file": "corpus/committed/cc-yata__bd898a1af0.pine",
+   "plots": 54,
+   "withheld": [],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "non-repainting",
+   "doorColdMs": 3605.2,
+   "doorWarmMedianMs": 4672,
+   "doorRuntimeOffMedianMs": 5037.3,
+   "runtimeProbeMedianMs": 52.9,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 18.5,
+     "maxMs": 304.9,
+     "peakHeapMB": 52.5,
+     "columnBytes": 2160000,
+     "error": null
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 44.9,
+     "maxMs": 333.3,
+     "peakHeapMB": 24.5,
+     "columnBytes": 4982688,
+     "error": null
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 119.6,
+     "maxMs": 631.1,
+     "peakHeapMB": 0,
+     "columnBytes": 8729856,
+     "error": null
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 1074.5,
+     "maxMs": 1162.6,
+     "peakHeapMB": 64.7,
+     "columnBytes": 13824000,
+     "error": null
+    }
+   ],
+   "productIntraday": "computes",
+   "budget": [
+    {
+     "length": "5m 32000",
+     "stopped": null
+    }
+   ]
+  },
+  {
+   "slug": "deadband-hysteresis-filter-backquant",
+   "file": "corpus/committed/deadband-hysteresis-filter-backquant__3fb3d09595.pine",
+   "plots": 1,
+   "withheld": [],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "non-repainting",
+   "doorColdMs": 51.6,
+   "doorWarmMedianMs": 46.5,
+   "doorRuntimeOffMedianMs": 13.1,
+   "runtimeProbeMedianMs": 5.6,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 11.6,
+     "maxMs": 13.9,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "interpret:bind-time-text",
+      "name": "Error",
+      "message": "a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chos"
+     }
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 18.7,
+     "maxMs": 29.2,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "interpret:bind-time-text",
+      "name": "Error",
+      "message": "a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chos"
+     }
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 30.6,
+     "maxMs": 31.3,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "interpret:bind-time-text",
+      "name": "Error",
+      "message": "a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chos"
+     }
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 39.2,
+     "maxMs": 41.1,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "interpret:bind-time-text",
+      "name": "Error",
+      "message": "a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chos"
+     }
+    }
+   ],
+   "productIntraday": "interpret:bind-time-text",
+   "budget": []
+  },
+  {
+   "slug": "delta-rsi-oscillator-strategy",
+   "file": "corpus/committed/delta-rsi-oscillator-strategy__z4Yj46FVTX.pine",
+   "plots": 4,
+   "withheld": [],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "non-repainting",
+   "doorColdMs": 84,
+   "doorWarmMedianMs": 64.9,
+   "doorRuntimeOffMedianMs": 14,
+   "runtimeProbeMedianMs": 11.8,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 3484.9,
+     "maxMs": 3547.1,
+     "peakHeapMB": 39.6,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:limit",
+      "name": "Error",
+      "message": "this script passed one of the limits a script drawn bar by bar runs under (CALL_COUNT: at most 5000000, it reached 5000001) on bar 4163 of 5000, so it is stoppe"
+     }
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 3012.8,
+     "maxMs": 3671.2,
+     "peakHeapMB": 22.7,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:limit",
+      "name": "Error",
+      "message": "this script passed one of the limits a script drawn bar by bar runs under (CALL_COUNT: at most 5000000, it reached 5000001) on bar 4163 of 11534, so it is stopp"
+     }
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 2890.7,
+     "maxMs": 4733,
+     "peakHeapMB": 42.8,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:limit",
+      "name": "Error",
+      "message": "this script passed one of the limits a script drawn bar by bar runs under (CALL_COUNT: at most 5000000, it reached 5000001) on bar 4163 of 20208, so it is stopp"
+     }
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 3016.7,
+     "maxMs": 3041.3,
+     "peakHeapMB": 48.9,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:limit",
+      "name": "Error",
+      "message": "this script passed one of the limits a script drawn bar by bar runs under (CALL_COUNT: at most 5000000, it reached 5000001) on bar 4163 of 32000, so it is stopp"
+     }
+    }
+   ],
+   "productIntraday": "runtime:warmup-never-converges",
+   "budget": [
+    {
+     "length": "D 5000",
+     "stopped": "runtime:time-budget",
+     "message": "this script took more than 1000 ms to draw bar by bar (it had reached bar 1054 of 5000), which is this pane's budget for one indicator, so it is stopped and nothing is drawn rather than part of it."
+    },
+    {
+     "length": "D 11534",
+     "stopped": "runtime:time-budget",
+     "message": "this script took more than 1000 ms to draw bar by bar (it had reached bar 1039 of 11534), which is this pane's budget for one indicator, so it is stopped and nothing is drawn rather than part of it."
+    },
+    {
+     "length": "5m 20208",
+     "stopped": "runtime:time-budget",
+     "message": "this script took more than 1000 ms to draw bar by bar (it had reached bar 887 of 20208), which is this pane's budget for one indicator, so it is stopped and nothing is drawn rather than part of it."
+    },
+    {
+     "length": "5m 32000",
+     "stopped": "runtime:time-budget",
+     "message": "this script took more than 1000 ms to draw bar by bar (it had reached bar 629 of 32000), which is this pane's budget for one indicator, so it is stopped and nothing is drawn rather than part of it."
+    }
+   ]
+  },
+  {
+   "slug": "fair-value-gap",
+   "file": "corpus/committed/fair-value-gap__1048fa103a.pine",
+   "plots": 1,
+   "withheld": [],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "repaints",
+   "doorColdMs": 59.9,
+   "doorWarmMedianMs": 59.1,
+   "doorRuntimeOffMedianMs": 30.1,
+   "runtimeProbeMedianMs": 5.8,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 13,
+     "maxMs": 578.1,
+     "peakHeapMB": 50.5,
+     "columnBytes": 0,
+     "error": null
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 1138.1,
+     "maxMs": 1391,
+     "peakHeapMB": 54.5,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:limit",
+      "name": "Error",
+      "message": "this script passed one of the limits a script drawn bar by bar runs under (OBJECT_OPERATIONS: at most 2000000, it reached 2000001) on bar 10052 of 11534, so it "
+     }
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 230.5,
+     "maxMs": 251.5,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "interpret:bind-time-text",
+      "name": "Error",
+      "message": "a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chos"
+     }
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 282.1,
+     "maxMs": 292.4,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "interpret:bind-time-text",
+      "name": "Error",
+      "message": "a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chos"
+     }
+    }
+   ],
+   "productIntraday": "interpret:bind-time-text",
+   "budget": [
+    {
+     "length": "D 11534",
+     "stopped": "runtime:time-budget",
+     "message": "this script took more than 1000 ms to draw bar by bar (it had reached bar 10006 of 11534), which is this pane's budget for one indicator, so it is stopped and nothing is drawn rather than part of it."
+    }
+   ]
+  },
+  {
+   "slug": "fibonacci-dolphintradebot",
+   "file": "corpus/committed/fibonacci-dolphintradebot__d93b208611.pine",
+   "plots": 2,
+   "withheld": [],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "non-repainting",
+   "doorColdMs": 855.2,
+   "doorWarmMedianMs": 839.7,
+   "doorRuntimeOffMedianMs": 127.8,
+   "runtimeProbeMedianMs": 37,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 77.6,
+     "maxMs": 1183.8,
+     "peakHeapMB": 64.8,
+     "columnBytes": 80000,
+     "error": null
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 128.8,
+     "maxMs": 2290.4,
+     "peakHeapMB": 63.5,
+     "columnBytes": 184544,
+     "error": null
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 149.4,
+     "maxMs": 3172.1,
+     "peakHeapMB": 41.8,
+     "columnBytes": 323328,
+     "error": null
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 301.6,
+     "maxMs": 4987.5,
+     "peakHeapMB": 0,
+     "columnBytes": 512000,
+     "error": null
+    }
+   ],
+   "productIntraday": "computes",
+   "budget": [
+    {
+     "length": "D 5000",
+     "stopped": null
+    },
+    {
+     "length": "D 11534",
+     "stopped": "runtime:time-budget",
+     "message": "this script took more than 1000 ms to draw bar by bar (it had reached bar 4656 of 11534), which is this pane's budget for one indicator, so it is stopped and nothing is drawn rather than part of it."
+    },
+    {
+     "length": "5m 20208",
+     "stopped": "runtime:time-budget",
+     "message": "this script took more than 1000 ms to draw bar by bar (it had reached bar 3103 of 20208), which is this pane's budget for one indicator, so it is stopped and nothing is drawn rather than part of it."
+    },
+    {
+     "length": "5m 32000",
+     "stopped": null
+    }
+   ]
+  },
+  {
+   "slug": "fvg-trend",
+   "file": "corpus/committed/fvg-trend__21e364f2ed.pine",
+   "plots": 1,
+   "withheld": [],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "non-repainting",
+   "doorColdMs": 76.9,
+   "doorWarmMedianMs": 38.4,
+   "doorRuntimeOffMedianMs": 13.1,
+   "runtimeProbeMedianMs": 4.1,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 16.4,
+     "maxMs": 24.9,
+     "peakHeapMB": 3.5,
+     "columnBytes": 120000,
+     "error": null
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 24.6,
+     "maxMs": 130.2,
+     "peakHeapMB": 0,
+     "columnBytes": 276816,
+     "error": null
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 32.3,
+     "maxMs": 100.8,
+     "peakHeapMB": 12.4,
+     "columnBytes": 484992,
+     "error": null
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 44.7,
+     "maxMs": 119,
+     "peakHeapMB": 0,
+     "columnBytes": 768000,
+     "error": null
+    }
+   ],
+   "productIntraday": "computes",
+   "budget": []
+  },
+  {
+   "slug": "inside-bar-boxes",
+   "file": "corpus/committed/inside-bar-boxes__2f747d848b.pine",
+   "plots": 2,
+   "withheld": [],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "repaints",
+   "doorColdMs": 30.9,
+   "doorWarmMedianMs": 40.1,
+   "doorRuntimeOffMedianMs": 18,
+   "runtimeProbeMedianMs": 3.2,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 12.9,
+     "maxMs": 13.3,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "interpret:bind-time-text",
+      "name": "Error",
+      "message": "a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chos"
+     }
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 23.8,
+     "maxMs": 28.4,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "interpret:bind-time-text",
+      "name": "Error",
+      "message": "a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chos"
+     }
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 41.2,
+     "maxMs": 41.7,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "interpret:bind-time-text",
+      "name": "Error",
+      "message": "a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chos"
+     }
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 58.3,
+     "maxMs": 64.1,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "interpret:bind-time-text",
+      "name": "Error",
+      "message": "a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chos"
+     }
+    }
+   ],
+   "productIntraday": "interpret:bind-time-text",
+   "budget": []
+  },
+  {
+   "slug": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat",
+   "file": "corpus/committed/inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c.pine",
+   "plots": 2,
+   "withheld": [],
+   "drawsObjects": true,
+   "runtimeHistory": null,
+   "repaint": "non-repainting",
+   "doorColdMs": 11.8,
+   "doorWarmMedianMs": 11.1,
+   "doorRuntimeOffMedianMs": 9,
+   "runtimeProbeMedianMs": 1.4,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 5.4,
+     "maxMs": 31.9,
+     "peakHeapMB": 6.8,
+     "columnBytes": 160000,
+     "error": null
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 10.4,
+     "maxMs": 49.4,
+     "peakHeapMB": 11.5,
+     "columnBytes": 369088,
+     "error": null
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 18.8,
+     "maxMs": 105.6,
+     "peakHeapMB": 19.2,
+     "columnBytes": 646656,
+     "error": null
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 29.6,
+     "maxMs": 103.8,
+     "peakHeapMB": 0,
+     "columnBytes": 1024000,
+     "error": null
+    }
+   ],
+   "productIntraday": "computes",
+   "budget": []
+  },
+  {
+   "slug": "kalman-price-filter-backquant",
+   "file": "corpus/committed/kalman-price-filter-backquant__47a601e4bc.pine",
+   "plots": 1,
+   "withheld": [],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "non-repainting",
+   "doorColdMs": 17.6,
+   "doorWarmMedianMs": 14.4,
+   "doorRuntimeOffMedianMs": 2.6,
+   "runtimeProbeMedianMs": 2,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 1.3,
+     "maxMs": 79.1,
+     "peakHeapMB": 32.8,
+     "columnBytes": 120000,
+     "error": null
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 3.4,
+     "maxMs": 162.2,
+     "peakHeapMB": 16.2,
+     "columnBytes": 276816,
+     "error": null
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 4.8,
+     "maxMs": 323.1,
+     "peakHeapMB": 61.6,
+     "columnBytes": 484992,
+     "error": null
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 15.1,
+     "maxMs": 698.3,
+     "peakHeapMB": 45.4,
+     "columnBytes": 768000,
+     "error": null
+    }
+   ],
+   "productIntraday": "runtime:warmup-never-converges",
+   "budget": []
+  },
+  {
+   "slug": "linear-regression-channel",
+   "file": "corpus/committed/linear-regression-channel__jiDgL4o6Qx.pine",
+   "plots": 1,
+   "withheld": [],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "non-repainting",
+   "doorColdMs": 67.5,
+   "doorWarmMedianMs": 54.3,
+   "doorRuntimeOffMedianMs": 50.1,
+   "runtimeProbeMedianMs": 18.1,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 152.9,
+     "maxMs": 161.3,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:failed",
+      "name": "Error",
+      "message": "this script stopped on bar 0 of 5000 when drawn bar by bar (array.get: index NaN is outside an array of 4 — Pine stops the script here rather than answering na)"
+     }
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 229.5,
+     "maxMs": 254,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:failed",
+      "name": "Error",
+      "message": "this script stopped on bar 0 of 11534 when drawn bar by bar (array.get: index NaN is outside an array of 4 — Pine stops the script here rather than answering na"
+     }
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 274.7,
+     "maxMs": 361.6,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:failed",
+      "name": "Error",
+      "message": "this script stopped on bar 0 of 20208 when drawn bar by bar (array.get: index NaN is outside an array of 4 — Pine stops the script here rather than answering na"
+     }
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 338,
+     "maxMs": 438,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:failed",
+      "name": "Error",
+      "message": "this script stopped on bar 0 of 32000 when drawn bar by bar (array.get: index NaN is outside an array of 4 — Pine stops the script here rather than answering na"
+     }
+    }
+   ],
+   "productIntraday": "runtime:failed",
+   "budget": []
+  },
+  {
+   "slug": "macd-with-filter-visual-backtest-module-sample",
+   "file": "corpus/committed/macd-with-filter-visual-backtest-module-sample__kuNU8uQsIH.pine",
+   "plots": 8,
+   "withheld": [],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "non-repainting",
+   "doorColdMs": 124.1,
+   "doorWarmMedianMs": 127.5,
+   "doorRuntimeOffMedianMs": 105.6,
+   "runtimeProbeMedianMs": 13.5,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 77.1,
+     "maxMs": 95,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "interpret:bind-time-text",
+      "name": "Error",
+      "message": "a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chos"
+     }
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 186.2,
+     "maxMs": 215,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "interpret:bind-time-text",
+      "name": "Error",
+      "message": "a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chos"
+     }
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 278.4,
+     "maxMs": 403.1,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "interpret:bind-time-text",
+      "name": "Error",
+      "message": "a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chos"
+     }
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 419.5,
+     "maxMs": 445.9,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "interpret:bind-time-text",
+      "name": "Error",
+      "message": "a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chos"
+     }
+    }
+   ],
+   "productIntraday": "interpret:bind-time-text",
+   "budget": []
+  },
+  {
+   "slug": "machine-learning-knn-based-strategy",
+   "file": "corpus/committed/machine-learning-knn-based-strategy__lj1Gjlbycb.pine",
+   "plots": 1,
+   "withheld": [
+    "Buy",
+    "Sell"
+   ],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "non-repainting",
+   "doorColdMs": 37.4,
+   "doorWarmMedianMs": 57.6,
+   "doorRuntimeOffMedianMs": 12.6,
+   "runtimeProbeMedianMs": 8.8,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 3751.1,
+     "maxMs": 5056.8,
+     "peakHeapMB": 47.9,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:time-budget",
+      "name": "Error",
+      "message": "this script took more than 60000 ms to draw bar by bar (it had reached bar 3029 of 5000), which is this pane's budget for one indicator, so it is stopped and no"
+     }
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 175.5,
+     "maxMs": 195,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:failed",
+      "name": "Error",
+      "message": "this script stopped on bar 0 of 11534 when drawn bar by bar (array.get: index 0 is outside an array of 0 — Pine stops the script here rather than answering na),"
+     }
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 5204.2,
+     "maxMs": 5407.2,
+     "peakHeapMB": 57.4,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:limit",
+      "name": "Error",
+      "message": "this script passed one of the limits a script drawn bar by bar runs under (LOOP_ITERATIONS: at most 5000000, it reached 5000001) on bar 3160 of 20208, so it is "
+     }
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 5434.1,
+     "maxMs": 5462.4,
+     "peakHeapMB": 49.4,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:time-budget",
+      "name": "Error",
+      "message": "this script took more than 60000 ms to draw bar by bar (it had reached bar 2890 of 32000), which is this pane's budget for one indicator, so it is stopped and n"
+     }
+    }
+   ],
+   "productIntraday": "runtime:failed",
+   "budget": [
+    {
+     "length": "D 5000",
+     "stopped": "runtime:time-budget",
+     "message": "this script took more than 1000 ms to draw bar by bar (it had reached bar 1065 of 5000), which is this pane's budget for one indicator, so it is stopped and nothing is drawn rather than part of it."
+    },
+    {
+     "length": "5m 20208",
+     "stopped": "runtime:time-budget",
+     "message": "this script took more than 1000 ms to draw bar by bar (it had reached bar 1425 of 20208), which is this pane's budget for one indicator, so it is stopped and nothing is drawn rather than part of it."
+    },
+    {
+     "length": "5m 32000",
+     "stopped": "runtime:time-budget",
+     "message": "this script took more than 1000 ms to draw bar by bar (it had reached bar 1674 of 32000), which is this pane's budget for one indicator, so it is stopped and nothing is drawn rather than part of it."
+    }
+   ]
+  },
+  {
+   "slug": "nadaraya-watson-rational-quadratic-kernel-non-repainting",
+   "file": "corpus/committed/nadaraya-watson-rational-quadratic-kernel-non-repainting__2d248c3125.pine",
+   "plots": 1,
+   "withheld": [],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "non-repainting",
+   "doorColdMs": 144,
+   "doorWarmMedianMs": 113.5,
+   "doorRuntimeOffMedianMs": 10.4,
+   "runtimeProbeMedianMs": 3.1,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 2.1,
+     "maxMs": 232.8,
+     "peakHeapMB": 0,
+     "columnBytes": 80000,
+     "error": null
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 2.5,
+     "maxMs": 312,
+     "peakHeapMB": 26.8,
+     "columnBytes": 184544,
+     "error": null
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 4,
+     "maxMs": 547.7,
+     "peakHeapMB": 8.6,
+     "columnBytes": 323328,
+     "error": null
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 7.5,
+     "maxMs": 889.7,
+     "peakHeapMB": 59,
+     "columnBytes": 512000,
+     "error": null
+    }
+   ],
+   "productIntraday": "computes",
+   "budget": [
+    {
+     "length": "5m 32000",
+     "stopped": null
+    }
+   ]
+  },
+  {
+   "slug": "order-block-finder",
+   "file": "corpus/committed/order-block-finder__fVSb3j0I87.pine",
+   "plots": 10,
+   "withheld": [
+    "Bullish OB",
+    "Bullish OB Average",
+    "Bearish OB",
+    "Bearish OB Average"
+   ],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "non-repainting",
+   "doorColdMs": 57.6,
+   "doorWarmMedianMs": 55.4,
+   "doorRuntimeOffMedianMs": 19.6,
+   "runtimeProbeMedianMs": 9.9,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 14,
+     "maxMs": 190.6,
+     "peakHeapMB": 36.8,
+     "columnBytes": 560000,
+     "error": null
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 19.3,
+     "maxMs": 217,
+     "peakHeapMB": 38.1,
+     "columnBytes": 1291808,
+     "error": null
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 34.9,
+     "maxMs": 444.5,
+     "peakHeapMB": 0,
+     "columnBytes": 2263296,
+     "error": null
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 52.5,
+     "maxMs": 553.7,
+     "peakHeapMB": 14.4,
+     "columnBytes": 3584000,
+     "error": null
+    }
+   ],
+   "productIntraday": "computes",
+   "budget": []
+  },
+  {
+   "slug": "order-blocks",
+   "file": "corpus/committed/order-blocks__b324078711.pine",
+   "plots": 1,
+   "withheld": [],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "non-repainting",
+   "doorColdMs": 76.6,
+   "doorWarmMedianMs": 72.9,
+   "doorRuntimeOffMedianMs": 50.2,
+   "runtimeProbeMedianMs": 8.5,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 71,
+     "maxMs": 73.3,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:failed",
+      "name": "Error",
+      "message": "this script stopped on bar 0 of 5000 when drawn bar by bar (pc 1507: concat needs two strings, got number and string — Pine's `+` across a string and a number i"
+     }
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 97.2,
+     "maxMs": 128.1,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:failed",
+      "name": "Error",
+      "message": "this script stopped on bar 0 of 11534 when drawn bar by bar (pc 1507: concat needs two strings, got number and string — Pine's `+` across a string and a number "
+     }
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 180.5,
+     "maxMs": 185.9,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:failed",
+      "name": "Error",
+      "message": "this script stopped on bar 0 of 20208 when drawn bar by bar (pc 1507: concat needs two strings, got number and string — Pine's `+` across a string and a number "
+     }
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 308.7,
+     "maxMs": 318.4,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "runtime:failed",
+      "name": "Error",
+      "message": "this script stopped on bar 0 of 32000 when drawn bar by bar (pc 1507: concat needs two strings, got number and string — Pine's `+` across a string and a number "
+     }
+    }
+   ],
+   "productIntraday": "runtime:failed",
+   "budget": []
+  },
+  {
+   "slug": "parabolic-sar",
+   "file": "corpus/committed/parabolic-sar__xoeoPMOWGJ.pine",
+   "plots": 1,
+   "withheld": [],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "non-repainting",
+   "doorColdMs": 111.2,
+   "doorWarmMedianMs": 109,
+   "doorRuntimeOffMedianMs": 114.1,
+   "runtimeProbeMedianMs": 2.8,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 59.9,
+     "maxMs": 74.4,
+     "peakHeapMB": 18,
+     "columnBytes": 80000,
+     "error": null
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 82.3,
+     "maxMs": 144.3,
+     "peakHeapMB": 0,
+     "columnBytes": 184544,
+     "error": null
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 134.8,
+     "maxMs": 268.3,
+     "peakHeapMB": 0.2,
+     "columnBytes": 323328,
+     "error": null
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 284.3,
+     "maxMs": 369.6,
+     "peakHeapMB": 0,
+     "columnBytes": 512000,
+     "error": null
+    }
+   ],
+   "productIntraday": "interpret:bind-time-text",
+   "budget": []
+  },
+  {
+   "slug": "renko-candles-overlay",
+   "file": "corpus/committed/renko-candles-overlay__d76a18d49e.pine",
+   "plots": 1,
+   "withheld": [],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "preview-repaints",
+   "doorColdMs": 446,
+   "doorWarmMedianMs": 272.1,
+   "doorRuntimeOffMedianMs": 62.7,
+   "runtimeProbeMedianMs": 5.7,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 19.5,
+     "maxMs": 20.3,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "interpret:bind-time-text",
+      "name": "Error",
+      "message": "a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chos"
+     }
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 27.5,
+     "maxMs": 27.5,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "interpret:bind-time-text",
+      "name": "Error",
+      "message": "a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chos"
+     }
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 32.6,
+     "maxMs": 37.6,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "interpret:bind-time-text",
+      "name": "Error",
+      "message": "a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chos"
+     }
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 39.1,
+     "maxMs": 45.3,
+     "peakHeapMB": 0,
+     "columnBytes": 0,
+     "error": {
+      "guard": "interpret:bind-time-text",
+      "name": "Error",
+      "message": "a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chos"
+     }
+    }
+   ],
+   "productIntraday": "interpret:bind-time-text",
+   "budget": []
+  },
+  {
+   "slug": "trend-targets-algoalpha",
+   "file": "corpus/committed/trend-targets-algoalpha__92ff5628d7.pine",
+   "plots": 5,
+   "withheld": [],
+   "drawsObjects": true,
+   "runtimeHistory": "listing",
+   "repaint": "non-repainting",
+   "doorColdMs": 396.9,
+   "doorWarmMedianMs": 392.2,
+   "doorRuntimeOffMedianMs": 525.6,
+   "runtimeProbeMedianMs": 7.6,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 17,
+     "maxMs": 90.4,
+     "peakHeapMB": 18.9,
+     "columnBytes": 280000,
+     "error": null
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 38.4,
+     "maxMs": 222.4,
+     "peakHeapMB": 39.6,
+     "columnBytes": 645904,
+     "error": null
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 57.1,
+     "maxMs": 268.1,
+     "peakHeapMB": 5.6,
+     "columnBytes": 1131648,
+     "error": null
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 221.3,
+     "maxMs": 592.6,
+     "peakHeapMB": 39.6,
+     "columnBytes": 1792000,
+     "error": null
+    }
+   ],
+   "productIntraday": "computes",
+   "budget": []
+  },
+  {
+   "slug": "williams-fractal-trailing-stops",
+   "file": "corpus/committed/williams-fractal-trailing-stops__UOOIN5REYl.pine",
+   "plots": 6,
+   "withheld": [],
+   "drawsObjects": false,
+   "runtimeHistory": "listing",
+   "repaint": "non-repainting",
+   "doorColdMs": 75.2,
+   "doorWarmMedianMs": 62.9,
+   "doorRuntimeOffMedianMs": 21.8,
+   "runtimeProbeMedianMs": 8.7,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 6.9,
+     "maxMs": 347.4,
+     "peakHeapMB": 0,
+     "columnBytes": 240000,
+     "error": null
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 14.6,
+     "maxMs": 241,
+     "peakHeapMB": 28.8,
+     "columnBytes": 553632,
+     "error": null
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 21.7,
+     "maxMs": 390.2,
+     "peakHeapMB": 17.5,
+     "columnBytes": 969984,
+     "error": null
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 59.6,
+     "maxMs": 753.8,
+     "peakHeapMB": 8.9,
+     "columnBytes": 1536000,
+     "error": null
+    }
+   ],
+   "productIntraday": "computes",
+   "budget": []
+  },
+  {
+   "slug": "wyckoff-accumulation-distribution",
+   "file": "corpus/committed/wyckoff-accumulation-distribution__d9ae726e21.pine",
+   "plots": 8,
+   "withheld": [],
+   "drawsObjects": false,
+   "runtimeHistory": null,
+   "repaint": "non-repainting",
+   "doorColdMs": 144.4,
+   "doorWarmMedianMs": 206.5,
+   "doorRuntimeOffMedianMs": 60.5,
+   "runtimeProbeMedianMs": 18.2,
+   "runs": [
+    {
+     "length": "D 5000",
+     "bars": 5000,
+     "medianMs": 8.2,
+     "maxMs": 402.6,
+     "peakHeapMB": 34.2,
+     "columnBytes": 360000,
+     "error": null
+    },
+    {
+     "length": "D 11534",
+     "bars": 11534,
+     "medianMs": 7.2,
+     "maxMs": 9,
+     "peakHeapMB": 0,
+     "columnBytes": 830448,
+     "error": null
+    },
+    {
+     "length": "5m 20208",
+     "bars": 20208,
+     "medianMs": 8.3,
+     "maxMs": 363.9,
+     "peakHeapMB": 36,
+     "columnBytes": 1454976,
+     "error": null
+    },
+    {
+     "length": "5m 32000",
+     "bars": 32000,
+     "medianMs": 7.3,
+     "maxMs": 7.6,
+     "peakHeapMB": 0,
+     "columnBytes": 2304000,
+     "error": null
+    }
+   ],
+   "productIntraday": "computes",
+   "budget": []
+  }
+ ]
+}

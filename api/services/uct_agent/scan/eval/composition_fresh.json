@@ -1,0 +1,994 @@
+{
+ "version": 1,
+ "owner": "agent-sc",
+ "about": "FRESH expressibility requests, written and committed BEFORE any of the composition work they measure (the Agent's logic, field-to-field, contains and rank surface), and never edited to fit it. Each `before` is the item's class on the parent of that work, frozen here. Like composition.json, this measures whether a VALID SPEC EXISTS and the Agent's schema can say it. It does NOT prove the model produces that spec: coverage says nothing about planner accuracy, and no model runs here. A gold spec is one hand-written reading of a request.",
+ "split_rule": "sha256(text) mod 3 == 0 is held_out, else design, the same mechanical rule as composition.json. The same author wrote both sides, so held_out is a generalisation check, not independent evaluation.",
+ "items": [
+  {
+   "id": "f001",
+   "split": "held_out",
+   "text": "stocks up 3% today on double normal volume",
+   "spec": {
+    "filters": [
+     {
+      "key": "chg_pct_1d",
+      "op": "gte",
+      "min": 3
+     },
+     {
+      "key": "vol_ratio",
+      "op": "gte",
+      "min": 2
+     }
+    ]
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f002",
+   "split": "design",
+   "text": "cheap stocks under $5 with big short interest",
+   "spec": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "lt",
+      "max": 5
+     },
+     {
+      "key": "short_float_pct",
+      "op": "gte",
+      "min": 20
+     }
+    ]
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f003",
+   "split": "held_out",
+   "text": "profitable small caps growing revenue over 25%",
+   "spec": {
+    "filters": [
+     {
+      "key": "market_cap",
+      "op": "between",
+      "min": 300000000.0,
+      "max": 2000000000.0
+     },
+     {
+      "key": "net_margin",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "rev_growth",
+      "op": "gte",
+      "min": 25
+     }
+    ]
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f004",
+   "split": "held_out",
+   "text": "dividend payers yielding over 4% with low debt",
+   "spec": {
+    "filters": [
+     {
+      "key": "dividend_yield",
+      "op": "gt",
+      "min": 4
+     },
+     {
+      "key": "debt_to_equity",
+      "op": "lt",
+      "max": 1
+     }
+    ]
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f005",
+   "split": "held_out",
+   "text": "biggest losers this week in healthcare",
+   "spec": {
+    "filters": [
+     {
+      "key": "sector",
+      "op": "in",
+      "values": [
+       "Healthcare"
+      ]
+     }
+    ],
+    "sort": {
+     "key": "chg_pct_1w",
+     "dir": "asc"
+    }
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f006",
+   "split": "design",
+   "text": "golden cross in the last 5 sessions",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_sma50_sma200",
+      "op": "between",
+      "min": 1,
+      "max": 5
+     }
+    ]
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f007",
+   "split": "design",
+   "text": "death cross this month",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_sma50_sma200",
+      "op": "between",
+      "min": -21,
+      "max": -1
+     }
+    ]
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f008",
+   "split": "design",
+   "text": "reclaimed the 50 day yesterday or today",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_close_sma50",
+      "op": "between",
+      "min": 1,
+      "max": 2
+     }
+    ]
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f009",
+   "split": "design",
+   "text": "lost the 200 day in the last 3 days",
+   "spec": {
+    "filters": [
+     {
+      "key": "run_close_sma200",
+      "op": "between",
+      "min": -3,
+      "max": -1
+     }
+    ]
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f010",
+   "split": "design",
+   "text": "energy or materials names breaking out to 20 day highs",
+   "spec": {
+    "filters": [
+     {
+      "key": "new_high_lookback",
+      "op": "gte",
+      "min": 20
+     }
+    ],
+    "logic": {
+     "any": [
+      {
+       "key": "sector",
+       "op": "in",
+       "values": [
+        "Energy"
+       ]
+      },
+      {
+       "key": "sector",
+       "op": "in",
+       "values": [
+        "Basic Materials"
+       ]
+      }
+     ]
+    }
+   },
+   "before": "agent_schema_narrower"
+  },
+  {
+   "id": "f011",
+   "split": "design",
+   "text": "financials but not banks",
+   "spec": {
+    "filters": [
+     {
+      "key": "sector",
+      "op": "in",
+      "values": [
+       "Financial Services"
+      ]
+     },
+     {
+      "key": "industry",
+      "op": "not_in",
+      "values": [
+       "Banks - Regional",
+       "Banks - Diversified"
+      ]
+     }
+    ]
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f012",
+   "split": "design",
+   "text": "no ETFs and no leveraged products, up on the month",
+   "spec": {
+    "filters": [
+     {
+      "key": "is_etf",
+      "op": "eq",
+      "value": 0
+     },
+     {
+      "key": "is_leveraged",
+      "op": "eq",
+      "value": 0
+     },
+     {
+      "key": "chg_pct_1m",
+      "op": "gt",
+      "min": 0
+     }
+    ]
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f013",
+   "split": "design",
+   "text": "either RSI under 25 or down 20% on the month",
+   "spec": {
+    "filters": [],
+    "logic": {
+     "any": [
+      {
+       "key": "rsi14",
+       "op": "lt",
+       "max": 25
+      },
+      {
+       "key": "chg_pct_1m",
+       "op": "lte",
+       "max": -20
+      }
+     ]
+    }
+   },
+   "before": "agent_schema_narrower"
+  },
+  {
+   "id": "f014",
+   "split": "design",
+   "text": "big cap or heavy volume movers up 4%",
+   "spec": {
+    "filters": [
+     {
+      "key": "chg_pct_1d",
+      "op": "gte",
+      "min": 4
+     }
+    ],
+    "logic": {
+     "any": [
+      {
+       "key": "market_cap",
+       "op": "gte",
+       "min": 10000000000.0
+      },
+      {
+       "key": "vol_ratio",
+       "op": "gte",
+       "min": 3
+      }
+     ]
+    }
+   },
+   "before": "agent_schema_narrower"
+  },
+  {
+   "id": "f015",
+   "split": "design",
+   "text": "exclude anything reporting this week",
+   "spec": {
+    "filters": [
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 10000000.0
+     }
+    ],
+    "logic": {
+     "none": [
+      {
+       "key": "days_to_earnings",
+       "op": "between",
+       "min": 0,
+       "max": 5
+      }
+     ]
+    }
+   },
+   "before": "agent_schema_narrower"
+  },
+  {
+   "id": "f016",
+   "split": "design",
+   "text": "not in the S&P 500 or the Nasdaq 100",
+   "spec": {
+    "filters": [
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 10000000.0
+     }
+    ],
+    "logic": {
+     "none": [
+      {
+       "key": "index_sp500",
+       "op": "eq",
+       "value": 1
+      },
+      {
+       "key": "index_ndx",
+       "op": "eq",
+       "value": 1
+      }
+     ]
+    }
+   },
+   "before": "agent_schema_narrower"
+  },
+  {
+   "id": "f017",
+   "split": "design",
+   "text": "stocks that are neither stage 2 nor stage 4",
+   "spec": {
+    "filters": [],
+    "logic": {
+     "none": [
+      {
+       "key": "stage2",
+       "op": "eq",
+       "value": 1
+      },
+      {
+       "key": "stage4",
+       "op": "eq",
+       "value": 1
+      }
+     ]
+    }
+   },
+   "before": "agent_schema_narrower"
+  },
+  {
+   "id": "f018",
+   "split": "design",
+   "text": "trading above the analyst price target",
+   "spec": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gt_col",
+      "other": "pt_target"
+     }
+    ]
+   },
+   "before": "agent_schema_narrower"
+  },
+  {
+   "id": "f019",
+   "split": "held_out",
+   "text": "sales growing faster than earnings",
+   "spec": {
+    "filters": [
+     {
+      "key": "rev_growth",
+      "op": "gt_col",
+      "other": "eps_growth"
+     }
+    ]
+   },
+   "before": "agent_schema_narrower"
+  },
+  {
+   "id": "f020",
+   "split": "held_out",
+   "text": "3 month return beating the 6 month return",
+   "spec": {
+    "filters": [
+     {
+      "key": "chg_pct_3m",
+      "op": "gt_col",
+      "other": "chg_pct_6m"
+     }
+    ]
+   },
+   "before": "agent_schema_narrower"
+  },
+  {
+   "id": "f021",
+   "split": "design",
+   "text": "short float higher than insider ownership",
+   "spec": {
+    "filters": [
+     {
+      "key": "short_float_pct",
+      "op": "gt_col",
+      "other": "insider_own_pct"
+     }
+    ]
+   },
+   "before": "agent_schema_narrower"
+  },
+  {
+   "id": "f022",
+   "split": "held_out",
+   "text": "price above book value per share",
+   "spec": {
+    "filters": [
+     {
+      "key": "book_value_ps",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "price",
+      "op": "gt_col",
+      "other": "book_value_ps"
+     }
+    ]
+   },
+   "before": "agent_schema_narrower"
+  },
+  {
+   "id": "f023",
+   "split": "design",
+   "text": "free cash flow yield above the earnings yield",
+   "spec": {
+    "filters": [
+     {
+      "key": "fcf_yield",
+      "op": "gt_col",
+      "other": "earnings_yield"
+     }
+    ]
+   },
+   "before": "agent_schema_narrower"
+  },
+  {
+   "id": "f024",
+   "split": "design",
+   "text": "ATR percent above ADR percent",
+   "spec": {
+    "filters": [
+     {
+      "key": "atr_pct",
+      "op": "gt_col",
+      "other": "adr_pct"
+     }
+    ]
+   },
+   "before": "agent_schema_narrower"
+  },
+  {
+   "id": "f025",
+   "split": "design",
+   "text": "weighted rank, 70% 3 month change and 30% revenue growth",
+   "spec": {
+    "filters": [
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 10000000.0
+     }
+    ],
+    "rank": {
+     "criteria": [
+      {
+       "key": "chg_pct_3m",
+       "weight": 70
+      },
+      {
+       "key": "rev_growth",
+       "weight": 30
+      }
+     ]
+    }
+   },
+   "before": "agent_schema_narrower"
+  },
+  {
+   "id": "f026",
+   "split": "held_out",
+   "text": "rank the semis by cheapest forward PE and highest ROE equally",
+   "spec": {
+    "filters": [
+     {
+      "key": "industry",
+      "op": "in",
+      "values": [
+       "Semiconductors"
+      ]
+     }
+    ],
+    "rank": {
+     "criteria": [
+      {
+       "key": "pe_fwd",
+       "weight": 1,
+       "ascending": true
+      },
+      {
+       "key": "roe",
+       "weight": 1
+      }
+     ]
+    }
+   },
+   "before": "agent_schema_narrower"
+  },
+  {
+   "id": "f027",
+   "split": "design",
+   "text": "score energy stocks on dividend yield and low debt",
+   "spec": {
+    "filters": [
+     {
+      "key": "sector",
+      "op": "in",
+      "values": [
+       "Energy"
+      ]
+     }
+    ],
+    "rank": {
+     "criteria": [
+      {
+       "key": "dividend_yield",
+       "weight": 1
+      },
+      {
+       "key": "debt_to_equity",
+       "weight": 1,
+       "ascending": true
+      }
+     ]
+    }
+   },
+   "before": "agent_schema_narrower"
+  },
+  {
+   "id": "f028",
+   "split": "design",
+   "text": "doji candles at the 20 ema",
+   "spec": {
+    "filters": [
+     {
+      "key": "candle_type",
+      "op": "contains",
+      "value": ",doji,"
+     },
+     {
+      "key": "pct_vs_ema20",
+      "op": "between",
+      "min": -1,
+      "max": 1
+     }
+    ]
+   },
+   "before": "agent_schema_narrower"
+  },
+  {
+   "id": "f029",
+   "split": "design",
+   "text": "shooting star at a 52 week high",
+   "spec": {
+    "filters": [
+     {
+      "key": "candle_type",
+      "op": "contains",
+      "value": ",shooting-star,"
+     },
+     {
+      "key": "dist_52w_high_pct",
+      "op": "gte",
+      "min": -2
+     }
+    ]
+   },
+   "before": "agent_schema_narrower"
+  },
+  {
+   "id": "f030",
+   "split": "design",
+   "text": "morning star or hammer today",
+   "spec": {
+    "filters": [
+     {
+      "key": "candle_type",
+      "op": "in",
+      "values": [
+       ",morning-star,",
+       ",hammer,"
+      ]
+     }
+    ]
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f031",
+   "split": "design",
+   "text": "anything but a doji today",
+   "spec": {
+    "filters": [],
+    "logic": {
+     "none": [
+      {
+       "key": "candle_type",
+       "op": "contains",
+       "value": ",doji,"
+      }
+     ]
+    }
+   },
+   "before": "agent_schema_narrower"
+  },
+  {
+   "id": "f032",
+   "split": "design",
+   "text": "inside day after a big run",
+   "spec": {
+    "filters": [
+     {
+      "key": "inside_bar_run",
+      "op": "gte",
+      "min": 1
+     },
+     {
+      "key": "pole_pct",
+      "op": "gte",
+      "min": 30
+     }
+    ]
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f033",
+   "split": "held_out",
+   "text": "3 up days in a row on rising volume",
+   "spec": {
+    "filters": [
+     {
+      "key": "consecutive_up",
+      "op": "gte",
+      "min": 3
+     },
+     {
+      "key": "vol_up_run",
+      "op": "gte",
+      "min": 2
+     }
+    ]
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f034",
+   "split": "held_out",
+   "text": "volume drying up for 4 straight days",
+   "spec": {
+    "filters": [
+     {
+      "key": "vol_down_run",
+      "op": "gte",
+      "min": 4
+     }
+    ]
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f035",
+   "split": "held_out",
+   "text": "hit a new 52 week low within the last week",
+   "spec": {
+    "filters": [
+     {
+      "key": "low_52w_age",
+      "op": "lte",
+      "max": 5
+     }
+    ]
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f036",
+   "split": "design",
+   "text": "float under 20 million shares",
+   "spec": {
+    "filters": [
+     {
+      "key": "float_shares",
+      "op": "lt",
+      "max": 20000000.0
+     }
+    ]
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f037",
+   "split": "held_out",
+   "text": "analyst upgrades this month and no downgrades",
+   "spec": {
+    "filters": [
+     {
+      "key": "upgrades_30d",
+      "op": "gte",
+      "min": 1
+     },
+     {
+      "key": "downgrades_30d",
+      "op": "eq",
+      "value": 0
+     }
+    ]
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f038",
+   "split": "design",
+   "text": "stocks above the 50 day but below the 200 day",
+   "spec": {
+    "filters": [
+     {
+      "key": "above_50sma",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "lt",
+      "max": 0
+     }
+    ]
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f039",
+   "split": "design",
+   "text": "tight flag near highs with ADR above 4",
+   "spec": {
+    "filters": [
+     {
+      "key": "tight_consolidation",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "dist_52w_high_pct",
+      "op": "gte",
+      "min": -5
+     },
+     {
+      "key": "adr_pct",
+      "op": "gte",
+      "min": 4
+     }
+    ]
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f040",
+   "split": "held_out",
+   "text": "gap and go, gapped up 5% and closed near the top of the range",
+   "spec": {
+    "filters": [
+     {
+      "key": "gap_pct",
+      "op": "gte",
+      "min": 5
+     },
+     {
+      "key": "close_position",
+      "op": "gte",
+      "min": 0.66
+     }
+    ]
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f041",
+   "split": "design",
+   "text": "tech or communication services above the 200 day, excluding mega caps over $500B",
+   "spec": {
+    "filters": [
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "market_cap",
+      "op": "lt",
+      "max": 500000000000.0
+     }
+    ],
+    "logic": {
+     "any": [
+      {
+       "key": "sector",
+       "op": "in",
+       "values": [
+        "Technology"
+       ]
+      },
+      {
+       "key": "sector",
+       "op": "in",
+       "values": [
+        "Communication Services"
+       ]
+      }
+     ]
+    }
+   },
+   "before": "agent_schema_narrower"
+  },
+  {
+   "id": "f042",
+   "split": "held_out",
+   "text": "top 20 by dollar volume under a $10 billion market cap",
+   "spec": {
+    "filters": [
+     {
+      "key": "market_cap",
+      "op": "lt",
+      "max": 10000000000.0
+     }
+    ],
+    "sort": {
+     "key": "dollar_vol_30d",
+     "dir": "desc"
+    }
+   },
+   "before": "flat"
+  },
+  {
+   "id": "f043",
+   "split": "held_out",
+   "text": "IPOs from the last year still above their first day close",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "ipo_first_day_close"
+   ],
+   "before": "engine_primitive_missing"
+  },
+  {
+   "id": "f044",
+   "split": "design",
+   "text": "earnings gap up that held for three days",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "post_earnings_drift"
+   ],
+   "before": "engine_primitive_missing"
+  },
+  {
+   "id": "f045",
+   "split": "design",
+   "text": "weekly MACD bullish cross",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "macd"
+   ],
+   "before": "engine_primitive_missing"
+  },
+  {
+   "id": "f046",
+   "split": "held_out",
+   "text": "up on the day but under yesterday's low",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "prev_day_levels_in_catalog"
+   ],
+   "before": "engine_primitive_missing"
+  },
+  {
+   "id": "f047",
+   "split": "design",
+   "text": "large caps down over 5% that did not just report",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "days_since_earnings"
+   ],
+   "before": "engine_primitive_missing"
+  },
+  {
+   "id": "f048",
+   "split": "design",
+   "text": "stocks with no sector data",
+   "spec": null,
+   "reason": "engine_primitive_missing",
+   "needs": [
+    "is_blank_op"
+   ],
+   "before": "engine_primitive_missing"
+  },
+  {
+   "id": "f049",
+   "split": "design",
+   "text": "UCT composite above 80 or RS rank above 90",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "uct_composite",
+   "before": "f16_hidden"
+  },
+  {
+   "id": "f050",
+   "split": "design",
+   "text": "rank by relative strength rating and sales growth",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "rs_rank",
+   "before": "f16_hidden"
+  },
+  {
+   "id": "f051",
+   "split": "design",
+   "text": "price sitting on a dark pool level",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "dp_level_dist_pct",
+   "before": "f16_hidden"
+  },
+  {
+   "id": "f052",
+   "split": "held_out",
+   "text": "sector RS higher than its 3 month change",
+   "spec": null,
+   "reason": "f16_hidden",
+   "hidden_key": "sector_rs_pct",
+   "before": "f16_hidden"
+  }
+ ]
+}

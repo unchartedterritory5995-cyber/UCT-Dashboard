@@ -22,6 +22,84 @@
 
 This file provides guidance to Claude Code when working in this repository.
 
+## ⛔⛔ THIS REPO IS PUBLIC (since 2026-11-08) — everything you push is readable by the internet
+
+Owner decision: public for free, faster Actions while we build with 0 users. It is NOT open source
+(`LICENSE`: all rights reserved). Only our account can write; the internet can only READ. Team rules:
+**`docs/TEAM-WORKFLOW.md`**.
+
+- **Never commit** keys, tokens, passwords, `.env` files, raw prod logs or pod output (redact emails and
+  `?auth=`/`token=`/`apiKey=` first), member data of any kind, anything from the PRIVATE sibling repos
+  (TSDR ledger, brain DB, agent training data, Discord exports, unpublished Substack), or licensed vendor
+  data dumps. PR text, commit messages and Actions logs are public too.
+- **Guards:** GitHub push protection (blocks known key formats at push time, web-UI commits included) +
+  `.github/workflows/secret-scan.yml` (gitleaks over each push/PR's new commits, advisory,
+  `promotion-gate: no`). A red there means **ROTATE THE KEY FIRST** (vendor -> Railway var -> redeploy),
+  then remove it; deleting the commit does not un-leak it.
+- Workflows from outside contributors' PRs need approval; secrets are never exposed to fork PRs.
+  Never add `pull_request_target` without a security review.
+
+## Push discipline (was "GitHub Actions is BILLED", owner, 2026-11-06)
+
+⚰️ Billed while the repo was private (2026-10-19 → 2026-11-08): the $300 budget ran out on 11-06, five
+days into the month (6,819 runs in 6 days; most were `agent ci` runs on per-commit pushes, ~76 min each).
+Since going public, standard-runner minutes are free — the rules below still stand, because every
+master push is a full deploy gate and a deploy, and wasted runs still cost wall-clock and queue time.
+
+- **Push a branch once per finished, locally tested unit of work.** Never push after every commit to
+  "save progress"; a commit can stay local. Run the focused tests locally first: CI confirms, it is not the
+  test loop.
+- **A push runs the workflow files ON THAT BRANCH.** A branch cut before PR #877 still runs the old,
+  unfiltered `agent ci` on every push. Merge master into a long-lived branch before you keep pushing to it.
+- **New or edited workflows** need `paths:` on PR triggers and on non-master push triggers, and the
+  SHA-grouped PR-cancel `concurrency:` block. Never `cancel-in-progress: true` on anything that runs on master
+  pushes. `tests/test_ci_cost_rails.py` enforces this and the master deploy gate runs it.
+- The master deploy gate running the full Agent suite on every master push is deliberate. Do not path-filter it.
+- If runs fail with "The job was not started because ... spending limit": that is the budget, not the code.
+  Tell the owner; do not re-push to retry.
+
+## ⭐ Speed and reliability: how every change is made (owner standing rule, 2026-11-10)
+
+The owner's bar: **instant, smooth, reliable, no lag, for every member** (browser and the desktop app), at
+the level of the largest consumer apps. Targets, plan and measurements: the desktop speed plan
+(`C:\Users\Patrick\reports\UCT desktop app FINAL plan - speed and reliability.md`, local). These rules apply
+to every session and every agent, whatever the task.
+
+1. **Measure the real member path, before and after. Trace before you theorize.** On 2026-11-10 two plausible
+   theories (React re-renders; one renderer thread) were both wrong; a Chromium trace found the real cause in
+   minutes (endless CSS animations saturating the GPU process). Proof tools live in the `uct-desktop` repo,
+   `scripts/proofs/`: `charts-load-proofs.mjs` (real Charts widget pop-outs; `--trace`, `--profile=N`,
+   `--animations`, `--kill-anim`), `analyze-trace.py`, `launch-phases.mjs`, `motion-sweep.mjs`. Never measure
+   a surface members do not use (the Terminal pop-out pages are not the Charts path).
+2. **Nothing always on screen animates forever.** An `infinite` CSS animation makes the window draw at the
+   display rate forever (12 chart widgets: 549 presents/s, GPU main thread 90% busy). Rail:
+   `app/src/styles/endlessAnimations.test.js` (stylesheets AND inline styles). Ambient cues ride an existing
+   once-a-second render (`.clockDot`, `data-beat`) or run a few iterations and rest.
+3. **No unconditional per-frame loop.** A `requestAnimationFrame` that re-arms itself forever costs every chart,
+   every frame. Use `createAdaptiveFrameLoop` (`app/src/components/chart/adaptiveFrameLoop.js`): every frame while
+   something moves, a 250 ms safety pass when still, woken by pointer/resize/range/data events.
+4. **Background work never competes with the first paint.** Heavy background work (pack ingests and the like)
+   starts after the page's first chart (`afterFirstChartPaint`, `lib/barsPackClient.js`) and runs one window at
+   a time (`navigator.locks`). A page left early must not throw away and restart the same work.
+5. **First-open bytes are a budget, paid for, not raised.** After every production build:
+   `python tools/notebook_perf_budgets.py --dist app/dist`. A change that adds to first open moves something else
+   off it (2026-11-10: the drawings store left Notebook first open, -10.4 KB). Raising the line is the owner's call.
+6. **Polls respect visibility.** SWR's `isVisible` is `lib/deskVisibility.isAppVisible`: polls pause when the
+   desktop desk is hidden or a tab is hidden. Live streams and alerts are not polls. Never add a polling loop
+   that bypasses it.
+7. **Every test and guard must be proven able to fail.** Break the code on purpose and watch the test go red,
+   restore from a saved copy (never `git checkout`), then commit. A green suite proves nothing on its own.
+8. **Deploy as a lane, not a crowd.** Batch changes; one master merge at a time; confirm a push landed with
+   `git merge-base --is-ancestor <sha> origin/master` (push output alone has lied); a red master gate blocks
+   every member-facing deploy, so fix it forward at once. **A Screener server change ships its own bookkeeping
+   in the same PR:** re-pin `SCREENER_PIN` (`tests/test_uct_agent_qa_f16.py`), regenerate `screener-fields.json`
+   (`python -m tests.test_uct_agent_qa_scan_corpus --write-baseline`) and the SAT-1 capture
+   (`UPDATE_SAT1_REQUESTS=1`). On 2026-11-10 skipping these left master red for every session for hours.
+9. **The CDN is part of the product.** Check what Cloudflare actually delivers (fetch `/assets/*` through the edge
+   AND from `web-production-05cb6.up.railway.app`), not just what the origin sends. See `ASSETS_NO_TRANSFORM_ENABLED`
+   in `docs/feature_flags.json` for why compressed origin files reached members uncompressed.
+
+
 ## Project Overview
 
 **UCT Dashboard** is a live bento-box trading dashboard for Uncharted Territory. It is a full-stack app:
@@ -317,8 +395,8 @@ A full side-by-side rebuild of the Journal tab lives at `/journal` → "Journal 
     asserts a hover costs one frame (mutation-proved: the defect makes it 221).
     ⚠️ `create_saved_view` accepts only `("list", "table")`, so the Save-view
     control is hidden in graph mode rather than offering a button that 400s.
-  - `j2_note_connectors` + `j2_note_sources` + `j2_note_sync_log` + `j2_note_remote_index` — **background note-sync connectors** (Roam/Craft graph-token connect; Notion/Dropbox OAuth; scheduled + manual sync with conflict + delete detection) shipped 2026-08-12 on branch `note-connectors`. Router `/api/j2/notes/connectors/*` (`api/routers/note_sync.py`) mounts unconditionally; syncing itself is **double-gated** — `NOTE_SYNC_ENABLED=1` (scheduler registration in `main.py`) AND per-provider config, checked in-endpoint — unset either and it's fully inert.
-  - **OneNote + OneDrive** joined the connector roster shipped dark 2026-08-12, same branch — Microsoft Graph OAuth, one shared Azure app (`MSGRAPH_CLIENT_ID`/`MSGRAPH_CLIENT_SECRET`), same `note_sync.py` router and the same `NOTE_SYNC_ENABLED` + per-provider msgraph-config double-gate as above. OneNote syncs via a resumable per-tick watermark queue (bounded enumeration + paced content fetch across ticks), not a one-shot pull.
+  - `j2_note_connectors` + `j2_note_sources` + `j2_note_sync_log` + `j2_note_remote_index` — **background note-sync connectors** (Roam/Craft graph-token connect; Notion/Evernote OAuth; Obsidian device connect; scheduled + manual sync with conflict + delete detection) shipped 2026-08-12 on branch `note-connectors`. Router `/api/j2/notes/connectors/*` (`api/routers/note_sync.py`) mounts unconditionally; syncing itself is **double-gated** — `NOTE_SYNC_ENABLED=1` (scheduler registration in `main.py`) AND per-provider config, checked in-endpoint — unset either and it's fully inert.
+  - ⚰️ **Dropbox, OneNote and OneDrive were ARCHIVED 2026-11-04** (never configured in production, so no member could connect one): their provider modules, registry rows, the Microsoft Graph OAuth configs, the Dropbox revoke, the `GET /{provider}/folders` picker and their Settings tiles are gone. `registry.ARCHIVED_PROVIDERS` still names them, so a stored row stays safe (left out of `/status`, skipped by the sync loops, never deleted) and the import repair keeps classing their notes as connector notes. Restore with `git revert` of the archive commit. `MSGRAPH_*` / `DROPBOX_APP_*` vars, if set anywhere, are now read by nothing.
   - `j2_playbook_entries` — **deprecated** (kept as backup; manual `DROP TABLE` after ~30d of green prod). Old Playbook tab + UI + routes removed.
   - `j2_option_strategies`, `j2_option_legs` — Pattern C multi-leg options
 - **Phases shipped:** 1 (Calendar) · 2 (Accounts) · 3 (Analytics 14 charts + Edge Scorecard) · 4 (Goals + Report) · 5 (Fees, Daily Notes, ~~Playbook~~ → **Notebook**, Options multi-leg)
@@ -502,7 +580,34 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   Notebook widgets wave 9 (routines and trackers, dark) two more: `notebook-routine-writes`
   (120/minute) and `notebook-routine-reads` (60/minute), keyed on the member (`WRITE_RATE` /
   `READ_RATE` at the top of `api/routers/notebook_routines.py`, shared by the routine and tracker
-  routes), in-process only, so a second process doubles both · `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
+  routes), in-process only, so a second process doubles both, and since connector fidelity Plan A
+  Task 9 `notebook-media-fetch` (120/minute, keyed on the member, `NOTE_MEDIA_FETCH_RATE` in
+  `api/routers/journal_two.py`, the `POST /api/j2/notes/media/fetch` hotlink-copy door), in-process
+  only, so a second process doubles it, and since connector fidelity Plan F Task 9
+  `notebook-import-repair-notice` (60/minute, keyed on the member, `NOTE_IMPORT_REPAIR_NOTICE_RATE`
+  in `api/routers/journal_two.py`, shared by `GET /api/j2/notes/import/repair-notice` and its
+  `POST .../dismiss`), in-process only, so a second process doubles it, and since Import a tweet
+  `notebook-tweet-resolve` (30/minute, keyed on the member, `TWEET_RESOLVE_RATE` in
+  `api/routers/notebook_tweet_capture.py`, `POST /api/j2/research-capture/tweets/resolve`, dark behind
+  `NOTEBOOK_TWEET_IMPORT_ENABLED`), in-process only, so a second process doubles it, and `notebook-tweet-save` (20/minute, keyed on the member, `TWEET_SAVE_RATE` in the same file, `POST /api/j2/research-capture/tweets/save`, dark behind the same flag), in-process only, so a second process doubles it · `notebook_tweet_capture._SAVE_INFLIGHT` under `_SAVE_INFLIGHT_LOCK` (one tweet save running per member, one more answers 429): a second process allows one per process · `tweet_price._FETCH_POOL` (`FETCH_POOL_WORKERS` = 4 bars reads for tweet imports at once; a read past its import's time limit is abandoned, and its thread finishes on its own): a second process doubles it · the `notebook-media-fetch` door's in-flight caps `journal_two._MEDIA_FETCH_SEM`
+  (`MEDIA_FETCH_GLOBAL_INFLIGHT` = 8 downloads at once) and `journal_two._media_fetch_inflight`
+  (`MEDIA_FETCH_PER_MEMBER_INFLIGHT` = 2 per member, one more answers 429): a second process
+  doubles both · since the connector fidelity Plan A final review (I3), the editor upload doors'
+  (`POST /api/j2/notes/{id}/images` and `/attachments`) in-flight caps `journal_two._UPLOAD_GATE`
+  (`UPLOAD_PER_MEMBER_INFLIGHT` = 2 per member and `UPLOAD_GLOBAL_INFLIGHT` = 4 for the pod; over
+  either answers 429 at once, before the threadpool): a second process doubles both ·
+  since connector fidelity Plan C Task 2 (fix round 1, M5), the Obsidian blob upload door's
+  (`PUT /api/j2/notes/connectors/obsidian/attachments/{sha256}`) in-flight caps
+  `note_sync._OBSIDIAN_UPLOAD_GATE`, its OWN instance of that gate class
+  (`OBSIDIAN_UPLOAD_PER_MEMBER_INFLIGHT` = 2 per member and `OBSIDIAN_UPLOAD_GLOBAL_INFLIGHT` = 8 for
+  the pod; over either answers 429 before any byte is read): a second process doubles both ·
+  since the Plan C final review (M1), the Obsidian staging store's `obsidian_attachments._COMMIT_LOCK`
+  (a `threading.Lock` around each blob commit's device check, staged-sum room re-check, rename and
+  row insert, and each GC unlink's re-check; the member's stored-media usage walk runs BEFORE it, never
+  under it): it is what makes the per-member room check atomic, so a second process would let two
+  uploads both pass it · and `obsidian_attachments._SWEEP_OFFSET` (the orphan sweep's per-vault resume
+  point; a second process sweeps from its own offset, harmless) ·
+  `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
   export door's `SINGLE_NOTE_CONCURRENCY` = 2 build slots, one more answers 429 — a second
   process doubles how many Word/web-page builds run at once) · `note_ask._inflight` (the
   concurrent Ask / writing-help stream slots, `NOTE_ASK_MAX_CONCURRENT`) ·
@@ -514,6 +619,12 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   its own 60 s, and a restart clears the pause) · the two document permit pools
   `document_extraction._EXTRACTION_POOL` and `document_ocr._OCR_POOL` (wave 7 lane G: a
   second process doubles how many extractions and OCR runs the box does at once) · since
+  connector fidelity Plan F, `document_extraction._QUEUED` (the ids this process has queued and
+  not finished, kept by `queue_extraction`) and the `j2_doc_pending_sweep` job that reads it
+  (`requeue_stale_pending`, every 10 min, at most `PENDING_SWEEP_LIMIT` = 20 per tick): a second
+  process keeps its own set, so each sweep can re-queue a stale `pending` row the other process
+  already has queued (the extraction runs twice; it is idempotent, `INSERT OR IGNORE` pages), and
+  two sweeps double the per-tick re-queue · since
   the wave 12-15 landing `entry_context._capture_executor` + `_capture_pending` (the
   manual-add capture queue: 2 threads, 40 queued in total, 3 per member),
   `entry_context._VENDOR_SLOTS` (2 report-date vendor reads in flight) and
@@ -533,7 +644,7 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   (`PREVIEW_RATE`, 60/hour, keyed on the member, one budget with the example preview), and preview with my data
   also spends its own `notebook-gallery-preview-mine` (`PREVIEW_MINE_RATE`, 10/minute); both in-process only, so a
   second process doubles both (the wave 11 publish, adopt, use and Helpful doors spend the existing scopes above,
-  so they add no new budget). A second web process doubles each bound.
+  so they add no new budget) · since the Evernote rate-limit fix (PR #750, scheduling hardened after it), the note-connector engine's pass slots (`engine._pass_slots_used` and the waiter queue `_slot_waiters` under `_PASS_SLOTS_LOCK`, `FOLLOW_UP_CONCURRENCY` = 3 background Evernote passes at once plus `_member_slots_used`, `MEMBER_RESERVED_SLOTS` = 1 more for a member's press), its import write lock `engine._IMPORT_WRITE_LOCK` (one pooled pass's write section at a time, held `IMPORT_WRITE_GAP_S` after each commit) and `evernote_mcp`'s trip guard `_GLOBAL_TRIPS` under `_GLOBAL_LOCK` (a new session waits while `GLOBAL_TRIP_THRESHOLD` = 6 trips landed in the last minute): a second process doubles the slots, serializes only its own imports and sees only its own trips. A second web process doubles each bound.
   ⚰️ `note_ask._writing_help_by_user` was listed here until the wave-7 whole-branch fix; ruling
   D-H5b moved writing help's 60/day, Ask's per-member count, the shared LLM dollar cap and
   the meaning search's daily embed count into ONE durable table, so none of them doubles or
@@ -3906,7 +4017,7 @@ PASS; it also carried the H14 fix for the single-note export's Latin-1 header). 
 `notebook-wave6-tip-2026-09-26` (`96051c043`; the older `-2026-09-25` tag predates the
 round-5 fixes), wave 7's `notebook-wave7-tip-2026-09-26`. Wave 8 is `feat/notebook-w8`
 (worktree `notebook-w8`, its own `node_modules` since D-W4), wave 9's soak kit is
-`feat/notebook-w9c`. Both landed: #197 (9C, `2e0598bfa`) then #198 (wave 8, `caf6d1b9e`, web SUCCESS 2026-09-26 18:48Z, tagged `notebook-wave8-tip-2026-09-26`). Wave 8's three gates — `J2_SHARE_LINKS_ENABLED`, `NOTEBOOK_PUBLISH_ENABLED`, `NOTEBOOK_ONBOARDING_ENABLED` — were ARMED on web 2026-09-26 18:53–18:58Z, one at a time (see `docs/feature_flags.json`). Wave 9 LIVE as #202 (`1c4b0bf74`, web SUCCESS 2026-09-26 22:27Z, tagged `notebook-wave9-tip-2026-09-26`): the benchmark instrument (9A), the parity scorecard (9B), the four-format selected export and the folder Publish door (9D). The wave-7 gates `NOTEBOOK_PERSONAL_API_ENABLED` and `NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED` were ARMED on web 2026-09-26 23:11:17Z with `NOTEBOOK_TASK_REMINDERS_ENABLED=1` made explicit (one --set, one boot; see `docs/feature_flags.json`). Wave 10 builds on `feat/notebook-w10` (lanes on `feat/notebook-w10-a` / `-b` / `-c` / `-d`). Two H14 hotfixes shipped ahead of it: #203 (`c6a8a9d3a`: note-body depth cap, Word intake, a time/size budget on PDF text extraction) and #204 (`2ab637644`: every note write's compare-and-set takes `BEGIN IMMEDIATE`). **Phase I LIVE as #205 (`4f708a0d2`, web booted 2026-09-27 ~04:56Z, tagged `notebook-wave10-L1a-tip2-2026-09-26`)**: lanes 10B (touch Undo/Redo, table column resize and sort, `.xlsx` documents, Best matches, property autofill, ten more importers) and 10C (an unbuildable body refused at create and at import -- NOT yet on the PUT save path, a queued follow-up -- tombstone-first account deletion with replay on restore, the restore drill's attachment sampling, the switch-rehearsal tool), plus the phone fix for the Journal header's More and Log Trade menus (clipped since 2026-09-22; verified tappable on production at 390 px). ⚠️ The a11y job's fixture uses a per-render SWR cache: a recipe that types must end with `landPendingAutosave()` (`app/src/pages/journal-2-0/a11y/fixtures.jsx`) or its autosave is flushed after the cache is torn down and a retry outlives the test. Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
+`feat/notebook-w9c`. Both landed: #197 (9C, `2e0598bfa`) then #198 (wave 8, `caf6d1b9e`, web SUCCESS 2026-09-26 18:48Z, tagged `notebook-wave8-tip-2026-09-26`). Wave 8's three gates — `J2_SHARE_LINKS_ENABLED`, `NOTEBOOK_PUBLISH_ENABLED`, `NOTEBOOK_ONBOARDING_ENABLED` — were ARMED on web 2026-09-26 18:53–18:58Z, one at a time (see `docs/feature_flags.json`). Wave 9 LIVE as #202 (`1c4b0bf74`, web SUCCESS 2026-09-26 22:27Z, tagged `notebook-wave9-tip-2026-09-26`): the benchmark instrument (9A), the parity scorecard (9B), the four-format selected export and the folder Publish door (9D). The wave-7 gates `NOTEBOOK_PERSONAL_API_ENABLED` and `NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED` were ARMED on web 2026-09-26 23:11:17Z with `NOTEBOOK_TASK_REMINDERS_ENABLED=1` made explicit (one --set, one boot; see `docs/feature_flags.json`; the documents gate was later retired as always on, 2026-11-04). Wave 10 builds on `feat/notebook-w10` (lanes on `feat/notebook-w10-a` / `-b` / `-c` / `-d`). Two H14 hotfixes shipped ahead of it: #203 (`c6a8a9d3a`: note-body depth cap, Word intake, a time/size budget on PDF text extraction) and #204 (`2ab637644`: every note write's compare-and-set takes `BEGIN IMMEDIATE`). **Phase I LIVE as #205 (`4f708a0d2`, web booted 2026-09-27 ~04:56Z, tagged `notebook-wave10-L1a-tip2-2026-09-26`)**: lanes 10B (touch Undo/Redo, table column resize and sort, `.xlsx` documents, Best matches, property autofill, ten more importers) and 10C (an unbuildable body refused at create and at import -- NOT yet on the PUT save path, a queued follow-up -- tombstone-first account deletion with replay on restore, the restore drill's attachment sampling, the switch-rehearsal tool), plus the phone fix for the Journal header's More and Log Trade menus (clipped since 2026-09-22; verified tappable on production at 390 px). ⚠️ The a11y job's fixture uses a per-render SWR cache: a recipe that types must end with `landPendingAutosave()` (`app/src/pages/journal-2-0/a11y/fixtures.jsx`) or its autosave is flushed after the cache is torn down and a retry outlives the test. Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
 
 ✅ **Merged and LIVE on production (2026-09-24):** #187 (the H14 metadata-settle
 hotfix, master `d4a1a13b6`) and #183 (Ask on phones / paste / citations / G-064

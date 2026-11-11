@@ -7,8 +7,9 @@
  * Nothing fires a haptic or a sound on choosing (D11: reveal only).
  */
 import { useCallback, useRef } from 'react'
-import UIcon from '../../../components/ui/UIcon'
+import Tile from '../ui/Tile'
 import styles from './drills.module.css'
+import { answerWord } from '../revealCardHelpers'
 
 export const GRID_MAX_CHARS = 12
 
@@ -16,7 +17,22 @@ export function useGridLayout(choices) {
   return choices.length >= 2 && choices.length <= 4 && choices.every((c) => String(c).length <= GRID_MAX_CHARS)
 }
 
-export default function ChoiceList({ choices, value, onChange, disabled = false, label = 'Choices', showKeys = true }) {
+/** After the verdict: the bank's answer and, when the pick missed, the pick, so the cards can show green and red. */
+/** A choice label and an answer are the same when they read the same: case, spacing and yes/true aside. */
+export function sameAnswer(a, b) {
+  if (a == null || b == null) return false
+  const norm = (v) => String(v).trim().toLowerCase().replace(/\s+/g, ' ').replace(/^true$/, 'yes').replace(/^false$/, 'no')
+  return norm(a) === norm(b)
+}
+
+export function revealLabels(reveal, state) {
+  if (!reveal) return {}
+  const right = answerWord(reveal) || null
+  const pick = state?.choice ?? null
+  return { rightLabel: right, wrongLabel: right != null && pick != null && !sameAnswer(pick, right) ? pick : null }
+}
+
+export default function ChoiceList({ choices, value, onChange, disabled = false, label = 'Choices', showKeys = true, rightLabel = null, wrongLabel = null }) {
   const grid = useGridLayout(choices)
   const refs = useRef([])
 
@@ -35,30 +51,18 @@ export default function ChoiceList({ choices, value, onChange, disabled = false,
     refs.current[next]?.focus()
   }, [choices, disabled, onChange])
 
+  const revealed = rightLabel != null || wrongLabel != null
   return (
     <ul role="radiogroup" aria-label={label} className={grid ? styles.choicesGrid : styles.choices}>
       {choices.map((choice, i) => {
         const selected = value != null && value === choice
+        // kit v2 (2026-11-08): the one answer tile every Study screen uses (ui/Tile, the owner's principles)
+        const state = sameAnswer(choice, rightLabel) ? 'right' : sameAnswer(choice, wrongLabel) ? 'wrong' : revealed ? 'quiet' : selected ? 'sel' : 'idle'
         return (
           <li key={`${i}-${choice}`}>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              className={styles.choice}
-              disabled={disabled}
-              ref={(el) => { refs.current[i] = el }}
-              tabIndex={selected || (value == null && i === 0) ? 0 : -1}
-              onClick={() => { if (!disabled) onChange(choice) }}
-              onKeyDown={(e) => onKeyDown(e, i)}
-              data-choice-index={i + 1}
-            >
-              {showKeys && <span className={styles.choiceKey} aria-hidden="true">{i + 1}</span>}
-              <span className={styles.choiceLabel}>{choice}</span>
-              {selected
-                ? <span className={styles.choiceCheck}><UIcon name="check" size={18} /></span>
-                : <span className={styles.choiceGhost} aria-hidden="true" />}
-            </button>
+            <Tile ref={(el) => { refs.current[i] = el }} n={showKeys ? i + 1 : null} i={i} label={choice} state={state}
+              role="radio" checked={selected} disabled={disabled} tabIndex={selected || (value == null && i === 0) ? 0 : -1}
+              onClick={() => { if (!disabled) onChange(choice) }} onKeyDown={(e) => onKeyDown(e, i)} dataIndex={i + 1} />
           </li>
         )
       })}

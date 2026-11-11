@@ -34,6 +34,7 @@ import { BUILTIN_NOTE_KINDS } from '../lib/noteKinds'
 import { latchNotebookFlags, __resetNotebookFlags } from '../lib/offline/notebookFlags'
 import { setCurrentAccountId } from '../lib/offline/currentAccount'
 import { contractBody } from '../__fixtures__/contract'
+import { pressToolbar } from './__tests__/toolbarDoors'
 
 const listBody = {
   kinds: BUILTIN_NOTE_KINDS.map((k) => ({ ...k, builtin: true })),
@@ -73,7 +74,7 @@ const renderTab = () => render(
 )
 
 describe('New note: pick a kind (Notebook P1)', () => {
-  it('the Home New-note menu gets a "From a style" door only while the switch is on', async () => {
+  it('the Home New-note menu gets a "From a template" door only while the switch is on', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     const { unmount } = render(<MemoryRouter initialEntries={['/journal']}><NotebookTab /></MemoryRouter>)
     await screen.findByTestId('research-home')
@@ -89,7 +90,7 @@ describe('New note: pick a kind (Notebook P1)', () => {
   it('switch on: a kind makes a note of that kind through the one create door', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    pressToolbar('Templates')
     const [btn] = await screen.findAllByLabelText('New Trade plan', {}, T)
     fireEvent.click(btn)
     await waitFor(() => expect(createNoteViaApi).toHaveBeenCalled())
@@ -101,8 +102,8 @@ describe('New note: pick a kind (Notebook P1)', () => {
   it('switch on: a chosen style goes as styleId', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
-    const [another] = await screen.findAllByLabelText('Choose another style for Trade plan', {}, T)
+    pressToolbar('Templates')
+    const [another] = await screen.findAllByLabelText('Choose another template for Trade plan', {}, T)
     fireEvent.click(another)
     fireEvent.click(screen.getAllByRole('button', { name: 'Use My plan' })[0])
     await waitFor(() => expect(createNoteViaApi).toHaveBeenCalled())
@@ -116,7 +117,7 @@ describe('New note: pick a kind (Notebook P1)', () => {
     const detail = contractBody('notes.create.kind.unknown').detail
     createNoteViaApi.mockRejectedValueOnce(Object.assign(new Error('Could not create note (400)'), { status: 400, detail }))
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    pressToolbar('Templates')
     const [btn] = await screen.findAllByLabelText('New Trade plan', {}, T)
     fireEvent.click(btn)
     await waitFor(() => expect(screen.getAllByRole('alert').map((a) => a.textContent)).toContain(detail))
@@ -127,14 +128,14 @@ describe('New note: pick a kind (Notebook P1)', () => {
     createNoteViaApi.mockRejectedValueOnce(Object.assign(new Error('Could not create note (404)'), {
       status: 404, detail: contractBody('notes.create.styled.not-found').detail }))
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    pressToolbar('Templates')
     const [btn] = await screen.findAllByLabelText('New Trade plan', {}, T)
     fireEvent.click(btn)
     await waitFor(() => expect(screen.getAllByRole('alert').map((a) => a.textContent))
       .toContain("Couldn't create that note. Nothing was saved."))
   })
 
-  it('From a style opens the New-note sheet with focus on the first kind, not the search box (M6)', async () => {
+  it('From a template opens the New-note sheet with focus on the first kind, not the search box (M6)', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     render(<MemoryRouter initialEntries={['/journal']}><NotebookTab /></MemoryRouter>)
     await screen.findByTestId('research-home')
@@ -147,10 +148,26 @@ describe('New note: pick a kind (Notebook P1)', () => {
     expect(document.activeElement).not.toBe(within(dialog).getByRole('searchbox', { name: 'Search templates' }))
   })
 
+  // Tier 1b fix round 1 (review Minor 11): the list's ▾ lost the note-type door (the old caret's "From a style"). It
+  // is back as "From a template", exactly Home's; the search-first sheet stays as "From an outline", also Home's.
+  it('switch on: the list ▾ offers From an outline and From a template, and From a template focuses the first kind', async () => {
+    latchNotebookFlags({ notebook_journal_styles_enabled: true })
+    renderTab()
+    const bar = screen.getByRole('toolbar', { name: 'Notes list tools' })
+    fireEvent.click(within(bar).getByRole('button', { name: 'More ways to start a note' }))
+    const menu = screen.getByRole('menu', { name: 'Start a note' })
+    expect(within(menu).getAllByRole('menuitem').map((el) => el.textContent.trim()))
+      .toEqual(['Blank', 'From an outline', 'From a template', 'Import'])
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'From a template' }))
+    const dialog = await screen.findByRole('dialog', { name: 'New note' })
+    const first = await within(dialog).findByLabelText('New Trade plan', {}, T)
+    await waitFor(() => expect(document.activeElement).toBe(first))
+  })
+
   it('the Templates button still opens it with the search box focused', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    pressToolbar('Templates')
     const dialog = await screen.findByRole('dialog', { name: 'New note' })
     await within(dialog).findByLabelText('New Trade plan', {}, T)
     await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByRole('searchbox', { name: 'Search templates' })))
@@ -158,9 +175,9 @@ describe('New note: pick a kind (Notebook P1)', () => {
 
   it('switch off: today\'s sheet exactly, and the styles list is never requested', async () => {
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    pressToolbar('Templates')
     await screen.findAllByRole('region', { name: 'Your templates' })
-    expect(screen.queryByRole('group', { name: 'Start from a kind of note' })).toBeNull()
+    expect(screen.queryByRole('group', { name: 'Start from a template' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'New Trade plan' })).toBeNull()
     expect(screen.queryByText(/journal styles/i)).toBeNull()   // not even the picker's failure line
     expect(urls).not.toContain('/api/j2/journal-styles')

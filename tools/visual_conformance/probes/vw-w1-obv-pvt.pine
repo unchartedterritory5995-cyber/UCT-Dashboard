@@ -1,0 +1,16 @@
+//@version=6
+indicator("vw-w1-obv-pvt")
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from the inline shape in
+// docs/pine/capture-queue-2026-11-02-w1.md, W1-A (rows O01/O05, O02/O06, O03/O07, O04). The code below these comments is that doc's text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: ta.obv / ta.pvt levels, their first bar, each built-in minus its published reference body (expected 0), and ta.ema(ta.obv, 21).
+// CAPTURE: AMEX:SPY 1D FROM THE LISTING (history startsAtBar0), inputs at defaults.
+
+plot(ta.obv, "O01_obv")
+plot(na(ta.obv) ? -1 : bar_index, "O02_obv_first_bar")
+plot(ta.obv - ta.cum(math.sign(ta.change(close)) * volume), "O03_obv_minus_reference_ZERO")
+plot(ta.ema(ta.obv, 21), "O04_ema_obv_21")
+plot(ta.pvt, "O05_pvt")
+plot(na(ta.pvt) ? -1 : bar_index, "O06_pvt_first_bar")
+plot(ta.pvt - ta.cum((ta.change(close) / close[1]) * volume), "O07_pvt_minus_reference_ZERO")

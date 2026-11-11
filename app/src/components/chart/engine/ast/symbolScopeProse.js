@@ -31,6 +31,7 @@
 export const KEEP = Object.freeze([
   'confirmed',
   'listing_fields',
+  'min_contract',
   'pending_measurement',
   'tick_size',
   'unserved',

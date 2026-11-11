@@ -66,11 +66,16 @@ describe('capability registry', () => {
     const m = manifestFor(CTX)
     expect(m.length).toBeGreaterThanOrEqual(8)
     for (const c of m) {
-      expect(Object.keys(c).sort()).toEqual(['args', 'domain', 'hints', 'name', 'query', 'reversible', 'risk', 'summary', 'target', 'undo'])
+      // (W1.1 R-01: argAliases / coerce / defaults / shape — null when a capability declares none)
+      expect(Object.keys(c).sort()).toEqual(['argAliases', 'args', 'coerce', 'defaults', 'defaultsWhen', 'domain', 'hints', 'name', 'query', 'reversible', 'risk', 'shape', 'summary', 'target', 'undo'])
       expect(c.args.additionalProperties).toBe(false)
       expect([...c.args.required].sort()).toEqual(Object.keys(c.args.properties).sort())
     }
-    expect(manifestFor({ surface: 'journal' })).toEqual([])          // not offered off-surface
+    // ⭐ W2-C1: off-surface, only the queries offered everywhere remain (surfaces ['*']); no write and no chart control
+    const off = manifestFor({ surface: 'nowhere' })
+    expect(off.length).toBeGreaterThan(0)
+    expect(off.every(c => c.query || c.name === 'app.open')).toBe(true)
+    expect(off.some(c => c.name.startsWith('chart.') || c.name.startsWith('widget.') || c.name.startsWith('drawing.'))).toBe(false)
   })
   it('theme enum is exactly the shipped chart themes', () => {
     expect(getCapability('chart.applyTheme').args.properties.theme.enum).toEqual(CHART_THEMES.map(t => t.id))
@@ -115,7 +120,7 @@ describe('compound plan → single write → ACK → receipt → undo', () => {
       op('chart.setBackground', { color: '#f3efe4' }),
     ])
     expect(p.ok).toBe(true)
-    expect(p.lines).toEqual(['Changed chart to Bars', 'Switched timeframe to Weekly', 'Hid Volume', 'Changed background to #f3efe4'])
+    expect(p.lines).toEqual(['Changed chart to Bars', 'Switched timeframe to Weekly', 'Hid Volume', 'Changed background to cream'])
     const res = await commitPlan(host, p)
     expect(res.ok).toBe(true)
     expect(host.commits).toHaveLength(1)
@@ -188,14 +193,61 @@ describe('compound plan → single write → ACK → receipt → undo', () => {
 })
 
 describe('stale protection', () => {
-  it('refuses to undo over a manual edit made after the Agent wrote', async () => {
+  // round 3 (pl-exec): Undo is FIELD-SCOPED. A manual edit to ANOTHER field (the timeframe) after the Agent changed the chart
+  // type no longer blocks the Undo: the type goes back and the member's timeframe stays. A manual edit to the SAME field still
+  // refuses it, and nothing is overwritten.
+  it('undoes over a manual edit to ANOTHER field, keeping that edit', async () => {
     const host = makeHost([{ ref: 'c1' }])
     const res = await commitPlan(host, plan(host, [op('chart.setType', { type: 'bars' })]))
     host.manual('c1', { tf: '60' })
     const u = await undoEntry(host, res.undo)
+    expect(u.ok).toBe(true)
+    expect(host.raw('c1').stored?.chartType ?? 'candles').not.toBe('bars')
+    expect(host.raw('c1').tf).toBe('60')
+  })
+  // AUDIT D1 (11-07): a chart still inheriting the seed (null or partial stored blob): the Agent's first write fills in the
+  // defaults; only what IT changed counts as touched (against the EFFECTIVE settings), so a member's edit to another key keeps
+  // the Undo possible, and the edit survives it
+  it.each([
+    ['a partial blob', { chartType: 'candles', grid: { visible: true } }],
+    ['a null blob', null],
+  ])('P1 (%s): the Agent sets bars, the member hides the grid → Undo works, the grid stays hidden', async (_n, stored) => {
+    const host = makeHost([{ ref: 'c1', stored }])
+    const res = await commitPlan(host, plan(host, [op('chart.setType', { type: 'bars' })]))
+    expect(host.raw('c1').stored.chartType).toBe('bars')
+    const now = host.raw('c1').stored
+    host.manual('c1', { stored: { ...now, grid: { ...(now.grid || {}), visible: false } } })
+    const u = await undoEntry(host, res.undo)
+    expect(u.ok, u.reason).toBe(true)
+    expect(mergeChartSettings(host.raw('c1').stored).chartType).toBe('candles')
+    expect(host.raw('c1').stored.grid.visible).toBe(false)
+  })
+  it('P1 header variant: the Agent adds an Info row field on a partial blob, the member hides the grid → Undo works, the grid stays hidden', async () => {
+    const host = makeHost([{ ref: 'c1', stored: { header: { titleMode: 'ticker' } } }])
+    const res = await commitPlan(host, plan(host, [op('chart.setSetting', { setting: 'header.fields', value: '+dolvol' })]))
+    expect(host.raw('c1').stored.header.fields).toContain('dolvol')
+    const now = host.raw('c1').stored
+    host.manual('c1', { stored: { ...now, grid: { ...(now.grid || {}), visible: false } } })
+    const u = await undoEntry(host, res.undo)
+    expect(u.ok, u.reason).toBe(true)
+    expect(host.raw('c1').stored.header?.fields || []).not.toContain('dolvol')
+    expect(host.raw('c1').stored.grid.visible).toBe(false)
+  })
+  it('P1 the SAME key edited by the member after the Agent (a partial blob) still refuses, nothing overwritten', async () => {
+    const host = makeHost([{ ref: 'c1', stored: { chartType: 'candles' } }])
+    const res = await commitPlan(host, plan(host, [op('chart.setType', { type: 'bars' })]))
+    host.manual('c1', { stored: { ...host.raw('c1').stored, chartType: 'line' } })
+    const u = await undoEntry(host, res.undo)
+    expect(u.ok).toBe(false)
+    expect(host.raw('c1').stored.chartType).toBe('line')
+  })
+  it('refuses to undo over a manual edit to the SAME field made after the Agent wrote', async () => {
+    const host = makeHost([{ ref: 'c1' }])
+    const res = await commitPlan(host, plan(host, [op('chart.setTimeframe', { timeframe: 'W' })]))
+    host.manual('c1', { tf: '60' })
+    const u = await undoEntry(host, res.undo)
     expect(u.ok).toBe(false)
     expect(u.reason).toMatch(/changed since/)
-    expect(host.raw('c1').stored.chartType).toBe('bars')
     expect(host.raw('c1').tf).toBe('60')
   })
   it('refuses to commit a plan composed against state that moved underneath it', async () => {

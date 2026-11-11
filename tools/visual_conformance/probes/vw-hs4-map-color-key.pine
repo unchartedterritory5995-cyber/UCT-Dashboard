@@ -1,0 +1,23 @@
+// HONESTY-SWEEP (2026-11-07) - probe Q-HS4 for the capture lane. Queue: docs/pine/capture-queue-2026-11-07-honesty-sweep.md
+// Chart: AMEX:SPY 1D, AFTER THE CLOSE. Read the plot values from the chart model.
+// The question: when are two colours the SAME map key?
+//
+//   K01  put(color.red, 1) then put(color.new(color.red, 0), 2): size (1 = same key, 2 = two keys)
+//   K02  put(color.red, 1) then put(color.new(color.red, 50), 2): size (does transparency count?)
+//   K03  put(color.rgb(255, 0, 0), 1) then put(color.rgb(255, 0, 0, 0), 2): size
+//   K04  get(color.new(color.red, 0)) after K01's puts: the value read
+//@version=6
+indicator("vw-hs4-map-color-key", overlay = false)
+k1 = map.new<color, float>()
+k1.put(color.red, 1)
+k1.put(color.new(color.red, 0), 2)
+plot(k1.size(), "K01")
+k2 = map.new<color, float>()
+k2.put(color.red, 1)
+k2.put(color.new(color.red, 50), 2)
+plot(k2.size(), "K02")
+k3 = map.new<color, float>()
+k3.put(color.rgb(255, 0, 0), 1)
+k3.put(color.rgb(255, 0, 0, 0), 2)
+plot(k3.size(), "K03")
+plot(k1.get(color.new(color.red, 0)), "K04")

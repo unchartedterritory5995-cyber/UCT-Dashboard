@@ -1,0 +1,188 @@
+{
+  "schema": "uct.pine-language-coverage-registry/v1",
+  "_": "THE HAND-KEPT HALF OF THE LANGUAGE-COVERAGE SCOREBOARD: the rails that compare a lane's numbers to a formula, and the differences the engine itself declares. Everything else the scoreboard knows comes from asking the doors or from the vendor harness's verdicts. A rail is listed here only after its items, its oracle and the lane it runs through were READ in the test file; `tools/pine_coverage/language_coverage.py build` refuses a registry whose test file, anchor, divergence row or item does not exist.",
+  "_rails": "oracle `reference-formula`: the test differences the lane's column against an implementation written in the test from the formula TradingView publishes (an independent oracle, never the engine's own function). scope `every-bar`: the whole series is compared, holes included; `single-bar`: one bar only. ONLY an `every-bar` rail on an item for which TradingView's own reference publishes a formula or a reference implementation lifts the item to EXACT; every other rail is recorded on the item as a `definition rail` and proves nothing about TradingView. Vendor captures are NOT listed here: the harness is the one authority for them.",
+  "rails": [
+    {
+      "id": "phase1-swma",
+      "lane": "host",
+      "test": "app/src/components/chart/engine/ast/pinePhase1Builtins.test.js",
+      "anchor": "ta.swma — REFERENCE",
+      "oracle": "reference-formula",
+      "scope": "every-bar",
+      "items": [["function", "ta.swma"]],
+      "reads": "translatePine then interpret over 1,500 bars with holes; TradingView's pine_swma written as plain JS. The test's `same()` helper asserts na-ness and value on EVERY bar inside its loop; the `toBeGreaterThan(1400)` only guards that enough bars were finite (not a tolerance for mismatches)"
+    },
+    {
+      "id": "phase1-tsi",
+      "lane": "host",
+      "test": "app/src/components/chart/engine/ast/pinePhase1Builtins.test.js",
+      "anchor": "ta.tsi — REFERENCE",
+      "oracle": "reference-formula",
+      "scope": "every-bar",
+      "items": [["function", "ta.tsi"]],
+      "reads": "the standard true-strength-index definition as plain JS; demoted to a definition rail unless the reference publishes a formula"
+    },
+    {
+      "id": "phase1-rci",
+      "lane": "host",
+      "test": "app/src/components/chart/engine/ast/pinePhase1Builtins.test.js",
+      "anchor": "ta.rci — REFERENCE",
+      "oracle": "reference-formula",
+      "scope": "every-bar",
+      "items": [["function", "ta.rci"]],
+      "reads": "Spearman rank correlation of time against price as plain JS; demoted unless the reference publishes a formula"
+    },
+    {
+      "id": "phase1-percentile-nearest-rank",
+      "lane": "host",
+      "test": "app/src/components/chart/engine/ast/pinePhase1Builtins.test.js",
+      "anchor": "ta.percentile_nearest_rank — REFERENCE",
+      "oracle": "reference-formula",
+      "scope": "every-bar",
+      "items": [["function", "ta.percentile_nearest_rank"]],
+      "reads": "the value at rank ceil(p/100 * n) as plain JS; demoted unless the reference publishes a formula"
+    },
+    {
+      "id": "phase1-acos",
+      "lane": "host",
+      "test": "app/src/components/chart/engine/ast/pinePhase1Builtins.test.js",
+      "anchor": "math.acos — REFERENCE",
+      "oracle": "reference-formula",
+      "scope": "every-bar",
+      "items": [["function", "math.acos"]],
+      "reads": "Math.acos, na outside [-1, 1]; demoted unless the reference publishes a formula"
+    },
+    {
+      "id": "phase1-cci-non-hlc3",
+      "lane": "host",
+      "test": "app/src/components/chart/engine/ast/pinePhase1Builtins.test.js",
+      "anchor": "ta.cci of a non-hlc3 source — REFERENCE",
+      "oracle": "reference-formula",
+      "scope": "every-bar",
+      "items": [["function", "ta.cci"]],
+      "reads": "(src - sma) / (0.015 * mean |src - sma|) as plain JS, every bar, holes included"
+    },
+    {
+      "id": "phase1-barssince",
+      "lane": "host",
+      "test": "app/src/components/chart/engine/ast/pinePhase1Builtins.test.js",
+      "anchor": "ta.barssince(cond), unbounded, on a pane — REFERENCE",
+      "oracle": "reference-formula",
+      "scope": "every-bar",
+      "items": [["function", "ta.barssince"]],
+      "reads": "bars since the condition last held, na if never; demoted unless the reference publishes a formula"
+    },
+    {
+      "id": "supertrend-published-source",
+      "lane": "host",
+      "test": "app/src/components/chart/engine/ast/supertrend.test.js",
+      "anchor": "agrees with Pine\\'s published source on every bar it publishes",
+      "oracle": "reference-formula",
+      "scope": "every-bar",
+      "items": [["function", "ta.supertrend"]],
+      "reads": "an independent full-history implementation of Pine's published source over 12 seeds x 1,600 bars; the item still carries its declared difference"
+    },
+    {
+      "id": "callexpansions-published-definitions",
+      "lane": "host",
+      "test": "app/src/components/chart/engine/ast/callExpansions.test.js",
+      "anchor": "the numbers are the published definitions",
+      "oracle": "reference-formula",
+      "scope": "single-bar",
+      "items": [["function", "ta.linreg"], ["function", "ta.correlation"], ["function", "ta.roc"], ["function", "ta.mom"], ["function", "ta.vwma"]],
+      "reads": "one bar each (index 90 to 120), the formula written in the test; a definition rail until it compares every bar"
+    },
+    {
+      "id": "sar-chart-own-sar",
+      "lane": "host",
+      "test": "app/src/components/chart/engine/ast/sar.test.js",
+      "anchor": "THE REFERENCE IS THE CHART'S OWN SAR",
+      "oracle": "reference-formula",
+      "scope": "single-bar",
+      "items": [["function", "ta.sar"]],
+      "reads": "the chart's own Parabolic SAR, not TradingView's published ta.sar: a definition rail only"
+    },
+    {
+      "id": "runtime-respelled-vwma",
+      "lane": "runtime",
+      "test": "app/src/components/chart/engine/runtime/__tests__/respelledBuiltins.test.js",
+      "anchor": "`vwma` / `ta.vwma` is sma(src * volume, n) / sma(volume, n)",
+      "oracle": "reference-formula",
+      "scope": "every-bar",
+      "items": [["function", "ta.vwma"]],
+      "reads": "buildRuntimeIr, lowerIrProgram and execute over a variable the run computes; sma(src*volume)/sma(volume) written in the test, 40 bars"
+    },
+    {
+      "id": "runtime-respelled-linreg",
+      "lane": "runtime",
+      "test": "app/src/components/chart/engine/runtime/__tests__/respelledBuiltins.test.js",
+      "anchor": "is the least-squares line at `n - 1 - offset`",
+      "oracle": "reference-formula",
+      "scope": "every-bar",
+      "items": [["function", "ta.linreg"]],
+      "reads": "the least-squares line written in the test, offsets 0 and 2, every bar of 40"
+    },
+    {
+      "id": "runtime-respelled-alma",
+      "lane": "runtime",
+      "test": "app/src/components/chart/engine/runtime/__tests__/respelledBuiltins.test.js",
+      "anchor": "is `pine_alma`",
+      "oracle": "reference-formula",
+      "scope": "every-bar",
+      "items": [["function", "ta.alma"]],
+      "reads": "TradingView's pine_alma verbatim as plain JS, floor false and true, every bar of 40"
+    }
+  ],
+  "knownDifferences": [
+    {
+      "id": "supertrend-bounded-recurrence",
+      "lanes": ["host"],
+      "items": [["function", "ta.supertrend"]],
+      "source": {"file": "app/src/components/chart/engine/ast/callExpansions.js", "anchor": "export const SUPERTREND_NOTE"},
+      "note": "the bands are bounded recurrences re-seeded a fixed number of bars back; a band whose last reset is older can differ from TradingView's, which carries them from the first bar"
+    },
+    {
+      "id": "sar-not-tradingviews-ta-sar",
+      "lanes": ["host"],
+      "items": [["function", "ta.sar"]],
+      "source": {"file": "app/src/components/chart/engine/ast/callExpansions.js", "anchor": "export const SAR_NOTE"},
+      "note": "the chart's own Parabolic SAR rules started a fixed number of bars back; the engine's own note says it is not TradingView's ta.sar, whose first bars and reversal details differ"
+    },
+    {
+      "id": "barstate-viewer-dependent",
+      "lanes": ["host"],
+      "items": [["variable", "barstate.isrealtime"], ["variable", "barstate.isconfirmed"], ["variable", "barstate.ishistory"], ["variable", "barstate.islastconfirmedhistory"]],
+      "source": {"divergence": "barstate-viewer-dependent-on-vendor"},
+      "note": "TradingView's flags on a closed bar depend on when the viewer arrived; the engine defines them from its own clock and fetch (accepted divergence)"
+    },
+    {
+      "id": "barstate-three-axes",
+      "lanes": ["host"],
+      "items": [["variable", "barstate.isrealtime"], ["variable", "barstate.isconfirmed"], ["variable", "barstate.ishistory"], ["variable", "barstate.islastconfirmedhistory"]],
+      "source": {"divergence": "barstate-three-axes-not-a-tristate"},
+      "note": "ishistory is an alias of isconfirmed here and three independent axes there (accepted divergence)"
+    },
+    {
+      "id": "request-security-base-period-identity",
+      "lanes": ["host"],
+      "items": [["function", "request.security"]],
+      "source": {"divergence": "request-security-base-period-identity-vs-lookahead-off-step-back"},
+      "note": "a request for the chart's own base period folds to the identity; TradingView's lookahead_off reads the last CLOSED bar (accepted divergence)"
+    },
+    {
+      "id": "volume-provenance",
+      "lanes": ["host", "runtime"],
+      "items": [["variable", "volume"]],
+      "source": {"divergence": "volume-provenance-two-sources-disagree-and-one-of-them-rounds"},
+      "note": "two stores answer how many shares traded with different numbers, by symbol and era (open divergence)"
+    },
+    {
+      "id": "mod-sign-of-the-dividend",
+      "lanes": ["host", "runtime"],
+      "items": [["operator", "%"]],
+      "source": {"divergence": "mod-takes-the-sign-of-the-dividend"},
+      "note": "truncated division gives the remainder the sign of the dividend; TradingView's own page only warns that % on negatives may differ (suspected, unmeasured)"
+    }
+  ]
+}

@@ -630,13 +630,29 @@
    The TickerPopup's chart (`data-ticker-popup-chart`) is the same case: its header is the same
    unset-`--widget-canvas` app surface, and axe (WebKit, light theme, a DOWN ticker) flagged
    #ff3b47 on #ffffff there (3.6:1). Rail: `components/TickerPopup.chartHeaderInk.test.js`.
-   Rail: `components/mobile/TickerHubSheet.dayGainInk.test.jsx`. */
+   Rail: `components/mobile/TickerHubSheet.dayGainInk.test.jsx`.
+   B2 (2026-11-07): a /charts widget's header on the LIGHT app theme is the same case, since
+   its rows now sit on the page's `--bg-elevated` (the lift block further down), so its
+   selectors join every list here: one set of header inks for every app-surface header.
+   Rail: `pages/charts/lightChrome.b2.test.js`. */
 :global([data-ticker-hub-chart]) .chartHeaderTop [data-day-gain='up'],
-:global([data-ticker-popup-chart]) .chartHeaderTop [data-day-gain='up'] { color: var(--success-ink) !important; }
+:global([data-ticker-popup-chart]) .chartHeaderTop [data-day-gain='up'],
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .chartHeaderTop [data-day-gain='up'] { color: var(--success-ink) !important; }
 :global([data-ticker-hub-chart]) .chartHeaderTop [data-day-gain='down'],
-:global([data-ticker-popup-chart]) .chartHeaderTop [data-day-gain='down'] { color: var(--danger-ink) !important; }
+:global([data-ticker-popup-chart]) .chartHeaderTop [data-day-gain='down'],
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .chartHeaderTop [data-day-gain='down'] { color: var(--danger-ink) !important; }
 :global([data-ticker-hub-chart]) .chartDayGainExt,
-:global([data-ticker-popup-chart]) .chartDayGainExt { background: var(--bg-surface); }
+:global([data-ticker-popup-chart]) .chartDayGainExt,
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .chartHeaderTop .chartDayGainExt { background: var(--bg-surface); }
+/* The delisted badge's gold is an inline literal (#c9a84c, 2.3:1 on white): on an app-surface
+   header it takes the surface's own gold, with its border and wash derived from it. */
+:global([data-ticker-hub-chart]) .chartHeaderTop [data-delisted],
+:global([data-ticker-popup-chart]) .chartHeaderTop [data-delisted],
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .chartHeaderTop [data-delisted] {
+  color: var(--ut-gold) !important;
+  border-color: color-mix(in srgb, var(--ut-gold) 45%, transparent) !important;
+  background: color-mix(in srgb, var(--ut-gold) 10%, transparent) !important;
+}
 
 /* The same app surface, the identity label and the info strip. Their colours are CHART-canvas
    colours: the title is `header.colors.title`, which applying a /charts theme writes from that
@@ -651,19 +667,26 @@
    inline style. Desktop /charts keeps its chart colours: every rule is scoped.
    Rail: `components/TickerPopup.chartHeaderInk.test.js`. */
 :global([data-ticker-hub-chart]) .chartHeaderTop [data-testid='sym-label'],
-:global([data-ticker-popup-chart]) .chartHeaderTop [data-testid='sym-label'] { color: var(--text-bright) !important; }
+:global([data-ticker-popup-chart]) .chartHeaderTop [data-testid='sym-label'],
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .chartHeaderTop [data-testid='sym-label'] { color: var(--text-bright) !important; }
 :global([data-ticker-hub-chart]) .chartMetaVal,
-:global([data-ticker-popup-chart]) .chartMetaVal { color: var(--text-bright) !important; }
+:global([data-ticker-popup-chart]) .chartMetaVal,
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .tfBar .chartMetaVal { color: var(--text-bright) !important; }
 :global([data-ticker-hub-chart]) .chartMetaVal[data-meta-key='mcap'],
 :global([data-ticker-hub-chart]) .chartMetaVal[data-meta-key='earn'],
 :global([data-ticker-popup-chart]) .chartMetaVal[data-meta-key='mcap'],
-:global([data-ticker-popup-chart]) .chartMetaVal[data-meta-key='earn'] { color: var(--info) !important; }
+:global([data-ticker-popup-chart]) .chartMetaVal[data-meta-key='earn'],
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .tfBar .chartMetaVal[data-meta-key='mcap'],
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .tfBar .chartMetaVal[data-meta-key='earn'] { color: var(--info) !important; }
 :global([data-ticker-hub-chart]) .chartMetaVal[data-meta-key='rating'],
-:global([data-ticker-popup-chart]) .chartMetaVal[data-meta-key='rating'] { color: var(--accent) !important; }
+:global([data-ticker-popup-chart]) .chartMetaVal[data-meta-key='rating'],
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .tfBar .chartMetaVal[data-meta-key='rating'] { color: var(--accent) !important; }
 :global([data-ticker-hub-chart]) .chartMetaVal[data-sign='pos'],
-:global([data-ticker-popup-chart]) .chartMetaVal[data-sign='pos'] { color: var(--success-ink) !important; }
+:global([data-ticker-popup-chart]) .chartMetaVal[data-sign='pos'],
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .tfBar .chartMetaVal[data-sign='pos'] { color: var(--success-ink) !important; }
 :global([data-ticker-hub-chart]) .chartMetaVal[data-sign='neg'],
-:global([data-ticker-popup-chart]) .chartMetaVal[data-sign='neg'] { color: var(--danger-ink) !important; }
+:global([data-ticker-popup-chart]) .chartMetaVal[data-sign='neg'],
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .tfBar .chartMetaVal[data-sign='neg'] { color: var(--danger-ink) !important; }
 
 /* The hub's 1D/1W/1M chips measured 32-35 x 40 (390) and x 18 (834) in WebKit: on the touch
    tier, and on any coarse pointer, they clear `--tap-min`. Three chips in a row, so the extra
@@ -915,8 +938,18 @@
   align-self: center;
   background: var(--clk-tone, #6b7280);
   box-shadow: 0 0 5px 0 var(--clk-glow, transparent);
-  animation: clockPulse 2.4s ease-in-out infinite;
 }
+/* ⛔ NO ENDLESS ANIMATION HERE (2026-11-10, measured). This dot sits in EVERY chart widget,
+   popped out or not. The old `animation: clockPulse 2.4s infinite` made each window produce a
+   compositor frame at the display rate forever: 12 popped widgets meant ~550 presents a second,
+   which saturated the GPU process's main thread (90% busy, 78% in Present) and held every window
+   to 9-16 fps. Killing only this animation took 12 widgets from p95 34 ms to 17 ms and p99 84 ms
+   to 18 ms, and cut CPU 43% (desktop `charts-load-proofs.mjs --kill-anim=clockDot`).
+   The live cue now rides the clock's own once-a-second render: `data-beat` flips with the
+   seconds, a stepped change with no transition, so it costs no frame the time text was not
+   already paying for. */
+.clockDot[data-beat="1"] { opacity: 0.5; }
+.clkClosed .clockDot[data-beat="1"] { opacity: 1; }
 .clockTime {
   font-size: 13px;
   font-weight: 700;
@@ -952,12 +985,8 @@
 .clkExt    { --clk-tone: var(--warn); --clk-glow: color-mix(in srgb, var(--warn) 50%, transparent); }
 .clkClosed { --clk-tone: var(--text-muted); --clk-glow: transparent; }
 
-@keyframes clockPulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.45; }
-}
 @media (prefers-reduced-motion: reduce) {
-  .clockDot { animation: none; }
+  .clockDot[data-beat="1"] { opacity: 1; }
 }
 
 /* Shift+F flag confirmation toast, centered near the top of the chart. */
@@ -1061,6 +1090,161 @@
   --shadow-lg: 0 4px 16px rgba(0,0,0,0.5);
   --shadow-modal: 0 20px 50px rgba(0,0,0,0.5);
   --shadow-popover: 0 8px 24px rgba(0,0,0,0.5);
+}
+
+/* ── App theme = Light: a chart widget's CHROME follows the page (B2, 2026-11-07) ──
+   Decision B2: the chart CANVAS keeps its own theme (members pick dark canvases on
+   purpose, and the canvas colours come from the chart settings, never from here), but
+   the chrome around it reads as part of the light page: the widget's drag bar, the
+   chart tab strip, the identity row (symbol badge, day change, session toggle, clock)
+   and the TF bar (timeframes, info fields, gear and the tool buttons). The drawing
+   toolbar is NOT chrome in this sense: it is drawn ON the canvas and takes its ink from
+   the canvas (`--chart-cmd-*`), so dark-page ink there would be dark on a dark chart.
+
+   ⭐ HOW THE PAGE VALUE GETS BACK IN. The block above re-asserts dark literals on
+   `.widget`, so every row inside inherits dark. A nested scope cannot "un-set" a custom
+   property back to the page's value, but a token declared ON <html> can carry it: a
+   custom property that references another is substituted where it is DECLARED and then
+   inherited as a finished value (tokens.css, LEGACY ALIASES). So `--pg-*` below is
+   declared on the light <html> and holds the PAGE's value of each token, whatever light
+   theme is active (catalog light themes write their tokens inline on <html>, and these
+   read them there). The rows then point each token back at its `--pg-` twin. The set is
+   exactly the dark block's own list, so whatever that block darkens, this lifts
+   (rail: pages/charts/lightChrome.b2.test.js). */
+:global([data-theme='light']) {
+  --pg-bg: var(--bg);
+  --pg-bg-surface: var(--bg-surface);
+  --pg-bg-elevated: var(--bg-elevated);
+  --pg-bg-hover: var(--bg-hover);
+  --pg-border: var(--border);
+  --pg-border-accent: var(--border-accent);
+  --pg-text: var(--text);
+  --pg-text-muted: var(--text-muted);
+  --pg-text-bright: var(--text-bright);
+  --pg-text-heading: var(--text-heading);
+  --pg-ut-gold: var(--ut-gold);
+  --pg-ut-gold-dim: var(--ut-gold-dim);
+  --pg-ut-gold-glow: var(--ut-gold-glow);
+  --pg-ut-cream: var(--ut-cream);
+  --pg-ut-green: var(--ut-green);
+  --pg-ut-green-bright: var(--ut-green-bright);
+  --pg-ut-green-dim: var(--ut-green-dim);
+  --pg-ut-green-glow: var(--ut-green-glow);
+  --pg-ut-red: var(--ut-red);
+  --pg-ut-red-bright: var(--ut-red-bright);
+  --pg-ut-red-dim: var(--ut-red-dim);
+  --pg-gain: var(--gain);
+  --pg-gain-bg: var(--gain-bg);
+  --pg-gain-border: var(--gain-border);
+  --pg-loss: var(--loss);
+  --pg-loss-bg: var(--loss-bg);
+  --pg-loss-border: var(--loss-border);
+  --pg-warn: var(--warn);
+  --pg-warn-bg: var(--warn-bg);
+  --pg-warn-border: var(--warn-border);
+  --pg-info: var(--info);
+  --pg-info-bg: var(--info-bg);
+  --pg-info-border: var(--info-border);
+  --pg-tick-up-bg: var(--tick-up-bg, var(--gain-bg));
+  --pg-tick-down-bg: var(--tick-down-bg, var(--loss-bg));
+  --pg-shadow-sm: var(--shadow-sm);
+  --pg-shadow-md: var(--shadow-md);
+  --pg-shadow-lg: var(--shadow-lg);
+  --pg-shadow-modal: var(--shadow-modal);
+  --pg-shadow-popover: var(--shadow-popover);
+}
+/* The three rows are ChartPane's direct children. (The drag bar has its own rule below.) */
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .chartTabStrip,
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .chartHeaderTop,
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .tfBar {
+  --bg: var(--pg-bg);
+  --bg-surface: var(--pg-bg-surface);
+  --bg-elevated: var(--pg-bg-elevated);
+  --bg-hover: var(--pg-bg-hover);
+  --border: var(--pg-border);
+  --border-accent: var(--pg-border-accent);
+  --text: var(--pg-text);
+  --text-muted: var(--pg-text-muted);
+  --text-bright: var(--pg-text-bright);
+  --text-heading: var(--pg-text-heading);
+  --ut-gold: var(--pg-ut-gold);
+  --ut-gold-dim: var(--pg-ut-gold-dim);
+  --ut-gold-glow: var(--pg-ut-gold-glow);
+  --ut-cream: var(--pg-ut-cream);
+  --ut-green: var(--pg-ut-green);
+  --ut-green-bright: var(--pg-ut-green-bright);
+  --ut-green-dim: var(--pg-ut-green-dim);
+  --ut-green-glow: var(--pg-ut-green-glow);
+  --ut-red: var(--pg-ut-red);
+  --ut-red-bright: var(--pg-ut-red-bright);
+  --ut-red-dim: var(--pg-ut-red-dim);
+  --gain: var(--pg-gain);
+  --gain-bg: var(--pg-gain-bg);
+  --gain-border: var(--pg-gain-border);
+  --loss: var(--pg-loss);
+  --loss-bg: var(--pg-loss-bg);
+  --loss-border: var(--pg-loss-border);
+  --warn: var(--pg-warn);
+  --warn-bg: var(--pg-warn-bg);
+  --warn-border: var(--pg-warn-border);
+  --info: var(--pg-info);
+  --info-bg: var(--pg-info-bg);
+  --info-border: var(--pg-info-border);
+  --tick-up-bg: var(--pg-tick-up-bg);
+  --tick-down-bg: var(--pg-tick-down-bg);
+  --shadow-sm: var(--pg-shadow-sm);
+  --shadow-md: var(--pg-shadow-md);
+  --shadow-lg: var(--pg-shadow-lg);
+  --shadow-modal: var(--pg-shadow-modal);
+  --shadow-popover: var(--pg-shadow-popover);
+  /* --accent is a :root alias of --ut-gold, so it must be re-pointed here too or the
+     active timeframe would keep whatever the alias resolved to at the root. */
+  --accent: var(--pg-ut-gold);
+  /* The canvas-derived chrome family WidgetHost publishes inline on .widget (session
+     toggle, clock, leverage pill, the holdings panel's snapshot): on these rows it is
+     the page's, so nothing on them is tuned to a canvas they no longer sit on. */
+  --widget-canvas: var(--pg-bg-elevated);
+  --widget-divider: var(--pg-border);
+  --widget-divider-strong: var(--pg-border-accent);
+  --widget-text: var(--pg-text-muted);
+  --widget-text-strong: var(--pg-text-bright);
+  --widget-accent: var(--pg-ut-gold);
+  --widget-accent-bg: var(--pg-ut-gold-dim);
+  --widget-row-hover: var(--pg-bg-hover);
+  --widget-popup-bg: var(--pg-bg-elevated);
+  --widget-popup-border: var(--pg-border-accent);
+  background: var(--pg-bg-elevated);
+  border-color: var(--pg-border);
+}
+/* The chart widget's drag bar (grip, link dot, widget tabs, window buttons), named by
+   `:has()` so it follows the ACTIVE tab: a slot showing its watchlist tab keeps the
+   workspace look. Its own rule, because a browser without `:has()` (the floor is Chrome
+   and Firefox 100) drops a whole selector list over one selector it cannot parse, and
+   the three rows above must not go with it. It carries the tokens its children read. */
+:global([data-theme='light']) [data-charts-theme='default'] .widget:has(.chartWidget) > .widgetHeader {
+  --bg-elevated: var(--pg-bg-elevated);
+  --bg-hover: var(--pg-bg-hover);
+  --border: var(--pg-border);
+  --border-accent: var(--pg-border-accent);
+  --text: var(--pg-text);
+  --text-muted: var(--pg-text-muted);
+  --text-bright: var(--pg-text-bright);
+  --ut-gold: var(--pg-ut-gold);
+  --accent: var(--pg-ut-gold);
+  --widget-canvas: var(--pg-bg-elevated) !important;
+  --widget-divider: var(--pg-border) !important;
+  --widget-divider-strong: var(--pg-border-accent) !important;
+  --widget-text: var(--pg-text-muted) !important;
+  --widget-text-strong: var(--pg-text-bright) !important;
+  --widget-accent: var(--pg-ut-gold) !important;
+  --widget-accent-bg: var(--pg-ut-gold-dim) !important;
+  --widget-row-hover: var(--pg-bg-hover) !important;
+  /* ⭐ THE CANVAS VARS ARE `!important` (review, 2026-11-07): a bottom-docked header
+     over a GRADIENT canvas carries them INLINE (WidgetHost headerStyle), and only a
+     stylesheet `!important` out-ranks an inline value. Without it the bar turned white
+     here while its tab labels kept the dark canvas's light grey: light on white. */
+  background: var(--pg-bg-elevated);
+  border-color: var(--pg-border);
 }
 
 /* News / Profile widgets OPT OUT of the dark re-assertion above and follow the
@@ -1664,6 +1848,21 @@
   font-family: 'Instrument Sans', sans-serif;
 }
 .chartCtxTplName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* B9 · the pane indicator's rows. The Preset row names the current preset as a
+   muted trailing label before its caret (the chip menu's `Preset  Classic ›`). */
+.chartCtxTrail {
+  margin-left: auto; padding-left: 14px; max-width: 140px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12px; opacity: 0.6;
+}
+.chartCtxTrail + .chartCtxCaret { margin-left: 0; padding-left: 6px; }
+/* The preset tick: a fixed slot so labels align whether or not a row is ticked.
+   Neutral ink, never green or gold: a tick says "current", not "money up". */
+.chartCtxCheck { display: inline-flex; width: 14px; flex-shrink: 0; justify-content: center; }
+/* A refused row (and the Custom state row) reads as present but not pressable. */
+.chartCtxItem:disabled { cursor: default; opacity: 0.5; }
+.chartCtxItem:disabled:hover { background: transparent; }
+.chartCtxItem[aria-checked="true"]:disabled { opacity: 0.75; }
 .chartCtxFlyoutEmpty {
   padding: 9px 11px; max-width: 210px; font-size: 12px; line-height: 1.4;
   color: var(--menu-text, var(--text, #e5e7eb)); opacity: 0.6;

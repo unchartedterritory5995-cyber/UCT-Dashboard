@@ -319,7 +319,8 @@ describe('Watchlist → Charts and the last screen → Charts', () => {
 
   it('PROVENANCE is narrow: explicit tickers stay literal, and a near-miss of a named list is not rebound', async () => {
     const { say, syms, newCharts } = await mount()
-    say('Add two daily charts for SPY and QQQ.')              // the instant path (no model call)
+    // (GRID-REUSE: "two charts for …" alone is THE grid — the board's chart reused; NEW charts are asked for in words)
+    say('Add two new daily charts for SPY and QQQ.')          // the instant path (no model call)
     // ⭐ AUTO-APPLY (live test 2026-10-28): asked for → made at once (no card), the tickers as typed — read on the
     // instant path, which keeps the "daily" the member said
     expect(await nth('agent-receipt', 1)).toContain('Created 2 daily charts: SPY and QQQ')

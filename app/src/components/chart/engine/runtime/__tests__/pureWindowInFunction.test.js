@@ -75,12 +75,20 @@ describe('⛔ unchanged where the source or the length is runtime state', () => 
     expect(a).toEqual(ra)
   })
 
-  it('a length only known while the bar runs says so, by name — not "a mutable GLOBAL"', () => {
-    const r = refusalOf('f() =>\n    var int k = 1\n    k := k + 1\n    ta.highest(high, k)\nplot(f())\n')
+  // (W4-T8 r1: pinned in v4 - a v5/v6 `series int` window length is read per bar now, v4 has no series length)
+  it('a length only known while the bar runs says so, by name - not "a mutable GLOBAL"', () => {
+    const v4 = (body) => {
+      // W34-I6c: v4 now reads a `series[integer]` length per bar, so the refusal is pinned at the OBJECT door,
+      // which keeps master's answer in every version
+      const b = buildRuntimeIr(`//@version=4\nstudy("t")\n${body}`, { bars: BARS, inputs: {}, objectDoor: true })
+      expect(b.ok, 'expected a refusal').toBe(false)
+      return b.refusal
+    }
+    const r = v4('f() =>\n    var int k = 1\n    k := k + 1\n    highest(high, k)\nplot(f())\n')
     expect(r.guard).toBe('runtime:history-dynamic-offset')
     expect(r.message).not.toMatch(/mutable GLOBAL/)
     // a length the function reads from the main program, changing every bar
-    const g = refusalOf('var int k = 1\nk := k % 3 + 2\nf() => ta.highest(high, k)\nplot(f())\n')
+    const g = v4('var int k = 1\nk := k % 3 + 2\nf() => highest(high, k)\nplot(f())\n')
     expect(g.guard).toBe('runtime:history-dynamic-offset')
     expect(g.message).toMatch(/only known while the bar is running/)
   })

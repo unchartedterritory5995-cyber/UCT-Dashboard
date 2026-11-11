@@ -63,11 +63,22 @@ const dialog = () => screen.getByRole('dialog')
 const rowKeys = () => [...dialog().querySelectorAll('[data-input-key]')].map((r) => r.dataset.inputKey)
 const openTab = (name) => fireEvent.click(screen.getByRole('tab', { name }))
 
+/** A collapsed group unmounts its rows, so a group that STARTS collapsed
+ *  (`meta.groupsCollapsed`, UCT RS Phase 1) hides fields the sweep must still
+ *  reach — one click away is reachable. Expand every closed header on the tab
+ *  first; a definition with no hint has none to expand and is unaffected. */
+function expandCollapsedGroups() {
+  for (const btn of [...dialog().querySelectorAll('button[aria-expanded="false"][aria-controls]')]) {
+    fireEvent.click(btn)
+  }
+}
+
 /** Every key the generator says belongs on a tab, gathered across all three. */
 function renderedKeysAcrossTabs() {
   const seen = new Set()
   for (const tab of ['Inputs', 'Style', 'Visibility']) {
     openTab(tab)
+    expandCollapsedGroups()
     for (const k of rowKeys()) seen.add(k)
   }
   openTab('Inputs')

@@ -1,6 +1,6 @@
 // Journal styles (spec P1.6): the ONE client gate, latched per tab like every Notebook flag.
-// Server: NOTEBOOK_JOURNAL_STYLES_ENABLED (api/routers/auth.py NOTEBOOK_FLAGS), payload key
-// below. ⛔ It gates CREATING (doors, the manager, /style, save-as-style, the update banner),
+// Server: always true (NOTEBOOK_JOURNAL_STYLES_ENABLED was retired as always on, 2026-11-04;
+// auth.NOTEBOOK_ALWAYS_ON_KEYS), payload key below. ⛔ It gates CREATING (doors, the manager, /style, save-as-style, the update banner),
 // never RENDERING a note that already holds a style's blocks (spec P1.7c).
 import { notebookFlag } from './offline/notebookFlags'
 

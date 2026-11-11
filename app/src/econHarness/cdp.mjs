@@ -1,18 +1,75 @@
 // Dev-only: a minimal headless-Chrome CDP session (no dependency) for the economic
 // UI acceptance drivers. ⛔ LOCAL ONLY — `open()` refuses any non-loopback URL.
-import { spawn } from 'node:child_process'
-import { mkdtempSync } from 'node:fs'
+import { spawn, spawnSync } from 'node:child_process'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const CHROME = process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe'
 
-export async function launch({ width = 1400, height = 800 } = {}) {
+// Each temp profile is about 0.13 GB. Every profile THIS process made goes on close, and on exit, signal or crash; a profile
+// it did not make is never touched. A multi-page run takes one `runProfile()` and passes it to each launch.
+const ours = new Set()
+const live = new Set()
+// Windows: killing the main process leaves its renderers and crash handler holding the profile, so the whole tree goes, and rm retries the locks
+const killTree = (c) => {
+  try { if (process.platform === 'win32' && c.pid) spawnSync('taskkill', ['/PID', String(c.pid), '/T', '/F'], { stdio: 'ignore', timeout: 5000 }); else c.kill() } catch { /* */ }
+}
+const removeProfile = (dir) => { try { rmSync(dir, { recursive: true, force: true, maxRetries: 25, retryDelay: 200 }); ours.delete(dir) } catch { /* still locked: the exit sweep retries */ } }
+const sweep = () => {
+  for (const c of live) killTree(c)
+  for (const d of [...ours]) removeProfile(d)
+}
+let armed = false
+const arm = () => {
+  if (armed) return
+  armed = true
+  process.on('exit', sweep)
+  for (const sig of ['SIGINT', 'SIGTERM', 'SIGBREAK', 'SIGHUP']) process.on(sig, () => { sweep(); process.exit(130) })
+  for (const ev of ['uncaughtException', 'unhandledRejection']) process.on(ev, (e) => { console.error(e); sweep(); process.exit(1) })
+}
+/** A rig that spawns Chrome itself: its profile and its process join the same sweep. */
+export function tempProfile(prefix) {
+  arm()
+  const d = mkdtempSync(join(tmpdir(), prefix))
+  ours.add(d)
+  return d
+}
+export function trackChrome(chrome) {
+  live.add(chrome)
+  chrome.once('exit', () => live.delete(chrome))
+  // the rig's own chrome.kill() must take the whole tree too, or the renderers keep the profile locked
+  if (process.platform === 'win32') chrome.kill = () => { spawnSync('taskkill', ['/PID', String(chrome.pid), '/T', '/F'], { stdio: 'ignore', timeout: 5000 }); return true }
+  return chrome
+}
+
+/** One profile for a whole run. Removed when the process ends. The caller clears site data between pages (the rig's `open`). */
+export function runProfile() {
+  arm()
+  const d = mkdtempSync(join(tmpdir(), 'uct-cdp-run-'))
+  ours.add(d)
+  return d
+}
+
+export async function launch({ width = 1400, height = 800, profile: shared = null } = {}) {
+  arm()
   const port = 9333 + Math.floor(Math.random() * 500)
-  const profile = mkdtempSync(join(tmpdir(), 'econ-ui-cdp-'))
+  const profile = shared || mkdtempSync(join(tmpdir(), 'econ-ui-cdp-'))
+  if (!shared) ours.add(profile)
   const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
     `--window-size=${width},${height}`, '--no-first-run', '--no-default-browser-check', 'about:blank'], { stdio: 'ignore' })
+  live.add(chrome)
+  const close = () => new Promise((res) => {
+    let finished = false
+    const done = () => { if (finished) return; finished = true; live.delete(chrome); if (!shared) removeProfile(profile); res() }
+    try { ws?.close() } catch { /* */ }
+    if (chrome.exitCode !== null || chrome.signalCode) { done(); return }
+    chrome.once('exit', () => setTimeout(done, 150))
+    killTree(chrome)
+    setTimeout(done, 5000).unref?.()
+  })
+  let ws = null
   let wsUrl = null
   for (let i = 0; i < 60 && !wsUrl; i++) {
     try {
@@ -22,8 +79,8 @@ export async function launch({ width = 1400, height = 800 } = {}) {
     } catch { /* not up yet */ }
     if (!wsUrl) await sleep(200)
   }
-  if (!wsUrl) { chrome.kill(); throw new Error('chrome did not come up') }
-  const ws = new WebSocket(wsUrl)
+  if (!wsUrl) { await close(); throw new Error('chrome did not come up') }
+  ws = new WebSocket(wsUrl)
   await new Promise((r) => ws.addEventListener('open', r, { once: true }))
   let id = 0
   const pending = new Map()
@@ -69,6 +126,5 @@ export async function launch({ width = 1400, height = 800 } = {}) {
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key: k, windowsVirtualKeyCode: codes[k] || 0 })
     await send('Input.dispatchKeyEvent', { type: 'keyUp', key: k, windowsVirtualKeyCode: codes[k] || 0 })
   }
-  const close = () => { try { ws.close() } catch { /* */ } chrome.kill() }
   return { send, evaluate, open, waitFor, shot, click, hover, type, key, close, consoleErrors, network }
 }

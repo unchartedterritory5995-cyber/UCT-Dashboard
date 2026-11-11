@@ -64,7 +64,8 @@ describe('S2 — strings in the MEMORY estimate', () => {
     const err = stopOf(() => computeRuntimeColumns(doc, BARS.map((b) => ({ ...b })), { tf: 'D' }))
     expect(err).not.toBeNull()
     expect(err.guard).toBe(RUNTIME_LIMIT_GUARD)
-    expect(err.message).toMatch(/MEMORY/)
+    expect(err.message).toMatch(/the memory a script may use/)
+    expect(err.message).not.toMatch(/MEMORY/)
   })
 
   it('the estimate grows with a held string: at least 2 B per character of the largest one', () => {

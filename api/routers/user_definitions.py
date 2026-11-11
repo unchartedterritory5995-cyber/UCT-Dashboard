@@ -32,11 +32,11 @@ from __future__ import annotations
 import os
 import threading
 import time
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Literal, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user, require_admin
 from api.services import indicator_telemetry as telemetry
@@ -85,7 +85,22 @@ class DefinitionIn(BaseModel):
     # never logged — `svc.MAX_PINE_SOURCE_BYTES`). `None` (every formula save and
     # every pre-existing caller) stores none, and is NOT carried from the
     # predecessor: a hand edit must never be re-translated away.
-    pine_source: Optional[str] = None
+    # ⛔ L6 — bounded at the door too: `max_length` at the store's own cap (characters
+    # here, bytes at the store, so the store's cap is still the binding one).
+    pine_source: Optional[str] = Field(None, max_length=svc.MAX_PINE_SOURCE_BYTES)
+    # ⭐ The browser's load-time engine-upgrade write-back says so (`svc.save`
+    # admits it only when it IS one — `_check_engine_upgrade`); it changes how the
+    # member is told about the migrated alerts, nothing else.
+    save_reason: Optional[Literal["engine-upgrade"]] = None
+
+
+class EngineStatusIn(BaseModel):
+    """⭐ What a newer script engine learned about one stored version
+    (`svc.record_engine_status`). Bounded on every field."""
+    version: int = Field(..., ge=1)
+    engine: int = Field(..., ge=1)
+    status: Literal["refused", "write-failed"]
+    reason: str = Field(..., min_length=1, max_length=2000)
 
 
 class ProposeIn(BaseModel):
@@ -181,7 +196,8 @@ def _save_or_400(user_id, def_id: str, definition: dict,
                  role: Optional[str] = None,
                  repaint_acknowledged=None,
                  expected_version: Optional[int] = None,
-                 pine_source: Optional[str] = None):
+                 pine_source: Optional[str] = None,
+                 reason: Optional[str] = None):
     """Every store refusal is a 400 that carries the store's own sentence.
 
     ⛔ THE MESSAGE IS NOT REWRITTEN HERE. The caps live in one place and their
@@ -208,7 +224,8 @@ def _save_or_400(user_id, def_id: str, definition: dict,
                        repaint_acknowledged=repaint_acknowledged,
                        source_dialect=source_dialect,
                        expected_version=expected_version,
-                       pine_source=pine_source)
+                       pine_source=pine_source,
+                       reason=reason)
     except svc.SaveConflict as exc:
         # ⭐ PHASE 4 — a stale write: 409, the store's own sentence, nothing saved.
         return JSONResponse(status_code=409,
@@ -226,7 +243,23 @@ def _save_or_400(user_id, def_id: str, definition: dict,
         user_id, "import_accepted", import_id=import_id, dialect=source_dialect,
         def_id=def_id, def_hash=row.get("ast_hash"),
     )
+    # ⭐ 2026-11-02 -- LINE IDENTITY: the identities this version's lines were given,
+    # so the saving tab knows which of its lines are new without a refetch.
+    if isinstance(row, dict) and row.get("version") is not None:
+        row = dict(row, plot_identities=svc.line_identities(user_id, def_id, row["version"]))
     return row
+
+
+def _served_lines(user_id: Any, row: Any) -> Any:
+    """⭐ 2026-11-02 -- LINE IDENTITY, BESIDE THE SERVED DEFINITION. The row carries
+    `plot_identities` (``{plotKey: identity}``, the save response's shape); the
+    `definition` itself is served exactly as stored -- a contract several rails
+    pin (`tests/test_pine_runtime_switch_on.py`: served == stored). A document a
+    browser sends back with a `uid` on a plot has it stripped (`strip_line_fields`)."""
+    if not isinstance(row, dict) or not isinstance(row.get("definition"), dict):
+        return row
+    return dict(row, plot_identities=svc.line_identities(
+        user_id, row.get("def_id"), row.get("version")))
 
 
 def _stamped(row: dict) -> dict:
@@ -277,6 +310,11 @@ def _stamped(row: dict) -> dict:
     """
     row = runtime_definitions.stamp_served(row)
     out = dict(row)
+    # ⭐ W5-T17 — THE SERVER'S OWN ANSWER FOR THE THREE SERVER LANES, runtime rows only: an
+    # `ast` row's lanes are decided per plot at the alert / sweep door and have no row-level
+    # answer to state, so it carries no key rather than a claim it cannot keep.
+    if runtime_definitions.is_runtime(row.get("definition")):
+        out["server_lanes"] = svc.server_lanes_stamp(row)
     # ⭐ GT (RT4 follow-up) — a row saved under an older repaint rule whose
     # stored label is LOOSER than today's measurement carries the notice its
     # owner reads on opening it (`user_definition_relint.member_notice`). The
@@ -287,6 +325,13 @@ def _stamped(row: dict) -> dict:
     # 0/1 column — `assert_scannable` would pass it — so asking second would offer
     # it as a filter and refuse it later at the sweep, which is the forever-chip
     # this whole function exists to stop. Asking first means the member reads WHY.
+    # ⭐ SAVED-SCRIPT AUTO-UPGRADE — a version today's script engine refuses is
+    # withheld from screening by name, as from every other server lane.
+    engine_why = svc.engine_withheld_reason(row)
+    if engine_why:
+        out["scannable"] = False
+        out["scan_refusal"] = {"gate": "withheld", "detail": engine_why}
+        return out
     why = svc.consumer_refusal("screener", row.get("requirements"))
     if why:
         out["scannable"] = False
@@ -343,7 +388,15 @@ def list_definitions(user: dict = Depends(require_paid),
     asked = isinstance(engine, int) and not isinstance(engine, bool)
     rows = (svc.list_for_user(user["id"], source_below=engine) if asked
             else svc.list_for_user(user["id"]))
-    return {"definitions": _maybe_compact([_stamped(r) for r in rows], graph)}
+    stamped = [_stamped(r) for r in rows]
+    # ⭐ 2026-11-02 -- LINE IDENTITY, read for every row on ONE connection.
+    ids = svc.line_identities_many(
+        user["id"], [(r.get("def_id"), r.get("version")) for r in stamped
+                     if isinstance(r, dict)])
+    stamped = [dict(r, plot_identities=ids.get((r.get("def_id"), r.get("version")), {}))
+               if isinstance(r, dict) and isinstance(r.get("definition"), dict) else r
+               for r in stamped]
+    return {"definitions": _maybe_compact(stamped, graph)}
 
 
 @router.post("")
@@ -572,6 +625,7 @@ def get_definition(def_id: str,
         raise HTTPException(status_code=404, detail="Not found")
     row = runtime_definitions.stamp_served(row)
     row = dict(row, repaint_notice=relint.member_notice(row))
+    row = _served_lines(user["id"], row)
     return svc.compact_row(row) if graph else row
 
 
@@ -616,7 +670,31 @@ def save_definition(def_id: str, body: DefinitionIn,
                         role=user.get("role"),
                         repaint_acknowledged=body.repaint_acknowledged,
                         expected_version=body.base_version,
-                        pine_source=body.pine_source)
+                        pine_source=body.pine_source,
+                        reason=body.save_reason)
+
+
+@router.post("/{def_id}/engine-status")
+def record_engine_status(def_id: str, body: EngineStatusIn,
+                         user: dict = Depends(require_paid)):
+    """⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — a browser running a newer script engine
+    records what it learned about the LIVE version of the caller's own script
+    document: `refused` (today's translation refuses it — alerts, scans and
+    backtests then withhold it by name) or `write-failed` (its upgrade could not be
+    written back — no browser re-translates it again; the member is offered the
+    Builder). Append-only; the document is never touched. 404 for a definition that
+    is not the caller's or not live, 409 for a version that is no longer live."""
+    try:
+        return svc.record_engine_status(user["id"], def_id, version=body.version,
+                                        engine=body.engine, status=body.status,
+                                        reason=body.reason)
+    except svc.SaveConflict as exc:
+        return JSONResponse(status_code=409,
+                            content={"detail": str(exc), "conflict": exc.as_dict()})
+    except svc.ForkRefused as exc:
+        raise HTTPException(status_code=404, detail="Not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/{def_id}/fork")
@@ -721,7 +799,10 @@ def definition_history(def_id: str, user: dict = Depends(require_paid),
     # version of a document that stores as a graph would otherwise arrive as a
     # separate expanded forest, so a ten-version history of the corpus'
     # heaviest script is ~3.6 MB of response for ~80 KB of stored program.
-    rows = [runtime_definitions.stamp_served(r) for r in rows]
+    by_version = svc.history_line_identities(user["id"], def_id)
+    rows = [dict(r, plot_identities=by_version.get(r.get("version"), {}))
+            if isinstance(r, dict) else r
+            for r in (runtime_definitions.stamp_served(r) for r in rows)]
     return {"def_id": def_id, "versions": _maybe_compact(rows, graph)}
 
 

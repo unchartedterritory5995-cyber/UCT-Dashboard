@@ -10,7 +10,7 @@
 
 import { buildContext, manifestFor, getCapability, getTargetKind, MANIFEST_VERSION, MANIFEST_CONTRACT } from '../capabilities'
 import { GROUPS, groupOfAction, routeManifest, routingNames } from '../routing'
-import { NL1_MAX_NEED } from '../nl1/selection'
+import { NL1_MAX_NEED, nl1GroupOf } from '../nl1/selection'
 import { correctTypos, lexiconFor } from '../nl/lexicon'
 import { createMemory } from '../memory'
 import { buildNl1Request, exactLane } from '../nl1/interpreter'
@@ -78,8 +78,8 @@ function selectionRecord(req, catalogs) {
   if (catalogs && !catalogs.has(id)) {
     catalogs.set(id, {
       catalog: id, manifest: req.full, core: s.core,
-      groupOf: Object.fromEntries(req.full.map(c => [c.name, groupOfAction(c.name)])),
-      groups: GROUPS.filter(g => req.full.some(c => groupOfAction(c.name) === g.id)).map(g => ({ id: g.id, title: g.title })),
+      groupOf: Object.fromEntries(req.full.map(c => [c.name, nl1GroupOf(c.name)])),
+      groups: GROUPS.filter(g => req.full.some(c => nl1GroupOf(c.name) === g.id)).map(g => ({ id: g.id, title: g.title })),
     })
   }
   // the reroute table only for an eval export (a `catalogs` collector): it is ~100 selections per request

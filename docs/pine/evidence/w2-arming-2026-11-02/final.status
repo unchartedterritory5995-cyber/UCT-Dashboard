@@ -1,0 +1,5 @@
+start 20:46:30 tree c78d553af2
+free RAM at start: 4789 MB
+vitest (parity + J2 + lane rails) exit 0 20:47:20
+pytest rails exit 1 20:50:28
+deploy gate + census-detector pytest exit 0 20:56:45

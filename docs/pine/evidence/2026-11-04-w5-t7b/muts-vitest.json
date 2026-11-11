@@ -1,0 +1,14 @@
+[
+ [
+  "entry:warmup-export-dropped",
+  "src/components/chart/engine/runtime/serverEntry.js",
+  "  runtimeWarmupOf,\n} from './runtimeColumns.js'",
+  "} from './runtimeColumns.js'"
+ ],
+ [
+  "entry:codec-export-dropped",
+  "src/components/chart/engine/runtime/serverEntry.js",
+  "export { columnDigest, decodeColumn } from './columnDigest.js'",
+  "export { decodeColumn } from './columnDigest.js'"
+ ]
+]

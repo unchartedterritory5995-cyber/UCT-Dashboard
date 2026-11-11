@@ -42,7 +42,6 @@ OWN_IMAGE = f"/api/j2/notes/attachments/{OWNER}/{NOTE}/inline/widget-embed.png"
 def _fresh_state(monkeypatch):
     monkeypatch.setattr(nw, "_POOL", nw.BoundedPool(nw.WIDGET_POOL_WORKERS, "nb-walkfix-test",
                                                     reserve=nw.WIDGET_POOL_RESERVE))
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")      # the notes source reads kinds
     wrun._reset_state()
     yield
     wrun._reset_state()

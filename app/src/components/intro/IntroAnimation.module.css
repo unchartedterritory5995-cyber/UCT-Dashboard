@@ -19,6 +19,18 @@
 @keyframes overlayFadeOut {
   to { opacity: 0; visibility: hidden; }
 }
+/* S12 (audit 2026-11-05, M9): the load between two weekly films -- the brand mark on the backdrop, fading out over
+   0.6 s. It never blocks a press. */
+.quickFade {
+  pointer-events: none;
+  animation: overlayFadeOut 0.6s ease-out forwards;
+}
+.quickFade .brandStack {
+  position: static;
+  transform: none;
+  text-align: center;
+  margin-top: 30vh;
+}
 
 .skipBtn {
   position: absolute;

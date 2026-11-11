@@ -103,29 +103,12 @@ PHONE = {"width": 390, "height": 844}
 # api/routers/auth.py to be the only one) and could hand the ledger "1" as the gate's default.
 FLAGS = [
     "NOTEBOOK_ASK_INSERT_ON",              # Q9 insert the answer
-    "NOTEBOOK_EARNINGS_PREP_ENABLED",      # Q15
-    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",   # Q2's template sheet as production may show it
-    "NOTEBOOK_PLAN_GRADING_ENABLED",       # Q13 (lane 13A)
     # Finish program, lane CLICKS: the eight flows that had no driver, plus every other
     # wave 11-14 gate, so the counts are taken on the product a member with everything on sees.
-    "NOTEBOOK_PLAYBOOK_ENABLED",           # Q14 (lane 13B)
     "AWARENESS_NOTE_RESURFACE_ENABLED",    # Q16 (lane 13D)
-    "NOTEBOOK_ENTRY_CONTEXT_ENABLED",      # Q17 (lane 13E)
-    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",      # Q18 (lane 13F)
-    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",  # Q19 (lane 13G)
-    "NOTEBOOK_PASSED_SETUPS_ENABLED",
-    "NOTEBOOK_THESIS_CHIPS_ENABLED",
-    "NOTEBOOK_CHART_PLAN_ENABLED",         # Q20, Q21 (lane 13H)
-    "NOTEBOOK_TA_FINGERPRINT_ENABLED",     # Q22 (lane 13I)
-    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
-    "NOTEBOOK_SETUPS_BOARD_ENABLED",       # Q23 (lane 13J)
-    "NOTEBOOK_FIND_SIMILAR_ENABLED",
     "NOTEBOOK_VOICE_NOTES_ENABLED",        # wave 11
     "NOTEBOOK_AI_ACTIONS_ENABLED",
-    "NOTEBOOK_FORMULAS_ENABLED",
-    "NOTEBOOK_TRADE_CANVAS_ENABLED",
     "NOTEBOOK_ONBOARDING_ENABLED",         # wave 14's tours and checklist stand on this gate
-    "NOTEBOOK_GETTING_STARTED_ENABLED",    # wave 14
 ]
 # The environment the sandbox child inherits (kept under its old name: the wave-13 evidence
 # scripts import it).

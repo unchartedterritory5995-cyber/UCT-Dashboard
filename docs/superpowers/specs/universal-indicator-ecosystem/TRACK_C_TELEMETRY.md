@@ -142,6 +142,27 @@ Two execution modes, two different mechanisms, deliberately:
   Reconstructing the "event" for these modes means reading that table, joined to its owner
   — see the worked query below.
 
+## Later events on the same door (not part of the five)
+
+The five above are this track's. Two later features post through the same door and the
+same allowlist; `CLIENT_FIREABLE_EVENTS` and `EVENT_SCHEMAS` in
+`api/services/indicator_telemetry.py` are the authority, this table only says where each
+one fires.
+
+| Event(s) | Fired by | Props (beside the `import_id` correlation id) |
+|---|---|---|
+| `converse_turn` (server only), `studio_action` | the conversational authoring rollout (2026-10-07) | see `_VALUE_RULES` |
+| `rs_on`, `rs_off_within_60s` | `app/src/lib/rsTelemetry.js`, observed per chart (2026-11-07) | `symbol`: a ticker (`_RS_TICKER`) |
+| ~~`rs_preset`~~ | retired 2026-11-09 (RS split U9: the slim UCT RS Line has no presets); refused at the door | — |
+| `rs_benchmark` | observed per chart | `value`: a benchmark code (`registry_defs.RS_LINE_BENCHMARKS`) |
+| `rs_marker_card` | the readout cards | `kind`: a readout key with a card (`RS_CARD_KINDS`) |
+| `rs_learn` | the Learn links | `target`: a lesson key (`RS_LEARN_TARGETS`) |
+
+The five UCT RS events are counts only: every prop value is held to a closed set or the
+ticker pattern, never free text, and the two closed sets are parsed out of
+`nativeRegistry.js` and pinned equal by `tests/test_rs_telemetry_door.py`. They are on by
+default in the client; a build with `VITE_RS_TELEMETRY_ENABLED=0` sends none.
+
 ## De-duplication
 
 `indicator_telemetry.log_event()` is idempotent per `(user_id, event, import_id)` when an

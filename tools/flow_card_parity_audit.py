@@ -103,7 +103,17 @@ def page_summary(rows: list) -> dict:
     top = sorted(by.items(), key=lambda kv: -kv[1])
     return {"prints": len(rows), "bull": round(bull), "bear": round(bear),
             "dir": "BULL" if bull > bear else ("BEAR" if bear > bull else "NEUTRAL"),
-            "contracts": len(by), "top": [(k, round(v)) for k, v in top[:10]]}
+            "contracts": len(by),
+            # `top` is the DISPLAY slice: the ten biggest, for a human reading the run.
+            "top": [(k, round(v)) for k, v in top[:10]],
+            # ⛔ `keys` IS THE SET `compare` MUST MEASURE AGAINST, AND IT IS NOT `top`.
+            # `compare` used to intersect the card's contracts (up to --top_n, 40) with the
+            # keys in `top` (TEN), so `card_contracts_on_page` compared unequal sets and
+            # under-reported overlap by construction. Measured 2026-11-08 on the 11/6 tape:
+            # AMD read 0/40 and NVDA 5/40, which looks like two surfaces that agree on
+            # nothing and was almost entirely the truncation. A statistic whose floor is an
+            # artifact of its own display limit cannot be read as evidence either way.
+            "keys": list(by.keys())}
 
 
 def card_summary(payload: dict) -> dict:
@@ -125,21 +135,36 @@ def card_summary(payload: dict) -> dict:
 def compare(page: dict, card: dict) -> dict:
     """The verdict for one symbol/window. Pure, so --self-check can plant a disagreement.
 
-    Two PROBLEMS (a DISAGREE verdict): the card is empty while the page has directional prints,
-    or the two net directions contradict each other. Everything else is reported as a NOTE:
+    THREE PROBLEMS (a DISAGREE verdict): the card is empty while the page has directional
+    prints, THE PAGE IS EMPTY WHILE THE CARD HAS CONTRACTS, or the two net directions
+    contradict each other. Everything else is reported as a NOTE:
     the page's `all_directional` holds only prints its classifier gave a side, so a card
     contract the page has no row for is a classifier difference (the card sided a print the
     page left side-less), not a defect -- and it is counted, not failed. The first cut of this
     instrument failed every symbol on that count and read as 'nothing agrees' the day after the
     direction flip it was built to catch had actually been fixed."""
-    page_keys = {k for k, _ in page["top"]}
-    card_keys = {k for k, _ in card["top"]}
-    sided = list(card.get("sided") or [])
+    # tuple() so a dict that has been through JSON (lists, not tuples) still keys the same.
+    page_keys = {tuple(k) for k in (page.get("keys") or [k for k, _ in page["top"]])}
+    card_keys = {tuple(k) for k, _ in card["top"]}
+    sided = [tuple(k) for k in (card.get("sided") or [])]
     sided_not_on_page = sorted(str(k) for k in set(sided) - page_keys)
     problems, notes = [], []
     if page["prints"] > 0 and (card["contract_count"] or 0) == 0:
         problems.append("card EMPTY while the page has %d directional prints (BULL $%s / BEAR $%s)"
                         % (page["prints"], format(page["bull"], ","), format(page["bear"], ",")))
+    # ⚰️ THE MIRROR, AND IT WAS MISSING UNTIL 2026-11-08. With only the clause above, an
+    # EMPTY PAGE beside a full card could not fail -- and that is not a hypothetical: a
+    # pod-side probe read `all_directional` from the wrong nesting level, zeroed the page
+    # side for all four symbols, and this comparator scored it AGREE at exit 0 against
+    # cards carrying up to $35.7M (NVDA 11/6). Whether the page genuinely sided nothing
+    # while Discord posted a card, or the caller asked the wrong question, "AGREE" is the
+    # one answer that cannot be right. Both sides empty stays quiet: that is a quiet
+    # symbol, not a disagreement.
+    if (card["contract_count"] or 0) > 0 and page["prints"] == 0:
+        problems.append("page EMPTY (0 directional prints) while the card has %d contracts "
+                        "(BULL $%s / BEAR $%s)"
+                        % (card["contract_count"], format(card["bull"], ","),
+                           format(card["bear"], ",")))
     if page["dir"] != "NEUTRAL" and card["dir"] != "NEUTRAL" and page["dir"] != card["dir"]:
         problems.append("net direction disagrees: page %s vs card %s" % (page["dir"], card["dir"]))
     if sided_not_on_page:
@@ -367,6 +392,35 @@ def self_check() -> int:
                             "contracts": [{"cp": "C", "strike": 999, "exp": "10/9/2026", "premium": 9,
                                            "direction": "Unclear"}]})
     assert compare(page, unsided)["notes"] == [], "an unsided card contract is not even a note"
+
+    # ── the MIRROR of the empty-card case (added 2026-11-08) ──────────────────────────
+    # Planted from the real run that exposed the gap: NVDA 11/6, card BULL $35.7M, page
+    # zeroed by a caller bug. This must FIRE; it used to score AGREE at exit 0.
+    full_card = card_summary({"contract_count": 76,
+                              "net": {"bull": 35_744_037, "bear": 12_006_018, "dir": "BULL"},
+                              "contracts": [{"cp": "C", "strike": 185, "exp": "11/13/2026",
+                                             "premium": 9, "direction": "Bull"}]})
+    assert any("page EMPTY" in p for p in compare(page_summary([]), full_card)["problems"]), (
+        "a full card beside an EMPTY page must FIRE -- the mirror of the empty-card clause")
+    # ...and a genuinely quiet symbol must stay quiet, or every thin name reads as a defect.
+    quiet = card_summary({"contract_count": 0, "contracts": [], "net": {}})
+    assert compare(page_summary([]), quiet)["problems"] == [], (
+        "no flow on EITHER side is a quiet symbol, not a disagreement")
+
+    # ── the overlap statistic measures the FULL page key set, not the top-10 slice ─────
+    # Fifteen page contracts, descending premium: the card's one contract is the SMALLEST,
+    # so it sits outside `top`. Before the fix this read 0/1 and also claimed the page had
+    # left it side-less -- two wrong answers from one truncation.
+    many = page_summary([{"Dt": "9/24", "CP": "C", "K": 500 + i, "E": "10/9",
+                          "P": 100 - i, "D": "BULL"} for i in range(15)])
+    tail = card_summary({"contract_count": 1, "net": {"bull": 1, "bear": 0, "dir": "BULL"},
+                         "contracts": [{"cp": "C", "strike": 514, "exp": "10/9/2026",
+                                        "premium": 1, "direction": "Bull"}]})
+    r = compare(many, tail)
+    assert r["card_contracts_on_page"] == 1, (
+        "a page contract outside the top-10 DISPLAY slice is still on the page")
+    assert r["notes"] == [], "...so it must not be reported as a side-less difference"
+
     assert scope_page_rows([{"Dt": "9/24"}, {"Dt": "9/23"}], {_mdy("9/24")}) == [{"Dt": "9/24"}]
     assert _mdy("10/9/26") == dt.date(2026, 10, 9) and _mdy("10/9/2026") == dt.date(2026, 10, 9)
     same = {"bull": 948_000, "bear": 1_530_486, "dir": "BEAR"}
@@ -376,8 +430,11 @@ def self_check() -> int:
     assert page_mode_verdict(off, same, False)[0] == "AGREE", "an incomplete basis may differ in size"
     flip = {"bull": 9_202_765, "bear": 2_685_598, "dir": "BULL"}         # AMD 9/25, the 150K basis
     assert page_mode_verdict(flip, same, False)[0] == "DISAGREE", "an incomplete basis may not flip direction"
-    print("self-check OK: fires on empty / flipped, notes a sided-vs-side-less contract, quiet on agreement; "
-          "page mode: EXACT on equal, fires on an inexact complete basis and on a flipped incomplete one")
+    print("self-check OK: fires on an empty card AND on an empty page, fires on a flipped "
+          "direction, notes a sided-vs-side-less contract, quiet on agreement and on a "
+          "two-sided-quiet symbol, measures overlap against the FULL page key set; "
+          "page mode: EXACT on equal, fires on an inexact complete basis and on a flipped "
+          "incomplete one")
     return 0
 
 

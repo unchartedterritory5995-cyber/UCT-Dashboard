@@ -414,13 +414,17 @@ class BlockHandleView {
     if (this.menu && !this.handle.contains(e.target) && !this.menu.contains(e.target)) this.closeMenu()
   }
 
-  update(view) {
+  update(view, prevState) {
     this.view = view
     if (!this.editable) { this.hide(); return }
     if (isTouch()) {
       // Touch: the grip stands beside the block the caret is in, visibly.
       // (A press on the grip holds it up through the blur the press causes: I3.)
       if (!view.hasFocus() && !this.menu && !this.pressed) { this.hide(); return }
+      // S12 (audit 2026-11-05): while the member TYPES, the grip steps aside -- it stood beside the line being
+      // written, a 44 px target under a thumb. A change to the document hides it; a tap that only moves the caret
+      // (the document unchanged) brings it back beside that block. An open move menu or a press keeps it up.
+      if (prevState && !view.state.doc.eq(prevState.doc) && !this.menu && !this.pressed) { this.hide(); return }
       const block = topBlockAt(view.state.doc, view.state.selection.from)
       if (this.menu && this.block && block && block.pos === this.block.pos) { this.place(); return }
       this.show(block)

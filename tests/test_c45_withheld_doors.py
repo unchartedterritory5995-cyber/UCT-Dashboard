@@ -133,7 +133,8 @@ def test_the_whole_series_question_per_lane(tree, alert, sweep):
 
 def test_bar_index_is_asked_only_of_a_document_that_means_pines():
     lane = ai.lane_opts_for(definition(INDEX_MOD, meta=PINE))
-    assert lane == {"barIndexAbsolute": True}
+    # 2026-11-09: the same declaration also says its `var` state began on the first bar
+    assert lane == {"barIndexAbsolute": True, "varOriginAbsolute": True}
     assert ai.lane_opts_for(definition(INDEX_MOD)) == {}
     assert ai.lane_opts_for(None) == {} and ai.lane_opts_for({"meta": None}) == {}
     assert ai.whole_series_withheld(INDEX_MOD, [], opts=lane) == ("bar-index:window",)
@@ -215,6 +216,31 @@ def test_assert_scannable_refuses_a_pine_documents_absolute_bar_index_by_name():
     assert exc.value.gate == "withheld"
     assert "bar-index:window" in str(exc.value)
     assert "count of bars since the symbol's first" in str(exc.value)
+
+
+# 2026-11-09 -- a Pine `var` that keeps its first bar's value (`var anchor = close`)
+# is the bar 250 back in every lane's bounded window; TradingView's is the listing's.
+VAR_FIRST_CLOSE = op(">", {"type": "series", "name": "close"},
+                     {"type": "call", "name": "accum", "args": [
+                         {"type": "series", "name": "close"}, {"type": "series", "name": "self"}, num(250)]})
+VAR_SEEDED_FIVE = op(">", {"type": "series", "name": "close"},
+                     {"type": "call", "name": "accum", "args": [
+                         op("+", num(2), num(3)), {"type": "series", "name": "self"}, num(250)]})
+
+
+def test_a_pine_var_that_keeps_its_first_bars_value_is_withheld_whole_in_every_server_lane():
+    lane = ai.lane_opts_for(definition(VAR_FIRST_CLOSE, meta=PINE))
+    assert ai.whole_series_withheld(VAR_FIRST_CLOSE, [], opts=lane) == ("var-origin:window",)
+    # CONTROL: the formula language's own accum is a 250-bar window by its sentence
+    assert ai.whole_series_withheld(VAR_FIRST_CLOSE, [], opts={}) == ()
+    # CONTROL: a seed that is the same number on every bar is Pine's value
+    assert ai.whole_series_withheld(VAR_SEEDED_FIVE, [], opts=lane) == ()
+    with pytest.raises(scan_definition.ScanRefused) as exc:
+        scan_definition.assert_scannable(definition(VAR_FIRST_CLOSE, meta=PINE))
+    assert exc.value.gate == "withheld"
+    assert "var-origin:window" in str(exc.value)
+    assert "holds what it was given on the symbol's first bar" in str(exc.value)
+    assert scan_definition.assert_scannable(definition(VAR_FIRST_CLOSE))["yields"] == "bool"
 
 
 def test_assert_scannable_still_admits_what_the_sweep_can_answer():
@@ -355,3 +381,10 @@ def test_both_gate_vocabularies_declare_the_new_door():
     assert "withheld" in scan_definition.GATES
     assert "withheld" in aus.GATES and "withheld" in aus.REFUSAL_FRAGMENTS
     assert not math.isnan(0.0)
+
+
+def test_the_alert_lane_says_which_kind_of_read_a_var_origin_code_is():
+    from api.services import alert_user_series
+    why = alert_user_series._withheld_reason(("var-origin:window",))
+    assert "holds what it was given on the symbol's first bar" in why
+    assert "bar_index" not in why and "time(" not in why

@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { AUTH, installFetch, latchWave8Flags, Providers } from '../a11y/fixtures'
 import { __resetNotebookFlags } from '../lib/offline/notebookFlags'
 import NotebookTab from './NotebookTab'
+import { pressToolbar } from './__tests__/toolbarDoors'
 
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 30)) })
 
@@ -20,7 +21,7 @@ afterEach(() => { cleanup(); __resetNotebookFlags() })
 async function openNewNoteSheet(auth = AUTH) {
   render(<Providers auth={auth} route="/journal/notebook?view=all"><NotebookTab /></Providers>)
   await settle()
-  fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+  pressToolbar('Templates')
   const sheet = await screen.findByRole('dialog', { name: 'New note' })
   // control: the sheet's own gallery is there, so an absent row is really absent
   // Task 7.4: the sheet's picker is a lazy chunk, so the control waits for it

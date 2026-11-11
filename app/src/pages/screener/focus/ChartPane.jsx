@@ -1,7 +1,7 @@
 import { memo, useMemo } from 'react'
 import WhyStrip from './WhyStrip'
 import { setupLine, pivotLine } from './setupLine'
-import { plainFact, volumeFact } from './plainWords'
+import { plainFact, volumeFact, rsLineFact, rsRatingFact } from './plainWords'
 import { livePriceOf } from './livePrice'
 import { earningsText } from './dates'
 import { useThemeInk } from '../../../lib/theme'
@@ -19,7 +19,10 @@ const pct = v => (Number.isFinite(v) ? `${v > 0 ? '+' : v < 0 ? '−' : ''}${Mat
 // Plain words (owner decision 5): the wording lives in plainWords.js, shared with the sort menu.
 // Earnings is its own span (P8), so it can turn amber when it is near.
 // Volume prefers the live "by now" reading (rvol_live) over the completed-session ratio.
-const facts = row => [volumeFact(row), plainFact('adr_pct', row.adr_pct)].filter(Boolean).join(' · ')
+// Then the row's relative strength, said once each (2a-08b): the ONE RS-line fact (the most
+// specific flag that fired, else the line's phase) and the RS rating with its week's move folded
+// in. Each is null when the row carries no RS columns, so a row without them reads as before.
+const facts = row => [volumeFact(row), plainFact('adr_pct', row.adr_pct), rsLineFact(row), rsRatingFact(row)].filter(Boolean).join(' · ')
 
 // ⭐ THE CHART IS THE /charts CHART WIDGET (2026-10-18), see ScreenerChartWidget.jsx. This pane
 // keeps what is the screener's own: the row's identity, setup, facts, earnings, why-strip and

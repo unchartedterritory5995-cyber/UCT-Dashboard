@@ -1,0 +1,6 @@
+//@version=5
+indicator("hp infinities", overlay=false)
+d = close - close[1]
+q = d == 0 ? 0.0 : 1.0 / d
+plot(q, "inv")
+plot(math.max(q, 0), "pos")

@@ -1,0 +1,9 @@
+//@version=5
+indicator("hp while loop", overlay=false)
+int k = 0
+float x = close
+while x > 1.0 and k < 60
+    x := x / 1.7
+    k += 1
+plot(k, "steps")
+plot(x, "rest")

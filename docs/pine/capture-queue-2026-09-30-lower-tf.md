@@ -29,8 +29,8 @@ refused at the member door as `lower-tf:unwitnessed`:
 | # | capture | settles | scripts it would move |
 |---|---|---|---|
 | Q-L1 | `vw-lower-tf.pine` on AMEX:SPY **1D** (and **1W**) | (i) and (ii); look-ahead on; `240` bucketing | unblocks the whole lane: ema-ribbon rows 6–8, artemis 15/60/240, and every `request.security` below a daily chart in the corpus |
-| Q-L2 | NYSE:RDDT **15**, **60**, **240** bars (extended hours OFF, any trivial study, as much history as loads) | the intraday bars the harness would hand ema-ribbon's rows | `ema-ribbon-trend-filter-strixedge` rows 6–8 + bias/confluence cells, graded value for value |
-| Q-L3 | NYSE:RDDT **5** bars (extended OFF, full history) | the bars for `liquidity-heatmap`'s `"5"` pivots — only after its `resolutionInMinutes` (`timeframe.*` inside a request) and `lookahead_on` walls clear | liquidity-heatmap labels |
+| Q-L2 | `vw-lower-tf-bars.pine` (the trivial bars study) on NYSE:RDDT **15**, **60**, **240** (extended hours OFF, as much history as loads) | the intraday bars the harness would hand ema-ribbon's rows | `ema-ribbon-trend-filter-strixedge` rows 6–8 + bias/confluence cells, graded value for value |
+| Q-L3 | `vw-lower-tf-bars.pine` (the trivial bars study) on NYSE:RDDT **5** (extended OFF, full history) | the bars for `liquidity-heatmap`'s `"5"` pivots — only after its `resolutionInMinutes` (`timeframe.*` inside a request) and `lookahead_on` walls clear | liquidity-heatmap labels |
 
 ## Q-L1 — `vw-lower-tf.pine`
 

@@ -115,13 +115,24 @@ const NUMERIC = new Set(['int', 'float'])
 
 /** Definitions that cannot draw on this fixture, and why. Narrow on purpose. */
 const CANNOT_DRAW_HERE = {
-  // Needs a SECOND symbol's bars (the benchmark) through `ctx`; with none it has
-  // nothing to divide by. Kept out of `listDefinitions()` for its own reasons too.
-  rsLine: 'needs benchmark bars via ctx',
   // Draws from a volume histogram built over the visible range, not a per-bar
   // series — it declares no per-bar plot column to be finite.
   volumeProfile: 'renders a range histogram, not a per-bar column',
 }
+
+/**
+ * ⭐ THE SERVER LANE IS ONE EXEMPTION, BY KIND (RS split F1, 2026-11-10). A
+ * `compute.kind: 'server'` definition owns no client compute: its columns come
+ * from `/api/signature/columns` and `computeFor` has nothing to run, so the sweep
+ * can prove nothing about it either way. `rsLine` was the only one and carried a
+ * literal row here ("needs benchmark bars via ctx"); the split registered three
+ * more (`rsRating`, `rsPhases`, `rsVsEma`), and a per-id list would need an edit
+ * for every one — the property this file exists to avoid. The reason is the
+ * lane, so the lane is the rule, and the control below proves it matched.
+ */
+const SERVER_LANE = 'server lane: columns come from the server, there is no client compute to sweep'
+const cannotDrawHere = (def) => CANNOT_DRAW_HERE[def.id]
+  || (def.compute && def.compute.kind === 'server' ? SERVER_LANE : undefined)
 
 /** Values to try for one numeric input: both bounds, the default, and the two
  *  quarter points — the bounds are where the arithmetic breaks. */
@@ -169,6 +180,14 @@ describe('the sweep has something to sweep — the control', () => {
     const biggest = Math.max(...DEFS.flatMap(d => numericInputs(d).map(i => (Number.isFinite(i.max) ? i.max : 0))))
     expect(BARS.length).toBeGreaterThan(biggest * 2)
   })
+
+  it('the server-lane exemption names the four RS definitions and nothing else', () => {
+    // Without this the lane rule could exempt the whole registry — or nothing —
+    // and the sweep would stay green either way.
+    const skipped = DEFS.filter(d => cannotDrawHere(d) === SERVER_LANE).map(d => d.id).sort()
+    expect(skipped).toEqual(['rsLine', 'rsPhases', 'rsRating', 'rsVsEma'])
+    expect(DEFS.filter(d => !cannotDrawHere(d)).length).toBeGreaterThan(10)
+  })
 })
 
 describe('every declared plot draws something, at every value the form accepts', () => {
@@ -176,7 +195,7 @@ describe('every declared plot draws something, at every value the form accepts',
     const keys = plotKeys(def)
     if (!keys.length) continue
 
-    const why = CANNOT_DRAW_HERE[def.id]
+    const why = cannotDrawHere(def)
     const inputs = numericInputs(def)
 
     // One case per (input, value) with the others at their declared defaults.
@@ -240,7 +259,7 @@ describe('every column is index-aligned to the bars it was computed over', () =>
   // bar — the same family of defect as MACD's alignment, and invisible in a chip.
   for (const def of DEFS) {
     const keys = plotKeys(def)
-    if (!keys.length || CANNOT_DRAW_HERE[def.id]) continue
+    if (!keys.length || cannotDrawHere(def)) continue
     it(`${def.id} returns full-length columns`, () => {
       const cols = computeFor(def, BARS, defaultsOf(def), ctxFor(def))
       for (const k of keys) {

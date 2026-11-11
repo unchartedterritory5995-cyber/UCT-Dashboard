@@ -285,7 +285,7 @@ const SITE_EXCEPTIONS = {
     + 'member\'s notes, after the sample notes are trashed, so it moves only already-trashed sample notes. To close it '
     + 'the route would have to report each revision the folder cascade moved.',
   'app/src/pages/journal-2-0/hooks/useNoteConnectors.js:POST /api/j2/notes/connectors/*/connect':
-    'connecting a Roam/Craft/Notion/Dropbox/Obsidian source starts a background sync (note_connectors engine.sync_source) '
+    'connecting a Roam/Craft/Notion/Evernote/Obsidian source starts a background sync (note_connectors engine.sync_source) '
     + 'that writes notes as a GENUINE second writer: a fork against it is the correct answer (rail ② and ⑥\'s engine row), '
     + 'and the answer carries no per-note revisions. To close it the sync would have to stream every revision it wrote '
     + 'back to the tab that asked, which would make a background writer pretend to be this tab.',
@@ -421,6 +421,11 @@ function staleSiteExceptions(exceptions, sites) {
  * the census ⑥ classifies. Hoisted unchanged from inside rail ⑤ (wave 10, 10C).
  */
 const SERVER_LEDGER = {
+  // Connector fidelity Plan A Task 14: an OFFLINE generator, not a door. It runs the real engine over a
+  // throwaway sandbox store to write the committed corpora (`python -m ...corpora.corpora_gen`, railed by
+  // test_connector_corpora.py); its import_confirm seeds and update_note "member edit" touch only that sandbox.
+  'api/services/journal_two/note_connectors/corpora/corpora_gen.py':
+    'offline corpus generator over a sandbox store: import_confirm seeds and an update_note member edit, no member, no tab, no client',
   'api/routers/notebook_personal_api.py':
     'create_note for POST /api/j2/personal/notes; the two appends delegate to note_personal_api',
   'api/services/journal_two/note_personal_api.py':
@@ -430,7 +435,10 @@ const SERVER_LEDGER = {
   'api/services/journal_two/note_daily.py':
     'wave 6: create-if-missing behind journal_two\'s /notes/daily, whose client settles the answer (rail ③ covers that route); '
     + 'since wave 7 ALSO reached from note_personal_api.append_to_daily (POST /api/j2/personal/daily), which has NO client: '
-    + 'the day\'s note is created, then appended through note_personal_api\'s own row, and nothing settles either write',
+    + 'the day\'s note is created, then appended through note_personal_api\'s own row, and nothing settles either write; '
+    + 'since S15 (audit 2026-11-05) ALSO reached from notebook_today.today_note_section (GET /api/j2/notes/today, the Today '
+    + 'home): create-if-missing with the member\'s template and a seed applied at creation only; it returns no body, '
+    + 'and an existing note is never written, so there is nothing for a client to settle',
   // Wave 8 (8C; controller ruling on the whole-branch pass): the sample notebook reaches the
   // notes through `import_confirm` and `delete_note`, which the matcher did not name, so the
   // matcher now names every note writer a module outside journal_two.py can call.
@@ -542,6 +550,10 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
       // is the CORRECT answer, not a defect; two of its three writers
       // deliberately preserve `updated_at` and are not doors at all.
       if (rel(p).includes('note_connectors/engine.py')) continue
+      // ⭐ Plan E Task 8: adoption.py is called ONLY from that engine's pass (engine._adopt_file_imports), and its
+      // one write re-keys a file-imported note to its live connector key: `SET import_key, import_remote_rev`,
+      // never body, title or updated_at, so it advances no revision a tab could hold. Part of the engine's writer.
+      if (rel(p).includes('note_connectors/adoption.py')) continue
       for (const [name, body] of pyFunctions(src)) {
         if (WRITES_J2_NOTES.test(body)) offenders.push(`${rel(p)}:${name}`)
       }
@@ -1089,6 +1101,35 @@ function scanSites(file, src) {
     helpers.set(h.name, h)
   })
 
+  // pass 1b (2026-11-04): a function handing its OWN parameters to a same-file forwarding helper is a
+  // forwarder too, followed to a fixpoint (lib/importer/commit.js: fetchWithRetry -> fetchOnce -> fetch).
+  // Without it the inner call read as an UNRESOLVED-METHOD site and the outer helper's three callers were
+  // never judged at all. The chained call is the chain, never a site: the outermost helper's calls are.
+  const chained = new Set()
+  for (let grew = true; grew;) {
+    grew = false
+    astWalk(ast, (n, stack) => {
+      if (n.type !== 'CallExpression' || n.callee.type !== 'Identifier' || chained.has(n)) return
+      const inner = helpers.get(n.callee.name)
+      const fn = innermostFn(stack)
+      const name = fn ? nameOfFn.get(fn) : null
+      if (!inner || !name || helpers.has(name) || inner.fn === fn) return
+      const paramIdx = (a) => (a?.type === 'Identifier'
+        ? fn.params.findIndex((p) => bare(p).type === 'Identifier' && bare(p).name === a.name) : -1)
+      const urlIdx = paramIdx(n.arguments[inner.urlIdx])
+      if (urlIdx < 0) return
+      const h = { name, urlIdx, optsIdx: -1, fixed: inner.fixed, fallback: inner.fallback, fn, calls: 0 }
+      if (inner.optsIdx >= 0) {
+        const oi = paramIdx(n.arguments[inner.optsIdx])
+        if (oi >= 0) h.optsIdx = oi
+        else h.fixed = methodsOfOptions(n.arguments[inner.optsIdx], inner.fallback)
+      }
+      helpers.set(name, h)
+      chained.add(n)
+      grew = true
+    })
+  }
+
   const sites = []
   const push = (n, stack, over) => {
     const fn = innermostFn(stack)
@@ -1114,6 +1155,7 @@ function scanSites(file, src) {
     const h = helpers.get(n.callee.name)
     if (!h) return
     h.calls += 1
+    if (chained.has(n)) return               // pass 1b: the chain into an inner helper, judged at the outer calls
     const methods = h.optsIdx >= 0 ? methodsOfOptions(n.arguments[h.optsIdx], h.fallback) : h.fixed
     push(n, stack, { kind: 'helper', methods, shapes: routesOf(urlShapesOf(n.arguments[h.urlIdx], consts, chain)) })
   })
@@ -1469,6 +1511,21 @@ describe('⛔⛔ ④b — helper-forwarded and dynamic-method writes are SEEN, r
     expect(problems).toEqual(['UNSETTLED: planted.js:4 (save) — PUT /api/j2/notes/*'])
   })
 
+  // ── pass 1b: a helper that forwards to a same-file helper is judged at ITS call sites ──────────────
+  it('⭐ CONTROL — a two-level forwarder (retry -> once -> fetch) is judged at the outer calls: an unsettled door write is RED', () => {
+    const planted = [
+      'async function once(url, opts, ms) { if (!ms) return fetch(url, opts); return fetch(url, { ...opts, signal: null }) }',
+      'async function retry(url, opts, n = 2) { for (;;) { const res = await once(url, opts, 0); if (res.ok || !n--) return res } }',
+      "async function check() { return retry('/api/j2/notes/import/check', { method: 'POST' }) }",
+      'async function save(id) { return retry(`/api/j2/notes/${id}`, { method: \'PUT\' }, 1) }',
+      'check(); save(1)',
+    ].join('\n')
+    const { problems, sites } = forwardedProblems({ 'planted.js': planted }, new Set(['PUT /api/j2/notes/*']))
+    expect(sites.map((x) => x.keys[0]), 'the outer calls are the sites; the chained call is not one')
+      .toEqual(['POST /api/j2/notes/import/check', 'PUT /api/j2/notes/*'])
+    expect(problems).toEqual(['UNSETTLED: planted.js:4 (save) — PUT /api/j2/notes/*'])
+  })
+
   it('⭐ CONTROL — `window.fetch` / `globalThis.fetch` are fetch: a computed URL through them is judged', () => {
     const planted = [
       "const heroUrl = (id) => `/api/j2/notes/${id}/hero`",
@@ -1667,6 +1724,13 @@ const DOOR_CLASSIFICATION = {
       + 'BEGIN IMMEDIATE; researchCapture.js lands the returned revision.',
     evidence: ['tests/test_notebook_transcript_capture.py', 'tests/test_notes_cas_is_atomic.py'],
   },
+  'POST /api/j2/research-capture/tweets/save': {
+    class: NONE,
+    why: 'tweet_capture.save appends documentExcerpt blocks through append_document_excerpt, one per post, a '
+      + 'SERVER_APPENDED_TYPE merged by the reconcile\'s APPEND_ONLY branch, never forked; ImportTweetSheet lands the '
+      + 'returned revision with settleNoteWrite on every 200, a partial import included.',
+    evidence: ['tests/test_notebook_tweet_capture.py', 'tests/test_notes_cas_is_atomic.py'],
+  },
   'POST /api/j2/personal/notes/*/append': {
     class: FORK,
     why: 'the personal API (a Shortcut or script, no tab) appends paragraphs through note_personal_api.append_nodes: '
@@ -1756,6 +1820,12 @@ const DOOR_CLASSIFICATION = {
     why: 'seeds NEW notes nobody holds; removal trashes only the sample ids after the bulk pre-check refuses '
       + 'any holding unsent words (a later save to one reads 404 and the words stay queued).',
     evidence: ['tests/test_sample_notebook.py'],
+  },
+  'api/services/journal_two/note_connectors/corpora/corpora_gen.py': {
+    class: NONE,
+    why: 'an offline generator: it points auth.db at a temporary directory and runs the engine there to write the '
+      + 'committed corpora, so no member note, no tab and no client is ever on the other side of its writes.',
+    evidence: ['api/services/journal_two/note_connectors/test_connector_corpora.py'],
   },
   'api/services/journal_two/sample_examples.py': {
     class: NONE,

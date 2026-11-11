@@ -14,9 +14,10 @@
  * the member back to Insights.
  */
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import useSWR from 'swr'
-import { playbookEnabled } from '../../lib/myPlaybookLink'
+import { PLAYBOOK_IN_NOTEBOOK_PATH, playbookEnabled } from '../../lib/myPlaybookLink'
+import { NOTEBOOK_PATH } from '../../lib/journalRoutes'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import { WORDING } from '../../lib/sampleSize'
 import { cardStats, findingText } from '../../lib/playbookFormat'
@@ -223,6 +224,7 @@ export default function MyPlaybook({ onSaveSnapshot = defaultSaveSnapshot }) {
   const on = playbookEnabled()
   const { accountId } = useJ2SelectedAccount(on)
   const navigate = useNavigate()
+  const inNotebook = useLocation().pathname.startsWith(PLAYBOOK_IN_NOTEBOOK_PATH)
   const key = on ? (accountId ? `${BASE}?accountId=${encodeURIComponent(accountId)}` : BASE) : null
   const { data, error, isLoading, mutate } = useSWR(key, getJson, { revalidateOnFocus: false, shouldRetryOnError: false })
   const [open, setOpen] = useState(null) // {setup, key}
@@ -286,7 +288,10 @@ export default function MyPlaybook({ onSaveSnapshot = defaultSaveSnapshot }) {
   return (
     // A section, not <main>: the app shell already is the page's one main landmark (M-11).
     <section className={styles.page} aria-labelledby="pb-title" data-testid="my-playbook">
-      <Link className={styles.back} to="/journal/insights">Back to Insights</Link>
+      {/* S13 (detail #67): inside the Journal shell (the Notebook's sidebar door) it goes back to the Notebook. */}
+      {inNotebook
+        ? <Link className={styles.back} to={NOTEBOOK_PATH}>Back to Notebook</Link>
+        : <Link className={styles.back} to="/journal/insights">Back to Insights</Link>}
       <div className={styles.head}>
         <div>
           <h2 id="pb-title" className={styles.title}>My Playbook</h2>

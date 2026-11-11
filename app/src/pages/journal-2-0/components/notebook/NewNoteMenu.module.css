@@ -17,17 +17,6 @@
   padding-inline: 8px;
   border-left: 1px solid var(--bg);
 }
-/* The notes list's form (NewNoteCaret, P1 follow-up): the caret alone beside the list's own
-   "+ New note" (`btn btn-sm`), so it keeps its full radius and the menu hangs from it. Its touch floor
-   and phone placement are railed by NewNoteMenu.listCaret.css.test.js. */
-.listCaret {
-  position: relative;
-  display: flex;
-  flex-shrink: 0;
-}
-.listCaret > button {
-  padding-inline: 8px;
-}
 .menu {
   position: absolute;
   top: calc(100% + 4px);
@@ -71,12 +60,10 @@
 @media (max-width: 1024px) {
   .main,
   .caret,
-  .listCaret > button,
   .item {
     min-height: var(--tap-min);
   }
-  .caret,
-  .listCaret > button {
+  .caret {
     min-width: var(--tap-min);
   }
 }
@@ -90,14 +77,15 @@
     right: auto;
     max-width: calc(100vw - 32px);
   }
-  /* The list's caret ends an action row that may or may not wrap at 390px, so neither of its own
-     edges is safe to hang 200px from. It hangs from the row instead (NotebookTab's `.newWrap` is the
-     positioned box on a phone), right-aligned, so it stays on screen either way. */
-  .listCaret {
-    position: static;
-  }
-  .listCaret .menu {
-    left: auto;
-    right: 0;
-  }
+}
+
+/* S11 (audit 2026-11-05): the notes list's toolbar menus (View, New, More) run the same engine and rows.
+   A checked row is the View menu's current mode; a separator sets "Save view" apart from the modes. */
+.itemChecked {
+  color: var(--ut-gold);
+}
+.separator {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--border);
 }

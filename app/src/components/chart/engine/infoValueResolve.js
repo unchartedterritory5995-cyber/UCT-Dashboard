@@ -29,7 +29,7 @@
 import { evaluability, STATUS, GATE_GUARDS } from './evaluability'
 import { isTruthType } from './outputType'
 import { engineChips, chipValueText } from './readout'
-import { infoValuesOf, liveInstanceOf } from './infoValues'
+import { infoValuesOf, liveInstanceOf, infoValueLineIntact } from './infoValues'
 
 export const INFO_VALUE_STATES = Object.freeze({
   VALUE: 'value',             // a finite latest value, formatted
@@ -75,7 +75,9 @@ function defLabel(def, plotKey) {
 
 function formatValue(value, chip, plot, type, format) {
   if (format === 'yesno' && isTruthType(type) && (value === 0 || value === 1)) return value === 1 ? 'Yes' : 'No'
-  if (chip) return chipValueText(chip)
+  // ⭐ F3: a chip whose LEGEND withholds its number (`legend.showValue: false`)
+  // still has one, and a member who put this output in the header asked for it.
+  if (chip && chip.valueHidden !== true) return chipValueText(chip)
   const legend = (plot && plot.legend) || {}
   return chipValueText({ value, decimals: legend.decimals, compact: legend.compact === true })
 }
@@ -115,6 +117,13 @@ export function resolveInfoValue(cs, ref, env = {}) {
     return broken(INFO_VALUE_GUARDS.OUTPUT_MISSING,
       'The output this value read is no longer part of the indicator.', `${label} · unavailable`)
   }
+  // ⭐ LINE IDENTITY (`lineIdentity.js`): the key is declared, but by a DIFFERENT line
+  // than the one this value was made to read (removed, then a new line took the name).
+  // Exactly the missing-output answer — never the new line's number.
+  if (!infoValueLineIntact(ref, def)) {
+    return broken(INFO_VALUE_GUARDS.OUTPUT_MISSING,
+      'The output this value read was removed; a different output now uses its name.', `${label} · unavailable`)
+  }
 
   // ── THE SHARED GATE ───────────────────────────────────────────────────────
   const framedBinding = (Array.isArray(env.bindings) ? env.bindings : [])
@@ -153,14 +162,35 @@ export function resolveInfoValue(cs, ref, env = {}) {
   const chip = chips.find((c) => c.instanceId === ref.instanceId && c.plotKey === ref.plotKey) || null
   let value = framedBinding.lastValue
   if (typeof value === 'function') { try { value = value() } catch { value = undefined } }
+  const plot = (def.plots || []).find((p) => p && p.key === ref.plotKey)
+  const colourWhy = withheldColourOf(plot, errs)
   if (!Number.isFinite(value)) {
     return { ...base, label: (chip && chip.label) || label, type, state: INFO_VALUE_STATES.UNKNOWN,
-      text: UNKNOWN_TEXT, reason: 'The newest bar has no value for this output (unknown).' }
+      text: UNKNOWN_TEXT, reason: joinReasons('The newest bar has no value for this output (unknown).', colourWhy) }
   }
-  const plot = (def.plots || []).find((p) => p && p.key === ref.plotKey)
+  const note = gate.status === STATUS.DISCLOSED && gate.note ? gate.note : null
+  const reason = joinReasons(note, colourWhy)
   return { ...base, label: (chip && chip.label) || label, type, state: INFO_VALUE_STATES.VALUE, value,
     text: formatValue(value, chip, plot, type, base.format),
-    ...(gate.status === STATUS.DISCLOSED && gate.note ? { reason: gate.note } : {}) }
+    ...(reason ? { reason } : {}),
+    ...(colourWhy ? { colourWithheld: true } : {}) }
+}
+
+const joinReasons = (...parts) => parts.filter(Boolean).join(' ') || null
+
+/** ⭐⭐ G-d — A WITHHELD COLOUR IS SAID ON THE PLOT IT COLOURS. A conditional colour
+ *  rides a hidden condition column (`plot.colorMode = 'column:<key>'`,
+ *  `memberPaneDefinition.conditionColumnFor`); when the bind withholds that column (a
+ *  `?:` arm or a block that runs after a bar it skipped — `blockRuns.js`) its refusal
+ *  sits in `columnErrors` under the HIDDEN key, which no surface read, and the plot
+ *  drew in its series colour with no word. The sentence is the gate's own, under the
+ *  plot's info row. The value is untouched: only the colour was withheld. */
+export function withheldColourOf(plot, errs) {
+  const mode = plot && typeof plot.colorMode === 'string' ? plot.colorMode : ''
+  if (!mode.startsWith('column:') || !errs) return null
+  const err = errs[mode.slice('column:'.length)]
+  if (!err || typeof err.message !== 'string' || !err.message) return null
+  return `Its colour is withheld on this chart and drawn in the series colour: ${err.message}`
 }
 
 /** Every stored info value of `cs`, resolved, in stored order. */

@@ -7,6 +7,8 @@ Crypto, Factor/Smart-Beta). Idempotent + self-healing + MANAGED: on every boot i
 prebuilt set match the config EXACTLY — reconciles each configured list (rebuild if its ticker
 set drifted or a duplicate exists) and DELETES any prebuilt list not in the config (so a
 retired/renamed list — e.g. the removed 'Delisted Legends' — can never linger or reappear).
+Two job-written families are exempt from that delete: Sunday Scans (the desk store) and
+UCT Relative Strength (RS Leaders / RS Emerging, written by `rs_lists_nightly`).
 
 Runs on a startup background thread (needs the admin user to exist)."""
 import json
@@ -352,6 +354,67 @@ def sync_sunday_scans() -> dict:
         return {"status": "error", "error": str(e)[:200]}
 
 
+# ── The UCT Relative Strength family: two job-written lists, updated in place ─
+
+# RS Leaders and RS Emerging (engineering map 2026-11-08, unit 4-01; decisions D9-D11),
+# rebuilt each morning by the `rs_lists_nightly` job through `api.services.rs_lists`.
+# Like the Sunday Scans family their SOURCE is not the committed config but a job, so
+# the boot seeder must never read "not configured" as "retired": the family is exempt
+# from the delete-what-isn't-configured step and is written only by `write_rs_list`.
+# The names and the section are fixed here (they are what the picker reads); the
+# members are the job's.
+RS_CATEGORY = "UCT Relative Strength"
+RS_LIST_NAMES = ("RS Leaders", "RS Emerging")
+
+
+def _is_rs_family(name) -> bool:
+    return (name or "").strip().lower() in {n.lower() for n in RS_LIST_NAMES}
+
+
+def _rs_rows(name) -> list:
+    nm = (name or "").strip().lower()
+    return [w for w in wl.list_prebuilt_watchlists(500, include_items=False)
+            if (w.get("name") or "").strip().lower() == nm]
+
+
+def rs_list_size(name):
+    """How many names the managed list holds now, or None when it does not exist yet."""
+    rows = _rs_rows(name)
+    return int(rows[0].get("item_count") or 0) if rows else None
+
+
+def write_rs_list(name, desc, items) -> dict:
+    """Make the managed list `name` hold exactly `items` (``[{sym, notes}]``, in order),
+    in place: the first existing row is kept (its id, so a widget pinned to it stays
+    pinned), any duplicate is deleted, and a missing list is created under the admin user
+    (`_admin_user_id`) as a public prebuilt list. Returns a small status dict."""
+    if not _is_rs_family(name):
+        raise ValueError(f"{name!r} is not a UCT Relative Strength list")
+    rows = _rs_rows(name)
+    keep = rows[0] if rows else None
+    for w in rows[1:]:
+        if w.get("user_id"):
+            wl.delete_watchlist(w["user_id"], w["id"])
+    created = False
+    if keep is None:
+        admin = _admin_user_id()
+        if not admin:
+            return {"status": "no_admin"}
+        made = wl.create_watchlist(admin, name, desc, is_public=True)
+        if not made:
+            return {"status": "create_failed"}
+        wl.update_watchlist(admin, made["id"], {"is_prebuilt": 1})
+        keep, created = {"id": made["id"], "user_id": admin, "description": desc}, True
+    owner = keep["user_id"]
+    if (keep.get("description") or "") != desc:
+        wl.update_watchlist(owner, keep["id"], {"description": desc})
+    if not wl.replace_items(owner, keep["id"], items):
+        return {"status": "write_failed", "id": keep["id"]}
+    _log.info("[prebuilt] wrote '%s' with %d names", name, len(items))
+    return {"status": "written", "id": keep["id"], "created": created,
+            "duplicates_removed": max(0, len(rows) - 1)}
+
+
 _BREADTH_CATEGORY = "UCT Breadth Indicators"
 _BREADTH_LIST_DESC = {
     "ma": "Percent of the market above each moving average — 5, 10, 20, 40, 50, 100, 200-day. Type UCTA50 etc. to chart any one.",
@@ -429,20 +492,29 @@ def _theme_index_lists():
 
 def category_map():
     """{lowercased list name: category} — the section each prebuilt list belongs to in the
-    picker. Presentation-only (not stored in the DB); resolved from the committed config."""
-    return {l["name"].strip().lower(): l["category"] for l in _load_committed()}
+    picker. Presentation-only (not stored in the DB); resolved from the committed config,
+    plus the two job-written UCT Relative Strength lists (their names are fixed, their
+    members are not, so they are not config rows)."""
+    out = {l["name"].strip().lower(): l["category"] for l in _load_committed()}
+    for nm in RS_LIST_NAMES:
+        out[nm.lower()] = RS_CATEGORY
+    return out
 
 
 def category_order():
     """Category sections in the order they first appear in the committed config —
     UCT ETF Lists → UCT Index Components → UCT Breadth Indicators (breadth is appended
     last by _load_committed). The picker renders sections in THIS order rather than
-    relying on the alphabetical accident of each section's first list name."""
+    relying on the alphabetical accident of each section's first list name.
+    UCT Relative Strength sits after the firm's own sections and before UCT Community."""
     seen = []
     for l in _load_committed():
         c = l["category"]
         if c not in seen:
             seen.append(c)
+    if RS_CATEGORY not in seen:
+        at = seen.index(_COMMUNITY_CATEGORY) if _COMMUNITY_CATEGORY in seen else len(seen)
+        seen.insert(at, RS_CATEGORY)
     return seen
 
 
@@ -554,8 +626,10 @@ def seed_prebuilt_watchlists() -> None:
         #    The Sunday Scans family is exempt: its source is the desk store, so an unreadable
         #    source at boot must leave the existing lists standing, never wipe them — the
         #    family's own reconcile (step 3) retires what genuinely fell out of the window.
+        #    The UCT Relative Strength family is exempt for the same reason: its members come
+        #    from the nightly `rs_lists_nightly` job, never from the config.
         for nm, rows in existing_by_name.items():
-            if nm not in config and not _is_sunday_family(nm):
+            if nm not in config and not _is_sunday_family(nm) and not _is_rs_family(nm):
                 for w in rows:
                     if w.get("user_id"):
                         wl.delete_watchlist(w["user_id"], w["id"])

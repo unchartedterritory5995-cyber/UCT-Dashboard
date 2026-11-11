@@ -13,11 +13,17 @@
 //     "Updated", the Helpful count) and an "In your templates" badge when the member already holds a live copy.
 //   * A card's "Preview" opens TemplateDetailSheet (the outline, then the member's own data, then "Use this
 //     template"). ⛔ The list itself never asks for a preview with the member's data: one `GET /library`, nothing else.
+//   * Audit 2026-11-05, spec S9 (M8): each card's "Use" makes the note AT ONCE (libraryUse.js: titled
+//     "{Template} · {Ddd, Mon D}", no second sheet), with "Customize first" beside it (the adoption sheet) and ONE
+//     "Also start this every weekday" checkbox for the section, unticked: only a ticked Use starts a routine or tracker.
+//     The new note lands through the host (`landNote`), which closes the New note sheet and tells every note view
+//     (invalidateNoteViews); without a host the section tells them itself and opens the note.
 // ⛔ Its cards are NOT picker cards (`data-template-card`): the picker's arrow keys, Home/End, Tab order and the
 //    search box's Enter target stay exactly as they were (TemplatePicker.gallery.test.jsx's rails).
 // ⛔ LAZY. Reached only through TemplatePicker.jsx's dynamic import while `widgetsWaveOn(11)`.
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { familyKeeps, LIBRARY_GROUPS, libraryList } from '../../../lib/templateLibrary'
+import { CUSTOMIZE_LABEL, MAKING_SENTENCE, START_LABEL, USE_LABEL, openCustomize, useLibraryTemplate } from './libraryUse'
 import LibraryCardFacts from './LibraryCardFacts'
 import TemplateDetailSheet from './TemplateDetailSheet'
 import UIcon from '../../../../../components/ui/UIcon'
@@ -53,7 +59,7 @@ export function libraryInCategory(row, category) {
   return familyKeeps(category, row)
 }
 
-function LibraryCard({ item, busy, onPreview }) {
+function LibraryCard({ item, busy, onPreview, onUse, onCustomize, using }) {
   const uid = useId()
   return (
     <li className={styles.libraryCard} data-library-card={item.id}>
@@ -63,9 +69,18 @@ function LibraryCard({ item, busy, onPreview }) {
       {/* ⛔ A plain wrapper, not a `group` named by the title: the title is already the card's h5 and inside the
           button's own name, so a named group made a screen reader say it a third time around one button. */}
       <div className={styles.actions}>
+        {/* S9 (M8): Use makes the note at once; Preview and Customize first are the two optional looks first. */}
+        <button type="button" className={styles.btnPrimary} onClick={() => onUse(item)} disabled={busy || using}
+          aria-label={`${USE_LABEL} ${text(item.title)}`} data-library-use="">
+          {USE_LABEL}
+        </button>
         <button type="button" className={styles.btn} onClick={(e) => onPreview(item, e.currentTarget)} disabled={busy}
           aria-label={`${PREVIEW_LABEL} ${text(item.title)}, from the Template library`}>
           <UIcon name="eye" size={13} gold={false} /> {PREVIEW_LABEL}
+        </button>
+        <button type="button" className={styles.linkBtn} onClick={() => onCustomize(item)} disabled={busy || using}
+          aria-label={`${CUSTOMIZE_LABEL}: ${text(item.title)}`}>
+          {CUSTOMIZE_LABEL}
         </button>
       </div>
     </li>
@@ -89,6 +104,25 @@ export default function TemplateLibrarySection({ query = '', category = ALL, bus
   // button, so the Sheet's own record of "where focus was" is the New note panel, not this button).
   const openerRef = useRef(null)
   const preview = (item, button) => { openerRef.current = button || null; setOpen(item) }
+  // S9: the section's one "Also start this every weekday" (unticked), the Use in flight, and what the last one said.
+  const [startEveryWeekday, setStartEveryWeekday] = useState(false)
+  const [using, setUsing] = useState(null)
+  const [said, setSaid] = useState('')
+  const usingRef = useRef(false)
+  const doors = { landNote, navigate }
+  const use = async (item) => {
+    if (usingRef.current || busy) return
+    usingRef.current = true
+    setUsing(item.id)
+    setSaid('')
+    try {
+      setSaid(await useLibraryTemplate(item, { startEveryWeekday, ...doors }))
+    } finally {
+      usingRef.current = false
+      setUsing(null)
+    }
+  }
+  const customize = async (item) => { setSaid(await openCustomize(item, doors)) }
 
   useEffect(() => {
     let alive = true
@@ -121,17 +155,28 @@ export default function TemplateLibrarySection({ query = '', category = ALL, bus
     <section className={styles.librarySection} aria-labelledby={`${uid}-title`} data-template-library="">
       <h3 className={styles.subheading} id={`${uid}-title`}>{SECTION_TITLE}</h3>
       {answer === null && <p className={styles.hint} role="status">{LOADING_SENTENCE}</p>}
+      {answer?.ok && (
+        <label className={styles.choice} data-start-every-weekday="">
+          <input type="checkbox" checked={startEveryWeekday} onChange={(e) => setStartEveryWeekday(e.target.checked)} />
+          <span>{START_LABEL}</span>
+        </label>
+      )}
+      {/* Mounted empty with the section and filled after, so a change is announced (a region that arrives holding
+          its words is often not read). */}
+      <p className={styles.hint} aria-live="polite" data-library-use-status="">{using ? MAKING_SENTENCE : said}</p>
       {answer && !answer.ok && <p className={styles.notice} role="status" data-refusal={answer.code}>{answer.message}</p>}
       {groups.map((g) => (
         <div key={g.key} className={styles.libraryGroup} data-library-group={g.key}>
           <h4 className={styles.label} id={`${uid}-${g.key}`}>{g.label}</h4>
           <ul className={styles.libraryRow} aria-labelledby={`${uid}-${g.key}`}>
-            {g.items.map((item) => <LibraryCard key={item.id} item={item} busy={busy} onPreview={preview} />)}
+            {g.items.map((item) => <LibraryCard key={item.id} item={item} busy={busy} onPreview={preview}
+              onUse={use} onCustomize={customize} using={using !== null} />)}
           </ul>
         </div>
       ))}
       {open && <TemplateDetailSheet item={open} onClose={() => setOpen(null)} navigate={navigate} busy={busy}
-        landNote={landNote} returnFocusTo={openerRef} />}
+        landNote={landNote} returnFocusTo={openerRef} startEveryWeekday={startEveryWeekday}
+        onStartEveryWeekday={setStartEveryWeekday} />}
     </section>
   )
 }

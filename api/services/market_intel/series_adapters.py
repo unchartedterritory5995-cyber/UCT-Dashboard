@@ -72,6 +72,11 @@ _TECH = {
     "pct_from_sma": ("{sym} % from its {n}-day SMA", "percent_change", "signed", (2, 400)),
     "bb_pct_b": ("{sym} Bollinger %B ({n}, 2σ)", "percent_b", DOMAIN_ANY, (5, 200)),
     "macd_hist": ("{sym} MACD histogram (12, 26, 9)", "price_units", DOMAIN_ANY, None),
+    # W2-B2 (UCT Agent history.eventStudy): the opening gap vs the previous close, from the stored opens / closes
+    "gap_pct": ("{sym} opening gap vs the previous close (%)", "percent_change", "signed", None),
+    # PKG2 (UCT Agent "after N-day breakouts"): the close vs the highest close of the N sessions BEFORE it, in %.
+    # Above 0 = a new N-day closing high; `cross_above 0` = the session it broke out. Stored closes only.
+    "pct_from_high": ("{sym} close vs its prior {n}-day closing high (%)", "percent_change", "signed", (5, 252)),
 }
 
 
@@ -86,7 +91,8 @@ def _tech_describe(spec: dict) -> tuple[Optional[dict], Optional[dict]]:
     bounds = _TECH[ind][3]
     if bounds is None:
         if n is not None:
-            return None, _refused("bad_period", "MACD uses the standard 12/26/9 settings; leave the period out.")
+            return None, _refused("bad_period", "MACD uses the standard 12/26/9 settings; leave the period out."
+                                  if ind == "macd_hist" else f"{ind} takes no period; leave it out.")
     elif not isinstance(n, int) or isinstance(n, bool) or not bounds[0] <= n <= bounds[1]:
         return None, _refused("bad_period", f"The period must be a whole number from {bounds[0]} to {bounds[1]}.")
     tmpl, unit, dom, _b = _TECH[ind]
@@ -99,6 +105,18 @@ def _tech_load(spec: dict) -> dict:
     """The indicator computed by the SAME functions the alert evaluator uses (`indicator_compute`,
     unrounded `_raw` lane where it exists) over the stored daily closes. No new calculation."""
     from api.services import indicator_compute as ic
+    if spec["indicator"] == "gap_pct":
+        oc = _pr.daily_open_close(spec["symbol"])
+        if oc.get("status") != "ok":
+            return oc
+        r = oc["rows"]
+        rows = [(r[k][0], (r[k][1] / r[k - 1][2] - 1.0) * 100.0) for k in range(1, len(r)) if r[k - 1][2] > 0]
+        if not rows:
+            return {"status": "unavailable", "reason": "not_enough_history",
+                    "detail": f"{spec['symbol']} has too little stored history for a gap series."}
+        return {"status": "ok", "alignment": "session", "rows": rows, "max_staleness_days": None,
+                "coverage": {"first": rows[0][0], "last": rows[-1][0], "basis": oc.get("basis")},
+                "source": {"interface": "price_reads.daily_open_close (read-only store); gap = open / previous close - 1"}}
     ps = _pr.daily_closes(spec["symbol"])
     if ps.get("status") != "ok":
         return ps
@@ -113,6 +131,12 @@ def _tech_load(spec: dict) -> dict:
                 for c, u, l in zip(closes, up, lo)]
     elif spec["indicator"] == "macd_hist":
         _m, _s, vals = ic.compute_macd_raw(closes, 12, 26, 9)
+    elif spec["indicator"] == "pct_from_high":
+        # the prior N closes only (never the session itself), so a value > 0 IS a new N-day closing high
+        vals = [None] * len(closes)
+        for k in range(n, len(closes)):
+            hi = max(closes[k - n:k])
+            vals[k] = None if hi <= 0 else (closes[k] / hi - 1.0) * 100.0
     else:
         sma = ic.compute_sma(closes, n)
         vals = [None if (s is None or s == 0) else (c / s - 1.0) * 100.0 for c, s in zip(closes, sma)]

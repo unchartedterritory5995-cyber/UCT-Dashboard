@@ -1,0 +1,7 @@
+//@version=5
+indicator("hp time fields", overlay=false)
+plot(dayofweek, "dow")
+plot(month, "month")
+plot(hour, "hour")
+plot(minute, "minute")
+plot(year, "year")

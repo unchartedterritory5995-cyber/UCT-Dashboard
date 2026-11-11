@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
+import { TOOLBAR_ICON } from '../../lib/notebookIcons'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
 import TagSuggestInput from './TagSuggestInput'
 import { EXPORT_FORMATS } from './export/exportFormats'
@@ -216,11 +217,11 @@ export default function BulkActionBar({
       disabled={busy}
       data-bulk-action=""
     >
-      <UIcon name="download" size={14} gold={false} />
+      <UIcon name="download" {...TOOLBAR_ICON} />
       {/* "selected", not bare "Export": the toolbar above already has an
           Export that downloads the WHOLE notebook. */}
       Export selected
-      <UIcon name="chevronDown" size={12} gold={false} />
+      <UIcon name="chevronDown" {...TOOLBAR_ICON} />
     </button>
   )
 
@@ -265,7 +266,7 @@ export default function BulkActionBar({
       <div className={styles.actions}>
         {trashView ? (
           <button type="button" className={styles.action} onClick={onRestore} disabled={busy} data-bulk-action="">
-            <UIcon name="refresh" size={14} gold={false} />
+            <UIcon name="refresh" {...TOOLBAR_ICON} />
             Restore
           </button>
         ) : archiveView ? (
@@ -273,12 +274,12 @@ export default function BulkActionBar({
             {/* Archive is not trash: bringing a note back puts it exactly where
                 it was, in its own folder. */}
             <button type="button" className={styles.action} onClick={onUnarchive} disabled={busy} data-bulk-action="">
-              <UIcon name="library" size={14} gold={false} />
+              <UIcon name="library" {...TOOLBAR_ICON} />
               Unarchive
             </button>
             {exportButton}
             <button type="button" className={`${styles.action} ${styles.danger}`} onClick={onTrash} disabled={busy} data-bulk-action="">
-              <UIcon name="trash" size={14} gold={false} />
+              <UIcon name="trash" {...TOOLBAR_ICON} />
               Move to Trash
             </button>
           </>
@@ -308,7 +309,7 @@ export default function BulkActionBar({
                     <option key={f.id} value={f.id}>{f.path}</option>
                   ))}
                 </select>
-                <UIcon name="chevronDown" size={12} gold={false} />
+                <UIcon name="chevronDown" {...TOOLBAR_ICON} />
               </label>
               <button
                 type="button"
@@ -331,24 +332,24 @@ export default function BulkActionBar({
               disabled={busy}
               data-bulk-action=""
             >
-              <UIcon name="tag" size={14} gold={false} />
+              <UIcon name="tag" {...TOOLBAR_ICON} />
               Tags
             </button>
             <button type="button" className={styles.action} onClick={onFavorite} disabled={busy} data-bulk-action="">
-              <UIcon name="star" size={14} gold={false} />
+              <UIcon name="star" {...TOOLBAR_ICON} />
               Favorite
             </button>
             <button type="button" className={styles.action} onClick={onUnfavorite} disabled={busy} data-bulk-action="">
-              <UIcon name="star-fill" size={14} gold={false} />
+              <UIcon name="star-fill" {...TOOLBAR_ICON} />
               Unfavorite
             </button>
             {exportButton}
             <button type="button" className={styles.action} onClick={onArchive} disabled={busy} data-bulk-action="">
-              <UIcon name="library" size={14} gold={false} />
+              <UIcon name="library" {...TOOLBAR_ICON} />
               Archive
             </button>
             <button type="button" className={`${styles.action} ${styles.danger}`} onClick={onTrash} disabled={busy} data-bulk-action="">
-              <UIcon name="trash" size={14} gold={false} />
+              <UIcon name="trash" {...TOOLBAR_ICON} />
               Move to Trash
             </button>
           </>

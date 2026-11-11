@@ -61,6 +61,9 @@ export const LIMIT_NAMES = Object.freeze([
   // `sma(x, 200)` on 5,000 bars touches a million of them. Counted here so a
   // program whose windows are quietly enormous stops BY NAME rather than by
   // taking a very long time.
+  // ⭐ W4-T8 — a window whose v6 `series int` length changes every bar is charged the span it READ on
+  // that bar (its ring is sized to the history ceiling, but only the bars it reads are cells). The
+  // budget is unchanged.
   'WINDOW_CELLS',
   // ⭐ 2F-2C. A carried builtin's cost is the OPPOSITE SHAPE to a window's: a
   // window reads `span` cells per bar and holds none between bars; a recurrence
@@ -112,6 +115,16 @@ export const DEFAULT_LIMITS = Object.freeze({
   // first (~105 M instructions, ~0.8 s on this box), admits 2.8x the heaviest honest
   // corpus run at the longest chart a member loads (`fullBarsFor`: 32,000 bars) and
   // ~430 iterations a bar on a 11,534-bar daily chart.
+  //   ⛔⛔ NARROWED 2026-11-09 — "ADMITS THE HEAVIEST HONEST RUN AT 32,000 BARS" IS NOT TRUE OF
+  // EVERY CORPUS SCRIPT. Re-measured (all three whole-run counts lifted, SPY 1D tiled to
+  // 8,502 bars): delta-rsi-oscillator-strategy takes a CONSTANT 1,163 iterations a bar (its
+  // fixed 21x3 least-squares solve, rebuilt every bar by the script itself) and stops here at
+  // bar ~4,299; machine-learning-knn-based-strategy loops over a list that grows every bar
+  // (~`bar` iterations on bar `bar`, so ~bar^2/2 in all: 2,003,000 by bar 2,000) and stops at bar 3,160. Neither
+  // is our avoidable work: Pine runs the same loops. NOT RAISED, because neither reaches
+  // this ceiling on the member's pane: the 1,000 ms pane budget stops delta-rsi at ~bar 610
+  // and knn at ~bar 1,035 first, so a raise would change no member's chart and would only
+  // weaken the runaway bound. The 32,000-bar sizing holds for scripts at <=156 iterations a bar.
   //   ⛔ THE PER-BAR BOUND IS `INSTRUCTIONS_PER_BAR`, NOT A SECOND LOOP COUNT: a loop
   // that runs away inside one bar (a bound it never reaches, `by 0`) meets 200,000
   // instructions on that bar and stops by name there. Nesting is `LOOP_NESTING`, one
@@ -129,8 +142,25 @@ export const DEFAULT_LIMITS = Object.freeze({
   WHILE_ITERATIONS: 10000,
   LOOP_NESTING: 8,
   CALL_DEPTH: 64,
+  // ⭐ DERIVATION (2026-11-09; until then this line had none, and the 32,000-bar sizing
+  // above was claimed for it without ever being measured). A WHOLE-RUN count of USER-
+  // function calls only (`vm.js` OP.CALL; builtins are not counted). Measured on every
+  // runtime-lane corpus script, SPY 1D tiled to 8,502 bars, every count lifted: the
+  // heaviest is delta-rsi-oscillator-strategy at a CONSTANT 1,201 calls a bar (its matrix
+  // helpers `matrix_get` / `matrix_set` ~1,130 of them, the same every bar, as in Pine),
+  // which meets 5,000,000 at bar 4,163; the next is atr-stepped at 22 a bar, then
+  // williams-fractal at 11. So 5 M admits <=156 calls a bar at 32,000 bars and every corpus
+  // script but delta-rsi at 32,000. NOT RAISED: the 1,000 ms pane budget stops delta-rsi
+  // at ~bar 610 long before this count, so a raise moves no member's chart. A loop of
+  // calls that runs away is bounded here at the same ~100 M instructions as LOOP_ITERATIONS.
   CALL_COUNT: 5000000,
   ARRAY_ELEMENTS: 100000,
+  // ⭐ MEASURED 2026-11-09 with CALL_COUNT (same sweep): counted on every array WRITE
+  // (`array.set` included) and per element on whole-array calls (`collections.js`), not
+  // on `array.get`. Heaviest is
+  // delta-rsi at a constant 459 a bar (meets this at bar ~4,357; the pane budget stops it
+  // at ~610 first); next wyckoff-accumulation-distribution at 25 a bar, kalman at 25,
+  // atr-stepped at 21. Admits <=62 a bar at 32,000 bars. Not raised, for the same reason.
   ARRAY_OPERATIONS: 2000000,
   // ENFORCED — drawings live at the end of a bar, every family, AFTER the store's
   // own Pine collector (`objectStore.js`). ⛔ RAISED FROM 500, deliberately: Pine
@@ -207,6 +237,38 @@ export const LIVE_OBJECT_BYTES = 512
  *  `PHASE2_RUNTIME_ARCHITECTURE.md` §45 keeps those layered so nobody blames the
  *  object model for a compiler failure — the same discipline C2A established for
  *  output containment. */
+/** ⭐ WHAT A MEMBER IS TOLD EACH LIMIT IS. A limit's NAME (`CALL_COUNT`) is an engine
+ *  token and never reaches a member's sentence; this plain phrase does, and the
+ *  name rides the refusal as a FIELD (`err.limit`) for telemetry. One entry per
+ *  `LIMIT_NAMES` member — `runtimeLimitSentence.test.js` rails that, so a new limit
+ *  cannot ship speaking in a token. */
+export const LIMIT_PLAIN = Object.freeze({
+  PROGRAM_SIZE: "the size of a script's source",
+  IR_SIZE: 'the size a script may compile to',
+  INSTRUCTIONS_PER_BAR: 'the number of steps a script may take on one bar',
+  TOTAL_INSTRUCTIONS: 'the number of steps a script may take over the whole chart',
+  LOOP_ITERATIONS: 'the number of loop passes a script may make over the whole chart',
+  WHILE_ITERATIONS: 'the number of passes one `while` loop may make',
+  LOOP_NESTING: 'how deeply loops may be nested',
+  CALL_DEPTH: 'how deeply functions may call one another',
+  CALL_COUNT: 'the number of function calls a script may make over the whole chart',
+  ARRAY_ELEMENTS: "the number of elements a script's arrays may hold",
+  ARRAY_OPERATIONS: 'the number of array operations a script may make over the whole chart',
+  LIVE_OBJECTS: 'the number of drawings a script may hold at once',
+  OBJECT_OPERATIONS: 'the number of drawing calls a script may make over the whole chart',
+  HISTORY: 'the number of bars a script may be drawn over',
+  HISTORY_SLOTS: 'the number of values a script may keep history for',
+  HISTORY_VALUES: 'the amount of history a script may keep',
+  WINDOW_CELLS: "the number of past values a script's moving windows may read over the whole chart",
+  CARRIED_INSTANCES: 'the number of running calculations a script may keep',
+  CARRIED_CELLS: "the state a script's running calculations may keep",
+  CARRIED_STEPS: 'the number of running-calculation steps a script may take over the whole chart',
+  REQUEST_COUNT: 'the number of other symbols or timeframes a script may request',
+  REQUEST_FANOUT: 'how deeply requests may nest',
+  MEMORY: 'the memory a script may use',
+  WALL_TIME: 'the time one run of a script may take',
+})
+
 export class RuntimeLimitError extends Error {
   constructor(limit, ceiling, reached) {
     super(`${limit}_EXCEEDED — ceiling ${ceiling}, reached ${reached}`)

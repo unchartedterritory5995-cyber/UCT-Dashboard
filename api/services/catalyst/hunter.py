@@ -222,6 +222,17 @@ def run_hunt(mode: str = "deep", existing_tickers: Optional[set[str]] = None) ->
     cr_tok = cc_tok = 0      # prompt-cache read / creation tokens
     searches = 0
     msg = None
+
+    def _log_usage() -> None:
+        # Cost-log (best-effort) so hunts count against the daily caps — including
+        # the $10/1k web-search fees, which token counts alone don't capture.
+        try:
+            cost_guard.record(md, "__hunter__", model, in_tok, out_tok,
+                              was_cached=False, search_requests=searches,
+                              cache_read_tokens=cr_tok, cache_creation_tokens=cc_tok)
+        except Exception:
+            pass
+
     try:
         for _ in range(max(1, _MAX_ITERS)):
             try:
@@ -258,18 +269,14 @@ def run_hunt(mode: str = "deep", existing_tickers: Optional[set[str]] = None) ->
                 {"role": "user", "content": prompt},
                 {"role": "assistant", "content": msg.content},
             ]
-    except Exception:
+    except Exception as e:
         logger.exception("[hunter] model call failed (mode=%s)", mode)
+        if in_tok or cr_tok or cc_tok:
+            _log_usage()     # the rounds that did report usage, before the one that raised
+        cost_guard.charge_unreported_call(md, "__hunter__", model, kwargs, e)
         return []
 
-    # Cost-log (best-effort) so hunts count against the daily caps — including
-    # the $10/1k web-search fees, which token counts alone don't capture.
-    try:
-        cost_guard.record(md, "__hunter__", model, in_tok, out_tok,
-                          was_cached=False, search_requests=searches,
-                          cache_read_tokens=cr_tok, cache_creation_tokens=cc_tok)
-    except Exception:
-        pass
+    _log_usage()
 
     text = ""
     try:

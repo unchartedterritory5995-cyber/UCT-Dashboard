@@ -47,6 +47,8 @@ USAGE — arm (safe against production):
     python tools/alert_soak_matrix.py --arm --email you@example.com
 
     # optional: --sym SPY --tf 5 --snooze-days 30
+    # (--tf moves every row EXCEPT the twelve RS rows, which always arm on D:
+    #  see "THE RS ROWS" below)
     # then, to make the soak actually observe anything:
     #   railway variables --set ALERT_SHADOW_ENABLED=1 --service web
     #   (⚠️ `railway variables --set` AUTO-REDEPLOYS)
@@ -58,6 +60,19 @@ USAGE — check what is armed, and that it is muzzled:
 USAGE — tear the whole thing down, one call, nothing else touched:
 
     python tools/alert_soak_matrix.py --disarm
+
+⭐ THE RS ROWS ARM ON THE DAILY TIMEFRAME (owner decision D4, 2026-11-07). An
+RS alert is judged on closed daily or weekly bars only (the rating on daily
+only), so on the matrix's 5-minute default every `rs_line.*` row was refused by
+the lane on every cycle: one warning line, no value, and a soak that observed
+nothing for twelve of its addresses. Each RS row now arms on `RS_SOAK_TF` ("D",
+the one timeframe all twelve accept), whatever `--tf` says. And because SPY is
+the RS lane's default benchmark, SPY measured against itself is a flat line the
+door refuses (`alert_rs_series.self_benchmark_refusal`): when `--sym` resolves to
+its own benchmark the RS rows soak `RS_SOAK_FALLBACK_SYM` (QQQ against SPY)
+instead. `--arm` retires a soak RS row left on any other timeframe or symbol by
+an earlier run (it is soak-tagged, so it is never a member's), and `--verify`
+refuses while one remains.
 
 ⚠️ IT WRITES TO `AUTH_DB_PATH` (default `/data/auth.db`). Run it where that
 resolves to the real store — on Railway, `railway ssh` on the **web** service
@@ -87,6 +102,32 @@ SOAK_KEY = "_soak"
 DEFAULT_SYM = "SPY"
 DEFAULT_TF = "5"
 DEFAULT_SNOOZE_DAYS = 30
+#: The timeframe every RS row arms on (module docstring): the one all twelve
+#: `rs_line.*` addresses accept (`alert_rs_series.address_timeframes`).
+RS_SOAK_TF = "D"
+#: The RS rows' symbol when `--sym` is its own RS benchmark (SPY by default):
+#: QQQ against SPY, a pair the store always holds daily (both are literal
+#: benchmarks in `rs_benchmarks.LITERAL_BENCHMARKS`, warmed every night).
+RS_SOAK_FALLBACK_SYM = "QQQ"
+
+
+def rs_soak_sym(sym: str) -> str:
+    """The symbol the RS rows soak: ``sym`` unless the RS lane's default
+    benchmark resolves to ``sym`` itself (a flat line no RS row can fire on)."""
+    from api.services import alert_rs_series
+    symbol = str(sym).strip().upper()
+    if alert_rs_series.resolved_benchmark_name(symbol, None) == symbol:
+        return RS_SOAK_FALLBACK_SYM
+    return symbol
+
+
+def spec_target(spec: dict, sym: str, tf: str) -> tuple[str, str]:
+    """``(sym, tf)`` one catalog spec arms on: the matrix's own, or for an RS
+    address (``ev.RS_ADDRESSES``, the lane's own partition) :func:`rs_soak_sym`
+    on :data:`RS_SOAK_TF`."""
+    if spec["address"] in ev.RS_ADDRESSES:
+        return rs_soak_sym(sym), RS_SOAK_TF
+    return str(sym).strip().upper(), tf
 
 
 def catalog_addresses() -> list[dict]:
@@ -157,15 +198,31 @@ def resolve_user(email: str | None, user_id: str | None) -> str:
     return str(row[0])
 
 
+def misplaced_rs_rows(rows: list[dict]) -> list[dict]:
+    """Soak RS rows that can never produce a value: an earlier run's RS rows off
+    :data:`RS_SOAK_TF` (the 5-minute ones before D4), or an RS row on a symbol
+    its benchmark resolves to (measured against itself)."""
+    return [a for a in rows if a["indicator"] in ev.RS_ADDRESSES
+            and (a["tf"] != RS_SOAK_TF or rs_soak_sym(a["sym"]) != str(a["sym"]).upper())]
+
+
 def arm(user_id: str, sym: str, tf: str, snooze_days: int) -> dict:
-    """Idempotent. Re-running adds only the addresses that are missing."""
+    """Idempotent. Re-running adds only the addresses that are missing, and
+    retires the soak RS rows an earlier run left off their target (D4)."""
     ias.init_schema()
+    rows = soak_rows()
+    retired = []
+    for a in misplaced_rs_rows(rows):
+        # Soak-tagged by construction (`soak_rows`), so never a member's alert.
+        ias.delete(a["id"])
+        retired.append(f"{a['indicator']}@{a['sym']}:{a['tf']}")
     existing = {(a["indicator"], a["sym"], a["tf"]): a for a in soak_rows()}
     created, kept = [], []
     minutes = min(snooze_days * 24 * 60, ias.SNOOZE_MAX_MINUTES)
 
     for spec in catalog_addresses():
-        key = (spec["address"], sym.upper(), tf)
+        row_sym, row_tf = spec_target(spec, sym, tf)
+        key = (spec["address"], row_sym, row_tf)
         if key in existing:
             kept.append(spec["address"])
             # Re-muzzle: an armed soak row is the one state this must never be
@@ -174,8 +231,8 @@ def arm(user_id: str, sym: str, tf: str, snooze_days: int) -> dict:
             ias.snooze(existing[key]["id"], minutes)
             continue
         alert_id = ias.create(
-            user_id=user_id, sym=sym.upper(), indicator=spec["address"],
-            condition=spec["condition"], threshold=spec["threshold"], tf=tf,
+            user_id=user_id, sym=row_sym, indicator=spec["address"],
+            condition=spec["condition"], threshold=spec["threshold"], tf=row_tf,
             params_json={SOAK_KEY: SOAK_TAG},
         )
         # ⭐ SNOOZED IMMEDIATELY — see the module docstring. Armed-then-snoozed
@@ -183,8 +240,9 @@ def arm(user_id: str, sym: str, tf: str, snooze_days: int) -> dict:
         # lane reads and a row it cannot see is a soak that observes nothing.
         ias.snooze(alert_id, minutes)
         created.append(spec["address"])
-    return {"created": created, "kept": kept, "user_id": user_id,
-            "sym": sym.upper(), "tf": tf, "snooze_minutes": minutes}
+    return {"created": created, "kept": kept, "retired": retired, "user_id": user_id,
+            "sym": sym.upper(), "tf": tf, "rs_sym": rs_soak_sym(sym), "rs_tf": RS_SOAK_TF,
+            "snooze_minutes": minutes}
 
 
 def disarm() -> dict:
@@ -228,7 +286,11 @@ def verify() -> dict:
     # ⚠️ NOT `state != snoozed`. A row whose window has CLOSED is deliverable on
     # the next cycle no matter what its state column still says.
     deliverable = [a for a in rows if not ias.snooze_active(a)]
-    addresses = {a["indicator"] for a in rows}
+    # An RS row off its target can never produce a value, so it covers nothing
+    # (D4): its address stays `missing` until `--arm` places it.
+    misplaced = misplaced_rs_rows(rows)
+    placed = {a["id"] for a in rows} - {a["id"] for a in misplaced}
+    addresses = {a["indicator"] for a in rows if a["id"] in placed}
     expected = {s["address"] for s in catalog_addresses()}
     horizon = time.time() + EXPIRY_WARN_DAYS * 86400
     expiring = [a for a in rows
@@ -246,6 +308,7 @@ def verify() -> dict:
         "addresses_covered": len(addresses & expected),
         "addresses_expected": len(expected),
         "missing": sorted(expected - addresses),
+        "misplaced": sorted(f"{a['indicator']}@{a['sym']}:{a['tf']}" for a in misplaced),
         "shadow_enabled": os.environ.get("ALERT_SHADOW_ENABLED", "0") == "1",
         "db": ias.db_path(),
     }
@@ -292,6 +355,10 @@ def verify_refusals(report: dict) -> list[str]:
         bad.append("REFUSED: armed rows the shadow lane cannot see")
     if report["missing"]:
         bad.append(f"REFUSED: {len(report['missing'])} catalog addresses unarmed")
+    if report.get("misplaced"):
+        bad.append(f"REFUSED: {len(report['misplaced'])} RS soak rows sit where they can never "
+                   f"produce a value (not on {RS_SOAK_TF}, or measured against themselves) — "
+                   "re-run --arm (it retires and re-places them)")
     # ⛔ THE COUNTDOWN IS ITSELF A FAILURE, AND IT HAS TO BE LOUD BEFORE THE
     # EMAILS, NOT AFTER. Re-running `--arm` re-snoozes every row and is
     # idempotent, so this is one command to clear — but only if it is said.

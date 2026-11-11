@@ -773,3 +773,139 @@ def test_W11_R61_one_mb_of_markers_matches_in_under_half_a_second(shape):
 def test_W11_R61_a_toggle_still_renders_through_the_export():
     html = _nef.markdown_to_html("<details>\n<summary>**Plan**</summary>\nInside\n</details>\n")
     assert "<details>" in html and "<strong>Plan</strong>" in html and "Inside" in html
+
+
+# ── Connector fidelity (2026-11): the `importNotice` block in the web page and Word ──────────
+
+def _notice(url):
+    return {"type": "importNotice", "attrs": {"reason": "fetch_failed", "name": "chart.png",
+                                               "sourceUrl": url, "ref": "r1", "attempts": 3}}
+
+
+def test_an_import_notice_is_a_quoted_sentence_with_a_safe_link_in_the_web_page():
+    html = F.note_html(_doc(_notice("https://example.com/chart.png")), resolver=None, title="t")
+    assert "<blockquote>" in html and "Couldn&#x27;t copy chart.png" in html
+    assert '<a href="https://example.com/chart.png"' in html and ">open the original</a>" in html
+    for bad in ("javascript:alert(1)", "javascript://example.com/%0Aalert(1)", "data:text/html,x",
+                "vbscript:x", "file:///c/chart.png", "file://server/chart.png", "//evil.com/chart.png"):
+        page = F.note_html(_doc(_notice(bad)), resolver=None, title="t")
+        assert "Couldn&#x27;t copy chart.png" in page and "open the original" not in page, bad
+        assert bad.split(":")[0] + ":" not in page.split('<div class="uct-note-body">')[1], bad
+
+
+def test_an_import_notice_in_word_is_the_sentence_and_a_link_only_for_http():
+    blob = F.note_docx(_doc(_notice("https://example.com/chart.png")), title="t")
+    parts = validate_docx(blob)
+    assert "Couldn't copy chart.png open the original" in _docx_text(blob)
+    assert _external_targets(parts) == ["https://example.com/chart.png"]
+    blob = F.note_docx(_doc(_notice("file://server/chart.png")), title="t")
+    parts = validate_docx(blob)
+    assert "Couldn't copy chart.png" in _docx_text(blob) and "open the original" not in _docx_text(blob)
+    assert _external_targets(parts) == []
+
+
+# ── D2 item 6: an attachment chip's optional label ───────────────────────────
+# `[the report](q3%20report.pdf)` keeps the member's words as `attrs.label`. Every format
+# shows the label and links (or names) the file; a chip with no label exports exactly as
+# before (the markdown digests above pin that for the whole library).
+
+_LABELED = {"type": "attachmentChip",
+            "attrs": {"href": "https://x.test/q3%20report.pdf", "name": "q3 report.pdf", "label": "the report"}}
+_UNLABELED = {"type": "attachmentChip", "attrs": {"href": "https://x.test/q3%20report.pdf", "name": "q3 report.pdf"}}
+
+
+def test_a_labeled_chip_shows_its_label_and_links_its_file_in_markdown_and_the_web_page():
+    md = notes_export.tiptap_to_markdown(_doc(_LABELED))
+    assert md.strip() == "[the report](https://x.test/q3%20report.pdf)"
+    assert notes_export.tiptap_to_markdown(_doc(_UNLABELED)).strip() == "[q3 report.pdf](https://x.test/q3%20report.pdf)"
+    for blank in ("", "   ", None, 7):
+        chip = {"type": "attachmentChip", "attrs": {**_UNLABELED["attrs"], "label": blank}}
+        assert notes_export.tiptap_to_markdown(_doc(chip)).strip() == "[q3 report.pdf](https://x.test/q3%20report.pdf)"
+    page = F.note_html(_doc(_LABELED), resolver=None, title="t")
+    assert '<a href="https://x.test/q3%20report.pdf" rel="noopener noreferrer">the report</a>' in page
+
+
+def test_a_labeled_chip_shows_its_label_in_word_and_lists_the_file_by_name():
+    text = _docx_text(F.note_docx(_doc(_LABELED), title="t"))
+    assert "the report" in text
+    assert "q3 report.pdf -- a file attachment" in text
+    assert "the report --" not in text
+    plain = _docx_text(F.note_docx(_doc(_UNLABELED), title="t"))
+    assert plain.split("Not included")[0].strip() == "t q3 report.pdf"
+
+
+def test_chip_text_cannot_break_or_plant_a_link_in_the_markdown_export():
+    """D2 fix round 1 (M2): `[`, `]` and a tag-opening `<` in a chip's text are escaped, so a
+    crafted label can neither end the file link early nor write a live `javascript:` link
+    into the .md, and the web page shows the words as words."""
+    def md(label, href="https://x.test/q3.pdf"):
+        chip = {"type": "attachmentChip", "attrs": {"href": href, "name": "q3.pdf", "label": label}}
+        return notes_export.tiptap_to_markdown(_doc(chip)).strip()
+    hostile = "a](javascript:alert(1)) [b"
+    assert md(hostile) == r"[a\](javascript:alert(1)) \[b](https://x.test/q3.pdf)"
+    assert md("x ] y") == r"[x \] y](https://x.test/q3.pdf)"
+    assert md("<b>x</b>") == r"[\<b>x\</b>](https://x.test/q3.pdf)"
+    assert md(r"a\]b") == r"[a\\\]b](https://x.test/q3.pdf)"   # the member's own escape, as before
+    page = F.note_html(_doc({"type": "attachmentChip", "attrs": {
+        "href": "https://x.test/q3.pdf", "name": "q3.pdf", "label": hostile}}), resolver=None, title="t")
+    body = page.split('<div class="uct-note-body">')[1]
+    assert "javascript:" not in body and 'href="https://x.test/q3.pdf"' in body
+    assert body.count("<a ") == 1
+
+
+def test_a_chip_only_ever_links_a_web_or_relative_address_in_the_markdown_export():
+    """D2 fix round 1 (M2): a chip's href is our upload URL (relative) or, bundled, a relative
+    path; anything else (a crafted `javascript:`, `data:` or `//host` href) is written as the
+    chip's text alone, never as a link."""
+    def md(href):
+        chip = {"type": "attachmentChip", "attrs": {"href": href, "name": "q3.pdf"}}
+        return notes_export.tiptap_to_markdown(_doc(chip)).strip()
+    assert md("/api/j2/notes/attachments/u/n/file/q3.pdf") == "[q3.pdf](/api/j2/notes/attachments/u/n/file/q3.pdf)"
+    assert md("https://x.test/q3.pdf") == "[q3.pdf](https://x.test/q3.pdf)"
+    assert md("attachments/u/n/file/q3.pdf") == "[q3.pdf](attachments/u/n/file/q3.pdf)"
+    for bad in ("javascript:alert(1)", "JavaScript:alert(1)", "data:text/html,x", "vbscript:x",
+                "//evil.test/x", "file:///c/x", " javascript:alert(1)"):
+        assert md(bad) == "q3.pdf", bad
+
+
+def _md_link_hrefs(markdown: str) -> list[str]:
+    """Every link destination a CommonMark reader finds in `markdown` (markdown-it-py)."""
+    from markdown_it import MarkdownIt
+    hrefs = []
+    for token in MarkdownIt("commonmark").parse(markdown):
+        for child in token.children or []:
+            if child.type == "link_open":
+                hrefs.append(child.attrGet("href"))
+    return hrefs
+
+
+def test_a_chip_address_is_one_destination_whatever_it_holds():
+    """D2 fix round 2, N2: an address holding a space, a parenthesis, an angle bracket or a
+    backslash is written in CommonMark's `<...>` form (`<`, `>` and backslash escaped), so it
+    stays ONE link: a hostile href cannot close the link early and plant a live second one,
+    and a relative path with a space still links. An ordinary address is written as before."""
+    def md(href):
+        chip = {"type": "attachmentChip", "attrs": {"href": href, "name": "q3.pdf"}}
+        return notes_export.tiptap_to_markdown(_doc(chip)).strip()
+    hostile = "https://cdn.example/f/q3.pdf) [x](javascript:alert(1)"
+    out = md(hostile)
+    assert _md_link_hrefs(out) == ["https://cdn.example/f/q3.pdf)%20%5Bx%5D(javascript:alert(1)"]
+    assert md("files/q3 report.pdf") == "[q3.pdf](<files/q3 report.pdf>)"
+    assert _md_link_hrefs(md("files/q3 report.pdf")) == ["files/q3%20report.pdf"]
+    backslash = chr(92)
+    assert _md_link_hrefs(md(f"https://x.test/a<b>c{backslash}d.pdf")) == ["https://x.test/a%3Cb%3Ec%5Cd.pdf"]
+    assert md("https://x.test/q3.pdf") == "[q3.pdf](https://x.test/q3.pdf)"   # unchanged
+    for bad in ("https://x.test/a\nb", "files/a\rb"):
+        assert md(bad) == "q3.pdf", repr(bad)
+
+
+def test_the_invalid_xml_class_is_spelled_with_escapes_and_matches_what_it_did():
+    """D2 fix round 2 (info): `_INVALID_XML` held raw U+FFFE and U+FFFF, which an editor shows
+    as nothing. It is spelled with escapes now, and matches exactly the code points it did:
+    C0 controls but tab, newline and carriage return, then the two noncharacters."""
+    import pathlib
+    expected = [c for c in range(0x20) if c not in (9, 10, 13)] + [0xFFFE, 0xFFFF]
+    hits = [c for c in range(0x110000) if not 0xD800 <= c <= 0xDFFF and F._INVALID_XML.search(chr(c))]
+    assert hits == expected
+    source = pathlib.Path(F.__file__).read_text(encoding="utf-8")
+    assert chr(0xFFFE) not in source and chr(0xFFFF) not in source

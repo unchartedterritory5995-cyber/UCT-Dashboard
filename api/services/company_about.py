@@ -7,6 +7,7 @@ so it's one cheap call per name, not per tab-open. Everything is fail-soft: a
 failure degrades to "facts only", never an error.
 """
 from __future__ import annotations
+from api.services import llm_models
 
 import json
 import logging
@@ -14,9 +15,10 @@ import os
 
 log = logging.getLogger("company_about")
 
-_BRIEF_MODEL = os.environ.get("ABOUT_BRIEF_MODEL", "claude-haiku-4-5")
+_BRIEF_MODEL = os.environ.get("ABOUT_BRIEF_MODEL", llm_models.HAIKU)
 _BRIEF_ENABLED = os.environ.get("ABOUT_BRIEF_ENABLED", "1") == "1"
 _BRIEF_TTL = 30 * 86400          # a business narrative changes slowly
+_BRIEF_FAIL_TTL = 3600           # a failed brief is not re-bought on every tab-open
 _PROFILE_TTL = 12 * 3600
 _PEERS_TTL = 6 * 3600
 
@@ -138,11 +140,11 @@ def get_brief(sym: str, profile: dict) -> dict:
         from api.services.engine import _get_anthropic_client
         client = _get_anthropic_client()
         msg = client.messages.create(
-            model=_BRIEF_MODEL, max_tokens=380, temperature=0.5,
+            model=_BRIEF_MODEL, max_tokens=380, **llm_models.plain(_BRIEF_MODEL, temperature=0.5),
             system=sys_prompt,
             messages=[{"role": "user", "content": grounding}],
         )
-        txt = (msg.content[0].text if msg and msg.content else "").strip()
+        txt = (llm_models.text_of(msg) if msg else "").strip()
         if txt.startswith("```"):
             txt = txt.strip("`")
             if txt[:4].lower() == "json":
@@ -156,8 +158,7 @@ def get_brief(sym: str, profile: dict) -> dict:
     except Exception as e:  # noqa: BLE001
         log.warning("[about] brief generation failed for %s: %s", sym, e)
         brief = {}
-    if brief.get("whatTheyDo"):
-        c.set(key, brief, _BRIEF_TTL)
+    c.set(key, brief, _BRIEF_TTL if brief.get("whatTheyDo") else _BRIEF_FAIL_TTL)
     return brief
 
 

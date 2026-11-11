@@ -40,9 +40,15 @@
   margin: 0;
   background: none;
   border: none;
-  color: inherit;
+  /* B6 (2026-11-07): a filter label's info ring is quiet at rest, so a rail of them does not
+     put twenty gold marks down the page; gold is rationed to the ring being reached for. */
+  color: var(--text-muted);
   cursor: pointer;
   line-height: 0;
+}
+.trigger:hover,
+.trigger:focus-visible {
+  color: var(--ut-gold);
 }
 
 /* TOUCH — opt-in, and only where there is room for it.

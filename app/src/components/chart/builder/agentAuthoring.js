@@ -30,6 +30,7 @@ import {
 } from './authoring/authoringSession'
 import { withPendingInputs } from './studio/editPreview'
 import { sameMaths } from './authoring/sameMaths'
+import { withServedRowIdentities } from '../engine/lineIdentity'
 
 export const AUTHORING_CONTRACT = 'uct.indicators.authoring/1'
 
@@ -321,7 +322,9 @@ export async function draftTurn(draftRef, message, opts = {}, ctx = {}) {
     out = await modelTurn(before, () => {
       const now = readSession(key)
       return now && now.state ? now.state : before
-    }, words, { snippets, gateCtx, converse: ctx.converse || converseTurn })
+    }, words, { snippets, gateCtx, converse: ctx.converse || converseTurn,
+      // PACKAGE 3 (§17): the caller may keep the model's create-name as a custom name, in the same patch
+      ...(typeof opts.keepCreateName === 'function' ? { keepCreateName: opts.keepCreateName } : {}) })
     // ⛔ the dock may have opened, or the draft moved, while the model answered — nothing written then
     const now = readSession(key)
     if (isHeldInDock(key)) return refuse(R.DRAFT_OPEN_IN_DOCK)
@@ -425,7 +428,8 @@ export async function readStoredDefinition(defId, fetchImpl = (typeof fetch === 
     const r = await fetchImpl(`/api/user-definitions/${encodeURIComponent(defId)}`, { credentials: 'include', cache: 'no-store' })
     if (!r || !r.ok) return null
     const row = await r.json()
-    return isObj(row) ? row : null
+    // ⭐ LINE IDENTITY — the served identities, worn by the copy this browser holds.
+    return isObj(row) ? withServedRowIdentities(row) : null
   } catch { return null }
 }
 

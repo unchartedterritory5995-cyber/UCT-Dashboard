@@ -1,0 +1,10 @@
+//@version=5
+indicator("hp history", overlay=false)
+d1 = close - close[1]
+d5 = close - close[5]
+mom = ta.mom(close, 10)
+chg = ta.change(close, 3)
+plot(d1, "d1")
+plot(d5, "d5")
+plot(mom, "mom")
+plot(chg, "chg")

@@ -1,7 +1,7 @@
 """W14-C1 controller ruling (2026-10-05): W14-E's extra examples obey the wave-14 switch.
 
-With the switch OFF (`NOTEBOOK_ONBOARDING_ENABLED` and `NOTEBOOK_GETTING_STARTED_ENABLED` not
-both on), "Add a sample notebook" must write EXACTLY what it wrote before wave 14: compared
+With the switch OFF (`NOTEBOOK_ONBOARDING_ENABLED` off; its partner
+`NOTEBOOK_GETTING_STARTED_ENABLED` was retired as always on, 2026-11-04), "Add a sample notebook" must write EXACTLY what it wrote before wave 14: compared
 row for row, table by table, against the pre-wave-14 `sample_notebook.seed` itself (its blob at
 `b06ec4fd85`, the wave-13 landing wave 14 branched from), run against the same database
 schema. With the switch ON, the examples arrive (the W14-E rails in
@@ -31,7 +31,7 @@ PREF_JS = ROOT / "app/src/pages/journal-2-0/components/notebook/onboarding/getti
 REGISTRY_JS = ROOT / "app/src/pages/journal-2-0/components/notebook/onboarding/tourRegistry.js"
 PRE_WAVE14 = "b06ec4fd85"
 U_NOW, U_PRE = "u-switch-now", "u-switch-pre"
-SWITCH = ("NOTEBOOK_ONBOARDING_ENABLED", "NOTEBOOK_GETTING_STARTED_ENABLED")
+SWITCH = ("NOTEBOOK_ONBOARDING_ENABLED", "NOTEBOOK_GETTING_STARTED_ENABLED")   # the second is inert now
 #: Columns that differ between two runs by construction (ids, clocks, the member), not content.
 VOLATILE = re.compile(r"(^id$|_id$|_at$|^at$|^ts$|^created|^updated|^rowid$|hash$|^user_id$)", re.I)
 
@@ -45,7 +45,9 @@ def test_the_server_switch_is_the_client_rule_read_from_its_source():
     client_keys = re.findall(r"flag\('([a-z0-9_]+)'\)\s*===\s*true", m.group(1))
     assert client_keys, "no flag keys read out of checklistEnabled() (the reader is broken)"
     server_keys = [auth_router._notebook_flag_key(n) for n in notebook_wave14_switch.WAVE14_SWITCH]
-    assert sorted(server_keys) == sorted(client_keys)
+    # the client also names the retired (always on) checklist key, which the payload hard-codes True
+    assert sorted(server_keys) == sorted(k for k in client_keys if k not in auth_router.NOTEBOOK_ALWAYS_ON_KEYS)
+    assert "notebook_getting_started_enabled" in auth_router.NOTEBOOK_ALWAYS_ON_KEYS
     # both are rows of the one table, so the server reads them with the payload's defaults
     for n in notebook_wave14_switch.WAVE14_SWITCH:
         assert n in auth_router.NOTEBOOK_FLAGS
@@ -54,7 +56,8 @@ def test_the_server_switch_is_the_client_rule_read_from_its_source():
 
 
 @pytest.mark.parametrize("on,gs,expected", [
-    (None, None, False), ("1", None, False), (None, "1", False), ("1", "0", False), ("0", "1", False),
+    # the checklist's own variable (gs) was retired as always on: it no longer changes the answer
+    (None, None, False), ("1", None, True), (None, "1", False), ("1", "0", True), ("0", "1", False),
     ("1", "1", True), ("true", "yes", True),
 ])
 def test_the_switch_reads_like_the_payload(monkeypatch, on, gs, expected):
@@ -132,7 +135,7 @@ def _pre_wave14_module():
     return mod
 
 
-@pytest.mark.parametrize("on,gs", [(None, None), ("1", None), (None, "1"), ("1", "0")])
+@pytest.mark.parametrize("on,gs", [(None, None), (None, "1"), ("0", "1")])
 def test_switch_off_writes_exactly_the_pre_wave14_rows(db, monkeypatch, on, gs):
     for name, v in zip(SWITCH, (on, gs)):
         if v is None:

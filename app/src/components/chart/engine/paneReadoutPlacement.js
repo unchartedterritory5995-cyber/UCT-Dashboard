@@ -53,6 +53,31 @@ export function rendererPaneIndexOf(key, bindings, hostOf) {
 }
 
 /**
+ * ⭐ UCT RS 3-14 — THE BAND RESERVED FOR A PANE THAT DREW NOTHING.
+ *
+ * `rendererPaneIndexOf` answers `null` when nothing of a pane key drew (an
+ * indicator whose every column came back empty: a benchmark with no bars yet).
+ * The arrangement still RESERVES that key's slot (`paneRealization`: a pending
+ * slot is spared, so a series arriving later lands in its own pane), and the
+ * member sees an empty band with no name and no way to open its menu. So the
+ * label is pinned to that band, and only when the band is provably the empty
+ * placeholder: the renderer's pane at the layout slot exists and holds NO
+ * series. A pane holding anything belongs to somebody else (the ZZZZ/SPY
+ * defect above), and the answer stays `null`.
+ *
+ * @param {number} index  the layout slot (`paneLayout.panes[].index`)
+ * @param {object[]|null} panes  `chart.panes()`
+ * @returns {number|null} the slot, or null when it is not an empty reserved pane
+ */
+export function reservedEmptyPaneIndex(index, panes) {
+  if (!Number.isInteger(index) || index < 0 || !Array.isArray(panes) || index >= panes.length) return null
+  try {
+    const held = panes[index] && typeof panes[index].getSeries === 'function' ? panes[index].getSeries() : null
+    return Array.isArray(held) && held.length === 0 ? index : null
+  } catch { return null }
+}
+
+/**
  * The instance GROUP every row of one pane readout belongs to, or null.
  *
  * ⭐ A PANE THAT IS ONE LOGICAL INDICATOR IS TITLED BY IT. A COT dataset is three

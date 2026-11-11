@@ -53,6 +53,8 @@ Spec: .superpowers/sdd/2026-09-02-obsidian-ingest-server/task-3-brief.md
 
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -285,13 +287,19 @@ def ingest_batch(
                 skipped += 1
                 continue
             safe_updated_at = _sanitize_updated_at(note["updated_at"], received_at=received_at)
+            # Plan C Task 2: the note's attachment refs as the plugin resolved them. NULL is
+            # "this plugin sends no refs" (0.1.x, or 0.2.0 in legacy mode); `[]` is "a note
+            # with no attachments". The provider tells the two apart, so they never merge.
+            refs = note.get("attachments")
             conn.execute(
                 "INSERT OR REPLACE INTO j2_obsidian_staging "
-                "(user_id, vault_id, vault_path, content_hash, body_md, updated_at, received_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "(user_id, vault_id, vault_path, content_hash, body_md, updated_at, received_at,"
+                " attachments_json) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     user_id, vault_id, vault_path, content_hash,
                     note["body_md"], safe_updated_at, received_at,
+                    None if refs is None else json.dumps(refs),
                 ),
             )
             written += 1
@@ -313,11 +321,20 @@ def ingest_batch(
                     f"manifest lists {len(fabricated)} path(s) never pushed to staging for "
                     f"this vault (e.g. {fabricated[0]!r}) -- refused"
                 )
+            previous_manifest = {
+                r["vault_path"] for r in conn.execute(
+                    "SELECT vault_path FROM j2_obsidian_manifest WHERE user_id = ? AND vault_id = ?",
+                    (user_id, vault_id),
+                ).fetchall()
+            }
             conn.execute(
                 "DELETE FROM j2_obsidian_manifest WHERE user_id = ? AND vault_id = ?",
                 (user_id, vault_id),
             )
             recorded_at = _now_iso()
+            _record_renames(conn, user_id=user_id, vault_id=vault_id,
+                            previous=previous_manifest, current=set(manifest),
+                            recorded_at=recorded_at)
             conn.executemany(
                 "INSERT INTO j2_obsidian_manifest (user_id, vault_id, vault_path, recorded_at) "
                 "VALUES (?, ?, ?, ?)",
@@ -336,3 +353,100 @@ def ingest_batch(
         "written": written, "skipped": skipped, "manifestReplaced": manifest_replaced,
         "tooLarge": too_large,
     }
+
+
+def _body_sha(body_md: str | None) -> str:
+    return hashlib.sha256((body_md or "").encode("utf-8")).hexdigest()
+
+
+#: Fix round 1 (L2): a body with fewer non-whitespace characters than this is never paired as a
+#: rename. Short bodies are where unrelated notes collide: an empty note, a lone `#todo`, a title
+#: line a template stamps on every new note. A false pairing is the expensive mistake (it moves a
+#: note's identity, UCT edits and favourites onto an unrelated file); a missed one costs only
+#: today's behaviour (a new note, the old one tagged after two strikes). 32 is about one short
+#: sentence ("Some plain words about the trade." is 28): enough text that two DIFFERENT notes
+#: sharing it byte for byte is unlikely, and the vault-wide uniqueness check below catches the
+#: template that is longer than that.
+RENAME_MIN_BODY_CHARS = 32
+
+
+def _staged_bodies(conn: Any, user_id: str, vault_id: str,
+                   paths: list[str]) -> dict[str, tuple[str, int]]:
+    """{vault_path: (sha256 of its staged body, its non-whitespace character count)} for `paths`
+    that have a staged row."""
+    out: dict[str, tuple[str, int]] = {}
+    for i in range(0, len(paths), 500):  # sqlite variable-limit safety
+        part = paths[i:i + 500]
+        marks = ",".join("?" * len(part))
+        for r in conn.execute(
+                "SELECT vault_path, body_md FROM j2_obsidian_staging WHERE user_id = ? AND vault_id = ?"
+                f" AND vault_path IN ({marks})", (user_id, vault_id, *part)):
+            body = r["body_md"] or ""
+            out[r["vault_path"]] = (_body_sha(body), len("".join(body.split())))
+    return out
+
+
+def _body_unique_in_manifest(conn: Any, user_id: str, vault_id: str, path: str,
+                             manifest_json: str) -> bool:
+    """Fix round 1 (L2): no OTHER path of the new manifest has `path`'s staged body byte for
+    byte. Two notes made from one template are identical; pairing a dropped one with an added
+    one would be a guess between look-alikes. Compared in SQL, so no body leaves the database."""
+    row = conn.execute(
+        "SELECT COUNT(*) FROM j2_obsidian_staging s WHERE s.user_id = ? AND s.vault_id = ?"
+        " AND s.vault_path IN (SELECT value FROM json_each(?))"
+        " AND s.body_md = (SELECT body_md FROM j2_obsidian_staging"
+        "                  WHERE user_id = ? AND vault_id = ? AND vault_path = ?)",
+        (user_id, vault_id, manifest_json, user_id, vault_id, path)).fetchone()
+    return row[0] == 1
+
+
+def _record_renames(conn: Any, *, user_id: str, vault_id: str, previous: set[str],
+                    current: set[str], recorded_at: str) -> int:
+    """L2 (live Obsidian probe 2026-11-03): an Obsidian rename used to import as a new note,
+    because `import_key` is the vault path. This is the one place that sees ONE push's manifest
+    change, so it records the renames that push showed into `j2_obsidian_renames`; the sync
+    engine re-keys the existing note (`engine._apply_source_renames`). It never writes
+    `j2_notes` (module docstring).
+
+    A rename is a path the previous manifest had and this one dropped, paired with a path this
+    manifest added whose STAGED body is byte-identical (server-side sha256 of `body_md`, never
+    the client's `content_hash`). EXACT match only, and unique BOTH ways: two dropped paths with
+    one body, or two added paths with one body, are ambiguous and record nothing for that body,
+    so those notes import exactly as before this change. Fix round 1: a body under
+    `RENAME_MIN_BODY_CHARS` non-whitespace characters is never paired, nor one another path of the
+    new manifest shares (a template). A rename plus an edit in the same push
+    has different bodies and records nothing (today's behaviour: a new note). A folder move is a
+    rename. No previous manifest (the first push) records nothing.
+
+    Run inside the caller's transaction, after the manifest rows were read and before they are
+    re-inserted. A record whose new path left the manifest again is dropped here; the engine
+    re-checks the manifest when it applies one (a rename undone before the sync ran)."""
+    conn.execute(
+        "DELETE FROM j2_obsidian_renames WHERE user_id = ? AND vault_id = ? AND new_path NOT IN "
+        "(SELECT value FROM json_each(?))",
+        (user_id, vault_id, json.dumps(sorted(current))),
+    )
+    removed = sorted(previous - current)
+    added = sorted(current - previous)
+    if not previous or not removed or not added:
+        return 0
+    shas = _staged_bodies(conn, user_id, vault_id, removed + added)
+    removed_by: dict[str, list[str]] = {}
+    added_by: dict[str, list[str]] = {}
+    for p in removed:
+        if p in shas:
+            removed_by.setdefault(shas[p][0], []).append(p)
+    for p in added:
+        if p in shas:
+            added_by.setdefault(shas[p][0], []).append(p)
+    manifest_json = json.dumps(sorted(current))
+    rows = [(user_id, vault_id, news[0], olds[0], sha, recorded_at)
+            for sha, olds in removed_by.items()
+            if len(olds) == 1 and len(news := added_by.get(sha, [])) == 1
+            and shas[olds[0]][1] >= RENAME_MIN_BODY_CHARS
+            and _body_unique_in_manifest(conn, user_id, vault_id, news[0], manifest_json)]
+    conn.executemany(
+        "INSERT OR REPLACE INTO j2_obsidian_renames"
+        " (user_id, vault_id, new_path, old_path, body_sha, recorded_at) VALUES (?, ?, ?, ?, ?, ?)",
+        rows)
+    return len(rows)

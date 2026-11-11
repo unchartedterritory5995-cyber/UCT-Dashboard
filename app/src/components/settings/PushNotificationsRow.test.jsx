@@ -35,6 +35,14 @@ describe('PushNotificationsRow', () => {
     expect(container.innerHTML).toBe('')
   })
 
+  it('renders nothing inside the desktop shell, even when configured', async () => {
+    m.config = { configured: true, public_key: 'BKEY' }
+    m.support = { ok: false, reason: 'desktop-shell' }
+    const { container } = render(<PushNotificationsRow />)
+    await new Promise(r => setTimeout(r, 10))
+    expect(container.innerHTML).toBe('')
+  })
+
   it('shows the toggle and the plain iOS sentence when configured', async () => {
     m.config = { configured: true, public_key: 'BKEY' }
     render(<PushNotificationsRow />)

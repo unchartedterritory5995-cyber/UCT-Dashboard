@@ -20,7 +20,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
-import useGroupMeta, { CHUNK } from './useGroupMeta'
+import useGroupMeta, { CHUNK, _resetGroupMetaCache, prefetchGroupSectors } from './useGroupMeta'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROUTER = resolve(HERE, '../../../../../api/routers/breadth_monitor.py')
@@ -34,26 +34,29 @@ function serverCap() {
 
 /** A fake endpoint that truncates exactly like the real one. */
 function makeServer({ cap = 500, industryFor = (t) => `Ind:${t[0]}` } = {}) {
-  const calls = []
+  const calls = []      // the FULL (theme) requests — the ones the cap matters for
+  const fastCalls = []  // the sectors-only requests (`fields` without "theme")
   let inFlight = 0
   let peak = 0
   const fetchMock = async (_url, init) => {
-    const sent = JSON.parse(init.body).tickers
-    calls.push(sent)
+    const body = JSON.parse(init.body)
+    const sent = body.tickers
+    const fast = Array.isArray(body.fields) && !body.fields.includes('theme')
+    ;(fast ? fastCalls : calls).push(sent)
     inFlight++; peak = Math.max(peak, inFlight)
     await new Promise(r => setTimeout(r, 5))
     inFlight--
     const kept = sent.slice(0, cap)          // ← the silent truncation
     const industries = {}, sectors = {}, themes = {}
     for (const t of kept) { industries[t] = industryFor(t); sectors[t] = 'Tech'; themes[t] = null }
-    return { ok: true, json: async () => ({ industries, sectors, themes }) }
+    return { ok: true, json: async () => (fast ? { industries, sectors } : { industries, sectors, themes }) }
   }
-  return { fetchMock, calls, peak: () => peak }
+  return { fetchMock, calls, fastCalls, peak: () => peak }
 }
 
 const syms = (n, p = 'T') => Array.from({ length: n }, (_, i) => `${p}${i}`)
 
-afterEach(() => { vi.unstubAllGlobals() })
+afterEach(() => { vi.unstubAllGlobals(); _resetGroupMetaCache() })
 
 describe('CONTROL — the rail is reasoning about a cap that still exists', () => {
   test('the router still truncates, and CHUNK does not exceed its cap', () => {
@@ -133,10 +136,55 @@ describe('every ticker gets answered, however long the list', () => {
     const { fetchMock, calls } = makeServer({ industryFor: () => null })
     vi.stubGlobal('fetch', fetchMock)
     const { result } = renderHook(() => useGroupMeta(syms(2500)))
-    await waitFor(() => expect(Object.keys(result.current.industries)).toHaveLength(2500))
+    await waitFor(() => expect(Object.keys(result.current.themes)).toHaveLength(2500))
     const firstPass = calls.length
     await new Promise(r => setTimeout(r, 3200))       // past the 2.5s retry delay
     const retried = calls.slice(firstPass).reduce((n, c) => n + c.length, 0)
     expect(retried, 'retry must not replay the whole list').toBeLessThanOrEqual(CHUNK * 2)
   }, 15000)
+})
+
+describe('instant sectors (2026-11-09)', () => {
+  test('sectors arrive from the FAST request, before any theme request answers', async () => {
+    const fastCalls = []
+    let releaseFull
+    const fullGate = new Promise(r => { releaseFull = r })
+    vi.stubGlobal('fetch', async (_u, init) => {
+      const body = JSON.parse(init.body)
+      const fast = Array.isArray(body.fields)
+      if (fast) fastCalls.push(body.tickers)
+      else await fullGate
+      const industries = {}, sectors = {}, themes = {}
+      for (const t of body.tickers) { industries[t] = 'Ind'; sectors[t] = 'Tech'; themes[t] = 'Th' }
+      return { ok: true, json: async () => (fast ? { industries, sectors } : { industries, sectors, themes }) }
+    })
+    const { result } = renderHook(() => useGroupMeta(syms(40)))
+    await waitFor(() => expect(Object.keys(result.current.sectors)).toHaveLength(40))
+    expect(fastCalls).toHaveLength(1)
+    expect(result.current.themes).toEqual({})   // themes still on their way
+    releaseFull()
+    await waitFor(() => expect(Object.keys(result.current.themes)).toHaveLength(40))
+  })
+
+  test('a second list with the same stocks paints on its FIRST render, with no request', async () => {
+    const { fetchMock, calls, fastCalls } = makeServer()
+    vi.stubGlobal('fetch', fetchMock)
+    const first = renderHook(() => useGroupMeta(syms(30)))
+    await waitFor(() => expect(Object.keys(first.result.current.themes)).toHaveLength(30))
+    first.unmount()
+    const before = calls.length + fastCalls.length
+    const second = renderHook(() => useGroupMeta(syms(30)))
+    expect(Object.keys(second.result.current.sectors)).toHaveLength(30)
+    await new Promise(r => setTimeout(r, 30))
+    expect(calls.length + fastCalls.length).toBe(before)
+  })
+
+  test('a hover prefetch is not asked again when the list opens', async () => {
+    const { fetchMock, fastCalls } = makeServer()
+    vi.stubGlobal('fetch', fetchMock)
+    prefetchGroupSectors(syms(25))
+    const { result } = renderHook(() => useGroupMeta(syms(25)))
+    await waitFor(() => expect(Object.keys(result.current.sectors)).toHaveLength(25))
+    expect(fastCalls).toHaveLength(1)
+  })
 })

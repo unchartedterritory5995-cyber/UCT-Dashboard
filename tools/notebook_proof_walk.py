@@ -554,7 +554,7 @@ CONTROLS_JS = r"""(root) => {
     const b = el.getBoundingClientRect();
     const cur = el.getAttribute('aria-selected') === 'true' || (el.getAttribute('aria-current') && el.getAttribute('aria-current') !== 'false')
                 || (el.getAttribute('aria-pressed') === 'true' && !!el.closest('[role=group],[role=radiogroup],[role=tablist],[role=toolbar]'))
-                || (el.getAttribute('role') === 'radio' && el.getAttribute('aria-checked') === 'true');
+                || ((el.getAttribute('role') === 'radio' || el.getAttribute('role') === 'menuitemradio') && el.getAttribute('aria-checked') === 'true');
     out.push({key, nth: seen[key], tag: el.tagName, role, name, disabled, field, current: !!cur,
               type: el.getAttribute('type') || '', href: el.getAttribute('href') || '',
               target: el.getAttribute('target') || '', box: [Math.round(b.x), Math.round(b.y), Math.round(b.width), Math.round(b.height)]});

@@ -1,0 +1,849 @@
+{
+ "about": "agent-qa ADVERSARIAL quote set 3, written BLIND (before agent-md's general lowercase design or code was seen), 2026-11-02. Bar (owner, via agent-lead): no confident wrong answer; no silent coincidental resolution; no current price for a historical request; clear lowercase tickers should execute (must_execute). expect null = any execution is a FAIL unless listed in either.",
+ "rows": [
+  {
+   "id": "A01",
+   "cat": "lower_ticker",
+   "text": "nvda price",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "NVDA"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "A02",
+   "cat": "lower_ticker",
+   "text": "aapl price",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "AAPL"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "A03",
+   "cat": "lower_ticker",
+   "text": "what's msft at",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "MSFT"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "A04",
+   "cat": "lower_ticker",
+   "text": "spy price",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "SPY"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "A05",
+   "cat": "lower_ticker",
+   "text": "qqq right now",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "QQQ"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "A06",
+   "cat": "lower_ticker",
+   "text": "tsla quote",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "TSLA"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "A07",
+   "cat": "lower_ticker",
+   "text": "how's amd trading",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "AMD"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "A08",
+   "cat": "lower_ticker",
+   "text": "nvda premarket",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "NVDA"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "A09",
+   "cat": "lower_ticker",
+   "text": "googl price",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "GOOGL"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "A10",
+   "cat": "lower_ticker",
+   "text": "pltr price rn",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "PLTR"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "A11",
+   "cat": "lower_ticker",
+   "text": "price of meta",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "META"
+    ]
+   },
+   "either": [
+    null
+   ],
+   "why": "meta is a word, but 'price of meta' reads as the company; not executing is acceptable"
+  },
+  {
+   "id": "A12",
+   "cat": "lower_ticker",
+   "text": "amzn after hours",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "AMZN"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "C01",
+   "cat": "compound",
+   "text": "nvda and amd price",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "NVDA",
+     "AMD"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "C02",
+   "cat": "compound",
+   "text": "nvda and gold price",
+   "expect": null,
+   "why": "one ambiguous word blocks the whole compound"
+  },
+  {
+   "id": "C03",
+   "cat": "compound",
+   "text": "NVDA and btc price",
+   "expect": null
+  },
+  {
+   "id": "C04",
+   "cat": "compound",
+   "text": "aapl, msft and googl quotes",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "AAPL",
+     "MSFT",
+     "GOOGL"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "C05",
+   "cat": "compound",
+   "text": "compare nvda and amd",
+   "expect": null,
+   "either": [
+    {
+     "action": "stock.quote",
+     "symbols": [
+      "NVDA",
+      "AMD"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "C06",
+   "cat": "compound",
+   "text": "spy and qqq premarket",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "SPY",
+     "QQQ"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "C07",
+   "cat": "compound",
+   "text": "nvda price and why is it up",
+   "expect": null,
+   "either": [
+    {
+     "action": "stock.quote",
+     "symbols": [
+      "NVDA"
+     ]
+    }
+   ],
+   "why": "a price plus a question; pricing NVDA alone is acceptable"
+  },
+  {
+   "id": "C08",
+   "cat": "compound",
+   "text": "nvda and nvdia",
+   "expect": null
+  },
+  {
+   "id": "C09",
+   "cat": "compound",
+   "text": "tsla vs the dow",
+   "expect": null
+  },
+  {
+   "id": "C10",
+   "cat": "compound",
+   "text": "price of apple and tsla",
+   "expect": null
+  },
+  {
+   "id": "C11",
+   "cat": "compound",
+   "text": "nvda amd tsla",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "NVDA",
+     "AMD",
+     "TSLA"
+    ]
+   },
+   "either": [
+    null
+   ]
+  },
+  {
+   "id": "C12",
+   "cat": "compound",
+   "text": "nvda and on price",
+   "expect": null
+  },
+  {
+   "id": "C13",
+   "cat": "compound",
+   "text": "$nvda and gold",
+   "expect": null
+  },
+  {
+   "id": "H01",
+   "cat": "historical",
+   "text": "nvda close friday",
+   "expect": null,
+   "why": "a historical request must never be answered with the current price"
+  },
+  {
+   "id": "H02",
+   "cat": "historical",
+   "text": "aapl last year",
+   "expect": null,
+   "why": "a historical request must never be answered with the current price"
+  },
+  {
+   "id": "H03",
+   "cat": "historical",
+   "text": "what did msft close at yesterday",
+   "expect": null,
+   "why": "a historical request must never be answered with the current price"
+  },
+  {
+   "id": "H04",
+   "cat": "historical",
+   "text": "nvda price on october 3",
+   "expect": null,
+   "why": "a historical request must never be answered with the current price"
+  },
+  {
+   "id": "H05",
+   "cat": "historical",
+   "text": "spy 2022 low",
+   "expect": null,
+   "why": "a historical request must never be answered with the current price"
+  },
+  {
+   "id": "H06",
+   "cat": "historical",
+   "text": "tsla price last week",
+   "expect": null,
+   "why": "a historical request must never be answered with the current price"
+  },
+  {
+   "id": "H07",
+   "cat": "historical",
+   "text": "NVDA close friday",
+   "expect": null,
+   "why": "a historical request must never be answered with the current price"
+  },
+  {
+   "id": "H08",
+   "cat": "historical",
+   "text": "where did AAPL open today",
+   "expect": null,
+   "why": "a historical request must never be answered with the current price"
+  },
+  {
+   "id": "H09",
+   "cat": "historical",
+   "text": "NVDA price a year ago",
+   "expect": null,
+   "why": "a historical request must never be answered with the current price"
+  },
+  {
+   "id": "H10",
+   "cat": "historical",
+   "text": "what was spy at on election day",
+   "expect": null,
+   "why": "a historical request must never be answered with the current price"
+  },
+  {
+   "id": "H11",
+   "cat": "historical",
+   "text": "nvda all time high",
+   "expect": null,
+   "why": "a historical request must never be answered with the current price"
+  },
+  {
+   "id": "H12",
+   "cat": "historical",
+   "text": "aapl 52 week high",
+   "expect": {
+    "action": "stock.dailyBars",
+    "symbol": "AAPL",
+    "measure": "range52w"
+   },
+   "either": [
+    null
+   ],
+   "why": "completed-session bars are an honest answer; not executing is acceptable"
+  },
+  {
+   "id": "H13",
+   "cat": "historical",
+   "text": "AAPL 52 week high",
+   "expect": {
+    "action": "stock.dailyBars",
+    "symbol": "AAPL",
+    "measure": "range52w"
+   }
+  },
+  {
+   "id": "K01",
+   "cat": "control",
+   "text": "NVDA price",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "NVDA"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "K02",
+   "cat": "control",
+   "text": "$nvda",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "NVDA"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "K03",
+   "cat": "control",
+   "text": "SPX price",
+   "expect": null
+  },
+  {
+   "id": "K04",
+   "cat": "control",
+   "text": "nvda market cap",
+   "expect": null
+  },
+  {
+   "id": "K05",
+   "cat": "control",
+   "text": "why is nvda down",
+   "expect": null
+  },
+  {
+   "id": "M01",
+   "cat": "misspelling",
+   "text": "nvdia price",
+   "expect": null
+  },
+  {
+   "id": "M02",
+   "cat": "misspelling",
+   "text": "amzon price",
+   "expect": null
+  },
+  {
+   "id": "M03",
+   "cat": "misspelling",
+   "text": "googl vs goog",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "GOOGL",
+     "GOOG"
+    ]
+   },
+   "either": [
+    null
+   ],
+   "why": "both are real share classes; never collapse one into the other"
+  },
+  {
+   "id": "M04",
+   "cat": "misspelling",
+   "text": "appl price",
+   "expect": null
+  },
+  {
+   "id": "M05",
+   "cat": "misspelling",
+   "text": "microsft price",
+   "expect": null
+  },
+  {
+   "id": "M06",
+   "cat": "misspelling",
+   "text": "tlsa price",
+   "expect": null
+  },
+  {
+   "id": "M07",
+   "cat": "misspelling",
+   "text": "NVDIA price",
+   "expect": null
+  },
+  {
+   "id": "M08",
+   "cat": "misspelling",
+   "text": "$nvdia",
+   "expect": null
+  },
+  {
+   "id": "M09",
+   "cat": "misspelling",
+   "text": "googel price",
+   "expect": null
+  },
+  {
+   "id": "M10",
+   "cat": "misspelling",
+   "text": "GOOG price",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "GOOG"
+    ]
+   },
+   "must_execute": true,
+   "why": "Class C, never GOOGL"
+  },
+  {
+   "id": "W01",
+   "cat": "word_ticker",
+   "text": "how's on doing",
+   "expect": null,
+   "why": "the lowercase word is also a common word, a name or a crypto; executing the coincidental listing is a wrong answer"
+  },
+  {
+   "id": "W02",
+   "cat": "word_ticker",
+   "text": "all price",
+   "expect": null,
+   "why": "the lowercase word is also a common word, a name or a crypto; executing the coincidental listing is a wrong answer"
+  },
+  {
+   "id": "W03",
+   "cat": "word_ticker",
+   "text": "it price",
+   "expect": null,
+   "why": "the lowercase word is also a common word, a name or a crypto; executing the coincidental listing is a wrong answer"
+  },
+  {
+   "id": "W04",
+   "cat": "word_ticker",
+   "text": "a price",
+   "expect": null,
+   "why": "the lowercase word is also a common word, a name or a crypto; executing the coincidental listing is a wrong answer"
+  },
+  {
+   "id": "W05",
+   "cat": "word_ticker",
+   "text": "now price",
+   "expect": null,
+   "why": "the lowercase word is also a common word, a name or a crypto; executing the coincidental listing is a wrong answer"
+  },
+  {
+   "id": "W06",
+   "cat": "word_ticker",
+   "text": "gold price",
+   "expect": null,
+   "why": "the lowercase word is also a common word, a name or a crypto; executing the coincidental listing is a wrong answer"
+  },
+  {
+   "id": "W07",
+   "cat": "word_ticker",
+   "text": "dow price",
+   "expect": null,
+   "why": "the lowercase word is also a common word, a name or a crypto; executing the coincidental listing is a wrong answer"
+  },
+  {
+   "id": "W08",
+   "cat": "word_ticker",
+   "text": "sol price",
+   "expect": null,
+   "why": "the lowercase word is also a common word, a name or a crypto; executing the coincidental listing is a wrong answer"
+  },
+  {
+   "id": "W09",
+   "cat": "word_ticker",
+   "text": "eth price",
+   "expect": null,
+   "why": "the lowercase word is also a common word, a name or a crypto; executing the coincidental listing is a wrong answer"
+  },
+  {
+   "id": "W10",
+   "cat": "word_ticker",
+   "text": "btc price",
+   "expect": null,
+   "why": "the lowercase word is also a common word, a name or a crypto; executing the coincidental listing is a wrong answer"
+  },
+  {
+   "id": "W11",
+   "cat": "word_ticker",
+   "text": "link price",
+   "expect": null,
+   "why": "the lowercase word is also a common word, a name or a crypto; executing the coincidental listing is a wrong answer"
+  },
+  {
+   "id": "W12",
+   "cat": "word_ticker",
+   "text": "car price",
+   "expect": null,
+   "why": "the lowercase word is also a common word, a name or a crypto; executing the coincidental listing is a wrong answer"
+  },
+  {
+   "id": "W13",
+   "cat": "word_ticker",
+   "text": "cat price",
+   "expect": null,
+   "either": [
+    {
+     "action": "stock.quote",
+     "symbols": [
+      "CAT"
+     ]
+    }
+   ],
+   "why": "Caterpillar is the dominant meaning in a stock app; executing CAT or not executing are both acceptable"
+  },
+  {
+   "id": "W14",
+   "cat": "word_ticker",
+   "text": "fun price",
+   "expect": null,
+   "why": "the lowercase word is also a common word, a name or a crypto; executing the coincidental listing is a wrong answer"
+  },
+  {
+   "id": "W15",
+   "cat": "word_ticker",
+   "text": "key price",
+   "expect": null,
+   "why": "the lowercase word is also a common word, a name or a crypto; executing the coincidental listing is a wrong answer"
+  },
+  {
+   "id": "W16",
+   "cat": "word_ticker",
+   "text": "low price today",
+   "expect": null,
+   "why": "the lowercase word is also a common word, a name or a crypto; executing the coincidental listing is a wrong answer"
+  },
+  {
+   "id": "W17",
+   "cat": "word_ticker",
+   "text": "can price",
+   "expect": null,
+   "why": "the lowercase word is also a common word, a name or a crypto; executing the coincidental listing is a wrong answer"
+  },
+  {
+   "id": "W18",
+   "cat": "word_ticker",
+   "text": "s price",
+   "expect": null,
+   "why": "the lowercase word is also a common word, a name or a crypto; executing the coincidental listing is a wrong answer"
+  },
+  {
+   "id": "W20",
+   "cat": "explicit_ticker",
+   "text": "ON price",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "ON"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "W21",
+   "cat": "explicit_ticker",
+   "text": "GOLD price",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "GOLD"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "W22",
+   "cat": "explicit_ticker",
+   "text": "BTC price",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "BTC"
+    ]
+   },
+   "must_execute": true,
+   "why": "owner ruling 2: capitals = the fund, named as an ETF"
+  },
+  {
+   "id": "W23",
+   "cat": "explicit_ticker",
+   "text": "what's NOW at",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "NOW"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "W24",
+   "cat": "explicit_ticker",
+   "text": "CAT quote",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "CAT"
+    ]
+   },
+   "must_execute": true
+  },
+  {
+   "id": "W30",
+   "cat": "cashtag_crypto",
+   "text": "$btc",
+   "expect": null,
+   "either": [
+    {
+     "action": "stock.quote",
+     "symbols": [
+      "BTC"
+     ]
+    }
+   ],
+   "why": "either is acceptable ONLY if the answer names the listed security; the scorer cannot check naming, so review the text"
+  },
+  {
+   "id": "W31",
+   "cat": "cashtag_crypto",
+   "text": "$eth",
+   "expect": null,
+   "either": [
+    {
+     "action": "stock.quote",
+     "symbols": [
+      "ETH"
+     ]
+    }
+   ],
+   "why": "either is acceptable ONLY if the answer names the listed security; the scorer cannot check naming, so review the text"
+  },
+  {
+   "id": "W32",
+   "cat": "cashtag_crypto",
+   "text": "$sol",
+   "expect": null,
+   "either": [
+    {
+     "action": "stock.quote",
+     "symbols": [
+      "SOL"
+     ]
+    }
+   ],
+   "why": "either is acceptable ONLY if the answer names the listed security; the scorer cannot check naming, so review the text"
+  },
+  {
+   "id": "X01",
+   "cat": "asset",
+   "text": "price of gold",
+   "expect": null
+  },
+  {
+   "id": "X02",
+   "cat": "asset",
+   "text": "how's the dow",
+   "expect": null
+  },
+  {
+   "id": "X03",
+   "cat": "asset",
+   "text": "btc price today",
+   "expect": null
+  },
+  {
+   "id": "X04",
+   "cat": "asset",
+   "text": "eth today",
+   "expect": null
+  },
+  {
+   "id": "X05",
+   "cat": "asset",
+   "text": "silver",
+   "expect": null
+  },
+  {
+   "id": "X06",
+   "cat": "asset",
+   "text": "silver price",
+   "expect": null
+  },
+  {
+   "id": "X07",
+   "cat": "asset",
+   "text": "oil",
+   "expect": null
+  },
+  {
+   "id": "X08",
+   "cat": "asset",
+   "text": "oil price",
+   "expect": null
+  },
+  {
+   "id": "X09",
+   "cat": "asset",
+   "text": "s&p",
+   "expect": null
+  },
+  {
+   "id": "X10",
+   "cat": "asset",
+   "text": "what's the s&p at",
+   "expect": null
+  },
+  {
+   "id": "X11",
+   "cat": "asset",
+   "text": "what's bitcoin at",
+   "expect": null
+  },
+  {
+   "id": "X12",
+   "cat": "asset",
+   "text": "crude oil today",
+   "expect": null
+  },
+  {
+   "id": "X13",
+   "cat": "asset",
+   "text": "nasdaq price",
+   "expect": null
+  },
+  {
+   "id": "X14",
+   "cat": "asset",
+   "text": "how's the s&p 500 doing",
+   "expect": null
+  },
+  {
+   "id": "X15",
+   "cat": "asset",
+   "text": "gold futures",
+   "expect": null
+  },
+  {
+   "id": "X16",
+   "cat": "asset",
+   "text": "dow jones today",
+   "expect": null
+  },
+  {
+   "id": "X17",
+   "cat": "asset",
+   "text": "ethereum price",
+   "expect": null
+  },
+  {
+   "id": "X18",
+   "cat": "asset",
+   "text": "solana price",
+   "expect": null
+  }
+ ]
+}

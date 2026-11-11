@@ -1,0 +1,16 @@
+// HONESTY-SWEEP (2026-11-07) - probe Q-HS2 for the capture lane. Queue: docs/pine/capture-queue-2026-11-07-honesty-sweep.md
+// Chart: AMEX:SPY 1D, AFTER THE CLOSE. Read the plot values per bar from the chart model.
+// The question: the SIGN of a v3 bare highestbars / lowestbars offset (0 on this bar, then -1, -2, ... as the
+// v4 reference states for v4, or 1, 2, ...). Variants for v2 and v1: change the first line to `//@version=2`,
+// then remove it (no version line is v1); capture each as its own file (`vw-hs2-v3-highestbars-v2.pine`, `-v1`).
+//
+//   P01  highestbars(high, 5)
+//   P02  lowestbars(low, 5)
+//   P03  highestbars(high, 20)
+//   P04  lowestbars(low, 20)
+//@version=3
+study("vw-hs2-v3-highestbars", overlay = false)
+plot(highestbars(high, 5), "hb5")
+plot(lowestbars(low, 5), "lb5")
+plot(highestbars(high, 20), "hb20")
+plot(lowestbars(low, 20), "lb20")

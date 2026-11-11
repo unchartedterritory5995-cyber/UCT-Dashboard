@@ -1,4 +1,4 @@
-// Wave 12 (lane 12A) — "Share to the community gallery", one of Your templates at a time
+// Wave 12 (lane 12A) — "Share to the Template library", one of Your templates at a time
 // (MemberTemplates.jsx opens it beside the template's card; dark behind
 // notebook_template_gallery_enabled).
 //
@@ -37,7 +37,7 @@ export default function GalleryPublishForm({ template, onDone, onCancel }) {
     setError(null)
     try {
       const item = await publishToGallery({ templateId: template.id, title, description, category })
-      onDone(`Submitted “${item.title}” for review. You'll see it under Your submissions in the community gallery.`)
+      onDone(`Submitted “${item.title}” for review. You'll see it under Your submissions in the Template library.`)
     } catch (err) {
       setError(refusalSentence(err))
       setWorking(false)
@@ -45,7 +45,7 @@ export default function GalleryPublishForm({ template, onDone, onCancel }) {
   }
 
   return (
-    <form className={styles.publishForm} onSubmit={submit} aria-label={`Share ${template.name} to the community gallery`}>
+    <form className={styles.publishForm} onSubmit={submit} aria-label={`Share ${template.name} to the Template library`}>
       <label className={styles.field} htmlFor={`${uid}-title`}>
         <span>Title in the gallery</span>
         <input id={`${uid}-title`} value={title} maxLength={80} required onChange={(e) => setTitle(e.target.value)} />

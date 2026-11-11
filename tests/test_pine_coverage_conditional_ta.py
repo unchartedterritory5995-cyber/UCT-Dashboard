@@ -10,6 +10,7 @@ declare it. The detector is a regex over the comment- and string-stripped code
 from __future__ import annotations
 
 import re
+import sys
 import time
 
 import pytest
@@ -83,3 +84,41 @@ def test_the_scan_stays_linear_on_a_long_block():
     t = time.perf_counter()
     assert not _found(src)
     assert time.perf_counter() - t < 2.0
+
+
+# --- --engine-door (W0 review, 2026-11-02) ------------------------------------
+# The re-run command printed in docs/pine/COVERAGE-MAP-2026-11-02.md passed --engine-door
+# for a probe that had not run; coverage_map.py read the missing file as [] and wrote
+# engineTableThroughPineDoor as "measured, and empty" with no error. Named but missing is
+# now refused, before any other input is read.
+
+def test_engine_door_left_out_is_not_measured():
+    assert cm.read_engine_door(None) == []
+
+
+def test_engine_door_named_and_present_is_read(tmp_path):
+    p = tmp_path / "engine_door.json"
+    p.write_text('[{"name": "ta.sma"}]', encoding="utf-8")
+    assert cm.read_engine_door(str(p)) == [{"name": "ta.sma"}]
+
+
+def test_engine_door_named_but_missing_is_refused_by_name(tmp_path):
+    missing = str(tmp_path / "engine_door.json")
+    with pytest.raises(SystemExit) as e:
+        cm.read_engine_door(missing)
+    assert "--engine-door" in str(e.value.code) and missing in str(e.value.code)
+
+
+def test_main_refuses_a_missing_engine_door_before_it_reads_any_input(tmp_path, monkeypatch):
+    """Every other input points nowhere, so reaching any of them raises FileNotFoundError:
+    a SystemExit naming --engine-door proves the check runs first."""
+    gone = tmp_path / "gone"
+    out = tmp_path / "coverage-map.json"
+    monkeypatch.setattr(sys, "argv", [
+        "coverage_map.py", "--cache", str(gone), "--ref", str(gone / "ref.json"),
+        "--verdicts", str(gone / "verdicts.json"), "--engine-door", str(tmp_path / "engine_door.json"),
+        "--out", str(out)])
+    with pytest.raises(SystemExit) as e:
+        cm.main()
+    assert "--engine-door" in str(e.value.code)
+    assert not out.exists()

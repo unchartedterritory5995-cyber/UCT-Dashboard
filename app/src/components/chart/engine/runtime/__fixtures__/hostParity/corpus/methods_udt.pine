@@ -1,0 +1,13 @@
+//@version=5
+indicator("hp udt", overlay=false)
+type Acc
+    float sum = 0.0
+    int n = 0
+method add(Acc self, float x) =>
+    self.sum += x
+    self.n += 1
+    self
+var acc = Acc.new()
+acc.add(close - open)
+plot(acc.sum / math.max(acc.n, 1), "mean")
+plot(acc.n, "n")

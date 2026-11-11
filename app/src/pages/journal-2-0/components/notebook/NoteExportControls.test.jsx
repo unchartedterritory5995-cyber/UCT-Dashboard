@@ -374,7 +374,9 @@ describe('export_used — the door says a note left as a file, and nothing about
     fireEvent.click(screen.getByRole('button', { name: 'PNG' }))
     await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('PNG saved'))
     fireEvent.click(screen.getByRole('button', { name: 'Print' }))
-    expect(printNote).toHaveBeenCalled()
+    // Tier 1a bytes: the print module is fetched on the press, so the call lands a tick later.
+    await waitFor(() => expect(printNote).toHaveBeenCalled())
+    await waitFor(() => expect(telemetryBodies(global.fetch).map((b) => b.props.format)).toEqual(['png', 'print']))
     global.fetch.mockResolvedValueOnce({ ok: false, status: 500, headers: { get: () => null }, json: async () => ({}) })
     fireEvent.click(trigger())
     fireEvent.click(screen.getByRole('menuitem', { name: 'JSON' }))

@@ -1,0 +1,412 @@
+{
+ "about": "agent-qa held-out quote/price set 2 (PRIVATE until agent-md's fix head arrives), written blind to that fix and without reading marketDataPhrases.js. Owner bar: zero wrong answers or executions. expect = the one correct deterministic answer, or null (must ask or go to the model). A SAFE-MISS (null where a match was expected) is acceptable. FAIL = any non-null answer that is not exactly `expect` or an `either` entry: a wrong ticker, a substituted security, a wrong measure, or a date the member did not mean.",
+ "rows": [
+  {
+   "id": "V01",
+   "cat": "ticker",
+   "text": "what's the price of TSLA",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "TSLA"
+    ]
+   }
+  },
+  {
+   "id": "V02",
+   "cat": "ticker",
+   "text": "$aapl",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "AAPL"
+    ]
+   }
+  },
+  {
+   "id": "V03",
+   "cat": "ticker",
+   "text": "AMD stock price",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "AMD"
+    ]
+   }
+  },
+  {
+   "id": "V04",
+   "cat": "ticker",
+   "text": "where's $PLTR trading",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "PLTR"
+    ]
+   }
+  },
+  {
+   "id": "V05",
+   "cat": "company",
+   "text": "tesla stock price",
+   "expect": null
+  },
+  {
+   "id": "V06",
+   "cat": "company",
+   "text": "how's nvidia trading",
+   "expect": null
+  },
+  {
+   "id": "V07",
+   "cat": "company",
+   "text": "google share price",
+   "expect": null
+  },
+  {
+   "id": "V08",
+   "cat": "company",
+   "text": "what is amazon at",
+   "expect": null
+  },
+  {
+   "id": "V09",
+   "cat": "company",
+   "text": "netflix price today",
+   "expect": null
+  },
+  {
+   "id": "V10",
+   "cat": "company",
+   "text": "price of meta platforms",
+   "expect": null,
+   "either": [
+    {
+     "action": "stock.quote",
+     "symbols": [
+      "META"
+     ]
+    }
+   ],
+   "note": "META IS Meta Platforms' ticker: the right security, so not a FAIL (QA correction, made before any fix was seen)"
+  },
+  {
+   "id": "V11",
+   "cat": "index",
+   "text": "what's the nasdaq at",
+   "expect": null
+  },
+  {
+   "id": "V12",
+   "cat": "index",
+   "text": "dow price",
+   "expect": null
+  },
+  {
+   "id": "V13",
+   "cat": "index",
+   "text": "how is the s and p 500 doing",
+   "expect": null
+  },
+  {
+   "id": "V14",
+   "cat": "index",
+   "text": "russell 2000 price",
+   "expect": null
+  },
+  {
+   "id": "V15",
+   "cat": "index",
+   "text": "vix level",
+   "expect": null
+  },
+  {
+   "id": "V16",
+   "cat": "index",
+   "text": "SPY price",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "SPY"
+    ]
+   }
+  },
+  {
+   "id": "V17",
+   "cat": "commodity",
+   "text": "oil price",
+   "expect": null
+  },
+  {
+   "id": "V18",
+   "cat": "commodity",
+   "text": "silver price today",
+   "expect": null
+  },
+  {
+   "id": "V19",
+   "cat": "commodity",
+   "text": "what is copper at",
+   "expect": null
+  },
+  {
+   "id": "V20",
+   "cat": "commodity",
+   "text": "nat gas price",
+   "expect": null
+  },
+  {
+   "id": "V21",
+   "cat": "crypto",
+   "text": "bitcoin price",
+   "expect": null
+  },
+  {
+   "id": "V22",
+   "cat": "crypto",
+   "text": "eth price",
+   "expect": null
+  },
+  {
+   "id": "V23",
+   "cat": "crypto",
+   "text": "how much is doge",
+   "expect": null
+  },
+  {
+   "id": "V24",
+   "cat": "crypto",
+   "text": "sol price",
+   "expect": null
+  },
+  {
+   "id": "V25",
+   "cat": "misspelling",
+   "text": "tsal price",
+   "expect": null
+  },
+  {
+   "id": "V26",
+   "cat": "misspelling",
+   "text": "appl price",
+   "expect": null
+  },
+  {
+   "id": "V27",
+   "cat": "misspelling",
+   "text": "microsft stock",
+   "expect": null
+  },
+  {
+   "id": "V28",
+   "cat": "misspelling",
+   "text": "whats amd tradng at",
+   "expect": null,
+   "either": [
+    {
+     "action": "stock.quote",
+     "symbols": [
+      "AMD"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "V29",
+   "cat": "misspelling",
+   "text": "googel price",
+   "expect": null
+  },
+  {
+   "id": "V30",
+   "cat": "historical",
+   "text": "nvda price last week",
+   "expect": null
+  },
+  {
+   "id": "V31",
+   "cat": "historical",
+   "text": "aapl close on monday",
+   "expect": null
+  },
+  {
+   "id": "V32",
+   "cat": "historical",
+   "text": "what did tsla close at on 2026-10-15",
+   "expect": null
+  },
+  {
+   "id": "V33",
+   "cat": "historical",
+   "text": "amd price in 2021",
+   "expect": null
+  },
+  {
+   "id": "V34",
+   "cat": "historical",
+   "text": "msft historical price",
+   "expect": null
+  },
+  {
+   "id": "V35",
+   "cat": "historical",
+   "text": "where was nvda a month ago",
+   "expect": null
+  },
+  {
+   "id": "V36",
+   "cat": "historical",
+   "text": "aapl close yesterday",
+   "expect": {
+    "action": "stock.dailyBars",
+    "symbol": "AAPL",
+    "measure": "lastClose"
+   },
+   "either": [
+    null
+   ]
+  },
+  {
+   "id": "V37",
+   "cat": "historical",
+   "text": "tsla opening price",
+   "expect": null
+  },
+  {
+   "id": "V38",
+   "cat": "historical",
+   "text": "nvda price at the open today",
+   "expect": null
+  },
+  {
+   "id": "V39",
+   "cat": "common-word",
+   "text": "what's ALL at",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "ALL"
+    ]
+   },
+   "either": [
+    null
+   ]
+  },
+  {
+   "id": "V40",
+   "cat": "common-word",
+   "text": "can you check the price",
+   "expect": null
+  },
+  {
+   "id": "V41",
+   "cat": "common-word",
+   "text": "is it low right now",
+   "expect": null
+  },
+  {
+   "id": "V42",
+   "cat": "common-word",
+   "text": "price on KEY",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "KEY"
+    ]
+   },
+   "either": [
+    null
+   ]
+  },
+  {
+   "id": "V43",
+   "cat": "common-word",
+   "text": "how's ON doing",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "ON"
+    ]
+   },
+   "either": [
+    null
+   ]
+  },
+  {
+   "id": "V44",
+   "cat": "common-word",
+   "text": "is the market open now",
+   "expect": null
+  },
+  {
+   "id": "V45",
+   "cat": "common-word",
+   "text": "what are the best stocks to buy",
+   "expect": null
+  },
+  {
+   "id": "V46",
+   "cat": "common-word",
+   "text": "for real what's going on",
+   "expect": null
+  },
+  {
+   "id": "V47",
+   "cat": "compound",
+   "text": "nvda and tesla price",
+   "expect": null
+  },
+  {
+   "id": "V48",
+   "cat": "compound",
+   "text": "aapl price and its p/e",
+   "expect": null
+  },
+  {
+   "id": "V49",
+   "cat": "compound",
+   "text": "msft vs googl vs amzn quotes",
+   "expect": {
+    "action": "stock.quote",
+    "symbols": [
+     "MSFT",
+     "GOOGL",
+     "AMZN"
+    ]
+   },
+   "either": [
+    null
+   ]
+  },
+  {
+   "id": "V50",
+   "cat": "compound",
+   "text": "price of amd then add it to my watchlist",
+   "expect": null
+  },
+  {
+   "id": "V51",
+   "cat": "compound",
+   "text": "nvda premarket and yesterday's close",
+   "expect": null
+  },
+  {
+   "id": "V52",
+   "cat": "compound",
+   "text": "chart nvda and tell me the price",
+   "expect": null
+  },
+  {
+   "id": "V53",
+   "cat": "compound",
+   "text": "what's spy at and is it above the 50 day",
+   "expect": null
+  },
+  {
+   "id": "V54",
+   "cat": "compound",
+   "text": "quote aapl, msft, and something in semis",
+   "expect": null
+  }
+ ]
+}

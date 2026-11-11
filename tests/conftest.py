@@ -509,3 +509,9 @@ def _no_test_leaks_a_dependency_override():
             # restore is the empty mapping a fresh FastAPI app carries.
             mod.app.dependency_overrides.clear()
             mod.app.dependency_overrides.update(before or {})
+
+
+@pytest.fixture
+def routed_schema(monkeypatch):
+    """The kill switch (UCT_AGENT_CONSTANT_SCHEMA=0): for tests of the routed schema, which it must keep restoring exactly."""
+    monkeypatch.setenv("UCT_AGENT_CONSTANT_SCHEMA", "0")

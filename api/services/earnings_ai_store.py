@@ -15,6 +15,8 @@ import json
 import logging
 import os
 import time
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 _logger = logging.getLogger(__name__)
 
@@ -72,9 +74,10 @@ def get(kind: str, sym: str):
         return None
 
 
-def put(kind: str, sym: str, result: dict) -> None:
-    """Persist a successful result atomically. Callers must only persist real
-    output (non-empty preview_text / analysis) — a miss should stay lazy.
+def put(kind: str, sym: str, result: dict) -> bool:
+    """Persist a successful result atomically; True only once it is on disk.
+    Callers must only persist real output (non-empty preview_text / analysis)
+    — a miss should stay lazy.
 
     `allow_nan=False` — a NaN/Inf anywhere in `result` (e.g. a yfinance
     data-gap producing a NaN return in earnings_enrichment.get_pre_earnings_
@@ -100,10 +103,12 @@ def put(kind: str, sym: str, result: dict) -> None:
                 os.remove(tmp)
             except OSError:
                 pass
-            return
+            return False
         os.replace(tmp, p)
+        return True
     except Exception as e:
         _logger.debug("earnings_ai_store.put failed %s/%s: %s", kind, sym, e)
+        return False
 
 
 def is_fresh(kind: str, sym: str) -> bool:
@@ -152,3 +157,33 @@ def touch(kind: str, sym: str) -> None:
             os.utime(p, None)
     except Exception:
         pass
+
+
+# ── One failed background attempt per name per ET day ────────────────────────
+# A background generation that ends without a stored file (partial enrichment,
+# an unusable reply, a timeout, a refused NaN payload) was paid for and leaves
+# nothing behind: `age()` still says "stale", so the next warm pass billed the
+# same name again, up to four times a day across a 500-name board, and every
+# boot warm on top. The attempt is taken on `daily_counters` (auth.db) BEFORE the
+# model is called and handed back only when the result reached disk, so a failed
+# attempt, and a process killed mid-call, both still count after a restart.
+ATTEMPT_SCOPE = "earnings_warm_attempt"
+
+
+def _et_day() -> str:
+    return datetime.now(ZoneInfo("America/New_York")).date().isoformat()
+
+
+def claim_attempt(kind: str, sym: str) -> bool:
+    """Take today's one attempt for this name. False when it is already used, and
+    also when the counter cannot be written: nobody is waiting on a warm, so it
+    fails CLOSED rather than take the fail-open admission of `daily_counters`."""
+    from api.services import daily_counters as dc
+    charge = dc.Charge(f"{ATTEMPT_SCOPE}:{kind}", _safe(sym), 1, 1)
+    return dc.take_charged(_et_day(), [charge])[1]
+
+
+def release_attempt(kind: str, sym: str) -> None:
+    """The attempt did not cost a failure (result stored, or nothing billed)."""
+    from api.services import daily_counters as dc
+    dc.give_back(_et_day(), [dc.Charge(f"{ATTEMPT_SCOPE}:{kind}", _safe(sym), 1)])

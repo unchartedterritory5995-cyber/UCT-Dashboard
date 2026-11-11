@@ -17,7 +17,7 @@
 //
 // ⛔ THE GROUPS ARE DATA BESIDE THE REGISTRY (P0.12). ~21 tours in one flat list was a wall;
 // `GROUP_OF` files each under one of four headings. The registry validator (tourRegistry.js)
-// is untouched, and a tour with no entry falls back to Basics rather than vanishing, so a new
+// is untouched, and a tour with no entry falls back to the first group rather than vanishing, so a new
 // tour is never LOST to the menu. learnTours.test.js reads every replayable id from
 // TOUR_REGISTRY and fails by name on one with no group, so "falls back" is a safety net and
 // never how a tour is meant to be filed.
@@ -33,24 +33,26 @@ import { openRegistryTour } from './tourRegistryControl'
 // (the Learn button is eager, this file is not); they are re-exported so nothing else changes.
 export { HELP_WALKTHROUGHS_HREF, LEARN_COPY, learnMenuEnabled } from './learnMenuCopy'
 
-/** The headings the menu groups tours under, in the order it draws them. */
-export const LEARN_GROUPS = Object.freeze(['Basics', 'Writing and capture', 'Trading', 'Research'])
+/** The headings the menu groups tours under, in the order it draws them.
+ *  S14 (audit 2026-11-05, detail #65): five groups, by what the member is doing -- Write · Organize · Live data ·
+ *  Trading tools · AI (they were Basics / Writing and capture / Trading / Research). */
+export const LEARN_GROUPS = Object.freeze(['Write', 'Organize', 'Live data', 'Trading tools', 'AI'])
 
 /** Which heading each registered, replayable tour sits under. */
 export const GROUP_OF = Object.freeze({
-  'notebook-basics': 'Basics', 'template-gallery': 'Basics', 'meaning-search': 'Basics',
-  'writing-help': 'Writing and capture', 'image-docx-import': 'Writing and capture', 'publish-share': 'Writing and capture',
-  'task-reminders': 'Writing and capture', 'formulas-rollups': 'Writing and capture', 'voice-notes': 'Writing and capture',
-  'journal-styles': 'Writing and capture', 'style-library': 'Writing and capture',
-  'plan-grading': 'Trading', 'entry-context': 'Trading', 'review-drafts': 'Trading', 'my-playbook': 'Trading',
-  'chart-plan-basics': 'Trading', 'chart-plan-replay': 'Trading',
-  'ta-fingerprint': 'Research', 'visual-playbook': 'Research', 'setups-board': 'Research', 'earnings-prep': 'Research',
-  'transcript-capture': 'Research', 'passed-setups': 'Research',
+  'notebook-basics': 'Write', 'template-gallery': 'Write', 'image-docx-import': 'Write', 'voice-notes': 'Write',
+  'formulas-rollups': 'Write', 'journal-styles': 'Write', 'style-library': 'Write',   // R-P5-6: the two template tours together
+  'meaning-search': 'Organize', 'task-reminders': 'Organize', 'publish-share': 'Organize',
+  'ta-fingerprint': 'Live data', 'earnings-prep': 'Live data', 'transcript-capture': 'Live data', 'setups-board': 'Live data',
+  'plan-grading': 'Trading tools', 'entry-context': 'Trading tools', 'my-playbook': 'Trading tools',
+  'chart-plan-basics': 'Trading tools', 'chart-plan-replay': 'Trading tools', 'visual-playbook': 'Trading tools',
+  'passed-setups': 'Trading tools',
+  'writing-help': 'AI', 'review-drafts': 'AI',
 })
 
-/** The heading a tour sits under; an unknown id falls back to Basics (never dropped). */
+/** The heading a tour sits under; an unknown id falls back to the first group, Write (never dropped). */
 export function learnTourGroup(id) {
-  return GROUP_OF[id] || 'Basics'
+  return GROUP_OF[id] || LEARN_GROUPS[0]
 }
 
 /** `tours` split by heading: `[{ name, tours }]`, in `LEARN_GROUPS` order, empty groups left out.

@@ -1,0 +1,35 @@
+{
+  "id": "28-blank-line-and-fence-alias",
+  "input_markdown": "# Blank line or fence in a link\n\nsee [[Plan|first\n\nsecond]] end\n\nsee [[Pl\n\nan]] end\n\nx ![[chart.png|a\n\nb]] y\n\n[[Plan|a\n```\ncode\n```\nb]]\n\nsee [[Plan|one\nline]] still links\n\n> quoted [[Plan|c\n>\n> d]] stays text\n\n> quoted [[Plan|one\n> line]] still links\n\nsee [[Plan|a ```x``` b]] inline code links\n\nsee [[Plan|a\n> b]] end\n\nsee [[Plan|a\n# b]] end\n\nsee [[Plan|a\n- b]] end\n\nsee [[Plan|a\n1. b]] end\n\nsee [[Plan|a\n---\nb]] end\n\n- see [[Plan|a\n- b]] end\n\n[[Plan|a\n<div>b]]\n",
+  "self_path": "a.md",
+  "server": {
+    "callouts": [],
+    "files": [],
+    "highlights": [],
+    "images": [],
+    "links": [
+      {
+        "target": "Plan.md",
+        "text": "one line"
+      },
+      {
+        "target": "Plan.md",
+        "text": "one line"
+      },
+      {
+        "target": "Plan.md",
+        "text": "a x b"
+      }
+    ],
+    "notices": [],
+    "pending": [],
+    "task_checked": [],
+    "text": "Blank line or fence in a link see [[Plan|first second]] end see [[Pl an]] end x ![[chart.png|a b]] y [[Plan|a code b]] see one line still links quoted [[Plan|c d]] stays text quoted one line still links see a x b inline code links see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end see [[Plan|a b]] end [[Plan|a b]]"
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md",
+    "Plan.md",
+    "attachments/chart.png"
+  ]
+}

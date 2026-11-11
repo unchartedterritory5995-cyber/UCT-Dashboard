@@ -132,8 +132,9 @@ def _review_theme(theme_id, run_id) -> dict:
             f"(flagged for human review, never removed by you).\n"
             f'Respond with ONLY JSON: {{"adds": [], "retiers": [], "drops": [], "owner_concerns": []}}')
         client = _get_anthropic_client().with_options(timeout=60)
-        msg = client.messages.create(model=_MODEL, max_tokens=700,
-                                     messages=[{"role": "user", "content": prompt}])
+        request = dict(model=_MODEL, max_tokens=700, messages=[{"role": "user", "content": prompt}])
+        with store.charge_if_failed(run_id, request):
+            msg = client.messages.create(**request)
         u = getattr(msg, "usage", None)
         store.log_cost(run_id, _MODEL, getattr(u, "input_tokens", 0) or 0,
                        getattr(u, "output_tokens", 0) or 0)

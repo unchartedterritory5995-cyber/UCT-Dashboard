@@ -236,6 +236,37 @@ SYMBOL_LISTING_FIELDS = {
 }
 
 
+def _min_contract_text(v):
+    """``bind.js`` ``String(v)`` for a positive finite number (``1`` -> ``"1"``), else None."""
+    if not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v) or v <= 0:
+        return None
+    return str(int(v)) if float(v).is_integer() else repr(float(v))
+
+
+def min_contract_table(raw) -> dict:
+    """W9-T4-F1 -- ``<our store's exchange>`` -> ``syminfo.mincontract`` as decimal text, ONLY for a
+    ``symbolScope.json::min_contract`` row carrying ``value``, ``witnesses``, ``captured``, ``how``
+    and ``captures``. Mirrors ``bind.js::minContractTable``."""
+    out = {}
+    for k, v in (raw or {}).items():
+        if k.startswith("_") or not isinstance(v, Mapping):
+            continue
+        text = _min_contract_text(v.get("value"))
+        if text is None:
+            continue
+        if not (isinstance(v.get("witnesses"), list) and v.get("witnesses")
+                and isinstance(v.get("captures"), list) and v.get("captures")
+                and isinstance(v.get("captured"), str) and v.get("captured")
+                and isinstance(v.get("how"), str) and v.get("how")):
+            continue
+        out[k] = text
+    return out
+
+
+#: Mirrors ``bind.js::SYMBOL_MIN_CONTRACT`` (empty until a capture lands a row).
+SYMBOL_MIN_CONTRACT = min_contract_table(_SYMBOL_SCOPE.get("min_contract"))
+
+
 def symbol_constants(symbol=None) -> dict:
     """What ONE symbol makes constant: ``syminfo.*``, and nothing else.
 
@@ -255,10 +286,10 @@ def symbol_constants(symbol=None) -> dict:
     witness.
     """
     return symbol_constants_with(SYMBOL_EXCHANGE_CONFIRMED, symbol, SYMBOL_TICK_SIZE,
-                                 SYMBOL_LISTING_FIELDS)
+                                 SYMBOL_LISTING_FIELDS, SYMBOL_MIN_CONTRACT)
 
 
-def symbol_constants_with(confirmed, symbol=None, ticks=None, listing=None) -> dict:
+def symbol_constants_with(confirmed, symbol=None, ticks=None, listing=None, min_contracts=None) -> dict:
     """``symbol_constants`` with the witness map handed in.
 
     ⭐⭐ THE PRODUCTION CALL IS THE ONE-LINE SPECIALISATION ABOVE. ``confirmed``
@@ -303,6 +334,9 @@ def symbol_constants_with(confirmed, symbol=None, ticks=None, listing=None) -> d
                     out["syminfo.pointvalue"] = str(int(v)) if float(v).is_integer() else repr(float(v))
             elif isinstance(v, str):
                 out["syminfo." + name] = v
+    # W9-T4-F1 -- the minimum contract, on its own witness table (bind.js twin); no row, no value.
+    if stored and min_contracts and stored in min_contracts:
+        out["syminfo.mincontract"] = min_contracts[stored]
     return out
 
 

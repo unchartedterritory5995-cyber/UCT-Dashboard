@@ -142,9 +142,9 @@ describe('a string reaches a runtime slot', () => {
       'string s = "a,b"\n'
       + 'if close > open\n'
       + '    s := "c,d"\n'
-      + 'string t = str.substring(s, 0, 1)\n'
+      + 'string t = str.match(s, "a")\n'
       + 'plot(t == "a" ? 1 : 0)\n')
-    expect(r.message).toMatch(/str\.substring/)
+    expect(r.message).toMatch(/str\.match/)
   })
 
   it('a text comparison with NO mutable side still runs', () => {

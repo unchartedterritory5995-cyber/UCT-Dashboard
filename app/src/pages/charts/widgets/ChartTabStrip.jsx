@@ -60,7 +60,7 @@ export default function ChartTabStrip({
   }
 
   return (
-    <div className={styles.chartTabStrip} role="tablist" aria-label="Chart tabs">
+    <div className={styles.chartTabStrip} role="tablist" aria-label="Chart tabs" data-guide="chart.tabs">
       {tabs.map((tab, i) => {
         const active = i === activeIndex
         const editing = editingId === tab.id
@@ -113,6 +113,7 @@ export default function ChartTabStrip({
             )}
             {!tab.isMain && !editing && (
               <span
+                data-guide="chart.tabClose"
                 className={`${styles.chartTabClose}${confirmingId === tab.id ? ' ' + styles.chartTabCloseConfirm : ''}`}
                 role="button"
                 aria-label={confirmingId === tab.id ? `Confirm close ${tab.label} tab` : `Close ${tab.label} tab`}

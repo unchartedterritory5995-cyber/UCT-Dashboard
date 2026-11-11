@@ -35,3 +35,28 @@ describe('ReviewDraftsHomeBox: the drafted review opens on its first collapsed b
     expect(onOpenNote).toHaveBeenCalledWith({ id }, null, { to: 'collapsed' })
   })
 })
+
+// ⛔ Audit 2026-11-05, spec S2 (B12): Today's recap made the day's note in a "Daily" folder it also
+// made, and said nothing. Making it now says where it went; a recap appended to an existing note
+// does not repeat it.
+describe("ReviewDraftsHomeBox: Today's recap says where a new note went", () => {
+  it('a recap that MADE the day’s note says "Saved in your Daily folder."', async () => {
+    const { draftDailyReview } = await import('../../lib/reviewDrafts')
+    draftDailyReview.mockResolvedValueOnce({ note: { id: 'rev-day' }, created: true })
+    const onNotice = vi.fn()
+    render(<ReviewDraftsHomeBox onOpenNote={vi.fn()} onNotice={onNotice} />)
+    fireEvent.click(screen.getByRole('button', { name: "Today's recap" }))
+    await waitFor(() => expect(onNotice).toHaveBeenCalledWith('Saved in your Daily folder.'))
+  })
+
+  it('a recap added to a note that already existed says nothing more', async () => {
+    const { draftDailyReview } = await import('../../lib/reviewDrafts')
+    draftDailyReview.mockResolvedValueOnce({ note: { id: 'rev-day' }, created: false })
+    const onNotice = vi.fn()
+    const onOpenNote = vi.fn()
+    render(<ReviewDraftsHomeBox onOpenNote={onOpenNote} onNotice={onNotice} />)
+    fireEvent.click(screen.getByRole('button', { name: "Today's recap" }))
+    await waitFor(() => expect(onOpenNote).toHaveBeenCalled())
+    expect(onNotice).not.toHaveBeenCalled()
+  })
+})

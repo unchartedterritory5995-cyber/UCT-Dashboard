@@ -1,0 +1,59 @@
+/* app/src/components/chart/pane/StrategyReportPanel.module.css
+ *
+ * W9-T13b. NO NEW CHROME: every colour is an app token already used by
+ * `builder/EvidenceTab.module.css` (`--text-*`, `--bg-surface`, `--border*`, `--gain`,
+ * `--loss`, `--loss-border`, `--radius-md`). Breakpoints are the canonical 640 only.
+ * Tables scroll inside their own wrapper so a phone (390) never scrolls the page sideways,
+ * and the refusal cell is the one cell allowed to wrap, so a sentence is read, not clipped.
+ */
+.panel { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px; }
+.head { margin: 0; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+
+.stamp { display: flex; flex-direction: column; gap: 4px; }
+/* ruling D2: the record's sentence verbatim in the DOM; only its first letter is capitalised for the eye */
+.startSentence, .sentence { overflow-wrap: anywhere; }
+.startSentence::first-letter, .sentence::first-letter { text-transform: uppercase; }
+.startSentence {
+  margin: 0; padding: 6px 10px; font-size: 12px; line-height: 1.45; color: var(--text);
+  background: var(--bg-surface); border: 1px solid var(--border-accent, var(--border)); border-radius: var(--radius-md);
+}
+.sentence { display: inline-block; }
+.line { margin: 0; font-size: 12px; color: var(--text-muted); }
+
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+.tab {
+  min-height: 32px; padding: 4px 10px; font-size: 12px; color: var(--text-muted);
+  background: none; border: 0; border-bottom: 2px solid transparent; cursor: pointer;
+}
+.tab:focus-visible { outline: 2px solid var(--border-accent, var(--border)); outline-offset: 1px; }
+.tabActive { color: var(--text-bright); border-bottom-color: var(--text-bright); }
+.tabPanel:focus-visible { outline: 1px solid var(--border-accent, var(--border)); }
+
+.refusals { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.refusal {
+  margin: 0; padding: 8px 10px; font-size: 13px; line-height: 1.45; color: var(--text-bright);
+  background: var(--bg-surface); border: 1px solid var(--loss-border); border-radius: var(--radius-md);
+}
+
+.tableWrap { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.table th { text-align: left; font-weight: 500; color: var(--text-muted); padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.table td { padding: 6px 8px; border-bottom: 1px solid var(--border); color: var(--text-bright); white-space: nowrap; }
+.num { text-align: right; }
+.refusalCell { white-space: normal !important; min-width: 14rem; line-height: 1.45; }
+
+.gain { color: var(--gain); }
+.loss { color: var(--loss); }
+
+.srOnly {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* r2: the touch tier is <=1024 (tablets too), not <=640 */
+@media (max-width: 1024px) {
+  .tab { min-height: var(--tap-min, 44px); }
+}
+@media (max-width: 640px) {
+  .refusalCell { min-width: 12rem; }
+}

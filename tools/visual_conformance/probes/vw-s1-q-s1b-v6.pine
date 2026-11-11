@@ -1,0 +1,13 @@
+//@version=6
+strategy("vw-s1-q-s1b-v6")
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from row Q-S1b of
+// docs/pine/capture-queue-2026-10-05-s1.md (run 3 of 3: `//@version=6`, no properties). One behaviour, no licence-held text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: strategy.initial_capital and strategy.equity on bar 0: the per-version defaults (100000 / 1000000 / 100000).
+// CAPTURE: NYSE:RDDT 1D, inputs at defaults, Strategy properties at the script's own defaults (Properties tab untouched);
+// export the Strategy Tester List of trades as CSV beside the capture (the doc's header).
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(strategy.initial_capital, "B01_initial_capital")
+plot(strategy.equity, "B02_equity")

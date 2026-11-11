@@ -127,6 +127,42 @@ import { treesHash as treesHashOf, assertTrees } from './ast/trees'
 // what a legal program is; this file only adds the DOCUMENT-level rules the
 // program module cannot know (is it bound, and does every node it names exist).
 import { assertObjectProgram, graphNodesReferenced, treeRefsReferenced } from './ast/objectProgram'
+// ⭐ THE READOUT VOCABULARY IS OWNED BY ITS READER (`readoutSchema.js`), the
+// same way LEGEND_FIELDS is owned here and read by `readout.js`: one list, two
+// modules, and a format the resolver cannot print cannot be declared.
+import {
+  READOUT_FORMATS, READOUT_ENTRY_FIELDS, READOUT_CARD_FIELDS, READOUT_SOURCE_PREFIXES,
+  READOUT_CONDITION_OPS, parseReadoutSource, parseReadoutGate,
+  READOUT_ACTION_KINDS, READOUT_ACTION_FIELDS, READOUT_ACTION_INPUT_TYPE,
+} from './readoutSchema'
+// ⭐ THE PRESET FIELDS' VOCABULARIES ARE OWNED BY THEIR WRITERS (Phase 2a, unit
+// 2a-15). `applyPresetFields` (`instanceControls.js`) hands a preset's `dotSize`
+// to `setInstanceDotSize` (the words of `DOT_SIZES`), its `visibility` to
+// `setInstanceVisibility` (the policies `normalizeVisibility` keeps, over the
+// chart's own timeframe codes) and its `displayTarget` to the placement writer.
+// The schema reads those three modules rather than typing their lists again, so
+// a word the writer would drop with a `console.warn` cannot be declared. None of
+// the three imports anything of this module (`presentation.js` imports nothing,
+// `instanceTimeframe.js` only `../timeframes`), so there is no cycle to mind.
+import { DOT_SIZES } from './presentation'
+import { VISIBILITY_PRESETS } from './instanceTimeframe'
+import { isValidTf } from '../timeframes'
+// ⭐ The pane table (UCT RS design round, 2026-11-08): its grammar and its
+// validator live beside its reader, `paneTable.js`, which imports nothing of
+// this module — so there is no cycle.
+import { validatePaneTable } from './paneTable'
+// ⭐ The line-end label (`plots[].endLabel`, UCT RS split U2): grammar beside its
+// reader, `endLabel.js`, which imports nothing of this module.
+import { validateEndLabel } from './endLabel'
+// ⭐ The client-derived column (`plots[].derive`, same round): grammar beside its
+// one reader, `derivedColumns.js`, which imports nothing of this module.
+import { DERIVE_FIELDS } from './derivedColumns'
+// ⭐ The live forming-bar tail (`plots[].liveTail`, RS split U2b): its grammar is
+// a leaf of its own, `liveTailSchema.js`, NOT the reader `liveTail.js` — the
+// reader is also the benchmark tail store (the door's request, wall clocks), and
+// this module is in the runtime lane's compute closure, which may hold neither
+// (`tools/pine_runtime_closure.mjs`; fix lane F2, 2026-11-10).
+import { LIVE_TAIL_KINDS, LIVE_TAIL_FIELDS, LIVE_TAIL_MA_TYPES } from './liveTailSchema'
 
 /** Schema major. A definition MUST declare exactly this to register. */
 export const SCHEMA_VERSION = 1
@@ -186,7 +222,18 @@ export const TIME_INPUT_MAX_ABS_MS = 8.64e15
  *  and `validateBandEdges` below. */
 export const PLOT_STYLES = Object.freeze([
   'line', 'stepline', 'histogram', 'area', 'baseline', 'hlines', 'markers', 'band',
+  // W4-T13 - a candle / an OHLC bar drawn from FOUR computed columns of the document
+  // (`plotcandle` / `plotbar` from the run). Only with `plots[].ohlc` (`validateOhlc`).
+  'candles', 'ohlcBars',
 ])
+
+/** W4-T13 - the two styles whose data is four columns, and the parts whose colour a document
+ *  may name (`plots[].ohlcColors`): a candle has three, a bar one. ONE list per fact. */
+export const OHLC_DEF_STYLES = Object.freeze(['candles', 'ohlcBars'])
+export const OHLC_COLOUR_PARTS = Object.freeze({
+  candles: Object.freeze(['body', 'wick', 'border']),
+  ohlcBars: Object.freeze(['body']),
+})
 
 /** Schema-reserved plot styles — renderer lands later. Same distinct-message
  *  treatment as RESERVED_INPUT_TYPES.
@@ -315,6 +362,16 @@ const V2_COMPUTE_KEYS = Object.freeze(['trees', 'treesHash', 'scanPlot', 'source
 /** Where the indicator draws. `volume` = the shipped left-axis overlay. */
 export const PLACEMENT_TARGETS = Object.freeze(['price', 'pane', 'volume'])
 
+/**
+ * `placement.axis` — whether the pane's price scale shows (Phase 2a visual round,
+ * item A4; owner decision D6). `'visible'` is the default and what an absent field
+ * means; `'hidden'` asks the binder for an invisible right scale on that pane (no
+ * tick labels, no last-value tag), so the value is read in the pane label. The
+ * binder half (`placement.js` / `binder.js`) owns what "invisible" draws; this is
+ * the declaration and its vocabulary. Behavioural, so an unknown value fails closed.
+ */
+export const PLACEMENT_AXIS_MODES = Object.freeze(['visible', 'hidden'])
+
 /** Repaint honesty label (spec §3). Phase A/B: audited metadata. */
 export const REPAINT_MODES = Object.freeze(['non-repainting', 'preview-repaints', 'repaints'])
 
@@ -383,8 +440,14 @@ export const PLOT_ROLES = Object.freeze(['primary', 'secondary', 'context', 'sig
 /** ⭐ `compact` JOINED THEM 2026-09-16. It says "this output is a MAGNITUDE" —
  *  print it the way an axis does (`4.61B`) rather than with `decimals`. The
  *  definition is the only thing that can know that: 4,609,414,802 and 4609.41 are
- *  the same shape to a formatter. `readout.chipValueText` is the one reader. */
-export const LEGEND_FIELDS = Object.freeze(['label', 'decimals', 'hide', 'compact'])
+ *  the same shape to a formatter. `readout.chipValueText` is the one reader.
+ *  ⭐ `showValue` JOINED THEM 2026-11-10 (UCT RS split, F3). `false` says "this
+ *  plot's chip NAMES the line and prints no number": the chip, its pane suffix
+ *  (` · SPY · 82`), its line-end tag and its readout rows all stay; only the
+ *  value is withheld, on every surface that reads `chipValueText`. The slim RS
+ *  line is the case: its ratio (`0.4378`) means nothing to a member, while the
+ *  rating beside it does. Unlike `hide`, the chip is still emitted. */
+export const LEGEND_FIELDS = Object.freeze(['label', 'decimals', 'hide', 'compact', 'showValue'])
 
 /**
  * Line styles an AUTHOR may declare on a plot.
@@ -501,8 +564,20 @@ export const SOURCE_BAR_FIELDS = Object.freeze([
  * unchanged), and the resolved value is still checked against `PLOT_LINE_STYLES`,
  * so an input whose enum options wander outside the vocabulary fails at
  * registration exactly as a literal typo does.
+ *
+ * ⭐ `colorUp` / `colorDown` JOINED 2026-11-05 (UCT Relative Strength, Phase 1
+ * unit 5). A `colorMode: 'column:<key>'` plot alternates between those two
+ * colours per bar, and until now both had to be an author's literals — so a
+ * member could recolour a one-colour line (`color: '$lineColor'`) but never a
+ * two-colour one, and the RS line coloured by its position against its moving
+ * average (the Phase preset: `bull` above, `bear` below) could not be a pair of
+ * colour inputs. Same shape as `lineStyle`: whole-value, substituted first and
+ * then validated as a colour, `$refs` recorded, `pool.resolvePlotForInstance`
+ * re-applies the member's pick. `readout.resolvePlotColor` (the legend chip's
+ * swatch) still reads `color` only — a chip is one swatch, and the plot keeps a
+ * `color` for it.
  */
-export const SUBSTITUTABLE_PLOT_FIELDS = Object.freeze(['color', 'width', 'levels', 'lineStyle'])
+export const SUBSTITUTABLE_PLOT_FIELDS = Object.freeze(['color', 'width', 'levels', 'lineStyle', 'colorUp', 'colorDown'])
 
 // ─── Grammar ─────────────────────────────────────────────────────────────────
 
@@ -1057,12 +1132,346 @@ function validateTrees(compute, storedHash, errors, inputScope) {
   }
 }
 
+/** The closed set of fields a `meta.learn[]` entry may carry. */
+export const META_LEARN_FIELDS = Object.freeze(['key', 'label'])
+
+/**
+ * `meta.learn`: a NON-EMPTY array of `{key, label}` — both non-empty strings,
+ * keys unique, no other fields. Every refusal names the index and the field so
+ * the author fixes the entry rather than guessing. An empty array is refused
+ * too: a definition with no lessons declares no `learn` at all.
+ */
+function validateMetaLearn(learn, errors) {
+  if (!Array.isArray(learn)) {
+    errors.push(`meta.learn: expected an array of lessons [{key, label}], got ${fmt(learn)}`)
+    return
+  }
+  if (learn.length === 0) {
+    errors.push('meta.learn: expected at least one lesson {key, label} — a definition with no lessons declares no meta.learn')
+    return
+  }
+  const seen = new Set()
+  learn.forEach((entry, i) => {
+    const path = `meta.learn[${i}]`
+    if (!isPlainObject(entry)) {
+      errors.push(`${path}: expected an object {key, label}, got ${fmt(entry)}`)
+      return
+    }
+    for (const k of Object.keys(entry)) {
+      if (!META_LEARN_FIELDS.includes(k)) {
+        errors.push(`${path}.${k}: unknown lesson field — expected one of: ${list(META_LEARN_FIELDS)}`)
+      }
+    }
+    if (!isNonEmptyString(entry.key)) {
+      errors.push(`${path}.key: required non-empty string (a key the app's Learn map resolves), got ${fmt(entry.key)}`)
+    } else if (seen.has(entry.key)) {
+      errors.push(`${path}.key: duplicate lesson key ${fmt(entry.key)}`)
+    } else {
+      seen.add(entry.key)
+    }
+    if (!isNonEmptyString(entry.label)) {
+      errors.push(`${path}.label: required non-empty string (the member-facing link text), got ${fmt(entry.label)}`)
+    }
+  })
+}
+
+// ─── `meta.tour` and `meta.searchHint` (UCT RS Phase 4, unit 4-03) ───────────
+//
+// Definition-level onboarding, read by the indicator library and its host. The
+// ENGINE knows no indicator by name: a definition declares its own cards and its
+// own disambiguation row, and these two validators are the whole contract.
+//
+//   meta.tour       [{title, body}] — 1 to TOUR_MAX_CARDS cards, shown one at a
+//                   time on the first add. Lengths are capped HERE so a card can
+//                   never outgrow the popover it is read in.
+//   meta.searchHint {queries, line, cta?} — when the member's WHOLE search
+//                   (trimmed, lower-cased, inner spaces collapsed) equals one of
+//                   `queries`, the library prints `line` under its results with
+//                   an Add button. Never a substring test: "rsi divergence" is a
+//                   search for RSI, not a confusion to correct.
+//
+// BEHAVIOURAL, so checked and refused (fail-closed), never preserved: a card
+// nobody can read in the space it gets, or a query in a form no search can equal,
+// is an author error the schema names rather than one a member finds.
+
+/** At most this many tour cards. */
+export const TOUR_MAX_CARDS = 6
+/** A card title's length cap, in characters. */
+export const TOUR_TITLE_MAX = 60
+/** A card body's length cap, in characters. */
+export const TOUR_BODY_MAX = 240
+/** The closed set of fields a `meta.tour[]` card may carry. */
+export const META_TOUR_FIELDS = Object.freeze(['title', 'body'])
+/** The closed set of fields `meta.searchHint` may carry. */
+export const SEARCH_HINT_FIELDS = Object.freeze(['queries', 'line', 'cta'])
+/** The hint line's length cap, in characters. */
+export const SEARCH_HINT_LINE_MAX = 160
+/** The optional button label's length cap, in characters. */
+export const SEARCH_HINT_CTA_MAX = 40
+
+/** The one normal form a search is compared in: trimmed, lower-cased, runs of
+ *  whitespace collapsed to one space. A hint query must already be in it, and the
+ *  library compares the member's query in it — an exact comparison, nothing more. */
+export function normalizeHintQuery(q) {
+  return String(q ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+// ─── `meta.glossaryHref` (UCT RS Phase 4, unit 4-05) ────────────────────────
+//
+// The definition's public glossary page, linked from its About page beside the
+// Learn links ("Glossary"). An IN-APP path only: it starts with one "/", carries
+// no scheme, no host and no whitespace, so a definition can never point a member
+// off the site from the chart. Behavioural (it renders a link), so checked.
+
+/** The glossary path's length cap, in characters. */
+export const GLOSSARY_HREF_MAX = 120
+
+function validateMetaGlossaryHref(href, errors) {
+  if (typeof href !== 'string' || !href) {
+    errors.push(`meta.glossaryHref: expected an in-app path string such as "/methodology/relative-strength", got ${fmt(href)}`)
+    return
+  }
+  if (href.length > GLOSSARY_HREF_MAX) {
+    errors.push(`meta.glossaryHref: ${href.length} characters — at most ${GLOSSARY_HREF_MAX}`)
+    return
+  }
+  if (!/^\/[A-Za-z0-9][A-Za-z0-9/_\-.]*(#[A-Za-z0-9_\-]+)?$/.test(href) || href.includes('//')) {
+    errors.push(`meta.glossaryHref: "${href}" is not an in-app path (one leading "/", letters, digits, "-", "_", "." and "/", an optional #anchor)`)
+  }
+}
+
+function validateMetaTour(tour, errors) {
+  if (!Array.isArray(tour)) {
+    errors.push(`meta.tour: expected an array of cards [{title, body}], got ${fmt(tour)}`)
+    return
+  }
+  if (tour.length === 0) {
+    errors.push('meta.tour: expected at least one card {title, body} — a definition with no tour declares no meta.tour')
+    return
+  }
+  if (tour.length > TOUR_MAX_CARDS) {
+    errors.push(`meta.tour: ${tour.length} cards — at most ${TOUR_MAX_CARDS}`)
+  }
+  tour.forEach((card, i) => {
+    const path = `meta.tour[${i}]`
+    if (!isPlainObject(card)) {
+      errors.push(`${path}: expected an object {title, body}, got ${fmt(card)}`)
+      return
+    }
+    for (const k of Object.keys(card)) {
+      if (!META_TOUR_FIELDS.includes(k)) {
+        errors.push(`${path}.${k}: unknown tour card field — expected one of: ${list(META_TOUR_FIELDS)}`)
+      }
+    }
+    for (const [field, max] of [['title', TOUR_TITLE_MAX], ['body', TOUR_BODY_MAX]]) {
+      const v = card[field]
+      if (!isNonEmptyString(v)) {
+        errors.push(`${path}.${field}: required non-empty string, got ${fmt(v)}`)
+      } else if (v.length > max) {
+        errors.push(`${path}.${field}: ${v.length} characters — at most ${max}`)
+      }
+    }
+  })
+}
+
+function validateMetaSearchHint(hint, errors) {
+  if (!isPlainObject(hint)) {
+    errors.push(`meta.searchHint: expected an object {queries, line, cta?}, got ${fmt(hint)}`)
+    return
+  }
+  for (const k of Object.keys(hint)) {
+    if (!SEARCH_HINT_FIELDS.includes(k)) {
+      errors.push(`meta.searchHint.${k}: unknown search hint field — expected one of: ${list(SEARCH_HINT_FIELDS)}`)
+    }
+  }
+  const { queries, line, cta } = hint
+  if (!Array.isArray(queries) || queries.length === 0) {
+    errors.push(`meta.searchHint.queries: expected a non-empty array of lower-case search strings, got ${fmt(queries)}`)
+  } else {
+    const seen = new Set()
+    queries.forEach((q, i) => {
+      const path = `meta.searchHint.queries[${i}]`
+      if (!isNonEmptyString(q)) {
+        errors.push(`${path}: required non-empty string, got ${fmt(q)}`)
+      } else if (normalizeHintQuery(q) !== q) {
+        // A query outside the normal form can never equal a search, so it would
+        // be a hint that silently never shows.
+        errors.push(
+          `${path}: ${fmt(q)} must be lower-case and trimmed, with single spaces — ` +
+          `the library compares the whole search in that form, so this query could never match`,
+        )
+      } else if (seen.has(q)) {
+        errors.push(`${path}: duplicate query ${fmt(q)}`)
+      } else {
+        seen.add(q)
+      }
+    })
+  }
+  if (!isNonEmptyString(line)) {
+    errors.push(`meta.searchHint.line: required non-empty string (the sentence shown under the results), got ${fmt(line)}`)
+  } else if (line.length > SEARCH_HINT_LINE_MAX) {
+    errors.push(`meta.searchHint.line: ${line.length} characters — at most ${SEARCH_HINT_LINE_MAX}`)
+  }
+  if (cta !== undefined) {
+    if (!isNonEmptyString(cta)) {
+      errors.push(`meta.searchHint.cta: expected a non-empty string (the button label) or absent, got ${fmt(cta)}`)
+    } else if (cta.length > SEARCH_HINT_CTA_MAX) {
+      errors.push(`meta.searchHint.cta: ${cta.length} characters — at most ${SEARCH_HINT_CTA_MAX}`)
+    }
+  }
+}
+
 /**
  * @param {unknown} meta
  * @param {object} def the whole definition — `legendParams` names INPUT keys, so
  *        this is the one meta field that cannot be checked from `meta` alone.
  * @param {string[]} errors
  */
+// ─── preset fields beyond `inputs` (Phase 2a, unit 2a-15) ───────────────────
+
+/** Every key a `meta.presets[]` entry may carry. Closed: `applyPresetFields`
+ *  reads the three non-input fields BY NAME, so a key outside this list is a
+ *  typo that applies nothing, never data waiting for a future reader. */
+export const PRESET_FIELDS = Object.freeze(['id', 'label', 'origin', 'inputs', 'visibility', 'dotSize', 'displayTarget'])
+
+/** ⭐ UCT RS PHASE 3 (unit 3-01) — the preset keys that GATE rather than apply.
+ *  `requiresServer: true` is read by `indicatorRegistry.visiblePresets` (the
+ *  picker's filter), never by `applyPresetFields`, so it is a separate list:
+ *  `PRESET_FIELDS` stays the exact set the writer applies. */
+export const PRESET_GATE_FIELDS = Object.freeze(['requiresServer'])
+
+/** The dot-size words a preset may name — `DOT_SIZES`' own keys (`presentation.js`),
+ *  the vocabulary `setInstanceDotSize` accepts. ONE list, read from its owner. */
+export const PRESET_DOT_SIZES = Object.freeze(Object.keys(DOT_SIZES))
+
+/** The visibility policies a preset may name — `VISIBILITY_PRESETS`' own values
+ *  (`instanceTimeframe.js`): `all` (stored as the ABSENT key), `intraday`,
+ *  `dailyUp`, `custom` (the only one that carries timeframe codes). */
+export const PRESET_VISIBILITY_PRESETS = Object.freeze(VISIBILITY_PRESETS.map((p) => p.value))
+
+/** The outputs a definition draws as DOTS — the rule `instanceControls.dotPlotsOf`
+ *  applies, restated over the RAW plots (this runs before `validatePlot`): a
+ *  `markers` style or a `marker` glyph block, hidden ones excluded. Read here, not
+ *  imported, because `instanceControls` imports this module. */
+function dotPlotKeysOf(def) {
+  const plots = def && Array.isArray(def.plots) ? def.plots : []
+  return plots
+    .filter((p) => isPlainObject(p) && isNonEmptyString(p.key) && p.hidden !== true
+      && (p.style === 'markers' || isPlainObject(p.marker)))
+    .map((p) => p.key)
+}
+
+/**
+ * ⭐⭐ `meta.presets[i].{visibility, dotSize, displayTarget}` — checked EXACTLY as
+ * `applyPresetFields` consumes them, so a value the writer would drop with a
+ * `console.warn` is refused at registration instead, by definition id, preset id
+ * and field:
+ *
+ *   visibility     `null` | `'all'` (the absent key — every timeframe), or the
+ *                  policy object `normalizeVisibility` keeps: `{preset: 'intraday'}`,
+ *                  `{preset: 'dailyUp'}`, `{preset: 'custom', tfs: [<code>, …]}` with
+ *                  at least one code and every code one `isValidTf` knows. The
+ *                  normaliser DROPS an unknown code and answers "all" for an empty
+ *                  list — fail-open is right for a reader of a saved chart and wrong
+ *                  for an author, so a code it would drop is refused here.
+ *   dotSize        one word of `PRESET_DOT_SIZES` (every dot output), or
+ *                  `{plotKey: word}` where every key is a declared dot output
+ *                  (`dotPlotKeysOf`) and every value a word; an empty object sizes
+ *                  nothing and is refused.
+ *   displayTarget  one of `PLACEMENT_TARGETS` (`price` / `pane` / `volume`). The
+ *                  writer also takes `@<instanceId>` for a DERIVED instance, but a
+ *                  definition has no instance to name, so the preset vocabulary is
+ *                  the placement vocabulary.
+ *
+ * Absent fields are fine (a preset that sets only inputs). The entry's own shape
+ * (`id`, `label`, `inputs`) is the caller's check; this reads `p.id` for the
+ * message only, so a preset that failed that check still gets its fields named.
+ */
+function validatePresetFields(p, i, def, errors) {
+  const who = `definition ${fmt(def && def.id)}, preset ${fmt(p.id)}`
+  const at = (field) => `meta.presets[${i}].${field}: ${who} — `
+
+  for (const key of Object.keys(p)) {
+    if (!PRESET_FIELDS.includes(key) && !PRESET_GATE_FIELDS.includes(key)) {
+      errors.push(
+        `${at(key)}unknown preset field. Expected one of ${list([...PRESET_FIELDS, ...PRESET_GATE_FIELDS])}; ` +
+        `\`applyPresetFields\` reads its fields by name, so this one would register and apply nothing.`,
+      )
+    }
+  }
+
+  if (p.visibility !== undefined && p.visibility !== null && p.visibility !== 'all') {
+    const v = p.visibility
+    const SHAPES = `null, "all", {preset: "intraday"}, {preset: "dailyUp"} or {preset: "custom", tfs: [<timeframe code>, …]}`
+    if (!isPlainObject(v)) {
+      errors.push(`${at('visibility')}expected ${SHAPES}, got ${fmt(v)}`)
+    } else {
+      const extra = Object.keys(v).filter((k) => k !== 'preset' && k !== 'tfs')
+      if (extra.length) {
+        errors.push(`${at('visibility')}unknown key(s) ${list(extra.map(fmt))}; a policy carries \`preset\` and, for custom, \`tfs\``)
+      }
+      if (!PRESET_VISIBILITY_PRESETS.includes(v.preset) || v.preset === 'all') {
+        errors.push(
+          `${at('visibility.preset')}expected one of ${list(PRESET_VISIBILITY_PRESETS.filter((x) => x !== 'all').map(fmt))} ` +
+          `(spell "every timeframe" as visibility: "all"), got ${fmt(v.preset)}`,
+        )
+      } else if (v.preset === 'custom') {
+        if (!Array.isArray(v.tfs) || !v.tfs.length) {
+          errors.push(
+            `${at('visibility.tfs')}a custom policy needs a non-empty array of timeframe codes, got ${fmt(v.tfs)}. ` +
+            `\`normalizeVisibility\` reads an empty list as "all", which is not what custom means.`,
+          )
+        } else {
+          v.tfs.forEach((code, j) => {
+            if (typeof code !== 'string' || !isValidTf(code)) {
+              errors.push(
+                `${at(`visibility.tfs[${j}]`)}${fmt(code)} is not a chart timeframe code; the normaliser would drop it silently.`,
+              )
+            }
+          })
+        }
+      } else if (v.tfs !== undefined) {
+        errors.push(`${at('visibility.tfs')}only a "custom" policy names timeframe codes; ${fmt(v.preset)} ignores them`)
+      }
+    }
+  }
+
+  if (p.dotSize !== undefined) {
+    const d = p.dotSize
+    const WORDS = list(PRESET_DOT_SIZES.map(fmt))
+    if (typeof d === 'string') {
+      if (!PRESET_DOT_SIZES.includes(d)) {
+        errors.push(`${at('dotSize')}expected one of ${WORDS} (or {plotKey: word}), got ${fmt(d)}`)
+      }
+    } else if (!isPlainObject(d)) {
+      errors.push(`${at('dotSize')}expected one of ${WORDS} or {plotKey: word}, got ${fmt(d)}`)
+    } else {
+      const dots = dotPlotKeysOf(def)
+      const entries = Object.entries(d)
+      if (!entries.length) {
+        errors.push(`${at('dotSize')}an empty object sizes nothing; name a dot output (${list(dots) || 'none declared'}) or use a word`)
+      }
+      for (const [plotKey, word] of entries) {
+        if (!dots.includes(plotKey)) {
+          errors.push(
+            `${at(`dotSize.${plotKey}`)}${fmt(plotKey)} is not a dot output of this definition ` +
+            `(a non-hidden "markers" plot or one with a \`marker\` glyph). Declared: ${list(dots) || 'none'}`,
+          )
+        }
+        if (typeof word !== 'string' || !PRESET_DOT_SIZES.includes(word)) {
+          errors.push(`${at(`dotSize.${plotKey}`)}expected one of ${WORDS}, got ${fmt(word)}`)
+        }
+      }
+    }
+  }
+
+  if (p.displayTarget !== undefined) {
+    if (typeof p.displayTarget !== 'string' || !PLACEMENT_TARGETS.includes(p.displayTarget)) {
+      errors.push(`${at('displayTarget')}expected one of ${list(PLACEMENT_TARGETS.map(fmt))}, got ${fmt(p.displayTarget)}`)
+    }
+  }
+}
+
 function validateMeta(meta, def, errors) {
   if (!isPlainObject(meta)) {
     errors.push(`meta: required object, got ${fmt(meta)}`)
@@ -1116,6 +1525,72 @@ function validateMeta(meta, def, errors) {
       errors.push('meta.semantics: a Pine translation keeps Pine semantics and carries no '
         + 'definition-semantics stamp')
     }
+  }
+  // `learn` (Phase 2a, unit 2a-10) is the lessons an indicator's About page
+  // links to: `[{key, label}]`, where `key` names an entry in the APP's Learn
+  // map (`lib/deskVideoHref.RS_LEARN_VIDEOS`) and `label` is the member-facing
+  // link text. BEHAVIOURAL — it renders links — so it is checked, not preserved:
+  // an entry shape nobody declared would render a link to nowhere. The key is
+  // NOT checked against the map: that map is app code and this is engine code;
+  // an unknown key renders no link (`learnHref` → null), never a broken one.
+  if (meta.learn !== undefined && meta.learn !== null) {
+    validateMetaLearn(meta.learn, errors)
+  }
+  // `tour` and `searchHint` (Phase 4, unit 4-03): first-add onboarding cards and
+  // the library's exact-query disambiguation row. Behavioural, so checked —
+  // see `validateMetaTour` / `validateMetaSearchHint`. `null` reads as absent,
+  // the same as `learn`.
+  if (meta.tour !== undefined && meta.tour !== null) {
+    validateMetaTour(meta.tour, errors)
+  }
+  if (meta.searchHint !== undefined && meta.searchHint !== null) {
+    validateMetaSearchHint(meta.searchHint, errors)
+  }
+  // `glossaryHref` (unit 4-05): the About page's Glossary link. `null` reads as absent.
+  if (meta.glossaryHref !== undefined && meta.glossaryHref !== null) {
+    validateMetaGlossaryHref(meta.glossaryHref, errors)
+  }
+  // `meta.legendFallback` (2026-11-07): the pane label's declared alternative value,
+  // in the readout grammar. Each entry needs a scalar/payload source and a known format;
+  // an optional `when` uses the same grammar as a readout row's.
+  if (meta.legendFallback !== undefined) {
+    if (!Array.isArray(meta.legendFallback)) {
+      errors.push(`meta.legendFallback: expected an array of {source, format, when?}, got ${fmt(meta.legendFallback)}`)
+    } else {
+      meta.legendFallback.forEach((e, i) => {
+        const p = isPlainObject(e) ? parseReadoutSource(e.source) : null
+        if (!p || p.kind !== 'scalar') errors.push(`meta.legendFallback[${i}].source: expected a 'scalar:<a.b>' or 'payload:<a.b>' path, got ${fmt(e && e.source)}`)
+        if (!isPlainObject(e) || !READOUT_FORMATS.includes(e.format)) errors.push(`meta.legendFallback[${i}].format: expected one of ${list(READOUT_FORMATS)}, got ${fmt(e && e.format)}`)
+        // ⭐ UCT RS 3-08 — a `when` may be the equals gate too (`input:view=mansfield`):
+        // one pane label value per Reading. The enum and its option are checked the
+        // way a readout row's equals gate is (`equalsGateFault`).
+        if (isPlainObject(e) && e.when !== undefined) {
+          const gate = parseReadoutGate(e.when)
+          if (!gate) {
+            errors.push(`meta.legendFallback[${i}].when: expected a readout source or an input:<key>=<value> gate, got ${fmt(e.when)}`)
+          } else if (typeof gate.equals === 'string') {
+            const byKey = new Map((Array.isArray(def && def.inputs) ? def.inputs : [])
+              .filter((x) => isPlainObject(x) && typeof x.key === 'string').map((x) => [x.key, x]))
+            const fault = equalsGateFault(gate, byKey)
+            if (fault) errors.push(`meta.legendFallback[${i}].when: ${fault}`)
+          }
+        }
+        // ⭐ rsLine rev 5 — an optional `muted` GATE (`scalar:<path>`): while it holds the
+        // entry prints in the muted ink (`readout.readoutFallbackValue`).
+        if (isPlainObject(e) && e.muted !== undefined) {
+          const gate = typeof e.muted === 'string' ? parseReadoutGate(e.muted) : null
+          if (!gate || typeof gate.equals === 'string') {
+            errors.push(`meta.legendFallback[${i}].muted: expected a readout gate such as 'scalar:<a.b>', got ${fmt(e.muted)}`)
+          }
+        }
+      })
+    }
+  }
+  // ⭐ `meta.paneTable` (UCT RS design round, 2026-11-08): a compact table of
+  // payload numbers pinned to the indicator pane's top-right corner. Behavioural
+  // (it renders), so checked fail-closed by its own module. `null` reads as absent.
+  if (meta.paneTable !== undefined && meta.paneTable !== null) {
+    validatePaneTable(meta.paneTable, def, errors, { isValidTf, equalsGateFault })
   }
   // `legendParams` is the one meta field with a BEHAVIOURAL half: it names the
   // inputs the crosshair chip prints in parentheses (`RSI(14)`), so a key that
@@ -1202,9 +1677,412 @@ function validateMeta(meta, def, errors) {
       )
     }
   }
+  // `presets` is read by the settings dialog's generic preset picker: a named set
+  // of input values applied to the CURRENT instance through `setInstanceInput`.
+  // Light shape check on the entry — each needs a string `id` and `label` and an
+  // object `inputs`. Keys and values inside `inputs` are NOT checked against the
+  // declared inputs here: the writer validates every value at apply time and the
+  // picker skips an undeclared key with a warning, so a stale preset degrades
+  // rather than refusing the whole definition.
+  //
+  // ⭐⭐ THE THREE NON-INPUT FIELDS ARE BEHAVIOURAL AND FAIL CLOSED (Phase 2a,
+  // unit 2a-15; the writer is unit 2a-12's `applyPresetFields`). `visibility`,
+  // `dotSize` and `displayTarget` are each handed to a per-instance writer that
+  // DROPS a value it cannot take with a `console.warn` — so a preset carrying
+  // `dotSize: 'big'` or a visibility over a timeframe code the chart does not
+  // have would register, show in the picker, and apply nothing. That is the
+  // "validated but inert" failure this schema exists to prevent, and nobody
+  // reads a console on a phone. `validatePresetFields` refuses each one by
+  // definition id, preset id and field, in the writer's own vocabulary.
+  //
+  // ⛔ AND A PRESET'S KEY SET IS CLOSED (`PRESET_FIELDS`), unlike `meta.*`
+  // itself. `applyPresetFields` reads its three fields BY NAME — `dotsize` or
+  // `visibilty` is not forward-compatible data waiting for a reader, it is a
+  // typo that silently does nothing; the forward-compatibility half of the
+  // asymmetric policy stays with `meta`'s own unknown keys (preserved below).
+  if (meta.presets !== undefined && meta.presets !== null) {
+    if (!Array.isArray(meta.presets)) {
+      errors.push(`meta.presets: expected an array of {id, label, inputs}, got ${fmt(meta.presets)}`)
+    } else {
+      const seen = new Set()
+      meta.presets.forEach((p, i) => {
+        if (!isPlainObject(p)) {
+          errors.push(`meta.presets[${i}]: expected an object {id, label, inputs}, got ${fmt(p)}`)
+          return
+        }
+        if (!isNonEmptyString(p.id)) {
+          errors.push(`meta.presets[${i}].id: required non-empty string, got ${fmt(p.id)}`)
+        } else if (seen.has(p.id)) {
+          errors.push(`meta.presets[${i}].id: duplicate preset id ${fmt(p.id)}`)
+        } else {
+          seen.add(p.id)
+        }
+        if (!isNonEmptyString(p.label)) {
+          errors.push(`meta.presets[${i}].label: required non-empty string, got ${fmt(p.label)}`)
+        }
+        if (p.origin !== undefined && typeof p.origin !== 'string') {
+          errors.push(`meta.presets[${i}].origin: expected a string, got ${fmt(p.origin)}`)
+        }
+        if (!isPlainObject(p.inputs)) {
+          errors.push(`meta.presets[${i}].inputs: required object of input values, got ${fmt(p.inputs)}`)
+        }
+        validatePresetFields(p, i, def, errors)
+      })
+    }
+  }
+  // `groupsCollapsed` is read by the settings dialog: the input groups named here
+  // open collapsed. Names that match no declared group are inert, so only the
+  // shape is checked.
+  if (meta.groupsCollapsed !== undefined && meta.groupsCollapsed !== null) {
+    if (!Array.isArray(meta.groupsCollapsed) || meta.groupsCollapsed.some((g) => typeof g !== 'string' || !g)) {
+      errors.push(`meta.groupsCollapsed: expected an array of group names, got ${fmt(meta.groupsCollapsed)}`)
+    }
+  }
+  // ⭐ UCT RS split, unit U1 — `meta.requiresServer: true` gates the WHOLE
+  // definition: every surface that offers indicators to add hides it until the
+  // live server lists its id (`serverCompute.isDefinitionOffered`). BEHAVIOURAL,
+  // so checked like the input-level flag it extends: `true` or absent (`false`,
+  // `'yes'`, `1` would gate nothing and read as a typo), and only on a `server`
+  // definition — no row will ever declare a native or ast definition, so the
+  // flag there could only hide an indicator forever.
+  if (meta.requiresServer !== undefined) {
+    if (meta.requiresServer !== true) {
+      errors.push(`meta.requiresServer: expected true or absent, got ${fmt(meta.requiresServer)}`)
+    } else if (!(isPlainObject(def.compute) && def.compute.kind === 'server')) {
+      errors.push(
+        `meta.requiresServer: compute.kind is ${fmt(isPlainObject(def.compute) ? def.compute.kind : undefined)}, ` +
+        'and only a "server" definition has a live row to declare it, so the definition could never be offered',
+      )
+    }
+  }
   // NOTE: unknown meta.* KEYS are intentionally NOT checked. They are preserved
   // verbatim on the returned def — that is the forward-compatibility half of the
   // asymmetric policy, and the round-trip promise depends on this silence.
+}
+
+/**
+ * ⭐⭐ `readout[]` — THE ROWS A SERVER-LANE DEFINITION PRINTS IN WORDS (Phase 2a).
+ *
+ * A top-level field, and a BEHAVIOURAL one: each entry decides what the legend
+ * and the pane readout say about a scalar the envelope carried, so it is
+ * validated fail-closed like `plots[].legend` — explicitly carved out of the
+ * preserve-unknown policy that every other top-level key enjoys. The grammar
+ * and the formats are `readoutSchema.js`'s (its header is the full account);
+ * this checks a definition against them so a row that could only ever print
+ * "undefined" is refused at registration, by index, rather than rendered.
+ *
+ * Every message names the definition and the entry index, because a readout
+ * block is authored once per tenant and read by nobody until a chart draws it.
+ *
+ * @param {object} def the whole definition (reads `readout`, `id`)
+ * @param {Map<string, object>} inputsByKey the declared inputs, for `input:` sources
+ * @param {string[]} errors
+ */
+/**
+ * ⭐ UCT RS 3-07 — the equals gate `input:<key>=<value>` (`readoutSchema`'s
+ * header). `null` when it is sound, else the reason. Closed on purpose: the key
+ * must be a declared ENUM input and the value one of its declared STRING option
+ * codes, because the runtime compares by identity and a value no option carries
+ * would keep the row closed forever without a word.
+ */
+function equalsGateFault(gate, inputsByKey) {
+  const key = gate.path[0]
+  const input = inputsByKey.get(key)
+  if (!input) return `${fmt(key)} names no declared input. Declared: ${list([...inputsByKey.keys()]) || 'none'}`
+  if (input.type !== 'enum' || !Array.isArray(input.options)) {
+    return `the equals form compares an ENUM input with one of its options, and ${fmt(key)} is ${fmt(input.type)}`
+  }
+  const values = input.options.map(enumOptionValue).filter((v) => typeof v === 'string')
+  if (!values.includes(gate.equals)) {
+    return `${fmt(gate.equals)} is not one of ${fmt(key)}'s option values: ${list(values.map(fmt)) || 'none'}`
+  }
+  return null
+}
+
+/**
+ * ⭐ UCT RS 3-07 — `readout[].action`, what a row offers to DO
+ * (`readoutSchema.READOUT_ACTION_KINDS`). Closed vocabulary, closed fields per
+ * kind, and an input-naming action must name a declared `string` input: a date
+ * picked off the chart, or a reset, is written to a text value, and anything else
+ * would be a write the input's own control could not show.
+ */
+function validateReadoutAction(action, path, who, inputsByKey, errors) {
+  const where = `${path}.action`
+  if (!isPlainObject(action)) {
+    errors.push(`${where}: ${who} — expected {kind, input?}, got ${fmt(action)}`)
+    return
+  }
+  if (!READOUT_ACTION_KINDS.includes(action.kind)) {
+    errors.push(`${where}.kind: ${who} — unknown readout action ${fmt(action.kind)} — expected one of: ${list(READOUT_ACTION_KINDS)}`)
+    return
+  }
+  const fields = READOUT_ACTION_FIELDS[action.kind]
+  for (const k of Object.keys(action)) {
+    if (!fields.includes(k)) {
+      errors.push(`${where}.${k}: ${who} — a ${fmt(action.kind)} action carries only ${list(fields)}`)
+    }
+  }
+  if (!fields.includes('input')) return
+  if (!isNonEmptyString(action.input)) {
+    errors.push(`${where}.input: ${who} — a ${fmt(action.kind)} action names the input it writes, got ${fmt(action.input)}`)
+    return
+  }
+  const input = inputsByKey.get(action.input)
+  if (!input) {
+    errors.push(
+      `${where}.input: ${who} — ${fmt(action.input)} names no declared input. ` +
+      `Declared: ${list([...inputsByKey.keys()]) || 'none'}`,
+    )
+  } else if (input.type !== READOUT_ACTION_INPUT_TYPE) {
+    errors.push(
+      `${where}.input: ${who} — a ${fmt(action.kind)} action writes a ${fmt(READOUT_ACTION_INPUT_TYPE)} input, ` +
+      `and ${fmt(action.input)} is ${fmt(input.type)}`,
+    )
+  }
+}
+
+function validateReadout(def, inputsByKey, errors) {
+  const readout = def.readout
+  if (readout === undefined || readout === null) return
+  const who = `definition ${fmt(def.id)}`
+  const SOURCE_HELP = `expected ${READOUT_SOURCE_PREFIXES.map((p) => `${p}:<${p === 'input' ? 'key' : 'path'}>`).join(', ')}`
+  if (!Array.isArray(readout)) {
+    errors.push(`readout: ${who} — expected an array of readout rows {key, label, source, format}, got ${fmt(readout)}`)
+    return
+  }
+  const seen = new Set()
+  readout.forEach((entry, i) => {
+    const path = `readout[${i}]`
+    if (!isPlainObject(entry)) {
+      errors.push(`${path}: ${who} — expected an object {key, label, source, format}, got ${fmt(entry)}`)
+      return
+    }
+    for (const key of Object.keys(entry)) {
+      if (!READOUT_ENTRY_FIELDS.includes(key)) {
+        errors.push(
+          `${path}.${key}: ${who} — unknown readout field — expected one of: ${list(READOUT_ENTRY_FIELDS)}. ` +
+          `A readout row decides what the legend prints, so an unknown field fails closed rather than being preserved.`,
+        )
+      }
+    }
+    if (!isNonEmptyString(entry.key)) {
+      errors.push(`${path}.key: ${who} — required non-empty string, got ${fmt(entry.key)}`)
+    } else if (!KEY_RE.test(entry.key)) {
+      errors.push(`${path}.key: ${who} — ${fmt(entry.key)} is not a legal key (must match ${KEY_RE})`)
+    } else if (seen.has(entry.key)) {
+      errors.push(`${path}.key: ${who} — duplicate readout key ${fmt(entry.key)}`)
+    } else {
+      seen.add(entry.key)
+    }
+    if (!isNonEmptyString(entry.label)) {
+      errors.push(`${path}.label: ${who} — required non-empty string (the member-facing row name), got ${fmt(entry.label)}`)
+    }
+    // `source` and `when` share one grammar; `input:` must name a declared input
+    // for the same reason `meta.legendParams` must — the row would read nothing.
+    for (const field of ['source', 'when', 'note']) {
+      const v = entry[field]
+      if ((field === 'when' || field === 'note') && (v === undefined || v === null)) continue
+      if (!isNonEmptyString(v)) {
+        errors.push(`${path}.${field}: ${who} — required string, ${SOURCE_HELP}, got ${fmt(v)}`)
+        continue
+      }
+      // ⭐ 3-07 — a `when` may be the equals form instead (`input:view=rotation`).
+      if (field === 'when') {
+        const gate = parseReadoutGate(v)
+        if (gate && typeof gate.equals === 'string') {
+          const fault = equalsGateFault(gate, inputsByKey)
+          if (fault) errors.push(`${path}.when: ${who} — ${fault}`)
+          continue
+        }
+      }
+      const parsed = parseReadoutSource(v)
+      if (!parsed) {
+        const prefix = v.includes(':') ? v.slice(0, v.indexOf(':')) : v
+        errors.push(
+          `${path}.${field}: ${who} — ${fmt(v)} is not a readout source` +
+          (READOUT_SOURCE_PREFIXES.includes(prefix) ? ` (a dotted path of identifiers must follow the prefix)` : ` — unknown prefix ${fmt(prefix)}`) +
+          `; ${SOURCE_HELP}`,
+        )
+        continue
+      }
+      if (parsed.kind === 'input') {
+        if (parsed.path.length !== 1) {
+          errors.push(`${path}.${field}: ${who} — an input source names ONE input key, got ${fmt(v)}`)
+        } else if (!inputsByKey.has(parsed.path[0])) {
+          errors.push(
+            `${path}.${field}: ${who} — ${fmt(parsed.path[0])} names no declared input. ` +
+            `Declared: ${list([...inputsByKey.keys()]) || 'none'}`,
+          )
+        }
+      }
+    }
+    if (!READOUT_FORMATS.includes(entry.format)) {
+      errors.push(
+        `${path}.format: ${who} — unknown readout format ${fmt(entry.format)} — expected one of: ${list(READOUT_FORMATS)}`,
+      )
+    }
+    if (entry.fallback !== undefined && !isNonEmptyString(entry.fallback)) {
+      errors.push(`${path}.fallback: ${who} — expected a non-empty string, got ${fmt(entry.fallback)}`)
+    }
+    if (entry.chip !== undefined && typeof entry.chip !== 'boolean') {
+      errors.push(`${path}.chip: ${who} — expected a boolean, got ${fmt(entry.chip)}`)
+    }
+    // ⭐ UCT RS 3-08 — `muted` may also be a GATE in the `when` grammar
+    // (`scalar:rotation.reason`): the row prints in the quiet ink while it holds,
+    // so a reading the server could not make reads as a note, not a value.
+    if (entry.muted !== undefined && typeof entry.muted !== 'boolean') {
+      const gate = typeof entry.muted === 'string' ? parseReadoutGate(entry.muted) : null
+      if (!gate) {
+        errors.push(`${path}.muted: ${who} — expected a boolean or a readout gate (${SOURCE_HELP}), got ${fmt(entry.muted)}`)
+      } else if (typeof gate.equals === 'string') {
+        const fault = equalsGateFault(gate, inputsByKey)
+        if (fault) errors.push(`${path}.muted: ${who} — ${fault}`)
+      } else if (gate.kind === 'input' && (gate.path.length !== 1 || !inputsByKey.has(gate.path[0]))) {
+        errors.push(`${path}.muted: ${who} — ${fmt(entry.muted)} names no declared input`)
+      }
+    }
+    // ⭐ VA2 — `chipWhen` / `chipPrefix` / `band` (UCT RS rating inputs). Each is
+    // behavioural, so each fails closed at registration rather than at render.
+    if (entry.chipWhen !== undefined) {
+      const cw = entry.chipWhen
+      if (entry.chip !== true) {
+        errors.push(`${path}.chipWhen: ${who} — only a chip row (\`chip: true\`) carries a chip condition`)
+      } else if (!isPlainObject(cw) || typeof cw.key !== 'string') {
+        errors.push(`${path}.chipWhen: ${who} — expected {key, <comparator>} naming a declared input, got ${fmt(cw)}`)
+      } else if (!inputsByKey.has(cw.key)) {
+        errors.push(
+          `${path}.chipWhen.key: ${who} — ${fmt(cw.key)} names no declared input. ` +
+          `Declared: ${list([...inputsByKey.keys()]) || 'none'}`,
+        )
+      } else {
+        const ops = Object.keys(cw).filter((k) => k !== 'key')
+        if (ops.length !== 1 || !READOUT_CONDITION_OPS.includes(ops[0])) {
+          errors.push(`${path}.chipWhen: ${who} — expected exactly one comparator of: ${list(READOUT_CONDITION_OPS)}, got ${fmt(ops)}`)
+        } else if (ops[0] === 'in' && !Array.isArray(cw.in)) {
+          errors.push(`${path}.chipWhen.in: ${who} — expected an array of values, got ${fmt(cw.in)}`)
+        }
+      }
+    }
+    if (entry.chipPrefix !== undefined && !isNonEmptyString(entry.chipPrefix)) {
+      errors.push(`${path}.chipPrefix: ${who} — expected a non-empty word, got ${fmt(entry.chipPrefix)}`)
+    }
+    if (entry.band !== undefined) {
+      const b = entry.band
+      if (!isPlainObject(b)) {
+        errors.push(`${path}.band: ${who} — expected {source, when?}, got ${fmt(b)}`)
+      } else {
+        for (const k of Object.keys(b)) {
+          if (k !== 'source' && k !== 'when') errors.push(`${path}.band.${k}: ${who} — unknown band field, expected source or when`)
+        }
+        for (const k of ['source', 'when']) {
+          if (k === 'when' && (b.when === undefined || b.when === null)) continue
+          if (k === 'when') {
+            const gate = parseReadoutGate(b.when)
+            if (gate && typeof gate.equals === 'string') {
+              const fault = equalsGateFault(gate, inputsByKey)
+              if (fault) errors.push(`${path}.band.when: ${who} — ${fault}`)
+              continue
+            }
+          }
+          const parsed = parseReadoutSource(b[k])
+          if (!parsed) {
+            errors.push(`${path}.band.${k}: ${who} — ${fmt(b[k])} is not a readout source; ${SOURCE_HELP}`)
+          } else if (parsed.kind === 'input' && (parsed.path.length !== 1 || !inputsByKey.has(parsed.path[0]))) {
+            errors.push(`${path}.band.${k}: ${who} — ${fmt(b[k])} names no declared input`)
+          }
+        }
+      }
+    }
+    if (entry.action !== undefined) validateReadoutAction(entry.action, path, who, inputsByKey, errors)
+    if (entry.words !== undefined) {
+      if (entry.format !== 'bool') {
+        errors.push(`${path}.words: ${who} — only a "bool" row carries a word pair (this row is ${fmt(entry.format)})`)
+      } else if (!Array.isArray(entry.words) || entry.words.length !== 2 || entry.words.some((w) => typeof w !== 'string')) {
+        errors.push(`${path}.words: ${who} — expected [trueWord, falseWord], two strings, got ${fmt(entry.words)}`)
+      }
+    }
+    if (entry.card !== undefined) {
+      if (!isPlainObject(entry.card)) {
+        errors.push(`${path}.card: ${who} — expected an object {what, origin, evidence?}, got ${fmt(entry.card)}`)
+      } else {
+        for (const key of Object.keys(entry.card)) {
+          if (!READOUT_CARD_FIELDS.includes(key)) {
+            errors.push(`${path}.card.${key}: ${who} — unknown card field — expected one of: ${list(READOUT_CARD_FIELDS)}`)
+          }
+        }
+        for (const key of ['what', 'origin']) {
+          if (!isNonEmptyString(entry.card[key])) {
+            errors.push(`${path}.card.${key}: ${who} — required non-empty string, got ${fmt(entry.card[key])}`)
+          }
+        }
+        if (entry.card.evidence !== undefined && typeof entry.card.evidence !== 'string') {
+          errors.push(`${path}.card.evidence: ${who} — expected a string, got ${fmt(entry.card.evidence)}`)
+        }
+        // `learn` names a lesson in the APP's Learn map (`lib/deskVideoHref`), not
+        // anything the engine holds — so the schema asks only that it is a key
+        // at all. A key the map does not know renders no link (`learnHref` → null).
+        // `evidenceSource` (unit 2b-09) is a payload path the card reads its measured
+        // sentence from. Its GRAMMAR is checked here, at registration: a path that
+        // cannot parse would silently fall back to the static line forever, which
+        // reads as "nothing measured yet" rather than as the typo it is. An
+        // `input:` source is refused too: evidence is the server's, never a knob.
+        if (entry.card.evidenceSource !== undefined) {
+          const parsed = parseReadoutSource(entry.card.evidenceSource)
+          if (!parsed || parsed.kind !== 'scalar') {
+            errors.push(`${path}.card.evidenceSource: ${who} — expected a 'scalar:<a.b.c>' or 'payload:<a.b.c>' path, got ${fmt(entry.card.evidenceSource)}`)
+          }
+        }
+        if (entry.card.learn !== undefined && !isNonEmptyString(entry.card.learn)) {
+          errors.push(`${path}.card.learn: ${who} — expected a non-empty lesson key (a string the app's Learn map resolves), got ${fmt(entry.card.learn)}`)
+        }
+      }
+    }
+  })
+  validateReadoutDetails(readout, who, errors)
+}
+
+/**
+ * ⭐ `readout[].detailOf` — A DETAIL ROW AND THE GLANCE ROW IT EXPLAINS (Phase 2a
+ * visual round, item A1). A detail row prints only inside its glance row's card,
+ * so the name must resolve to a row that HAS a card, and nesting is ONE level: a
+ * glance row is a row without `detailOf`, so a detail row cannot be the parent of
+ * another (it has no place of its own in the menu to open a card from). Checked
+ * after the per-entry pass because the parent may be declared after the child.
+ * A row naming itself is the same "no glance row" fault as a missing name.
+ */
+function validateReadoutDetails(readout, who, errors) {
+  const byKey = new Map()
+  for (const e of readout) {
+    if (isPlainObject(e) && isNonEmptyString(e.key) && !byKey.has(e.key)) byKey.set(e.key, e)
+  }
+  readout.forEach((entry, i) => {
+    if (!isPlainObject(entry) || entry.detailOf === undefined) return
+    const path = `readout[${i}].detailOf`
+    const name = entry.detailOf
+    if (!isNonEmptyString(name)) {
+      errors.push(`${path}: ${who} — expected the key of the glance row this row explains, got ${fmt(name)}`)
+      return
+    }
+    const parent = byKey.get(name)
+    if (!parent || parent === entry) {
+      errors.push(
+        `${path}: ${who} — ${fmt(name)} names no other readout row, so this row could never print. ` +
+        `Declared: ${list([...byKey.keys()]) || 'none'}`,
+      )
+      return
+    }
+    if (!isPlainObject(parent.card)) {
+      errors.push(
+        `${path}: ${who} — ${fmt(name)} has no card, and a detail row prints only inside its glance row's card`,
+      )
+    }
+    if (parent.detailOf !== undefined) {
+      errors.push(
+        `${path}: ${who} — ${fmt(name)} is itself a detail row (detailOf ${fmt(parent.detailOf)}); ` +
+        `a detail row explains a GLANCE row, one level deep`,
+      )
+    }
+  })
 }
 
 function validatePlacement(placement, errors) {
@@ -1213,6 +2091,21 @@ function validatePlacement(placement, errors) {
     return
   }
   checkVocabulary(placement.target, PLACEMENT_TARGETS, [], 'placement.target', 'placement target', errors)
+  // ⭐ A4 — whether the pane's price scale shows. Absent means `'visible'`, which
+  // is every definition that predates the field, so no other pane moves.
+  if (placement.axis !== undefined) {
+    checkVocabulary(placement.axis, PLACEMENT_AXIS_MODES, [], 'placement.axis', 'placement axis mode', errors)
+  }
+  // ⭐ UCT RS 3-07 — `ownScale`: on the price pane, draw on an invisible scale of
+  // the instance's own in the lowest third under the bars (`placement.ownScaleOf`).
+  // Behavioural, so only a real boolean is admitted: a string `'true'` would read
+  // as off in the resolver and as on to a reader of the definition.
+  if (placement.ownScale !== undefined && typeof placement.ownScale !== 'boolean') {
+    errors.push(
+      `placement.ownScale: expected a boolean (true draws on its own invisible scale under the bars ` +
+      `when the indicator is on the price pane), got ${fmt(placement.ownScale)}`,
+    )
+  }
 
   // A pane's DEFAULT height, as a fraction of the chart. Optional; `paneLayout`
   // supplies `DEFAULT_PANE_HEIGHT` when absent. It lives on the definition
@@ -1232,13 +2125,28 @@ function validatePlacement(placement, errors) {
   if (placement.pane !== undefined && placement.pane !== null) {
     if (!isPlainObject(placement.pane)) {
       errors.push(`placement.pane: expected an object, got ${fmt(placement.pane)}`)
-    } else if (placement.pane.height !== undefined
-               && !(isFiniteNumber(placement.pane.height)
-                    && placement.pane.height > 0 && placement.pane.height < 1)) {
-      errors.push(
-        `placement.pane.height: expected a finite fraction of the chart in (0, 1) — ` +
-        `the pane's default height — got ${fmt(placement.pane.height)}`,
-      )
+    } else {
+      if (placement.pane.height !== undefined
+          && !(isFiniteNumber(placement.pane.height)
+               && placement.pane.height > 0 && placement.pane.height < 1)) {
+        errors.push(
+          `placement.pane.height: expected a finite fraction of the chart in (0, 1) — ` +
+          `the pane's default height — got ${fmt(placement.pane.height)}`,
+        )
+      }
+      // ⭐ RS split U3 — `minPx`: the pane's MINIMUM height in pixels, applied
+      // after the member's own sizes (`paneStretchPlan`). Optional; absent means
+      // no floor beyond the stack's 4 % share, which is every definition before
+      // U3. PIXELS, not a fraction, because readability is a property of the
+      // screen — so the bound is simply a positive finite number, and a string
+      // is refused like every other behavioural value.
+      if (placement.pane.minPx !== undefined
+          && !(isFiniteNumber(placement.pane.minPx) && placement.pane.minPx > 0)) {
+        errors.push(
+          `placement.pane.minPx: expected a positive finite number of pixels — ` +
+          `the pane's minimum height — got ${fmt(placement.pane.minPx)}`,
+        )
+      }
     }
   }
 
@@ -1306,7 +2214,21 @@ export function validateInputValue(input, value, path, errors) {
       if (typeof d !== 'boolean') errors.push(`${path}: type "bool" requires true or false, got ${fmt(d)}`)
       break
     case 'string':
-      if (typeof d !== 'string') errors.push(`${path}: type "string" requires a string, got ${fmt(d)}`)
+      if (typeof d !== 'string') {
+        errors.push(`${path}: type "string" requires a string, got ${fmt(d)}`)
+        break
+      }
+      // ⭐ UCT RS Phase 3, unit 3-02 — a declared `maxLength` and `pattern` bind
+      // every NON-EMPTY value. Empty is always legal: it means "not set".
+      if (d === '') break
+      if (Number.isInteger(input.maxLength) && d.length > input.maxLength) {
+        errors.push(`${path}: ${fmt(d)} is longer than the declared maxLength ${input.maxLength}`)
+      }
+      if (input.pattern !== undefined) {
+        const re = stringPatternRegExp(input.pattern)
+        if (!re) errors.push(`${path}: the declared pattern ${fmt(input.pattern)} is not an anchored regex, so no value can be checked against it`)
+        else if (!re.test(d)) errors.push(`${path}: ${fmt(d)} does not match the declared pattern ${input.pattern}`)
+      }
       break
     // ⭐ PHASE 3 WS-D (runtime documents only — `RUNTIME_INPUT_TYPES`)
     case 'time':
@@ -1446,6 +2368,361 @@ function validateInput(input, index, seenKeys, errors, runtimeDoc = false) {
       errors.push(`${path}.${k}: expected a string, got ${fmt(input[k])}`)
     }
   }
+
+  validateTextModifiers(input, path, errors)
+}
+
+// ─── the text control's modifiers (UCT RS Phase 3, unit 3-02) ───────────────
+//
+// ⭐ A `string` input may declare how its text box behaves:
+//   - `pattern`: an ANCHORED regex source (`^…$`), checked on every non-empty value
+//     (`validateInputValue`) — the server row carries the same source (3-05), so
+//     both lanes refuse the same text;
+//   - `maxLength`: a whole number 1-64, on every non-empty value;
+//   - `case: 'upper'`: the control upper-cases what the member types (a value
+//     rule only through `pattern`; the schema does not rewrite a stored value);
+//   - `placeholder`: the box's empty-state text, up to 64 characters;
+//   - `hint`: the muted line shown under the box when a typed value is refused,
+//     up to 120 characters (the control says "Not a valid value" without one).
+// ⛔ Only a `string` input takes them: on a number or an enum they would be read
+// by nothing, which is a typo, so they are refused by name.
+export const TEXT_INPUT_MAX_LENGTH = 64
+const TEXT_MODIFIERS = ['pattern', 'maxLength', 'case', 'placeholder', 'hint']
+const _patternCache = new Map()
+
+/** A declared `pattern` → its RegExp, or null for one that is not an anchored,
+ *  compilable source. Memoised: the control asks on every keystroke. */
+export function stringPatternRegExp(source) {
+  if (typeof source !== 'string') return null
+  if (_patternCache.has(source)) return _patternCache.get(source)
+  let re = null
+  const anchored = source.length >= 2 && source.startsWith('^') && source.endsWith('$') && !source.endsWith(String.raw`\$`)
+  if (anchored) {
+    try { re = new RegExp(source) } catch { re = null }
+  }
+  _patternCache.set(source, re)
+  return re
+}
+
+function validateTextModifiers(input, path, errors) {
+  const declared = TEXT_MODIFIERS.filter((k) => input[k] !== undefined)
+  if (!declared.length) return
+  if (input.type !== 'string') {
+    for (const k of declared) {
+      errors.push(`${path}.${k}: only a "string" input takes ${k}, and this one is ${fmt(input.type)} — nothing would read it`)
+    }
+    return
+  }
+  if (input.pattern !== undefined) {
+    if (typeof input.pattern !== 'string' || !input.pattern) {
+      errors.push(`${path}.pattern: expected a regex source string, got ${fmt(input.pattern)}`)
+    } else if (!stringPatternRegExp(input.pattern)) {
+      errors.push(`${path}.pattern: ${fmt(input.pattern)} must be an anchored regex (starting "^", ending "$") that compiles`)
+    }
+  }
+  if (input.maxLength !== undefined
+      && (!Number.isInteger(input.maxLength) || input.maxLength < 1 || input.maxLength > TEXT_INPUT_MAX_LENGTH)) {
+    errors.push(`${path}.maxLength: expected a whole number from 1 to ${TEXT_INPUT_MAX_LENGTH}, got ${fmt(input.maxLength)}`)
+  }
+  if (input.case !== undefined && input.case !== 'upper') {
+    errors.push(`${path}.case: the one case a text box applies is "upper", got ${fmt(input.case)}`)
+  }
+  for (const [k, max] of [['placeholder', 64], ['hint', 120]]) {
+    if (input[k] === undefined) continue
+    if (typeof input[k] !== 'string') errors.push(`${path}.${k}: expected a string, got ${fmt(input[k])}`)
+    else if (input[k].length > max) errors.push(`${path}.${k}: at most ${max} characters, got ${input[k].length}`)
+  }
+}
+
+// ─── server-gated controls and legacy inputs (UCT RS Phase 3, unit 3-01) ────
+//
+// ⭐⭐ `requiresServer: true` — on an input, on an enum OPTION, or on a
+// `meta.presets[]` entry — means "hide this until the live server row declares
+// it" (`serverCompute.serverDeclares`, read by `indicatorRegistry`). It lets a
+// control merge ahead of the server half that answers it and stay dark. An enum
+// option carries it as a third element, `['CUSTOM', 'Your symbol',
+// {requiresServer: true}]`, or as a key of the object form `{value, label,
+// requiresServer: true}`.
+//
+// ⭐ `legacy: true` on an input means "still declared, never rendered": a stored
+// instance that carries the key still validates (`instances.js` REFUSES an
+// undeclared key, so retiring an input any other way breaks saved layouts), and
+// no settings surface draws a control for it.
+//
+// ⛔ BOTH FAIL CLOSED. Each is `true` or absent; `false`, `'yes'` or `1` is a
+// typo that would gate (or un-gate) nothing, so it is refused by name. And the
+// combinations that could only ever hide a control forever are refused too:
+//   - a gate on a definition the server does not compute (no row will declare it);
+//   - a gate on an input the definition never sends (`meta.serverInputs`), since
+//     the row declares only what it receives;
+//   - an enum whose DEFAULT is a gated option (the select would show a value it
+//     does not list until the server answered);
+//   - a gated legacy input (it is never rendered, so the gate decides nothing).
+
+/** Is this enum option entry marked `requiresServer`? The ONE reader of the
+ *  marker's two spellings; `indicatorRegistry` imports it. */
+export function enumOptionRequiresServer(option) {
+  if (Array.isArray(option)) return isPlainObject(option[2]) && option[2].requiresServer === true
+  return isPlainObject(option) && option.requiresServer === true
+}
+
+function validateServerGates(def, inputs, errors) {
+  const serverDoc = isPlainObject(def.compute) && def.compute.kind === 'server'
+  const sent = isPlainObject(def.meta) && Array.isArray(def.meta.serverInputs) ? def.meta.serverInputs : null
+  const kindNote = `compute.kind is ${fmt(isPlainObject(def.compute) ? def.compute.kind : undefined)}, ` +
+    `and only a "server" definition has a live row to declare it, so it could never appear`
+  inputs.forEach((input, index) => {
+    if (!isPlainObject(input)) return
+    const path = `inputs[${index}]`
+    for (const k of ['requiresServer', 'legacy']) {
+      if (input[k] !== undefined && input[k] !== true) {
+        errors.push(`${path}.${k}: expected true or absent, got ${fmt(input[k])}`)
+      }
+    }
+    const gated = input.requiresServer === true
+    if (gated && input.legacy === true) {
+      errors.push(`${path}: a legacy input is never rendered, so requiresServer on it gates nothing — drop one`)
+    }
+    let gatedOptions = false
+    if (input.type === 'enum' && Array.isArray(input.options)) {
+      input.options.forEach((option, j) => {
+        const at = `${path}.options[${j}]`
+        if (Array.isArray(option)) {
+          if (option.length > 3) {
+            errors.push(`${at}: an option pair is [value, label] or [value, label, {requiresServer: true}], got ${option.length} entries`)
+          } else if (option.length === 3) {
+            const extra = option[2]
+            if (!isPlainObject(extra) || Object.keys(extra).length !== 1 || extra.requiresServer !== true) {
+              errors.push(`${at}[2]: expected {requiresServer: true}, got ${fmt(extra)}`)
+            }
+          }
+        } else if (isPlainObject(option) && option.requiresServer !== undefined && option.requiresServer !== true) {
+          errors.push(`${at}.requiresServer: expected true or absent, got ${fmt(option.requiresServer)}`)
+        }
+        if (enumOptionRequiresServer(option)) {
+          gatedOptions = true
+          if (Object.prototype.hasOwnProperty.call(input, 'default') && enumOptionValue(option) === input.default) {
+            errors.push(
+              `${at}: the default ${fmt(input.default)} is a requiresServer option — until the server ` +
+              `declares it the control would show a value it does not list. Default to an ungated option.`,
+            )
+          }
+        }
+      })
+    }
+    if (!gated && !gatedOptions) return
+    const what = gated ? `${path}.requiresServer` : `${path}.options`
+    if (!serverDoc) {
+      errors.push(`${what}: ${kindNote}`)
+    } else if (sent && isNonEmptyString(input.key) && !sent.includes(input.key)) {
+      errors.push(
+        `${what}: ${fmt(input.key)} is not in meta.serverInputs, so it is never sent and the ` +
+        `server row can never declare it — the control would stay hidden forever`,
+      )
+    }
+  })
+  // ⭐ UCT RS 3-14 — `plots[].requiresServer: true`: a column only the gated row
+  // sends; the inspector offers no Plot style for it until the live row declares
+  // every gated input (`indicatorRegistry.isPlotHidden`). On a definition with no
+  // gated input it could never appear, so that is refused like the rest.
+  const anyGatedInput = inputs.some((i) => isPlainObject(i) && i.requiresServer === true)
+  ;(Array.isArray(def.plots) ? def.plots : []).forEach((plot, i) => {
+    if (!isPlainObject(plot) || plot.requiresServer === undefined) return
+    const at = `plots[${i}].requiresServer`
+    if (plot.requiresServer !== true) errors.push(`${at}: expected true or absent, got ${fmt(plot.requiresServer)}`)
+    else if (!serverDoc) errors.push(`${at}: ${kindNote}`)
+    else if (!anyGatedInput) {
+      errors.push(`${at}: the definition declares no requiresServer input, so the live row can never arm it and the plot's style row would stay hidden forever`)
+    }
+  })
+  const presets = isPlainObject(def.meta) && Array.isArray(def.meta.presets) ? def.meta.presets : []
+  presets.forEach((p, i) => {
+    if (!isPlainObject(p) || p.requiresServer === undefined) return
+    if (p.requiresServer !== true) {
+      errors.push(`meta.presets[${i}].requiresServer: expected true or absent, got ${fmt(p.requiresServer)}`)
+    } else if (!serverDoc) {
+      errors.push(`meta.presets[${i}].requiresServer: ${kindNote}`)
+    }
+  })
+}
+
+// ─── a legacy input read as its successor (UCT RS Phase 3, unit 3-08b) ─────
+//
+// ⭐ `mapsTo: {when, key, value}` on a `legacy: true` input: an instance that
+// STORED the legacy key with the value `when`, and stored nothing under `key`,
+// is read as `key: value` (`legacyInputs.inputsAsRead`, read-time only — the
+// stored instance is never rewritten). A stored successor always wins.
+//
+// ⛔ FAIL CLOSED, because a wrong mapping silently redraws saved layouts:
+//   - only on a legacy input (a live control already says what it means);
+//   - exactly the three fields; `key` a declared input, not itself, not legacy;
+//   - `when` a legal value of the legacy input and NOT its default (a stored
+//     default is not a choice that has a successor);
+//   - `value` a legal value of the successor and NOT its default (that maps
+//     nothing: the absent successor already reads as its default);
+//   - one mapping per successor (two would race on declaration order).
+export const LEGACY_MAPS_TO_FIELDS = Object.freeze(['when', 'key', 'value'])
+
+function validateLegacyMaps(inputs, inputsByKey, errors) {
+  const targets = new Map()
+  inputs.forEach((input, index) => {
+    if (!isPlainObject(input) || input.mapsTo === undefined) return
+    const path = `inputs[${index}].mapsTo`
+    const m = input.mapsTo
+    if (input.legacy !== true) {
+      errors.push(`${path}: only a legacy input maps onto a successor — declare legacy: true or drop mapsTo`)
+      return
+    }
+    if (!isPlainObject(m)) {
+      errors.push(`${path}: expected {when, key, value}, got ${fmt(m)}`)
+      return
+    }
+    const keys = Object.keys(m)
+    const extra = keys.filter((k) => !LEGACY_MAPS_TO_FIELDS.includes(k))
+    const missing = LEGACY_MAPS_TO_FIELDS.filter((k) => !Object.prototype.hasOwnProperty.call(m, k))
+    if (extra.length || missing.length) {
+      errors.push(`${path}: expected exactly {when, key, value}` +
+        `${missing.length ? `, missing ${list(missing)}` : ''}${extra.length ? `, unknown ${list(extra)}` : ''}`)
+      return
+    }
+    const target = typeof m.key === 'string' ? inputsByKey.get(m.key) : undefined
+    if (!target) {
+      errors.push(`${path}.key: ${fmt(m.key)} names no declared input (declared input keys: ${list([...inputsByKey.keys()]) || 'none'})`)
+      return
+    }
+    if (m.key === input.key) {
+      errors.push(`${path}.key: ${fmt(m.key)} is the legacy input itself`)
+      return
+    }
+    if (target.legacy === true) {
+      errors.push(`${path}.key: ${fmt(m.key)} is itself legacy — map onto the input that replaced it`)
+      return
+    }
+    const whenErrors = []
+    validateInputValue(input, m.when, `${path}.when`, whenErrors)
+    errors.push(...whenErrors)
+    if (!whenErrors.length && Object.prototype.hasOwnProperty.call(input, 'default') && m.when === input.default) {
+      errors.push(`${path}.when: ${fmt(m.when)} is ${fmt(input.key)}'s default — a stored default is not a choice with a successor`)
+    }
+    const valueErrors = []
+    validateInputValue(target, m.value, `${path}.value`, valueErrors)
+    errors.push(...valueErrors)
+    if (!valueErrors.length && Object.prototype.hasOwnProperty.call(target, 'default') && m.value === target.default) {
+      errors.push(`${path}.value: ${fmt(m.value)} is ${fmt(m.key)}'s default — the mapping would change nothing`)
+    }
+    if (targets.has(m.key)) {
+      errors.push(`${path}.key: ${fmt(m.key)} is already the successor of inputs[${targets.get(m.key)}] — one mapping per successor`)
+    } else {
+      targets.set(m.key, index)
+    }
+  })
+}
+
+// ─── a text box that names an enum option (UCT RS Phase 3, unit 3-09b) ──────
+//
+// ⭐ `identityFor: '<enum key>'` on a `string` input: this box is what one of
+// that enum's options MEANS. The option is the one its `activeWhen` wakes it
+// under (`{key: <enum key>, equals: <option>}`), so the pair is declared once.
+// Wherever the enum is printed as identity (`readout.legendIdentityParts`, the
+// `meta.legendParams` ` · <value>` grammar) the typed text stands in for the
+// option's raw code, and the option's LABEL stands in while the box is empty:
+// `UCT RS · SMH`, `UCT RS · Your symbol`, never `UCT RS · CUSTOM`.
+//
+// ⛔ FAIL CLOSED, because a half-declared pair prints the raw code it exists
+// to hide:
+//   - only on a `string` input that is not legacy (a legacy box is never typed);
+//   - the key names another declared `enum` input that `meta.legendParams`
+//     lists (nothing else prints it as identity, so the field would be inert);
+//   - the box declares `activeWhen: {key: <that enum>, equals: <option>}`, the
+//     option carries a non-empty label (the empty-box text);
+//   - one companion per option (two would race on declaration order).
+function enumOptionLabel(option) {
+  if (Array.isArray(option)) return typeof option[1] === 'string' ? option[1] : null
+  if (isPlainObject(option) && typeof option.label === 'string') return option.label
+  return null
+}
+
+/**
+ * ⭐ THE ONE READER OF THE PAIR (unit 3-14). The text an identity value prints:
+ * for an `enum` input whose option `raw` has a companion text box (a `string`
+ * input declaring `identityFor: <that key>` and `activeWhen: {key, equals: raw}`),
+ * the box's typed value, or the option's LABEL while the box is empty; every
+ * other value comes back unchanged. Read by `readout` (the chip and the pane
+ * suffix) and by `sourceRef.instanceLabel` (the settings list, the Display-in
+ * menu), so no surface prints the code `CUSTOM` for "Your symbol".
+ */
+export function identityTextFor(def, key, raw, inputs) {
+  if (typeof raw !== 'string' || !raw || !def || !Array.isArray(def.inputs)) return raw
+  const inp = def.inputs.find((i) => i && i.key === key)
+  if (!inp || inp.type !== 'enum') return raw
+  const companion = def.inputs.find((c) => c && c.identityFor === key && c.type === 'string'
+    && c.activeWhen && typeof c.activeWhen === 'object' && c.activeWhen.key === key && c.activeWhen.equals === raw)
+  if (!companion) return raw
+  const typed = (inputs && inputs[companion.key] !== undefined) ? inputs[companion.key] : companion.default
+  if (typeof typed === 'string' && typed.trim()) return typed.trim()
+  for (const o of (Array.isArray(inp.options) ? inp.options : [])) {
+    if (Array.isArray(o) && o[0] === raw) return typeof o[1] === 'string' && o[1] ? o[1] : raw
+    if (o && typeof o === 'object' && !Array.isArray(o) && o.value === raw) return typeof o.label === 'string' && o.label ? o.label : raw
+  }
+  return raw
+}
+
+function validateIdentityFor(def, inputs, inputsByKey, errors) {
+  const params = isPlainObject(def.meta) && Array.isArray(def.meta.legendParams) ? def.meta.legendParams : []
+  const seen = new Map()
+  inputs.forEach((input, index) => {
+    if (!isPlainObject(input) || input.identityFor === undefined) return
+    const path = `inputs[${index}].identityFor`
+    const k = input.identityFor
+    if (!isNonEmptyString(k)) {
+      errors.push(`${path}: expected the key of the enum input this box names an option of, got ${fmt(k)}`)
+      return
+    }
+    if (input.type !== 'string') {
+      errors.push(`${path}: only a "string" input stands in for an option, and this one is ${fmt(input.type)}`)
+      return
+    }
+    if (input.legacy === true) {
+      errors.push(`${path}: a legacy input is never rendered, so nobody types the name it would print — drop one`)
+      return
+    }
+    if (k === input.key) {
+      errors.push(`${path}: ${fmt(k)} is the input itself`)
+      return
+    }
+    const target = inputsByKey.get(k)
+    if (!target) {
+      errors.push(`${path}: ${fmt(k)} names no declared input (declared input keys: ${list([...inputsByKey.keys()]) || 'none'})`)
+      return
+    }
+    if (target.type !== 'enum' || !Array.isArray(target.options)) {
+      errors.push(`${path}: ${fmt(k)} is ${fmt(target.type)}, and only an enum's option has a name to stand in for`)
+      return
+    }
+    if (!params.includes(k)) {
+      errors.push(`${path}: ${fmt(k)} is not a meta.legendParams entry, so no label prints it and the field reads nothing`)
+      return
+    }
+    const aw = input.activeWhen
+    if (!isPlainObject(aw) || aw.key !== k || !Object.prototype.hasOwnProperty.call(aw, 'equals')) {
+      errors.push(`${path}: the box must declare activeWhen {key: ${fmt(k)}, equals: <option>} — that names the option it stands in for`)
+      return
+    }
+    const option = target.options.find((o) => enumOptionValue(o) === aw.equals)
+    // An `equals` no option carries is already refused by `validateActiveWhen`.
+    if (option === undefined) return
+    const label = enumOptionLabel(option)
+    if (!isNonEmptyString(label)) {
+      errors.push(`${path}: the option ${fmt(aw.equals)} carries no label, so an empty box would print the raw code`)
+      return
+    }
+    const slot = `${k}=${JSON.stringify(aw.equals)}`
+    if (seen.has(slot)) {
+      errors.push(`${path}: the option ${fmt(aw.equals)} of ${fmt(k)} already has a companion at inputs[${seen.get(slot)}] — one per option`)
+      return
+    }
+    seen.set(slot, index)
+  })
 }
 
 /** `activeWhen` is the JSON-expressible successor to `indicatorRegistry`'s
@@ -1454,6 +2731,32 @@ function validateInput(input, index, seenKeys, errors, runtimeDoc = false) {
  *  checkable and dangerous: a condition keyed on an input that does not exist
  *  would silently evaluate to "never show", hiding a control forever. Same class
  *  as an unresolvable $ref, so it gets the same treatment. */
+/**
+ * ⭐ UCT RS 3-07 — an `activeWhen` keyed on an ENUM input compares against that
+ * input's OPTION VALUES, so a value no option carries is a condition that can
+ * never (`equals`, `in`) or always (`notEquals`) hold: the same "hides a control
+ * forever" class as an unresolvable key, and refused the same way. `null` when
+ * sound or not checkable (a non-enum referent, or an operator this does not
+ * compare, `gt`/`lt`, keep their v1 latitude).
+ */
+function activeWhenEnumFault(aw, inputsByKey) {
+  const input = inputsByKey.get(aw.key)
+  if (!input || input.type !== 'enum' || !Array.isArray(input.options)) return null
+  const values = input.options.map(enumOptionValue)
+  const known = (v) => values.includes(v)
+  for (const op of ['equals', 'notEquals']) {
+    if (Object.prototype.hasOwnProperty.call(aw, op) && !known(aw[op])) {
+      return `.${op}: ${fmt(aw[op])} is not one of ${fmt(aw.key)}'s option values: ${list(values.map(fmt))}`
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(aw, 'in')) {
+    if (!Array.isArray(aw.in)) return `.in: expected an array of ${fmt(aw.key)}'s option values, got ${fmt(aw.in)}`
+    const bad = aw.in.filter((v) => !known(v))
+    if (bad.length) return `.in: ${list(bad.map(fmt))} ${bad.length === 1 ? 'is' : 'are'} not among ${fmt(aw.key)}'s option values: ${list(values.map(fmt))}`
+  }
+  return null
+}
+
 function validateActiveWhen(input, index, inputsByKey, errors) {
   const aw = input?.activeWhen
   if (aw === undefined || aw === null) return
@@ -1470,10 +2773,13 @@ function validateActiveWhen(input, index, inputsByKey, errors) {
     )
   } else if (aw.key === input.key) {
     errors.push(`${path}.key: ${fmt(aw.key)} refers to its own input — the condition can never be evaluated`)
+  } else {
+    const fault = activeWhenEnumFault(aw, inputsByKey)
+    if (fault) errors.push(`${path}${fault}`)
   }
 }
 
-function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
+function validatePlot(plot, index, seenKeys, inputsByKey, errors, presentationKey) {
   const path = `plots[${index}]`
   if (!isPlainObject(plot)) {
     errors.push(`${path}: expected an object, got ${fmt(plot)}`)
@@ -1524,6 +2830,18 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
       `(\`x[N]\`), never here — carrying it on the plot too would draw it twice as far.`,
     )
   }
+  // ⭐ rsLine rev 5 (2026-11-08) — `plots[].autoscaleInclude: {min, max}`: a range the
+  // plot's own autoscale always WIDENS to include while the plot has data on screen
+  // (guides at fixed levels stay in view: the RS Rating's 80 and 90). It never
+  // clips, and a plot with no data in view contributes nothing, so a series the
+  // server blanks under another reading cannot reframe that reading's scale.
+  if (plot.autoscaleInclude !== undefined) {
+    const r = plot.autoscaleInclude
+    if (!(isPlainObject(r) && Number.isFinite(r.min) && Number.isFinite(r.max) && r.min < r.max
+          && Object.keys(r).every((k) => k === 'min' || k === 'max'))) {
+      errors.push(`${path}.autoscaleInclude: expected {min, max} with finite min < max, got ${fmt(r)}`)
+    }
+  }
   // `plots[].displaceFrom` — the displacement's relation to ONE declared parameter,
   // `scale * value + add`, so a parameter edit moves the drawing with the maths.
   if (plot.displaceFrom !== undefined) {
@@ -1538,7 +2856,9 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
     }
   }
 
-  // ─ substitutable fields (spec §3.1: color, width, levels) ─
+  // ─ substitutable fields (spec §3.1: color, width, levels; `lineStyle`,
+  //   `colorUp` and `colorDown` are substituted further down, beside the
+  //   vocabulary and the colour modes they belong to) ─
 
   if (plot.color !== undefined) {
     const colorRef = refKeyOf(plot.color)
@@ -1619,12 +2939,14 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
     errors.push(`${path}.levels: style "hlines" requires a non-empty levels array, got ${fmt(plot.levels)}`)
   }
 
-  // ─ the two colours `colorMode: 'sign'` needs ─
+  // ─ the two colours `colorMode: 'sign'` and `'column:<key>'` need ─
   //
-  // NOT substitutable ($-refs stay confined to SUBSTITUTABLE_PLOT_FIELDS, which
-  // the spec locks at color/width/levels) and validated exactly like `color`
-  // otherwise. `validateColorModes` is what makes them REQUIRED under `'sign'`;
-  // this half is what stops `colorUp: 3` registering.
+  // SUBSTITUTABLE since 2026-11-05 (`SUBSTITUTABLE_PLOT_FIELDS` names them; spec
+  // §3.1 carries the same sentence) and validated exactly like `color`
+  // otherwise. `validateColorModes` is what makes them REQUIRED under `'sign'`
+  // and `'column:'`; the loop below is what stops `colorUp: 3` registering.
+  // ⚰️ This said "NOT substitutable … the spec locks at color/width/levels"
+  // — true until UCT RS's Phase preset needed a member-pickable pair.
   // ⭐ An N-way palette: two or more colours, each validated like `color`.
   if (plot.colorPalette !== undefined) {
     const pal = plot.colorPalette
@@ -1666,14 +2988,23 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
       errors.push(`${path}.colorPacked: a computed colour is read through a column, so colorMode must be "column:<key>", got ${fmt(plot.colorMode)}`)
     }
   }
+  // ⭐ Same order as `lineStyle` below: substitute FIRST, then judge the
+  // RESOLVED value, so `colorUp: '$lineUpColor'` is checked on the colour it
+  // becomes. A ref that fails to resolve is already reported by `substitute`.
   for (const field of ['colorUp', 'colorDown']) {
     if (plot[field] === undefined) continue
-    if (!isNonEmptyString(plot[field])) {
+    const ref = refKeyOf(plot[field])
+    const colour = substitute(plot[field], inputsByKey, `${path}.${field}`, errors, field)
+    if (colour === REF_FAILED) continue
+    noteRef(plot, field, ref)
+    if (!isNonEmptyString(colour)) {
       errors.push(
         `${path}.${field}: expected a non-empty colour string (the colour bars on that side of ` +
-        `zero are drawn in), got ${fmt(plot[field])}`,
+        `zero are drawn in)${plot[field] !== colour ? ` after substituting ${fmt(plot[field])}` : ''}, ` +
+        `got ${fmt(colour)}`,
       )
     }
+    plot[field] = colour
   }
 
   // ─ enumerated presentation fields ─
@@ -1716,6 +3047,9 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
       }
       if (plot.legend.hide !== undefined && typeof plot.legend.hide !== 'boolean') {
         errors.push(`${path}.legend.hide: expected true or false, got ${fmt(plot.legend.hide)}`)
+      }
+      if (plot.legend.showValue !== undefined && typeof plot.legend.showValue !== 'boolean') {
+        errors.push(`${path}.legend.showValue: expected true or false, got ${fmt(plot.legend.showValue)}`)
       }
 
     }
@@ -1845,6 +3179,128 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
       `compute and nothing to hide; drop the plot instead of hiding it`,
     )
   }
+  // ⭐ A6 — `plots[].restyle: false` is the plot's OPT-OUT from the Plot style
+  // control: the inspector offers no style row for it. A sparse dot column
+  // restyled as a line draws nothing, so a dropdown there would lie. Behavioural
+  // (it decides what the inspector offers), so anything but a boolean fails closed;
+  // `true` is the default written down.
+  if (plot.restyle !== undefined && typeof plot.restyle !== 'boolean') {
+    errors.push(
+      `${path}.restyle: expected true or false (false = the inspector offers no Plot style for this plot), ` +
+      `got ${fmt(plot.restyle)}`,
+    )
+  }
+  // ⭐ UCT RS split, U2 — `plots[].endLabel`: a small tag at the plot's last finite
+  // point (`RS 96`, MarketSurge's line-end rating). Declared per plot, drawn by
+  // the surface from the host series' own coordinates; fail-closed in `endLabel.js`.
+  if (plot.endLabel !== undefined) validateEndLabel(plot.endLabel, `${path}.endLabel`, inputsByKey.keys(), errors)
+  validatePlotActiveWhen(plot, path, inputsByKey, errors, presentationKey)
+}
+
+/**
+ * ⭐ A2 — `plots[].activeWhen`: a guide that draws only under one input state (the
+ * RS Mansfield view's zero line, `{key: 'showMansfield', equals: true}`). The SAME
+ * grammar as `inputs[].activeWhen` and read by the same evaluator
+ * (`indicatorRegistry.evalActiveWhen`), so there is one condition language. It is
+ * admitted on an `hlines` guide ONLY: a guide is static, so whether it draws is a
+ * presentation fact; a data plot's visibility is the server's (it blanks the
+ * column), and a second switch over the same pixels would be a second authority.
+ * The key must name a declared input, for the reason `validateActiveWhen` gives.
+ */
+/**
+ * ⭐ UCT RS split, U7 (2026-11-09) — THE ONE EXCEPTION, AND WHY IT IS SOUND. A
+ * data plot of a SERVER definition may carry a condition keyed on a PRESENTATION
+ * input: one the definition never sends (`meta.serverInputs` does not list it),
+ * so the server cannot blank the column for it and the member's own switch is
+ * the only authority over those pixels — exactly the `fill.activeWhen` rule
+ * (design round, 2026-11-08). The slim RS Line's `rsMa` draws only while
+ * `showAverage` holds. A condition keyed on a SERVER input is still refused: the
+ * server already blanks that column, and a second switch over it would be a
+ * second authority. `presentationKey` is `(key) => boolean`, computed by the
+ * caller from the definition; absent, nothing is excepted (the pre-U7 answer).
+ */
+function validatePlotActiveWhen(plot, path, inputsByKey, errors, presentationKey) {
+  const aw = plot.activeWhen
+  if (aw === undefined || aw === null) return
+  const where = `${path}.activeWhen`
+  if (plot.style !== 'hlines') {
+    const key = isPlainObject(aw) && typeof aw.key === 'string' ? aw.key : null
+    const excepted = !!(key && typeof presentationKey === 'function' && presentationKey(key))
+    if (!excepted) {
+      errors.push(
+        `${where}: only an "hlines" guide carries a condition — a data plot draws what its column holds, ` +
+        `and the compute blanks that column when the plot is off (got style ${fmt(plot.style)})`,
+      )
+      return
+    }
+  }
+  if (!isPlainObject(aw) || typeof aw.key !== 'string') {
+    errors.push(`${where}: expected {key, equals} naming a declared input, got ${fmt(aw)}`)
+    return
+  }
+  if (!inputsByKey.has(aw.key)) {
+    errors.push(
+      `${where}.key: unresolvable reference ${fmt(aw.key)} — no input declares that key ` +
+      `(declared input keys: ${list([...inputsByKey.keys()]) || 'none'})`,
+    )
+  }
+  if (!Object.prototype.hasOwnProperty.call(aw, 'equals')) {
+    errors.push(`${where}: expected an \`equals\` value — the guide's condition is one input state`)
+  } else if (inputsByKey.has(aw.key)) {
+    const fault = activeWhenEnumFault(aw, inputsByKey)
+    if (fault) errors.push(`${where}${fault}`)
+  }
+}
+
+/** ⭐⭐ W4-T13 - A CANDLE / BAR ROW NAMES THE COLUMNS IT IS DRAWN FROM.
+ *
+ *  `candles` / `ohlcBars` on a document row mean "draw open, high, low and close", and the row's
+ *  own column is the CLOSE: `ohlc` names the other three (`{open, high, low}`, plot keys of this
+ *  document) and `ohlcColors` the colour columns (`{body, wick, border}` for a candle, `{body}`
+ *  for a bar; each a plot key whose column holds a packed colour, `na` where the script's colour
+ *  is `na`). A candle that named no columns would register happily and draw an empty series, the
+ *  failure this schema exists to prevent, so the declaration is REQUIRED, and it is FORBIDDEN on
+ *  any other style (two renderers over one row). */
+function validateOhlc(plots, columnKeys, errors) {
+  plots.forEach((plot, index) => {
+    if (!isPlainObject(plot)) return
+    const path = `plots[${index}]`
+    const isOhlc = OHLC_DEF_STYLES.includes(plot.style)
+    if (!isOhlc) {
+      for (const f of ['ohlc', 'ohlcColors']) {
+        if (plot[f] !== undefined) {
+          errors.push(`${path}.${f}: only a "candles" or "ohlcBars" plot names OHLC columns, this one is ${fmt(plot.style)}`)
+        }
+      }
+      return
+    }
+    const refOk = (v, p) => {
+      if (!isNonEmptyString(v)) { errors.push(`${p}: expected a plot key, got ${fmt(v)}`); return }
+      if (v === plot.key) { errors.push(`${p}: ${fmt(v)} is this plot's own column (its close); name another`); return }
+      if (!columnKeys.has(v)) {
+        errors.push(`${p}: ${fmt(v)} references a column no plot declares (available: ${list([...columnKeys]) || 'none'})`)
+      }
+    }
+    if (!isPlainObject(plot.ohlc)) {
+      errors.push(`${path}.ohlc: style ${fmt(plot.style)} requires {open, high, low} naming three plot keys, got ${fmt(plot.ohlc)}`)
+    } else {
+      for (const k of Object.keys(plot.ohlc)) {
+        if (!['open', 'high', 'low'].includes(k)) errors.push(`${path}.ohlc.${k}: unknown part (expected open, high, low)`)
+      }
+      for (const k of ['open', 'high', 'low']) refOk(plot.ohlc[k], `${path}.ohlc.${k}`)
+    }
+    if (plot.ohlcColors !== undefined) {
+      if (!isPlainObject(plot.ohlcColors)) {
+        errors.push(`${path}.ohlcColors: expected an object, got ${fmt(plot.ohlcColors)}`)
+      } else {
+        const parts = OHLC_COLOUR_PARTS[plot.style]
+        for (const k of Object.keys(plot.ohlcColors)) {
+          if (!parts.includes(k)) errors.push(`${path}.ohlcColors.${k}: unknown part for ${fmt(plot.style)} (expected ${list(parts)})`)
+          else refOk(plot.ohlcColors[k], `${path}.ohlcColors.${k}`)
+        }
+      }
+    }
+  })
 }
 
 /** `colorMode` is checked after ALL plots and events are known because its
@@ -2059,6 +3515,171 @@ function validateBandEdges(plots, errors) {
  * declares — and the mirror, a fill declared ON a guide, which has no FIRST
  * edge. A HIDDEN plot is a legal `with`: hidden is computed, so its edge exists.
  */
+/**
+ * One input condition in the inputs' `activeWhen` grammar (`{key, equals}` and
+ * the other READOUT_CONDITION_OPS comparators), for a field that gates a
+ * PRESENTATION on the member's own switch (`plots[].fill.activeWhen`,
+ * `plots[].derive.activeWhen`). Fail closed: no key, an undeclared key, no
+ * comparator, or an enum value that is not one of the input's options.
+ */
+function validateInputCondition(aw, where, inputsByKey, errors) {
+  if (!isPlainObject(aw) || typeof aw.key !== 'string' || !aw.key) {
+    errors.push(`${where}: expected {key, equals} naming a declared input, got ${fmt(aw)}`)
+    return
+  }
+  if (!inputsByKey.has(aw.key)) {
+    errors.push(`${where}.key: ${fmt(aw.key)} names no declared input (declared: ${list([...inputsByKey.keys()]) || 'none'})`)
+    return
+  }
+  const ops = Object.keys(aw).filter((k) => k !== 'key')
+  if (ops.length !== 1 || !READOUT_CONDITION_OPS.includes(ops[0])) {
+    errors.push(`${where}: expected exactly one comparator of ${list(READOUT_CONDITION_OPS)}, got ${fmt(aw)}`)
+    return
+  }
+  const fault = activeWhenEnumFault(aw, inputsByKey)
+  if (fault) errors.push(`${where}${fault}`)
+}
+
+/**
+ * ⭐ `plots[].derive: {from, where, activeWhen?}` (UCT RS design round,
+ * 2026-11-08) — a column the CLIENT derives from two columns the compute already
+ * returned: `from`'s value on every bar where `where` is > 0, NaN elsewhere, and
+ * no column at all while `activeWhen` fails (`derivedColumns.js`). It is how an
+ * event the server sends as 0/1 (`crossUp`) becomes a glyph that rides the line:
+ * a 0/1 column drawn `inBar` would sit at 1 on a scale near 0.25.
+ *
+ * Fail closed: only a `markers` plot derives (a derived line would be a second
+ * authority over a server column); only on the SERVER lane, the one lane whose
+ * columns arrive whole and are aligned in one place (`serverColumnsFor`); `from`
+ * names a declared data plot that is not this one and not itself derived;
+ * `where` is a column name; unknown fields are refused.
+ */
+function validateDerives(def, plots, errors, inputsByKey) {
+  const serverLane = isPlainObject(def && def.compute) && def.compute.kind === 'server'
+  const byKey = new Map()
+  for (const p of plots) if (isPlainObject(p) && isNonEmptyString(p.key) && !byKey.has(p.key)) byKey.set(p.key, p)
+  plots.forEach((plot, index) => {
+    if (!isPlainObject(plot) || plot.derive === undefined) return
+    const path = `plots[${index}].derive`
+    const d = plot.derive
+    if (!isPlainObject(d)) { errors.push(`${path}: expected {from, where, activeWhen?}, got ${fmt(d)}`); return }
+    for (const k of Object.keys(d)) {
+      if (!DERIVE_FIELDS.includes(k)) errors.push(`${path}.${k}: unknown field — expected one of: ${list(DERIVE_FIELDS)}`)
+    }
+    if (!serverLane) {
+      errors.push(`${path}: a derived column is built where server columns are aligned (\`serverColumnsFor\`), so only a compute.kind "server" definition may declare one`)
+    }
+    if (plot.style !== 'markers') {
+      errors.push(`${path}: only a "markers" plot derives its column (got style ${fmt(plot.style)}) — a derived line would be a second authority over a column the compute owns`)
+    }
+    const from = byKey.get(d.from)
+    if (!isNonEmptyString(d.from) || !from) {
+      errors.push(`${path}.from: ${fmt(d.from)} names no declared plot`)
+    } else if (d.from === plot.key) {
+      errors.push(`${path}.from: a plot cannot derive from itself`)
+    } else if (from.style === 'hlines') {
+      errors.push(`${path}.from: ${fmt(d.from)} is a guide and returns no column`)
+    } else if (from.derive !== undefined) {
+      errors.push(`${path}.from: ${fmt(d.from)} is itself derived — derive from a column the compute returns`)
+    }
+    if (typeof d.where !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(d.where)) {
+      errors.push(`${path}.where: expected the name of a 0/1 event column, got ${fmt(d.where)}`)
+    }
+    if (d.activeWhen !== undefined) validateInputCondition(d.activeWhen, `${path}.activeWhen`, inputsByKey, errors)
+  })
+}
+
+/**
+ * ⭐ `plots[].liveTail` (RS split, unit U2b, 2026-11-09) — the FORMING bar's cell
+ * of a server column recomputed on the client while the cached envelope's history
+ * is served as it is (`liveTail.js`):
+ *
+ *   {kind: 'ratio', benchmark: 'scalar:<path>', scale?}   last = close / benchClose × scale
+ *   {kind: 'ma', of: <ratio plot>, length, type?}         the average's exact one-step continuation
+ *
+ * Fail closed: only on the SERVER lane (the one lane whose last cell is a cached
+ * value); only on a plot that draws a VALUE (never a guide, which has no column,
+ * nor a marker, whose column is an event); the benchmark is a payload `scalar:`
+ * path (an `input:` would be the REQUESTED benchmark — `SECTOR` — not the ticker
+ * the server resolved it to); `of` names a declared `ratio` tail that is not this
+ * plot; `length` is a whole number ≥ 1 or an `input:` key of a declared `int` /
+ * `float` input; `type` is EMA / SMA or an `input:` key of a declared enum whose
+ * every option is one of them (both averages are linear in their newest term, so
+ * the step is exact — a third kind would be a guess); unknown fields are refused.
+ */
+function validateLiveTails(def, plots, errors, inputsByKey) {
+  const serverLane = isPlainObject(def && def.compute) && def.compute.kind === 'server'
+  const byKey = new Map()
+  for (const p of plots) if (isPlainObject(p) && isNonEmptyString(p.key) && !byKey.has(p.key)) byKey.set(p.key, p)
+  const inputSource = (v) => {
+    const parsed = parseReadoutSource(v)
+    return parsed && parsed.kind === 'input' && parsed.path.length === 1 ? parsed.path[0] : null
+  }
+  plots.forEach((plot, index) => {
+    if (!isPlainObject(plot) || plot.liveTail === undefined) return
+    const path = `plots[${index}].liveTail`
+    const lt = plot.liveTail
+    if (!isPlainObject(lt)) { errors.push(`${path}: expected {kind, …}, got ${fmt(lt)}`); return }
+    if (!LIVE_TAIL_KINDS.includes(lt.kind)) {
+      errors.push(`${path}.kind: ${fmt(lt.kind)} is not a live-tail kind — expected one of: ${list(LIVE_TAIL_KINDS)}`)
+      return
+    }
+    const fields = LIVE_TAIL_FIELDS[lt.kind]
+    for (const k of Object.keys(lt)) {
+      if (!fields.includes(k)) errors.push(`${path}.${k}: unknown field for kind ${fmt(lt.kind)} — expected one of: ${list(fields)}`)
+    }
+    if (!serverLane) {
+      errors.push(`${path}: a live tail moves the last cell of a CACHED server column (\`serverColumnsFor\`), so only a compute.kind "server" definition may declare one`)
+    }
+    if (plot.style === 'hlines' || plot.style === 'markers') {
+      errors.push(`${path}: a live tail moves a VALUE — a ${fmt(plot.style)} plot has no value to move (a guide returns no column; a marker's column is an event)`)
+    }
+    if (lt.kind === 'ratio') {
+      const parsed = parseReadoutSource(lt.benchmark)
+      if (!parsed || parsed.kind !== 'scalar') {
+        errors.push(`${path}.benchmark: expected a payload \`scalar:<path>\` naming the RESOLVED benchmark ticker, got ${fmt(lt.benchmark)}`)
+      }
+      if (lt.scale !== undefined && !(Number.isFinite(lt.scale) && lt.scale > 0)) {
+        errors.push(`${path}.scale: expected a finite number > 0, got ${fmt(lt.scale)}`)
+      }
+      return
+    }
+    // kind: 'ma'
+    const of = byKey.get(lt.of)
+    if (!isNonEmptyString(lt.of) || !of) {
+      errors.push(`${path}.of: ${fmt(lt.of)} names no declared plot`)
+    } else if (lt.of === plot.key) {
+      errors.push(`${path}.of: a plot cannot continue from itself`)
+    } else if (!isPlainObject(of.liveTail) || of.liveTail.kind !== 'ratio') {
+      errors.push(`${path}.of: ${fmt(lt.of)} declares no \`liveTail: {kind: 'ratio'}\` — an average is continued from a LIVE ratio, never a cached one`)
+    }
+    if (Number.isInteger(lt.length) && lt.length >= 1) {
+      // a literal length
+    } else {
+      const key = inputSource(lt.length)
+      const spec = key ? inputsByKey.get(key) : null
+      if (!spec || !['int', 'float'].includes(spec.type)) {
+        errors.push(`${path}.length: expected a whole number ≥ 1 or \`input:<key>\` of a declared "int" / "float" input, got ${fmt(lt.length)}`)
+      }
+    }
+    if (lt.type !== undefined) {
+      const literal = typeof lt.type === 'string' && LIVE_TAIL_MA_TYPES.includes(lt.type.toUpperCase())
+      if (!literal) {
+        const key = inputSource(lt.type)
+        const spec = key ? inputsByKey.get(key) : null
+        const options = spec && spec.type === 'enum' && Array.isArray(spec.options)
+          ? spec.options.map((o) => (Array.isArray(o) ? o[0] : (isPlainObject(o) && 'value' in o ? o.value : o)))
+          : null
+        const allKnown = !!options && options.length > 0
+          && options.every((v) => typeof v === 'string' && LIVE_TAIL_MA_TYPES.includes(v.toUpperCase()))
+        if (!allKnown) {
+          errors.push(`${path}.type: expected ${list(LIVE_TAIL_MA_TYPES)} or \`input:<key>\` of a declared enum whose every option is one of them, got ${fmt(lt.type)}`)
+        }
+      }
+    }
+  })
+}
+
 function validateFills(plots, errors, inputsByKey = new Map()) {
   const styleByKey = new Map()
   for (const p of plots) {
@@ -2084,6 +3705,13 @@ function validateFills(plots, errors, inputsByKey = new Map()) {
       if (!spec || spec.type !== 'color') {
         errors.push(`${path}.${side}: ${fmt(k)} names no declared "color" input`)
       }
+    }
+    // ⭐ `fill.activeWhen` (UCT RS design round, 2026-11-08): the band draws only
+    // while this input condition holds — a PRESENTATION switch (the member's
+    // "Shade vs average"), so the columns never move and the server never hears
+    // of it. The inputs' condition grammar, the key a declared input.
+    if (plot.fill.activeWhen !== undefined) {
+      validateInputCondition(plot.fill.activeWhen, `${path}.activeWhen`, inputsByKey, errors)
     }
     const other = plot.fill.with
     if (other === plot.key) {
@@ -2112,6 +3740,41 @@ function validateFills(plots, errors, inputsByKey = new Map()) {
  * all, or a column no plot declares — each would register and draw nothing.
  */
 export const PAINT_KINDS = Object.freeze(['bgcolor', 'barcolor'])
+/** ⭐⭐ DIV-4 — `compute.runtimeColours = { source, at, keys }`: colours a HOST
+ *  document reads from the per-bar run (`memberPaneDefinition::runtimeReadPaints`).
+ *  Only on an `ast` definition; `keys[k]` names the column `at[k]` lands in, and a
+ *  key is never also a plot's. Returns the keys a paint may name (none when absent
+ *  or malformed). */
+function validateRuntimeColours(compute, plotKeyIndex, errors) {
+  const rc = compute && compute.runtimeColours
+  if (rc === undefined) return []
+  const at = 'compute.runtimeColours'
+  if (!compute || compute.kind !== 'ast') {
+    errors.push(`${at}: only an "ast" definition reads colours from the per-bar run, got kind ${fmt(compute && compute.kind)}`)
+    return []
+  }
+  if (!isPlainObject(rc) || !isNonEmptyString(rc.source) || !Array.isArray(rc.at) || !Array.isArray(rc.keys)
+      || rc.at.length === 0 || rc.at.length !== rc.keys.length) {
+    errors.push(`${at}: expected {source, at, keys} with one key per value, got ${fmt(rc)}`)
+    return []
+  }
+  const keys = []
+  for (const [i, k] of rc.keys.entries()) {
+    if (!isNonEmptyString(k) || keys.includes(k) || plotKeyIndex.has(k)) {
+      errors.push(`${at}.keys[${i}]: expected a unique key no plot declares, got ${fmt(k)}`)
+      return []
+    }
+    const spec = rc.at[i]
+    if (!isPlainObject(spec) || !Number.isInteger(spec.line) || !Number.isInteger(spec.column)
+        || spec.kind !== 'colour' || !isPlainObject(spec.node)) {
+      errors.push(`${at}.at[${i}]: expected a colour asked for at a statement ({line, column, node, kind: "colour"}), got ${fmt(spec)}`)
+      return []
+    }
+    keys.push(k)
+  }
+  return keys
+}
+
 function validatePaints(paints, columnKeys, errors) {
   if (paints === undefined) return
   if (!Array.isArray(paints)) {
@@ -2489,6 +4152,15 @@ export function validateDefinition(def) {
       }
     })
     inputs.forEach((input, i) => validateActiveWhen(input, i, inputsByKey, errors))
+    // ⭐ UCT RS PHASE 3 (unit 3-01) — `requiresServer` and `legacy`.
+    validateServerGates(out, inputs, errors)
+    // ⭐ UCT RS PHASE 3 (unit 3-08b) — a legacy input's `mapsTo` successor.
+    validateLegacyMaps(inputs, inputsByKey, errors)
+    // ⭐ UCT RS PHASE 3 (unit 3-09b) — a text box that names an enum option.
+    validateIdentityFor(out, inputs, inputsByKey, errors)
+
+    // ─ readout (Phase 2a) — behavioural, fail-closed, carved out of preserve-unknown ─
+    validateReadout(out, inputsByKey, errors)
 
     // ─ plots (substitution happens here, in-place on the clone) ─
     const plotKeyIndex = new Map()
@@ -2496,7 +4168,15 @@ export function validateDefinition(def) {
       errors.push(`plots: expected an array, got ${fmt(out.plots)}`)
     }
     const plots = Array.isArray(out.plots) ? out.plots : []
-    plots.forEach((plot, i) => validatePlot(plot, i, plotKeyIndex, inputsByKey, errors))
+    // ⭐ U7 — a presentation input of a server definition: declared, and NOT in
+    // `meta.serverInputs` (the list the fetch is keyed by), so the server never
+    // hears of it. `validatePlotActiveWhen` says what it excepts and why.
+    const sentKeys = isPlainObject(out.compute) && out.compute.kind === 'server'
+      && isPlainObject(out.meta) && Array.isArray(out.meta.serverInputs) ? out.meta.serverInputs : null
+    const presentationKey = sentKeys
+      ? (key) => inputsByKey.has(key) && !sentKeys.includes(key)
+      : null
+    plots.forEach((plot, i) => validatePlot(plot, i, plotKeyIndex, inputsByKey, errors, presentationKey))
 
     // ─ events ─
     const eventKeyIndex = new Map()
@@ -2509,10 +4189,16 @@ export function validateDefinition(def) {
     // ─ cross-section checks ─
     validateColorModes(plots, new Set([...plotKeyIndex.keys(), ...eventKeyIndex.keys()]), errors)
     validateBandEdges(plots, errors)
+    validateOhlc(plots, new Set([...plotKeyIndex.keys(), ...eventKeyIndex.keys()]), errors)
     validateFills(plots, errors, inputsByKey)
+    validateDerives(out, plots, errors, inputsByKey)
+    validateLiveTails(out, plots, errors, inputsByKey)
     validateTreesAgainstPlots(out.compute, plots, errors)
     validateObjectProgramField(out, errors)
-    validatePaints(out.paints, new Set([...plotKeyIndex.keys(), ...eventKeyIndex.keys()]), errors)
+    // ⭐ DIV-4 — a paint may also read a colour column the per-bar run computes
+    // (`compute.runtimeColours`, `nativeRegistry.js::withRuntimeColours`).
+    const rtColourKeys = validateRuntimeColours(out.compute, plotKeyIndex, errors)
+    validatePaints(out.paints, new Set([...plotKeyIndex.keys(), ...eventKeyIndex.keys(), ...rtColourKeys]), errors)
 
     // A definition with no plots and no events returns no columns: it computes
     // something and hands it to nobody. Far more often this is a `plots` array

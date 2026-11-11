@@ -51,6 +51,20 @@ _AST_SMA5 = {"type": "call", "name": "sma", "args": [
 ]}
 
 
+# 2026-11-07 (RS fix U1, review #2) -- PIN MOVED. The RS alert catalog and the
+# create door now follow `registry_defs.RS_V2_ENABLED` (and, for `rs_line.rating`,
+# `api.main.rs_history_enabled()`), dark by default; registration is unchanged.
+# The pins in this file describe the LIT shape, so both flags are lit here,
+# deterministically. The dark shape is railed in tests/test_rs_fix_u1_alert_lane.py.
+@pytest.fixture(autouse=True)
+def _rs_alert_flags_lit(monkeypatch):
+    from api.services.signature import registry_defs as _rs_flag_defs
+    monkeypatch.setattr(_rs_flag_defs, "RS_V2_ENABLED", True)
+    import api.main  # noqa: F401 -- import BEFORE lighting RS_SPLIT_ENABLED: api.main registers providers for the split rows, which registry_defs only built if the flag was on at ITS import
+    monkeypatch.setattr(_rs_flag_defs, "RS_SPLIT_ENABLED", True)  # 2026-11-10 (RS split, S2): the lit shape includes the split alerts
+    monkeypatch.setenv("RS_HISTORY_ENABLED", "1")
+
+
 def defn(*, def_id: str = DEF_ID, tree=None, budget=None,
          name: str = "My Average") -> dict:
     compute: dict = {"kind": "ast", "ast": tree if tree is not None else _AST_SMA5}
@@ -406,13 +420,13 @@ def test_the_GLOBAL_catalog_is_BYTE_UNMOVED_by_the_scoped_one(client):
     save(USER_A, defn())
     served = _catalog(client)
     global_entries = ev.alert_catalog()
-    assert len(global_entries) == 16
+    assert len(global_entries) == 20  # 2026-11-10 (RS split, S2): 18 -> 20, +rs_phases +rs_vs_ema; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
     assert served[:len(global_entries)] == global_entries
     assert [e["indicator"] for e in served[len(global_entries):]] == [DEF_ID]
 
-    assert len(ev.all_addresses()) == 31
+    assert len(ev.all_addresses()) == 48  # 2026-11-10 (RS split, S2): 44 -> 48, +rs_phases.flipBlue/flipRed +rs_vs_ema.crossUp/crossDown; 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
     assert not [a for a in ev.all_addresses() if aus.is_user_address(a)]
-    assert len(ev.ADDRESS_PARTITIONS) == 3
+    assert len(ev.ADDRESS_PARTITIONS) == 5  # 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
     assert all(p is not aus.USER_FUNCS for p in ev.ADDRESS_PARTITIONS)
     # …and a bare user address still resolves to NOTHING without an account.
     assert ev.value_function(ADDRESS) is None

@@ -1,0 +1,376 @@
+{
+  "case": "rs_parity_deepvue",
+  "kind": "rs_parity",
+  "note": "Cross-vendor parity for the UCT RS Rating (design round 2026-11-08), read by tests/test_rs_parity_deepvue.py. Both sides are as recorded in the review docs/research/relative-strength/reviews/2026-11-08-deepvue-parity.md (uct-rs-plan) and its computation 2026-11-08-deepvue-parity.py, copied here value for value. Nothing is recomputed from bars: this fixture is a measurement record, and the test checks the agreement it reports so a later re-read that drifts reds it.",
+  "source": {
+    "deepvue": {
+      "product": "Deepvue",
+      "indicator": "DV - Relative Strength Line (its pane table: 1M 3M 6M 9M 12M ranks, 1-99)",
+      "read_on": "2026-11-08",
+      "last_close": "2026-11-06",
+      "how": "read by hand from the owner's Deepvue account in the browser, one chart per name"
+    },
+    "ours": {
+      "product": "UCT Intelligence",
+      "table": "rs_rating_history (production), read-only from the web pod",
+      "asof": "2026-11-06",
+      "fields": "ibd = IBD-style rating; fast = the screener's RS rank; m1/m3/m6/m12 = component return ranks"
+    }
+  },
+  "method": "21 names chosen to span megacaps, leaders, laggards and one 2025 listing. Our IBD-style rating is compared with Deepvue's 12M column, which behaves as Deepvue's weighted RS rating (it is not a plain 12-month return rank: our plain m12 rank agrees with it far less, Spearman 0.79). Agreement is measured as Spearman rank correlation (average ranks for ties), mean absolute difference, and the signed mean difference ours minus Deepvue, split at Deepvue 12M of 75.",
+  "caveats": [
+    "One reading on one session (last close 2026-11-06); not a time series.",
+    "21 names is a small sample; the split at 75 leaves 7 names above and 14 below.",
+    "Deepvue's values were read from the screen by hand, so a transcription slip is possible.",
+    "The universes differ: Deepvue ranks against the whole US market, UCT against its ~3,400-name liquid universe excluding ETFs. That is the stated cause of the offset below 75, not a measured one.",
+    "Deepvue publishes no formula; that its 12M column is a weighted rating is inferred from this data.",
+    "MarketSurge (IBD's own rating) was not measured: no subscription."
+  ],
+  "deepvue": {
+    "columns": [
+      "m1",
+      "m3",
+      "m6",
+      "m9",
+      "m12"
+    ],
+    "rows": {
+      "NVDA": {
+        "m1": 24,
+        "m3": 33,
+        "m6": 42,
+        "m9": 50,
+        "m12": 47
+      },
+      "AAPL": {
+        "m1": 61,
+        "m3": 77,
+        "m6": 77,
+        "m9": 80,
+        "m12": 83
+      },
+      "MSFT": {
+        "m1": 65,
+        "m3": 76,
+        "m6": 89,
+        "m9": 90,
+        "m12": 81
+      },
+      "AMZN": {
+        "m1": 66,
+        "m3": 61,
+        "m6": 63,
+        "m9": 74,
+        "m12": 63
+      },
+      "META": {
+        "m1": 29,
+        "m3": 48,
+        "m6": 55,
+        "m9": 53,
+        "m12": 58
+      },
+      "GOOGL": {
+        "m1": 25,
+        "m3": 30,
+        "m6": 32,
+        "m9": 36,
+        "m12": 39
+      },
+      "TSLA": {
+        "m1": 47,
+        "m3": 64,
+        "m6": 49,
+        "m9": 44,
+        "m12": 49
+      },
+      "AVGO": {
+        "m1": 25,
+        "m3": 26,
+        "m6": 30,
+        "m9": 34,
+        "m12": 31
+      },
+      "PLTR": {
+        "m1": 24,
+        "m3": 41,
+        "m6": 80,
+        "m9": 84,
+        "m12": 61
+      },
+      "AMD": {
+        "m1": 16,
+        "m3": 32,
+        "m6": 49,
+        "m9": 90,
+        "m12": 92
+      },
+      "NFLX": {
+        "m1": 35,
+        "m3": 35,
+        "m6": 33,
+        "m9": 35,
+        "m12": 30
+      },
+      "LLY": {
+        "m1": 90,
+        "m3": 90,
+        "m6": 92,
+        "m9": 89,
+        "m12": 89
+      },
+      "JPM": {
+        "m1": 63,
+        "m3": 55,
+        "m6": 63,
+        "m9": 69,
+        "m12": 63
+      },
+      "XOM": {
+        "m1": 53,
+        "m3": 65,
+        "m6": 79,
+        "m9": 80,
+        "m12": 82
+      },
+      "COST": {
+        "m1": 84,
+        "m3": 88,
+        "m6": 83,
+        "m9": 74,
+        "m12": 74
+      },
+      "INTC": {
+        "m1": 6,
+        "m3": 9,
+        "m6": 13,
+        "m9": 27,
+        "m12": 38
+      },
+      "NKE": {
+        "m1": 84,
+        "m3": 75,
+        "m6": 53,
+        "m9": 35,
+        "m12": 34
+      },
+      "PFE": {
+        "m1": 74,
+        "m3": 81,
+        "m6": 83,
+        "m9": 80,
+        "m12": 78
+      },
+      "BA": {
+        "m1": 41,
+        "m3": 33,
+        "m6": 32,
+        "m9": 32,
+        "m12": 32
+      },
+      "CRWD": {
+        "m1": 26,
+        "m3": 49,
+        "m6": 91,
+        "m9": 95,
+        "m12": 94
+      },
+      "CRCL": {
+        "m1": 28,
+        "m3": 37,
+        "m6": 35,
+        "m9": 60,
+        "m12": 43
+      }
+    }
+  },
+  "ours": {
+    "columns": [
+      "ibd",
+      "fast",
+      "m1",
+      "m3",
+      "m6",
+      "m12"
+    ],
+    "rows": {
+      "NVDA": {
+        "ibd": 34,
+        "fast": 22,
+        "m1": 15,
+        "m3": 33,
+        "m6": 34,
+        "m12": 36
+      },
+      "AAPL": {
+        "ibd": 82,
+        "fast": 78,
+        "m1": 52,
+        "m3": 86,
+        "m6": 78,
+        "m12": 71
+      },
+      "MSFT": {
+        "ibd": 79,
+        "fast": 79,
+        "m1": 55,
+        "m3": 78,
+        "m6": 86,
+        "m12": 48
+      },
+      "AMZN": {
+        "ibd": 56,
+        "fast": 50,
+        "m1": 56,
+        "m3": 48,
+        "m6": 45,
+        "m12": 46
+      },
+      "META": {
+        "ibd": 49,
+        "fast": 50,
+        "m1": 19,
+        "m3": 73,
+        "m6": 53,
+        "m12": 36
+      },
+      "GOOGL": {
+        "ibd": 25,
+        "fast": 17,
+        "m1": 16,
+        "m3": 24,
+        "m6": 19,
+        "m12": 41
+      },
+      "TSLA": {
+        "ibd": 38,
+        "fast": 47,
+        "m1": 37,
+        "m3": 83,
+        "m6": 31,
+        "m12": 21
+      },
+      "AVGO": {
+        "ibd": 17,
+        "fast": 11,
+        "m1": 16,
+        "m3": 13,
+        "m6": 17,
+        "m12": 24
+      },
+      "PLTR": {
+        "ibd": 53,
+        "fast": 37,
+        "m1": 15,
+        "m3": 44,
+        "m6": 78,
+        "m12": 26
+      },
+      "AMD": {
+        "ibd": 92,
+        "fast": 29,
+        "m1": 8,
+        "m3": 54,
+        "m6": 50,
+        "m12": 93
+      },
+      "NFLX": {
+        "ibd": 17,
+        "fast": 18,
+        "m1": 25,
+        "m3": 29,
+        "m6": 20,
+        "m12": 11
+      },
+      "LLY": {
+        "ibd": 89,
+        "fast": 88,
+        "m1": 88,
+        "m3": 85,
+        "m6": 92,
+        "m12": 85
+      },
+      "JPM": {
+        "ibd": 56,
+        "fast": 54,
+        "m1": 53,
+        "m3": 47,
+        "m6": 72,
+        "m12": 51
+      },
+      "XOM": {
+        "ibd": 80,
+        "fast": 65,
+        "m1": 43,
+        "m3": 76,
+        "m6": 77,
+        "m12": 84
+      },
+      "COST": {
+        "ibd": 69,
+        "fast": 79,
+        "m1": 80,
+        "m3": 86,
+        "m6": 62,
+        "m12": 56
+      },
+      "INTC": {
+        "ibd": 25,
+        "fast": 3,
+        "m1": 2,
+        "m3": 7,
+        "m6": 6,
+        "m12": 85
+      },
+      "NKE": {
+        "ibd": 20,
+        "fast": 44,
+        "m1": 80,
+        "m3": 44,
+        "m6": 35,
+        "m12": 13
+      },
+      "PFE": {
+        "ibd": 74,
+        "fast": 77,
+        "m1": 66,
+        "m3": 84,
+        "m6": 76,
+        "m12": 65
+      },
+      "BA": {
+        "ibd": 18,
+        "fast": 18,
+        "m1": 31,
+        "m3": 17,
+        "m6": 20,
+        "m12": 28
+      },
+      "CRWD": {
+        "ibd": 95,
+        "fast": 73,
+        "m1": 17,
+        "m3": 56,
+        "m6": 96,
+        "m12": 90
+      },
+      "CRCL": {
+        "ibd": 30,
+        "fast": 25,
+        "m1": 18,
+        "m3": 70,
+        "m6": 11,
+        "m12": 12
+      }
+    }
+  },
+  "reported": {
+    "spearman_ibd_vs_dv12m": 1.0,
+    "mae_ibd_vs_dv12m": 7.9,
+    "top_band_floor": 75,
+    "top_band_names": 7,
+    "bias_top_band": -1.1,
+    "bias_below_band": -11.1,
+    "below_band_names": 14
+  }
+}

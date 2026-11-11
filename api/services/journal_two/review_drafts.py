@@ -23,13 +23,9 @@ this module never writes a note itself, and nothing here is scheduled (no backgr
     UTC midnight = 8 PM Eastern the day before) under the PREVIOUS day, while the scorecard
     in the same draft filed it under its own.
   * Setups: `playbook_stats.get_playbook_stats` (the all-time per-setup baseline).
-  * Grades: 13A's `plan_grading.grade_payload`, called once per period trade -- and ONLY
-    while plan grading's own switch is on. ⛔ That call FREEZES a first match into
-    `j2_trade_plan_links` (R4). With review drafts armed and plan grading not, a draft froze
-    plans the member could neither see nor Re-link. A feature never writes another feature's
-    data while that feature is off: with the switch off no trade is graded, nothing is
-    written, `discipline` is None and the client leaves that section out
-    (`tests/test_review_drafts.py`, which also lists every caller of the matcher).
+  * Grades: 13A's `plan_grading.grade_payload`, called once per period trade (plan grading is
+    always on since its flag was retired, 2026-11-04). ⛔ That call FREEZES a first match into
+    `j2_trade_plan_links` (R4); `tests/test_review_drafts.py` lists every caller of the matcher.
   * Leaks: `leak_finder.find_leaks`, a pure function of the enriched trade list below.
   * The SKIP-overridden dollar figure: `verdict_scorecard.get_verdict_scorecard`.
   * Compass text: read-only, from whatever `coach.list_eod_recaps` / `list_weekly_reviews`
@@ -66,12 +62,8 @@ from api.services.journal_two.plan_grading import (
     STATUS_MEMBER_NONE, STATUS_NEEDS_PICK, STATUS_PLANNED, STATUS_UNPLANNED,
     MatchScope, _prop_defs, grade_payload,
 )
-from api.services.journal_two.plan_grading import enabled as plan_grading_enabled
 from api.services.journal_two.trade_refs import trade_ref_for_row
 from api.services.journal_two.unified_coach import UNIFIED_ACCOUNT_ID, plain_account_id
-from api.services.notebook_flags import flag_on
-
-FLAG = "NOTEBOOK_REVIEW_DRAFTS_ENABLED"
 
 #: At most this many of a period's trades are graded against their plans in one draft (the
 #: newest ones). Grading reads notes; this bounds one request. Every trade is still listed and
@@ -81,18 +73,6 @@ MAX_GRADED_TRADES = 300
 #: A Compass excerpt is quoted, never the whole thing -- a review note cites it, it does not
 #: become it. Cut at a word boundary, never mid-word.
 COMPASS_EXCERPT_MAX_CHARS = 420
-
-
-#: Why a draft has no discipline part. The client words it; `reason` is the stable key.
-DISCIPLINE_OFF = {
-    "reason": "plan_grading_off",
-    "sentence": "Plan grading is switched off, so this draft has no discipline record.",
-}
-
-
-def enabled() -> bool:
-    """The gate, read per call through the one parser (unset = OFF)."""
-    return flag_on(FLAG, False)
 
 
 # ── period boundaries ──────────────────────────────────────────────────────────────────────
@@ -221,24 +201,22 @@ def _aggregate_rows(rows: list[sqlite3.Row]) -> dict[str, Any]:
 def _enrich_trades(conn: sqlite3.Connection, user_id: str, rows: list[sqlite3.Row]) -> list[dict[str, Any]]:
     if not rows:
         return []
-    grading = plan_grading_enabled()   # read once per draft; off = no grade, and NO write
-    defs = _prop_defs(conn, user_id) if grading else []
+    defs = _prop_defs(conn, user_id)
     # ONE matching scope for the whole period (fin-security I-2): a ticker's notes are read
     # once however many trades it has, and "unplanned" is remembered between drafts. Grading is
     # also CAPPED at the newest `MAX_GRADED_TRADES` of the period; an older trade is listed and
     # counted in every dollar figure, but carries no grade -- and the payload says how many.
-    scope = MatchScope(conn, user_id, defs=defs) if grading else None
+    scope = MatchScope(conn, user_id, defs=defs)
     graded_ids = {r["id"] for r in rows[-MAX_GRADED_TRADES:]}
-    if scope is not None:
-        scope.preload([r for r in rows if r["id"] in graded_ids])
+    scope.preload([r for r in rows if r["id"] in graded_ids])
     shaped = [{"id": r["id"], "symbol": r["symbol"], "entryDate": r["entry_date"]} for r in rows]
-    contexts = entry_context.contexts_for_trades(user_id, shaped, conn=conn) if entry_context.enabled() else {}
+    contexts = entry_context.contexts_for_trades(user_id, shaped, conn=conn)
     out = []
     for r in rows:
         gross = float(r["pnl_dollar"])
         fees = float(r["fees"] or 0)
         payload = (grade_payload(conn, user_id, r, defs, with_candidates=False, scope=scope)
-                   if grading and r["id"] in graded_ids
+                   if r["id"] in graded_ids
                    else {"status": None, "checks": None, "plan": None})
         out.append({
             "id": r["id"], "tradeRef": trade_ref_for_row(r), "symbol": r["symbol"], "side": r["side"],
@@ -573,11 +551,10 @@ def _assemble(
         "range": range_,
         "tradeCount": len(enriched),
         "aggregates": aggregates,
-        "discipline": _period_discipline(enriched) if plan_grading_enabled() else None,
-        # Said, never silent (fin walk P7): the box that offers a draft promises "the
-        # discipline record". When plan grading is off there is none, and the client says why
-        # from this field instead of leaving the section out without a word.
-        "disciplineOmitted": None if plan_grading_enabled() else dict(DISCIPLINE_OFF),
+        "discipline": _period_discipline(enriched),
+        # Always None since plan grading's flag was retired as always on (2026-11-04); the key
+        # stays because the client reads it (lib/reviewDrafts.js).
+        "disciplineOmitted": None,
         "setupChanges": _setup_changes(conn, user_id, account_id, enriched),
         "bestTrade": best,
         "worstTrade": worst,
@@ -588,9 +565,8 @@ def _assemble(
         },
         "leaks": leaks,
         "leakCoverage": leak_finder.coverage(enriched),
-        "gradingCap": ({"limit": MAX_GRADED_TRADES, "graded": min(len(enriched), MAX_GRADED_TRADES),
-                        "ungraded": max(0, len(enriched) - MAX_GRADED_TRADES)}
-                       if plan_grading_enabled() else None),
+        "gradingCap": {"limit": MAX_GRADED_TRADES, "graded": min(len(enriched), MAX_GRADED_TRADES),
+                       "ungraded": max(0, len(enriched) - MAX_GRADED_TRADES)},
         "compassText": compass,
         "compassOmitted": compass_omitted,
         "baseline": baseline,

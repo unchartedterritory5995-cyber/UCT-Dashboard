@@ -50,16 +50,40 @@ export function tidy(text) {
 const IND_NOUN = '(?:one|indicator|line|ema|sma|wma|hma|ma|average|moving average|study)'
 const IND_NOUNS = '(?:ones|indicators|lines|emas|smas|mas|averages|moving averages|studies)'
 const R_PLURAL = new RegExp(`^(?:them|those|these|both|both of (?:them|those)|them both|them all|those all|all of (?:them|those)|all (?:the |those |these |of the |of those )?${IND_NOUNS}|(?:the|those|these) (?:two|three|four|2|3|4)(?: ${IND_NOUNS})?|(?:those|these|the) (?:new )?${IND_NOUNS}|the (?:ones|indicators) (?:i|you) (?:just )?added)$`)
+// C1-103: words that shape-match R_PLURAL but point at nothing earlier: "all indicators", "all the studies", "the indicators".
+// They stand alone, so they are a request about the chart, never a follow-up: this module leaves them to the fast path and
+// the model, whatever the conversation has done. ("those", "them", "the two" do point back, and stay R_PLURAL's.)
+const R_STANDS_ALONE = new RegExp(`^(?:all (?:the |of the |my )?|the )${IND_NOUNS}$`)
 // (the shared normaliser drops the word "indicator": "that indicator I just added" arrives as "that i just added")
-const R_IT = new RegExp(`^(?:it|that|this|that one|this one|(?:that|this|the) (?:new )?(?:indicator|line|study)|the new one|(?:the|that|this) (?:one |indicator |line )?(?:i|you) (?:just )?(?:added|put on)|what (?:i|you) (?:just )?added|the last (?:one|indicator )?(?:i|you) added)$`)
+const R_IT = new RegExp(`^(?:it|that|this|that one|this one|(?:that|this|the) (?:new )?(?:indicator|study)|the new one|(?:the|that|this) (?:one |indicator )?(?:i|you) (?:just )?(?:added|put on)|what (?:i|you) (?:just )?added|the last (?:one|indicator )?(?:i|you) added)$`)
+// BROWSER-QA-1 #3: "the line" / "that line" NAMES A DRAWING (a horizontal line, a trendline, a ray) — an object of another
+// type than an indicator, so it never binds to one (it used to be read as "it": "make the line red" with no drawing on the
+// chart recoloured the SMA 50). With a line drawing there, the drawing readers / the model decide; with none, it is said.
+const R_LINE = /^(?:the|that|this) (?:new )?line$|^(?:the|that|this) line (?:i|you) (?:just )?(?:added|put on|drew)$/
+const LINE_DRAWING = /line|ray|horizontal|vertical/i
 const R_ORD = new RegExp(`^the (first|second|third|fourth|1st|2nd|3rd|4th|last|top|bottom|other)(?: ${IND_NOUN})?$`)
 const R_SPEED = new RegExp(`^the (fast|faster|fastest|quick|quicker|short|shorter|shortest|slow|slower|slowest|long|longer|longest)(?: ${IND_NOUN})?$`)
 const R_LEN = /^(?:the )?(\d{1,4})(?: (ema|sma|wma|hma|ma|moving average|line|one|day|period))?$/
+// the indicator's own displayed name, type first: "the SMA 50", "the ema 9" (BROWSER-QA-1 #2: "hide the SMA 50 on the NVDA chart")
+const R_LEN2 = /^(?:the )?(ema|sma|wma|hma) (\d{1,4})$/
 const PRONOUN = /^(?:it|that|this|that one|this one|them|those|these|both|them both|them all)$/
 /** Was the last committed change about indicators? (a pronoun then points at them) */
+// NLM1-G2: "add a chart for AMD and put the 50 SMA on it" → "make it orange" — the turn also CREATED the chart the indicator
+// sits on (its creation ops remembered on the new chart's committed id). That creation is the indicator's setting, not a
+// second subject: a turn whose only other ops set up a chart the same turn created, and whose indicator ops all went on
+// that created chart, is still about its indicators.
+const CHART_SETUP = new Set(['widget.add', 'widget.addCharts', 'chart.setSymbol', 'chart.setTimeframe', 'chart.setType'])
 export function aboutIndicators(memory, epoch) {
   const last = memory?.lastTurn?.(epoch)
-  return !!last && last.ops.length > 0 && last.ops.every(o => getCapability(o.action)?.target === 'indicatorEdits')
+  if (!last || !last.ops.length) return false
+  const isInd = (o) => getCapability(o.action)?.target === 'indicatorEdits'
+  if (!last.ops.some(isInd)) return false
+  const created = new Set(last.ops.filter(o => o.action === 'widget.add' || o.action === 'widget.addCharts').map(o => String(o.target)))
+  if (!created.size) return last.ops.every(isInd)
+  // ...and only when its indicators went ON a chart it created: an indicator op targets `ixe:<chart id>`. An indicator put on
+  // an EXISTING chart beside a creation ("add a chart for AMD and put RSI on my SPY chart") keeps the old rule (not about indicators).
+  const onCreated = (o) => created.has(String(o.target).replace(/^ixe:/, ''))
+  return last.ops.every(o => isInd(o) ? onCreated(o) : (CHART_SETUP.has(o.action) && created.has(String(o.target))))
 }
 const ORD_N = { first: 1, '1st': 1, second: 2, '2nd': 2, third: 3, '3rd': 3, fourth: 4, '4th': 4, top: 1, last: -1, bottom: -1 }
 const FAST = /^(?:fast|faster|fastest|quick|quicker|short|shorter|shortest)$/
@@ -96,6 +120,7 @@ export function liveIndicators(host, memory, epoch, { prior = false } = {}) {
 }
 // a description means what the member can SEE: a hidden indicator counts only when no visible one fits
 const visibleFirst = (list) => { const v = list.filter(i => !i.hidden && !i.none); return v.length ? v : list.filter(i => !i.none) }
+const liveAtAll = (host, memory, epoch) => liveIndicators(host, memory, epoch).length > 0
 /** Every indicator the latest turn acted on (any change), still on its chart, in order. */
 export function liveMentions(host, memory, epoch) {
   const list = memory?.mentioned?.(epoch) || null
@@ -114,6 +139,21 @@ function homeChart(host, memory, epoch, live) {
   if (charts.length === 1) return charts[0]
   return subjectChart(host, memory, epoch)?.ref || null
 }
+// "the line" (BROWSER-QA-1 #3): the chart it is about (the clause's named chart, else the conversation's / the selected
+// one, else the only chart) — a line drawing there → null (not an indicator reference: the drawing path decides);
+// none → said, nothing changed. Drawings belong to a SYMBOL (every chart on it shows them).
+function noLineDrawing(host, memory, epoch, live) {
+  const charts = chartsOf(host)
+  const ref = live?.[0]?.chart || subjectChart(host, memory, epoch)?.ref || selectedChart(host) || (charts.length === 1 ? charts[0].ref : null)
+  const scope = ref ? charts.filter(c => c.ref === ref) : charts
+  const syms = new Set(scope.map(c => c.drawSym || c.symbol).filter(Boolean))
+  let entries = []
+  try { entries = host?.drawings?.list?.() || [] } catch { entries = [] }
+  const lines = entries.filter(e => syms.has(e.symbol)).flatMap(e => e.drawings || []).filter(d => d && !d.deleted && LINE_DRAWING.test(String(d.type || '')))
+  if (lines.length) return null
+  const where = scope.length === 1 && scope[0].symbol ? `the ${scope[0].symbol} chart` : 'this board'
+  return { say: `There's no line drawing on ${where} — nothing changed. To change an indicator, name it (“the 50 SMA”).` }
+}
 function rowsOnChart(host, chartRef) {
   const c = chartSnap(host, chartRef)
   return c ? indicatorRowsOf(c.cs).map(r => ({ chart: chartRef, chartLabel: c.label, instanceId: r.instanceId, defId: r.defId, name: r.name, len: lenOf(r), type: typeOf(r), placement: r.displayTarget || r.placement, hidden: r.hidden === true })) : []
@@ -125,14 +165,30 @@ function rowsOnChart(host, chartRef) {
  */
 // `taken`: the indicators an EARLIER part of the same instruction already named ("make the fast one green and the other
 // one yellow" — "the other one" is the one that is left)
-export function resolveReferent(words, { host, memory, epoch = null, live = null, pinned = null, dry = false, working = null, taken = null } = {}) {
+export function resolveReferent(words, { host, memory, epoch = null, live = null, pinned = null, dry = false, working = null, taken = null, scope = null } = {}) {
   const w = String(words || '').trim()
   if (!w) return null
   // `dry`: is this a reference at all? (a multi-step request is read in full before anything runs — compound.js)
   if (dry) return isReferentWords(w) ? { list: [DRY] } : null
   if (!isReferentWords(w)) return null
+  // a chart phrase beside them ("… on this chart") or nothing of the conversation's left: not ours to refuse or to narrow
+  if (R_STANDS_ALONE.test(w) && !pinned && !working && (scope || !liveAtAll(host, memory, epoch))) return null
   // the member already picked which one (a local "which one?") — a singular reference means exactly that one
   if (pinned && !R_PLURAL.test(w)) return { list: [pinned] }
+  if (R_LINE.test(w)) {
+    // said only where it could have been MISREAD as an indicator (the conversation is about indicators, or the clause
+    // named a chart with indicators on it); otherwise it is not this reader's — the drawing path / the model, as before
+    const r = noLineDrawing(host, memory, epoch, live)
+    return r?.say && !(live?.length || aboutIndicators(memory, epoch) || liveIndicators(host, memory, epoch).length) ? null : r
+  }
+  // IT-ON-THAT-CHART: a POINTING word ("it", "that", "them") read on ONE named chart means the conversation's indicator(s)
+  // ON that chart — never another chart's, and never every indicator of that chart
+  if (scope && (PRONOUN.test(w) || R_IT.test(w) || R_PLURAL.test(w))) {
+    const mine = [...liveIndicators(host, memory, epoch), ...liveMentions(host, memory, epoch)].filter((i, k, a) => i.chart === scope && a.findIndex(x => x.chart === i.chart && x.instanceId === i.instanceId) === k)
+    const label = chartSnap(host, scope)?.symbol ? `the ${chartSnap(host, scope).symbol} chart` : 'that chart'
+    if (!mine.length) return { say: `Nothing I changed in this conversation is on ${label} — name the indicator (“the RSI”). Nothing has changed.` }
+    live = mine
+  }
   const set0 = live || liveIndicators(host, memory, epoch)
   // ⛔ a bare PRONOUN ("it", "that", "them", "those") means the conversation's indicators only while the
   // conversation is ABOUT them — the last change was an indicator change ("make it weekly" after a chart change
@@ -227,6 +283,7 @@ export function resolveReferent(words, { host, memory, epoch = null, live = null
     return { list: hit }
   }
   m = R_LEN.exec(w)
+  if (!m) { const m2 = R_LEN2.exec(w); if (m2) m = [m2[0], m2[2], m2[1]] }
   if (m) {
     const n = Number(m[1])
     const type = m[2] && /^(?:ema|sma|wma|hma)$/.test(m[2]) ? m[2] : null
@@ -257,7 +314,7 @@ const DRY = Object.freeze({ chart: null, instanceId: null, defId: null, name: 'i
 /** Do these words name an indicator by reference or description (not: are they on the board)? */
 export function isReferentWords(w) {
   const s = String(w || '').trim()
-  return R_PLURAL.test(s) || R_IT.test(s) || R_ORD.test(s) || R_SPEED.test(s) || R_LEN.test(s)
+  return R_PLURAL.test(s) || R_IT.test(s) || R_LINE.test(s) || R_ORD.test(s) || R_SPEED.test(s) || R_LEN.test(s) || R_LEN2.test(s)
     || !!defIdOfWords(s.replace(/^(?:the|my) /, '').replace(/ (?:pane|indicator|line)$/, ''))
 }
 // a local question whose choices ARE the indicators (each choice fills the op's `instance`; all on one chart)
@@ -268,12 +325,36 @@ function askOne(list, text) {
 
 // ── chart sets ────────────────────────────────────────────────────────────────────────────────────────
 const NUMW = '(?:two|three|four|five|six|2|3|4|5|6)'
+// the SINGULAR forms: "the other one", "the other chart", "the other" — one chart, never a set
+const R_OTHER_ONE = /^(?:the |my |our )?other(?: (?:one|chart))?$/
 const R_OTHERS = new RegExp(`^(?:all )?(?:of )?(?:my |the |our )?(?:${NUMW} )?other(?: ${NUMW})?(?: (?:charts?|ones?))?$|^(?:the )?others$|^(?:all )?the rest(?: of (?:them|the charts|my charts|the board))?$|^every other chart$|^everything else$|^all the others$`)
 const R_ALL = new RegExp(`^(?:all(?: of)? (?:my |the |these |those )?charts|all (?:of )?(?:them|those|these)|(?:all )?(?:${NUMW}) (?:of them|charts)|all ${NUMW}(?: of them| charts)?|every chart|each chart|each of them|every one of them|everywhere|everything|every single chart|both(?: charts| of them)?|the whole board|my whole board)$`)
+
+const NUM_WORDS = { two: 2, three: 3, four: 4, five: 5, six: 6, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6 }
+const COUNT_WORDS = { 2: 'two', 3: 'three', 4: 'four', 5: 'five', 6: 'six' }
+/** The number a chart-set phrase states ("the other two", "all 3", "two charts"), or null when it states none. */
+function statedCount(p) {
+  const hit = String(p).toLowerCase().split(' ').find(w => w in NUM_WORDS)
+  return hit ? NUM_WORDS[hit] : null
+}
+/** "the QQQ, NVDA and TSLA charts" / "the AMD chart": the charts by what they show, so the member can just answer. */
+function chartList(list) {
+  const names = list.map(c => c.symbol || c.label || 'unnamed')
+  if (names.length === 1) return `the ${names[0]} chart`
+  return `the ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]} charts`
+}
+/** A count that does not match the board: says what is there and asks. No ops, no model. */
+function countMismatch(list, want, noun) {
+  const have = list.length === 1 ? `is 1 ${noun}` : `are ${list.length} ${noun}s`
+  const ask = list.length > want ? `Say which ${COUNT_WORDS[want] || want} you mean.` : 'Say which charts you mean.'
+  return `There ${have} here (${chartList(list)}), not ${want}. ${ask} Nothing has changed.`
+}
 
 /**
  * A chart-set phrase → { refs } (one or more live chart refs) | { say } | null. `sources` = the charts the
  * conversation is about (excluded by "the other charts"; "all" keeps every chart).
+ * ⛔ A stated count is part of the target: "the other two" with three others is no set of charts, so it is
+ * answered here and nothing runs. It is never widened to every chart the phrase could reach.
  */
 export function chartSet(phrase, { host, sources = [] } = {}) {
   const p = String(phrase || '').trim().replace(/\s+(?:too|as well|also)$/, '')
@@ -283,11 +364,23 @@ export function chartSet(phrase, { host, sources = [] } = {}) {
   if (R_OTHERS.test(p)) {
     const src = new Set(sources)
     if (!src.size) return null                                   // "the others" — other than what? → the model
-    const refs = charts.filter(c => !src.has(c.ref)).map(c => c.ref)
-    return refs.length ? { refs } : { say: 'There are no other charts on this board.' }
+    const others = charts.filter(c => !src.has(c.ref))
+    if (!others.length) return { say: 'There are no other charts on this board.' }
+    // GRID-REUSE #2 (live, a 4-chart board: "same for the other one" changed ALL THREE other charts): a SINGULAR
+    // referent means exactly ONE chart — the only other one, else a question; never several
+    if (R_OTHER_ONE.test(p)) {
+      if (others.length === 1) return { refs: [others[0].ref] }
+      const names = others.map(c => (c.symbol ? `the ${c.symbol} chart` : c.label || 'a chart'))
+      return { say: `Which chart — ${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}? “The other one” could be any of these ${others.length} — say it by name. Nothing has changed.` }
+    }
+    const want = statedCount(p)
+    if (want != null && others.length !== want) return { say: countMismatch(others, want, 'other chart') }
+    return { refs: others.map(c => c.ref) }
   }
   if (R_ALL.test(p)) {
     if (/^both/.test(p) && charts.length !== 2) return { say: `There are ${charts.length} charts here, not two — say “all charts” or name the ones you mean. Nothing has changed.` }
+    const want = statedCount(p)
+    if (want != null && charts.length !== want) return { say: countMismatch(charts, want, 'chart') }
     return { refs: charts.map(c => c.ref) }
   }
   const one = oneChart(p, charts, host)
@@ -376,7 +469,8 @@ function indicatorClause(t, ctx) {
   m = /^(hide|show|unhide|turn off|turn on) (.+)$/.exec(t) || /^turn (.+) (off|on)$/.exec(t)
   if (m) {
     const [verb, words] = /^turn .+ (?:off|on)$/.test(t) ? [m[2] === 'off' ? 'hide' : 'show', m[1]] : [m[1], m[2]]
-    const action = /hide|off/.test(verb) ? 'indicator.hide' : 'indicator.show'
+    // CG-10 (corpus #769): the verb is matched WHOLE — "unhide" contains "hide" but means SHOW
+    const action = verb === 'hide' || verb === 'turn off' ? 'indicator.hide' : 'indicator.show'
     return done(ref(words), i => ({ action, target: ixe(i.chart), args: { instance: i.instanceId } }))
   }
   // where it draws: "put it in its own pane", "move them to the price chart"
@@ -463,7 +557,66 @@ function verblessPairs(t) {
   }
   return out.length >= 1 && !rest.replace(/[,;]|\band\b|\bthen\b/g, ' ').trim() ? out : null
 }
+// BROWSER-QA-1 #2: a clause that NAMES its chart — "hide the 50 sma on the NVDA chart", "remove the 200 sma from the
+// bottom-left chart". Structural, not a phrase list: the target phrase ("<prep> [the|my] <words> chart") is resolved to
+// ONE chart by the same reader every chart phrase uses (oneChart: a symbol, a position, an ordinal, "this chart"), taken
+// out of the clause, and the clause is read by the existing readers on THAT chart's indicators. A phrase that names no
+// chart on this board (e.g. "the price chart") is left in place — the clause reads exactly as before.
+// IT-ON-THAT-CHART: the noun may be "chart" or "one" ("on the left one", "on that one"), and the phrase is resolved to
+// its CANDIDATE charts (chartCandidates): exactly one → the clause is read on that chart (a pronoun — "it", "that" — then
+// means the conversation's indicator ON that chart, never every chart's); several → "which chart?", nothing changes;
+// none → the phrase names no chart here and the clause reads as before.
+const ON_CHART = /^(.+?) (?:on|from|off of|off|in) ((?:the |my )?(?:[a-z0-9.$-]+ ){0,2}(?:chart|one))\b(.*)$/
+function scopedToChart(t, ctx) {
+  const m = ON_CHART.exec(t)
+  if (!m) return null
+  const rest = `${m[1]}${m[3]}`.replace(/\s+/g, ' ').trim()
+  if (!rest) return null
+  if (ctx.dry) return isChartWords(m[2]) ? { t: rest, ctx } : null
+  const hits = chartCandidates(m[2], ctx)
+  if (!hits.length) return null
+  if (hits.length > 1) {
+    // asked only for a clause this reader reads (its SHAPE: an indicator change) — "alert me when … on the TSLA chart" is
+    // another reader's, and its own ambiguity is its own
+    if (!indicatorClausesOn(rest, { dry: true })?.ops) return null
+    const names = hits.map(c => (c.symbol ? `the ${c.symbol} chart` : c.label || 'a chart'))
+    return { say: `Which chart — ${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}? “${m[2]}” could be any of these ${hits.length} — say it by name. Nothing has changed.` }
+  }
+  return { t: rest, ctx: { ...ctx, live: rowsOnChart(ctx.host, hits[0].ref), scope: hits[0].ref, working: null } }
+}
+/** The charts a chart phrase can mean (0, 1 or several) — the readers every chart phrase uses: "that chart / that one"
+ *  (the chart(s) this conversation last changed), "this chart" (the selected one), an ordinal, a position, a symbol. */
+function chartCandidates(p, { host, memory, epoch }) {
+  const charts = chartsOf(host)
+  const s = String(p || '').replace(/^(?:on|to|onto|for|in) /, '').replace(/^(?:the|my) /, '')
+  // ("that chart" arrives as "the chart" — the shared normaliser, fastPath canon — so the bare noun is the same pointer)
+  if (/^(?:that|that chart|that one|chart)$/.test(s)) {
+    const touched = new Set((memory?.lastTurn?.(epoch)?.charts || []).map(c => String(c).replace(/^ixe:/, '')))
+    const last = charts.filter(c => touched.has(c.ref))
+    if (last.length) return last
+    const subj = subjectChart(host, memory, epoch)
+    return subj ? [subj] : charts.length === 1 ? charts : []
+  }
+  if (/^(?:this|this chart|this one|the selected chart)$/.test(s)) { const sel = selectedChart(host); return charts.filter(c => c.ref === sel) }
+  const ord = ordinalChart(`the ${s}`, charts)
+  if (ord?.ref) return charts.filter(c => c.ref === ord.ref)
+  const pos = /^(top[- ]left|top[- ]right|bottom[- ]left|bottom[- ]right|upper[- ]left|upper[- ]right|lower[- ]left|lower[- ]right|left|right|top|bottom|upper|lower)(?: (?:chart|one|side))?$/.exec(s)
+  if (pos) return matchPosition(charts, pos[1].replace(' ', '-').replace('upper', 'top').replace('lower', 'bottom'))
+  const sym = /^\$?([a-z][a-z0-9.]{0,9})(?: chart| one)?$/.exec(s)
+  if (sym) return charts.filter(c => String(c.symbol || '').toLowerCase() === sym[1])
+  return []
+}
 function indicatorClauses(t, ctx) {
+  const scoped = scopedToChart(t, ctx)
+  if (scoped?.say) return scoped
+  if (scoped) {
+    const r = indicatorClausesOn(scoped.t, scoped.ctx)
+    if (r) return r
+    if (namesWholeSet(scoped.t)) return null                        // never re-read below with its chart phrase ignored
+  }
+  return indicatorClausesOn(t, ctx)
+}
+function indicatorClausesOn(t, ctx) {
   const whole = indicatorClause(t, ctx)
   if (whole) return whole
   const pairs = verblessPairs(t)
@@ -505,6 +658,19 @@ function portable(row) {
   if (row.defId === 'movingAverage' && row.len) return `#${row.len}${row.type ? `:${row.type}` : ''}`
   return row.defId
 }
+/** PACKAGE 3: the ONE indicator the last turn put on (or changed on) ONE chart — what "apply it to …" copies. */
+function copySource(last, host) {
+  const found = []
+  for (const o of last?.ops || []) {
+    if (getCapability(o.action)?.target !== 'indicatorEdits') continue
+    const chart = String(o.target || '').replace(/^ixe:/, '')
+    const rows = rowsOnChart(host, chart)
+    const hit = typeof o.args?.instance === 'string' ? rows.find(r => r.instanceId === o.args.instance)
+      : typeof o.args?.defId === 'string' && /^u_/.test(o.args.defId) ? rows.filter(r => r.defId === o.args.defId).at(-1) : null
+    if (hit && !found.some(f => f.src === chart && f.id === hit.instanceId)) found.push({ src: chart, id: hit.instanceId })
+  }
+  return found.length === 1 ? { src: found[0].src, ids: [found[0].id] } : null
+}
 function repeatOps(last, dests, host) {
   const out = []
   for (const o of last.ops) {
@@ -523,6 +689,8 @@ function repeatOps(last, dests, host) {
         const row = rows.find(r => r.instanceId === args[key])
         const p = portable(row)
         if (!p) return null                                            // not re-findable on another chart
+        // PACKAGE 3: one of the member's own indicators is re-found by its definition — only where it IS
+        if (/^u_/.test(p) && dests.some(d => !rowsOnChart(host, d).some(r => r.defId === p))) return null
         args[key] = p
       }
       if (o.action === 'indicatorCopy.copyTo') return null
@@ -595,9 +763,27 @@ function readOnce(t, ctx) {
     const dests = set.refs.filter(r => !srcs.has(r))
     if (!dests.length) return { kind: 'say', text: 'That change is already on that chart.' }
     const ops = repeatOps({ ops: last.ops.map(o => ({ ...o, target: String(o.target).replace(/^ixe:/, '') })) }, dests, host)
-    if (!ops) return null                                           // not plainly repeatable → the model (which may ask)
-    if (ops.length > MAX_FOLLOW_OPS) return { kind: 'say', text: `That would be ${ops.length} changes at once — UCT makes at most ${MAX_FOLLOW_OPS} in one follow-up. Name fewer charts. Nothing has changed.` }
-    return { kind: 'ops', ops }
+    // ⭐ PACKAGE 3: "apply it to my other chart" right after building an indicator (or a change to it) means THE INDICATOR —
+    // when the last turn can't be repeated there (it isn't on that chart), it is read as a copy of it (below)
+    const copyIt = !ops && /^(?:apply|copy) (?:it|this|that)(?: one)? (?:to|onto|on) /.test(t)
+    if (!ops && !copyIt) return null                                // not plainly repeatable → the model (which may ask)
+    if (copyIt) {
+      const it = copySource(last, host)
+      if (it) {
+        const to = dests.filter(r => r !== it.src)
+        // "my other chart" (ONE chart) on a board with several others: ask which — never a guess, never silence
+        if (/\bother (?:chart|one)\b/.test(t) && to.length > 1) {
+          const charts = chartsOf(host)
+          return { kind: 'askTarget', text: 'Which chart should I put it on?', choices: to.map(r => ({ ref: ixe(r), label: charts.find(c => c.ref === r)?.label || r })),
+            ops: [{ action: 'indicatorCopy.copyTo', target: null, args: { from: it.src, instances: it.ids } }] }
+        }
+        if (to.length) return { kind: 'ops', ops: to.map(d => ({ action: 'indicatorCopy.copyTo', target: ixe(d), args: { from: it.src, instances: it.ids } })), pick: it.ids }
+      }
+    }
+    if (!copyIt) {
+      if (ops.length > MAX_FOLLOW_OPS) return { kind: 'say', text: `That would be ${ops.length} changes at once — UCT makes at most ${MAX_FOLLOW_OPS} in one follow-up. Name fewer charts. Nothing has changed.` }
+      return { kind: 'ops', ops }
+    }
   }
   // copy the conversation's indicators onto charts: "now put those on my other charts", "add them to all of them"
   m = COPY_RE.exec(t)
@@ -669,6 +855,9 @@ export function followUpShape(text) {
   return !!indicatorClauses(t, { dry: true })?.ops
 }
 
+const R_WHOLE_SET = new RegExp(`(?:^| )(?:all (?:the |of the |my )?|the )${IND_NOUNS}$`)
+const namesWholeSet = (t) => R_WHOLE_SET.test(t)
+const CHART_POINTER = /\s(?:on|to|onto|in|from|off|off of)\s+(?:(this|that|my|the|our)\s+(?:active |current |open |main )?chart|(?:it|there|here))$/
 /**
  * A follow-up about what this conversation did. → null (not one this module reads: the fast path / the model
  * decide, exactly as before) | { kind: 'ops', ops, pick? } | { kind: 'say', text } | { kind: 'ask', text, choices, words }
@@ -678,7 +867,18 @@ export function resolveFollowUp(text, { host, memory, epoch = null, working = nu
   const raw = String(text || '')
   if (!raw.trim() || raw.length > 200) return null
   const ctx = { host, memory, epoch, working }
-  const exact = readOnce(tidy(raw), ctx)
+  // IT-ON-THAT-CHART: the shared normaliser (fastPath canon) DROPS a trailing "on that / this / the chart" ("… on it") —
+  // right for a one-chart board, but it is the member's TARGET: "make it orange on that chart" with RSI on two charts
+  // recoloured both. The pointer is put back as the clause's chart phrase (scopedToChart resolves it: one chart → that
+  // chart's instance; several → "which chart?"); a reading that does not use it falls back to the words as before.
+  const t0 = tidy(raw)
+  const ptr = CHART_POINTER.exec(String(raw).toLowerCase().replace(/[.!?]+$/, '').trim())
+  const pointed = ptr && !/\bchart$/.test(t0) ? readOnce(`${t0} on ${ptr[1] === 'this' ? 'this' : 'that'} chart`, ctx) : null
+  if (pointed) return pointed
+  // "hide all indicators on this chart" must not fall back to "hide all indicators" with its chart dropped: that reads
+  // the conversation's indicators, wherever they are
+  if (ptr && namesWholeSet(t0)) return null
+  const exact = readOnce(t0, ctx)
   if (exact) return exact
   let variants = null
   try { variants = correctTypos(raw, lexiconFor(host)) } catch { variants = null }

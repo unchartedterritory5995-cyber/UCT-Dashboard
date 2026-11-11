@@ -1,0 +1,104 @@
+# promotion-gate: no — MEASUREMENT ONLY, runs on one dedicated branch and never on master;
+#   it publishes timings so a gate change can be proposed with numbers. Classified "no" for
+#   tools/promotion_gate.py; must not reach master while the deploy-gate meta-rail forbids
+#   other workflows naming the Agent suites (see agent-ci.yml header).
+# UCT Agent CI shard BENCHMARK (Wave 1, 2026-11-02). Runs ONLY on pushes to the branch
+# `ci/agent-shard-benchmark`. Measures, on the same runner class the master deploy gate uses,
+# the unsharded Agent vitest run against a 4-way shard matrix, so a gate change can be proposed
+# with numbers rather than a projection. Changes nothing else; the production gate is untouched.
+name: agent ci benchmark
+
+on:
+  push:
+    branches: ['ci/agent-shard-benchmark']
+
+env:
+  AGENT_VITEST_PATHS: src/agent src/components/chart/builder/agentMutations
+
+jobs:
+  unsharded:
+    name: unsharded (today's gate shape)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: npm ci
+        working-directory: app
+        run: |
+          start=$(date +%s); npm ci; echo "npm ci: $(( $(date +%s) - start )) s"
+      - name: vitest (unsharded)
+        working-directory: app
+        run: |
+          start=$(date +%s)
+          npx vitest run $AGENT_VITEST_PATHS --reporter=default --reporter=json --outputFile=../unsharded.json
+          echo "UNSHARDED wall: $(( $(date +%s) - start )) s"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: agent-unsharded
+          path: unsharded.json
+
+  sharded:
+    name: shard ${{ matrix.shard }}/4
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: npm ci
+        working-directory: app
+        run: |
+          start=$(date +%s); npm ci; echo "npm ci: $(( $(date +%s) - start )) s"
+      - name: vitest shard
+        working-directory: app
+        run: |
+          start=$(date +%s)
+          npx vitest run $AGENT_VITEST_PATHS --shard=${{ matrix.shard }}/4 --reporter=default --reporter=json --outputFile=../shard-${{ matrix.shard }}.json
+          echo "SHARD ${{ matrix.shard }} wall: $(( $(date +%s) - start )) s"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bench-shard-${{ matrix.shard }}
+          path: shard-${{ matrix.shard }}.json
+
+  report:
+    name: per-file durations + union check
+    needs: [unsharded, sharded]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - name: Report
+        run: |
+          node - <<'EOF'
+          const fs = require('fs');
+          const load = f => fs.existsSync('out/' + f) ? JSON.parse(fs.readFileSync('out/' + f, 'utf8')) : null;
+          const u = load('unsharded.json');
+          const ran = new Set(); let failed = 0;
+          for (let i = 1; i <= 4; i++) { const r = load(`shard-${i}.json`); if (!r) continue; for (const t of r.testResults) ran.add(t.name); failed += r.numFailedTests || 0; }
+          if (u) {
+            const all = new Set(u.testResults.map(t => t.name));
+            const missing = [...all].filter(f => !ran.has(f));
+            console.log(`unsharded files ${all.size}; shard union ${ran.size}; missing from shards ${missing.length}; shard failures ${failed}`);
+            const durs = u.testResults.map(t => [t.endTime - t.startTime, t.name]).sort((a, b) => b[0] - a[0]);
+            console.log('slowest 25 files (ms):'); for (const [d, n] of durs.slice(0, 25)) console.log(String(d).padStart(8), n.replace(/^.*\/app\//, ''));
+            console.log('sum of file durations (s):', (durs.reduce((s, d) => s + d[0], 0) / 1000).toFixed(0));
+            if (missing.length) { console.log('::error::' + missing.join('\n')); process.exit(1); }
+          } else console.log('unsharded artifact missing');
+          EOF

@@ -1,0 +1,123 @@
+{
+  "kind": "fundamentals",
+  "declared_freshness": "periodic",
+  "category": "market",
+  "cases": {
+    "periodic": {
+      "contract": "MD-1.0",
+      "kind": "fundamentals",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "ok",
+      "freshness": "periodic",
+      "as_of": "2026-10-30T19:45:00Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "fmp",
+      "coverage": null,
+      "data": {
+        "symbol": "NVDA",
+        "market_cap": 5040000000000,
+        "pe_forward": 38.2,
+        "revenue_ttm": 165200000000,
+        "eps_ttm": 3.51
+      },
+      "notes": [],
+      "provider_calls": 1
+    },
+    "stale": {
+      "contract": "MD-1.0",
+      "kind": "fundamentals",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "ok",
+      "freshness": "periodic",
+      "as_of": "2026-10-28T20:00:00Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": true,
+      "source": "fmp",
+      "coverage": null,
+      "data": {
+        "symbol": "NVDA",
+        "market_cap": 5040000000000,
+        "pe_forward": 38.2,
+        "revenue_ttm": 165200000000,
+        "eps_ttm": 3.51
+      },
+      "notes": [
+        "older than this kind's freshness budget; say how old"
+      ],
+      "provider_calls": 0
+    },
+    "market-closed": {
+      "contract": "MD-1.0",
+      "kind": "fundamentals",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "ok",
+      "freshness": "periodic",
+      "as_of": "2026-10-30T20:00:00Z",
+      "fetched_at": "2026-10-31T14:00:00Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "fmp",
+      "coverage": null,
+      "data": {
+        "symbol": "NVDA",
+        "market_cap": 5040000000000,
+        "pe_forward": 38.2,
+        "revenue_ttm": 165200000000,
+        "eps_ttm": 3.51
+      },
+      "notes": [
+        "market closed — last session's close"
+      ],
+      "provider_calls": 1
+    },
+    "unavailable": {
+      "contract": "MD-1.0",
+      "kind": "fundamentals",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "unavailable",
+      "freshness": "unavailable",
+      "as_of": null,
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "fmp",
+      "coverage": null,
+      "data": null,
+      "notes": [
+        "the data source could not answer"
+      ],
+      "provider_calls": 1
+    },
+    "refused": {
+      "contract": "MD-1.0",
+      "kind": "fundamentals",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "refused",
+      "freshness": "unavailable",
+      "as_of": null,
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-agent-gateway",
+      "coverage": null,
+      "data": null,
+      "notes": [
+        "this turn already made 8 data reads"
+      ],
+      "provider_calls": 0
+    }
+  }
+}

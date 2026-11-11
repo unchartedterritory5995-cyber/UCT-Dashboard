@@ -40,6 +40,7 @@
 // attribute below is a hint to the file picker, not a gate — a second gate here
 // would be a second authority over the same two numbers.
 
+import { withoutGuardIds } from '../engine/ast/guardIdText'
 import { useCallback, useId, useState } from 'react'
 import { readBackFor } from './ConciergeBox.jsx'
 import { truncateBarsForPropose } from './proposeBars.js'
@@ -208,7 +209,7 @@ export default function ImageBox({ bars, onAccept, fetchImpl, disabled = false }
 
       {refusal ? (
         <div className={styles.refusal} role="alert" data-testid="image-refusal">
-          <div>{refusal.reason}</div>
+          <div>{withoutGuardIds(refusal.reason)}</div>
           {refusal.saw ? (
             <div className={styles.saw} data-testid="image-refusal-saw">
               What it saw: {refusal.saw}
@@ -244,7 +245,7 @@ export default function ImageBox({ bars, onAccept, fetchImpl, disabled = false }
                 </div>
               ) : null}
               <div className={styles.sentence} data-testid="image-readback">
-                {c.sentence}
+                {withoutGuardIds(c.sentence)}
               </div>
               <div className={styles.source} data-testid="image-source">{c.source}</div>
               <div className={styles.meta}>{c.repaint}</div>
@@ -278,7 +279,7 @@ export default function ImageBox({ bars, onAccept, fetchImpl, disabled = false }
           {((answer || refusal).refused || []).map((r, i) => (
             <div key={`r-${i}`} data-testid="image-rejected-item">
               <span className={styles.label}>{r.label || 'unnamed'}</span>
-              {' — '}{r.reason}
+              {' — '}{withoutGuardIds(r.reason)}
               <span className={styles.meta} data-testid="image-rejected-gate">
                 {' '}{r.gate}
               </span>

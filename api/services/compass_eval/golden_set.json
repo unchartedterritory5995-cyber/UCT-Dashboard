@@ -168,6 +168,25 @@
       "great_answer": "Breadth score tracks how many liquid stocks made significant moves — StockBee counts common stocks up 4%+ vs down 4%+ on qualifying volume, so a high reading means broad participation, not just the index. [Source: StockBee Market Monitor]."
     },
     {
+      "id": "R1-11-rs-nvda-leading",
+      "rung": 1,
+      "question": "Is NVDA leading the market right now?",
+      "must_call_tools": [
+        [
+          "get_rs_reading"
+        ]
+      ],
+      "must_cite": [
+        "UCT Relative Strength readout (get_rs_reading: rating, RS line, last RS high, agreement, checks)"
+      ],
+      "forbidden": [
+        "price_without_tool",
+        "unsolicited_verdict",
+        "naked_directional_call"
+      ],
+      "great_answer": "On relative strength, yes: against SPY its RS Rating is 94 (fast 91, rated as of Nov 6), the RS line is above its 21 EMA by 6.8%, the last RS high came 2 bars ago before price, and SPY, RSP and the sector agree. That says it is outperforming the market; it is a reading of strength, not a trade signal."
+    },
+    {
       "id": "R2-01-vcp-grade",
       "rung": 2,
       "question": "Break it down for me — what exactly IS a VCP, and how do I actually grade one? What makes an A+ VCP versus a mediocre B?",
@@ -392,6 +411,42 @@
         "size_without_stop"
       ],
       "great_answer": "A live quote isn't needed to explain the craft. Wedge Pop (Oliver Kell — the earliest entry in his Cycle of Price Action) = the first close above BOTH the 10 EMA and 20 EMA after a correction/wedge, on expanding volume; a gap open above both EMAs is even stronger. Entry = buy strength through that first-close/breakout level; stop = below the wedge/base support (prior swing low or the reclaimed EMA). It's invalid if price fails to close above both EMAs or 'wedges up' on declining volume. It's the 1st-priority entry, ahead of EMA Crossback, then Base-n-Break. Cite Kell."
+    },
+    {
+      "id": "R2-11-rs-gold-dot",
+      "rung": 2,
+      "question": "What does the gold dot on the RS line mean?",
+      "must_call_tools": [
+        [
+          "explain_rs"
+        ]
+      ],
+      "must_cite": [
+        "api/data/rs_teaching.json glossary rsNewHighBeforePrice (RS new high before price, the gold dot; IBD: more bullish, not a precondition)"
+      ],
+      "forbidden": [
+        "refuse_craft_on_empty_tool",
+        "unsolicited_verdict"
+      ],
+      "great_answer": "The gold dot is an RS new high before price: the RS line made a new high while price was still below its own high, so relative strength led before price confirmed. IBD calls it more bullish, and not a precondition. Chartmaster's lesson on RS before price is on the Desk."
+    },
+    {
+      "id": "R2-12-rs-vs-rsi",
+      "rung": 2,
+      "question": "Is RS the same as RSI?",
+      "must_call_tools": [
+        [
+          "explain_rs"
+        ]
+      ],
+      "must_cite": [
+        "api/data/rs_teaching.json misconceptions rsIsNotRsi"
+      ],
+      "forbidden": [
+        "refuse_craft_on_empty_tool",
+        "unsolicited_verdict"
+      ],
+      "great_answer": "No, they are different things. RS compares a stock with the market and has no fixed bounds; RSI measures only the stock's own recent momentum on a 0 to 100 scale."
     },
     {
       "id": "R3-01-htf-go-call",

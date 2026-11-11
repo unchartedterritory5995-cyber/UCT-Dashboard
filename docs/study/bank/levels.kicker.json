@@ -1,0 +1,1410 @@
+[
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "atr14": 1.6634,
+   "entry": 37.23,
+   "stop": 37.11
+  },
+  "asof": "2026-02-26",
+  "bars": {
+   "asof": "2026-02-26",
+   "forward": 20,
+   "sym": "IMAX",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 4,
+  "id": "si_0fb7c554843a",
+  "lesson_origin": "session",
+  "lesson_text": "Entry: a stop-buy 0.01 over the red day's high of 37.23, so the line sits at 37.23. The Kicker opened at 37.98, above the line, so the order filled at the open. Stop: the Kicker's low of 37.11 sits 2.29% under the fill, within 3.5%, so the stop is 37.11, the Kicker's low. The best Kickers allow a stop smaller than 3.5%. This drill marks the entry line and the stop only.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "q": "A Kicker fired on the last bar. Mark the entry and the stop on this chart.",
+   "roles": [
+    "entry",
+    "stop"
+   ],
+   "setup": "Kicker Candle"
+  },
+  "reveal_json": {
+   "example_grade": "okay",
+   "facts": {
+    "atr14": 1.6634,
+    "entry": 37.23,
+    "fill": 37.98,
+    "gapped_over_trigger": true,
+    "kicker_close": 41.77,
+    "kicker_high": 42.46,
+    "kicker_low": 37.11,
+    "kicker_low_pct": 2.29,
+    "kicker_open": 37.98,
+    "max_stop_pct": 3.5,
+    "over_high": 0.01,
+    "red_day_close": 36.52,
+    "red_day_high": 37.23,
+    "stop": 37.11,
+    "stop_basis": "kicker_low",
+    "stop_pct": 2.29,
+    "stop_wider_than_max": false,
+    "tolerance": 1.2475
+   },
+   "forward_bars": 20,
+   "owner_words": "Yeah that is fine, not super ideal but good enough from a textbook perspective",
+   "quote": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually",
+   "rulings": [
+    {
+     "date": "2026-11-02",
+     "topic": "kicker entry",
+     "words": "the entry should 11.05 over THE previous day high, or on DAY 1 of the kicker candle on a 30 min ORB"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "kicker stop",
+     "words": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "sell rules",
+     "words": "can pause here and ask about trimming and trailing and some sell rules ... we can work on those later, complicated"
+    }
+   ],
+   "setup": "Kicker Candle",
+   "skill": "Mark the levels",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#IMAX#2026-02-26#levels",
+   "spot_item": "si_5252d3a10e84",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.levels",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#IMAX#2026-02-26#levels",
+  "sym": "IMAX",
+  "type": "levels",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "atr14": 0.375,
+   "entry": 12.02,
+   "stop": 11.67
+  },
+  "asof": "2024-11-07",
+  "bars": {
+   "asof": "2024-11-07",
+   "forward": 20,
+   "sym": "VTRS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 4,
+  "id": "si_d5f5a5c06212",
+  "lesson_origin": "session",
+  "lesson_text": "Entry: a stop-buy 0.01 over the red day's high of 12.01, so the line sits at 12.02. The Kicker traded up through the line during the day, so the order filled there. Stop: the Kicker's low of 11.67 sits 2.91% under the fill, within 3.5%, so the stop is 11.67, the Kicker's low. The best Kickers allow a stop smaller than 3.5%. This drill marks the entry line and the stop only.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "q": "A Kicker fired on the last bar. Mark the entry and the stop on this chart.",
+   "roles": [
+    "entry",
+    "stop"
+   ],
+   "setup": "Kicker Candle"
+  },
+  "reveal_json": {
+   "example_grade": "good",
+   "facts": {
+    "atr14": 0.375,
+    "entry": 12.02,
+    "fill": 12.02,
+    "gapped_over_trigger": false,
+    "kicker_close": 13.18,
+    "kicker_high": 13.44,
+    "kicker_low": 11.67,
+    "kicker_low_pct": 2.91,
+    "kicker_open": 11.81,
+    "max_stop_pct": 3.5,
+    "over_high": 0.01,
+    "red_day_close": 11.61,
+    "red_day_high": 12.01,
+    "stop": 11.67,
+    "stop_basis": "kicker_low",
+    "stop_pct": 2.91,
+    "stop_wider_than_max": false,
+    "tolerance": 0.2813
+   },
+   "forward_bars": 20,
+   "owner_words": "So yes, good example but these are pretty random stocks and I would classify them more as earnings moves vs kicker candles however sometimes they are indistinguishable",
+   "quote": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually",
+   "rulings": [
+    {
+     "date": "2026-11-02",
+     "topic": "kicker entry",
+     "words": "the entry should 11.05 over THE previous day high, or on DAY 1 of the kicker candle on a 30 min ORB"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "kicker stop",
+     "words": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "sell rules",
+     "words": "can pause here and ask about trimming and trailing and some sell rules ... we can work on those later, complicated"
+    }
+   ],
+   "setup": "Kicker Candle",
+   "skill": "Mark the levels",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#VTRS#2024-11-07#levels",
+   "spot_item": "si_d87efdba3b02",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.levels",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#VTRS#2024-11-07#levels",
+  "sym": "VTRS",
+  "type": "levels",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "atr14": 1.5616,
+   "entry": 24.85,
+   "stop": 24.59
+  },
+  "asof": "2026-06-22",
+  "bars": {
+   "asof": "2026-06-22",
+   "forward": 20,
+   "sym": "RCUS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 4,
+  "id": "si_67518f7073e0",
+  "lesson_origin": "session",
+  "lesson_text": "Entry: a stop-buy 0.01 over the red day's high of 24.84, so the line sits at 24.85. The Kicker opened at 24.89, above the line, so the order filled at the open. Stop: the Kicker's low of 24.59 sits 1.21% under the fill, within 3.5%, so the stop is 24.59, the Kicker's low. The best Kickers allow a stop smaller than 3.5%. This drill marks the entry line and the stop only.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "q": "A Kicker fired on the last bar. Mark the entry and the stop on this chart.",
+   "roles": [
+    "entry",
+    "stop"
+   ],
+   "setup": "Kicker Candle"
+  },
+  "reveal_json": {
+   "example_grade": "good",
+   "facts": {
+    "atr14": 1.5616,
+    "entry": 24.85,
+    "fill": 24.89,
+    "gapped_over_trigger": true,
+    "kicker_close": 27.23,
+    "kicker_high": 27.28,
+    "kicker_low": 24.59,
+    "kicker_low_pct": 1.21,
+    "kicker_open": 24.89,
+    "max_stop_pct": 3.5,
+    "over_high": 0.01,
+    "red_day_close": 24.31,
+    "red_day_high": 24.84,
+    "stop": 24.59,
+    "stop_basis": "kicker_low",
+    "stop_pct": 1.21,
+    "stop_wider_than_max": false,
+    "tolerance": 1.1712
+   },
+   "forward_bars": 20,
+   "owner_words": "Yes but generally want a bit of a weaker close visually the previous day",
+   "quote": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually",
+   "rulings": [
+    {
+     "date": "2026-11-02",
+     "topic": "kicker entry",
+     "words": "the entry should 11.05 over THE previous day high, or on DAY 1 of the kicker candle on a 30 min ORB"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "kicker stop",
+     "words": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "sell rules",
+     "words": "can pause here and ask about trimming and trailing and some sell rules ... we can work on those later, complicated"
+    }
+   ],
+   "setup": "Kicker Candle",
+   "skill": "Mark the levels",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#RCUS#2026-06-22#levels",
+   "spot_item": "si_2a119b60363c",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.levels",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#RCUS#2026-06-22#levels",
+  "sym": "RCUS",
+  "type": "levels",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "atr14": 4.8321,
+   "entry": 140.87,
+   "stop": 141.4
+  },
+  "asof": "2025-12-10",
+  "bars": {
+   "asof": "2025-12-10",
+   "forward": 20,
+   "sym": "JBTM",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 4,
+  "id": "si_21bd0c9e0822",
+  "lesson_origin": "session",
+  "lesson_text": "Entry: a stop-buy 0.01 over the red day's high of 140.86, so the line sits at 140.87. The Kicker opened at 142.00, above the line, so the order filled at the open. Stop: the Kicker's low of 141.40 sits 0.42% under the fill, within 3.5%, so the stop is 141.40, the Kicker's low. The best Kickers allow a stop smaller than 3.5%. This drill marks the entry line and the stop only.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "q": "A Kicker fired on the last bar. Mark the entry and the stop on this chart.",
+   "roles": [
+    "entry",
+    "stop"
+   ],
+   "setup": "Kicker Candle"
+  },
+  "reveal_json": {
+   "example_grade": "great",
+   "facts": {
+    "atr14": 4.8321,
+    "entry": 140.87,
+    "fill": 142.0,
+    "gapped_over_trigger": true,
+    "kicker_close": 153.8,
+    "kicker_high": 154.65,
+    "kicker_low": 141.4,
+    "kicker_low_pct": 0.42,
+    "kicker_open": 142.0,
+    "max_stop_pct": 3.5,
+    "over_high": 0.01,
+    "red_day_close": 137.81,
+    "red_day_high": 140.86,
+    "stop": 141.4,
+    "stop_basis": "kicker_low",
+    "stop_pct": 0.42,
+    "stop_wider_than_max": false,
+    "tolerance": 3.6241
+   },
+   "forward_bars": 20,
+   "owner_words": "Yes, looks great!",
+   "quote": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually",
+   "rulings": [
+    {
+     "date": "2026-11-02",
+     "topic": "kicker entry",
+     "words": "the entry should 11.05 over THE previous day high, or on DAY 1 of the kicker candle on a 30 min ORB"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "kicker stop",
+     "words": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "sell rules",
+     "words": "can pause here and ask about trimming and trailing and some sell rules ... we can work on those later, complicated"
+    }
+   ],
+   "setup": "Kicker Candle",
+   "skill": "Mark the levels",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#JBTM#2025-12-10#levels",
+   "spot_item": "si_2c211f86ee33",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.levels",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#JBTM#2025-12-10#levels",
+  "sym": "JBTM",
+  "type": "levels",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "atr14": 0.3346,
+   "entry": 11.05,
+   "stop": 10.82
+  },
+  "asof": "2023-12-14",
+  "bars": {
+   "asof": "2023-12-14",
+   "forward": 20,
+   "sym": "JBI",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 4,
+  "id": "si_1c6996738542",
+  "lesson_origin": "session",
+  "lesson_text": "Entry: a stop-buy 0.01 over the red day's high of 11.04, so the line sits at 11.05. The Kicker traded up through the line during the day, so the order filled there. Stop: the Kicker's low of 10.82 sits 2.08% under the fill, within 3.5%, so the stop is 10.82, the Kicker's low. The best Kickers allow a stop smaller than 3.5%. This drill marks the entry line and the stop only.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "q": "A Kicker fired on the last bar. Mark the entry and the stop on this chart.",
+   "roles": [
+    "entry",
+    "stop"
+   ],
+   "setup": "Kicker Candle"
+  },
+  "reveal_json": {
+   "example_grade": "great",
+   "facts": {
+    "atr14": 0.3346,
+    "entry": 11.05,
+    "fill": 11.05,
+    "gapped_over_trigger": false,
+    "kicker_close": 11.6,
+    "kicker_high": 11.64,
+    "kicker_low": 10.82,
+    "kicker_low_pct": 2.08,
+    "kicker_open": 10.94,
+    "max_stop_pct": 3.5,
+    "over_high": 0.01,
+    "red_day_close": 10.43,
+    "red_day_high": 11.04,
+    "stop": 10.82,
+    "stop_basis": "kicker_low",
+    "stop_pct": 2.08,
+    "stop_wider_than_max": false,
+    "tolerance": 0.251
+   },
+   "forward_bars": 20,
+   "owner_words": "Yes this is the picture perfect example!!!",
+   "quote": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually",
+   "rulings": [
+    {
+     "date": "2026-11-02",
+     "topic": "kicker entry",
+     "words": "the entry should 11.05 over THE previous day high, or on DAY 1 of the kicker candle on a 30 min ORB"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "kicker stop",
+     "words": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "sell rules",
+     "words": "can pause here and ask about trimming and trailing and some sell rules ... we can work on those later, complicated"
+    }
+   ],
+   "setup": "Kicker Candle",
+   "skill": "Mark the levels",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#JBI#2023-12-14#levels",
+   "spot_item": "si_1340352f5ceb",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.levels",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#JBI#2023-12-14#levels",
+  "sym": "JBI",
+  "type": "levels",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "atr14": 14.4397,
+   "entry": 544.56,
+   "stop": 549.17
+  },
+  "asof": "2025-01-15",
+  "bars": {
+   "asof": "2025-01-15",
+   "forward": 20,
+   "sym": "ISRG",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 4,
+  "id": "si_3fec08dcaf7f",
+  "lesson_origin": "session",
+  "lesson_text": "Entry: a stop-buy 0.01 over the red day's high of 544.55, so the line sits at 544.56. The Kicker opened at 555.05, above the line, so the order filled at the open. Stop: the Kicker's low of 549.17 sits 1.06% under the fill, within 3.5%, so the stop is 549.17, the Kicker's low. The best Kickers allow a stop smaller than 3.5%. This drill marks the entry line and the stop only.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "q": "A Kicker fired on the last bar. Mark the entry and the stop on this chart.",
+   "roles": [
+    "entry",
+    "stop"
+   ],
+   "setup": "Kicker Candle"
+  },
+  "reveal_json": {
+   "example_grade": "okay",
+   "facts": {
+    "atr14": 14.4397,
+    "entry": 544.56,
+    "fill": 555.05,
+    "gapped_over_trigger": true,
+    "kicker_close": 580.11,
+    "kicker_high": 584.6,
+    "kicker_low": 549.17,
+    "kicker_low_pct": 1.06,
+    "kicker_open": 555.05,
+    "max_stop_pct": 3.5,
+    "over_high": 0.01,
+    "red_day_close": 538.88,
+    "red_day_high": 544.55,
+    "stop": 549.17,
+    "stop_basis": "kicker_low",
+    "stop_pct": 1.06,
+    "stop_wider_than_max": false,
+    "tolerance": 10.8297
+   },
+   "forward_bars": 20,
+   "owner_words": "Keep as a lesser example",
+   "quote": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually",
+   "rulings": [
+    {
+     "date": "2026-11-02",
+     "topic": "kicker entry",
+     "words": "the entry should 11.05 over THE previous day high, or on DAY 1 of the kicker candle on a 30 min ORB"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "kicker stop",
+     "words": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "sell rules",
+     "words": "can pause here and ask about trimming and trailing and some sell rules ... we can work on those later, complicated"
+    }
+   ],
+   "setup": "Kicker Candle",
+   "skill": "Mark the levels",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#ISRG#2025-01-15#levels",
+   "spot_item": "si_fc0ace523ea0",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.levels",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#ISRG#2025-01-15#levels",
+  "sym": "ISRG",
+  "type": "levels",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "atr14": 1.2496,
+   "entry": 19.25,
+   "stop": 18.58
+  },
+  "asof": "2024-05-17",
+  "bars": {
+   "asof": "2024-05-17",
+   "forward": 20,
+   "sym": "HOOD",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 4,
+  "id": "si_bd1c863ffc98",
+  "lesson_origin": "session",
+  "lesson_text": "Entry: a stop-buy 0.01 over the red day's high of 19.24, so the line sits at 19.25. The Kicker traded up through the line during the day, so the order filled there. Stop: the Kicker's low of 18.45 sits 4.16% under the fill, wider than 3.5%, so the stop is 18.58, 3.5% under the fill. The best Kickers allow a stop smaller than 3.5%. This drill marks the entry line and the stop only.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "q": "A Kicker fired on the last bar. Mark the entry and the stop on this chart.",
+   "roles": [
+    "entry",
+    "stop"
+   ],
+   "setup": "Kicker Candle"
+  },
+  "reveal_json": {
+   "example_grade": "great",
+   "facts": {
+    "atr14": 1.2496,
+    "entry": 19.25,
+    "fill": 19.25,
+    "gapped_over_trigger": false,
+    "kicker_close": 20.09,
+    "kicker_high": 20.34,
+    "kicker_low": 18.45,
+    "kicker_low_pct": 4.16,
+    "kicker_open": 18.96,
+    "max_stop_pct": 3.5,
+    "over_high": 0.01,
+    "red_day_close": 17.9,
+    "red_day_high": 19.24,
+    "stop": 18.58,
+    "stop_basis": "max_stop_pct",
+    "stop_pct": 3.48,
+    "stop_wider_than_max": true,
+    "tolerance": 0.9372
+   },
+   "forward_bars": 20,
+   "owner_words": "Perfect",
+   "quote": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually",
+   "rulings": [
+    {
+     "date": "2026-11-02",
+     "topic": "kicker entry",
+     "words": "the entry should 11.05 over THE previous day high, or on DAY 1 of the kicker candle on a 30 min ORB"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "kicker stop",
+     "words": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "sell rules",
+     "words": "can pause here and ask about trimming and trailing and some sell rules ... we can work on those later, complicated"
+    }
+   ],
+   "setup": "Kicker Candle",
+   "skill": "Mark the levels",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#HOOD#2024-05-17#levels",
+   "spot_item": "si_b9a7a744ebc8",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.levels",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#HOOD#2024-05-17#levels",
+  "sym": "HOOD",
+  "type": "levels",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "atr14": 0.6991,
+   "entry": 48.04,
+   "stop": 48.25
+  },
+  "asof": "2023-07-28",
+  "bars": {
+   "asof": "2023-07-28",
+   "forward": 20,
+   "sym": "PSN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 4,
+  "id": "si_be04185412eb",
+  "lesson_origin": "session",
+  "lesson_text": "Entry: a stop-buy 0.01 over the red day's high of 48.03, so the line sits at 48.04. The Kicker opened at 48.45, above the line, so the order filled at the open. Stop: the Kicker's low of 48.25 sits 0.41% under the fill, within 3.5%, so the stop is 48.25, the Kicker's low. The best Kickers allow a stop smaller than 3.5%. This drill marks the entry line and the stop only.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "q": "A Kicker fired on the last bar. Mark the entry and the stop on this chart.",
+   "roles": [
+    "entry",
+    "stop"
+   ],
+   "setup": "Kicker Candle"
+  },
+  "reveal_json": {
+   "example_grade": "great",
+   "facts": {
+    "atr14": 0.6991,
+    "entry": 48.04,
+    "fill": 48.45,
+    "gapped_over_trigger": true,
+    "kicker_close": 49.4,
+    "kicker_high": 49.58,
+    "kicker_low": 48.25,
+    "kicker_low_pct": 0.41,
+    "kicker_open": 48.45,
+    "max_stop_pct": 3.5,
+    "over_high": 0.01,
+    "red_day_close": 47.31,
+    "red_day_high": 48.03,
+    "stop": 48.25,
+    "stop_basis": "kicker_low",
+    "stop_pct": 0.41,
+    "stop_wider_than_max": false,
+    "tolerance": 0.5243
+   },
+   "forward_bars": 20,
+   "owner_words": "This is perfect!",
+   "quote": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually",
+   "rulings": [
+    {
+     "date": "2026-11-02",
+     "topic": "kicker entry",
+     "words": "the entry should 11.05 over THE previous day high, or on DAY 1 of the kicker candle on a 30 min ORB"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "kicker stop",
+     "words": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "sell rules",
+     "words": "can pause here and ask about trimming and trailing and some sell rules ... we can work on those later, complicated"
+    }
+   ],
+   "setup": "Kicker Candle",
+   "skill": "Mark the levels",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#PSN#2023-07-28#levels",
+   "spot_item": "si_8702d6d9e526",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.levels",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#PSN#2023-07-28#levels",
+  "sym": "PSN",
+  "type": "levels",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "atr14": 25.3644,
+   "entry": 939.65,
+   "stop": 940.5
+  },
+  "asof": "2026-05-20",
+  "bars": {
+   "asof": "2026-05-20",
+   "forward": 20,
+   "sym": "GS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 4,
+  "id": "si_e86b91d9b36e",
+  "lesson_origin": "session",
+  "lesson_text": "Entry: a stop-buy 0.01 over the red day's high of 939.64, so the line sits at 939.65. The Kicker opened at 945.00, above the line, so the order filled at the open. Stop: the Kicker's low of 940.50 sits 0.48% under the fill, within 3.5%, so the stop is 940.50, the Kicker's low. The best Kickers allow a stop smaller than 3.5%. This drill marks the entry line and the stop only.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "q": "A Kicker fired on the last bar. Mark the entry and the stop on this chart.",
+   "roles": [
+    "entry",
+    "stop"
+   ],
+   "setup": "Kicker Candle"
+  },
+  "reveal_json": {
+   "example_grade": "great",
+   "facts": {
+    "atr14": 25.3644,
+    "entry": 939.65,
+    "fill": 945.0,
+    "gapped_over_trigger": true,
+    "kicker_close": 982.12,
+    "kicker_high": 982.73,
+    "kicker_low": 940.5,
+    "kicker_low_pct": 0.48,
+    "kicker_open": 945.0,
+    "max_stop_pct": 3.5,
+    "over_high": 0.01,
+    "red_day_close": 928.74,
+    "red_day_high": 939.64,
+    "stop": 940.5,
+    "stop_basis": "kicker_low",
+    "stop_pct": 0.48,
+    "stop_wider_than_max": false,
+    "tolerance": 19.0233
+   },
+   "forward_bars": 20,
+   "owner_words": "That GS one is very good yes!",
+   "quote": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually",
+   "rulings": [
+    {
+     "date": "2026-11-02",
+     "topic": "kicker entry",
+     "words": "the entry should 11.05 over THE previous day high, or on DAY 1 of the kicker candle on a 30 min ORB"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "kicker stop",
+     "words": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "sell rules",
+     "words": "can pause here and ask about trimming and trailing and some sell rules ... we can work on those later, complicated"
+    }
+   ],
+   "setup": "Kicker Candle",
+   "skill": "Mark the levels",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#GS#2026-05-20#levels",
+   "spot_item": "si_e1f6f2bb8845",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.levels",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#GS#2026-05-20#levels",
+  "sym": "GS",
+  "type": "levels",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "atr14": 12.6669,
+   "entry": 379.25,
+   "stop": 368.1
+  },
+  "asof": "2026-03-31",
+  "bars": {
+   "asof": "2026-03-31",
+   "forward": 20,
+   "sym": "SMH",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 4,
+  "id": "si_a9248870ab44",
+  "lesson_origin": "session",
+  "lesson_text": "Entry: a stop-buy 0.01 over the red day's high of 379.24, so the line sits at 379.25. The Kicker traded up through the line during the day, so the order filled there. Stop: the Kicker's low of 368.10 sits 2.94% under the fill, within 3.5%, so the stop is 368.10, the Kicker's low. The best Kickers allow a stop smaller than 3.5%. This drill marks the entry line and the stop only.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "q": "A Kicker fired on the last bar. Mark the entry and the stop on this chart.",
+   "roles": [
+    "entry",
+    "stop"
+   ],
+   "setup": "Kicker Candle"
+  },
+  "reveal_json": {
+   "example_grade": "okay",
+   "facts": {
+    "atr14": 12.6669,
+    "entry": 379.25,
+    "fill": 379.25,
+    "gapped_over_trigger": false,
+    "kicker_close": 383.4,
+    "kicker_high": 383.5,
+    "kicker_low": 368.1,
+    "kicker_low_pct": 2.94,
+    "kicker_open": 368.74,
+    "max_stop_pct": 3.5,
+    "over_high": 0.01,
+    "red_day_close": 362.53,
+    "red_day_high": 379.24,
+    "stop": 368.1,
+    "stop_basis": "kicker_low",
+    "stop_pct": 2.94,
+    "stop_wider_than_max": false,
+    "tolerance": 9.5002
+   },
+   "forward_bars": 20,
+   "owner_words": "Yeah that is okay, technically it is a gap versus intermediate downtrend instead of a kicker but it is okay ish I would say C-",
+   "quote": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually",
+   "rulings": [
+    {
+     "date": "2026-11-02",
+     "topic": "kicker entry",
+     "words": "the entry should 11.05 over THE previous day high, or on DAY 1 of the kicker candle on a 30 min ORB"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "kicker stop",
+     "words": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "sell rules",
+     "words": "can pause here and ask about trimming and trailing and some sell rules ... we can work on those later, complicated"
+    }
+   ],
+   "setup": "Kicker Candle",
+   "skill": "Mark the levels",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#SMH#2026-03-31#levels",
+   "spot_item": "si_746f54486d20",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.levels",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#SMH#2026-03-31#levels",
+  "sym": "SMH",
+  "type": "levels",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "atr14": 3.9808,
+   "entry": 122.84,
+   "stop": 119.56
+  },
+  "asof": "2023-12-07",
+  "bars": {
+   "asof": "2023-12-07",
+   "forward": 20,
+   "sym": "AMD",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 4,
+  "id": "si_e2d8920156e8",
+  "lesson_origin": "session",
+  "lesson_text": "Entry: a stop-buy 0.01 over the red day's high of 122.83, so the line sits at 122.84. The Kicker traded up through the line during the day, so the order filled there. Stop: the Kicker's low of 119.56 sits 2.67% under the fill, within 3.5%, so the stop is 119.56, the Kicker's low. The best Kickers allow a stop smaller than 3.5%. This drill marks the entry line and the stop only.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "q": "A Kicker fired on the last bar. Mark the entry and the stop on this chart.",
+   "roles": [
+    "entry",
+    "stop"
+   ],
+   "setup": "Kicker Candle"
+  },
+  "reveal_json": {
+   "example_grade": "great",
+   "facts": {
+    "atr14": 3.9808,
+    "entry": 122.84,
+    "fill": 122.84,
+    "gapped_over_trigger": false,
+    "kicker_close": 128.37,
+    "kicker_high": 128.68,
+    "kicker_low": 119.56,
+    "kicker_low_pct": 2.67,
+    "kicker_open": 120.78,
+    "max_stop_pct": 3.5,
+    "over_high": 0.01,
+    "red_day_close": 116.82,
+    "red_day_high": 122.83,
+    "stop": 119.56,
+    "stop_basis": "kicker_low",
+    "stop_pct": 2.67,
+    "stop_wider_than_max": false,
+    "tolerance": 2.9856
+   },
+   "forward_bars": 20,
+   "owner_words": "Yes this is like the ultimate elite example. Another great one is RBRK from just a few weeks ago. But yeah this AMD is perfect",
+   "quote": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually",
+   "rulings": [
+    {
+     "date": "2026-11-02",
+     "topic": "kicker entry",
+     "words": "the entry should 11.05 over THE previous day high, or on DAY 1 of the kicker candle on a 30 min ORB"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "kicker stop",
+     "words": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "sell rules",
+     "words": "can pause here and ask about trimming and trailing and some sell rules ... we can work on those later, complicated"
+    }
+   ],
+   "setup": "Kicker Candle",
+   "skill": "Mark the levels",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#AMD#2023-12-07#levels",
+   "spot_item": "si_b6f784a58f5f",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.levels",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#AMD#2023-12-07#levels",
+  "sym": "AMD",
+  "type": "levels",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "atr14": 0.3664,
+   "entry": 16.11,
+   "stop": 16.42
+  },
+  "asof": "2022-01-24",
+  "bars": {
+   "asof": "2022-01-24",
+   "forward": 20,
+   "sym": "VOD",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 4,
+  "id": "si_b592343a3589",
+  "lesson_origin": "session",
+  "lesson_text": "Entry: a stop-buy 0.01 over the red day's high of 16.10, so the line sits at 16.11. The Kicker opened at 16.88, above the line, so the order filled at the open. Stop: the Kicker's low of 16.42 sits 2.73% under the fill, within 3.5%, so the stop is 16.42, the Kicker's low. The best Kickers allow a stop smaller than 3.5%. This drill marks the entry line and the stop only.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "q": "A Kicker fired on the last bar. Mark the entry and the stop on this chart.",
+   "roles": [
+    "entry",
+    "stop"
+   ],
+   "setup": "Kicker Candle"
+  },
+  "reveal_json": {
+   "example_grade": "okay",
+   "facts": {
+    "atr14": 0.3664,
+    "entry": 16.11,
+    "fill": 16.88,
+    "gapped_over_trigger": true,
+    "kicker_close": 16.9,
+    "kicker_high": 16.95,
+    "kicker_low": 16.42,
+    "kicker_low_pct": 2.73,
+    "kicker_open": 16.88,
+    "max_stop_pct": 3.5,
+    "over_high": 0.01,
+    "red_day_close": 15.83,
+    "red_day_high": 16.1,
+    "stop": 16.42,
+    "stop_basis": "kicker_low",
+    "stop_pct": 2.73,
+    "stop_wider_than_max": false,
+    "tolerance": 0.2748
+   },
+   "forward_bars": 20,
+   "owner_words": "Yeah that is okay ish I would give it a B-",
+   "quote": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually",
+   "rulings": [
+    {
+     "date": "2026-11-02",
+     "topic": "kicker entry",
+     "words": "the entry should 11.05 over THE previous day high, or on DAY 1 of the kicker candle on a 30 min ORB"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "kicker stop",
+     "words": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "sell rules",
+     "words": "can pause here and ask about trimming and trailing and some sell rules ... we can work on those later, complicated"
+    }
+   ],
+   "setup": "Kicker Candle",
+   "skill": "Mark the levels",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#VOD#2022-01-24#levels",
+   "spot_item": "si_36121dd3ab75",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.levels",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#VOD#2022-01-24#levels",
+  "sym": "VOD",
+  "type": "levels",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "atr14": 5.517,
+   "entry": 221.51,
+   "stop": 217.2
+  },
+  "asof": "2022-02-24",
+  "bars": {
+   "asof": "2022-02-24",
+   "forward": 20,
+   "sym": "LHX",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 4,
+  "id": "si_d4c11838b734",
+  "lesson_origin": "session",
+  "lesson_text": "Entry: a stop-buy 0.01 over the red day's high of 221.50, so the line sits at 221.51. The Kicker traded up through the line during the day, so the order filled there. Stop: the Kicker's low of 217.20 sits 1.95% under the fill, within 3.5%, so the stop is 217.20, the Kicker's low. The best Kickers allow a stop smaller than 3.5%. This drill marks the entry line and the stop only.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "q": "A Kicker fired on the last bar. Mark the entry and the stop on this chart.",
+   "roles": [
+    "entry",
+    "stop"
+   ],
+   "setup": "Kicker Candle"
+  },
+  "reveal_json": {
+   "example_grade": "good",
+   "facts": {
+    "atr14": 5.517,
+    "entry": 221.51,
+    "fill": 221.51,
+    "gapped_over_trigger": false,
+    "kicker_close": 228.47,
+    "kicker_high": 228.69,
+    "kicker_low": 217.2,
+    "kicker_low_pct": 1.95,
+    "kicker_open": 220.0,
+    "max_stop_pct": 3.5,
+    "over_high": 0.01,
+    "red_day_close": 216.29,
+    "red_day_high": 221.5,
+    "stop": 217.2,
+    "stop_basis": "kicker_low",
+    "stop_pct": 1.95,
+    "stop_wider_than_max": false,
+    "tolerance": 4.1378
+   },
+   "forward_bars": 20,
+   "owner_words": "Yeah that is good",
+   "quote": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually",
+   "rulings": [
+    {
+     "date": "2026-11-02",
+     "topic": "kicker entry",
+     "words": "the entry should 11.05 over THE previous day high, or on DAY 1 of the kicker candle on a 30 min ORB"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "kicker stop",
+     "words": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "sell rules",
+     "words": "can pause here and ask about trimming and trailing and some sell rules ... we can work on those later, complicated"
+    }
+   ],
+   "setup": "Kicker Candle",
+   "skill": "Mark the levels",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#LHX#2022-02-24#levels",
+   "spot_item": "si_608edb925196",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.levels",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#LHX#2022-02-24#levels",
+  "sym": "LHX",
+  "type": "levels",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "atr14": 2.5464,
+   "entry": 103.34,
+   "stop": 102.26
+  },
+  "asof": "2023-01-04",
+  "bars": {
+   "asof": "2023-01-04",
+   "forward": 20,
+   "sym": "BMRN",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 4,
+  "id": "si_19f23180378d",
+  "lesson_origin": "session",
+  "lesson_text": "Entry: a stop-buy 0.01 over the red day's high of 103.33, so the line sits at 103.34. The Kicker opened at 103.69, above the line, so the order filled at the open. Stop: the Kicker's low of 102.26 sits 1.38% under the fill, within 3.5%, so the stop is 102.26, the Kicker's low. The best Kickers allow a stop smaller than 3.5%. This drill marks the entry line and the stop only.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "q": "A Kicker fired on the last bar. Mark the entry and the stop on this chart.",
+   "roles": [
+    "entry",
+    "stop"
+   ],
+   "setup": "Kicker Candle"
+  },
+  "reveal_json": {
+   "example_grade": "great",
+   "facts": {
+    "atr14": 2.5464,
+    "entry": 103.34,
+    "fill": 103.69,
+    "gapped_over_trigger": true,
+    "kicker_close": 106.92,
+    "kicker_high": 106.93,
+    "kicker_low": 102.26,
+    "kicker_low_pct": 1.38,
+    "kicker_open": 103.69,
+    "max_stop_pct": 3.5,
+    "over_high": 0.01,
+    "red_day_close": 100.61,
+    "red_day_high": 103.33,
+    "stop": 102.26,
+    "stop_basis": "kicker_low",
+    "stop_pct": 1.38,
+    "stop_wider_than_max": false,
+    "tolerance": 1.9098
+   },
+   "forward_bars": 20,
+   "owner_words": "Great example, love it",
+   "quote": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually",
+   "rulings": [
+    {
+     "date": "2026-11-02",
+     "topic": "kicker entry",
+     "words": "the entry should 11.05 over THE previous day high, or on DAY 1 of the kicker candle on a 30 min ORB"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "kicker stop",
+     "words": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "sell rules",
+     "words": "can pause here and ask about trimming and trailing and some sell rules ... we can work on those later, complicated"
+    }
+   ],
+   "setup": "Kicker Candle",
+   "skill": "Mark the levels",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#BMRN#2023-01-04#levels",
+   "spot_item": "si_d34f0c960dc0",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.levels",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#BMRN#2023-01-04#levels",
+  "sym": "BMRN",
+  "type": "levels",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "atr14": 3.0423,
+   "entry": 114.18,
+   "stop": 110.89
+  },
+  "asof": "2025-10-13",
+  "bars": {
+   "asof": "2025-10-13",
+   "forward": 20,
+   "sym": "ENS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 4,
+  "id": "si_486b89eb993b",
+  "lesson_origin": "session",
+  "lesson_text": "Entry: a stop-buy 0.01 over the red day's high of 114.17, so the line sits at 114.18. The Kicker traded up through the line during the day, so the order filled there. Stop: the Kicker's low of 110.89 sits 2.88% under the fill, within 3.5%, so the stop is 110.89, the Kicker's low. The best Kickers allow a stop smaller than 3.5%. This drill marks the entry line and the stop only.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "q": "A Kicker fired on the last bar. Mark the entry and the stop on this chart.",
+   "roles": [
+    "entry",
+    "stop"
+   ],
+   "setup": "Kicker Candle"
+  },
+  "reveal_json": {
+   "example_grade": "okay",
+   "facts": {
+    "atr14": 3.0423,
+    "entry": 114.18,
+    "fill": 114.18,
+    "gapped_over_trigger": false,
+    "kicker_close": 115.56,
+    "kicker_high": 116.69,
+    "kicker_low": 110.89,
+    "kicker_low_pct": 2.88,
+    "kicker_open": 111.21,
+    "max_stop_pct": 3.5,
+    "over_high": 0.01,
+    "red_day_close": 109.34,
+    "red_day_high": 114.17,
+    "stop": 110.89,
+    "stop_basis": "kicker_low",
+    "stop_pct": 2.88,
+    "stop_wider_than_max": false,
+    "tolerance": 2.2817
+   },
+   "forward_bars": 20,
+   "owner_words": "That is okay ish, not great but not bad",
+   "quote": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually",
+   "rulings": [
+    {
+     "date": "2026-11-02",
+     "topic": "kicker entry",
+     "words": "the entry should 11.05 over THE previous day high, or on DAY 1 of the kicker candle on a 30 min ORB"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "kicker stop",
+     "words": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "sell rules",
+     "words": "can pause here and ask about trimming and trailing and some sell rules ... we can work on those later, complicated"
+    }
+   ],
+   "setup": "Kicker Candle",
+   "skill": "Mark the levels",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#ENS#2025-10-13#levels",
+   "spot_item": "si_c9e917c8c323",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.levels",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#ENS#2025-10-13#levels",
+  "sym": "ENS",
+  "type": "levels",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "atr14": 6.9265,
+   "entry": 90.25,
+   "stop": 89.12
+  },
+  "asof": "2026-09-14",
+  "bars": {
+   "asof": "2026-09-14",
+   "forward": 20,
+   "sym": "RBRK",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 4,
+  "id": "si_8a08d55c0e9b",
+  "lesson_origin": "session",
+  "lesson_text": "Entry: a stop-buy 0.01 over the red day's high of 90.24, so the line sits at 90.25. The Kicker traded up through the line during the day, so the order filled there. Stop: the Kicker's low of 89.12 sits 1.25% under the fill, within 3.5%, so the stop is 89.12, the Kicker's low. The best Kickers allow a stop smaller than 3.5%. This drill marks the entry line and the stop only.",
+  "module": null,
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "q": "A Kicker fired on the last bar. Mark the entry and the stop on this chart.",
+   "roles": [
+    "entry",
+    "stop"
+   ],
+   "setup": "Kicker Candle"
+  },
+  "reveal_json": {
+   "example_grade": "great",
+   "facts": {
+    "atr14": 6.9265,
+    "entry": 90.25,
+    "fill": 90.25,
+    "gapped_over_trigger": false,
+    "kicker_close": 100.2,
+    "kicker_high": 100.5,
+    "kicker_low": 89.12,
+    "kicker_low_pct": 1.25,
+    "kicker_open": 90.15,
+    "max_stop_pct": 3.5,
+    "over_high": 0.01,
+    "red_day_close": 86.65,
+    "red_day_high": 90.24,
+    "stop": 89.12,
+    "stop_basis": "kicker_low",
+    "stop_pct": 1.25,
+    "stop_wider_than_max": false,
+    "tolerance": 5.1949
+   },
+   "forward_bars": 20,
+   "owner_words": "Another great one is RBRK from just a few weeks ago",
+   "quote": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually",
+   "rulings": [
+    {
+     "date": "2026-11-02",
+     "topic": "kicker entry",
+     "words": "the entry should 11.05 over THE previous day high, or on DAY 1 of the kicker candle on a 30 min ORB"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "kicker stop",
+     "words": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually"
+    },
+    {
+     "date": "2026-11-02",
+     "topic": "sell rules",
+     "words": "can pause here and ask about trimming and trailing and some sell rules ... we can work on those later, complicated"
+    }
+   ],
+   "setup": "Kicker Candle",
+   "skill": "Mark the levels",
+   "source": "docs/study/setups/setup_examples.json#Kicker Candle#RBRK#2026-09-14#levels",
+   "spot_item": "si_a70deaecf14d",
+   "window_bars": 120
+  },
+  "review_status": "draft",
+  "skill_id": "setup.levels",
+  "source_kind": "setups",
+  "source_ref": "docs/study/setups/setup_examples.json#Kicker Candle#RBRK#2026-09-14#levels",
+  "sym": "RBRK",
+  "type": "levels",
+  "version": 1
+ }
+]

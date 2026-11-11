@@ -3,20 +3,35 @@
 // either an individual ticker OR a whole group (theme / sector / industry — every
 // member overlaid at once, tracked as a collapsible group). Each item picks its own
 // price scale (Same % scale / New price scale).
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+//
+// Two tabs (UCT RS Phase 3, unit 3-12): "Overlay" is the panel above, unchanged; "Rotation"
+// (CompareRotation.jsx, loaded on first use) plots the same names, a group or a watchlist on the
+// Terminal's relative-rotation graph. A `uct:compare-open` window event with `tab: 'rotation'`
+// (unit 3-09) opens the panel on that tab; ChartsWorkspace mounts the panel for it.
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import UIcon from '../../components/ui/UIcon'
 import { pickComparisonColor } from '../../components/chart/comparisonUtils'
 import shell from './PeriodSortPanel.module.css'
 import c from './CompareSymbolsPanel.module.css'
 import Input from '../../components/ui/Input'
+import useFocusTrap from '../../components/mobile/useFocusTrap'
+import { COMPARE_OPEN_EVENT, GROUP_TYPES, fetchGroupList, fetchGroupMembers } from './compareGroups'
 
-const GROUP_TYPES = [
-  { key: 'theme', label: 'Themes' },
-  { key: 'sector', label: 'Sectors' },
-  { key: 'industry', label: 'Industries' },
+const CompareRotation = lazy(() => import('./CompareRotation'))
+
+const TABS = [
+  { key: 'overlay', label: 'Overlay' },
+  { key: 'rotation', label: 'Rotation' },
 ]
 
-export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onClose }) {
+/** A fresh intent object per open, so the Rotation tab acts on each one once. */
+const intentOf = (detail) => (detail && detail.tab === 'rotation' ? { ...detail } : null)
+
+export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onClose, initialIntent = null }) {
+  const [tab, setTab] = useState(() => (initialIntent?.tab === 'rotation' ? 'rotation' : 'overlay'))
+  const [intent, setIntent] = useState(() => intentOf(initialIntent))
+  const tabRefs = useRef({})
+  const cardRef = useRef(null)
   const [symbols, setSymbols] = useState([])
   const [ready, setReady] = useState(false)
   const [entry, setEntry] = useState('')
@@ -54,6 +69,33 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
     return () => clearInterval(t)
   }, [chartApiById, activeChartRef])
 
+  // ⭐ a11y gate §12.2 (2026-11-08) — A MODAL THAT HOLDS FOCUS. It opened with focus on
+  // <body> (or the Tools button behind it), and Tab walked the page under the backdrop.
+  // Now: focus moves to the selected tab on open, Tab and Shift+Tab wrap inside the card
+  // (`useFocusTrap`, the one trap `Sheet` and the chip popover use), and on close focus
+  // goes back to what held it when the panel opened, while that is still on the page.
+  useFocusTrap(true, cardRef)
+  useEffect(() => {
+    const card = cardRef.current
+    const was = typeof document !== 'undefined' ? document.activeElement : null
+    const opener = was && was !== document.body && !(card && card.contains(was)) ? was : null
+    let raf = 0
+    let tries = 0
+    const take = () => {
+      const el = cardRef.current
+      if (!el || el.contains(document.activeElement)) return
+      const first = el.querySelector('[role="tab"][aria-selected="true"]') || el.querySelector('[role="tab"]')
+        || el.querySelector('button[aria-label="Close"]')
+      ;(first || el).focus?.({ preventScroll: true })
+      if (!el.contains(document.activeElement) && tries < 12) { tries += 1; raf = requestAnimationFrame(take) }
+    }
+    take()
+    return () => {
+      cancelAnimationFrame(raf)
+      if (opener && opener.isConnected && typeof opener.focus === 'function') opener.focus({ preventScroll: true })
+    }
+  }, [])
+
   // Escape closes.
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
@@ -61,15 +103,24 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  // An open while the panel is already up switches the tab (unit 3-09's rotation link).
+  useEffect(() => {
+    const onOpen = (e) => {
+      const d = e?.detail || {}
+      if (d.tab === 'rotation') { setTab('rotation'); setIntent(intentOf(d)) }
+      else if (d.tab === 'overlay') setTab('overlay')
+    }
+    window.addEventListener(COMPARE_OPEN_EVENT, onOpen)
+    return () => window.removeEventListener(COMPARE_OPEN_EVENT, onOpen)
+  }, [])
+
   // Load the group list when a type is chosen.
   useEffect(() => {
     if (!groupType) { setGroupList([]); return undefined }
     let alive = true
     setGroupBusy(true)
-    fetch(`/api/compare/groups?type=${groupType}`)
-      .then(r => (r.ok ? r.json() : { groups: [] }))
-      .then(j => { if (alive) setGroupList(j.groups || []) })
-      .catch(() => { if (alive) setGroupList([]) })
+    fetchGroupList(groupType)
+      .then(list => { if (alive) setGroupList(list) })
       .finally(() => { if (alive) setGroupBusy(false) })
     return () => { alive = false }
   }, [groupType])
@@ -100,9 +151,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
   const addGroup = useCallback(async (name) => {
     if (!groupType || !name) return
     try {
-      const r = await fetch(`/api/compare/group-members?type=${groupType}&name=${encodeURIComponent(name)}`)
-      const j = r.ok ? await r.json() : null
-      const members = (j?.symbols || []).map(s => String(s).toUpperCase())
+      const members = (await fetchGroupMembers(groupType, name))?.symbols || []
       if (!members.length) return
       setSymbols(prev => {
         const have = new Set(prev.map(x => x.sym))
@@ -160,17 +209,56 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
   }, [groupList, groupQuery])
 
   const nothing = symbols.length === 0
+  const ownSyms = useMemo(() => symbols.map(x => x.sym), [symbols])
+
+  // A proper tablist: Left/Right/Home/End move between the tabs and select them.
+  const onTabKey = (e) => {
+    const i = TABS.findIndex(t => t.key === tab)
+    const to = e.key === 'ArrowRight' ? (i + 1) % TABS.length
+      : e.key === 'ArrowLeft' ? (i - 1 + TABS.length) % TABS.length
+        : e.key === 'Home' ? 0 : e.key === 'End' ? TABS.length - 1 : -1
+    if (to < 0) return
+    e.preventDefault()
+    setTab(TABS[to].key)
+    tabRefs.current[TABS[to].key]?.focus()
+  }
 
   return (
     <div className={shell.cfgBackdrop} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className={c.card} role="dialog" aria-label="Compare Symbols">
+      <div ref={cardRef} tabIndex={-1} className={`${c.card}${tab === 'rotation' ? ' ' + c.cardWide : ''}`} role="dialog" aria-modal="true" aria-label="Compare Symbols" data-guide="compare.panel">
         <div className={c.head}>
           <span className={c.headTitle}>Compare Symbols</span>
-          {!nothing && <button type="button" className={c.clear} onClick={clearAll} title="Remove all comparisons">Clear all</button>}
+          {!nothing && tab === 'overlay' && <button type="button" className={c.clear} data-guide="compare.clear" onClick={clearAll} title="Remove all comparisons">Clear all</button>}
           <button type="button" className={c.close} onClick={onClose} title="Close" aria-label="Close"><UIcon name="x" size={13} gold={false} /></button>
         </div>
 
-        <div className={c.body}>
+        <div className={c.tabs} role="tablist" aria-label="Compare view" onKeyDown={onTabKey}>
+          {TABS.map(t => (
+            <button
+              key={t.key}
+              ref={el => { tabRefs.current[t.key] = el }}
+              type="button"
+              role="tab"
+              id={`compare-tab-${t.key}`}
+              aria-controls={`compare-panel-${t.key}`}
+              aria-selected={tab === t.key}
+              tabIndex={tab === t.key ? 0 : -1}
+              className={c.tab}
+              onClick={() => setTab(t.key)}
+            >{t.label}</button>
+          ))}
+        </div>
+
+        {tab === 'rotation' && (
+          <div className={c.body} role="tabpanel" id="compare-panel-rotation" aria-labelledby="compare-tab-rotation">
+            <Suspense fallback={<div className={c.empty}>Loading the rotation graph…</div>}>
+              <CompareRotation ownSyms={ownSyms} intent={intent} />
+            </Suspense>
+          </div>
+        )}
+
+        {tab === 'overlay' && (
+        <div className={c.body} role="tabpanel" id="compare-panel-overlay" aria-labelledby="compare-tab-overlay">
           {/* Add a single ticker */}
           <Input aria-label="Add symbol"
             className={c.input}
@@ -183,7 +271,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
           />
 
           {/* Add a whole group */}
-          <div className={c.groupPick}>
+          <div className={c.groupPick} data-guide="compare.groups">
             <div className={c.groupTabs}>
               {GROUP_TYPES.map(t => (
                 <button
@@ -239,9 +327,9 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
                       </button>
                       <span className={c.groupBadge}>{g.name}</span>
                       <span className={c.groupN}>· {g.items.length}</span>
-                      <button type="button" className={c.rm} onClick={() => removeGroup(g.name)} title={`Remove ${g.name}`} aria-label={`Remove ${g.name}`}><UIcon name="x" size={10} gold={false} /></button>
+                      <button type="button" className={c.rm} data-guide="compare.removeGroup" onClick={() => removeGroup(g.name)} title={`Remove ${g.name}`} aria-label={`Remove ${g.name}`}><UIcon name="x" size={10} gold={false} /></button>
                     </div>
-                    <div className={c.scaleSeg}>
+                    <div className={c.scaleSeg} data-guide="compare.groupScale">
                       <button type="button" className={`${c.scaleBtn}${scaleMode === 'same' ? ' ' + c.scaleOn : ''}`} onClick={() => setGroupScale(g.name, 'same')} title="Share the main price scale">Same % scale</button>
                       <button type="button" className={`${c.scaleBtn}${scaleMode !== 'same' ? ' ' + c.scaleOn : ''}`} onClick={() => setGroupScale(g.name, 'new')} title="Right % scale — base + all comparisons shown in %">New price scale</button>
                     </div>
@@ -265,9 +353,9 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
                   <div className={c.rowMain}>
                     <span className={c.dot} style={{ background: s.color }} />
                     <span className={c.sym}>{s.sym}</span>
-                    <button type="button" className={c.rm} onClick={() => removeSymbol(s.sym)} title={`Remove ${s.sym}`} aria-label={`Remove ${s.sym}`}><UIcon name="x" size={10} gold={false} /></button>
+                    <button type="button" className={c.rm} data-guide="compare.remove" onClick={() => removeSymbol(s.sym)} title={`Remove ${s.sym}`} aria-label={`Remove ${s.sym}`}><UIcon name="x" size={10} gold={false} /></button>
                   </div>
-                  <div className={c.scaleSeg}>
+                  <div className={c.scaleSeg} data-guide="compare.scale">
                     <button type="button" className={`${c.scaleBtn}${s.scaleMode === 'same' ? ' ' + c.scaleOn : ''}`} onClick={() => setScaleMode(s.sym, 'same')} title="Share the main price scale">Same % scale</button>
                     <button type="button" className={`${c.scaleBtn}${s.scaleMode !== 'same' ? ' ' + c.scaleOn : ''}`} onClick={() => setScaleMode(s.sym, 'new')} title="Right % scale — base + all comparisons shown in %">New price scale</button>
                   </div>
@@ -279,6 +367,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
             <button
               type="button"
               className={`${c.hideBaseToggle}${hideBase ? ' ' + c.hideBaseOn : ''}`}
+              data-guide="compare.hideBase"
               onClick={toggleHideBase}
               title={hideBase ? 'Show the base chart, volume and moving averages again' : 'Hide the base chart so only the comparison lines show'}
             >
@@ -288,6 +377,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
           )}
           <div className={c.hint}>Normalized to 0% at the left edge of the framed range.</div>
         </div>
+        )}
       </div>
     </div>
   )

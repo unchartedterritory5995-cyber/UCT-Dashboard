@@ -40,8 +40,6 @@ def _on(monkeypatch):
             monkeypatch.setenv(f"NOTEBOOK_WIDGETS_W{w}_ENABLED", "1")
         else:
             monkeypatch.delenv(f"NOTEBOOK_WIDGETS_W{w}_ENABLED", raising=False)
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
     monkeypatch.setattr(nw, "_POOL", nw.BoundedPool(nw.WIDGET_POOL_WORKERS, "nb-preview-test",
                                                     reserve=nw.WIDGET_POOL_RESERVE))
     run._reset_state()
@@ -309,9 +307,6 @@ def test_not_visible_item_is_none(conn, monkeypatch):
     tp._CACHE.clear()
     assert _go(conn, tool) is None
     monkeypatch.setenv("NOTEBOOK_WIDGETS_W11_ENABLED", "1")
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")                   # the library off: every style absent
-    tp._CACHE.clear()
-    assert _go(conn, _row(conn, _template(1))) is None
 
 
 def test_foreign_def_ref_in_member_template_is_a_sentence(conn, monkeypatch):

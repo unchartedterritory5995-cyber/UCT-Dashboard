@@ -598,7 +598,6 @@ def test_member_b_notes_folders_kinds_and_properties_never_reach_a(two, monkeypa
     notice, and never narrows). Every folder, kind and property read is scoped to A (traced)."""
     from api.services.journal_two import note_properties
     from tests.test_widget_notes_source import add_folder, add_kind, add_n, add_prop
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")       # W10-R62: kinds offered
     c, _acc_a, _acc_b = two
     fa = add_folder(c, A, "Ideas")
     fb = add_folder(c, B, "B-FOLDER-CANARY")

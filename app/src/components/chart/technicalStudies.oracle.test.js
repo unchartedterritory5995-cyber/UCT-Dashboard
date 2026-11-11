@@ -189,7 +189,9 @@ describe('Volume & Money Flow', () => {
   it('Up/Down Volume Ratio (50)', () => agrees('udVol', S.upDownVolumeRatio(BARS, 50), E.upDownVolumeRatio))
 })
 
-describe('Relative Strength · Levels & Statistics', () => {
+// `% From MA` and `52-Week High/Low` moved from Relative Strength to Levels &
+// Statistics (review finding U7, 2026-11-06); the oracle rows are unchanged.
+describe('Levels & Statistics', () => {
   it('% From MA (SMA 50)', () => agrees('percentFromMa', S.percentFromMa(CLOSE, 50, 'sma'), E.percentFromMa))
   it('52-Week High/Low', () => {
     const r = S.fiftyTwoWeek(BARS)

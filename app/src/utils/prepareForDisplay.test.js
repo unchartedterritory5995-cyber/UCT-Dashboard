@@ -20,8 +20,8 @@ vi.mock('./barsIDB', () => ({
 }))
 vi.mock('../hooks/useTickerMeta', () => ({ prefetchTickerMeta: vi.fn() }))
 
-import { prepareForDisplay, _isAuthoritativeAnswer, _noteWarmResult } from './prefetchBars'
-import { memClear } from './barsMemCache'
+import { prepareForDisplay, prepareDailyForDisplay, _isAuthoritativeAnswer, _noteWarmResult } from './prefetchBars'
+import { memClear, memPeek, memPeekSavedAt } from './barsMemCache'
 
 const NOW = new Date('2026-09-16T15:55:00-04:00').getTime()
 const unix = (hhmm) => {
@@ -170,5 +170,44 @@ describe('prepareForDisplay — an OUTCOME, never a stopwatch', () => {
     idbState.entry = { bars: barsEnding(unix('10:00')), lastT: unix('10:00') }
     preloadMock.mockResolvedValue({ bars: barsEnding(unix('15:50'), 3), delta: true })
     await expect(prepareForDisplay('SLOW', '1')).resolves.toBe('authoritative')
+  })
+})
+
+describe('prepareDailyForDisplay', () => {
+  const daily = [{ t: '2026-09-15', c: 1 }, { t: '2026-09-16', c: 2 }]
+  it('promotes a cached set to memory with its own saved time, and asks the server nothing', async () => {
+    idbState.entry = { bars: daily, lastT: '2026-09-16', savedAt: 12345 }
+    await expect(prepareDailyForDisplay('MU', 'D')).resolves.toBe('current')
+    expect(preloadMock).not.toHaveBeenCalled()
+    expect(memPeek('MU', 'D')).toEqual(daily)
+    expect(memPeekSavedAt('MU', 'D')).toBe(12345)
+  })
+  const respond = (body, status = 200) => vi.stubGlobal('fetch', vi.fn(async () => ({
+    ok: status < 400, status, headers: new Headers(), clone() { return this }, json: async () => body,
+  })))
+  it("asks the server the chart's own URL when nothing is cached, and stores the answer", async () => {
+    respond({ ticker: 'MU', bars: daily })
+    await expect(prepareDailyForDisplay('MU', 'D')).resolves.toBe('current')
+    expect(fetch.mock.calls[0][0]).toBe('/api/bars/MU?tf=D&bars=600')
+    expect(memPeek('MU', 'D')).toEqual(daily)
+    expect(idbState.put).toHaveBeenCalledWith('MU', 'D', daily)
+    expect(preloadMock.mock.calls[0][0]).toBe('/api/bars/MU?tf=D&bars=600')
+  })
+  it('a shed answer stores nothing and is not handed to the chart', async () => {
+    respond({ error: 'warming' }, 503)
+    await expect(prepareDailyForDisplay('MU', 'D')).resolves.toBe('error')
+    expect(memPeek('MU', 'D')).toBeNull()
+    expect(preloadMock).not.toHaveBeenCalled()
+  })
+  it('an answer for another symbol is never stored under this one', async () => {
+    respond({ ticker: 'XYZ', bars: daily })
+    await expect(prepareDailyForDisplay('MU', 'D')).resolves.toBe('error')
+    expect(memPeek('MU', 'D')).toBeNull()
+    expect(preloadMock).not.toHaveBeenCalled()
+  })
+  it('a delta answer is never stored as a full set', async () => {
+    respond({ ticker: 'MU', delta: true, bars: daily })
+    await expect(prepareDailyForDisplay('MU', 'D')).resolves.toBe('nodata')
+    expect(memPeek('MU', 'D')).toBeNull()
   })
 })

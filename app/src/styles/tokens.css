@@ -28,10 +28,12 @@
      the .widget scope re-asserts the dark --ut-gold. */
   --accent: var(--ut-gold);
   --ut-cream: #d4c9a8;
-  /* Default dark = the UCT App-Theme GRAPHITE ramp (owner pick 2026-08-27 — the
+  /* :root palette = the GRAPHITE theme's ramp (owner pick 2026-08-27 — the
      catalog Graphite reads better than the old lifted-graphite default, so the
-     Basics "Graphite" now IS that palette: darker canvas, tighter surface/border
-     ramp). OLED pure-black stays an explicit theme ([data-theme="oled"]). */
+     Basics "Graphite" [data-theme="dark"] IS this palette: darker canvas, tighter
+     surface/border ramp). It is NOT the app default: OLED pure-black
+     ([data-theme="oled"], below) is the default for every member with no saved
+     theme (usePreferences.js DEFAULTS.theme = 'oled', since 6279fec750). */
   --bg: #101012;
   --bg-surface: #17181b;
   --bg-elevated: #1d1f23;
@@ -244,6 +246,13 @@
   --text-xl: 16px;
   --text-2xl: 20px;
   --text-3xl: 24px;
+  /* VIS-6 (audit 2026-11-05, V1): the two type steps the Notebook's scale names that had no token.
+     The Notebook's whole scale is 11 / 12 / 13 / 14 / 17 / 20 / 24 / 36 (labels, dense, controls,
+     body, reading, section, touch title, desktop title); notebookTokens.lint.test.js holds new
+     font-size literals in the Notebook to it. */
+  --text-read: 17px;
+  --lh-read: 1.7;
+  --text-title: 36px;
 
   /* Line-height scale (was improvised per-component) */
   --lh-tight: 1.2;
@@ -277,6 +286,15 @@
   --duration-fast: 150ms;
   --duration-normal: 250ms;
   --duration-slow: 400ms;
+  /* VIS-6: the name the V1 plan uses for the menus-and-sheets step; the SAME value, derived, never restated. */
+  --duration-base: var(--duration-normal);
+
+  /* VIS-6 (audit 2026-11-05, issue 24): two icon sizes and one stroke. 16 in toolbars, 20 in nav.
+     UIcon takes numbers, so components read lib/notebookIcons.js, which states these same values;
+     notebookTokens.lint.test.js holds the two equal. */
+  --icon-size-toolbar: 16px;
+  --icon-size-nav: 20px;
+  --icon-stroke: 1.75;
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
@@ -491,8 +509,9 @@
      ⭐ ASSIGNED BY HOW FAR BACK A SURFACE SITS AND HOW MUCH MOVING DATA IT MUST SUPPRESS, which
      is the table `w4-material-plan.md` D1 specifies:
        coach mark  lightest — it sits on its own dimmed ground; heavy blur there is wasted cost
-       chip        light    — a readout, read WHILE the thumb moves, so it must stay crisp
-       bubble      14px     — set in pass 1, and it is the one surface that also animates
+       chip        none     — B4 (2026-11-07): an opaque --bg-elevated plate, not glass, so the
+                              readout stays crisp over anything; `--hub-blur-chip` retired with it
+       bubble      14px    — set in pass 1, and it is the one surface that also animates
        pad         medium   — the instrument's own surface, the reference the rest is judged by
        actions     medium   — the no-drag door, at rest over live data
        edge tab    heaviest — a 12x36px sliver needs the MOST separation per pixel to read as a
@@ -507,7 +526,6 @@
      control; varying it per surface would make the hub's pieces disagree about how saturated
      the world behind them is, which reads as an inconsistency rather than as depth. */
   --hub-blur-coach: 10px;
-  --hub-blur-chip: 12px;
   --hub-blur-bubble: 14px;
   --hub-blur-surface: 18px;
   --hub-blur-sliver: 24px;
@@ -664,8 +682,13 @@
   --bg-surface: #0a0a0a;
   --bg-elevated: #111111;
   --bg-hover: #1a1a1a;
-  --border: #1e1e1e;
-  --border-accent: #2a2a2a;
+  /* Lifted 2026-11-04 (Notebook visual audit, issue 10): #1e1e1e on #000 measured
+     1.26:1, so fields, cards, menus and tables dissolved on the DEFAULT theme.
+     #2a2a2a / #3a3a3a match Graphite's visible separation. The dark catalog
+     themes ride this block but each sets its own --border/--border-accent inline
+     (appThemes.js darkTheme()), so they are unaffected. */
+  --border: #2a2a2a;
+  --border-accent: #3a3a3a;
 
   /* D-A4 Notebook ink/edge tokens (see the :root block above for the method).
      oled: danger-ink 4.97:1 worst (loss-bg over bg-elevated) · success-ink
@@ -907,8 +930,11 @@
    :global([data-flash="true"]) in TranscriptSearch.module.css.
    ⛔ Corrected at the Phase 1 gate: an earlier draft of this rule used
    `[data-hub-selected]`, an attribute name nothing in the codebase ever
-   writes — dead CSS that would never have matched a real DOM node. */
-[data-hub-cursor="active"] {
+   writes — dead CSS that would never have matched a real DOM node.
+   VIS-4 (audit 2026-11-05, issue 9): painted only while the hub is ENGAGED (HubRoot writes
+   `data-hub-engaged` on <html> while it is eligible and on screen). The attribute is set on rows on
+   every page, so unscoped it drew a second, wrong "selected" outline on a desktop with no hub. */
+:root[data-hub-engaged] [data-hub-cursor="active"] {
   outline: var(--hub-cursor-outline-width) solid var(--hub-cursor-outline);
   outline-offset: var(--hub-cursor-outline-offset);
   background: var(--hub-cursor-fill);
@@ -919,6 +945,14 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+/* Form controls inherit the UI font (Notebook visual audit, issue 1: 548 of 770
+   controls fell back to the UA's Arial). Type selectors only (0,0,1), so any
+   component that sets its own family (e.g. a mono input) still wins. Letter-
+   spacing is deliberately NOT inherited here. */
+button, input, select, textarea {
+  font-family: inherit;
 }
 
 body {

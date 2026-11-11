@@ -18,6 +18,7 @@ Two structural guarantees enforced by this module's own shape:
 """
 from __future__ import annotations
 
+import json
 import sqlite3
 import uuid
 from typing import Any
@@ -127,6 +128,59 @@ def _row_to_excerpt(row: sqlite3.Row) -> dict[str, Any]:
     }
 
 
+def _tweet_fields(row: sqlite3.Row) -> dict[str, Any]:
+    """An imported tweet's card fields (`j2_note_tweet_captures`). `price` is None once the stored
+    price is no longer comparable (a split since the post)."""
+    from api.services.journal_two import tweet_price
+
+    price = None
+    symbol, amount = row["price_symbol"], row["price_at_post"]
+    if symbol and amount is not None and tweet_price.still_comparable(
+            symbol, row["posted_at"], amount, row["price_label"], row["price_session_date"]):
+        price = {"symbol": symbol, "price": amount, "label": row["price_label"],
+                 "sessionDate": row["price_session_date"]}
+    try:
+        media = json.loads(row["media_json"] or "[]")
+    except ValueError:
+        media = []
+    return {
+        "tweetId": row["tweet_id"],
+        "name": row["author_name"],
+        "handle": row["author_handle"],
+        "avatarUrl": row["avatar_url"],
+        "url": row["permalink"],
+        "postedAt": row["posted_at"],
+        "media": media if isinstance(media, list) else [],
+        "price": price,
+        "removed": row["removed_at"] is not None,
+    }
+
+
+def _attach_tweets(conn: sqlite3.Connection, user_id: str,
+                   excerpts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Adds `tweet` to the excerpts that have a sidecar row: one query for the whole read,
+    however many excerpts it holds. An excerpt with no sidecar row is left exactly as it was."""
+    doc_ids = sorted({e["documentId"] for e in excerpts if e.get("documentId")})
+    if not doc_ids:
+        return excerpts
+    try:
+        rows = conn.execute(
+            "SELECT * FROM j2_note_tweet_captures"
+            " WHERE user_id = ? AND document_id IN (SELECT value FROM json_each(?))",
+            (user_id, json.dumps(doc_ids)),
+        ).fetchall()
+    except sqlite3.OperationalError as e:
+        if "no such table" in str(e).lower():
+            return excerpts
+        raise
+    by_doc = {r["document_id"]: r for r in rows}
+    for excerpt in excerpts:
+        row = by_doc.get(excerpt.get("documentId"))
+        if row is not None:
+            excerpt["tweet"] = _tweet_fields(row)
+    return excerpts
+
+
 def create_excerpt(
     user_id: str, note_id: str, *,
     document_id: str, page_number: int, captured_text: str,
@@ -221,7 +275,7 @@ def get_excerpt(user_id: str, excerpt_id: str, conn: sqlite3.Connection | None =
             " WHERE e.id = ? AND e.user_id = ?",
             (excerpt_id, user_id),
         ).fetchone()
-        return _row_to_excerpt(row) if row else None
+        return _attach_tweets(conn, user_id, [_row_to_excerpt(row)])[0] if row else None
     finally:
         if owned:
             conn.close()
@@ -255,7 +309,7 @@ def list_note_excerpts(user_id: str, note_id: str, conn: sqlite3.Connection | No
             " ORDER BY r.position",
             (note_id, user_id),
         ).fetchall()
-        return [_row_to_excerpt(r) for r in rows]
+        return _attach_tweets(conn, user_id, [_row_to_excerpt(r) for r in rows])
     finally:
         if owned:
             conn.close()

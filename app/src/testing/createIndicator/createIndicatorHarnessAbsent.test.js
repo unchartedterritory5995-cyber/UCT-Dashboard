@@ -22,6 +22,13 @@ describe('the Create Indicator harness is dev-only', () => {
     expect(index).not.toContain('testing/drillFocus')
   })
 
+  it('the Scan Deck synthetic harness (2026-11-08) is dev-only the same way', () => {
+    expect(existsSync(resolve(appDir, 'scan-deck-harness.html'))).toBe(true)
+    const index = readFileSync(resolve(appDir, 'index.html'), 'utf8')
+    expect(index).not.toContain('scan-deck-harness')
+    expect(index).not.toContain('testing/scanDeck')
+  })
+
   it('vite.config.js declares NO rollupOptions.input, so only index.html is built', () => {
     const cfg = readFileSync(resolve(appDir, 'vite.config.js'), 'utf8')
     expect(cfg).not.toMatch(/rollupOptions\s*:\s*\{[^}]*input/s)

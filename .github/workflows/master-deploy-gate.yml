@@ -64,14 +64,21 @@ on:
 
 # One queue for the whole repository. Runs execute strictly one at a time and an
 # older run is never cancelled by a newer one.
+env:
+  AGENT_SHARDS: '4'
+  # the UCT Agent browser suite (agent-ci.yml AGENT_VITEST_PATHS, the same list): src/agent, the builder's agentMutations,
+  # and (DUP-RECEIPT 11-05, owner) the 8 page tests that drive the Agent outside src/agent
+  AGENT_VITEST_PATHS: src/agent src/components/chart/builder/agentMutations src/components/chart/builder/studio/agentRoute.test.jsx src/components/StockChart.timeRangeSync.test.jsx src/pages/breadth/breadthTabHookOrder.test.jsx src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx src/pages/charts/ChartsWorkspace.previousLayout.test.jsx src/pages/charts/ChartsWorkspace.thisChart.test.jsx src/pages/charts/widgets/ChartWidget.agent.test.jsx src/pages/charts/widgets/TradeExchangeNewsWidget.terminal.test.jsx
+
 concurrency:
   group: master-deploy
   cancel-in-progress: false
 
 jobs:
   gate:
+    name: deploy-correctness checks + Agent server tests
     runs-on: ubuntu-latest
-    timeout-minutes: 25   # 10 -> 15 (2026-10-06): + the production dependency smoke; 15 -> 25 (2026-10-11): + the UCT Agent tests (npm ci + vitest)
+    timeout-minutes: 60   # 40 -> 60 (2026-11-04, owner-approved): release train 2 ran the gate 35.2 of 40 min on 3d3d444d4f (Agent vitest 23.7 min, serial); 10 -> 15 (2026-10-06): + the production dependency smoke; 15 -> 25 (2026-10-11): + the UCT Agent tests (npm ci + vitest); 25 -> 40 (2026-11-02): Sprint 1 grew the Agent vitest step to 16.2 min and the gate ran 23.5 of 25 min on c3ba71c343
     steps:
       # Two commits so the secret scan has a range to look at; without this
       # `HEAD^` does not resolve and the scan silently has nothing to scan.
@@ -100,7 +107,7 @@ jobs:
       # right direction to fail — a new heavy dependency in the publish path is worth
       # stopping for — but it is a cost, not a free lunch.
       - name: Install the gate's dependencies
-        run: python -m pip install --quiet pytest httpx numpy pillow
+        run: python -m pip install --quiet pytest httpx numpy pillow pyyaml
 
       # ⛔⛔ COMPENSATING CONTROL — the DETECTIVE half of the protection `production`
       # does not have. Branch protection (G6) is the preventive half and is still
@@ -110,7 +117,7 @@ jobs:
       # left it? If somebody pushed to `production` directly, this refuses BEFORE any
       # scan runs and names the SHA and its author.
       #
-      # ⛔ THREE STATES, NOT TWO — the same reason the range scan below has six.
+      # ⛔ THREE STATES, NOT TWO — the same reason the range scan below names every state it can reach.
       # "The records disagree" and "there is no record yet" are different facts and
       # only one of them is a failure. A two-state version would either fail every run
       # before the first promotion or, far worse, read a permanently missing record as
@@ -216,44 +223,43 @@ jobs:
       # Seven pushes carried more than one commit; one carried **18**, another **13**.
       # A secret in commit 3 of an 18-commit push was reviewed by nothing.
       #
-      # ⭐ ADVISORY FIRST, AND IT HEARTBEATS. It prints a line on EVERY run — including
-      # "nothing to scan" and "clean" — because a check that speaks only when it finds
-      # something cannot be distinguished from a check that never ran, and this repository
-      # has now been bitten by that shape three times in one day (an empty warn log reading
-      # as zero false positives; a pause logged only on change; this).
+      # ⭐ IT HEARTBEATS. It prints a line on EVERY run — including "nothing to scan" and
+      # "clean" — because a check that speaks only when it finds something cannot be
+      # distinguished from a check that never ran, and this repository has now been bitten
+      # by that shape three times in one day (an empty warn log reading as zero false
+      # positives; a pause logged only on change; this).
       #
-      # Promotion to GATING (SD-1.1 A2.5): >= 20 runs showing `range-scan: EXECUTED` with
-      # zero findings on green tips, or the first true finding after review. Until then it
-      # must never fail the job — `|| true` on the scan, and the step is `continue-on-error`.
-      - name: Secret scan over the whole range (ADVISORY — never gates)
-        continue-on-error: true
+      # ⛔ GATING SINCE 2026-11-06 (SD-1.1 A2.5 criterion met: 37 of the last 40 master gate
+      # runs logged `EXECUTED` + `verdict=CLEAN`, 0 findings, 0 INCONCLUSIVE; the other 3 were
+      # cancelled before this step). WHY IT HAD TO GATE: `master-deploy` keeps ONE pending run,
+      # so a third push cancels the second's gate; the per-commit scan above then never sees
+      # that commit, yet the next green tip promotes its content. The base is `production` —
+      # the last promotion — so every commit about to reach production is in this diff.
+      # It FAILS on a finding AND on every state that did not prove the range clean (NO
+      # RANGE, INCONCLUSIVE, DIFF FAILED, SCANNER ERROR). NOTHING AHEAD and NOTHING-TO-SCAN
+      # pass, because the range resolved.
+      #
+      # ⚠️ IT COMPARES SNAPSHOTS. A secret added in one commit and deleted by a later one in
+      # the same range is not in `production..HEAD` and is not flagged here. Such a secret is
+      # already public; that case belongs to the pre-push hook and to rotation, not to this gate.
+      - name: Secret scan over the whole range (since production)
         run: |
           set +e
-          # ⛔⛔ THE CHECKOUT ABOVE IS `fetch-depth: 2`. Neither `origin/production` nor the
-          # push's `before` commit is present in that clone, so EVERY git command here
-          # would fail quietly and the step would report "nothing to scan" — meeting the
-          # 20-run promotion criterion having compared nothing. Fetch first, and treat an
-          # unreachable base as INCONCLUSIVE, never as clean.
-          git fetch --no-tags --quiet --depth=200 origin production 2>/dev/null
-          git fetch --no-tags --quiet --depth=200 origin master 2>/dev/null
+          # ⛔⛔ THE CHECKOUT ABOVE IS `fetch-depth: 2`, so `origin/production` is not in the
+          # clone until fetched. `git diff BASE HEAD` compares two snapshots and needs no
+          # shared history, so depth 200 is enough however far production lags.
+          git fetch --no-tags --quiet --depth=200 origin production master 2>&1 | sed 's/^/range-scan fetch: /'
 
-          BASE=""
-          if git rev-parse --verify --quiet refs/remotes/origin/production >/dev/null 2>&1; then
-            BASE=origin/production
-          else
-            # Pre-cutover fallback: the push's own range.
-            CAND="${{ github.event.before }}"
-            case "$CAND" in
-              ''|0000000*) echo "range-scan: NO RANGE (github.event.before is empty or a new ref) — nothing compared"; exit 0 ;;
-              *) BASE="$CAND" ;;
-            esac
+          # ⛔ production is the ONLY base. It has existed since the 2026-09-20 cutover. The
+          # old "the push's own range" fallback is gone: falling back to it is the gap itself.
+          if ! BASE_SHA=$(git rev-parse --verify --quiet refs/remotes/origin/production); then
+            echo "range-scan: NO RANGE — origin/production is not in this clone (fetch failed or the ref is gone). FAILING: nothing proved this push clean."
+            exit 1
           fi
-
-          # ⛔ THREE STATES, NOT TWO. "We could not compare" and "there was nothing to
-          # compare" are different facts, and only one of them counts toward promotion.
+          BASE=origin/production
           if ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
-            echo "range-scan: INCONCLUSIVE — base $BASE is not reachable in this clone (shallow fetch). NOT counted as clean."
-            exit 0
+            echo "range-scan: INCONCLUSIVE — base $BASE ($BASE_SHA) is not readable in this clone. FAILING: an unreadable range is not a clean one."
+            exit 1
           fi
           if git merge-base --is-ancestor HEAD "$BASE" 2>/dev/null; then
             echo "range-scan: NOTHING AHEAD — HEAD is already contained in $BASE"
@@ -262,21 +268,66 @@ jobs:
 
           echo "range-scan: base=$BASE head=$GITHUB_SHA"
           COMMITS=$(git rev-list --first-parent "$BASE..HEAD" 2>/dev/null | wc -l | tr -d ' ')
-          FILES=$(git diff --name-only --diff-filter=d "$BASE" HEAD 2>/dev/null | tr '\n' ' ')
-          if [ -z "$FILES" ]; then
+          # -z with quotePath off: paths with spaces or non-ASCII names reach the scanner intact.
+          # git diff's OWN exit status decides, never the emptiness of its output.
+          LIST=$(mktemp)
+          if ! git -c core.quotePath=false diff -z --name-only --diff-filter=d "$BASE" HEAD > "$LIST"; then
+            echo "range-scan: DIFF FAILED — git diff $BASE HEAD exited non-zero. FAILING: a range that could not be listed is not a clean one."
+            exit 1
+          fi
+          mapfile -d '' PATHS < "$LIST"
+          N=${#PATHS[@]}
+          if [ "$N" = "0" ]; then
             echo "range-scan: EXECUTED  commits=$COMMITS  files=0  verdict=NOTHING-TO-SCAN"
             exit 0
           fi
-          echo "range-scan: EXECUTED  commits=$COMMITS  files=$(echo $FILES | wc -w | tr -d ' ')"
-          python tools/secret_scrub.py --scan $FILES
-          RC=$?
-          if [ "$RC" = "0" ]; then
+          echo "range-scan: EXECUTED  commits=$COMMITS  files=$N"
+          # The scanner silently skips a path that does not exist, so prove they all do.
+          for P in "${PATHS[@]}"; do
+            if [ ! -e "$P" ] && [ ! -L "$P" ]; then
+              echo "range-scan: SCANNER ERROR — listed path is missing from the checkout: $P. FAILING: it would have been skipped, not scanned."
+              exit 1
+            fi
+          done
+          # Chunks keep every call under the kernel's argument limit. The scanner exits 1 on a
+          # finding AND on a crash, so its summary line decides: it must report exactly the
+          # paths it was given, and only a non-zero finding count is a FINDING.
+          FOUND=0
+          for ((i = 0; i < N; i += 400)); do
+            CHUNK=("${PATHS[@]:i:400}")
+            OUT=$(python tools/secret_scrub.py --scan "${CHUNK[@]}" 2>&1); RC=$?
+            printf '%s\n' "$OUT" | grep -E '^LEAK ' || true
+            SUMMARY=$(printf '%s\n' "$OUT" | grep -E '^scanned [0-9]+ path\(s\).* [0-9]+ finding\(s\)$' | tail -1)
+            SCANNED=$(printf '%s' "$SUMMARY" | sed -E 's/^scanned ([0-9]+) path.*/\1/')
+            HITS=$(printf '%s' "$SUMMARY" | sed -E 's/.* ([0-9]+) finding\(s\)$/\1/')
+            if [ -z "$SUMMARY" ] || [ "$SCANNED" != "${#CHUNK[@]}" ] \
+               || { [ "$RC" = 0 ] && [ "$HITS" != 0 ]; } || { [ "$RC" = 1 ] && [ "$HITS" = 0 ]; } \
+               || { [ "$RC" != 0 ] && [ "$RC" != 1 ]; }; then
+              echo "range-scan: SCANNER ERROR — rc=$RC paths=${#CHUNK[@]} summary='$SUMMARY'. FAILING: the scan did not provably run."
+              printf '%s\n' "$OUT" | tail -5
+              exit 1
+            fi
+            [ "$RC" = 1 ] && FOUND=1
+          done
+          if [ "$FOUND" = 0 ]; then
             echo "range-scan: verdict=CLEAN"
-          else
-            echo "::warning title=range-scan finding::The whole-range secret scan reported something the per-commit scan did not. ADVISORY — this did not fail the gate. Review before promoting it to gating."
-            echo "range-scan: verdict=FINDING rc=$RC"
+            exit 0
           fi
-          exit 0
+          echo "::error title=range-scan finding::The whole-range secret scan (production..HEAD) found something. Nothing is promoted. A pushed secret is public even if deleted: rotate it, then remove it from master. Every later push stays red until master is clean."
+          echo "range-scan: verdict=FINDING"
+          exit 1
+
+      # CI COST (2026-11-06, owner): the trigger shapes that keep the Actions bill from creeping back
+      # (agent-ci push paths, PR-run cancellation, the pinned unfiltered sets). ~2 s, stdlib + PyYAML.
+      # + the promotion catch-up's decision (2026-11-10): the 8 cases, each with the never-master's-tip control,
+      # and the promote workflow's wiring. Same step, same runner, pure functions (~1 s).
+      - name: CI cost rails
+        run: python -m pytest tests/test_ci_cost_rails.py tests/test_promote_decision.py -q -p no:cacheprovider
+
+      # RAILWAY COST (2026-11-06): the memory observer's per-file page-cache probe (mincore, /proc) only runs
+      # on Linux, so its tests skip on dev PCs; this is where they actually run. Stdlib only, ~1 s.
+      - name: Memory observer file-cache probe (Linux)
+        run: python -m pytest tests/test_mem_observe.py -k "file_cache or with_files" -q -p no:cacheprovider -rs
 
       # ⛔ Two top-level definitions of one name: Python keeps the last, and every
       # call site written against the first is silently running the other. Master
@@ -297,6 +348,12 @@ jobs:
       # its subject must not be able to report "clean".
       - name: Visibility flags are declared (offline)
         run: python -m pytest tests/test_visibility_flag_ledger.py -q
+
+      # The server reads the saved-script engine number from the browser's
+      # scriptEngineVersion.js. A bump written in a shape it cannot parse reads as None:
+      # every recorded refusal then binds on the server while the chart moves on.
+      - name: The saved-script engine number parses (offline)
+        run: python -m pytest tests/test_script_engine_version_gate.py -q
 
       - name: Line endings match the stored blobs
         run: python tools/check_repo_hygiene.py
@@ -351,6 +408,51 @@ jobs:
           /tmp/prodvenv/bin/python -m pip install --quiet pytest httpx
           /tmp/prodvenv/bin/python -m pytest tests/test_uct_agent*.py -q -p no:cacheprovider
 
+
+      - name: Explain a failure
+        if: failure()
+        run: |
+          echo "::error::The master deploy gate failed — Railway has ALREADY built this commit; production will not be promoted."
+          echo ""
+          echo "⛔ READ THAT AGAIN: a red gate does NOT stop the deploy today."
+          echo "Railway's Wait-for-CI is OFF (checkSuites=False on all six services),"
+          echo "so the build started when you pushed. What this failure prevents is the"
+          echo "promotion of \`production\`. Until the watched branch is repointed at"
+          echo "\`production\`, the code IS live and a revert is a push, not a re-run."
+          echo ""
+          echo "This gate is FAST and serialised: it holds the promotion queue, so fix"
+          echo "forward rather than pushing again on top of a red run."
+          echo ""
+          echo "Run the same checks locally:"
+          echo "  python tools/secret_scrub.py --scan $(git diff --name-only --diff-filter=d HEAD^ HEAD)"
+          echo "  git -c core.quotePath=false diff -z --name-only --diff-filter=d origin/production HEAD | xargs -0 python tools/secret_scrub.py --scan   # the range scan"
+          echo "  python -m pytest tests/test_no_shadowed_definitions.py -q"
+          echo "  python -m pytest tests/test_dockerfile_vite_build_args.py tests/test_vite_flag_ledger.py -q"
+          echo "  python -m pytest tests/test_visibility_flag_ledger.py -q"
+          echo "  python tools/check_repo_hygiene.py"
+          echo "  python -m pytest tests/test_discord_render_goldens.py tests/test_discord_render_ops.py -q"
+          echo "  python -m venv /tmp/prodvenv && /tmp/prodvenv/bin/pip install -r requirements.txt && /tmp/prodvenv/bin/python -I tools/prod_dependency_smoke.py"
+          echo "  python -m pytest tests/test_uct_agent*.py -q"
+          echo "  (cd app && npm ci && npx vitest run $AGENT_VITEST_PATHS)  # CI runs this as 4 shards + an equivalence rail"
+
+  # ── SPEEDUP (2026-11-04): the Agent browser suite was 22.3 of the gate's ~31 min, run
+  # serially AFTER the Python checks. It now runs as 4 parallel vitest shards beside the
+  # `gate` job, exactly as agent-ci.yml already does, and `agent-browser-union` proves the
+  # shards together executed EVERY file `vitest list` reports (the equivalence rail) with
+  # zero failures and >= 30 files. Nothing is skipped, deselected or made optional.
+  # ⛔ The workflow conclusion (what promote-production.yml / tools/promotion_gate.py read)
+  # is failure if ANY job fails; `verdict` additionally names the result in one place.
+  agent-browser:
+    name: UCT Agent browser tests (shard ${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -369,7 +471,174 @@ jobs:
             echo "::error::Only $n UCT Agent test files under app/src/agent (floor 30) — refusing to pass a gate that tests nothing."
             exit 1
           fi
-          npx vitest run src/agent src/components/chart/builder/agentMutations
+          start=$(date +%s)
+          npx vitest run $AGENT_VITEST_PATHS             --shard=${{ matrix.shard }}/${AGENT_SHARDS}             --reporter=default --reporter=json --outputFile=../shard-${{ matrix.shard }}.json
+          echo "shard ${{ matrix.shard }} wall: $(( $(date +%s) - start )) s"
+
+      - name: Keep the shard report for the equivalence rail
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-agent-shard-${{ matrix.shard }}
+          path: shard-${{ matrix.shard }}.json
+          if-no-files-found: error
+
+  agent-browser-union:
+    name: Agent shards cover every Agent test file (equivalence rail)
+    needs: agent-browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: npm ci (for vitest list)
+        working-directory: app
+        run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: gate-agent-shard-*
+          path: shards
+          merge-multiple: true
+      - name: Expected file list
+        working-directory: app
+        run: npx vitest list $AGENT_VITEST_PATHS --filesOnly > ../expected-files.txt && wc -l ../expected-files.txt
+      - name: Union of executed files equals the expected list; exactly 4 shard reports; floor 30; no failures
+        run: |
+          node - <<'EOF2'
+          const fs = require('fs'), path = require('path');
+          const norm = p => path.resolve(p).replace(/\\/g, '/').replace(/^.*?\/app\//, 'app/');
+          const expected = new Set(fs.readFileSync('expected-files.txt', 'utf8').split(/\r?\n/).filter(Boolean).map(f => norm(path.join('app', f))));
+          const reports = fs.readdirSync('shards').filter(f => f.endsWith('.json'));
+          if (reports.length !== Number(process.env.AGENT_SHARDS)) { console.log(`::error::expected ${process.env.AGENT_SHARDS} shard reports, got ${reports.length}`); process.exit(1); }
+          const ran = new Set(); let failed = 0, passed = 0, files = 0;
+          for (const f of reports) {
+            const r = JSON.parse(fs.readFileSync(path.join('shards', f), 'utf8'));
+            for (const t of r.testResults) { files++; ran.add(norm(t.name)); }
+            failed += (r.numFailedTests || 0) + (r.numFailedTestSuites || 0); passed += r.numPassedTests || 0;
+          }
+          const missing = [...expected].filter(f => !ran.has(f));
+          const extra = [...ran].filter(f => !expected.has(f));
+          console.log(`expected ${expected.size} files; shards ran ${ran.size} distinct (${files} total); passed ${passed}, failed ${failed}`);
+          if (missing.length) { console.log('::error::files no shard ran:\n' + missing.join('\n')); }
+          if (extra.length) { console.log('::warning::files ran but not in the expected list:\n' + extra.join('\n')); }
+          if (expected.size < 30 || ran.size < 30) { console.log('::error::fewer than 30 Agent test files'); process.exit(1); }
+          if (missing.length || failed > 0) process.exit(1);
+          EOF2
+
+  # ── PINE RUNTIME SERVICE (W5-T19, 2026-11-04) ──────────────────────────────────
+  # docs/pine/SERVER-RUNTIME-DESIGN.md section 8, steps 1-7, as its OWN job beside `gate`
+  # (own checkout, Python, Node and `npm ci`, as the agent-browser shards have), and named in
+  # `verdict.needs`. Every step is offline and cheap. Runbook: docs/runbooks/pine-runtime-service.md.
+  # ⛔ NEVER SKIPPED: no conditional, no optional-failure flag, no path filter. A step that cannot
+  # find its subject FAILS (node and pytest both exit non-zero on a missing file).
+  # tests/test_pine_runtime_deploy_gate.py rails all of this: the steps, their order, that the Node
+  # here is the image's Node, that the job is in verdict.needs, and that every
+  # tests/test_pine_runtime_*.py is named by a step.
+  # NOT here, on purpose: the Chromium half of host parity (HP-2/HP-3) and the C18 diff count run
+  # before merge under the coordinator's lock (too heavy for a gate); the post-deploy smoke needs
+  # the live service. The image is not built here: section 8 does not ask for it.
+  pine-runtime:
+    name: Pine runtime service rails (section 8)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install the app's dependencies (for the Pine runtime bundle)
+        working-directory: app
+        run: npm ci
+
+      # The production dependency set, as `gate` builds it: the client and codec rails import the
+      # app's own modules, so they run on what production runs.
+      - name: Pine runtime - the production dependency set
+        run: |
+          python -m venv /tmp/prodvenv
+          /tmp/prodvenv/bin/python -m pip install --quiet --upgrade pip
+          /tmp/prodvenv/bin/python -m pip install --quiet -r requirements.txt
+          /tmp/prodvenv/bin/python -m pip install --quiet pytest httpx
+
+      # The Node on this runner must be the image's Node, READ from the image, not retyped: the
+      # setup-node pin above is a major number, so this step compares it with the FROM line of
+      # services/pine_runtime/Dockerfile (a separate rail pins that line to Dockerfile.web's).
+      - name: Pine runtime - this runner's Node is the image's Node
+        run: |
+          want=$(sed -n 's/^FROM node:\([0-9][0-9]*\)\..*/\1/p' services/pine_runtime/Dockerfile | head -n 1)
+          have=$(node -p 'process.versions.node.split(".")[0]')
+          echo "image Node major: ${want:-none}; runner Node: $(node -v) (V8 $(node -p 'process.versions.v8'))"
+          test -n "$want" && test "$want" = "$have"
+
+      # 1. The server bundle builds, and imports under bare Node.
+      - name: Pine runtime - the server bundle builds and imports under bare Node
+        working-directory: app
+        run: |
+          node scripts/build-pine-runtime.mjs
+          node -e "import('./dist-server/pine-runtime.mjs').then(() => console.log('bundle imports'))"
+
+      # 2. Host parity, Node half: HP-1 (committed digests) + HP-4 (the perturbed bundle must go
+      # red) + HP-5. A digest change without an engine bump is red. ⚠️ This runner's V8 (Node 20 =
+      # V8 11.3) is NOT the V8 the digests were recorded on (13.6): on a different V8 the tool
+      # reports exactly the two NAMED trig cases in corpus.json `reportOnly` (V8 sin/cos 1 ulp)
+      # and gates the other 164. On the recording V8 all 166 are gated. Exit 2 (inconclusive) fails.
+      - name: Pine runtime - host parity, Node half (HP-1, HP-4 control, HP-5)
+        run: |
+          node tools/pine_runtime_host_parity.mjs --host node --check
+          node tools/pine_runtime_host_parity.mjs --host node --mutation-control
+
+      # 3. Engine identity agrees (HP-6) and the adapters agree (HP-7).
+      - name: Pine runtime - engine identity and adapters agree (HP-6, HP-7)
+        run: /tmp/prodvenv/bin/python -m pytest tests/test_pine_runtime_engine_identity.py -q -p no:cacheprovider
+
+      # 4. Closure stays host-neutral (W5-T2's tools/pine_runtime_closure.mjs; exits 1 on any finding).
+      # ⚠️ The tool arrives with W5-T2: this step is red on any tree without it, so T2 MUST merge before
+      # (or with) this workflow. That is deliberate: a step that skipped a missing tool would be a rail that
+      # reads green while checking nothing.
+      - name: Pine runtime - the closure stays host-neutral
+        run: node tools/pine_runtime_closure.mjs --check
+
+      # 5. Service unit rails: protocol, auth, sandbox, pool, hostile corpus (and caches, canary,
+      # metrics when they land: the glob takes every *.test.mjs).
+      - name: Pine runtime - service unit rails
+        run: node --test services/pine_runtime/test/*.test.mjs
+
+      # 6. The client, the codec, the stamps, the stop telemetry and the composition matrix (W5-T17:
+      # merge order T17 before T19), and this gate's own rail.
+      - name: Pine runtime - client, codec and composition rails
+        run: |
+          /tmp/prodvenv/bin/python -m pytest tests/test_pine_runtime_client.py tests/test_pine_runtime_codec.py tests/test_pine_runtime_composition.py tests/test_pine_runtime_deploy_gate.py tests/test_pine_runtime_result_integrity.py tests/test_pine_runtime_service_smoke.py tests/test_pine_runtime_shared_stamp.py tests/test_pine_runtime_stop_telemetry.py tests/test_pine_runtime_switch_on.py -q -p no:cacheprovider
+
+      # 7. Dockerfile agreement: the image's Node pin and VITE_* set equal Dockerfile.web's.
+      - name: Pine runtime - the image agrees with Dockerfile.web
+        run: /tmp/prodvenv/bin/python -m pytest tests/test_pine_runtime_dockerfile.py -q -p no:cacheprovider
+
+  # One named verdict for the whole gate. Runs even when a dependency failed or was
+  # cancelled, and passes ONLY if every job above succeeded.
+  verdict:
+    name: master deploy gate verdict
+    needs: [gate, agent-browser, agent-browser-union, pine-runtime]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every gate job succeeded
+        run: |
+          echo "gate=${{ needs.gate.result }} agent-browser=${{ needs.agent-browser.result }} union=${{ needs.agent-browser-union.result }} pine-runtime=${{ needs.pine-runtime.result }}"
+          if [ "${{ needs.gate.result }}" = success ] && [ "${{ needs.agent-browser.result }}" = success ] && [ "${{ needs.agent-browser-union.result }}" = success ] && [ "${{ needs.pine-runtime.result }}" = success ]; then
+            echo "master deploy gate: ALL JOBS GREEN"; exit 0
+          fi
+          exit 1
 
       - name: Explain a failure
         if: failure()
@@ -387,6 +656,7 @@ jobs:
           echo ""
           echo "Run the same checks locally:"
           echo "  python tools/secret_scrub.py --scan $(git diff --name-only --diff-filter=d HEAD^ HEAD)"
+          echo "  git -c core.quotePath=false diff -z --name-only --diff-filter=d origin/production HEAD | xargs -0 python tools/secret_scrub.py --scan   # the range scan"
           echo "  python -m pytest tests/test_no_shadowed_definitions.py -q"
           echo "  python -m pytest tests/test_dockerfile_vite_build_args.py tests/test_vite_flag_ledger.py -q"
           echo "  python -m pytest tests/test_visibility_flag_ledger.py -q"
@@ -394,4 +664,4 @@ jobs:
           echo "  python -m pytest tests/test_discord_render_goldens.py tests/test_discord_render_ops.py -q"
           echo "  python -m venv /tmp/prodvenv && /tmp/prodvenv/bin/pip install -r requirements.txt && /tmp/prodvenv/bin/python -I tools/prod_dependency_smoke.py"
           echo "  python -m pytest tests/test_uct_agent*.py -q"
-          echo "  (cd app && npm ci && npx vitest run src/agent src/components/chart/builder/agentMutations)"
+          echo "  (cd app && npm ci && npx vitest run $AGENT_VITEST_PATHS)  # CI runs this as 4 shards + an equivalence rail"

@@ -7,6 +7,7 @@ import CompassOrb from '../../../components/voice/CompassOrb'
 import VoiceInputButton from '../../journal-2-0/components/VoiceInputButton'
 import ShareToFloor from '../../../components/community/ShareToFloor'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useWidgetDoor } from '../widgetDoors'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import UIcon from '../../../components/ui/UIcon'
@@ -599,6 +600,9 @@ export default function AiSearchWidget({
   // is a remount). Read ONCE at mount: the restored turns are the widget's own
   // output in the widget's own shape, never re-derived by the caller.
   const [thread, setThread] = useState(() => (Array.isArray(initialThread) ? initialThread : []))
+  const buildAiSearchCapture = () => ({ thread: thread.slice(-10), settings: aisSettings })
+  const label = thread[thread.length - 1]?.q ? `"${String(thread[thread.length - 1].q).slice(0, 32)}"` : 'AI answer'
+  useWidgetDoor(() => ({ capture: () => (chrome && !readOnly && thread.length > 0 ? { kind: 'aisearch', capture: buildAiSearchCapture(), label } : null) }))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [limitMsg, setLimitMsg] = useState(null)
@@ -1075,8 +1079,6 @@ export default function AiSearchWidget({
         />
       )}
       {chrome && !readOnly && thread.length > 0 && (() => {
-        const buildAiSearchCapture = () => ({ thread: thread.slice(-10), settings: aisSettings })
-        const label = thread[thread.length - 1]?.q ? `"${String(thread[thread.length - 1].q).slice(0, 32)}"` : 'AI answer'
         return (
           <>
             <button
@@ -1119,7 +1121,7 @@ export default function AiSearchWidget({
           type="button"
           className={styles.gearBtn}
           onClick={() => setSettingsOpen(o => !o)}
-          title="AI Search settings"
+          data-guide="widget.settings" title="AI Search settings"
           aria-label="AI Search settings"
         ><UIcon name="gear" size={13} /></button>
       )}
@@ -1251,6 +1253,7 @@ export default function AiSearchWidget({
             ? 'Ask a follow-up…'
             : (scopeSym ? `Ask anything about ${scopeSym}…` : 'Ask anything about the markets…')}
           aria-label={scopeSym ? `Ask anything about ${scopeSym}` : 'Ask anything about the markets'}
+          data-guide="aisearch.ask"
           value={query}
           rows={1}
           onChange={(e) => setQuery(e.target.value)}

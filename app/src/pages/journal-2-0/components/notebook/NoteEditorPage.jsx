@@ -13,8 +13,6 @@ import { createMemoDocJSON } from '../../lib/memoDocJSON'
 import { createMemoStringify, stringifyDraftPayload } from '../../lib/memoStringifyBody'
 import { nodeActiveAtCursor, canBlockquoteFast } from '../../lib/fastToolbarProbes'
 import Toast from '../Toast'
-import DocumentPreviewSheet from './DocumentPreviewSheet'
-import CapturedSourceSheet from './CapturedSourceSheet'
 import { targetFromParams, applyTargetToParams, citationTarget,
          reviewTargetFromParams } from '../../lib/searchNavigation'
 import { openExcerptCitation, openDocumentCitation, openDocumentPage, SOURCE_NOWHERE,
@@ -22,7 +20,7 @@ import { openExcerptCitation, openDocumentCitation, openDocumentPage, SOURCE_NOW
          passageFromNavigationState } from '../../lib/openCitation'
 import { SOURCE_WEB } from '../../lib/searchResultLabel'
 import useNoteDocuments from '../../hooks/useNoteDocuments'
-import DocumentTextStatus from './DocumentTextStatus'
+import DocumentTextStatus, { isImageDocument } from './DocumentTextStatus'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
 import useNoteFacts from '../../hooks/useNoteFacts'
 import useThesisSummary from '../../hooks/useThesisSummary'
@@ -39,6 +37,8 @@ import { useDeskVideoByYoutube } from '../../../../hooks/useDeskVideoByYoutube'
 import { useVideoInsights } from '../../../../hooks/useVideoInsights'
 import linkifyTimestamps from '../../lib/linkifyTimestamps'
 import UIcon from '../../../../components/ui/UIcon'
+import { TOOLBAR_ICON } from '../../lib/notebookIcons'
+import { openJournalTools, registerJournalToolsDoor } from '../../lib/journalToolsDoor'
 import ContextPopover from '../../../../components/mobile/ContextPopover'
 import { SkipLinkPortal } from '../../../../components/skipLinks'
 import usePreferences from '../../../../hooks/usePreferences'
@@ -48,7 +48,8 @@ import {
   recordLandedRevision, settleOwnerFork, SESSION_ID, newEditLineage, nextEditSeq, connectNotebookDb,
 } from '../../lib/offline/useDurableNote'
 import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
-import { blockedLabel, unsyncedLabel, OFFLINE_VIEWING_BANNER } from '../../lib/offline/unsyncedCopy'
+import { blockedLabel, unsyncedLabel, saveIndicatorWords } from '../../lib/offline/unsyncedCopy'
+import { takeImageForNote } from '../../lib/pendingImageInsert'
 import { usableBaseline, isUsableBaseline, isSupersededBaseline } from '../../lib/offline/baseline'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 import { baseHasNoBody, sameAuthoredContent } from '../../lib/offline/recoverLocalState'
@@ -81,6 +82,7 @@ import { closeHistory, isHistoryTransaction } from '@tiptap/pm/history'
 import { taskIndexFromParams, findTaskItemPos } from '../../lib/noteTasks'
 import { NOTEBOOK_EVENTS, startNoteOpenTimer, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import { noteIsLocked, setNoteLock } from '../../lib/lockedNote'
+import SourceRemovedNotice, { noteIsSourceRemoved } from './SourceRemovedNotice'
 import NoteTagsField from './NoteTagsField'
 import useJ2NoteTags from '../../hooks/useJ2NoteTags'
 import { fallbackNodes } from '../../lib/tagTree'
@@ -92,10 +94,14 @@ import { forkConflictedCopy } from '../../lib/offline/useOutboxDrain'
 import { conflictedCopyTitle } from '../../lib/offline/noteCopy'
 import { holdsUnsentWork } from '../../lib/noteBatch'
 import { textColorClass } from '../../lib/textColor'
-import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
 import PropertiesSection from './PropertiesSection'
-import ThesisSection, { isThesisShaped } from './ThesisSection'
+import ThesisSection, { THESIS_KIND, isThesisShaped } from './ThesisSection'
+import { NOTE_KIND_PROPERTY } from '../../lib/noteKinds'
+import TickerSuggestion from './TickerSuggestion'
+import { noteDocumentTitle } from '../../../../surfaces/pageTitle.js'
+import { invalidateNoteViews } from '../../lib/offline/invalidateNoteViews'
+import { firstFieldPos } from '../../lib/firstFieldPos'
 import NoteDetailsLine, {
   readNoteDetailsOpen, writeNoteDetailsOpen, registeredTourRunning,
 } from './NoteDetailsLine'
@@ -110,7 +116,8 @@ import { refreshEvidenceCandidates } from '../../hooks/useEvidenceCandidates'
 import { invalidateNoteLinkTarget } from '../../lib/noteLinkTargetsBatch'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import {
-  noteContentGuardOptions, replaceDocument, undoCrossesSwap, HistoryCompleteWatch, isUnreadable, useUnreadableNote,
+  noteContentGuardOptions, replaceDocument, undoCrossesSwap, HistoryCompleteWatch, NoImplicitAtomSelection,
+  isUnreadable, useUnreadableNote,
 } from '../../lib/noteContentGuard'
 import {
   OWN_READ, bodyWrittenSchema, isSchemaRefusal, writtenSchemaOf,
@@ -138,12 +145,15 @@ import { loadStyle } from './styles/lazyStyles'
 import { createTradeCanvasNote, tradeCanvasEnabled } from '../../lib/tradeCanvasCreate'
 import useNoteLinkTarget from '../../hooks/useNoteLinkTarget'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
+import { useNoteNavigation } from '../../lib/splitView'
 import { TranscriptInsertHost } from './TranscriptDoors'
+import { TWEET_EVENT, tweetImportEnabled } from '../../lib/tweetImport'
 import { normalizeNoteTicker } from '../../lib/noteTicker'
 import { noteDayOf } from '../../lib/blocks/toolDays'
 import { smartChipsEnabled } from '../../lib/smartChipsFlag'
 import { widgetsWaveOn } from '../../lib/notebookWidgetsFlags'
 import TickerCardSlot from './widgets/TickerCardSlot'
+import NotebookTipSlot from './NotebookTipSlot'
 // Item 10: NOTHING of the screenshot chip is eager (I5). The poll and its network code (lib/screenshotRead, which
 // also computes the alt and carries it on the offer) and the accept decision (lib/screenshotTag) are dynamic
 // imports below, and the chip itself is lazy.
@@ -174,6 +184,9 @@ const VoiceInputButton = lazyChunk(() => import('../VoiceInputButton'))
 // Wave 7 lane H2 — the writing-help preview. LAZY for the same reason: it is
 // fetched the first time a member opens it, never on note open.
 const WritingHelpPanel = lazyChunk(() => import('./WritingHelpPanel'))
+// Import a tweet's sheet host. LAZY, and mounted only while its flag is on, so a member without
+// the flag never fetches it (`docs/notebook/perf-budgets.json`).
+const TweetInsertHost = lazyChunk(() => import('./TweetDoors'))
 // Wave 11 lane 11A: the voice-note dialog loads on first use, like writing help.
 const VoiceNoteDialog = lazyChunk(() => import('./VoiceNoteDialog'))
 // Wave 11 lane 11D — the trade-plan canvas board. LAZY: only a canvas note
@@ -182,6 +195,9 @@ const TradeCanvasBoard = lazyChunk(() => import('./TradeCanvasBoard'))
 // Wave 13 lane 13D — "what you wrote then": a resurfacing insight opens the note with
 // `?resurfaceVersion=<id>`. LAZY: only that door ever renders it.
 const ResurfaceVersionSheet = lazyChunk(() => import('./ResurfaceVersionSheet'))
+// Tier 1a bytes (perf-budgets.md): version history (and the AI change-set history and aiActions it pulls in) is fetched
+// on its FIRST open from More, then stays mounted so its own close and focus return run exactly as before.
+const NoteHistoryPanel = lazyChunk(() => import('./NoteHistoryPanel'))
 // Notebook P2 Tier 2 part A, item 8: the "Set alert" chip for a sentence like "alert me if NVDA closes below
 // 120". LAZY, and mounted only while the smart-chips switch is on (an off switch never fetches it). Its mount
 // is also what switches the alert plugin on (lib/alertPhraseOffer.js: HOSTED ONLY).
@@ -218,6 +234,21 @@ function HelpfulPromptDoor({ noteId, onDone }) {
 const loadWidgetPalette = () => import('./WidgetPalette')
 const WidgetPalette = lazyChunk(loadWidgetPalette)
 const warmWidgetPalette = () => whenIdle(() => { loadWidgetPalette().catch(() => {}) })
+// Notebook first-open bytes (perf-budgets.md, 2026-11-10): the document preview (with its image and page-text
+// viewers and the PDF boundary) and the captured-passage sheet are drawn only after a press, so each is its own
+// chunk, off the first open. Each mounts on its first open and then stays mounted (the Tier 1a history idiom: a
+// closed Sheet renders nothing either way), and the editor warms both once idle, like the widget palette, so a
+// press opens without a wait and still opens offline once the warm has landed.
+export const sourceSheetLoaders = {
+  documentPreview: () => import('./DocumentPreviewSheet'),
+  capturedSource: () => import('./CapturedSourceSheet'),
+}
+const DocumentPreviewSheet = lazyChunk(() => sourceSheetLoaders.documentPreview())
+const CapturedSourceSheet = lazyChunk(() => sourceSheetLoaders.capturedSource())
+const warmSourceSheets = () => whenIdle(() => {
+  sourceSheetLoaders.documentPreview().catch(() => {})
+  sourceSheetLoaders.capturedSource().catch(() => {})
+})
 // The canvas's link-from-a-thesis offer, shown on the note the member picked:
 // "Add a link to <plan> at the end of this note?" -- nothing is written until
 // the member presses Add (an editor transaction on THIS note's own autosave).
@@ -829,6 +860,30 @@ export function NoteLinkedTradeChips({ noteId }) {
  * (`lesson: a control that can be dismissed [here: refused] needs the member
  * to know it, not just a developer reading the registry`).
  */
+/** Final polish (WebKit at 390 px): an open note offers "Journal tools" in its ⋯ (phone items), so the phone Journal
+ *  header may fold away on a note address (lib/journalToolsDoor.js). Registered in a LAYOUT effect, before paint, by
+ *  the loading skeleton and the note page; the missing-note and failure pages have no ⋯ and do not register. */
+function JournalToolsDoorMark() {
+  useLayoutEffect(() => registerJournalToolsDoor(), [])
+  return null
+}
+
+/** Final polish: a textarea as tall as its text (the title wraps instead of clipping). Re-measured when the value
+ *  changes and when the window resizes (a narrower column wraps more). */
+export function useAutoGrow(ref, value) {
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el || el.tagName !== 'TEXTAREA') return undefined
+    const fit = () => { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px` }
+    fit()
+    window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
+  }, [ref, value])
+}
+
+/** The note body's accessible shape: a named, multi-line text field (fix round 2). */
+export const NOTE_BODY_ARIA = Object.freeze({ role: 'textbox', 'aria-multiline': 'true', 'aria-label': 'Note body' })
+
 function ToolButton({ active, onClick, label, title, disabled }) {
   const ranOnPressRef = useRef(false)
   return (
@@ -889,6 +944,9 @@ export default function NoteEditorPage({
   // title, no template -- the next act is writing), null for an open aimed
   // inside the note (a task, a page, an excerpt), which places focus itself.
   openFocus = null, onOpenFocused = null,
+  // Audit 2026-11-05, S5 (B11): the MAIN pane's editor names the browser tab after its note; the
+  // side pane of a split view does not (one tab, one title). NotebookTab passes it.
+  ownsDocumentTitle = false,
 }) {
   const { note, isLoading, error: loadError, update, refresh, patchTags } = useJ2Note(noteId)
   // Diagnostic only -- never surfaced to the member (see the !note render
@@ -1042,6 +1100,11 @@ export default function NoteEditorPage({
   const [findWithReplace, setFindWithReplace] = useState(false)
   // The visible Find door (the header button, and on a phone the More panel's item).
   const openFind = () => setFindOpen(true)
+  // S10 (M4): the save indicator is mounted empty, then filled (a live region that arrives holding words is often
+  // not read). Finish review 1: keyed on WHERE the region lives (`indicatorHome`, below), not on this component's
+  // first mount -- the region first mounts when the note ARRIVES (the loading skeleton has none), and again when a
+  // phone crosses 640 px, and each of those inserts must be empty. Rail: NoteEditorPage.phoneHeaderRow.test.jsx.
+  const [indicatorOnFor, setIndicatorOnFor] = useState(null)
   // The More panel's "Move to folder" select on a phone (its label's target).
   const moveFolderId = useId()
   const onPageKeyDown = (e) => {
@@ -1101,6 +1164,34 @@ export default function NoteEditorPage({
   const detailsRegionId = useId()
   const subtitleId = useId()
   const [subtitleFocused, setSubtitleFocused] = useState(false)
+  const subtitleInputRef = useRef(null)
+  // Audit 2026-11-05, spec S10 (M4, detail #21): the title keys Notion users expect. Enter moves the caret to the start
+  // of the body; Shift+Enter to the subtitle (shown for the visit, like focusing it does). An input never takes a
+  // newline, so nothing is typed into the title either way. ⛔ Never while an IME is composing (Enter commits it).
+  const focusBodyStart = () => {
+    const ed = editorRef.current
+    if (ed && !ed.isDestroyed) ed.commands.focus('start')
+  }
+  // Fix round 1 (review finding 6): Safari sends the Enter that COMMITS an IME conversion with isComposing false and
+  // keyCode 229; that Enter belongs to the IME, never to this handler.
+  const imeEnter = (e) => Boolean(e.nativeEvent?.isComposing) || e.keyCode === 229 || e.nativeEvent?.keyCode === 229
+  const onTitleKeyDown = (e) => {
+    if (e.key !== 'Enter' || imeEnter(e) || e.altKey || e.ctrlKey || e.metaKey) return
+    e.preventDefault()
+    if (e.shiftKey) {
+      setSubtitleFocused(true)
+      // Unhidden on this render; focused once it is in the layout.
+      requestAnimationFrame(() => subtitleInputRef.current?.focus())
+      return
+    }
+    focusBodyStart()
+  }
+  // Enter in the subtitle goes on to the body as well.
+  const onSubtitleKeyDown = (e) => {
+    if (e.key !== 'Enter' || imeEnter(e) || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return
+    e.preventDefault()
+    focusBodyStart()
+  }
   const onToggleFavorite = async () => {
     if (favoriteBusy) return
     const next = !isFavorite
@@ -1121,6 +1212,9 @@ export default function NoteEditorPage({
 
   // Wave C: version history / trust panel.
   const [historyOpen, setHistoryOpen] = useState(false)
+  // Tier 1a bytes: the history chunk mounts on the first open and stays (a closed Sheet renders nothing either way).
+  const [historyEverOpen, setHistoryEverOpen] = useState(false)
+  if (historyOpen && !historyEverOpen) setHistoryEverOpen(true)
   // Notebook P1: how many times /style was pressed in THIS editor. The style host is fetched on demand: a styled
   // note (the banner check) or the first /style; it answers the count itself once it is there.
   const [styleAsk, setStyleAsk] = useState(false)   // false, then the number of presses
@@ -1189,6 +1283,7 @@ export default function NoteEditorPage({
   // Widget palette (point-and-click inserts) — toggled from the toolbar row.
   const [paletteOpen, setPaletteOpen] = useState(false)
   useEffect(warmWidgetPalette, [])
+  useEffect(warmSourceSheets, [])
   // Wave 5: the text colour + highlight picker, toggled from the toolbar row.
   const [colorOpen, setColorOpen] = useState(false)
   const colorToggleRef = useRef(null)
@@ -1201,7 +1296,9 @@ export default function NoteEditorPage({
   // header button is not displayed on a phone). Both doors call `toggleOutline`.
   const outlineOpenerRef = useRef(null)
   const toggleOutline = (opener) => {
+    // S10: the header's Outline button moved into More; the More door (always on screen) is the fallback.
     outlineOpenerRef.current = opener || outlineToggleRef.current
+      || pageRef.current?.querySelector('[data-note-header] [data-more-trigger]') || null
     setPaletteOpen(false)
     setOutlineOpen((o) => !o)
   }
@@ -1246,7 +1343,7 @@ export default function NoteEditorPage({
   const openFocusDoneRef = useRef(false)
   const askRowRef = useRef(null)
   useEffect(() => {
-    if (!openFocus || openFocus === 'body' || openFocus === 'collapsed' || openFocusDoneRef.current) return
+    if (!openFocus || openFocus === 'body' || openFocus === 'field' || openFocus === 'collapsed' || openFocusDoneRef.current) return
     // Lane KEYS3 (Q2): 'ticker' is a fresh note from a template that asks for one. A note
     // with no Ticker field on screen falls back to the title, as before.
     const target = openFocus === 'ticker' ? (tickerInputRef.current || titleInputRef.current)
@@ -1393,6 +1490,14 @@ export default function NoteEditorPage({
 
   // Local mirrors for fields the user edits inline.
   const [title, setTitle] = useState('')
+  // Final polish: the title textarea is as tall as its wrapped text.
+  useAutoGrow(titleInputRef, title)
+  // S5 (B11): "{title} · Notebook · UCT Intelligence" while this note is open, following the title
+  // as it is typed (the tab read "Journal" on every note). Only once the note has loaded.
+  useEffect(() => {
+    if (!ownsDocumentTitle || !note) return
+    document.title = noteDocumentTitle(title)
+  }, [ownsDocumentTitle, note, title])
   const [subtitle, setSubtitle] = useState('')
   // Wave 0 (P1-10): mirrored synchronously in the onChange handlers below
   // (never via a `useEffect` on `title`/`subtitle`) so the local-draft write
@@ -2117,7 +2222,24 @@ export default function NoteEditorPage({
   // Wave N §9 — a captured web passage is revisited AS a captured passage,
   // never as a document. See CapturedSourceSheet for what that means.
   const [capturedSource, setCapturedSource] = useState(null)
+  // First-open bytes: each sheet's chunk mounts on its first open and stays (see `sourceSheetLoaders`).
+  const [previewEverOpen, setPreviewEverOpen] = useState(false)
+  if (previewDoc && !previewEverOpen) setPreviewEverOpen(true)
+  const [capturedEverOpen, setCapturedEverOpen] = useState(false)
+  if (capturedSource && !capturedEverOpen) setCapturedEverOpen(true)
   const { documents: noteDocuments, error: documentsError, refresh: refreshDocuments } = useNoteDocuments(noteId)
+  // S5 (B4): the images this note's body HOLDS, so DocumentTextStatus speaks only of those (a
+  // widget's archived snapshot is an image document too, and is not in the body). Walked only
+  // when there is an image document to judge; read at render, which every transaction triggers.
+  const bodyImageUrls = (() => {
+    if (!noteDocuments?.some?.(isImageDocument)) return []
+    const ed = editorRef.current
+    const out = []
+    try {
+      ed?.state?.doc?.descendants((n) => { if (n.type?.name === 'image' && n.attrs?.src) out.push(n.attrs.src) })
+    } catch { /* an editor mid-teardown holds nothing */ }
+    return out
+  })()
   const { excerpts: noteExcerpts, error: excerptsError, refresh: refreshExcerpts } = useNoteExcerpts(noteId)
   // ⛔ Wave 10 F7 (Part A, 5d): the side reads of an open note, asked here for their ERRORS --
   // the same SWR keys ThesisSection and the fact nodes read, so no request is added. A failed
@@ -2137,6 +2259,23 @@ export default function NoteEditorPage({
     && isThesisShaped(note, thesisEvidence, thesisChangelog)
   const { completed: thesisReviewsDone, isLoading: reviewsLoading, error: reviewsError } =
     useThesisReviews(detailsThesis ? noteId : null)
+  // S2: the note menu's "Make this a thesis" -- kind Thesis through the property door.
+  const [makingThesis, setMakingThesis] = useState(false)
+  const makeThesis = async () => {
+    if (makingThesis) return
+    setMakingThesis(true)
+    try {
+      // ⛔ Fix round 1 (review finding 1): a METADATA door, so it settles like the folder, ticker,
+      // tag and unlock doors -- or the editor's save baseline stays on the old revision and the
+      // next autosave 409s into the reconcile.
+      await settleMetadataRevision(await update({ properties: { [NOTE_KIND_PROPERTY]: THESIS_KIND } }))
+      setChromeMsg('This note is now a thesis. Evidence, the changelog and reviews are under its details.')
+    } catch (e) {
+      setChromeMsg(e?.message || "Couldn't make this note a thesis. Try again.")
+    } finally {
+      setMakingThesis(false)
+    }
+  }
 
   // Wave J: opens the preview Sheet for a document_excerpt evidence row in
   // ThesisSection -- the excerpt may belong to a DIFFERENT note than the
@@ -2421,8 +2560,22 @@ export default function NoteEditorPage({
       setUploadToast({ message: INSIDE_ANSWER_SENTENCE, tone: 'error' })
       return
     }
+    writingHelpFromButtonRef.current = false
     setWritingHelp(req)
   }, [])
+  // VIS-5 (audit 2026-11-05, issue 25): closing Writing help sent focus to "Share". The header button
+  // keeps the editor's selection on a mouse press (mousedown is prevented), so the Sheet's own restore read
+  // the wrong opener. Opened from the button, focus goes back to the button; from the slash menu, the
+  // Sheet's default restore (the editor) stands.
+  // Fix round 1 (review Minor 13): which Insert door opened the widget palette (the toolbar's, or the phone "+"
+  // menu's), so its Escape and close return focus THERE.
+  const paletteOpenerRef = useRef(null)
+  const writingHelpButtonRef = useRef(null)
+  const writingHelpFromButtonRef = useRef(false)
+  const openWritingHelpFromButton = useCallback(() => {
+    openWritingHelp()
+    writingHelpFromButtonRef.current = true
+  }, [openWritingHelp])
   // ── Wave 11 lane 11A: voice notes ─────────────────────────────────────────
   // ⛔ DARK behind `notebook_voice_notes_enabled` and paid-only, like the routes.
   // "Add to this note" is ONE editor transaction at the end of the note (never a
@@ -2449,7 +2602,7 @@ export default function NoteEditorPage({
   }, [])
   const onVoiceNoteSaved = useCallback((created) => {
     if (!created?.id) return
-    globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes'))
+    invalidateNoteViews({ tags: true })   // S6: the one note-views helper (fix round 2, N1's twins)
     setUploadToast({ message: `Saved as a new note: “${created.title || 'Voice note'}”`, tone: 'success' })
   }, [])
   // ── Wave 11 lane 11D: the trade-plan canvas ───────────────────────────────
@@ -2490,7 +2643,7 @@ export default function NoteEditorPage({
         live.chain().focus().insertContent([
           { type: 'noteLink', attrs: { noteId: created.id } }, { type: 'text', text: ' ' },
         ]).run()
-        globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes'))
+        invalidateNoteViews({ tags: true })   // S6: the one note-views helper (fix round 2)
         setUploadToast({ message: `Trade plan created and linked: “${created.title}”. Open it from the link.`, tone: 'success' })
       } else if (created?.id) {
         setUploadToast({ message: `Trade plan created: “${created.title}”. This note could not take the link.`, tone: 'error' })
@@ -2940,7 +3093,7 @@ export default function NoteEditorPage({
     // ⭐ Review I-1: `HistoryCompleteWatch` is what keeps the Undo crossing
     // detector honest (`undoCrossesSwap`, noteContentGuard.js) — ONLY this editor
     // carries an edit lineage, so only this editor needs it.
-    extensions: [...buildExtensions(), HistoryCompleteWatch],
+    extensions: [...buildExtensions(), HistoryCompleteWatch, NoImplicitAtomSelection],
     // ⛔ S1/H14: content the schema cannot read LOCKS the editor instead of
     // opening it empty (noteContentGuard.js) -- the empty stand-in is what the
     // next save used to write over the note.
@@ -3008,7 +3161,10 @@ export default function NoteEditorPage({
       // this file's own test harness and `focusableWithin`'s `[tabindex]`
       // selector both need to recognise the body as focusable at all --
       // without it `openFocus="body"` (Q1's fix) silently focused nothing.
-      attributes: { class: styles.proseEditor, 'aria-label': 'Note body', tabindex: '0' },
+      // Tier 4 fix round 2 (live scorecard, axe serious `aria-prohibited-attr` at every profile): the editor no longer
+      // stamps a role, and `aria-label` is prohibited on a role-less div. The body IS a multi-line text field, so it
+      // says so: NOTE_BODY_ARIA (role textbox, aria-multiline). Rail: a11y/noteBodyRole.a11y.test.jsx.
+      attributes: { class: styles.proseEditor, ...NOTE_BODY_ARIA, tabindex: '0' },
       handlePaste(view, event) {
         const items = event.clipboardData?.items
         const terminalLink = !Array.from(items || []).some((i) => i.kind === 'file')
@@ -3108,6 +3264,14 @@ export default function NoteEditorPage({
   // Keep the ref current so the paste/drop handlers (captured at creation) always
   // reach the live editor instance.
   editorRef.current = editor
+  // S12 (audit 2026-11-05, M9): the phone "+" sheet's "Photo / chart screenshot" made THIS note for an image the
+  // member picked on the list. It is placed by this editor's own image door (`handleImageInsert`, the paste / Insert
+  // Image path), once, the first time the editor is ready -- never by a write of its own (lib/pendingImageInsert.js).
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || !note || locked || !editor.isEditable) return
+    const file = takeImageForNote(noteId)
+    if (file) handleImageInsert(file)
+  }, [editor, note?.id, noteId, locked]) // eslint-disable-line react-hooks/exhaustive-deps
   // ⭐ I-A fix round 5 (review M-19): a save or Discard that took a refused-copy offer
   // off the page took the focused button with it. Focus goes to the editor (or, when it
   // cannot take focus, the page's landmark), never to the document body.
@@ -3219,7 +3383,9 @@ export default function NoteEditorPage({
   // one-shot and nothing throws. The title/landmark effect above is
   // untouched.
   useLayoutEffect(() => {
-    if (openFocus !== 'body' || openFocusDoneRef.current) return
+    // S9 (audit 2026-11-05): 'field' is a note a template's Use just made and named: the caret goes to its first
+    // field (lib/firstFieldPos.js), or to the end like 'body' when it has none.
+    if ((openFocus !== 'body' && openFocus !== 'field') || openFocusDoneRef.current) return
     if (!editor || editor.isDestroyed) return
     let cancelled = false
     let rafId = null
@@ -3232,7 +3398,8 @@ export default function NoteEditorPage({
       const dom = editor.view && editor.view.dom
       if (dom && dom.isConnected && editor.isEditable) {
         openFocusDoneRef.current = true
-        editor.commands.focus('end')
+        const at = openFocus === 'field' ? firstFieldPos(editor.state.doc) : null
+        editor.commands.focus(at ?? 'end')
         onOpenFocused?.()
         return
       }
@@ -3419,6 +3586,22 @@ export default function NoteEditorPage({
   // Above 640 px the coach card is unchanged; the mic's hint, since the 2026-10-10 UX pass,
   // waits at EVERY width (see the mic below). Rails: NoteEditorPage.firstRunDefer.test.jsx.
   const deferFirstRun = useIsPhone()
+  // Finish batch (2026-11-05, iPhone at 360-390 px): the header row has room for back, Folders and the four controls,
+  // not for the indicator's words too, so a phone says them at the end of the line under the title (NoteDetailsLine
+  // `trail`). ONE indicator is mounted at a time, so there is one polite region. Rail: NoteEditorPage.phoneHeaderRow.test.jsx.
+  const savedOnTitleLine = deferFirstRun
+  const indicatorHome = !note ? null : (savedOnTitleLine ? 'title-line' : 'header')
+  // The commit that inserts the region renders it empty; this effect runs after that commit and fills it.
+  useEffect(() => { setIndicatorOnFor(indicatorHome) }, [indicatorHome])
+  const indicatorOn = indicatorHome !== null && indicatorOnFor === indicatorHome
+  const saveIndicator = (className) => (
+    <span className={className} role="status" aria-live="polite" data-save-indicator="">
+      {indicatorOn ? saveIndicatorWords({
+        status: saveStatus, unsynced: Boolean(durable.unsynced), persisted: durable.persisted,
+        offline: isOffline, blocked: noteIsBlocked, loading: isLoading || !note,
+      }) : ''}
+    </span>
+  )
   useEffect(() => (deferFirstRun ? claimFirstRunStage() : undefined), [deferFirstRun])
 
   // The lock IS `editable`: every surface that edits the note asks
@@ -4118,6 +4301,8 @@ export default function NoteEditorPage({
       // a different body with its own writer.
       // (Read BEFORE `captureLocalState` below, whose stamp this decides.)
       if (carriedRef.current === carriedAtSend) carriedRef.current = OWN_READ
+      // S6 (post-#816): did this save land a NEW title? Read before the baseline moves.
+      const titleLanded = (lastSavedRef.current.title || '') !== (title || '')
       lastSavedRef.current = {
         title, subtitle, bodyJson,
         updatedAt: usableBaseline(saved?.updatedAt, lastSavedRef.current.updatedAt),
@@ -4158,6 +4343,12 @@ export default function NoteEditorPage({
       // Wave 0 (P1-10): the server now has this content — the local safety
       // net for it is no longer needed.
       clearDraftLocally()
+      // ⛔ Audit 2026-11-05, S6 (found on production after #816): a title typed into a new note
+      // stayed "Untitled" in Recents, the list cards and the folder rows while the editor showed
+      // the new one -- only the sidebar's own tree was patched as it was typed. Once the title
+      // has LANDED, every view that shows a title asks the server again (never the counts, which
+      // a title cannot move, and never this note's own key, which this save just settled).
+      if (titleLanded) invalidateNoteViews({ titleOnly: true })
     } catch (e) {
       const status = e?.status
       // A 409 reaches here only when it was not reconciled above: a second one
@@ -4247,9 +4438,24 @@ export default function NoteEditorPage({
   // editor whose view mounts AFTER it would never get the listener and the
   // Image item would silently do nothing. Attach now if the view exists, and
   // again on tiptap's own `mount`/`create`; detach on `unmount`.
+  //
+  // Plan A Task 2 (L-1): an internal note LINK MARK (`/journal?j2tab=notebook&note=<id>`,
+  // e.g. an imported wiki link) opens through `uct:open-note` from linkClickOpen.js, on
+  // the same per-editor target, and is routed by the SAME door a `noteLink` chip uses
+  // (useNoteNavigation: Ctrl/Cmd opens beside, the side pane navigates itself). The ref
+  // keeps this effect keyed on `editor` alone, so a new navigate closure never re-binds.
+  const goToNote = useNoteNavigation()
+  const goToNoteRef = useRef(goToNote)
+  goToNoteRef.current = goToNote
   useEffect(() => {
     if (!editor) return undefined
     const onOpenPicker = () => fileInputRef.current?.click()
+    const onOpenNote = (e) => {
+      const noteId = e?.detail?.noteId
+      if (!noteId) return
+      e.preventDefault()
+      goToNoteRef.current(noteId, e.detail.originalEvent)
+    }
     // Wave 7 lane H1: the slash menu's "Dictate" item, on the SAME per-editor
     // target and for the same reason — with two panes open, only the pane the
     // command ran in may start listening. `start()` refuses where a click on
@@ -4277,6 +4483,7 @@ export default function NoteEditorPage({
         dom.removeEventListener(CANVAS_EVENT, onTradeCanvas)
         dom.removeEventListener(STYLE_EVENT, onStyle)
         dom.removeEventListener(PLAN_EVENT, onPlan)
+        dom.removeEventListener('uct:open-note', onOpenNote)
       }
       dom = null
     }
@@ -4293,6 +4500,7 @@ export default function NoteEditorPage({
       dom.addEventListener(CANVAS_EVENT, onTradeCanvas)
       dom.addEventListener(STYLE_EVENT, onStyle)
       dom.addEventListener(PLAN_EVENT, onPlan)
+      dom.addEventListener('uct:open-note', onOpenNote)
     }
     attach()
     editor.on('mount', attach)
@@ -4379,6 +4587,9 @@ export default function NoteEditorPage({
 
   const onFolderChange = async (folderId) => {
     await settleMetadataRevision(await update({ folderId: folderId || null }))
+    // S6 (B2): a move changes two folders' counts and which lists hold the note. The tab never
+    // heard of it, so "Unfiled 1" stayed after the note left Unfiled.
+    invalidateNoteViews()
   }
   // The Ticker field is checked against the server's rule BEFORE it is sent, and a refusal is
   // said in a SaveFailed sentence with the field put back -- see lib/noteTicker.js for the
@@ -4490,11 +4701,8 @@ export default function NoteEditorPage({
         // P2 Tier 3 final fix I1: a copy, so the server starts its check-ins unpicked.
         isCopy: true,
       })
-      // Same predicate NotebookTab's own refreshSidebarCounts uses -- the
-      // sidebar's note lists (All notes/Recents/per-folder) are OTHER
-      // components' SWR hooks, unreachable from here except through the
-      // shared global cache.
-      globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes'))
+      // The one note-views helper (S6): every list, count and the folder tree, never this editor's note.
+      invalidateNoteViews({ tags: true })
       setSearchParams((prev) => applyTargetToParams(prev, { noteId: created.id, depth: 'note' }))
     } catch (e) {
       console.error('[notebook] duplicate failed', e)
@@ -4767,6 +4975,7 @@ export default function NoteEditorPage({
     // treatment in this wave.
     return (
       <div className={styles.loading} role="status" aria-label="Loading…">
+        <JournalToolsDoorMark />
         <SkeletonLine width="45%" height={26} />
         <div style={{ height: 20 }} />
         <SkeletonLine width="92%" height={14} />
@@ -4788,6 +4997,23 @@ export default function NoteEditorPage({
   // background revalidation failure while a perfectly good `note` from an
   // earlier successful fetch is still on screen; that case must keep
   // rendering the note, not this error card).
+  // VIS-5 (audit 2026-11-05, issue 16): a note the server says is NOT THERE (404) is said as that, with the
+  // two ways on -- never blamed on the connection. Every other failure keeps its own sentence below.
+  if (!note && String(loadError?.message) === '404') {
+    return (
+      <div className={styles.loadError} role="alert" data-note-missing="">
+        <p>This note doesn't exist or was deleted</p>
+        <div className={styles.loadErrorActions}>
+          <button type="button" className="btn btn-primary" onClick={() => navigateTo('/journal/notebook?view=all')}>
+            Back to All notes
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={() => navigateTo('/journal/notebook?folder=__trash__')}>
+            Check Trash
+          </button>
+        </div>
+      </div>
+    )
+  }
   if (!note) {
     return (
       <div className={styles.loadError} role="alert">
@@ -4855,7 +5081,23 @@ export default function NoteEditorPage({
   // -- so there is no second implementation of any of them. Ask, Writing help and Outline open
   // their own sheets (the panel stays open behind them, like Delete's question, and focus comes
   // back to the item); Find puts the member back on the note, so it closes the panel.
-  const phoneTools = ({ close }) => (
+  // S10 (M4): Ask stays a phone-only item (the header's AI group holds it elsewhere); Find and Outline are lead items on
+  // every width (`moreLead`), and the folder sits under the title.
+  // Final polish (WebKit at 390 px): the Journal header's tools fold away on a phone note, and this is their door (Log
+  // Trade, Help, the account, report, settings, More), as the list's ⋯ row is on the list. A phone item (NoteMoreMenu
+  // `phoneTail`, after Find and Outline); JournalLayout opens the tools and moves focus to them.
+  const journalToolsItem = ({ close }) => (
+    <button
+      type="button"
+      className={styles.chromeBtn}
+      onClick={() => { close?.(); openJournalTools() }}
+      data-journal-tools-door=""
+    >
+      <UIcon name="sliders" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+      Journal tools
+    </button>
+  )
+  const phoneTools = () => (
     <div className={styles.phoneTools}>
       <button
         type="button"
@@ -4863,49 +5105,69 @@ export default function NoteEditorPage({
         onClick={(e) => openAskFrom(e.currentTarget)}
         aria-label="Ask about this note"
       >
-        <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+        <UIcon name="sparkle" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
         Ask about this note
       </button>
+    </div>
+  )
+  const moreLead = ({ close, trigger }) => (
+    <div className={styles.phoneTools}>
       {!isCanvas && (
         <button
           type="button"
           className={styles.chromeBtn}
           onClick={() => { openFind(); close() }}
           aria-label="Find in note"
+          title="Find in this note"
         >
-          <UIcon name="search" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+          <UIcon name="search" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
           Find in note
         </button>
       )}
       {editor && (
+        // The outline closes back to the More door, which stays on screen (this item hides with the panel).
         <button
           type="button"
           className={`${styles.chromeBtn} ${outlineOpen ? styles.toolBtnActive : ''}`}
-          onClick={(e) => toggleOutline(e.currentTarget)}
+          onClick={() => { toggleOutline(trigger); close() }}
           aria-expanded={outlineOpen}
           aria-label="Outline"
+          title="Outline — every heading in this note"
         >
-          <UIcon name="rows" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+          <UIcon name="rows" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
           Outline
         </button>
       )}
-      <label className={styles.phoneFolder} htmlFor={moveFolderId}>Move to folder</label>
-      <select
-        id={moveFolderId}
-        className={styles.headerSelect}
-        value={note.folderId || ''}
-        onChange={(e) => onFolderChange(e.target.value)}
-      >
-        <option value="">Unfiled</option>
-        {folders.map((f) => (
-          <option key={f.id} value={f.id}>{f.name}</option>
-        ))}
-      </select>
     </div>
+  )
+  // S10 (M4): the folder, a small select on the line under the title (it was a header control).
+  const folderLead = (
+    <>
+      {/* Final polish (WebKit at 390 px): with a border set, Safari drew its native LIGHT select -- a white box with
+          grey "Unfiled". The select is unstyled native chrome now (appearance: none, the field edge, our ink), and its
+          chevron is drawn beside it, because appearance: none takes the native one away. Rail: fieldEdges.test.js. */}
+      <span className={styles.folderInlineWrap}>
+        <select
+          className={styles.folderInline}
+          value={note.folderId || ''}
+          onChange={(e) => onFolderChange(e.target.value)}
+          aria-label="Folder"
+          data-note-folder=""
+        >
+          <option value="">Unfiled</option>
+          {folders.map((f) => (
+            <option key={f.id} value={f.id}>{f.name}</option>
+          ))}
+        </select>
+        <UIcon name="chevronDown" {...TOOLBAR_ICON} className={styles.folderInlineChev} aria-hidden="true" />
+      </span>
+      <NoteLinkedTradeChips noteId={noteId} />
+    </>
   )
 
   return (
     <div className={styles.page} ref={pageRef} onKeyDown={onPageKeyDown}>
+      <JournalToolsDoorMark />
       {/* Final-review fix I-1: where an existing note's open puts focus. A
           heading, not a field, named by the note's title; visually hidden (the
           title input below shows the same words), and the pane's ring shows
@@ -4919,38 +5181,46 @@ export default function NoteEditorPage({
         tone={uploadToast?.tone}
         onDismiss={() => setUploadToast(null)}
       />
-      <DocumentPreviewSheet
-        open={!!previewDoc}
-        href={previewDoc?.href}
-        name={previewDoc?.name}
-        page={previewDoc?.page}
-        onClose={() => setPreviewDoc(null)}
-        excerpts={previewExcerpts}
-        onSaveExcerpt={handleSaveExcerpt}
-        emphasizeExcerptId={previewDoc?.emphasizeExcerptId}
-        documentId={previewDoc?.documentId}
-        onInsert={askInsertHere}
-      />
-      <CapturedSourceSheet
-        open={!!capturedSource}
-        excerpt={capturedSource}
-        onClose={() => setCapturedSource(null)}
-        onOpenOwningNote={
-          capturedSource && capturedSource.noteId !== noteId
-            ? () => {
-                // ⛔ The app's ONE routing idiom for a note — the same `?note=`
-                // param NotebookTab owns and Search writes through
-                // `applyTargetToParams`. Never a second route shape.
-                const nid = capturedSource.noteId
-                setCapturedSource(null)
-                setSearchParams((prev) => {
-                  const next = applyTargetToParams(prev, { noteId: nid, depth: 'note' })
-                  return next
-                })
-              }
-            : null
-        }
-      />
+      {previewEverOpen && (
+        <Suspense fallback={null}>
+          <DocumentPreviewSheet
+            open={!!previewDoc}
+            href={previewDoc?.href}
+            name={previewDoc?.name}
+            page={previewDoc?.page}
+            onClose={() => setPreviewDoc(null)}
+            excerpts={previewExcerpts}
+            onSaveExcerpt={handleSaveExcerpt}
+            emphasizeExcerptId={previewDoc?.emphasizeExcerptId}
+            documentId={previewDoc?.documentId}
+            onInsert={askInsertHere}
+          />
+        </Suspense>
+      )}
+      {capturedEverOpen && (
+        <Suspense fallback={null}>
+          <CapturedSourceSheet
+            open={!!capturedSource}
+            excerpt={capturedSource}
+            onClose={() => setCapturedSource(null)}
+            onOpenOwningNote={
+              capturedSource && capturedSource.noteId !== noteId
+                ? () => {
+                    // ⛔ The app's ONE routing idiom for a note — the same `?note=`
+                    // param NotebookTab owns and Search writes through
+                    // `applyTargetToParams`. Never a second route shape.
+                    const nid = capturedSource.noteId
+                    setCapturedSource(null)
+                    setSearchParams((prev) => {
+                      const next = applyTargetToParams(prev, { noteId: nid, depth: 'note' })
+                      return next
+                    })
+                  }
+                : null
+            }
+          />
+        </Suspense>
+      )}
       <div className={styles.chrome} ref={chromeRef}>
       <SkipLinkPortal>
         <a href="#notebook-editor-toolbar" className={styles.skipLink} onClick={skipToToolbar}>
@@ -5000,7 +5270,7 @@ export default function NoteEditorPage({
             <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
             {blockedLabel(durable.persisted)}
           </div>
-        ) : durable.unsynced && (saveStatus === 'error' || saveStatus === 'reconnecting') && (
+        ) : durable.unsynced && !isOffline && (saveStatus === 'error' || saveStatus === 'reconnecting') && (
           <div className={styles.saveStatus} role="status">
             <UIcon name="check" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
             {unsyncedLabel(durable.persisted)}
@@ -5020,19 +5290,11 @@ export default function NoteEditorPage({
             {REFUSED_COPY_MESSAGE}
           </div>
         )}
-        {/* ⛔⛔ A DIFFERENT AXIS FROM THE THREE ABOVE — connectivity, not save
-            status. Independent (never else-if'd with the blocked/unsynced/
-            conflict states): a member can be offline AND have an unrelated
-            queued-write problem at the same time, and each fact is honest on
-            its own. Auto-clears the instant `online` fires -- no dismiss
-            state to manage for something that already un-shows itself.
-            Competitive audit finding Accessibility QW-5, 2026-09-22. */}
-        {isOffline && (
-          <div className={styles.saveStatus} role="status">
-            <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-            {OFFLINE_VIEWING_BANNER}
-          </div>
-        )}
+        {/* VIS-5 (audit 2026-11-05, issue 17): offline, the member reads ONE message -- the indicator's pill below,
+            "Offline · saved on this device", in its reserved slot. ⚰️ Three lines used to appear together here
+            (the unsynced line, "Viewing an earlier saved copy — you're offline." and "Couldn't reach the server —
+            … retrying…") and push the header down 26 px. The unsynced line and the retrying line stand down while
+            offline WITH the work committed locally; a save that failed with nothing committed still speaks. */}
         {/* ⛔ Wave 10 F7 (Part A, 5d): the retrying state used to put its whole sentence
             (`friendlySaveError(..., {retrying:true})`, e.g. "Couldn't reach the server —
             your note is unchanged, retrying automatically.") ONLY in the `title` tooltip
@@ -5042,7 +5304,7 @@ export default function NoteEditorPage({
             walk's silent-failure sweep read this as SILENT under a forced-offline autosave
             PUT (`is_sentence` requires 3+ words; "Reconnecting…" is one). The sentence is
             now the VISIBLE text, same as the 'error' branch already did. */}
-        {(saveStatus === 'error' || saveStatus === 'reconnecting') && (
+        {(saveStatus === 'error' || saveStatus === 'reconnecting') && !(isOffline && durable.unsynced) && (
           <div className={styles.saveStatus} role="status">
             <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
             {saveStatus === 'reconnecting'
@@ -5050,19 +5312,30 @@ export default function NoteEditorPage({
               : `Save failed${saveErrorMsg ? `: ${saveErrorMsg}` : ''}`}
           </div>
         )}
+        {/* Audit 2026-11-05, spec S10 (M4): "Saved", "Saving…" or "Offline · saved on this device" (VIS-5), always visible,
+            read from the editor's save state and the outbox (`saveIndicatorWords`, lib/offline/unsyncedCopy.js, the
+            one authority). A polite region MOUNTED EMPTY and filled after (`indicatorOn`), so its first words are
+            announced; its width is reserved (`.savedIndicator`), so the header never jumps as the words change. */}
+        {/* Finish batch (2026-11-05, iPhone): on a phone the indicator sits on the line under the title
+            (`savedOnTitleLine`), so the header is ONE row: back · Folders · ★ · AI · Share · ⋯. */}
+        {!savedOnTitleLine && saveIndicator(styles.savedIndicator)}
+        {/* S10 (M4): four controls -- Favorite · AI · Share · ⋯ (`data-header-control`). Find, Outline and Move to
+            Trash are in ⋯; the folder and the linked trades are on the line under the title. */}
         <div className={styles.headerControls} data-tour="ask-row" ref={askRowRef}>
           <button
             type="button"
             className={styles.chromeBtn}
+            data-header-control="favorite"
             onClick={onToggleFavorite}
             disabled={favoriteBusy}
             aria-pressed={isFavorite}
             aria-label={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
             title={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
           >
-            <UIcon name={isFavorite ? 'star-fill' : 'star'} size={15} gold={isFavorite} />
+            <UIcon name={isFavorite ? 'star-fill' : 'star'} {...TOOLBAR_ICON} gold={isFavorite} />
           </button>
-          <NoteLinkedTradeChips noteId={noteId} />
+          {/* S10 (M4): the AI control -- Ask and Writing help, one group. */}
+          <div className={styles.aiGroup} role="group" aria-label="AI" data-header-control="ai">
           {/* Notebook phone pass (2026-10-10): `.askSlot` lays out as if it were not there; on a
               phone it hides ONLY the toggle (the panel is a Sheet there and must still open,
               from More's "Ask about this note"). */}
@@ -5079,6 +5352,25 @@ export default function NoteEditorPage({
             onClose={focusAskToggle}
           />
           </div>
+          {/* Phone pass follow-up (2026-10-10): Writing help STAYS in the phone row, as an icon
+              (`.phoneIconLabel` hides the word, the aria-label keeps the name). Moving it into More
+              left its walkthrough pointing at nothing: the Writing help tour opens on this button. */}
+          {showWritingHelp && (
+            <button
+              type="button"
+              className={styles.chromeBtn}
+              ref={writingHelpButtonRef}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={openWritingHelpFromButton}
+              aria-label="Writing help"
+              data-tour="writing-help"
+              title="Writing help — summarize, rewrite, continue or translate"
+            >
+              <UIcon name="sparkle" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              <span className={styles.phoneIconLabel}>Writing help</span>
+            </button>
+          )}
+          </div>
           {/*
             ⛔ FIND HAD NO VISIBLE ENTRY POINT -- Cmd/Ctrl+F was the ONLY door
             (grepped the whole file for setFindOpen(true): one call site, the
@@ -5089,77 +5381,28 @@ export default function NoteEditorPage({
           */}
           {/* Notebook phone pass (2026-10-10): `.phoneInMore` -- not displayed on a phone, where
               the same action is the More panel's "Find in note" (`phoneTools` below). */}
-          {!isCanvas && (
-            <button
-              type="button"
-              className={`${styles.chromeBtn} ${styles.phoneInMore}`}
-              onClick={openFind}
-              title="Find in this note"
-              aria-label="Find in note"
-            >
-              <UIcon name="search" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-              Find
-            </button>
-          )}
-          <NoteShareControls noteId={noteId} onMessage={setChromeMsg} />
-          {/* Wave 8 (8A): the header's select and inputs carry names -- a
-              placeholder vanishes once there is a value, and a select has none. */}
-          <select
-            className={`${styles.headerSelect} ${styles.phoneInMore}`}
-            value={note.folderId || ''}
-            onChange={(e) => onFolderChange(e.target.value)}
-            aria-label="Folder"
-          >
-            <option value="">Unfiled</option>
-            {folders.map((f) => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </select>
+          {/* S10: Find is now the first item in ⋯ (`moreLead`, every width; Cmd/Ctrl+F still opens it). */}
+          <span className={styles.shareSlot} data-header-control="share">
+            <NoteShareControls noteId={noteId} noteTitle={title} onMessage={setChromeMsg} />
+          </span>
+          {/* Wave 8 (8A): the folder select moved under the title (S10, `folderLead`). */}
           {/* Notebook UX pass (2026-10-10): the Ticker field moved out of this row into the
               note's details, beside the properties it derives (Sector, Industry, Theme). It
               was also mirrored there as a read-only "Ticker" property, so the ticker showed
               twice; now there is ONE control, the same input on the same door. */}
-          <SaveFailed message={tagWriteFailure} onDismiss={() => setTagWriteFailure(null)} />
-          <SaveFailed message={favoriteFailure} onDismiss={() => setFavoriteFailure(null)} />
-          <SaveFailed message={trashFailure} onDismiss={() => setTrashFailure(null)} />
-          {chromeMsg && <span className={styles.chromeMsg} role="status">{chromeMsg}</span>}
+          {/* Finish review 3: `.headerMsg` -- on a phone a header message takes a line of its own, so the one-row
+              header never wraps while it shows. */}
+          <SaveFailed message={tagWriteFailure} onDismiss={() => setTagWriteFailure(null)} className={styles.headerMsg} />
+          <SaveFailed message={favoriteFailure} onDismiss={() => setFavoriteFailure(null)} className={styles.headerMsg} />
+          <SaveFailed message={trashFailure} onDismiss={() => setTrashFailure(null)} className={styles.headerMsg} />
+          {chromeMsg && <span className={`${styles.chromeMsg} ${styles.headerMsg}`} role="status">{chromeMsg}</span>}
           {/* Wave 10 lane K2 (D-3): Writing help and Outline moved up from the formatting row
               so the formatting row fits ONE line at 1200 px. Both keep their names, their
               `onMouseDown` / `aria-expanded` behaviour and their keyboard doors. */}
           {/* Phone pass follow-up (2026-10-10): Writing help STAYS in the phone row, as an icon
               (`.phoneIconLabel` hides the word, the aria-label keeps the name). Moving it into More
               left its walkthrough pointing at nothing: the Writing help tour opens on this button. */}
-          {showWritingHelp && (
-            <button
-              type="button"
-              className={styles.chromeBtn}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={openWritingHelp}
-              aria-label="Writing help"
-              data-tour="writing-help"
-              title="Writing help — summarize, rewrite, continue or translate"
-            >
-              <UIcon name="sparkle" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-              <span className={styles.phoneIconLabel}>Writing help</span>
-            </button>
-          )}
-          {/* Wave 5: the note's outline (every heading, click to jump) -- a
-              panel beside the note on desktop, a sheet on touch. It shares
-              the palette's corner, so opening one closes the other. */}
-          {editor && (
-            <button
-              ref={outlineToggleRef}
-              type="button"
-              className={`${styles.chromeBtn} ${styles.phoneInMore} ${outlineOpen ? styles.toolBtnActive : ''}`}
-              onClick={() => toggleOutline(outlineToggleRef.current)}
-              aria-expanded={outlineOpen}
-              aria-label="Outline"
-              title="Outline — every heading in this note"
-            >
-              <UIcon name="rows" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-              Outline
-            </button>
-          )}
+          {/* S10: Writing help sits in the AI group above; the Outline is an item in ⋯ (`moreLead`). */}
           {/* Wave 10 lane K2 (design finding D-3): the page-level actions live behind ONE
               "More note actions" door, Notion's "…" -- the review measured up to five rows of
               controls above the title at 1200 px with a red Delete among the first. Delete is
@@ -5167,8 +5410,8 @@ export default function NoteEditorPage({
               note's other properties. Every action keeps its name and its keyboard door
               (NoteMoreMenu.jsx; rails: NoteEditorPage.moreMenu.test.jsx). */}
           {/* The tour's Export step points here now: the file doors are inside. */}
-          <span className={styles.tourWrap} data-tour="note-export">
-          <NoteMoreMenu buttonClassName={styles.chromeBtn} phoneItems={phoneTools}>
+          <span className={styles.tourWrap} data-tour="note-export" data-header-control="more">
+          <NoteMoreMenu buttonClassName={styles.chromeBtn} phoneItems={phoneTools} leadItems={moreLead} phoneTail={journalToolsItem}>
             <button
               type="button"
               className={styles.chromeBtn}
@@ -5176,7 +5419,7 @@ export default function NoteEditorPage({
               title="See earlier versions of this note and restore one"
               aria-label="Version history"
             >
-              <UIcon name="clock" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              <UIcon name="clock" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
               History
             </button>
             <button
@@ -5187,9 +5430,26 @@ export default function NoteEditorPage({
               title="Create a copy of this note"
               aria-label="Duplicate note"
             >
-              <UIcon name="copy" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              <UIcon name="copy" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
               {duplicating ? 'Duplicating…' : 'Duplicate'}
             </button>
+            {/* Audit 2026-11-05, spec S2: thesis controls appear only for a real thesis, so a member
+                who wants them on a plain note asks here. It writes kind Thesis through the note's
+                own property door (`update`, the one PropertiesSection uses); ThesisSection and the
+                details line then read it from the note. Never offered on a thesis, a trade-plan
+                canvas, or a locked note. */}
+            {note && !detailsThesis && !thesisLoading && !thesisError && !isCanvas && !locked && !unreadable && (
+              <button
+                type="button"
+                className={styles.chromeBtn}
+                onClick={makeThesis}
+                disabled={makingThesis}
+                title="Add evidence, a changelog and reviews to this note"
+              >
+                <UIcon name="book" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                Make this a thesis
+              </button>
+            )}
             {/* Wave 6 (lane E) fix round 1, I1 — the note menu's organisation
                 actions (Lock, Archive, Save as template, Open beside). Lane E's
                 own file (NoteMenuActions.jsx) renders itself; this is the one
@@ -5215,8 +5475,9 @@ export default function NoteEditorPage({
               <div className={moreStyles.meta}><NoteStats editor={editor} /></div>
             </>)}
             <div className={moreStyles.sep} role="separator" />
+            {/* S7 (one vocabulary): the note menu's "Delete" is "Move to Trash", the sidebar's word. */}
             <button type="button" className={`${styles.chromeBtn} ${moreStyles.danger}`} onClick={onDeleteRequest}>
-              Delete
+              Move to Trash
             </button>
           </NoteMoreMenu>
           </span>
@@ -5235,9 +5496,9 @@ export default function NoteEditorPage({
       )}
       {confirmingDelete && (
         <ConfirmModal
-          title="Delete this note?"
+          title="Move this note to Trash?"
           body="It moves to Trash and can be restored for 30 days before it's permanently removed."
-          confirmLabel="Delete"
+          confirmLabel="Move to Trash"
           tone="danger"
           onConfirm={onDeleteConfirm}
           onClose={() => setConfirmingDelete(false)}
@@ -5401,7 +5662,7 @@ export default function NoteEditorPage({
               title="Insert an image, a file, a camera scan or a chart"
               onClick={toggleInsertPhone}
             >
-              <UIcon name="plus" size={16} gold={false} />
+              <UIcon name="plus" {...TOOLBAR_ICON} />
             </button>
             <span className={styles.formatRun} id={`${formatRunId}-a`} data-format-run="">
             <select
@@ -5500,9 +5761,10 @@ export default function NoteEditorPage({
             <ToolButton
               active={editor.isActive('blockquote')}
               onClick={() => editor.chain().focus().toggleBlockquote().run()}
-              label="❝"
+              // VIS-6 fix round 1 (review 8): the UIcon quote glyph, not a text glyph; its name is "Quote".
+              label={<UIcon name="quote" {...TOOLBAR_ICON} />}
               disabled={!canRunHistory(editor, 'toggleBlockquote')}
-              title={canRunHistory(editor, 'toggleBlockquote') ? undefined : "Quote isn't available inside a list -- exit the list first"}
+              title={canRunHistory(editor, 'toggleBlockquote') ? 'Quote' : "Quote isn't available inside a list -- exit the list first"}
             />
             <ToolButton
               active={editor.isActive('codeBlock')}
@@ -5514,19 +5776,19 @@ export default function NoteEditorPage({
                 const url = prompt('Link URL (https only):')
                 if (url) editor.chain().focus().setLink({ href: url }).run()
               }}
-              label={<UIcon name="link" size={14} />}
+              label={<UIcon name="link" {...TOOLBAR_ICON} />}
               title="Insert link"
             />
             <ToolButton
               onClick={() => fileInputRef.current?.click()}
-              label={<UIcon name="document" size={14} />}
+              label={<UIcon name="document" {...TOOLBAR_ICON} />}
               title="Insert image"
             />
             {/* Wave 7 (lane G's G5, built by H): photograph a page on a phone or
                 tablet. The touch tier only (`.scanBtn` is display:none above
                 1024px); the photo goes through the SAME image upload as Insert
-                image, so with NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED and
-                J2_OCR_ENABLED on it becomes a searchable document. */}
+                image, so with J2_OCR_ENABLED on it becomes a searchable
+                document. */}
             <button
               type="button"
               className={`${styles.toolBtn} ${styles.scanBtn}`}
@@ -5535,14 +5797,24 @@ export default function NoteEditorPage({
               title="Scan a document with the camera"
               data-tour="note-scan"
             >
-              <UIcon name="camera" size={14} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              <UIcon name="camera" {...TOOLBAR_ICON} style={{ verticalAlign: '-2px', marginRight: 4 }} />
               Scan
             </button>
             <ToolButton
               onClick={() => attachFileInputRef.current?.click()}
-              label={<UIcon name="paperclip" size={14} />}
+              label={<UIcon name="paperclip" {...TOOLBAR_ICON} />}
               title="Attach a file"
             />
+            {/* Import a tweet: the same event as /tweet, on this editor's own DOM root.
+                Absent while notebook_tweet_import_enabled is off. */}
+            {tweetImportEnabled() && (
+              <ToolButton
+                onClick={() => editor.view.dom.dispatchEvent(new CustomEvent(TWEET_EVENT, { bubbles: true }))}
+                label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--ut-gold)' }}><UIcon name="xLogo" {...TOOLBAR_ICON} />Import a tweet</span>}
+                title="Import a tweet"
+                disabled={!editor.isEditable}
+              />
+            )}
             </span>
             {/* Wave 7 lane H1: dictation into THIS editor (the slash menu's
                 "Dictate" starts the same mic). Paid members only — the mic
@@ -5580,7 +5852,7 @@ export default function NoteEditorPage({
           <button
             type="button"
             className={`${styles.toolBtn} ${paletteOpen ? styles.toolBtnActive : ''}`}
-            onClick={() => { setOutlineOpen(false); setPaletteOpen((o) => !o) }}
+            onClick={(e) => { paletteOpenerRef.current = e.currentTarget; setOutlineOpen(false); setPaletteOpen((o) => !o) }}
             title="Insert a chart or preset — pick ticker and timeframe by clicking"
             aria-label="Insert widget"
           >
@@ -5598,7 +5870,7 @@ export default function NoteEditorPage({
           duplicated the chrome height by hand). */}
       {paletteOpen && editor && !locked && (
         <Suspense fallback={null}>
-          <WidgetPalette editor={editor} onClose={() => setPaletteOpen(false)} />
+          <WidgetPalette editor={editor} onClose={() => setPaletteOpen(false)} returnFocusTo={paletteOpenerRef} />
         </Suspense>
       )}
       {/* P0.6: the phone "+" menu. Each row calls the same door its desktop button calls. */}
@@ -5612,7 +5884,7 @@ export default function NoteEditorPage({
             { label: 'Image', onClick: () => fileInputRef.current?.click() },
             { label: 'Attach a file', onClick: () => attachFileInputRef.current?.click() },
             { label: 'Scan with camera', onClick: () => scanInputRef.current?.click() },
-            { label: 'Chart or block', onClick: () => { setOutlineOpen(false); setPaletteOpen(true) } },
+            { label: 'Chart or block', onClick: () => { paletteOpenerRef.current = insertPhoneRef.current; setOutlineOpen(false); setPaletteOpen(true) } },
           ]}
         />
       )}
@@ -5647,6 +5919,8 @@ export default function NoteEditorPage({
             </button>
           </div>
         )}
+        {/* L3 (2026-11-03): removed at its source, so it no longer syncs; the copy is kept. */}
+        {noteIsSourceRemoved(note) && <SourceRemovedNotice importSource={note.importSource} />}
         {ytId ? (
           <>
             <NoteVideoHero youtubeId={ytId} watchUrl={note.heroImageUrl} />
@@ -5678,18 +5952,24 @@ export default function NoteEditorPage({
             each input, and the later prop won: an unreadable, unlocked note took
             typing that `commitSave` then dropped. Rails: lib/jsxDuplicateProps.test.js,
             NoteEditorPage.unreadable.test.jsx. */}
-        <input
+        {/* Final polish (WebKit at 390 px): a long title was clipped ("UXCHART phone che…") in a one-line input. It
+            is a textarea that grows with its text (useAutoGrow), so a title WRAPS. It stays one line of text: Enter
+            goes to the body (onTitleKeyDown, unchanged), Shift+Enter to the subtitle, and a pasted line break is a
+            space. Same name, same `data-note-title` hook, same ref. Rail: NoteEditorPage.titleWrap.test.jsx. */}
+        <textarea
           ref={titleInputRef}
+          rows={1}
           className={styles.titleInput}
           readOnly={locked || unreadable}
           value={title}
           onChange={(e) => {
-            const v = e.target.value
+            const v = e.target.value.replace(/[\r\n]+/g, ' ')
             setTitle(v)
             titleRef.current = v
             scheduleAutosave()
             onTitleChange?.(noteId, v)
           }}
+          onKeyDown={onTitleKeyDown}
           placeholder="Title"
           aria-label="Note title"
           // M-6: the hook NotebookTab's skip link finds the title by -- never
@@ -5714,14 +5994,21 @@ export default function NoteEditorPage({
             subtitleRef.current = v
             scheduleAutosave()
           }}
+          ref={subtitleInputRef}
+          onKeyDown={onSubtitleKeyDown}
           placeholder="Subtitle (optional)"
           aria-label="Subtitle"
         />
         <NoteDetailsLine items={detailItems} open={detailsOpen} onToggle={toggleDetails}
-          controls={`${subtitleId} ${detailsRegionId}`} />
+          controls={`${subtitleId} ${detailsRegionId}`} lead={folderLead}
+          trail={savedOnTitleLine ? saveIndicator(styles.savedLine) : null} />
         {/* The ticker's refusal is said OUTSIDE the details region, so collapsing the details
             never hides a write that did not land (wave 10 F7). */}
         <SaveFailed message={tickerFailure} onDismiss={() => setTickerFailure(null)} />
+        {/* Audit 2026-11-05, spec S2: a note is never stamped with the charted symbol any more;
+            once the body names a $TICKER twice it OFFERS the link, through the Ticker field's door. */}
+        <TickerSuggestion editor={editor} noteId={noteId} ticker={note?.ticker || null}
+          readOnly={locked || unreadable || isCanvas} onLink={(sym) => onTickerChange(sym)} />
         {/* Notebook P1: the previewed "Update layout" offer, its sheet, /style and the confirmation (dark behind
             the switch), fetched on demand: for a styled note, or once /style was pressed in this editor.
             What only this editor can do is handed over as `api`; the host does the rest. */}
@@ -5801,7 +6088,7 @@ export default function NoteEditorPage({
         {/* Wave P1 §23: why Search/Ask cannot read an attachment yet. Renders
             NOTHING when every document's text is complete — the common case
             gets no chrome. */}
-        <DocumentTextStatus documents={noteDocuments} />
+        <DocumentTextStatus documents={noteDocuments} imageUrls={bodyImageUrls} />
         {/* Wave 10 F7 (Part A, 5d): ONE sentence for the note's side reads that failed. */}
         <LoadFailed compact failures={[
           { what: "this note's attachments", error: documentsError, retry: refreshDocuments },
@@ -5833,6 +6120,8 @@ export default function NoteEditorPage({
         )}
         {/* Notebook widgets W1: the $TICKER chip's card, a lazy chunk (widgets/TickerCardSlot.jsx). */}
         {widgetsWaveOn(1) && <TickerCardSlot editor={editor} />}
+        {/* S13 (audit 2026-11-05): the one-time tips at the moment of need -- the first $TICKER, the first chart. */}
+        <NotebookTipSlot editor={editor} />
         {smartChipsEnabled() && screenshotOffer && screenshotOffer.noteId === noteId && (
           <Suspense fallback={null}>
             <ScreenshotTagOffer editor={editor} offer={screenshotOffer}
@@ -5929,13 +6218,17 @@ export default function NoteEditorPage({
           <div className={styles.railRight}><NoteRailRight insights={insights} /></div>
         )}
       </div>
-      <NoteHistoryPanel
-        open={historyOpen}
-        onClose={() => setHistoryOpen(false)}
-        noteId={noteId}
-        currentNote={note}
-        onRestored={onVersionRestored}
-      />
+      {historyEverOpen && (
+        <Suspense fallback={null}>
+          <NoteHistoryPanel
+            open={historyOpen}
+            onClose={() => setHistoryOpen(false)}
+            noteId={noteId}
+            currentNote={note}
+            onRestored={onVersionRestored}
+          />
+        </Suspense>
+      )}
       {resurfaceVersionId && (
         <Suspense fallback={null}>
           <ResurfaceVersionSheet noteId={noteId} versionId={resurfaceVersionId} onClose={clearResurfaceParam} />
@@ -5952,6 +6245,12 @@ export default function NoteEditorPage({
       )}
       {/* Wave 13 lane 13G-1: the /transcript insert's sheet (renders nothing while its gate is off). */}
       <TranscriptInsertHost editor={editor} noteId={noteId} ticker={note?.ticker} />
+      {/* Import a tweet: the /tweet and toolbar sheet (renders nothing while its gate is off). */}
+      {tweetImportEnabled() && (
+        <Suspense fallback={null}>
+          <TweetInsertHost editor={editor} noteId={noteId} ticker={note?.ticker} noteTitle={title} />
+        </Suspense>
+      )}
       {writingHelp && (
         <Suspense fallback={null}>
           <WritingHelpPanel
@@ -5959,6 +6258,7 @@ export default function NoteEditorPage({
             request={writingHelp}
             onAccept={acceptWritingHelpDraft}
             onClose={() => setWritingHelp(null)}
+            returnFocusTo={writingHelpFromButtonRef.current ? writingHelpButtonRef : undefined}
           />
         </Suspense>
       )}

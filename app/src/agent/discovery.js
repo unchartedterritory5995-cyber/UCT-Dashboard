@@ -4,7 +4,7 @@
 //   • the live capability registry  — what UCT Agent can execute right now (a topic's `caps`
 //     count only if they are actually registered), and
 //   • the PRODUCT's own registries  — what UCT has but the Agent cannot operate yet (chart
-//     settings classified `known`, the drawing tool schema), and
+//     settings classified `known`), and
 //   • the roadmap (docs/agent/ROADMAP.md) — what is PLANNED, always worded as future.
 // It never executes anything and never calls the model. A roadmap item is never described as
 // working; a topic with no registered capability is never "available".
@@ -20,10 +20,8 @@
 
 import { allCapabilityNames } from './capabilities'
 import { CHART_SETTING_DESCRIPTORS } from '../components/chart/chartSettingsDescriptors'
-import { SCHEMA as DRAWING_SCHEMA, RETIRED_TYPES } from '../components/chart/drawingSettingsSchema'
 
 const knownSettings = () => CHART_SETTING_DESCRIPTORS.filter(d => d.agent === 'known' && d.label).map(d => d.label)
-const drawingTools = () => Object.keys(DRAWING_SCHEMA).filter(t => !RETIRED_TYPES.has(t))
 const sample = (xs, n = 6) => (xs.length > n ? `${xs.slice(0, n).join(', ')} and ${xs.length - n} more` : xs.join(', '))
 
 /**
@@ -48,7 +46,7 @@ export const TOPICS = [
   {
     id: 'breadth', title: 'Market breadth (now and history)',
     words: [/\bbreadth\b/, /\b(advance[- /]decline|new highs|new lows|% of stocks above)\b/],
-    caps: ['breadth.show', 'breadth.history'], productHas: true,
+    caps: ['breadth.show', 'breadth.history', 'breadth.page'], productHas: true,
     canDo: 'look up and search UCT’s market breadth for US, NYSE or Nasdaq stocks — when a measure was last below or above a level, crossings, how many times, episodes and how long they lasted; the current reading during the session (labelled with its time, when UCT’s live feed has one; otherwise the latest finalized close, dated), a finalized value on a date, two dates compared, or a date range summarised (% of stocks above their moving averages, new highs and lows, advance/decline, Stage 2/4 counts). UCT shows the figures to you directly; they are not sent to the AI model',
     known: () => ['breadth for UCT’s own universe (it is on the Breadth page) or other indexes', 'live new highs / new lows (finalized closes only for now)', 'live-versus-historical comparisons', 'cross-asset conditions (“when was breadth this low while QQQ was at a high?”)', 'weekly-close searches (daily finalized sessions for now)'],
     planned: { when: 'Stage 3', what: 'conditional questions across UCT’s historical data, with explicit definitions and no look-ahead' },
@@ -70,9 +68,9 @@ export const TOPICS = [
   {
     id: 'widgets', title: 'Adding widgets and charts',
     words: [/\bwidgets?\b/, /\badd (a |another |some |\d+ )?(new )?charts?\b/, /\bremove (a |the |this )?(widget|chart)s?\b/, /\bclose (a |the |this )?(widget|chart)s?\b/],
-    caps: ['widget.add', 'widget.addCharts', 'chartGrid.set', 'board.duplicateChart', 'widget.showList', 'widget.showScan'], productHas: true,
+    caps: ['widget.add', 'widget.addCharts', 'chartGrid.set', 'board.duplicateChart', 'widget.showList', 'widget.showScan', 'widget.setOption', 'widget.readOptions', 'widget.sendToJournal'], productHas: true,
     canDo: 'add widgets into empty space, set up several charts for the tickers you name in one go (“four daily charts for SPY, QQQ, NVDA and TSLA” — the charts already there are reused and the board is re-tiled into equal cells to make room; nothing else is moved or removed, and one Undo puts the board back), add up to 12 charts at once with their symbols, timeframes and chart types (Undo closes what I added), duplicate a chart (its cell is split and the copy keeps its ticker, timeframe, look and indicators), make a Watchlist widget show one of your lists, and make a Scanner widget show one of UCT’s scans',
-    known: () => ['other widgets’ settings (news filters, scatter axes, breadth metrics…)'],
+    known: () => ['a widget’s look (colours, fonts), and controls that live only on the Watchlists page'],
     planned: null,
   },
   {
@@ -94,18 +92,22 @@ export const TOPICS = [
   {
     id: 'indicators', title: 'Indicators',
     words: [/\bindicators?\b/, /\b(rsi|macd|bollinger|vwap|atr|stochastic|ema|sma|moving averages?|oscillators?|studies|study)\b/, /\bpanes?\b/],
-    caps: ['indicator.list', 'indicator.add', 'indicator.update', 'indicator.remove', 'indicator.show', 'indicator.hide', 'indicatorStyle.set', 'indicatorStyle.placeIn', 'pane.move', 'pane.resize', 'indicatorCopy.duplicate', 'indicatorCopy.copyTo'], productHas: true,
-    canDo: 'list the indicators on a chart; add one (a built-in indicator or one of your own saved ones, with its numeric settings, e.g. a 20 EMA), change its numeric settings, its colours, line width, line style and plot style, put it on price, on volume or in its own pane, reorder and resize panes, duplicate it, copy indicators onto other charts, remove one (shown to you first, with anything it would disconnect, and undone exactly) and show or hide one — one at a time, on charts whose indicators you can change',
-    known: () => ['indicator alerts (set them on the chart)', 'classic overlay averages and Volume Profile (Chart Settings)'],
+    caps: ['indicator.list', 'indicator.add', 'indicator.update', 'indicator.remove', 'indicator.show', 'indicator.hide', 'indicatorStyle.set', 'indicatorStyle.placeIn', 'pane.move', 'pane.resize', 'indicatorCopy.duplicate', 'indicatorCopy.copyTo', 'indicatorAlert.list', 'indicatorAlert.create', 'indicatorAlert.toggle', 'indicatorAlert.delete', 'indicatorTemplate.list', 'indicatorTemplate.apply', 'indicatorTemplate.save', 'indicatorTemplate.delete'], productHas: true,
+    canDo: 'list the indicators on a chart; add one (a built-in indicator or one of your own saved ones, with its numeric settings, e.g. a 20 EMA), change its numeric settings, its colours, line width, line style and plot style, put it on price, on volume or in its own pane, reorder and resize panes, duplicate it, copy indicators onto other charts, remove one (shown to you first, with anything it would disconnect, and undone exactly) and show or hide one — one at a time, on charts whose indicators you can change. Also: alert on an indicator that is on a chart (a level, a line crossing, a 9 / 20 moving-average cross, or one of your own yes/no signals, on that chart’s timeframe or another standard one — always shown to you first), list those alerts with what is wrong with any that can’t fire, and pause, resume or delete them; list your saved indicator templates, add one to one chart or several, save a chart’s indicators as one, and delete one (replacing or deleting a template is shown to you first)',
+    known: () => ['classic overlay averages and Volume Profile (Chart Settings)'],
     planned: null,
   },
   {
     id: 'drawings', title: 'Drawing tools',
     words: [/\bdraw\w*\b/, /\b(trend ?lines?|horizontal (line|level)s?|fib\w*|rectangles?|channels?|pitchforks?|annotat\w+)\b/],
-    caps: ['drawing.addLevel', 'drawing.setLevel', 'drawing.style', 'drawing.setVisible', 'drawing.lock', 'drawing.setAllVisible', 'drawing.remove', 'drawing.clear', 'drawing.list'], productHas: true,
-    canDo: 'draw a horizontal line at a price you give me and move it to a new price, change one drawing\'s colour, line style or width, show or hide one drawing or all of them, lock or unlock one, remove one drawing (not one with an alert attached), clear every drawing on a symbol (always shown to you first; locked drawings and ones with alerts are kept), and list the drawings on a chart — each with Undo',
-    known: () => [`the rest of the drawing toolbar (${drawingTools().length} tools: ${sample(drawingTools())}) — trendlines, rectangles, Fibonacci and text need anchors in time, which I can't place yet`],
-    planned: { when: 'Batch 8b', what: 'trendlines, rectangles and Fibonacci tools from the dates and prices you give me, once the drawing layer exposes its point and time rules' },
+    caps: ['drawing.addLevel', 'drawing.setLevel', 'drawing.style', 'drawing.setVisible', 'drawing.lock', 'drawing.setAllVisible', 'drawing.remove', 'drawing.clear', 'drawing.list',
+      // W1-B: the time-anchored tools, from the dates and prices the member gives
+      'drawing.addTrendline', 'drawing.addRay', 'drawing.addHorizontalRay', 'drawing.addRectangle', 'drawing.addFib', 'drawing.addText', 'drawing.addAvwap',
+      // the family: any other toolbar tool, anchors, every menu setting, Fibonacci levels, a line's alert
+      'drawing.add', 'drawing.setAnchors', 'drawing.setProps', 'drawing.setFibLevels', 'drawing.setAlert'], productHas: true,
+    canDo: 'draw a horizontal line at a price you give me and move it to a new price; draw any tool on the drawing toolbar from the dates and prices you give me (a date like Oct 15 or "last Friday", within the history the chart has loaded), including channels, pitchforks, arrows, Fibonacci extensions and Measure; move any point of a drawing; change one drawing\'s colour, line style, width and the other settings in its menu (each tool has its own), and a Fibonacci\'s levels and fills; set an alert that follows a line or a Fibonacci level (always shown to you first); show or hide one drawing or all of them, lock or unlock one, remove one drawing (not one with an alert attached), clear every drawing on a symbol (always shown to you first; locked drawings and ones with alerts are kept), and list the drawings on a chart — each with Undo',
+    known: () => ['duplicating a drawing, Save as default, reordering drawings and switching Drawing Boards — those are done on the chart'],
+    planned: null,
   },
   {
     id: 'chartSettings', title: 'Chart appearance and settings',
@@ -118,9 +120,9 @@ export const TOPICS = [
   {
     id: 'charts', title: 'Chart symbol, timeframe, type, scale and session',
     words: [/\b(timeframe|symbol|ticker|chart type|log scale|percent scale|extended hours|pre-?market|post-?market|weekly|daily|monthly|intraday|tabs?|compare|overlay|go to|scroll)\b/],
-    caps: ['chart.setSymbol', 'chart.setTimeframe', 'chart.addCustomTimeframe', 'chartSetup.removeTimeframe', 'chartSetup.favoriteTimeframe', 'chart.setType', 'chart.setScale', 'chart.setSession', 'chart.goToDate', 'chart.compare', 'chartSetup.compareDisplay', 'chart.addTab', 'chart.selectTab', 'chart.closeTab', 'chart.renameTab', 'chart.linkTab'], productHas: true,
-    canDo: 'change a chart’s symbol, timeframe (including custom ones like 45 minutes or 2 days — and remove or star them), chart type, scale and regular vs extended hours; put symbols on several charts at once (“NVDA on the left, AMD on the right”, “NVDA and AMD side by side”); scroll it to a past date (view only); overlay comparison symbols and set their scale or Group only; and add, switch, rename, link and close chart tabs — with Undo',
-    known: () => ['replay (hiding the bars after a date)', 'resetting the view or zoom'],
+    caps: ['chart.setSymbol', 'chart.setTimeframe', 'chart.addCustomTimeframe', 'chartSetup.removeTimeframe', 'chartSetup.favoriteTimeframe', 'chart.setType', 'chart.setScale', 'chart.setSession', 'chart.goToDate', 'chart.replay', 'chartSetup.setRange', 'chartSetup.resetView', 'chartSetup.setIndicatorsHidden', 'chartSetup.setMovingAverages', 'chart.compare', 'chartSetup.compareDisplay', 'chart.addTab', 'chart.selectTab', 'chart.closeTab', 'chart.renameTab', 'chart.linkTab'], productHas: true,
+    canDo: 'change a chart’s symbol, timeframe (including custom ones like 45 minutes or 2 days — and remove or star them), chart type, scale and regular vs extended hours; put symbols on several charts at once (“NVDA on the left, AMD on the right”, “NVDA and AMD side by side”); scroll it to a past date, replay it from a date, show a range (3M, 6M, YTD, 1Y, 5Y, Origin) or reset the view (views only); hide or show every moving average or every indicator at once; overlay comparison symbols and set their scale or Group only; and add, switch, rename, link and close chart tabs — with Undo',
+    known: () => ['free zooming in or out'],
     planned: null,
   },
   {
@@ -134,26 +136,26 @@ export const TOPICS = [
   {
     id: 'screener', title: 'Screener',
     words: [/\bscreen\w*\b/, /\bscan\w*\b/, /\bfilters?\b/, /\bfind (me )?stocks\b/, /\bsort (by|on)\b/],
-    caps: ['screener.run', 'screener.state'], productHas: true,
-    canDo: 'run screens on UCT’s numeric, yes/no and category fields (sector, industry, theme…) and the latest session’s close, volume and dollar volume, with one sort, refine the last screen, and send all the results to a watchlist or open them as charts',
+    caps: ['screener.run', 'screener.state', 'screener.page', 'screener.openSaved'], productHas: true,
+    canDo: 'run screens on UCT’s numeric, yes/no and category fields (sector, industry, theme…) and the latest session’s close, volume and dollar volume, with one sort, refine the last screen, and send all the results to a watchlist or open them as charts; on the Screener page, say what screen is on it and open one of your saved screens there',
     known: () => ['field-vs-field comparisons', 'formula logic and ranking in new screens', 'custom-date (period) sorting', 'preset scans'],
     planned: { when: 'Batch 9', what: 'advanced conditions, ranking and custom-date sorting' },
   },
   {
     id: 'watchlists', title: 'Watchlists',
     words: [/\bwatch ?lists?\b/, /\blists?\b/],
-    caps: ['watchlist.list', 'watchlist.show', 'watchlist.add', 'watchlist.remove', 'watchlist.create', 'watchlist.rename', 'watchlist.clear', 'watchlist.delete', 'watchlist.open', 'watchlist.reorder', 'watchlist.setNote'], productHas: true,
-    canDo: 'show, create, rename, add to, remove from, clear and delete your watchlists, sort one A–Z or put tickers at the top, write a note on a ticker, copy one into a new list, and open one in your workspace',
+    caps: ['watchlist.list', 'watchlist.show', 'watchlist.add', 'watchlist.remove', 'watchlist.create', 'watchlist.rename', 'watchlist.clear', 'watchlist.keepOnly', 'watchlist.sortColumn', 'watchlist.setColumns', 'watchlist.step', 'watchlist.readView', 'watchlist.setFlag', 'watchlist.delete', 'watchlist.open', 'watchlist.reorder', 'watchlist.setNote'], productHas: true,
+    canDo: 'show, create, rename, add to, remove from, clear and delete your watchlists, keep only the tickers you name, sort one A–Z or put tickers at the top, write a note on a ticker, copy one into a new list, and open one in your workspace; on a Watchlist or Scanner widget, sort by a column, add or hide columns, go to the next or previous ticker and read what it shows; and flag or unflag tickers',
     known: () => ['sorting a list by price, change or other data', 'flagging (starring) tickers', 'tags and colours'],
     planned: null,
   },
   {
     id: 'alerts', title: 'Alerts',
     words: [/\balerts?\b/, /\bnotify\b/, /\bping me\b/],
-    caps: ['alert.list', 'alert.create', 'alert.delete'], productHas: true,
-    canDo: 'list your price alerts, create price alerts (above/below a level) and delete them. Note: UCT checks price alerts as live prices are fetched — there is no separate background monitor yet',
-    known: () => ['indicator alerts and trendline alerts (owned by the Indicator project)', 'snoozing or re-arming alerts'],
-    planned: { when: 'Batch 10', what: 'clearer alert-monitoring wording; indicator alerts later with the Indicator team' },
+    caps: ['alert.list', 'alert.create', 'alert.delete', 'indicatorAlert.create', 'indicatorAlert.toggle', 'indicatorAlert.delete'], productHas: true,
+    canDo: 'list your price alerts, create price alerts (above/below a level) and delete them; create an indicator alert on an indicator that is on a chart (RSI above 70, MACD crossing a level, price touching a band — the alert catalog decides which), pause or resume one, and delete one. Note: UCT checks price alerts as live prices are fetched — there is no separate background monitor yet',
+    known: () => ['trendline alerts (owned by the Indicator project)', 'snoozing alerts', 'alerts on a yes/no signal (a trigger policy — set those from the chart)'],
+    planned: { when: 'Batch 10', what: 'clearer alert-monitoring wording' },
   },
   {
     id: 'stockInfo', title: 'Stock information and news',
@@ -162,6 +164,22 @@ export const TOPICS = [
     canDo: 'look up a company’s profile and key numbers, its earnings, compare two stocks, and show the latest news and catalysts',
     known: () => ['calendar, ownership, insider, ETF holdings, options flow and themes (on their own widgets)'],
     planned: { when: 'Batch 10', what: 'more read-only data questions' },
+  },
+  {
+    id: 'calendar', title: 'Earnings calendar',
+    words: [/\b(calendar|report(s|ing)? (date|day|week)|next report|who reports|reports? (today|tomorrow|this week|on))\b/],
+    caps: ['calendar.nextReport', 'calendar.day'], productHas: true,
+    canDo: 'say when a stock next reports (date and session) and list the reports on a day or on the week the Calendar page has loaded — tickers and session only, on the Calendar page',
+    known: () => ['estimates, implied moves and reactions (read them on the Calendar page)', 'my-stocks sets and calendar filters (the page’s own controls)'],
+    planned: null,
+  },
+  {
+    id: 'journal', title: 'Journal notes',
+    words: [/\b(journal|notebook|notes?|note it|write (it|that) down|jot)\b/],
+    caps: ['journal.listNotes', 'journal.createNote'], productHas: true,
+    canDo: 'list your recent Notebook notes and create a new note (title, text, optional ticker) through the Notebook’s own New-note path — Undo moves it to Trash — on the Journal pages',
+    known: () => ['logging trades, positions or accounts (personal records — not operated by the Agent)', 'editing or deleting an existing note', 'templates and journal styles'],
+    planned: null,
   },
   {
     id: 'appSettings', title: 'App settings and pages',
@@ -175,6 +193,15 @@ export const TOPICS = [
     words: [/\b(show me (where|how)|walk me through|tutorial|teach me|guide me|explain|what does .+ mean)\b/],
     caps: ['guide.explain', 'guide.show'], productHas: true,
     canDo: 'explain what a UCT term, indicator or feature is (from UCT’s own catalog), show you where a Charts control is by highlighting it on your board step by step (symbol, timeframe, indicators, several charts, watchlists, layouts, drawing tools, chart settings) — without changing anything — and then do it for you when you ask',
+    known: () => [],
+    planned: null,
+  },
+  {
+    // hotfix 2026-11-03: the Agent's own Undo, asked for in words (agent.undo → the receipt's Undo)
+    id: 'undo', title: 'Undoing my changes',
+    words: [/\b(undo|revert|take (it|that|them) back)\b/],
+    caps: ['agent.undo'], productHas: true,
+    canDo: 'undo my own changes when you ask (“undo that”, “undo the last change you made”, “revert the timeframe change”, “undo all of that”) — exactly what the Undo on that change’s receipt does — and tell you plainly when a change can’t be undone (changed since, on another board, a protected layout, or a permanent action)',
     known: () => [],
     planned: null,
   },

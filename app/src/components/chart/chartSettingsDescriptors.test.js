@@ -15,7 +15,7 @@ function leafPaths(o, prefix = '') {
   }
   return out
 }
-const AGENT = /^(eligible|known|internal|specialized:[a-z]+\.[a-zA-Z]+|owned:[a-z]+)$/
+const AGENT = /^(eligible|known|internal|specialized:[a-zA-Z]+\.[a-zA-Z]+|owned:[a-z]+)$/
 
 describe('chart settings descriptors — the completeness rail', () => {
   it('🔴 every key the settings allow-list keeps is CLASSIFIED (a new setting fails here until it has a row)', () => {
@@ -30,8 +30,9 @@ describe('chart settings descriptors — the completeness rail', () => {
     for (const d of CHART_SETTING_DESCRIPTORS) expect(d.agent, d.id).toMatch(AGENT)
     for (const d of ELIGIBLE_SETTINGS) {
       expect(d.label && d.section && d.ui, d.id).toBeTruthy()
-      expect(['bool', 'enum', 'color'], d.id).toContain(d.type)
+      expect(['bool', 'enum', 'color', 'number'], d.id).toContain(d.type)
       if (d.type === 'enum') expect(d.options.length, d.id).toBeGreaterThan(1)
+      if (d.type === 'number') { expect(Number.isFinite(d.min) && Number.isFinite(d.max) && d.min < d.max, d.id).toBe(true) }
       if (d.requires?.setting) expect(settingDescriptor(d.requires.setting), `${d.id} requires an unknown setting`).toBeTruthy()
     }
   })
@@ -44,7 +45,7 @@ describe('chart settings descriptors — the completeness rail', () => {
       if (r.chartType) b = { ...b, chartType: r.chartType[0] }
       if (r.setting) {
         const dep = settingDescriptor(r.setting)
-        b = withSetting(b, dep, 'value' in r ? r.value : (dep.boolMap ? dep.boolMap.true : true))
+        b = withSetting(b, dep, 'value' in r ? r.value : r.not === true ? false : (dep.boolMap ? dep.boolMap.true : true))
       }
     }
     return b
@@ -52,9 +53,9 @@ describe('chart settings descriptors — the completeness rail', () => {
   it('a row never points at a key the allow-list would DROP (an eligible write must survive a reload)', () => {
     for (const d of ELIGIBLE_SETTINGS) {
       const base = ready(d)
-      expect(settingUnavailable(d, base), d.id).toBe(null)
+      expect(settingUnavailable(d, base), d.id).toBe(d.inert ?? null)
       const cur = settingValue(base, d)
-      const want = d.type === 'bool' ? !cur : d.type === 'color' ? (cur === '#123456' ? '#654321' : '#123456') : d.options.find(o => o !== cur)
+      const want = d.type === 'bool' ? !cur : d.type === 'color' ? (cur === '#123456' ? '#654321' : '#123456') : d.type === 'number' ? (cur === d.min ? d.max : d.min) : d.options.find(o => o !== cur)
       const written = withSetting(base, d, want)
       expect(settingValue(mergeChartSettings(written), d), d.id).toEqual(want)
     }
@@ -95,7 +96,25 @@ describe('chart settings descriptors — UI-equivalent writes', () => {
     const ts = ELIGIBLE_SETTINGS.find(d => d.id === 'textSize')
     expect(coerceSettingValue(ts, '14')).toEqual({ ok: true, value: 14 })
     expect(coerceSettingValue(ts, 13).ok).toBe(false)
-    expect(coerceSettingValue(CHART_SETTING_DESCRIPTORS.find(d => d.id === 'watermark.opacity'), 0.5).ok).toBe(false)
+    // W1-B: a number setting takes its control's range; outside it is refused; a whole-number control takes whole numbers
+    expect(coerceSettingValue(settingDescriptor('watermark.opacity'), 0.5)).toEqual({ ok: true, value: 0.5 })
+    expect(coerceSettingValue(settingDescriptor('watermark.opacity'), '70%').why).toMatch(/from 0 to 1/)      // "70%" is not 0.7 — said, never scaled
+    expect(coerceSettingValue(settingDescriptor('watermark.opacity'), 1.5).why).toMatch(/from 0 to 1/)
+    expect(coerceSettingValue(settingDescriptor('volume.paneHeightPct'), 22.5).why).toMatch(/whole number from 8 to 45/)
+    expect(coerceSettingValue(settingDescriptor('volume.maPeriod'), '50')).toEqual({ ok: true, value: 50 })
+    expect(coerceSettingValue(settingDescriptor('positionCalc.riskPct'), 'lots').why).toMatch(/is a number from 0 to 100/)
+    // an alpha-capable colour keeps the 8-digit form the color menu stores; a plain colour row still refuses it
+    expect(coerceSettingValue(settingDescriptor('darkPool.barColor'), '#c9a84ccc')).toEqual({ ok: true, value: '#c9a84ccc' })
+    expect(coerceSettingValue(settingDescriptor('darkPool.barColor'), 'abc')).toEqual({ ok: true, value: '#aabbcc' })
+    expect(coerceSettingValue(settingDescriptor('grid.color'), '#c9a84ccc').ok).toBe(false)
+    // the promoted rows' prerequisites are the dialog's own
+    expect(settingUnavailable(settingDescriptor('bgGradient.top'), mergeChartSettings({}))).toMatch(/Gradient first/)
+    expect(settingUnavailable(settingDescriptor('bgGradient.top'), { ...mergeChartSettings({}), bgMode: 'gradient' })).toBe(null)
+    expect(settingUnavailable(settingDescriptor('darkPool.barColor'), mergeChartSettings({}))).toMatch(/dark-pool levels on first/)
+    expect(settingUnavailable(settingDescriptor('volume.paneHeightPct'), withSetting(mergeChartSettings({}), settingDescriptor('volume.visible'), false))).toMatch(/Show Volume first/)
+    expect(settingUnavailable(settingDescriptor('markers.ipoColor'), mergeChartSettings({}))).toBe(null)   // ipo marker is on by default
+    // the header Info-row flags stay known (header.fields is the stored truth) — KNOWING ≠ DOING
+    for (const id of ['header.showMarketCap', 'header.showNextEarnings', 'header.showUctRating', 'volume.plotStyle', 'theme']) expect(settingDescriptor(id).agent, id).toBe('known')
   })
 
   it('the UI prerequisite holds: thin bars only on Bars/HLC charts', () => {

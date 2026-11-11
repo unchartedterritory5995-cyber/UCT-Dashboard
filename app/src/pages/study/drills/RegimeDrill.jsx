@@ -6,7 +6,7 @@
  * With `facts` the item is text-only; without them the player shows the chart.
  * Answer: {choice}
  */
-import ChoiceList from './ChoiceList'
+import ChoiceList, { revealLabels } from './ChoiceList'
 import { barsWord, choiceAnswer, choiceAnswerable, choicesFromPrompt, questionOf } from './types'
 import styles from './drills.module.css'
 
@@ -22,7 +22,7 @@ export function framingOf(item) {
   return n ? `Index chart, ${barsWord(n)} ending on the date in question.` : 'Index chart ending on the date in question.'
 }
 
-export function Body({ item, state, setState, locked }) {
+export function Body({ item, state, setState, locked, reveal }) {
   const facts = item?.prompt_json?.facts
   return (
     <div>
@@ -36,7 +36,7 @@ export function Body({ item, state, setState, locked }) {
           ))}
         </dl>
       )}
-      <ChoiceList
+      <ChoiceList {...revealLabels(reveal, state)}
         choices={choicesOf(item)}
         value={state?.choice ?? null}
         onChange={(choice) => setState({ choice })}

@@ -139,10 +139,11 @@ describe('H4 (1) — a call-site length that is constant arithmetic', () => {
     }
   })
 
-  it('volume-divergence-by-mm is past the length wall (its next wall is `pivotlow` over state)', () => {
+  it('volume-divergence-by-mm is past the length wall AND the `pivotlow` wall: it builds (W4 T10)', () => {
+    // ⭐ W4 T10 — its next wall was `ta.pivotlow` over state (`runtime:call-windowed-state`);
+    // `CARRIED.pivotLowPine` serves it, and the program now attaches.
     const p = probeRuntimeProgram(corpus('volume-divergence-by-mm'))
-    expect(p.ok).toBe(false)
-    expect(p.refusal.guard).toBe('runtime:call-windowed-state')
+    expect(p.ok, p.ok ? '' : `${p.refusal.guard}: ${p.refusal.message}`).toBe(true)
   })
 })
 

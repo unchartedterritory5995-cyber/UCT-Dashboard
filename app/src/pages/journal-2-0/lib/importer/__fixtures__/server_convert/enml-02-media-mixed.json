@@ -1,0 +1,77 @@
+{
+  "doc": {
+    "content": [
+      {
+        "content": [
+          {
+            "text": "Setup chart:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "src": "import-ref://evernote-res://11111111-0000-4000-8000-000000000002/365dccce50f2d8411c4e737c7ff0057d"
+        },
+        "type": "image"
+      },
+      {
+        "content": [
+          {
+            "text": "caption after the image",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "Report: ",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "href": "import-ref://evernote-res://11111111-0000-4000-8000-000000000002/752edbf5288dd63f3481a3f7fe6adc94",
+          "name": "report.pdf"
+        },
+        "type": "attachmentChip"
+      },
+      {
+        "content": [
+          {
+            "text": "Same chart again ",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "src": "import-ref://evernote-res://11111111-0000-4000-8000-000000000002/365dccce50f2d8411c4e737c7ff0057d"
+        },
+        "type": "image"
+      }
+    ],
+    "type": "doc"
+  },
+  "links": [],
+  "media": [
+    {
+      "kind": "image",
+      "mime": "image/png",
+      "name": "chart.png",
+      "ref": "evernote-res://11111111-0000-4000-8000-000000000002/365dccce50f2d8411c4e737c7ff0057d"
+    },
+    {
+      "kind": "file",
+      "mime": "application/pdf",
+      "name": "report.pdf",
+      "ref": "evernote-res://11111111-0000-4000-8000-000000000002/752edbf5288dd63f3481a3f7fe6adc94"
+    }
+  ]
+}

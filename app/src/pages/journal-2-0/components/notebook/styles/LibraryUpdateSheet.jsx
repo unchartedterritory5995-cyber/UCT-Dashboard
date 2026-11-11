@@ -25,11 +25,13 @@ export const OUTLINE_STAYS = 'Your outline stays unless you tick this.'
 export const NOTHING_REMOVED = 'Nothing you changed is removed.'
 // ⛔ A 409's detail is the SERVER's fixed sentence and is shown as written; this is only the fallback for a 409
 // with no body, pinned to the recorded answer (`template-gallery.updates.apply.stale`) by StyleLibraryDoors.test.jsx.
+// ⛔ The SERVER's recorded sentence, railed word for word (StyleLibraryDoors.test.jsx): renaming it is a server change,
+// so S7 leaves it (vocabulary.test.js ALLOW).
 export const STALE_SENTENCE = 'This style changed since you opened the update. Nothing was changed. Look again.'
 // M-6: the plan route answers 404 when there is nothing newer to offer (or the style is no adopted copy).
 export const UP_TO_DATE_SENTENCE = 'Your copy is already up to date. There is nothing new to add.'
-export const NO_COPY_SENTENCE = "Your copy of this style is no longer in your styles, so it can't be updated."
-export const COPY_UNREADABLE_SENTENCE = "Couldn't read your copy of this style, so it can't be updated right now."
+export const NO_COPY_SENTENCE = "Your copy of this template is no longer in your templates, so it can't be updated."
+export const COPY_UNREADABLE_SENTENCE = "Couldn't read your copy of this template, so it can't be updated right now."
 const PLAN_FAILED = "Couldn't check what this update would change. Nothing was changed."
 const APPLY_FAILED = "Couldn't update your copy. Nothing was changed."
 
@@ -146,7 +148,7 @@ export default function LibraryUpdateSheet({ styleId, onClose, onApplied }) {
             )}
             <p className={styles.hint}>{NOTHING_REMOVED}</p>
             {copyProblem && <p className={styles.error} role="alert">{copyProblem}</p>}
-            {offline && <p className={styles.notice}>You are offline. Updating a style needs a connection.</p>}
+            {offline && <p className={styles.notice}>You are offline. Updating a template needs a connection.</p>}
           </>
         )}
         {notice && <p className={styles.error} role="alert">{notice}</p>}

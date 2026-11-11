@@ -1,0 +1,14 @@
+{
+  "schema": "uct.strategy-report-slots/v1",
+  "status": "UNPINNED",
+  "why": "W9-C0 (the owner's depth-2 key walk, __uctVH._strategyKeys()) has not been captured. Each slot is a key path into the report tree; null refuses by name strategy-report:unpinned. Fill a path only from a captured tree.",
+  "reportPath": null,
+  "slots": {
+    "netProfit": null, "grossProfit": null, "grossLoss": null, "maxDrawdown": null, "maxRunup": null,
+    "buyAndHoldReturn": null, "totalClosedTrades": null, "totalOpenTrades": null,
+    "numberWinningTrades": null, "numberLosingTrades": null, "percentProfitable": null,
+    "profitFactor": null, "avgTrade": null, "avgWinningTrade": null, "avgLosingTrade": null,
+    "largestWinningTrade": null, "largestLosingTrade": null, "avgBarsInTrades": null,
+    "sharpeRatio": null, "sortinoRatio": null, "commissionPaid": null
+  }
+}

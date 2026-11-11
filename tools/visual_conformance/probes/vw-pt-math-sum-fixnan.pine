@@ -1,0 +1,48 @@
+//@version=6
+indicator("UCTPROBE_VW_PT_MATH_SUM_FIXNAN", overlay = false, max_bars_back = 5000)
+
+// --- 2026-11-07 prod-ternary - `math.sum` AND `fixnan` IN A `?:` ARM ---
+//
+// docs/pine/capture-queue-2026-10-31-prod-ternary.md, "Shapes this branch does
+// NOT stamp", row 2: `up ? math.sum(x, n) : y`, `up ? fixnan(x) : y`. The plot
+// lane reads only `ta.*` and history-reading script functions as history calls,
+// so it draws both off the every-bar call. One row each:
+//
+//   M01  `math.sum` in the true arm  - against E02 (every bar) and P01 (per run)
+//   F01  `fixnan` in the true arm    - against E04 (every bar) and P02 (per run)
+//
+// The false arm is a sentinel (-1) so only the true arm's bars carry a value.
+// `xg` is `close` with every third bar `na`, so fixnan's per-run and every-bar
+// answers differ wherever the last non-`na` value fell on a bar the arm skipped.
+// Per run would add both names to the arm rule and to C48's mark.
+//
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+// NEVER COMPILED ON TRADINGVIEW: a row that does not compile names its line.
+
+up = close > open
+xg = bar_index % 3 == 0 ? na : close
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(up ? 1 : 0, "A01_test_CONTROL")
+
+// ------------------------------------------------------------- M: math.sum
+e_sum = math.sum(close, 5)
+plot(e_sum, "E01_sum5_every_bar")
+plot(up ? math.sum(close, 5) : -1.0, "M01_sum5_in_true_arm")
+plot(up ? e_sum : -1.0, "E02_sum5_arm_fed_by_every_bar")
+var array<float> runs = array.new<float>()
+if up
+    runs.push(close)
+    if runs.size() > 5
+        runs.shift()
+plot(up ? (runs.size() == 5 ? runs.sum() : na) : -1.0, "P01_sum5_per_run_reference")
+
+// ------------------------------------------------------------- F: fixnan
+e_fix = fixnan(xg)
+plot(e_fix, "E03_fixnan_every_bar")
+plot(up ? fixnan(xg) : -1.0, "F01_fixnan_in_true_arm")
+plot(up ? e_fix : -1.0, "E04_fixnan_arm_fed_by_every_bar")
+var float lastOnRun = na
+if up and not na(xg)
+    lastOnRun := xg
+plot(up ? lastOnRun : -1.0, "P02_fixnan_per_run_reference")

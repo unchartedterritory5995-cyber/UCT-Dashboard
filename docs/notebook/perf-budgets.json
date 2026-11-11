@@ -4,12 +4,13 @@
     "notebook_first_open": {
       "roots": [
         "src/pages/journal-2-0/JournalLayout.jsx",
-        "src/pages/journal-2-0/surfaces/NotebookSurface.jsx"
+        "src/pages/journal-2-0/surfaces/NotebookSurface.jsx",
+        "src/pages/journal-2-0/components/notebook/TodayHome.jsx"
       ],
       "baseline": 2153137,
       "baseline_from": "Fix round 1, ruling D-I1 (vendor-echarts removed from manualChunks): measured with tools/notebook_perf_budgets.py --dist on a clean build of the tree of 0189bca13 plus that vite.config.js; docs/notebook/perf-budgets.md section 1, 'Decision D-I1'. The I3 baseline was 2,145,850 (section 4); +7,237 B came from the commits after I3, +50 B from D-I1 itself.",
       "max": 2260793,
-      "max_rule": "floor(baseline * 1.05)"
+      "max_rule": "floor(baseline * 1.05). Restored 2026-11-09 by owner approval: both same-day hand raises are withdrawn because measured first open fits the rule. perf-budgets.md, last section."
     }
   },
   "search": {

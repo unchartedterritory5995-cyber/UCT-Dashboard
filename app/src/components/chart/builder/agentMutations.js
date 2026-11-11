@@ -22,11 +22,14 @@
 // `confirmIndicatorMutation`; nothing here claims a save it did not see.
 
 import { addInstance, removeInstance, setInstanceHidden, findInstance, groupMemberIds, setInstanceInput, setIndicatorInput, checkInstanceInput, inputSpecOf,
-  setInstanceAppearance, setInstancePlotStyle, setInstanceCandleColor, setInstanceDisplayTarget, duplicateInstance, isValidColorValue } from '../engine/instanceControls'
+  setInstanceAppearance, setInstancePlotStyle, setInstanceCandleColor, setInstanceDisplayTarget, duplicateInstance, isValidColorValue,
+  setInstanceVisibility, setInstanceDotSize, dotPlotsOf, instanceDotSizeReading } from '../engine/instanceControls'
+import { normalizeVisibility, visibilitySummary, VISIBILITY_PRESETS } from '../engine/instanceTimeframe'
 import { displayTargetOptions, automaticTargetOf, resolveDisplayTarget, paneOwnerOf } from '../engine/displayTarget'
 import { movePane as movePaneWriter, movePaneTo, resolvePaneOrder, storedPaneOrder } from '../engine/paneOrder'
 import { setPaneSize as setPaneSizeWriter, clearPaneSize, storedPaneSizes } from '../engine/paneSizes'
-import { LINE_WIDTH_CHOICES, LINE_STYLE_CHOICES, DEFAULT_LINE_WIDTH_CHOICE, DEFAULT_LINE_STYLE_CHOICE, resolveSignColors, resolvePlotStyle } from '../engine/presentation'
+import { LINE_WIDTH_CHOICES, LINE_STYLE_CHOICES, DEFAULT_LINE_WIDTH_CHOICE, DEFAULT_LINE_STYLE_CHOICE, resolveSignColors, resolvePlotStyle,
+  DOT_SIZES, DEFAULT_DOT_SIZE, storedDotSize } from '../engine/presentation'
 import { styleChoicesFor } from '../engine/styleCapability'
 import { paneArrangeArgs } from './agentPanes'
 import { captureIndicatorTemplate, applyIndicatorTemplate } from './indicatorTemplates'
@@ -43,7 +46,13 @@ import { canon, same, changeRecord, holds, revertRecord, setAt, clone } from '..
 export const MUTATION_CONTRACT = 'uct.indicators.mutation/1'
 /** ⭐ I-1…I-8 (2026-10-27, ADDITIVE — the first four ops are unchanged): presentation and
  *  placement of ONE instance, the pane stack, and creating copies. */
-export const STYLE_OPS = Object.freeze(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget'])
+// ⭐ PACKAGE 3 seam (Agent, 2026-11-04 — docs/indicators/AGENT-CONTRACT-P2-2026-10-27.md §8 (I-14)): `setVisibility` — the
+// Inspector's "Show on" (which CHART timeframes the instance draws on), through `setInstanceVisibility`, the writer the
+// settings row uses. Presentation only; per instance; exact Undo like every style op.
+// ⭐ UCT RS Phase 2a (unit 2a-12): `setDotSize` — the Inspector's / dialog's "Dot size" control, through
+// `setInstanceDotSize`. `{instanceId, size: 'small'|'medium'|'large', plotKey?}`; the instance level unless an
+// output is named; only for a definition that draws dots. Appended, so the earlier ops keep their positions.
+export const STYLE_OPS = Object.freeze(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'setVisibility', 'setDotSize'])
 export const PANE_OPS = Object.freeze(['movePane', 'setPaneSize'])
 export const CREATE_OPS = Object.freeze(['duplicate', 'copyFrom'])
 export const MUTATION_OPS = Object.freeze(['add', 'remove', 'setVisible', 'setInputs', ...STYLE_OPS, ...PANE_OPS, ...CREATE_OPS])
@@ -766,6 +775,7 @@ function undoInner(cs, undo, ctx) {
 //   setColor         → `setInputsWith` (the settings rows' colour lane: setInstanceInput /
 //                      setIndicatorInput) or setInstanceCandleColor (the Up/Down swatches)
 //   setDisplayTarget → setInstanceDisplayTarget  (Inspector: Display in; offers = `displayTargetOptions`)
+//   setDotSize       → setInstanceDotSize        (Inspector / dialog: Dot size; offers = `DOT_SIZES` words, 2a-12)
 //   movePane         → movePane / movePaneTo     (Chart Data Arrange: arrows / drag)
 //   setPaneSize      → setPaneSize / clearPaneSize (the pane divider / its reset)
 //   duplicate        → duplicateInstance         (legend popover / Inspector Duplicate)
@@ -779,6 +789,9 @@ const APPEARANCE_SPEC = Object.freeze({
   lineStyle: { dflt: DEFAULT_LINE_STYLE_CHOICE, options: LINE_STYLE_CHOICES, valid: (v) => LINE_STYLE_CHOICES.includes(v), coerce: (v) => v },
   overlap: { dflt: false, options: [true, false], valid: (v) => typeof v === 'boolean', coerce: (v) => v },
 })
+// the member's words for a key: a refusal is read by a person, and these keys are the store's
+const APPEARANCE_WORDS = Object.freeze({ lineWidth: 'line width', lineStyle: 'line style', overlap: 'overlap', offset: 'offset' })
+const appearanceWord = (key) => APPEARANCE_WORDS[key] || 'style'
 const nameOfDef = (def) => (def && def.meta && def.meta.name) || (def && def.id) || 'This indicator'
 /** A write that changed nothing but `preset` changed nothing the member can see. */
 const noChange = (view, next) => next === view
@@ -849,6 +862,11 @@ export function styleOptionsOf(cs, registry, instanceId) {
     plotStyles: styleChoicesFor(def, inst, view).map((c) => ({ plotKey: c.key, label: c.label, current: c.current, options: [...c.choices] })),
     colors: colorTargetsOf(view, inst, def),
     displayTarget: { current: resolveDisplayTarget(inst, view), options: targets.length ? [{ value: 'auto', label: 'Automatic' }, ...targets] : [] },
+    // ⭐ 2a-12: `null` for a definition that draws no dots; else the instance-level word and the outputs it covers
+    dotSize: dotPlotsOf(def).length
+      ? { current: instanceDotSizeReading(inst, def), options: Object.keys(DOT_SIZES),
+          plots: dotPlotsOf(def).map((p) => ({ plotKey: p.key, label: p.label || p.key, current: storedDotSize(inst, p) || DEFAULT_DOT_SIZE })) }
+      : null,
   }
 }
 
@@ -858,9 +876,9 @@ function writeStyle(view, req, inst, def, registry) {
   const pres = isObj(inst.presentation) ? inst.presentation : {}
   if (req.op === 'setAppearance') {
     const declared = (def.meta && Array.isArray(def.meta.appearance) ? def.meta.appearance : []).filter((k) => APPEARANCE_SPEC[k])
-    if (!declared.includes(req.key)) return refuse(REASONS.BAD_INPUT, { key: req.key ?? null, why: `${nameOfDef(def)} has no "${req.key}" control`, options: declared })
+    if (!declared.includes(req.key)) return refuse(REASONS.BAD_INPUT, { key: req.key ?? null, why: `${nameOfDef(def)} has no ${appearanceWord(req.key)} setting`, options: declared.map(appearanceWord) })
     const spec = APPEARANCE_SPEC[req.key]
-    if (!spec.valid(req.value)) return refuse(REASONS.BAD_INPUT, { key: req.key, value: req.value ?? null, why: `"${req.key}" takes one of ${JSON.stringify(spec.options)}`, options: [...spec.options] })
+    if (!spec.valid(req.value)) return refuse(REASONS.BAD_INPUT, { key: req.key, value: req.value ?? null, why: `that isn't a ${appearanceWord(req.key)} it offers`, options: [...spec.options] })
     const value = spec.coerce(req.value)
     const before = pres[req.key] === undefined ? spec.dflt : pres[req.key]
     if (same(before, value)) return refuse(REASONS.NO_CHANGE)
@@ -887,7 +905,7 @@ function writeStyle(view, req, inst, def, registry) {
     const target = typeof req.target === 'string' ? req.target : ''
     if (target.startsWith('input:')) {
       const key = target.slice('input:'.length)
-      if (!offered.some((o) => o.target === target)) return refuse(REASONS.BAD_INPUT, { target, why: `${nameOfDef(def)} has no colour setting "${key}"`, options })
+      if (!offered.some((o) => o.target === target)) return refuse(REASONS.BAD_INPUT, { target, why: `${nameOfDef(def)} has no such colour setting`, options })
       const made = setInputsWith(view, id, { [key]: color }, registry)
       if (!made.ok) return made
       return { ok: true, cs: made.cs, change: { what: 'color', target, before: made.before[key] ?? null, after: made.after[key] } }
@@ -905,6 +923,41 @@ function writeStyle(view, req, inst, def, registry) {
       return { ok: true, cs: next, change: { what: 'color', target, ...(req.plotKey ? { plotKey: req.plotKey } : {}), before: pick.current, after: color } }
     }
     return refuse(REASONS.BAD_INPUT, { target: target || null, why: 'name a colour target', options })
+  }
+  if (req.op === 'setVisibility') {
+    // `visibility`: null / 'all' = every timeframe (the absent key); else the stored policy shape
+    // ({preset:'intraday'} | {preset:'dailyUp'} | {preset:'custom', tfs:[chart timeframe codes]})
+    const all = req.visibility === null || req.visibility === 'all'
+    const want = all ? null : normalizeVisibility(req.visibility)
+    if (!all && !want) {
+      return refuse(REASONS.BAD_INPUT, { value: req.visibility ?? null, why: 'show it on all timeframes, intraday only, daily & above, or a list of chart timeframes',
+        options: VISIBILITY_PRESETS.map((p) => ({ value: p.value, label: p.label })) })
+    }
+    const before = normalizeVisibility(inst.visibility)
+    if (same(before, want)) return refuse(REASONS.NO_CHANGE)
+    const next = setInstanceVisibility(view, id, want, registry)
+    if (noChange(view, next)) return refuse(REASONS.WRITER_REFUSED)
+    return { ok: true, cs: next, change: { what: 'visibility', before: visibilitySummary(before), after: visibilitySummary(want) } }
+  }
+  if (req.op === 'setDotSize') {
+    // `size`: one of the three words the store takes; `plotKey` (optional) names ONE dot output,
+    // absent = the instance level, as the Dot size control writes it
+    const dots = dotPlotsOf(def)
+    const words = Object.keys(DOT_SIZES)
+    if (!dots.length) return refuse(REASONS.BAD_INPUT, { why: `${nameOfDef(def)} draws no dots to size`, options: [] })
+    if (!words.includes(req.size)) return refuse(REASONS.BAD_INPUT, { value: req.size ?? null, why: `a dot size is ${words.join(', ')}`, options: words })
+    const plot = typeof req.plotKey === 'string' && req.plotKey ? dots.find((p) => p.key === req.plotKey) : null
+    if (req.plotKey !== undefined && req.plotKey !== null && !plot) {
+      return refuse(REASONS.BAD_INPUT, { plotKey: req.plotKey, why: `${nameOfDef(def)} draws no dots on "${req.plotKey}"`, options: dots.map((p) => ({ plotKey: p.key, label: p.label || p.key })) })
+    }
+    // ⭐ U8 #11 (2026-11-07): with no plotKey, `before` is what the Dot size control reads,
+    // 'mixed' while a per-dot size disagrees, so "default dots" after Stress is a real change
+    // (the setter deletes the per-dot sizes) rather than a no-change refusal.
+    const before = plot ? (storedDotSize(inst, { key: plot.key }) || DEFAULT_DOT_SIZE) : instanceDotSizeReading(inst, def)
+    if (before === req.size) return refuse(REASONS.NO_CHANGE)
+    const next = setInstanceDotSize(view, id, req.size, registry, plot ? plot.key : undefined)
+    if (noChange(view, next)) return refuse(REASONS.WRITER_REFUSED)
+    return { ok: true, cs: next, change: { what: 'dotSize', ...(plot ? { plotKey: plot.key } : {}), before, after: req.size } }
   }
   // setDisplayTarget
   let options = []

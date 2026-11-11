@@ -93,7 +93,7 @@ import re
 import sqlite3
 import threading
 import time
-from typing import Any, Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence
 
 from api.services import user_definitions as _defs
 from api.services.signature import ledger
@@ -117,6 +117,19 @@ _SECONDS_PER_DAY = 86_400.0
 #: under its own key and can never be read as, merge with, or overwrite the
 #: semantics-1 record of the same tree; existing rows keep their bare hash.
 _HASH_RE = _defs.RESULT_IDENTITY_RE
+
+
+def _runtime_key_re():
+    """A stored runtime document's record key: `runtime_definitions.HASH_PREFIX` + 64 hex, the very
+    key the scan lanes file it under (W5-T16 r1). Derived from the prefix at call time, so the shape
+    has ONE definition (the prefix) and `_HASH_RE` stays the tree shape's one authority."""
+    from api.services import runtime_definitions as _rt
+    return re.compile("^" + re.escape(_rt.HASH_PREFIX) + "[0-9a-f]{64}$")
+
+
+def _key_shape_ok(value: Any) -> bool:
+    """Is `value` a key this record can file: a tree's result identity or a runtime handle?"""
+    return isinstance(value, str) and bool(_HASH_RE.match(value) or _runtime_key_re().match(value))
 
 #: ⛔ ONE TIMEFRAME VOCABULARY, NOT TWO. Read off the ledger rather than
 #: re-declared, because the failure this guards is a second spelling of one
@@ -250,7 +263,7 @@ def _definition_key(def_hash: Any, rev: Any, tf: Any) -> tuple[str, int, str]:
         if not isinstance(val, str) or not val:
             raise ValueError(
                 f"the rule record {REFUSALS['key_slot']} {name}, got {val!r}")
-    if not _HASH_RE.match(def_hash):
+    if not _key_shape_ok(def_hash):
         raise ValueError(f"{def_hash!r} {REFUSALS['def_hash_shape']}")
     # ⛔ THE BOOL CHECK COMES FIRST. `isinstance(True, int)` is True and
     # `True >= 0` is True, so a bool sails through every obvious numeric guard —
@@ -482,9 +495,34 @@ def record_evaluations(def_hash: str, rev: int, tf: str,
             "refused": [(row, exc) for _, row, exc in refused]}
 
 
+def _tally(column: Sequence[Any], bars: Sequence[Any], pad: int) -> tuple:
+    """THE ONE TALLY both passes share: `(evaluated, true, first_t, last_t)` over the bars past
+    the warm-up `pad`. A `None`, a non-number or a non-finite value is not an evaluation; a true
+    bar is `value != 0` (the scan semantics, E-A1)."""
+    evaluated = 0
+    true = 0
+    first_t: Any = None
+    last_t: Any = None
+    for i, value in enumerate(column):
+        if i < pad:
+            continue
+        if value is None or not isinstance(value, (int, float)):
+            continue
+        if not math.isfinite(float(value)):
+            continue
+        evaluated += 1
+        if float(value) != 0.0:
+            true += 1
+        t = bars[i].get("t") if isinstance(bars[i], dict) else None
+        if first_t is None:
+            first_t = t
+        last_t = t
+    return evaluated, true, first_t, last_t
+
+
 def record_pass(rev: int, tf: str, sym: str, *, ast: Any, bars: Sequence[dict],
                 inputs: Optional[dict] = None, budget: Optional[dict] = None,
-                at: Optional[float] = None) -> dict:
+                at: Optional[float] = None, definition: Optional[Mapping] = None) -> dict:
     """Evaluate `ast` over `bars` for `sym` and record what it said.
 
     ⭐ THIS IS THE MEMBER-INDEPENDENT HALF, AND ITS INPUT LIST IS THE PROOF. A
@@ -524,6 +562,16 @@ def record_pass(rev: int, tf: str, sym: str, *, ast: Any, bars: Sequence[dict],
     A `TableRefusal` from the interpreter is NOT caught here. A tree the table
     refuses is refused for every symbol, and swallowing it per symbol would turn
     one loud authoring error into a universe of quietly dropped rows.
+
+    ⭐⭐ C48 / C45 (review round 2, M3) — `definition`, when given, is the saved
+    document the tree is the scan plot of, and its `meta.blockRuns` gates are
+    honoured exactly as the scan sweep honours them (`scan_evaluator._block_runs_
+    withheld`): where the member's chart withholds the plot on these bars, NOTHING
+    is recorded and `skipped` names the guard and the gate's own sentence
+    (`pine:block: …`) — a receipt for the every-bar number is a receipt for a value
+    the chart refuses to draw. ⛔ It must be THAT tree's document (`compute.ast`,
+    by hash): a document whose gates describe another tree is refused, never
+    asked. `None` — every caller today — records exactly as before.
     """
     from api.services import ast_interpret
 
@@ -533,33 +581,107 @@ def record_pass(rev: int, tf: str, sym: str, *, ast: Any, bars: Sequence[dict],
 
     bars = list(bars)
     column = ast_interpret.interpret(ast, bars, inputs, budget)
+    # ⭐ M3 — the gates, asked AFTER the tree (a tree that cannot compute keeps its
+    # own refusal), under the tree's own inputs and budget
+    if definition is not None:
+        from api.services import block_runs
+        key = block_runs.scan_plot_key(definition)
+        if key and block_runs.block_runs_for(definition, key):
+            compute = definition.get("compute") if isinstance(definition.get("compute"), Mapping) else {}
+            if _defs.ast_hash(compute.get("ast")) != def_hash:
+                raise ValueError(
+                    "the rule record refuses this pass: the definition given is not the one this "
+                    "tree is the scan plot of, so its block-run gates describe another tree")
+            why = block_runs.block_runs_refusal(
+                definition, key, lambda guard: ast_interpret.interpret(guard, bars, inputs, budget))
+            if why:
+                return {"def_hash": def_hash, "evaluated": 0, "true": 0,
+                        "first_bar_time": None, "through_bar_time": None,
+                        "recorded": False, "skipped": f"{block_runs.BLOCK_RUNS_GUARD}: {why}"}
     # `max_lookback` counts BARS NEEDED, so the last warm-up index is one less.
     pad = max(0, ast_interpret.max_lookback(ast) - 1)
-    evaluated = 0
-    true = 0
-    first_t: Any = None
-    last_t: Any = None
-    for i, value in enumerate(column):
-        if i < pad:
-            continue
-        if value is None or not isinstance(value, (int, float)):
-            continue
-        if not math.isfinite(float(value)):
-            continue
-        evaluated += 1
-        # ⭐ THE SCAN SEMANTICS, VERBATIM (E-A1): a scan is `<ast> != 0`. The
-        # same tree, the same rule, whether it is drawn on a chart or run over
-        # the universe.
-        if float(value) != 0.0:
-            true += 1
-        t = bars[i].get("t") if isinstance(bars[i], dict) else None
-        if first_t is None:
-            first_t = t
-        last_t = t
+    evaluated, true, first_t, last_t = _tally(column, bars, pad)
 
     out = {"def_hash": def_hash, "evaluated": evaluated, "true": true,
            "first_bar_time": first_t, "through_bar_time": last_t,
            "recorded": False, "skipped": None}
+    if evaluated == 0:
+        out["skipped"] = "no bar in this window was computable"
+        return out
+    out["recorded"] = record_evaluation(
+        def_hash, rev, tf_label, sym, first_t, last_t,
+        bars_evaluated=evaluated, bars_true=true, at=at)
+    return out
+
+
+#: W5-T16: every sentence `record_runtime_pass` can refuse a pass with, by guard. Pairwise distinct
+#: from each other and from `REFUSALS`, so a `raises(match=...)` cannot keep passing after another
+#: gate is deleted.
+RUNTIME_REFUSALS: dict[str, str] = {
+    "not_runtime": "was given a row that is not a stored runtime document",
+    "column_shape": "was answered with a column that is not one value for every bar",
+}
+
+#: The guard a pass is skipped under when the run reports no usable warm-up. Never guessed.
+RUNTIME_WARMUP_GUARD = "runtime:warmup-unreported"
+
+
+def _service_tf(label: str) -> str:
+    """The bars-store CODE the runtime service accepts for a record's product label (`1D` -> `D`).
+    The inverse of `ledger._BARS_STORE_TF_KEYS`, derived from it and never retyped."""
+    for code, name in ledger._BARS_STORE_TF_KEYS.items():
+        if name == label:
+            return code
+    raise ValueError(f"the rule record has no bars-store code for timeframe {label!r}")
+
+
+def record_runtime_pass(rev: int, tf: str, sym: str, *, row: Mapping, plot_key: str,
+                        bars: Sequence[dict], params: Optional[Mapping] = None,
+                        column_fn: Any = None, at: Optional[float] = None) -> dict:
+    """The runtime-lane twin of `record_pass` (W5-T16, design 5.1): evaluate a STORED RUNTIME
+    DOCUMENT's plot over `bars` through the server lane and record what it said.
+
+    * `def_hash` is DERIVED from the stored document (`runtime_definitions.handle`, the same
+      `runtime:sha256:` key the scan lanes file it under); there is no `def_hash` parameter.
+    * The run goes through `runtime_server_lane.runtime_column_fn(row, plot_key, "record")` (or the
+      `column_fn` a test hands in), so the verdict, admission and transport questions are asked on
+      this call. A `ServerLaneWithheld` is NOT raised: nothing is recorded and `skipped` carries the
+      lane's own `guard: sentence`.
+    * The WARM-UP PAD is the run's own: the column the lane returns carries `.warmup`
+      (`{"withheldBars": n}`, the runtime's `runtimeWarmupOf`). A column with no usable warm-up is
+      never guessed at: nothing is recorded and `skipped` is `RUNTIME_WARMUP_GUARD`.
+    * The service is asked in the bars-store CODE (`D`), not the record's label (`1D`): `_service_tf`.
+    * The forward-only origin rule is `record_evaluation`'s, unchanged.
+
+    Returns the same dict as `record_pass`."""
+    from api.services import runtime_definitions, runtime_server_lane
+
+    definition = row.get("definition") if isinstance(row, Mapping) else None
+    if not runtime_definitions.is_runtime(definition):
+        raise ValueError(f"the rule record refuses this pass: it {RUNTIME_REFUSALS['not_runtime']}")
+    def_hash = runtime_definitions.handle(definition)
+    rev, tf_label = _definition_key(def_hash, rev, tf)[1:]
+    sym = _symbol(sym)
+
+    bars = list(bars)
+    fn = column_fn or runtime_server_lane.runtime_column_fn(row, plot_key, "record")
+    out = {"def_hash": def_hash, "evaluated": 0, "true": 0, "first_bar_time": None,
+           "through_bar_time": None, "recorded": False, "skipped": None}
+    try:
+        column = fn(bars, dict(params or {}), tf=_service_tf(tf_label), ticker=sym)
+    except runtime_server_lane.ServerLaneWithheld as exc:
+        out["skipped"] = f"{exc.guard}: {exc.sentence}"
+        return out
+    if not isinstance(column, (list, tuple)) or len(column) != len(bars):
+        raise ValueError(f"the rule record refuses this pass: the lane {RUNTIME_REFUSALS['column_shape']}")
+    warm = getattr(column, "warmup", None)
+    n = warm.get("withheldBars") if isinstance(warm, Mapping) else None
+    if isinstance(n, bool) or not isinstance(n, int) or not 0 <= n <= len(bars):
+        out["skipped"] = (f"{RUNTIME_WARMUP_GUARD}: the run reported no usable warm-up, so which bars "
+                          "are evaluations cannot be told and nothing is recorded")
+        return out
+    evaluated, true, first_t, last_t = _tally(column, bars, n)
+    out.update(evaluated=evaluated, true=true, first_bar_time=first_t, through_bar_time=last_t)
     if evaluated == 0:
         out["skipped"] = "no bar in this window was computable"
         return out
@@ -631,7 +753,7 @@ def origin(def_hash: str, rev: int) -> Optional[int]:
     one and then lose it, except by a prune — and a prune only ever moves this
     number FORWARD, which makes the store strictly stricter, never looser.
     """
-    if not isinstance(def_hash, str) or not _HASH_RE.match(def_hash or ""):
+    if not isinstance(def_hash, str) or not _key_shape_ok(def_hash):
         raise ValueError(f"{def_hash!r} {REFUSALS['def_hash_shape']}")
     if isinstance(rev, bool) or not isinstance(rev, int) or rev < 0:
         raise ValueError(f"{REFUSALS['rev_shape']} — got {rev!r}")

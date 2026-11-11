@@ -67,6 +67,10 @@ from pydantic import BaseModel, Field
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import ast_interpret, bars_fetch, bars_sqlite
+from api.services.bars_window import HISTORY_WINDOW_BARS
+from api.services import pine_runtime_client as runtime_client
+from api.services import runtime_definitions
+from api.services import runtime_server_lane
 from api.services import user_definitions as defs
 from api.services.screener import saved_screens as scr_saved
 from api.services.screener import snapshot_builder
@@ -152,12 +156,13 @@ def max_cells() -> int:
     return n if n > 0 else DEFAULT_MAX_CELLS
 
 
-#: ⛔ THE PER-SYMBOL BAR CEILING, DECLARED HERE BECAUSE THIS SURFACE OWNS IT.
+#: ⛔ THE PER-SYMBOL BAR CEILING IS THE ONE HISTORY WINDOW, `bars_window`'s.
 #: The obvious move was `scan_evaluator._MAX_BARS`, and a standing rail refuses a
-#: router to import that module at all (see `_bars_reader`). It matches the chart
-#: lane's own depth (`/api/bars?bars=5000`, `warm_universe(bars=5000)`) — ~20 years
-#: of daily sessions, which is more history than `bars.db` holds for most names.
-MAX_BARS_PER_SYMBOL = 5000
+#: router to import that module at all (see `_bars_reader`); `bars_window` is the
+#: neutral module both sides read instead (design 3.4, R10), so the sweep and this
+#: surface cannot disagree about how much history a server lane sees. ~20 years of
+#: daily sessions, which is more history than `bars.db` holds for most names.
+MAX_BARS_PER_SYMBOL = HISTORY_WINDOW_BARS
 
 #: Calendar slack when turning a bar count into a date span: five sessions a week,
 #: plus a week for holidays. Deliberately generous in ONE direction — reading a few
@@ -388,11 +393,16 @@ class BacktestRequest(BaseModel):
     #: document contract — read through the same member-scoped store door
     #: `GET /api/user-definitions/{def_id}` answers through.
     def_id: str | None = None
+    #: W5-T15 -- WHICH PLOT of a RUNTIME document is the screen. A runtime document maps
+    #: several outputs (`compute.outputs`) and has no `scanPlot`; with one output it is
+    #: that one, with several this must name it (a refusal otherwise, never a guess).
+    #: Ignored for an `ast` definition, whose scan plot the document names.
+    plot: str | None = None
 
     model_config = {"populate_by_name": True}
 
 
-def _definition_tree(def_id: str, user_id: Any) -> tuple[dict, dict]:
+def _definition_tree(def_id: str, user_id: Any, plot: Optional[str] = None) -> tuple[dict, dict]:
     """``(tree, provenance)`` for a member's OWN definition.
 
     ⛔ SCOPED TO THE MEMBER AT THE STORE (`user_definitions.get(user_id, def_id)`)
@@ -408,8 +418,15 @@ def _definition_tree(def_id: str, user_id: Any) -> tuple[dict, dict]:
     if row is None:
         raise HTTPException(status_code=404,
                             detail=f"no definition {def_id!r} for this member")
+    # ⭐ SAVED-SCRIPT AUTO-UPGRADE — a version today's script engine refuses is not
+    # replayed: 409 (the request is fine; the STATE says no), with the reason.
+    engine_why = defs.engine_withheld_reason(row)
+    if engine_why:
+        raise HTTPException(status_code=409, detail=f"definition {def_id!r} is withheld: {engine_why}")
     doc = row.get("definition") if isinstance(row.get("definition"), dict) else {}
     compute = doc.get("compute") if isinstance(doc.get("compute"), dict) else {}
+    if runtime_definitions.is_runtime(doc):
+        return _runtime_descriptor(row, doc, compute, def_id, user_id, plot)
     tree = compute.get("ast")
     if compute.get("kind") != "ast" or not isinstance(tree, dict) or not tree:
         raise HTTPException(
@@ -428,11 +445,196 @@ def _definition_tree(def_id: str, user_id: Any) -> tuple[dict, dict]:
     # `ast_interpret.semantics_for` — the server's stamp, never a client field. A
     # posted `ast` body has no document and is semantics 1, whatever it claims.
     from api.services import ast_interpret
+    from api.services import block_runs
     # `_semantics` is PRIVATE to this route: popped before the provenance is
     # echoed, so the member-visible provenance contract is unchanged.
+    # ⭐⭐ C48 / C45 (review round 2, M3) — `_block_runs`, private the same way: the
+    # gates the member door stamped on the SCAN plot (`meta.blockRuns`, for the key
+    # `compute.ast` is — `block_runs.scan_plot_key`). The replay withholds the
+    # screen on every symbol whose bars the member's chart withholds it on, by the
+    # gate's own sentence (`run_backtest(withheld_for=…)`), never off the every-bar
+    # number. ⚰️ This door read `compute.ast` and nothing else, so a screen the
+    # chart, the sweep and the alert lane all withhold was replayed as if drawn.
+    scan_key = block_runs.scan_plot_key(doc)
+    gates = block_runs.block_runs_for(doc, scan_key) if scan_key else None
     return tree, {"def_id": def_id, "version": row.get("version"),
                   "rev": compute.get("rev"),
-                  "_semantics": ast_interpret.semantics_for(doc)}
+                  "_semantics": ast_interpret.semantics_for(doc),
+                  "_block_runs": ({"definition": doc, "key": scan_key, "gates": gates} if gates else None)}
+
+
+# --------------------------------------------------------------------------- #
+# W5-T15 -- a RUNTIME document replays through the runtime service's client
+# --------------------------------------------------------------------------- #
+
+#: Guard -> HTTP status for a refusal of a backtest (design 3.7, "backtest" column). The
+#: request is well-formed in every one of these, so NONE of them is a 400: the STATE (the
+#: service, the stage, the verdict, the kill list) says no. 503 = the service cannot be
+#: reached or will not take work now; 500 = a bug (a hash that does not match); every other
+#: guard, run-wide or per-output, is a 409 carrying the guard's own sentence.
+_STATUS_503 = frozenset({runtime_client.UNAVAILABLE, runtime_client.AUTH, runtime_client.BUSY})
+_STATUS_500 = frozenset({runtime_client.INTEGRITY})
+
+#: THE ONE HISTORY RULE for a runtime script (W5-T15 r2). The window is chosen BEFORE the run,
+#: so a fixed lead of history, `RUNTIME_HISTORY_LEAD` bars, is READ before the window. It only
+#: sizes the read; it charges NOTHING. What is charged to warm-up is what the SERVICE reports for
+#: the run (`withheldBars`, carried by the column as `.warmup_bars`): bars [0, withheldBars) are
+#: na (T11 refuses a finite value there as integrity) and are never tallied as a signal or a "no".
+#: A script whose warm-up outruns the lead has the shortfall charged to warm-up, honestly. Later
+#: na bars are `bars_not_computable`. The lead is NOT a TradingView-equal seed (TV runs from bar 0).
+RUNTIME_HISTORY_LEAD = 500
+#: Symbols per service request (memory: one chunk's bars + columns are live at a time).
+RUNTIME_BATCH = 50
+
+
+def _refuse_runtime(guard: str, sentence: str) -> HTTPException:
+    code = 503 if guard in _STATUS_503 else 500 if guard in _STATUS_500 else 409
+    return HTTPException(status_code=code, detail=f"{guard}: {sentence}")
+
+
+def _runtime_admission(row: dict, plot: str) -> None:
+    """The ONE admission question (`runtime_server_lane.admission`, T11's public form): the
+    stored verdict, then runtime admission for lane ``backtest``. Raises the mapped refusal;
+    returns None when the run may go ahead. Asked at the door AND before every service
+    request, so a kill or a stage change reaches a run already in flight at its next chunk."""
+    refused = runtime_server_lane.admission(row, plot, "backtest")
+    if refused is not None:
+        raise _refuse_runtime(*refused)
+
+
+def _is_strategy_document(doc: Any) -> bool:
+    """W9-T14: does this stored runtime document carry the strategy stamp (W9-T11)?"""
+    meta = doc.get("meta") if isinstance(doc, dict) else None
+    return isinstance(meta, dict) and meta.get("runtimeHistory") == runtime_client.codec.STRATEGY_WINDOW_HISTORY
+
+
+def _runtime_descriptor(row: dict, doc: dict, compute: dict, def_id: str,
+                        user_id: Any, plot: Optional[str]) -> tuple[dict, dict]:
+    """``(descriptor, provenance)`` for a stored runtime document. The descriptor stands
+    where the tree stands (the job id digests it; the engine never reads it)."""
+    # ORDER: verdict + admission FIRST, so a refused script answers its own guard and
+    # never a question about its plots.
+    outputs = compute.get("outputs") if isinstance(compute.get("outputs"), dict) else {}
+    # admission wants a plot name; with none chosen yet it is asked of the first output, which
+    # decides nothing (the five questions are the same for every plot of one document)
+    _runtime_admission(row, plot or next(iter(outputs), ""))
+    # W9-T14 -- a STRATEGY document (stamped `strategy-window` by the member door, W9-T11) is never
+    # replayed here: its values come from the broker, which runs only over the one history window
+    # (`bars_window.HISTORY_WINDOW_BARS`, W9 design 3.4), and this door reads a fixed
+    # `RUNTIME_HISTORY_LEAD` before a member-chosen window instead. Refused by the broker's own
+    # name before any plot question, so no `strategy.*` value is screened off the wrong start.
+    if _is_strategy_document(doc):
+        raise _refuse_runtime(
+            runtime_client.codec.STRATEGY_START_GUARD,
+            f"definition {def_id!r} is a strategy: its values come from a backtest over the most recent "
+            f"{HISTORY_WINDOW_BARS} bars, and a screen backtest reads {RUNTIME_HISTORY_LEAD} bars before "
+            "the window it replays, so its trades would start from a different bar. Nothing is replayed; "
+            "a strategy is backtested by POST /api/pine/strategy-backtest.")
+    if plot is None and len(outputs) == 1:
+        plot = next(iter(outputs))
+    if plot is None or plot not in outputs:
+        named = ", ".join(sorted(outputs)) or "none"
+        raise HTTPException(
+            status_code=409,
+            detail=(f"runtime:backtest-plot: definition {def_id!r} maps these plots: {named}. "
+                    "Name the one to replay as `plot`" if plot is None else
+                    f"runtime:backtest-plot: definition {def_id!r} has no plot {plot!r}; it maps: {named}"))
+    handle = runtime_definitions.handle(doc)
+    return ({"runtime": handle, "plot": plot, "output": outputs[plot]},
+            {"def_id": def_id, "version": row.get("version"), "rev": compute.get("rev"),
+             "_semantics": 1, "_block_runs": None,
+             "_runtime": {"row": row, "plot": plot, "handle": handle, "owner": user_id}})
+
+
+def _epoch_seconds(t: Any) -> Any:
+    """A daily bar's ``t`` as the service takes it: unix seconds of the session's 09:30
+    America/New_York open, the ONE rule for a daily bar's time (W5-T7b;
+    ``indicators.js::barOpenInstant``). It is ``indicator_compute.bar_open_instant`` that
+    answers; this only names the date, it never computes an instant.
+
+    THE THREE SPELLINGS OF ONE SESSION (`ledger._normalize_bar_time`): ``20240102``
+    (the store's YYYYMMDD int), ``"2024-01-02"`` (what `_fmt_sqlite_bars` serves and the
+    engine reads) and epoch seconds. Handed raw, the ISO string is not a number (the client
+    refuses the whole job, `server-integrity`), and a YYYYMMDD int IS a number, which is
+    worse: finite, strictly increasing, and 1,000 times too small to be a date. UTC midnight
+    (the first draft) made every clock read one day early. Anything not recognised is
+    returned UNCHANGED so the client refuses it by name rather than this door inventing a
+    time."""
+    from api.services import indicator_compute
+    if isinstance(t, int) and not isinstance(t, bool) and MIN_SESSION <= t <= MAX_SESSION:
+        t = f"{t // 10_000:04d}-{(t // 100) % 100:02d}-{t % 100:02d}"
+    if not (isinstance(t, str) and len(t) >= 10 and t[4] == "-" and t[7] == "-"):
+        return t
+    instant = indicator_compute.bar_open_instant(t[:10], "D")
+    return t if instant is None else instant
+
+
+def _service_bars(bars: list) -> list:
+    return [{**b, "t": _epoch_seconds(b.get("t"))} for b in bars]
+
+
+class _ReplayColumn(list):
+    """One plot's column (None for na) carrying the warm-up the SERVICE reported for the run."""
+
+    def __init__(self, values, warmup_bars: int):
+        super().__init__(values)
+        self.warmup_bars = warmup_bars
+
+
+class _RuntimeReplay:
+    """Feeds ``run_backtest`` the columns the service computed. ``bars_for(sym)`` reads the
+    next batch of symbols and sends it as ONE request (profile ``backtest``); ``column_for``
+    hands the engine that symbol's plot. Any refusal raises the mapped ``HTTPException``: a
+    backtest has no partial answer (design 3.7), and a refusal is never a "no signal"."""
+
+    def __init__(self, rt: dict, symbols: list, tf: str, read_bars, want: int):
+        self.rt, self.symbols, self.tf, self.read_bars, self.want = rt, symbols, tf, read_bars, want
+        self._bars: dict = {}
+        self._cols: dict = {}
+        self._warm: dict = {}
+        self._pos = {s: i for i, s in enumerate(symbols)}
+
+    def _load(self, start: int) -> None:
+        row, plot = self.rt["row"], self.rt["plot"]
+        _runtime_admission(row, plot)
+        self._bars.clear()
+        self._cols.clear()
+        self._warm.clear()
+        jobs = []
+        for sym in self.symbols[start:start + RUNTIME_BATCH]:
+            bars = self.read_bars(sym, self.want)
+            self._bars[sym] = bars
+            if bars:
+                jobs.append(runtime_client.Job(job=sym, ticker=sym, tf=self.tf,
+                                               bars=_service_bars(bars), want=(plot,)))
+        if not jobs:
+            return
+        results = _runtime_client().run(
+            def_id=row.get("def_id"), version=row.get("version"), doc=row.get("definition"),
+            owner_id=row.get("user_id", self.rt["owner"]), profile="backtest", jobs=jobs)
+        for job, res in zip(jobs, results):
+            why = res.refusal_for(plot)
+            if why is not None:
+                raise _refuse_runtime(why.guard, why.sentence)
+            self._cols[job.job] = [None if (v != v) else float(v) for v in res.columns[plot]]
+            self._warm[job.job] = int((res.warmup or {}).get("withheldBars", 0))
+
+    def bars_for(self, sym: str) -> list:
+        if sym not in self._bars:
+            self._load(self._pos[sym])
+        return self._bars.pop(sym)
+
+    def column_for(self, sym: str, bars: list) -> list:
+        col = _ReplayColumn(self._cols.pop(sym), self._warm.pop(sym, 0))
+        if len(col) != len(bars):
+            raise _refuse_runtime(runtime_client.INTEGRITY,
+                                  f"the service returned {len(col)} values for {len(bars)} bars of {sym}")
+        return col
+
+
+def _runtime_client():
+    """The one place this door asks for a client, so a test (and only a test) replaces it."""
+    return runtime_client.client_from_env()
 
 
 def _tree_of(body: BacktestRequest, user_id: Any = None) -> tuple[dict, dict]:
@@ -453,7 +655,7 @@ def _tree_of(body: BacktestRequest, user_id: Any = None) -> tuple[dict, dict]:
                 status_code=400,
                 detail=("send `def_id` OR `ast`, not both — two trees for one "
                         "backtest are two authorities over which screen is replayed"))
-        return _definition_tree(body.def_id, user_id)
+        return _definition_tree(body.def_id, user_id, body.plot)
     if isinstance(body.ast, dict) and body.ast:
         return body.ast, {}
     if body.source:
@@ -746,9 +948,27 @@ def _iso(session: int) -> str:
     return f"{session // 10_000:04d}-{(session // 100) % 100:02d}-{session % 100:02d}"
 
 
+def _withheld_for(blocked: Optional[dict], opts: Optional[dict]):
+    """⭐ C48 / C45 (M3) — ``bars -> sentence | None`` for ``run_backtest``: why the
+    member's chart withholds the stored definition's scan plot on these bars, or
+    ``None`` for a replay with no gates. The guards are evaluated with the SAME opts
+    the engine hands ``interpret`` for the tree (``_scan_symbol``: the definition's
+    semantics), so a gate is never asked under different maths than its plot."""
+    if not blocked:
+        return None
+    from api.services import block_runs
+    doc, key = blocked["definition"], blocked["key"]
+
+    def withheld(bars):
+        return block_runs.block_runs_refusal(
+            doc, key, lambda guard: ast_interpret.interpret(guard, list(bars), opts=dict(opts) if opts else None))
+    return withheld
+
+
 def _run_engine(tree: dict, symbols: list[str], *, start: int, end: int,
                 horizons: list[int], read_bars, want: int, to_key: int,
-                tf: str = "D", semantics: int = 1) -> dict:
+                tf: str = "D", semantics: int = 1, blocked: Optional[dict] = None,
+                runtime: Optional[dict] = None) -> dict:
     """The ONLY call into ``api/services/screener/backtest.py``.
 
     ⛔ Nothing is post-processed. Whatever receipt the engine returns — including
@@ -772,14 +992,24 @@ def _run_engine(tree: dict, symbols: list[str], *, start: int, end: int,
     answer a question about one, and the engine holds all of it at once.
     """
     engine = _engine()
+    # ⭐ the canonical opts for the definition semantics — None for 1, so a
+    # semantics-1 replay evaluates exactly as it always did
+    opts = {"semantics": 2} if semantics == 2 else None
+    # W5-T15 -- ONE engine call for both: a runtime replay differs only in WHERE the column
+    # comes from (the service, through `_RuntimeReplay`) and the lead it is charged
+    replay = _RuntimeReplay(runtime, symbols, tf, read_bars, want) if runtime is not None else None
     receipt = engine.run_backtest(
         tree, symbols, _iso(start), _iso(end),
-        bars_for=lambda sym: read_bars(sym, want),
+        bars_for=(replay.bars_for if replay else (lambda sym: read_bars(sym, want))),
+        column_for=(replay.column_for if replay else None),
+        warmup_bars=0,
         horizons=horizons,
         bars_source=_bars_source_label(tf, want, to_key),
-        # ⭐ the canonical opts for the definition semantics — None for 1, so a
-        # semantics-1 replay evaluates exactly as it always did
-        opts=({"semantics": 2} if semantics == 2 else None))
+        opts=opts,
+        # ⭐ M3 — a stored definition's scan-plot gates, asked per symbol; `None`
+        # for every other replay, which the engine reads as "no gates" (no key of
+        # the receipt moves)
+        withheld_for=_withheld_for(blocked, opts))
     # ⛔ `.to_dict()` AND NOT `dataclasses.asdict`. The receipt decides which keys
     # a refusal carries and which an answer carries (`forward_returns`/`baseline`
     # only when `backtestable`), and `asdict` would flatten that decision into
@@ -823,7 +1053,8 @@ def _envelope(receipt: dict, extras: dict) -> dict:
 # --------------------------------------------------------------------------- #
 
 def job_id(tree: Any, symbols: list[str], tf: str, start: int, end: int,
-           horizons: list[int], semantics: int = 1) -> str:
+           horizons: list[int], semantics: int = 1,
+           block_runs: Optional[list] = None) -> str:
     """Deterministic id for one backtest. No clock, no RNG, no counter.
 
     Same inputs → same id → the poll finds the receipt that was already computed,
@@ -838,6 +1069,11 @@ def job_id(tree: Any, symbols: list[str], tf: str, start: int, end: int,
     # under one — is byte-identical to what it was.
     if semantics == 2:
         body["semantics"] = 2
+    # ⭐ M3 — …AND THE GATES A STORED DEFINITION CARRIES, for the same reason: the
+    # same tree replayed with gates withholds symbols the bare tree answers, so the
+    # two receipts must never be served for each other. Added ONLY when present.
+    if block_runs:
+        body["blockRuns"] = block_runs
     payload = json.dumps(body, sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:24]
 
@@ -960,6 +1196,12 @@ def run_screen_backtest(body: BacktestRequest,
     # STORED definition (`_definition_tree`); a posted tree is semantics 1. Popped
     # here, first, so the private key never reaches an echo of the provenance.
     semantics = 2 if (definition.pop("_semantics", 1) if definition else 1) == 2 else 1
+    # ⭐ M3 — the stored definition's scan-plot gates (`_definition_tree`), popped
+    # beside it for the same reason; `None` for a posted tree and every unstamped
+    # definition.
+    blocked = definition.pop("_block_runs", None) if definition else None
+    # W5-T15 -- a RUNTIME document: popped for the same reason (private to this route)
+    runtime = definition.pop("_runtime", None) if definition else None
     tf = _tf(body.tf)
 
     # ⛔⛔ THE WINDOW THE MEMBER TYPED IS PARSED **HERE**, BEFORE THE UNIVERSE IS
@@ -988,7 +1230,8 @@ def run_screen_backtest(body: BacktestRequest,
     # is the argument `scan_evaluator` makes for the same call in the same place,
     # and the number it returns is what sizes the read below.
     try:
-        warmup = ast_interpret.max_lookback(tree)
+        # a runtime script has no tree to measure: it is handed a fixed lead of history
+        warmup = RUNTIME_HISTORY_LEAD if runtime else ast_interpret.max_lookback(tree)
     except ast_interpret.TableRefusal as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -1052,7 +1295,8 @@ def run_screen_backtest(body: BacktestRequest,
                     f"({len(symbols):,} symbols x {want:,} bars) and the ceiling "
                     f"is {cap:,}. Narrow the universe or shorten the window."))
 
-    job = job_id(tree, symbols, tf, start, end, horizons, semantics=semantics)
+    job = job_id(tree, symbols, tf, start, end, horizons, semantics=semantics,
+                 block_runs=blocked["gates"] if blocked else None)
 
     # ⛔ `universe_request`, NOT `universe`, AND NO `bars_source` AT ALL.
     # The engine's receipt already writes both: `Receipt.universe` is a REQUIRED
@@ -1086,7 +1330,8 @@ def run_screen_backtest(body: BacktestRequest,
         # ⭐⭐ …PLUS THE SEMANTICS IT RAN UNDER (owner decision A): the RESULT
         # identity every other consumer files this definition under
         # (`user_definitions.result_identity`) — bare for semantics 1, `~s2` for 2.
-        "def_hash": (defs.semantic_identity(_hash_of(tree), semantics)
+        "def_hash": (runtime["handle"] if runtime else
+                     defs.semantic_identity(_hash_of(tree), semantics)
                      if _hash_of(tree) else None),
     }
 
@@ -1157,7 +1402,8 @@ def run_screen_backtest(body: BacktestRequest,
         receipt = _run_engine(tree, symbols, start=start, end=end,
                               horizons=horizons,
                               read_bars=_bars_reader(tf, to_key),
-                              want=want, to_key=to_key, tf=tf, semantics=semantics)
+                              want=want, to_key=to_key, tf=tf, semantics=semantics,
+                              blocked=blocked, runtime=runtime)
         return _envelope(receipt, extras)
 
     if background:

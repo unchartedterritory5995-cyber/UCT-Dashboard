@@ -1,0 +1,289 @@
+[
+[
+"C1 digest compare removed",
+"services/pine_runtime/canary.mjs",
+"if (!sameJson(want[f], got[f])) diverged.push",
+"if (false && !sameJson(want[f], got[f])) diverged.push",
+"node"
+],
+[
+"C2 inconclusive guards emptied",
+"services/pine_runtime/canary.mjs",
+"export const INCONCLUSIVE_GUARDS = Object.freeze([BUSY_GUARD, 'runtime:time-budget'])",
+"export const INCONCLUSIVE_GUARDS = Object.freeze([])",
+"node"
+],
+[
+"C3 engine identity check removed",
+"services/pine_runtime/canary.mjs",
+"if (moved.length) diverged.push",
+"if (false && moved.length) diverged.push",
+"node"
+],
+[
+"C4 red does not clear ok",
+"services/pine_runtime/canary.mjs",
+"        ok = false\n        reds += 1",
+"        reds += 1",
+"node"
+],
+[
+"C5 never-decided counts as ready",
+"services/pine_runtime/canary.mjs",
+"ok: () => ok === true,",
+"ok: () => ok !== false,",
+"node"
+],
+[
+"C6 canary on the wrong profile",
+"services/pine_runtime/canary.mjs",
+"export const CANARY_PROFILE = 'sweep'",
+"export const CANARY_PROFILE = 'alert'",
+"node"
+],
+[
+"C7 a run in progress is not joined",
+"services/pine_runtime/canary.mjs",
+"    if (running) return running\n",
+"",
+"node"
+],
+[
+"C8 nine cases",
+"services/pine_runtime/canary.mjs",
+"  'arrays_sort@listing', 'dmi_adx@listing',\n",
+"  'arrays_sort@listing',\n",
+"node"
+],
+[
+"C9 divergence not logged",
+"services/pine_runtime/canary.mjs",
+"for (const d of r.diverged) log(",
+"for (const d of []) log(",
+"node"
+],
+[
+"C10 thrown runner not red",
+"services/pine_runtime/canary.mjs",
+"      diverged.push({ case: c.name, field: 'run', expected: 'an answer', got: (e && e.guard) || 'the pool threw' })\n      continue",
+"      continue",
+"node"
+],
+[
+"C11 withheld status not compared",
+"services/pine_runtime/canary.mjs",
+"COMPARED.filter((x) => x !== 'warmup')",
+"COMPARED.filter((x) => x !== 'warmup' && x !== 'status')",
+"node"
+],
+[
+"C12 timer interval wrong",
+"services/pine_runtime/canary.mjs",
+"export const CANARY_INTERVAL_MS = 15 * 60 * 1000",
+"export const CANARY_INTERVAL_MS = 5 * 60 * 1000",
+"node"
+],
+[
+"C13 timer keeps process alive",
+"services/pine_runtime/canary.mjs",
+"if (timer && typeof timer.unref === 'function') timer.unref()",
+"",
+"node"
+],
+[
+"S1 readiness ignores canary",
+"services/pine_runtime/server.mjs",
+"canary: pool ? () => pool.ready() && (!canary || canary.ok()) : undefined,",
+"canary: pool ? () => pool.ready() : undefined,",
+"node"
+],
+[
+"S2 metrics signature not verified",
+"services/pine_runtime/server.mjs",
+"if (!verifyBody(secrets, parsed, Buffer.alloc(0))) return refuse(res, 401, AUTH_GUARD, 'the signature does not match, so no metrics are served.', log)\n",
+"",
+"node"
+],
+[
+"S3 metrics replay admitted",
+"services/pine_runtime/server.mjs",
+"if (!replay.admit(parsed.v1, parsed.t, now())) return refuse(res, 401, AUTH_GUARD, 'this signed request was already received, so it is not served twice.', log)\n    return send(res, 200, metrics.snapshot",
+"return send(res, 200, metrics.snapshot",
+"node"
+],
+[
+"S4 metrics clock not checked",
+"services/pine_runtime/server.mjs",
+"    if (parsed.reason) return refuse(res, 401, AUTH_GUARD, `${parsed.reason}, so no metrics are served.`, log)\n",
+"",
+"node"
+],
+[
+"S5 door refusals not counted",
+"services/pine_runtime/server.mjs",
+"const refuse = (res, status, guard, sentence, l) => { metrics.refused(guard); return",
+"const refuse = (res, status, guard, sentence, l) => { return",
+"node"
+],
+[
+"S6 answered jobs not counted",
+"services/pine_runtime/server.mjs",
+"    metrics.answered(checked.request.profile, results)\n",
+"",
+"node"
+],
+[
+"S7 metrics accepts POST",
+"services/pine_runtime/server.mjs",
+"if (req.method !== 'GET') return send(res, 405, { protocol: PROTOCOL, error: { guard: SCHEMA_GUARD, sentence: 'GET only' } })\n      return metricsRoute",
+"return metricsRoute",
+"node"
+],
+[
+"S8 canary not started in main",
+"services/pine_runtime/server.mjs",
+"if (canary) { canary.start(); canary.runOnce().catch(() => {}) }",
+"if (canary) { canary.start() }",
+"node"
+],
+[
+"M1 percentile floors",
+"services/pine_runtime/metrics.mjs",
+"Math.ceil((p / 100) * sorted.length) - 1",
+"Math.floor((p / 100) * sorted.length) - 1",
+"node"
+],
+[
+"M2 instructions reported as 0",
+"services/pine_runtime/metrics.mjs",
+"        instructions: null,",
+"        instructions: 0,",
+"node"
+],
+[
+"M3 latency window unbounded",
+"services/pine_runtime/metrics.mjs",
+"if (s.length > LATENCY_WINDOW) s.shift()",
+"",
+"node"
+],
+[
+"M4 withheld counted ok",
+"services/pine_runtime/metrics.mjs",
+"jobs[profile][r.status === 'ok' ? 'ok' : 'withheld'] += 1",
+"jobs[profile].ok += 1",
+"node"
+],
+[
+"M5 job refusals not counted",
+"services/pine_runtime/metrics.mjs",
+"for (const f of r.refusals || []) bump(f.guard)",
+"",
+"node"
+],
+[
+"M6 cache reported as 0",
+"services/pine_runtime/metrics.mjs",
+"        cache: null,",
+"        cache: 0,",
+"node"
+],
+[
+"P1 engine check removed",
+"tools/pine_runtime_service_smoke.py",
+"elif str(engine.get(\"script_engine\")) != str(want):",
+"elif False:",
+"py"
+],
+[
+"P2 canary red not failed",
+"tools/pine_runtime_service_smoke.py",
+"elif canary is not None and canary.get(\"ok\") is False:",
+"elif False:",
+"py"
+],
+[
+"P3 digest compare removed",
+"tools/pine_runtime_service_smoke.py",
+"elif got != fixture[\"digest\"]:",
+"elif False:",
+"py"
+],
+[
+"P4 unsigned 200 accepted",
+"tools/pine_runtime_service_smoke.py",
+"        if status == 401:\n            done(PASS, \"auth: an unsigned",
+"        if True:\n            done(PASS, \"auth: an unsigned",
+"py"
+],
+[
+"P5 stale-fixture identity not inconclusive",
+"tools/pine_runtime_service_smoke.py",
+"elif {k: str(fixture[\"identity\"].get(k)) for k in ENGINE_FIELDS} != {k: str(engine.get(k)) for k in ENGINE_FIELDS}:",
+"elif False:",
+"py"
+],
+[
+"P6 failed does not beat inconclusive",
+"tools/pine_runtime_service_smoke.py",
+"    if FAIL in states:\n        say(\"FAILED: a break",
+"    if FAIL in states and INCONCLUSIVE not in states:\n        say(\"FAILED: a break",
+"py"
+],
+[
+"P7 unreachable is a failure",
+"tools/pine_runtime_service_smoke.py",
+"        return 2\n    if status != 200:",
+"        return 1\n    if status != 200:",
+"py"
+],
+[
+"P8 replay retry removed",
+"tools/pine_runtime_service_smoke.py",
+"        if status == 401:\n            sleep(1.1)",
+"        if False:\n            sleep(1.1)",
+"py"
+],
+[
+"P9 busy is a failure",
+"tools/pine_runtime_service_smoke.py",
+"        elif status == 429:\n            done(INCONCLUSIVE",
+"        elif status == 429:\n            done(FAIL",
+"py"
+],
+[
+"P10 withheld not failed",
+"tools/pine_runtime_service_smoke.py",
+"            if r.get(\"status\") != \"ok\":",
+"            if False:",
+"py"
+],
+[
+"P11 canary undecided is a pass",
+"tools/pine_runtime_service_smoke.py",
+"    elif canary is not None and canary.get(\"ok\") is None:\n        done(INCONCLUSIVE",
+"    elif canary is not None and canary.get(\"ok\") is None:\n        done(PASS",
+"py"
+],
+[
+"P12 signature binds nothing",
+"tools/pine_runtime_service_smoke.py",
+"f\"{t}.{hashlib.sha256(body).hexdigest()}\"",
+"f\"{t}.\"",
+"py"
+],
+[
+"P13 series not deterministic",
+"tools/pine_runtime_service_smoke.py",
+"day += datetime.timedelta(days=1)\n    return cols",
+"day += datetime.timedelta(days=1)\n        state ^= 1\n    return cols",
+"py"
+],
+[
+"P14 no key is a pass",
+"tools/pine_runtime_service_smoke.py",
+"        print(\"INCONCLUSIVE: PINE_RUNTIME_SERVICE_URL (or --base) and PINE_RUNTIME_SERVICE_SECRET must be set; nothing was measured\")\n        return 2",
+"        print(\"x\")\n        return 0",
+"py"
+]
+]

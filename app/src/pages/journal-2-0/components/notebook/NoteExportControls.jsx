@@ -38,7 +38,11 @@ import { useCallback, useContext, useEffect, useId, useRef, useState } from 'rea
 import { MoreMenuOpenContext } from './NoteMoreMenu'
 import { NOTEBOOK_DOORS, onNotebookDoor } from '../../lib/notebookDoors'
 import UIcon from '../../../../components/ui/UIcon'
-import { exportNoteAsPng, printNote } from '../../lib/exportNote'
+import { importWithOneRetry } from '../../lib/lazyChunk'
+// Tier 1a bytes (perf-budgets.md): the PNG and print doors' module is fetched when one is pressed, never on the
+// Notebook's first open (the same on-use import exportNote.js already does for modern-screenshot).
+const loadExport = () => importWithOneRetry(() => import('../../lib/exportNote'), undefined,
+  (m) => typeof m?.exportNoteAsPng === 'function' && typeof m?.printNote === 'function')
 import { EXPORT_FORMATS, noteExportUrl, saveResponse } from './export/exportFormats'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import useDisclosureFocus from '../../lib/useDisclosureFocus'
@@ -89,6 +93,7 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
       // means an ordinary failure, where this door's own generic message
       // still applies. Read defensively: a mock or a future caller that
       // resolves nothing must not throw on destructuring.
+      const { exportNoteAsPng } = await loadExport()
       const result = await exportNoteAsPng(columnRef.current, title)
       const ok = !!result?.ok
       onMessage(ok ? 'PNG saved' : (result?.reason || 'export failed'))
@@ -202,9 +207,11 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
       </button>
       <button type="button" className={editorStyles.chromeBtn}
         onClick={() => {
-          printNote()
-          // Print opens the browser's dialog; whether a PDF was saved is not ours to know.
-          trackNotebookEvent(NOTEBOOK_EVENTS.EXPORT_USED, { format: 'print', scope: 'note', count: 1 })
+          loadExport().then(({ printNote }) => {
+            printNote()
+            // Print opens the browser's dialog; whether a PDF was saved is not ours to know.
+            trackNotebookEvent(NOTEBOOK_EVENTS.EXPORT_USED, { format: 'print', scope: 'note', count: 1 })
+          }, () => onMessage('export failed'))
         }}
         title="Print — or Save as PDF from the print dialog">
         Print

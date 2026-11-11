@@ -87,7 +87,10 @@ describe('1. focus after a TAP-opened detail closes', () => {
 })
 
 describe('2. a card says its title twice at most: its heading, then its action', () => {
-  it('no named group wraps the Preview button; the heading and the button are the title\'s only two holders', async () => {
+  // S9 (audit 2026-11-05): a card now has three actions, Use, Preview and Customize first, each a button that names its
+  // own action and the template (so a button list reads "Use Night-before prep", not three bare "Use"). What this rail
+  // guards is unchanged: no GROUP is named by the title, and only the heading and those buttons carry it.
+  it('no named group wraps the card\'s actions; the heading and the action buttons are the title\'s only holders', async () => {
     await mount()
     const c = card('g-night')
     expect(within(c).queryAllByRole('group')).toHaveLength(0)
@@ -99,7 +102,9 @@ describe('2. a card says its title twice at most: its heading, then its action',
     const namedByTitle = [...c.querySelectorAll('[aria-labelledby], [aria-label]')]
       .filter((el) => (el.getAttribute('aria-labelledby') || '').split(' ').includes(headingId)
         || (el.getAttribute('aria-label') || '').includes('Night-before prep'))
-    expect(namedByTitle.map((el) => el.tagName)).toEqual(['BUTTON'])
+    expect(namedByTitle.map((el) => el.tagName)).toEqual(['BUTTON', 'BUTTON', 'BUTTON'])
+    expect(namedByTitle.map((el) => el.getAttribute('aria-label'))).toEqual([
+      'Use Night-before prep', 'Preview Night-before prep, from the Template library', 'Customize first: Night-before prep'])
   })
 
   it('CONTROL: the group headings and their named lists are untouched (the page\'s outline relies on them)', async () => {

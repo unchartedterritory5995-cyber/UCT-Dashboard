@@ -107,7 +107,8 @@ def _gated_rows(real_app) -> list[bc.Row]:
 def test_no_gated_route_declares_a_body_parameter_or_reads_one_unbounded(real_app):
     rows = _gated_rows(real_app)
     reading = sum(r.reads_body for r in rows)
-    assert len(rows) > 60 and reading > 25, (len(rows), reading)
+    # (smaller since 2026-11-04: the routers whose flags were retired as always on have no gate to be behind)
+    assert len(rows) > 30 and reading > 10, (len(rows), reading)
     wrong = [f"{r.method} {r.path}: " + "; ".join(f"{x.call} in {x.where}" for x in r.uncapped)
              for r in rows if r.uncapped]
     assert not wrong, "a route behind a flag gate reads a body with no bound:\n  " + "\n  ".join(wrong)
@@ -366,11 +367,11 @@ def _unknown_sibling(path: str) -> str:
 
 
 def test_the_four_routes_the_review_named_are_dark_here_and_take_a_body(real_app):
-    """Non-vacuity for the dark-route tests below: I-5's four are among them."""
+    """Non-vacuity for the dark-route tests below. Of I-5's four, the onboarding tours door is the
+    one still behind a flag: thesis chips and research capture are always on since their flags
+    were retired (2026-11-04), so they are no longer dark anywhere."""
     dark = set(_dark_body_routes(real_app))
-    named = {("POST", "/api/j2/thesis-chips"),
-             ("POST", "/api/j2/research-capture/transcripts/save"),
-             ("POST", "/api/j2/research-capture/passed-setups")}
+    named = {("PUT", "/api/j2/onboarding/tours/{tour_id}")}
     assert named <= dark, sorted(named - dark)
     assert len(dark) >= 10, sorted(dark)
 
@@ -504,7 +505,7 @@ def test_every_dark_404_that_differs_from_an_unknown_routes_comes_from_the_share
                 continue
         own_and_different.append(f"{method} {path} ({module}): {dark.payload!r}")
     assert not own_and_different, "a router words its own dark 404 differently:\n  " + "\n  ".join(own_and_different)
-    assert {"notebook_thesis_chips", "notebook_research_capture"} <= shared, sorted(shared)
+    assert {"notebook_publish", "notebook_shares"} <= shared, sorted(shared)
 
 
 # ── the admin API docs still describe these routes' bodies ───────────────────

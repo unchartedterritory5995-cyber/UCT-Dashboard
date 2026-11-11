@@ -37,6 +37,26 @@ const ALL_BUT_8_9 = {
   notebook_widgets_w10_enabled: true, notebook_journal_styles_enabled: true,
 }
 
+// S8 (the audit's M3): a bare `/` now reads Basics, Live data, Trading, AI, Embeds. The snapshots below
+// keep the moment group each row carried, in the order it was captured; `inSections` re-orders them the
+// way M3 does, written out here from the spec rather than read from SlashMenu.jsx (a stable sort: within
+// a section the captured order stands). A wave that changes the list still reds against this.
+const LIVE_CAPTURES = new Set(['Chart', 'MTF stack', 'Before / after', 'Price', 'Analyst Consensus', 'Ticker card',
+  'Options flow on a ticker'])
+const S8_SECTIONS = ['basics', 'live', 'trading', 'ai', 'embeds']
+const s8Section = (row) => {
+  const [g, t] = row.split('|')
+  if (g === 'tools' || g === 'mine') return 'embeds'
+  if (g === 'open' || g === 'widgets') return 'live'
+  if (g === 'plan') return LIVE_CAPTURES.has(t) ? 'live' : 'trading'
+  if (g === 'review') return t === 'Transcript passage' ? 'embeds' : 'trading'
+  if (g === 'basics') return 'basics'
+  if (['Dictate', 'Writing help', 'Voice note'].includes(t)) return 'ai'
+  return ['UCT Terminal day', 'News and catalysts', 'Fundamentals', 'Breadth heatmap', 'My price alerts',
+    'Watchlist snapshot', 'Theme rankings', 'COT positioning', 'Model Book', 'Index levels', 'Scan results'].includes(t) ? 'live' : 'basics'
+}
+const inSections = (rows) => S8_SECTIONS.flatMap((s) => rows.filter((r) => s8Section(r) === s))
+
 // The bare / list item for item (group|title), captured from the code at deb5a1a170 (before Task 9.19).
 const BARE_ALL_OFF = [
   'plan|Chart', 'plan|MTF stack', 'plan|Before / after', 'plan|Price', 'plan|Analyst Consensus',
@@ -50,7 +70,7 @@ const OPEN_PLAN_REVIEW = [
   'open|My watchlist today', 'open|My names reporting', 'open|Market on my names', 'open|Room buzz on my names',
   'open|My earnings reactions',
   'plan|Ticker card', 'plan|Options flow on a ticker', 'plan|Chart', 'plan|MTF stack', 'plan|Before / after',
-  'plan|Price', 'plan|Analyst Consensus', 'plan|Trade plan', 'plan|Journal style', 'plan|Pre-entry checklist',
+  'plan|Price', 'plan|Analyst Consensus', 'plan|Trade plan', 'plan|Template', 'plan|Pre-entry checklist',
   'plan|Price stamps', 'plan|Position sizing', 'plan|Position size calculator', 'plan|My rules',
   'plan|Morning wire and exposure',
   'plan|Earnings for my names', 'plan|My movers', 'plan|Key levels from my plans', 'plan|Post-trade review',
@@ -64,6 +84,8 @@ const BASICS_MORE = [
   'basics|Callout', 'basics|Toggle', 'basics|Image',
   'more|UCT Terminal day', 'more|News and catalysts', 'more|Fundamentals', 'more|Breadth heatmap',
   'more|My price alerts', 'more|Watchlist snapshot', 'more|Theme rankings',
+  // Tier 4 (S13.6 remainder): the COT and Model Book captures, reachable from a note.
+  'more|COT positioning', 'more|Model Book',
   'more|Heading 4', 'more|Heading 5', 'more|Heading 6', 'more|Code block', 'more|2 columns', 'more|3 columns',
   'more|Table of contents', 'more|Inline math', 'more|Math block', 'more|Emoji',
 ]
@@ -137,7 +159,7 @@ const titles = (items) => items.map((i) => i.title)
 const asRows = (items) => items.map((i) => `${i.group}|${i.title}`)
 const labelsOf = (items) => {
   const { container, unmount } = render(<SlashList items={items} command={() => {}} />)
-  const out = [...container.querySelectorAll('[aria-hidden="true"]')].map((n) => n.textContent)
+  const out = [...container.querySelectorAll('[data-slash-label]')].map((n) => n.textContent)
   unmount()
   return out
 }
@@ -187,13 +209,13 @@ describe('the routine and tracker rows are dark while wave 9 is off', () => {
     const net = installNet({ routines: { u1: [routine('r1', 'Pre-market routine')] }, trackers: { u1: [tracker('t1', 'Sleep')] },
       widgets: { u1: [widget('w1', 'Net P&L by setup'), widget('w2', 'Win rate by hour')] } })
     // All off, then every wave but 8 and 9, then wave 8 on as well: each is the list as it was, item for item.
-    expect(asRows(await bareList())).toEqual(BARE_ALL_OFF)
+    expect(asRows(await bareList())).toEqual(inSections(BARE_ALL_OFF))
     __resetNotebookFlags()
     latchNotebookFlags(ALL_BUT_8_9)
-    expect(asRows(await bareList())).toEqual(BARE_ALL_BUT_8_9)
+    expect(asRows(await bareList())).toEqual(inSections(BARE_ALL_BUT_8_9))
     __resetNotebookFlags()
     latchNotebookFlags({ ...ALL_BUT_8_9, ...W8 })
-    expect(asRows(await bareList())).toEqual(withWidgets(BARE_W8_ON, NO_SHELF_WIDGETS))
+    expect(asRows(await bareList())).toEqual(inSections(withWidgets(BARE_W8_ON, NO_SHELF_WIDGETS)))
     for (const q of ['routine', 'track', 'sleep', 'pre', '']) {
       expect(toolItems(q, member())).toEqual([])
       expect(titles(menuItems(q, member()))).not.toEqual(expect.arrayContaining([ROUTINE_ITEM]))
@@ -215,8 +237,9 @@ describe('wave 10 off leaves the bare list as it was (Task 10.21)', () => {
     const net = installNet({ widgets: { u1: [widget('w1', 'Net P&L by setup'), widget('w2', 'Win rate by hour')] } })
     latchNotebookFlags({ ...ALL_BUT_8_9, ...W8, notebook_widgets_w10_enabled: false })
     const items = await bareList()
-    expect(asRows(items)).toEqual(BEFORE_W10(BARE_W8_ON))
-    expect(labelsOf(items)).not.toContain('Widgets')
+    expect(asRows(items)).toEqual(inSections(BEFORE_W10(BARE_W8_ON)))
+    // S8: the moment labels gave way to M3's five sections; the group tag is what says the rows are there.
+    expect(items.some((i) => i.group === 'widgets')).toBe(false)
     expect(titles(items)).not.toContain('Risk left today')
     // Off, the menu never reads the ready-made widgets.
     expect(net.calls.some((c) => c.path === '/api/j2/widget-definitions/shelf')).toBe(false)
@@ -224,8 +247,8 @@ describe('wave 10 off leaves the bare list as it was (Task 10.21)', () => {
     __resetNotebookFlags()
     latchNotebookFlags({ ...ALL_BUT_8_9, ...W8 })
     const on = await bareList()
-    expect(asRows(on)).toEqual(withWidgets(BARE_W8_ON, NO_SHELF_WIDGETS))
-    expect(labelsOf(on)).toContain('Widgets')
+    expect(asRows(on)).toEqual(inSections(withWidgets(BARE_W8_ON, NO_SHELF_WIDGETS)))
+    expect(on.some((i) => i.group === 'widgets')).toBe(true)
   })
 })
 
@@ -320,7 +343,8 @@ describe('the routine and tracker rows (wave 9 on)', () => {
     // One Mine group, never interleaved with another.
     const groups = items.map((i) => i.group).filter((g, i, a) => g !== a[i - 1])
     expect(groups.filter((g) => g === 'tools')).toHaveLength(1)
-    expect(labelsOf(items)).toContain('Mine')
+    // S8: the moment labels gave way to M3's five sections; the group tag is what says the rows are there.
+    expect(labelsOf(items)).toContain('Embeds')
     // A routine row inserts its block at once (no picker), bound to the note's day.
     const ed = noteEditor('/', { id: 'n1', dailyDate: '2026-10-27' })
     const row = (await bareList(ed)).find((i) => i.title === 'Morning 1')

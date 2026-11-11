@@ -21,6 +21,8 @@
 import { registerCapability, registerTargetKind, registerContextProvider, registerWarmup } from '../capabilities'
 import { unknownSymbols } from '../agentClient'
 import { mutate as globalMutate } from 'swr'
+import { kindServed, readQuoteMap } from './marketDataFacts'
+import { indicatorAlertBook } from './indicatorAlerts'
 
 const ROUTE = '/api/watchlist-alerts'
 const TTL_MS = 20_000
@@ -70,22 +72,17 @@ const rows = () => cache.rows || []
 // Every Alerts surface (widget, bell, chart menus) re-reads after an Agent write.
 const revalidateAlertViews = () => { try { globalMutate(k => typeof k === 'string' && k.startsWith(ROUTE)) } catch { /* never breaks a write */ } }
 
-/** Last prices for these symbols from the same quotes route the app uses; {} if unavailable. */
+/** Last prices for these symbols from the MD-1 gateway's `quotes` kind (one read for the open turn); {} if unavailable.
+ *  ⛔ W1-C C-04 (builder-c): NEVER /api/live-prices — on a cache miss that route runs the member's alert checker
+ *  (api/services/live_prices.py), and an Agent read must never trigger an alert. While `quotes` is not served the
+ *  check is simply not made, and the proposal says so (`alertQuotesChecked`). Rail: qa/noLivePrices.test.js. */
 export async function quotesFor(symbols) {
   const syms = [...new Set(symbols.map(upper).filter(Boolean))]
   if (!syms.length) return {}
-  try {
-    const r = await req(`/api/live-prices?tickers=${encodeURIComponent(syms.join(','))}`, { cache: 'no-store' })
-    if (!r.ok) return {}
-    const body = await r.json()
-    const out = {}
-    for (const s of syms) {
-      const p = Number(body?.[s]?.price)
-      if (Number.isFinite(p) && p > 0) out[s] = p
-    }
-    return out
-  } catch { return {} }
+  try { return await readQuoteMap(syms) } catch { return {} }
 }
+/** Whether a current price can be checked at all on this server (the gateway serves `quotes`). */
+export const quotesChecked = () => kindServed('quotes')
 
 const etDay = (iso) => {
   try { return new Date(iso).toLocaleDateString('en-US', { timeZone: 'America/New_York' }) } catch { return null }
@@ -132,7 +129,8 @@ export const alertLibraryKind = {
     // proposal is refused, never doubled.
     const cur = await loadAlerts({ force: true })
     for (const c of patch.create) {
-      const dup = cur.find(a => a.active && a.sym === c.sym && a.direction === c.direction && a.price === c.price)
+      // an alert bound to a drawing is that drawing's: its price moves with the line, so the binding is what repeats
+      const dup = cur.find(a => a.active && a.sym === c.sym && a.direction === c.direction && (c.body?.drawing_id ? a.drawingId === c.body.drawing_id : a.price === c.price))
       if (dup) throw new Error(`you already have an active alert for ${alertPhrase(dup)}`)
     }
     const created = {}
@@ -140,7 +138,7 @@ export const alertLibraryKind = {
       try {
         const row = await json(await req(ROUTE, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sym: c.sym, target_price: c.price, direction: c.direction, alert_type: 'price' }),
+          body: JSON.stringify(c.body || { sym: c.sym, target_price: c.price, direction: c.direction, alert_type: 'price' }),
         }), 'Creating the alert')
         created[`#${i}`] = String(row.id)
       } catch (e) {
@@ -268,7 +266,9 @@ export function registerAlertCapabilities() {
     },
     fastWhole: true,
     fast: ({ lower }) => (/^((show|list)( me)?( all)?( of)? my( price)? alerts|what alerts do i have|my alerts)[?.!]?$/.test(lower) ? { symbol: null, status: null, triggered_today: null } : null),
-    async answer(_snap, { symbol, status, triggered_today: today }) {
+    // ⭐ "what alerts do I have" is about the member's WHOLE book: each half is named, and a half that wasn't read is said to
+    // be missing — never "you have no alerts" from the price half alone. "Went off" is a price-alert reading only.
+    async answer(_snap, { symbol, status, triggered_today: today }, host) {
       let all
       try { all = await loadAlerts({ force: true }) } catch (e) { return `I couldn't read your alerts right now (${e?.message || 'error'}).` }
       const sym = symbol ? upper(symbol) : null
@@ -278,11 +278,18 @@ export function registerAlertCapabilities() {
       if (st === 'active') xs = xs.filter(a => a.active)
       if (st === 'triggered') xs = xs.filter(a => !a.active && a.triggeredAt)
       if (today) xs = xs.filter(a => etDay(a.triggeredAt) === todayET)
-      const what = `${today ? 'alerts that went off today' : st === 'active' ? 'active alerts' : st === 'triggered' ? 'alerts that went off' : 'alerts'}${sym ? ` on ${sym}` : ''}`
-      if (!xs.length) return `You have no ${what}.`
+      const what = (kind) => `${today ? `${kind}alerts that went off today` : st === 'active' ? `active ${kind}alerts` : st === 'triggered' ? `${kind}alerts that went off` : `${kind}alerts`}${sym ? ` on ${sym}` : ''}`
       const line = (a) => `${alertPhrase(a)} — ${statusOf(a)}${a.type !== 'price' ? ` (${kindWord(a)})` : ''}`
-      const head = `Your ${what} (${xs.length}):`
-      return [head, ...xs.slice(0, 30).map(a => `• ${line(a)}`), ...(xs.length > 30 ? [`…and ${xs.length - 30} more.`] : [])].join('\n')
+      const block = (kind, lines) => (lines.length
+        ? [`Your ${what(kind)} (${lines.length}):`, ...lines.slice(0, 30).map(l => `• ${l}`), ...(lines.length > 30 ? [`…and ${lines.length - 30} more.`] : [])].join('\n')
+        : `You have no ${what(kind)}.`)
+      const price = block('price ', xs.map(line))
+      if (st === 'triggered') return `${price}\n\nThat covers price alerts only: indicator alerts re-arm by themselves and aren't listed by when they went off.`
+      const book = await indicatorAlertBook(host, { symbol: sym, activeOnly: st === 'active' })
+      if (!book) return `${price}\n\nThat covers price alerts only: indicator alerts aren't included here.`
+      if (book.unread) return `${price}\n\nI couldn't read your indicator alerts right now, so they aren't included.`
+      if (!xs.length && !book.rows.length) return `You have no ${what('')}.`
+      return `${price}\n\n${block('indicator ', book.rows)}`
     },
   })
 
@@ -300,7 +307,7 @@ export function registerAlertCapabilities() {
       + 'If they give a level WITHOUT saying above or below (e.g. "an alert on NVDA at 200", "when it hits 200"), clarify with choices above / below — never guess. '
       + 'One op per alert, at most 5 in one request. An earlier alert at that level that already went off does NOT stop a new one — create it. '
       + 'Creating is always shown to the member as a proposal first, so plan it (disposition propose) — even inside a question ("why is TSLA moving? and set an alert above 300": propose the alert AND ask research for the question). '
-      + 'For an alert on an indicator (RSI, MACD, a moving average…) or a percent move, use disposition unsupported: those are not price-level alerts.',
+      + 'An alert on an indicator (RSI, MACD, a moving-average cross…) is indicatorAlert.create, not this. For a percent move, use disposition unsupported.',
     args: {
       type: 'object',
       properties: { symbol: { type: 'string' }, price: { type: 'number' }, direction: { type: 'string', enum: ['above', 'below'] } },
@@ -317,7 +324,7 @@ export function registerAlertCapabilities() {
         // turning the failure into a null that reads like an empty book (TERM-033).
         loadAlerts({ force: true }).then(() => true, () => false),
       ])
-      return { unknownSymbols: unknown, alertQuotes: quotes, alertBookFresh: fresh }
+      return { unknownSymbols: unknown, alertQuotes: quotes, alertQuotesChecked: quotesChecked(), alertBookFresh: fresh }
     },
     check(st, { symbol, price, direction }, env) {
       const sym = upper(symbol)
@@ -338,9 +345,12 @@ export function registerAlertCapabilities() {
       return null
     },
     apply: (st, { symbol, price, direction }) => ({ ...st, creates: [...st.creates, { sym: upper(symbol), price: Number(price), direction }] }),
-    describe(b, a, { symbol, price, direction }) {
+    describe(b, a, { symbol, price, direction }, env) {
       if (a.creates.length <= b.creates.length) return null
-      return `Price alert: ${alertPhrase({ sym: upper(symbol), price: Number(price), direction })} — goes off once, checked while the market is open`
+      // C-04: without the gateway's `quotes` kind the current price is not read (never /api/live-prices), so the
+      // member is told the level was not checked against it — the alert is still created as asked.
+      const unchecked = env && env.alertQuotesChecked === false ? " (the current price isn't available to the Agent, so this level wasn't checked against it)" : ''
+      return `Price alert: ${alertPhrase({ sym: upper(symbol), price: Number(price), direction })} — goes off once, checked while the market is open${unchecked}`
     },
   })
 

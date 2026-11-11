@@ -11,8 +11,10 @@ local-result boundary is proved on the real payload.
   python tools/agent_smoke_context_breadth.py BODIES.json --scripted         # free: canned plans, full checks
   python tools/agent_smoke_context_breadth.py BODIES.json --run --max-usd 0.25
 
-⛔ --run needs ANTHROPIC_API_KEY ALREADY in this process's environment (never fetched from any store,
-never printed) and --max-usd ≤ 0.25. Before EVERY call: (1) the request is searched for the planted
+⛔ --run needs UCT_AGENT_EVAL_API_KEY ALREADY in this process's environment (the SEPARATE eval key — the
+production ANTHROPIC_API_KEY is refused, never fetched from any store, never printed), --max-usd ≤ 0.25 and
+the cumulative eval ledger (tools/agent_eval_ledger.py) with that much left; every call's worst case is
+reserved there before it is sent and settled from its usage after. Before EVERY call: (1) the request is searched for the planted
 value — found → STOP, nothing is sent; (2) at most ONE model call per question — a second (research,
 reroute, schema retry) → STOP; (3) spend so far + this call's worst case must stay under the ceiling.
 Research (web) is disabled; the cost ledger is not written.
@@ -30,6 +32,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import conftest  # noqa: E402,F401 -- the census and the tripwire, before any api.* import (every *_DB_PATH → a sandbox)
 from api.services import narrative_cost_guard  # noqa: E402
+from tools import agent_eval_ledger as ledger  # noqa: E402
 from api.services.uct_agent import turn  # noqa: E402
 
 HARD_CEILING_USD = 0.25
@@ -156,9 +159,6 @@ def main() -> int:
         if a.max_usd is None or a.max_usd <= 0 or a.max_usd > HARD_CEILING_USD:
             print(f"refused: --run needs --max-usd in (0, {HARD_CEILING_USD}]")
             return 2
-        if not os.environ.get("ANTHROPIC_API_KEY"):
-            print("refused: ANTHROPIC_API_KEY is not in this process's environment (never fetched from a store)")
-            return 2
     elif not a.scripted:
         worst_total = 0.0
         for it in items:
@@ -183,8 +183,22 @@ def main() -> int:
 
     def _research(*_a, **_k):
         raise Stop("research was attempted (it is disabled for this smoke test)")
+    _research._eval_stub = True                 # the ledger's research rail reads this mark
     turn._research = _research
     turn._record_cost = lambda _resp: 0.0
+    led = client = key_fp = run_id = None
+    if a.run:
+        # the SEPARATE eval key, the cumulative ledger and the model on the eval account — before any call
+        try:
+            led, key, key_fp = ledger.preflight(turn, max_usd=a.max_usd)
+            import anthropic
+            client = anthropic.Anthropic(api_key=key, max_retries=0, timeout=60.0)
+            ledger.check_model(client, model)
+        except ledger.LedgerRefused as e:
+            print(f"refused: {e}")
+            return 2
+        run_id = f"smoke_breadth-{int(time.time())}"
+        print(f"cumulative ledger: ${led.remaining():.4f} left of ${led.cap():.2f} (run {run_id})")
     budget = {"spent": 0.0, "calls": 0, "q_calls": 0}
     sent: list[dict] = []
     current = {"qid": None, "body": None}
@@ -217,21 +231,14 @@ def main() -> int:
                                       for o in env["ops"]]}
             return types.SimpleNamespace(content=[types.SimpleNamespace(type="text", text=json.dumps(env))],
                                          stop_reason="end_turn", usage=types.SimpleNamespace(input_tokens=0, output_tokens=0))
-        resp = turn._default_caller(**kw)
-        u = getattr(resp, "usage", None)
-        budget["spent"] += narrative_cost_guard.estimate_cost(
-            model, int(getattr(u, "input_tokens", 0) or 0), int(getattr(u, "output_tokens", 0) or 0),
-            cache_read_tokens=int(getattr(u, "cache_read_input_tokens", 0) or 0),
-            cache_creation_tokens=int(getattr(u, "cache_creation_input_tokens", 0) or 0))
-        return resp
-
-    if a.run:
+        # the cumulative ledger RESERVES this call's worst case (the whole request as a cache write + max_tokens output)
         try:
-            from api.services.engine import _get_anthropic_client
-            _get_anthropic_client().models.retrieve(model)          # a free lookup, not billed
-        except Exception as e:  # noqa: BLE001
-            print(f"refused: model {model} is not available on this account ({type(e).__name__})")
-            return 2
+            resp, worst_ledger = led.guarded_call(run_id, client.messages.create, kw, tool="agent_smoke_context_breadth", key_fp=key_fp)
+        except ledger.LedgerRefused as e:
+            raise Stop(str(e)) from e
+        u = ledger.usage_tokens(resp)
+        budget["spent"] += ledger.cost_usd(model, **u) if u else worst_ledger
+        return resp
 
     out, q1_env, stopped = [], None, None
     for it in items:

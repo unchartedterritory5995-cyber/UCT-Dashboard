@@ -2068,6 +2068,10 @@ def drill_items(names: list, levels: dict, prices: dict, vols: dict) -> list:
         if i is not None and avg20 is not None and v:
             a = float(avg20[i])
             item["vr"] = round(float(v) / a, 1) if a and not np.isnan(a) else None
+        if v:
+            # Raw session volume, for the drill list's Vol column (RVOL above is
+            # the ratio; the table needs the shares).
+            item["v"] = int(v)
         n = _name_of(t)
         if n:
             item["n"] = n

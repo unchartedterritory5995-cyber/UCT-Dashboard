@@ -114,10 +114,11 @@ def test_FIELD_OPTIONS_are_the_artifacts_values_with_coverage(monkeypatch):
     assert "price" not in out                                     # range fields have no options
 
 
-def test_FIELD_OPTIONS_without_a_snapshot_is_empty_never_a_500(monkeypatch):
+def test_FIELD_OPTIONS_without_a_snapshot_has_no_column_values_never_a_500(monkeypatch):
     from api.services.screener import filters, snapshot_db
     monkeypatch.setattr(snapshot_db, "connect", lambda *a, **k: (_ for _ in ()).throw(sqlite3.OperationalError("no db")))
-    assert filters.field_options() == {}
+    assert filters.field_options() == filters.preset_options()      # a fixed vocabulary needs no snapshot; a column's does
+    assert "sector" not in filters.field_options()
 
 
 def test_PROMPT_acts_on_clear_intent_and_plans_whole_requests():

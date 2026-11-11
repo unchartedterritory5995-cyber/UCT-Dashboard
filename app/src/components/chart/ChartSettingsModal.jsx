@@ -290,6 +290,9 @@ const CROSSHAIR_MODE_LABELS = {
 
 export default function ChartSettingsModal({
   open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor, themeVars = null,
+  // The window's title. A host whose modal edits SHARED settings (the multi-chart
+  // grid) names that here so the scope of the edit is visible before it is made.
+  title = 'Chart Settings',
   // ⭐ A1.2 — the chart's indicator Undo stack, for the Indicators tab's Undo / Redo.
   historyKey = null, historyUserId = null,
   // Optional: apply a UCT theme to EVERY chart in the layout at once. Supplied by
@@ -339,6 +342,10 @@ export default function ChartSettingsModal({
   onCreateIndicator = null,
   // ⭐ PHASE 4 — the definition's own doors (modify / edit formula / custom copy).
   definitionDoors = null,
+  // ⭐ UCT RS Phase 4 (4-11) — the Indicators tab's FIRST add of a definition with a
+  // `meta.tour` (ChartSettingsIndicators `onFirstAdd`). The host holds it until
+  // this modal closes, then hands it to the chart's tour (ChartPane). Absent ⇒ none.
+  onIndicatorFirstAdd = null,
   // Optional `{ current: Element }` -- the control that opened this modal (the
   // gear). Focus returns there on close; without it, to whatever held focus at open.
   returnFocusRef = null,
@@ -963,10 +970,11 @@ export default function ChartSettingsModal({
         style={{ ...(themeVars || {}), ...(pos ? { position: 'fixed', left: pos.left, top: pos.top, margin: 0, animation: 'none' } : {}) }}
       >
         <div className={styles.header} onPointerDown={startDrag} style={{ cursor: 'move' }}>
-          <span className={styles.title}>Chart Settings</span>
+          <span className={styles.title}>{title}</span>
           <div className={styles.headerRight} onPointerDown={e => e.stopPropagation()}>
             <button
               type="button"
+              data-guide="chartSettings.reset"
               className={`${styles.resetBtn}${confirmReset ? ' ' + styles.resetBtnConfirm : ''}`}
               onClick={handleReset}
               title="Resets chart appearance. Your indicators stay."
@@ -982,6 +990,7 @@ export default function ChartSettingsModal({
         <div className={styles.tplBar} onPointerDown={e => e.stopPropagation()}>
           <div className={styles.tplMenuWrap}>
             <button
+              data-guide="chartSettings.templates"
               type="button"
               className={styles.tplBtn}
               onClick={() => setTplMenuOpen(o => !o)}
@@ -1033,6 +1042,7 @@ export default function ChartSettingsModal({
             </div>
           ) : (
             <button
+              data-guide="chartSettings.saveTemplate"
               type="button"
               className={styles.tplBtn}
               onClick={() => { setSavingTpl(true); setTplMenuOpen(false) }}
@@ -1045,6 +1055,7 @@ export default function ChartSettingsModal({
             type="button"
             className={`${styles.tplBtn} ${styles.themesBarBtn}`}
             onClick={() => setThemesOpen(true)}
+            data-guide="chartSettings.themes"
             title="Browse UCT chart themes — one-click looks for this chart"
           ><UIcon name="sun" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 5 }} />UCT Chart Themes</button>
         </div>
@@ -1362,6 +1373,7 @@ export default function ChartSettingsModal({
             chartFeatures={chartFeatures}
             definitionDoors={definitionDoors}
             openAdd={scrollTo === 'add'}
+            onFirstAdd={onIndicatorFirstAdd}
           />
           )}
 
@@ -1760,6 +1772,7 @@ export default function ChartSettingsModal({
       {activeTarget && panelPos && createPortal(
         <div
           data-color-panel
+          data-guide="chartSettings.colorPanel"
           style={{ position: 'fixed', left: panelPos.left, bottom: panelPos.bottom, zIndex: 9100 }}
           onMouseDown={(e) => e.stopPropagation()}
         >

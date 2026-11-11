@@ -47,6 +47,17 @@ def _declared():
 DECLARED = _declared()
 
 
+def _retired_declared():
+    """The ledger's `retired` section (gates retired as ALWAYS ON, 2026-11-04): each keeps its
+    member_facing label, and its payload key is hard-coded True."""
+    rows = json.loads(LEDGER.read_text(encoding="utf-8")).get("retired", {})
+    return {name: entry["member_facing"] for name, entry in rows.items()
+            if isinstance(entry.get("member_facing"), dict)}
+
+
+RETIRED_DECLARED = _retired_declared()
+
+
 def _payload_key(name, mf):
     return mf.get("payload_key") or name.lower()
 
@@ -212,8 +223,25 @@ def test_the_real_ledger_produces_no_UNKNOWN_with_everything_on(clean_env):
     fs = auth._access_payload(MEMBER, "pro")["feature_status"]
     assert fs["measured"] is True
     states = {f["id"]: f["state"] for f in fs["features"]}
-    assert len(states) == len(DECLARED), states
+    assert len(states) == len(DECLARED) + len(RETIRED_DECLARED), states
     assert set(states.values()) == {"released"}, states
+
+
+def test_a_capability_retired_as_always_on_is_listed_released_whatever_its_old_variable(monkeypatch):
+    """A retired gate's label still reaches the strip (the capability is still here), and no
+    value of its old variable can take it off."""
+    assert RETIRED_DECLARED, "non-vacuity: the ledger has retired member-facing entries"
+    for raw in (None, "0", "1"):
+        for name in RETIRED_DECLARED:
+            if raw is None:
+                monkeypatch.delenv(name, raising=False)
+            else:
+                monkeypatch.setenv(name, raw)
+        feats = _features(auth._access_payload(MEMBER, "pro"))
+        for name, mf in RETIRED_DECLARED.items():
+            key = _payload_key(name, mf)
+            assert feats.get(key, {}).get("state") == "released", (name, raw, feats.get(key))
+            assert feats[key]["label"] == mf["label"]
 
 
 # ── one source: no label is typed a second time ──────────────────────────────

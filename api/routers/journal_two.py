@@ -16,6 +16,7 @@ Endpoints landing per phase:
 Spec §5, audit §4.3.
 """
 
+import asyncio
 import csv
 import io
 import json
@@ -34,6 +35,7 @@ from api.middleware.auth_middleware import (
 # Slice 3: the ONE route below that an external door may reach opts into this by
 # name. `get_current_user` above is untouched -- see api/middleware/capture_scope.
 from api.middleware.capture_scope import require_capture_scope
+from api.services.upload_gate import UPLOAD_BUSY_SENTENCE, UploadGate
 
 logger = logging.getLogger(__name__)
 from api.services.journal_two import (
@@ -223,6 +225,13 @@ _J2_TELEMETRY_EVENTS = {
     # P5 (starter packs, Task 6) - a note made from a style or a style applied to one, a style created, and a
     # trader block inserted. Closed enums only: never a style id, a name, a note or a block's params.
     "style_applied", "style_created", "block_used",
+    # Audit 2026-11-05, S16 + S20 (return metrics): the first run's Build and Skip, the first widget that showed
+    # the member's own tickers, a recap written, and a trust incident. Counts, enums and bools only. Read back by
+    # GET /api/admin/notebook-return-metrics (journal_two/notebook_return_metrics.py).
+    "first_run_completed", "first_run_skipped", "first_live_widget", "recap_written", "trust_incident",
+    # Audit 2026-11-05, S15 + S20 (the morning open): the Today home was opened, with the ET session it opened in
+    # and whether that open made the day's note. Enums and bools only.
+    "today_opened",
 }
 
 # Wave 6 (D14, S-3) — the seven Notebook events' prop schemas, applied on
@@ -348,6 +357,31 @@ _NOTEBOOK_PROP_SCHEMAS: dict[str, dict[str, Any]] = {
                  "prepEarnings", "prepMovers", "prepLevels", "tradeReview", "moodCheckIn", "marketcontext",
                  "reminder"),
     },
+    # S16 / S20 (audit 2026-11-05). `names` is a COUNT of tickers, never the tickers.
+    "first_run_completed": {
+        "names": "num",
+        "pack": ("swing", "day", "prop", "options", "earnings", "none"),
+        "plan": "bool",
+        "ms": "num",
+    },
+    "first_run_skipped": {
+        "step": "num",
+    },
+    "first_live_widget": {
+        "source": ("watchlist", "reporting", "first_run"),
+        "names": "num",
+    },
+    "recap_written": {
+        "created": "bool",
+    },
+    "trust_incident": {
+        "kind": ("publish_undone", "widget_restored"),
+        "ms": "num",
+    },
+    "today_opened": {
+        "session": ("premarket", "open", "after_close", "closed"),
+        "created": "bool",
+    },
 }
 
 
@@ -437,6 +471,20 @@ def _take_compass_door(door, user_id: str) -> None:
     counter that cannot be read admits (fails open)."""
     if not compass_daily_caps.take(door, user_id):
         raise HTTPException(status_code=429, detail=door.sentence)
+
+
+def _replace_coach_output(output_id: str, user_id: str, generate):
+    """Forget the output, then generate its replacement (generation is idempotent on
+    a live row). A failed generation puts the old one back: dropping it would leave the
+    member with nothing but another paid generate to get it back."""
+    coach_service.forget_review(review_id=output_id, user_id=user_id)
+    try:
+        return generate()
+    except Exception as e:
+        coach_service.restore_review(output_id, user_id=user_id)
+        if isinstance(e, RuntimeError):
+            raise HTTPException(status_code=503, detail=str(e))
+        raise
 
 
 def _reject_unified_for_per_trade(account_id: str) -> None:
@@ -676,8 +724,7 @@ def create_position(
     except positions_service.PositionValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
     # Wave 13 lane 13E-1: freeze the market context at the fill. Reads only the position just
-    # returned, is inert while NOTEBOOK_ENTRY_CONTEXT_ENABLED is off, and never raises -- the
-    # add has already succeeded and nothing here can change it.
+    # returned and never raises -- the add has already succeeded and nothing here can change it.
     # ⛔ QUEUED, NEVER A STARLETTE BACKGROUND TASK (fin-security I-1): a sync background task
     # runs on the same thread pool every sync route uses, and this capture can wait on a
     # vendor. `schedule_position_capture` does no I/O here; the capture runs on its own two
@@ -2013,32 +2060,49 @@ def list_notes_endpoint(
     # meaning row (D-H8). The [[ picker, AddPositionModal, ThesisSection and
     # Model Book call this same endpoint and would otherwise receive rows that
     # match no word typed, with nothing to say why (and spend an embed each).
+    meaning_pending = None
     if meaning:
         from api.services.journal_two import note_semantic
+        only_query = not (folder_id or tag or ticker or embed_symbol or embed_widget
+                          or deleted or date_from or date_to or symbol_in is not None
+                          or savedViewId or property_filter)
         rows = note_semantic.append_meaning_hits(
             user["id"], q, rows, total=total, offset=offset, limit=limit,
-            only_query=not (folder_id or tag or ticker or embed_symbol or embed_widget
-                            or deleted or date_from or date_to or symbol_in is not None
-                            or savedViewId or property_filter),
+            only_query=only_query,
         )
-    # Wave 11 (lane 11B), DARK behind NOTEBOOK_FORMULAS_ENABLED: each live row of
-    # THIS page carries its formula/rollup values (`computed`), so every view can
-    # show them. Off -- or a member with no computed property -- the payload is
-    # untouched and no extra SQL runs beyond one flag read.
+        # Audit 2026-11-05, spec S4 (B18): a search that found nothing by meaning says how many of
+        # the member's notes the index has not reached yet (the sweep runs every 15 minutes).
+        # ⛔ Fix round 1 (review finding 5): WHATEVER THE QUERY'S SHAPE -- the count does not depend
+        # on it, and the B18 report was a two-word query ("consolidation pattern"), which
+        # `query_shape` classes LEXICAL. Armed, unfiltered, first page, a real query only; dark
+        # issues no SQL here. The count is cached per member (note_semantic.pending_count).
+        if (only_query and (q or "").strip() and note_semantic.semantic_enabled()
+                and not offset and not any(r.get("matchKind") == "meaning" for r in rows)):
+            try:
+                meaning_pending = note_semantic.pending_count(user["id"])
+            except Exception:  # noqa: BLE001 -- a status line never fails the search
+                meaning_pending = None
+    # Wave 11 (lane 11B): each live row of THIS page carries its formula/rollup values
+    # (`computed`), so every view can show them. A member with no computed property
+    # leaves the payload untouched.
     if not deleted and rows:
         from api.services.journal_two import note_computed
-        if note_computed.formulas_enabled():
-            conn = notes_service.get_connection()
-            try:
-                vals = note_computed.values_for_notes(
-                    conn, user["id"], [r["id"] for r in rows],
-                    {r["id"]: r.get("propertiesJson") or {} for r in rows})
-            finally:
-                conn.close()
-            if vals:
-                for r in rows:
-                    r["computed"] = vals.get(r["id"], {})
-    return {"notes": rows, "total": total, "limit": limit, "offset": offset}
+        conn = notes_service.get_connection()
+        try:
+            vals = note_computed.values_for_notes(
+                conn, user["id"], [r["id"] for r in rows],
+                {r["id"]: r.get("propertiesJson") or {} for r in rows})
+        finally:
+            conn.close()
+        if vals:
+            for r in rows:
+                r["computed"] = vals.get(r["id"], {})
+    out = {"notes": rows, "total": total, "limit": limit, "offset": offset}
+    if meaning_pending is not None:
+        out["meaningPending"] = meaning_pending
+        if note_semantic.pending_count_capped(meaning_pending):
+            out["meaningPendingCapped"] = True   # N4: the panel says "1,000+"
+    return out
 
 
 @router.get("/notes/backlinks")
@@ -2576,7 +2640,18 @@ def daily_note_endpoint(
     from api.services.journal_two import note_daily
     body = payload or {}
     try:
-        out = note_daily.open_daily_note(user["id"], body.get("date"), body.get("templateId"))
+        # Tier 3b fix round 1 (I3, I9): `seedToday: true` -- the door that MAKES the day's note on an explicit press
+        # (the first run's Build, Today's "Start a fresh one") starts it with the Today home's plan, so the names
+        # the member just typed reach today's plan. Applied only when this call makes the note.
+        seed = None
+        if body.get("seedToday") is True:
+            from api.middleware.auth_middleware import get_user_plan
+            from api.services.journal_two import notebook_today
+            paid = is_paid_user({**user, "plan": get_user_plan(user["id"])})
+            # Fix round 2 (N5): built HERE, before the door opens its write transaction -- the seed's reads (the
+            # market, up to 200 chart notes, the names) must never run while auth.db's write lock is held.
+            seed = notebook_today.plan_seed_for(user["id"], paid=paid)
+        out = note_daily.open_daily_note(user["id"], body.get("date"), body.get("templateId"), seed_blocks=seed)
     except note_daily.DailyNoteError as e:
         raise HTTPException(status_code=400, detail=str(e))
     # Wave 10 (10D): an existing daily note stored before the depth cap opens
@@ -2584,6 +2659,22 @@ def daily_note_endpoint(
     if isinstance(out, dict) and "note" in out:
         out = {**out, "note": _servable_note(out["note"])}
     return out
+
+
+@router.get("/notes/today")
+def notes_today_endpoint(
+    make: int = Query(default=1, ge=0, le=1),
+    user: dict = Depends(get_current_user_with_plan),
+) -> dict[str, Any]:
+    """Audit 2026-11-05, S15/S18: the Today home's ONE aggregated read (`notebook_today.py`) -- today's note
+    (made from the member's daily template the first time today, ET, through the daily note door), the setups
+    near entry, the member's names, what is open from yesterday, on this day, the market line and the session.
+    Every section degrades on its own (`null` plus a reason in `reasons`); no vendor or model call is reachable.
+    `?make=0` (fix round 1, I9): never make the day's note (the first run is pending or open); a trashed day's note
+    is never replaced by this read either (I3).
+    ⛔ Declared above every `/notes/{note_id}` route, like `/notes/daily`."""
+    from api.services.journal_two import notebook_today
+    return notebook_today.get_today(user["id"], paid=is_paid_user(user), make=bool(make))
 
 
 NOTE_BATCH_EXPORT_MAX = 500
@@ -2672,6 +2763,115 @@ def sector_theme_facets_endpoint(
     ⛔ MUST stay declared ABOVE `GET /notes/{note_id}`, same reason as
     `/notes/favorites`/`/notes/recents` immediately above."""
     return notes_service.get_sector_theme_facets(user["id"])
+
+
+#: Connector fidelity Plan A Task 9 [B A2]: the member media-fetch door's per-member budget.
+#: Each call is one bounded download (25 MB, 5 redirects) plus one media-policy decision.
+#: In-process Limiter state (CLAUDE.md's single-process roster): a second process doubles it.
+NOTE_MEDIA_FETCH_RATE = "120/minute"
+SCOPE_NOTE_MEDIA_FETCH = "notebook-media-fetch"
+NOTE_MEDIA_FETCH_RATE_SENTENCE = "That's a lot of images to copy in at once. Try again in a minute."
+from api.services.journal_two import hotlink_fetch  # noqa: E402
+
+#: Plan F Task 4: the values live in `hotlink_fetch` (one each, shared with the import repair);
+#: these names stay because the door's tests patch them, and are read at call time.
+_MEDIA_FETCH_TIMEOUT_S = hotlink_fetch.FETCH_TIMEOUT_S
+#: Task 9 fix round 1 (I2): the whole fetch (every hop, every slow-drip read) has ONE deadline.
+#: `_MEDIA_FETCH_TIMEOUT_S` is per read, so without it a server trickling a byte at a time
+#: holds the socket indefinitely. Waiting for a global slot counts against it too.
+MEDIA_FETCH_DEADLINE_S = hotlink_fetch.FETCH_DEADLINE_S
+#: ...and at most this many downloads at once: per member (over it => 429 at once, never a
+#: queue) and for the whole pod (`notebook_link_preview._SEM`'s pattern). Per-process state,
+#: like that one (CLAUDE.md's single-process roster): a second process doubles both.
+MEDIA_FETCH_PER_MEMBER_INFLIGHT = 2
+MEDIA_FETCH_GLOBAL_INFLIGHT = 8
+_MEDIA_FETCH_SEM = asyncio.Semaphore(MEDIA_FETCH_GLOBAL_INFLIGHT)
+_media_fetch_inflight: dict[str, int] = {}
+NOTE_MEDIA_FETCH_BUSY_SENTENCE = "Already copying images for you. Try again in a moment."
+
+
+def _media_fetch_client():
+    """The door's HTTP client: no credential, no cookie jar shared with anything, never an env
+    proxy (`media_http_client`). A seam so the route test answers from a mock transport (no
+    network)."""
+    from api.services.journal_two.note_connectors.providers.base import media_http_client
+    return media_http_client(timeout=_MEDIA_FETCH_TIMEOUT_S)
+
+
+_hotlink_filename = hotlink_fetch.filename_of
+
+
+# ⛔ Declared ABOVE every `POST /notes/{note_id}/...` route, so no path parameter can ever
+# read "media" as a note id.
+@router.post("/notes/media/fetch")
+async def notes_media_fetch_endpoint(payload: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user)):
+    """Connector fidelity Plan A Task 9 [B A2]: copy a hotlinked image into UCT storage for
+    Plan B's file importer -- never kept as a hotlink. Body `{url, noteImportKey?}`.
+
+    `noteImportKey` resolves to the member's OWN non-trashed note (media storage is per note;
+    the predicate is `import_check`'s, the one copy); absent or unknown => 404 `Not found`,
+    with nothing fetched. The download is the shared `fetch_content_url` (http allowed for the
+    download only, redirects followed, the SSRF guard on every hop), then `normalize_media` +
+    `store_media` under the member's budget, off the event loop. 200 => `{src, kind,
+    filename}` (+ `original: {url, name}` when the policy kept one, Plan B R7), `src` always
+    our own URL; the stored file is handed to documents like an upload; any refusal => 422 `{"reason", "markerText"}` at the
+    top level, the reason decided by TYPE (`engine.media_failure_reason`), never a 500."""
+    from fastapi.responses import JSONResponse
+    from api.services.journal_two import public_note_payload as public
+    from api.services.journal_two.note_connectors import engine as note_engine
+    url = payload.get("url")
+    key = payload.get("noteImportKey")
+    if not isinstance(url, str) or not url.strip():
+        raise HTTPException(status_code=400, detail="url must be a non-empty string")
+    if key is not None and not isinstance(key, str):
+        raise HTTPException(status_code=400, detail="noteImportKey must be a string")
+    user_id = user["id"]
+    public.enforce_rate(NOTE_MEDIA_FETCH_RATE, SCOPE_NOTE_MEDIA_FETCH, f"member:{user_id}",
+                        NOTE_MEDIA_FETCH_RATE_SENTENCE, public=False)
+    hit = notes_service.import_check(user_id, [key])["existing"].get(key) if key else None
+    if hit is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    note_id = hit["id"]
+    url = url.strip()
+    filename = _hotlink_filename(url)
+    # Fix round 1 (I2): one event loop, no `await` between the check and the increment.
+    if _media_fetch_inflight.get(user_id, 0) >= MEDIA_FETCH_PER_MEMBER_INFLIGHT:
+        raise HTTPException(status_code=429, detail=NOTE_MEDIA_FETCH_BUSY_SENTENCE)
+    _media_fetch_inflight[user_id] = _media_fetch_inflight.get(user_id, 0) + 1
+
+    def release_slot():
+        left = _media_fetch_inflight.get(user_id, 1) - 1
+        if left > 0:
+            _media_fetch_inflight[user_id] = left
+        else:
+            _media_fetch_inflight.pop(user_id, None)
+
+    try:
+        # Plan F Task 4: the one fetch core, shared with the import repair. The door's seams are
+        # read here, at call time (C1), and the slot is given back when the download ends.
+        stored = await hotlink_fetch.fetch_and_store(
+            user_id, note_id, url, client_factory=_media_fetch_client, deadline_s=MEDIA_FETCH_DEADLINE_S,
+            semaphore=_MEDIA_FETCH_SEM, after_download=release_slot)
+    except Exception as e:  # noqa: BLE001 -- every refusal is a named 422, never a 500
+        reason = note_engine.media_failure_reason(e)
+        if reason == "storage_limit":
+            marker = media_policy.UPLOAD_STORAGE_LIMIT_SENTENCE      # nothing retries a door
+        elif isinstance(e, media_policy.MediaRejected):
+            marker = e.marker_text
+        else:
+            marker = media_policy.rejection(reason, filename).marker_text
+        logger.info("notes/media/fetch refused (%s) for member %s: %s", reason, user_id, e)
+        return JSONResponse(status_code=422, content={"reason": reason, "markerText": marker})
+    # Plan B R7 (a): a fetched file is searchable exactly as an uploaded one is -- the same
+    # guarded, off-loop hand-off the upload doors make (a failure there never costs the fetch).
+    saved = _stored_media_payload(stored)
+    await _hand_off_to_documents(user_id, note_id, saved, stored.mime, kind=stored.kind)
+    answer = {"src": stored.url, "kind": stored.kind, "filename": stored.name}
+    # Plan B R7 (b): a kept original (a HEIC source, an animation) travels back, so the
+    # importer inserts its chip rather than leaving an orphan file on the member's cap.
+    if saved["original"] is not None:
+        answer["original"] = saved["original"]
+    return answer
 
 
 @router.post("/notes/{note_id}/embeds")
@@ -3281,9 +3481,89 @@ def notes_import_confirm_endpoint(payload: dict[str, Any] = Depends(_json(dict[s
     if isinstance(payload, dict) and sample_marker.reserved_for_the_sample(payload.get("source")):
         raise HTTPException(status_code=400, detail="That import source name is reserved.")
     try:
-        return notes_service.import_confirm(user["id"], payload)
+        # Plan B Task 10: a file import never overwrites a note edited since its import, in
+        # either mode (`keptEdited`); `mode: "recover"` rebuilds the unedited ones.
+        return notes_service.import_confirm(user["id"], payload, guard_edits=True)
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+#: Connector fidelity Plan A Task 4: the heal door's per-member budget. Each call reads at
+#: most 500 named notes plus a 500-note sweep, so it is bounded per call and per minute.
+#: In-process Limiter state (CLAUDE.md's single-process roster): a second process doubles it.
+NOTE_IMPORT_HEAL_RATE = "30/minute"
+SCOPE_NOTE_IMPORT_HEAL = "notebook-import-heal"
+NOTE_IMPORT_HEAL_RATE_SENTENCE = "That's a lot of link repairs in a minute. Try again shortly."
+
+
+@router.post("/notes/import/heal-links")
+def notes_import_heal_links_endpoint(payload: dict[str, Any] = Depends(_json(dict[str, Any])), user: dict = Depends(get_current_user)):
+    """Connector fidelity Plan A Task 4 [B A6]: heal the member's imported links whose
+    target has arrived since -- the named `noteIds` (<= 500; Plan B's file importer names
+    what it just imported) plus a bounded sweep of the member's pending notes. Member-scoped,
+    timestamp-neutral; `unresolved` lists only the NAMED notes' marks still unresolved."""
+    from api.services.journal_two import public_note_payload as public
+    from api.services.journal_two.note_connectors import link_keys
+    note_ids = payload.get("noteIds")
+    if note_ids is None:
+        note_ids = []
+    if not isinstance(note_ids, list) or not all(isinstance(n, str) for n in note_ids):
+        raise HTTPException(status_code=400, detail="noteIds must be a list of note ids")
+    if len(note_ids) > link_keys.HEAL_LIMIT:
+        raise HTTPException(status_code=400, detail=f"at most {link_keys.HEAL_LIMIT} noteIds per call")
+    public.enforce_rate(NOTE_IMPORT_HEAL_RATE, SCOPE_NOTE_IMPORT_HEAL, f"member:{user['id']}",
+                        NOTE_IMPORT_HEAL_RATE_SENTENCE, public=False)
+    out = link_keys.heal_pending_links(user["id"], note_ids=note_ids)
+    return {"healed": out["healed"], "unresolved": out["unresolved"]}
+
+
+#: Plan F Task 9: the member's import-repair notice doors. Cheap reads of one row, but a
+#: polled GET still gets a budget. In-process Limiter state (CLAUDE.md's single-process
+#: roster): a second process doubles it.
+NOTE_IMPORT_REPAIR_NOTICE_RATE = "60/minute"
+SCOPE_NOTE_IMPORT_REPAIR_NOTICE = "notebook-import-repair-notice"
+NOTE_IMPORT_REPAIR_NOTICE_RATE_SENTENCE = "Too many requests. Try again in a minute."
+
+
+def _repair_notice_rate(user_id: str) -> None:
+    from api.services.journal_two import public_note_payload as public
+    public.enforce_rate(NOTE_IMPORT_REPAIR_NOTICE_RATE, SCOPE_NOTE_IMPORT_REPAIR_NOTICE, f"member:{user_id}",
+                        NOTE_IMPORT_REPAIR_NOTICE_RATE_SENTENCE, public=False)
+
+
+# ⛔ Declared ABOVE every `/notes/{note_id}` route, so no path parameter reads "import" as a
+# note id. Plain `def` routes: FastAPI runs them on the threadpool, never SQLite on the loop.
+@router.get("/notes/import/repair-notice")
+def notes_import_repair_notice_endpoint(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """Plan F Task 9: the CALLER's own import-repair notice: some of their imported notes lost
+    a picture, a file, or a link to a file (`store.pending_notice`; a lost-file-link-only note
+    counts, as ruled). `{show, lossNotes}`; no undismissed notice reads `{show: false, lossNotes: 0}`.
+    The member id comes only from the session, never from the request."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two.import_repair import store
+    _repair_notice_rate(user["id"])
+    conn = get_connection()
+    try:
+        loss = store.pending_notice(conn, user["id"])
+    finally:
+        conn.close()
+    return {"show": bool(loss), "lossNotes": int(loss or 0)}
+
+
+@router.post("/notes/import/repair-notice/dismiss")
+def notes_import_repair_notice_dismiss_endpoint(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """Plan F Task 9: dismiss the CALLER's own notice. An UPDATE (`store.dismiss_notice`; the
+    row stays), idempotent: dismissing an already-dismissed or missing notice is still ok, and
+    a later repair run never re-arms it."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two.import_repair import store
+    _repair_notice_rate(user["id"])
+    conn = get_connection()
+    try:
+        store.dismiss_notice(conn, user["id"])
+    finally:
+        conn.close()
+    return {"ok": True}
 
 
 @router.post("/notes/enrichment/scan")
@@ -3605,13 +3885,12 @@ async def ask_current_note_stream(
 
 
 def _styled_create_allowed(user: dict) -> None:
-    """Journal styles (P1): the ONLY place POST /notes reads the switch or the plan, and only when a
-    styleId/kindId is sent -- every other create is exactly what it was (spec P1.7c). Both checks are
-    the journal-styles router's OWN (`_require_enabled`, then `require_paid`), called here so the
-    switch, the plan predicate and the 402 sentence have one authority. The gate answers first."""
+    """Journal styles (P1): the ONLY place POST /notes reads the plan, and only when a styleId/kindId
+    is sent -- every other create is exactly what it was (spec P1.7c). The check is the journal-styles
+    router's OWN `require_paid`, called here so the plan predicate and the 402 sentence have one
+    authority. (The styles switch it used to read first was retired as always on, 2026-11-04.)"""
     from api.middleware import auth_middleware as authmw
     from api.routers import notebook_journal_styles as styles_router
-    styles_router._require_enabled()
     planned = user if "plan" in user else {**user, "plan": authmw.get_user_plan(user["id"])}
     styles_router.require_paid(planned)
 
@@ -3893,33 +4172,102 @@ async def _hand_off_to_documents(user_id: str, note_id: str, saved: dict, conten
 # dependency caps the body WHILE it is read and runs AFTER `user` (declaration
 # order), so an anonymous caller reads nothing. The caps and sentences are the
 # service's own, read per request.
+from api.services.journal_two import media_policy  # noqa: E402
+
+# `/hero` keeps the 5 MB inline-image cap and its own behaviour. `/images` reads up to the
+# media policy's SOURCE cap (25 MB) since Plan A Task 8: an oversize photo is downscaled by the
+# policy, not refused at the door.
 _NOTE_IMAGE_UPLOAD = body_cap.capped_upload(
     "file", lambda: notes_service._MAX_IMAGE_BYTES, lambda: notes_service.IMAGE_TOO_BIG_SENTENCE)
+_NOTE_MEDIA_UPLOAD = body_cap.capped_upload(
+    "file", lambda: media_policy.MEDIA_SOURCE_MAX_BYTES, lambda: notes_service.FILE_TOO_BIG_SENTENCE)
 _NOTE_FILE_UPLOAD = body_cap.capped_upload(
     "file", lambda: notes_service._MAX_FILE_BYTES, lambda: notes_service.FILE_TOO_BIG_SENTENCE)
+
+
+#: [B A1] The upload doors' answer. Plan F Task 7 review M-6: the one builder lives in
+#: `hotlink_fetch` so the import repair hands documents exactly what these doors do.
+_stored_media_payload = hotlink_fetch.stored_payload
+
+
+#: Final review I3: uploads through the media policy in flight at once, per member and for the
+#: whole pod. Over either => 429 at once, BEFORE the threadpool: a burst of HEIC/large uploads
+#: never queues on the decode semaphore inside it (`media_policy._DECODE_SLOTS`, still there)
+#: and parks the shared threadpool every sync route runs on. Per-process state (CLAUDE.md's
+#: single-process roster): a second process doubles both.
+UPLOAD_PER_MEMBER_INFLIGHT = 2
+UPLOAD_GLOBAL_INFLIGHT = 4
+
+
+def _UploadGate() -> UploadGate:  # noqa: N802 -- kept name: a fresh gate for this door's limits
+    """This door's gate: the shared class (`api/services/upload_gate.py`, Plan C final review
+    M4) with this door's two constants. The Obsidian blob PUT keeps its OWN instance."""
+    return UploadGate(per_member=UPLOAD_PER_MEMBER_INFLIGHT, total=UPLOAD_GLOBAL_INFLIGHT)
+
+
+_UPLOAD_GATE = _UploadGate()
+
+
+async def _upload_through_media_policy(user_id: str, note_id: str, file: UploadFile,
+                                       *, file_intent: bool) -> Any:
+    """Plan A Task 8 [B A1]: the ONE media policy behind both editor upload doors. The raw
+    bytes go through `normalize_media` (sniff, convert, downscale, refuse) then `store_media`
+    under ONE `MediaBudget` for this request (the member's memoised usage: an upload burst
+    never rescans their tree per file). `file_intent` (the `/attachments` door) decides with
+    `normalize_file` instead: the bytes are kept as a file, never decoded, converted or
+    re-routed inline (fix round 1, I5). The 2 GB cap applies
+    to every upload here: the doors cannot tell an import from an editor upload.
+
+    The decode/encode and the disk work run off the event loop. A refusal is a 400
+    `{"detail": <the sentence>, "reason": <reason>}`; the legacy `NoteValidationError`
+    answer stays `{"detail": str}`. The stored primary hands off to documents with its
+    STORED kind and type (an SVG sent to `/images` hands off as a file)."""
+    from fastapi.responses import JSONResponse
+    from starlette.concurrency import run_in_threadpool
+    raw = await file.read()
+    name = file.filename or ("attachment" if file_intent else "image")
+
+    def decide_and_store():
+        # Fix round 1, I5: an attachment is the member's bytes, never decoded.
+        decide = media_policy.normalize_file if file_intent else media_policy.normalize_media
+        result = decide(raw, file.content_type, name)
+        budget = media_policy.MediaBudget.for_member(user_id)
+        return media_policy.store_media(user_id, note_id, result, budget=budget)
+
+    gate = _UPLOAD_GATE
+    if not gate.acquire(user_id):
+        raise HTTPException(status_code=429, detail=UPLOAD_BUSY_SENTENCE)
+    try:
+        stored = await run_in_threadpool(decide_and_store)
+    except media_policy.MediaRejected as e:
+        # Fix round 1, M1: the import notice promises a retry once space frees; nothing
+        # retries an editor upload, so the door says so in its own words.
+        detail = (media_policy.UPLOAD_STORAGE_LIMIT_SENTENCE if e.reason == "storage_limit"
+                  else e.marker_text)
+        return JSONResponse(status_code=400, content={"detail": detail, "reason": e.reason})
+    except NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        gate.release(user_id)
+    payload = _stored_media_payload(stored)
+    # Wave 7 seam S1: every saved attachment reports to document_extraction,
+    # which decides whether it becomes a searchable document. The decision
+    # lives THERE so this router never grows a per-type branch (lane G adds
+    # image OCR / docx behind its own gate without touching this file).
+    await _hand_off_to_documents(user_id, note_id, payload, stored.mime, kind=stored.kind)
+    return payload
 
 
 @router.post("/notes/{note_id}/images")
 async def upload_note_image_endpoint(
     note_id: str,
     user: dict = Depends(get_current_user),
-    file: UploadFile = Depends(_NOTE_IMAGE_UPLOAD),
-) -> dict[str, Any]:
+    file: UploadFile = Depends(_NOTE_MEDIA_UPLOAD),
+) -> Any:
     n = notes_service.get_note(user["id"], note_id)
     if n is None:
         raise HTTPException(status_code=404, detail="Not found")
-    try:
-        img = await notes_service.save_note_image(
-            user["id"], note_id, file, kind="inline",
-        )
-    except NoteValidationError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    # Wave 7 seam S1: every saved attachment reports to document_extraction,
-    # which decides whether it becomes a searchable document. The decision
-    # lives THERE so this router never grows a per-type branch (lane G adds
-    # image OCR / docx behind its own gate without touching this file).
-    await _hand_off_to_documents(user["id"], note_id, img, file.content_type, kind="image")
-    return img
+    return await _upload_through_media_policy(user["id"], note_id, file, file_intent=False)
 
 
 @router.post("/notes/{note_id}/hero")
@@ -3964,17 +4312,10 @@ async def upload_note_attachment_endpoint(
     note_id: str,
     user: dict = Depends(get_current_user),
     file: UploadFile = Depends(_NOTE_FILE_UPLOAD),
-) -> dict[str, Any]:
+) -> Any:
     n = notes_service.get_note(user["id"], note_id)
     if n is None:
         raise HTTPException(status_code=404, detail="Not found")
-    content_type = file.content_type
-    try:
-        att = await notes_service.save_note_attachment(
-            user["id"], note_id, file,
-        )
-    except NoteValidationError as e:
-        raise HTTPException(status_code=400, detail=str(e))
     # Wave I: a PDF attachment gets a document row + async page-aware text
     # extraction, queued AFTER the upload itself already succeeded — never
     # blocking this response, and a failed/slow extraction can never make
@@ -3982,8 +4323,13 @@ async def upload_note_attachment_endpoint(
     # Wave 7 seam S1: the "is this a document?" decision moved into
     # document_extraction.on_attachment_saved (PDF today; lane G adds docx
     # and image kinds behind its own gate there, never here).
-    await _hand_off_to_documents(user["id"], note_id, att, content_type, kind="file")
-    return att
+    # Plan A Task 8: every file type is kept (the policy refuses only web pages).
+    return await _upload_through_media_policy(user["id"], note_id, file, file_intent=True)
+
+
+#: Plan A Task 8: a stored file with one of these extensions is served download-only, in a
+#: sandbox, so an SVG or anything markup-shaped can never run in the app's origin.
+_DOWNLOAD_ONLY_EXTS = frozenset({".svg", ".html", ".htm", ".xml", ".js", ".bin"})
 
 
 @router.get("/notes/attachments/{user_id_param}/{note_id}/{sub}/{filename}")
@@ -3999,7 +4345,15 @@ def serve_note_attachment(
     path = notes_service.serve_note_image_path(user_id_param, note_id, sub, filename)
     if path is None:
         raise HTTPException(status_code=404, detail="Not found")
-    return FileResponse(str(path))
+    headers: dict[str, str] = {}
+    if sub == "file":
+        # Plan A Task 8: a kept file is never sniffed into something else by the browser,
+        # and a risky one is a download in a sandbox, never a page in our origin.
+        headers["X-Content-Type-Options"] = "nosniff"
+        if os.path.splitext(filename)[1].lower() in _DOWNLOAD_ONLY_EXTS:
+            headers["Content-Disposition"] = "attachment"
+            headers["Content-Security-Policy"] = "sandbox"
+    return FileResponse(str(path), headers=headers)
 
 
 # ── Wave I: document processing status + page-aware search ──────────────────
@@ -4855,6 +5209,8 @@ def generate_coach_weekly_review(
     _require_compass_enabled(user["id"], account_id)
 
     week_start = (payload or {}).get("weekStart") or _most_recent_closed_monday()
+    if coach_service.replaces_forgotten(user["id"], account_id, "weekly_review", "week_start", week_start):
+        _take_compass_door(compass_daily_caps.WEEKLY_REVIEW_REGENERATE, user["id"])
     try:
         return coach_service.generate_weekly_review(
             user_id=user["id"], account_id=account_id, week_start=week_start,
@@ -4878,14 +5234,9 @@ def regenerate_coach_weekly_review(
     # Charged BEFORE the forget below, so a refusal never drops the review.
     _take_compass_door(compass_daily_caps.WEEKLY_REVIEW_REGENERATE, user["id"])
     # v1: forget the existing, then regenerate. Caller treats as replacement.
-    coach_service.forget_review(review_id=review_id, user_id=user["id"])
-    try:
-        return coach_service.generate_weekly_review(
-            user_id=user["id"], account_id=account_id,
-            week_start=week_start,
-        )
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+    return _replace_coach_output(review_id, user["id"], lambda: coach_service.generate_weekly_review(
+        user_id=user["id"], account_id=account_id, week_start=week_start,
+    ))
 
 
 @router.post("/accounts/{account_id}/coach/weekly-reviews/{review_id}/feedback")
@@ -4956,6 +5307,8 @@ def generate_coach_eod_recap(
     from zoneinfo import ZoneInfo
     et = ZoneInfo("America/New_York")
     day = (payload or {}).get("day") or _dt.now(et).date().isoformat()
+    if coach_service.replaces_forgotten(user["id"], account_id, "eod_recap", "day", day):
+        _take_compass_door(compass_daily_caps.EOD_RECAP_REGENERATE, user["id"])
     try:
         return coach_service.generate_eod_recap(
             user_id=user["id"], account_id=account_id, day=day,
@@ -4975,13 +5328,9 @@ def regenerate_coach_eod_recap(
         raise HTTPException(status_code=404, detail="Recap not found")
     day = (existing.get("metadata") or {}).get("day")
     _take_compass_door(compass_daily_caps.EOD_RECAP_REGENERATE, user["id"])
-    coach_service.forget_review(review_id=recap_id, user_id=user["id"])
-    try:
-        return coach_service.generate_eod_recap(
-            user_id=user["id"], account_id=account_id, day=day,
-        )
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+    return _replace_coach_output(recap_id, user["id"], lambda: coach_service.generate_eod_recap(
+        user_id=user["id"], account_id=account_id, day=day,
+    ))
 
 
 @router.post("/accounts/{account_id}/coach/eod-recaps/{recap_id}/feedback")
@@ -5285,6 +5634,8 @@ def generate_trade_review(
     trade_id = (payload or {}).get("trade_id")
     if not trade_id:
         raise HTTPException(status_code=400, detail="trade_id required")
+    if tr.replaces_forgotten(user["id"], trade_id):
+        _take_compass_door(compass_daily_caps.TRADE_REVIEW_REGENERATE, user["id"])
     return tr.generate_review(
         user_id=user["id"], account_id=account_id, trade_id=trade_id,
     )

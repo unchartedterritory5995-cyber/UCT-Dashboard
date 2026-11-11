@@ -9,9 +9,8 @@ asks only "is this word a ticker here?". The text is never stored and never logg
                                      with at least one non-space; 422 otherwise.
                                      Sorted as buzz_extract.extract returns it.
 
-Gate NOTEBOOK_SMART_CHIPS_ENABLED (enablement), read per request; off -> the one 404, before the
-session is read (a router dependency, so it runs ahead of the plan check and the body). Paid, like
-every Notebook route. The body is read CAPPED, and only after the gate and the plan check
+Always on (NOTEBOOK_SMART_CHIPS_ENABLED was retired 2026-11-04). Paid, like every Notebook route.
+The body is read CAPPED, and only after the plan check
 (`capped_json`, `after=require_paid`), so a malformed body can never answer 422 ahead of them.
 """
 from __future__ import annotations
@@ -23,9 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import buzz_extract
 from api.services import request_body_cap as body_cap
-from api.services.notebook_flags import flag_on
 
-FLAG = "NOTEBOOK_SMART_CHIPS_ENABLED"
 MAX_TEXT = 2000
 NOT_FOUND = "Not found"
 TOO_LARGE_SENTENCE = "Request too large"
@@ -34,19 +31,7 @@ TOO_LARGE_SENTENCE = "Request too large"
 MAX_BODY_BYTES = 16 * 1024
 
 
-def enabled() -> bool:
-    """The one read of the switch (default OFF). Per request, never latched at import."""
-    return flag_on(FLAG, False)
-
-
-def _require_enabled() -> None:
-    """Router-level, so it runs BEFORE any route's own dependencies (the session, the plan, the body)."""
-    if not enabled():
-        raise HTTPException(status_code=404, detail=NOT_FOUND)
-
-
-router = APIRouter(prefix="/api/j2/smart-chips", tags=["journal-2-0", "notebook-smart-chips"],
-                   dependencies=[Depends(_require_enabled)])
+router = APIRouter(prefix="/api/j2/smart-chips", tags=["journal-2-0", "notebook-smart-chips"])
 
 
 class TextRefused(ValueError):

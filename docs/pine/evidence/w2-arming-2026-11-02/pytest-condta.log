@@ -1,0 +1,6 @@
+[hl] 18:35:12 free RAM 3775 MB before 'w2-pytest-condta'
+[heavy-lock] 'w2-pytest-condta' waiting: held by 'w2-rf-readiness' (pid 24420) for 0s
+
+..........................                                               [100%]
+26 passed in 1.72s
+[heavy-lock] 'w2-pytest-condta' released after 3s

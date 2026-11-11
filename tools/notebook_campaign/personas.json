@@ -155,16 +155,16 @@
   },
   "routine_not_yours": {
    "text": "This routine is not in your account.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/journal_styles.py:2026"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/journal_styles.py:2017"
   },
   "former_member": {
    "text": "Based on a former member's",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:603",
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:565",
    "fragment": "CREDIT_FORMER_SENTENCE = \"Based on a former member's {title}\""
   },
   "anonymous_author": {
    "text": "A UCT member",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:153",
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:143",
    "fragment": "ANONYMOUS_AUTHOR = \"A UCT member\""
   },
   "week_of": {
@@ -174,23 +174,23 @@
   },
   "key_in_flight": {
    "text": "That is already on its way. Try again in a moment.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4318"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4221"
   },
   "key_reused": {
    "text": "That was already sent for something else. Press it again to send this one.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4317"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4220"
   },
   "listing_moved": {
    "text": "This template changed while it was being added. Nothing was made. Try again.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:3273"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:3185"
   },
   "helpful_days": {
    "text": "You can mark this helpful after using it on 3 different days.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:5220"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:5121"
   },
   "title_too_long": {
    "text": "title too long",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/notes.py:1242",
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/notes.py:1332",
    "fragment": "S_TITLE_TOO_LONG = \"title too long\"",
    "note": "A3 (cbfe9db4b5): notes.validate_title is the one authority; the router answers str(e)"
   },

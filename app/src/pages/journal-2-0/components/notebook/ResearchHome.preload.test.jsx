@@ -1,5 +1,7 @@
+// S7 (audit 2026-11-05, one vocabulary): the copy these rails pin was renamed (styles -> templates, Adopt -> Use,
+// Community styles/gallery -> Template library, Active setups -> Setups); the rails follow the new words.
 // @vitest-environment jsdom
-// N4 (polish round): the Notices box and the Active setups box render nothing until their chunk
+// N4 (polish round): the Notices box and the Setups box render nothing until their chunk
 // lands (`fallback={null}`), so on a cold chunk they popped in under the member's notes and pushed
 // Home down. Home's first paint is its loading skeleton, which renders neither box, so both chunks
 // are requested when the browser is idle after that paint, through the same loader the boxes' own

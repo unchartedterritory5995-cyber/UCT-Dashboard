@@ -1,0 +1,8 @@
+//@version=5
+indicator("hp vwap like", overlay=true)
+var float pv = 0.0
+var float vv = 0.0
+pv += hlc3 * volume
+vv += volume
+plot(pv / vv, "vwap")
+plot(ta.vwma(close, 20), "vwma")

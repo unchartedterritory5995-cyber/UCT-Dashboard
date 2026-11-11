@@ -14,7 +14,9 @@
 //
 // Regenerate the measured table (docs/notebook/accessibility-contrast.md):
 //   NOTEBOOK_CONTRAST_DOC=1 npx vitest run src/pages/journal-2-0/a11y/notebookContrast.test.js
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { createElement as h } from 'react'
+import { render, screen, within, fireEvent, cleanup } from '@testing-library/react'
 import { writeFileSync, readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { execSync } from 'node:child_process'
@@ -23,6 +25,19 @@ import { auditNotebook, literalTextColours, pairKey, BARS, CONTEXTS, LANE_OWNED 
 import { themeVars, resolveVars, parseColor, THEMES, JOURNAL_SIDE_NOTEBOOK_CSS, stripComments, parseRules, declarations, opaque, colorsIn, SURFACES } from './cssAudit'
 import { J2_DIR } from './population'
 import { EXPECTED_FAILURES, OTHER_LANES, RULINGS } from './contrastExpectedFailures'
+import { installFetch, Providers } from './fixtures'
+import ConnectedAppsCard from '../components/connectors/ConnectedAppsCard'
+import { EVERNOTE_ENEX_OFFER, EVERNOTE_PLAN_RETURN } from '../components/connectors/evernoteCopy'
+
+// The rendered-state block at the end reads class names off the DOM, so the two connector stylesheets it
+// measures hand back their own keys (vitest serves CSS modules as `{}` otherwise).
+// (vi.mock is hoisted above every declaration, so each factory is self-contained.)
+vi.mock('../components/connectors/ConnectedAppsCard.module.css', () => ({
+  default: new Proxy({}, { get: (_, k) => (typeof k === 'string' && k !== 'then' && k !== '__esModule' ? k : undefined) }),
+}))
+vi.mock('../components/connectors/ConnectConsentPanel.module.css', () => ({
+  default: new Proxy({}, { get: (_, k) => (typeof k === 'string' && k !== 'then' && k !== '__esModule' ? k : undefined) }),
+}))
 
 const failing = (row, theme) => {
   const t = row.themes[theme]
@@ -295,3 +310,97 @@ describe('m-3: the quiet note details toggle stays at 4.5:1 (NoteDetailsLine.mod
     expect(ratioAt('var(--text-muted)', 0.85, 'light', '--bg-surface')).toBeLessThan(4.5)
   })
 })
+
+// Task 10 review M1: the Evernote `.enex` offer and the plan-return notice are LINKS, and the stylesheet audit
+// above neither reads the connector stylesheets nor models an ancestor's `opacity`. So this block renders the two
+// states, walks each link's (and its paragraph's) real ancestors, multiplies every `opacity` their classes declare,
+// and measures the ink composited at that alpha on every surface in every theme.
+describe('Evernote offer links, rendered: 4.5:1 with every ancestor opacity applied', () => {
+  const CSS = ['ConnectedAppsCard.module.css', 'ConnectConsentPanel.module.css']
+    .map((f) => readFileSync(join(J2_DIR, 'components', 'connectors', f), 'utf8'))
+  const ruleDecl = (cls, prop) => {
+    let v
+    for (const css of CSS) for (const r of parseRules(css)) {
+      if (r.selector.split(',').map((x) => x.trim()).includes(`.${cls}`)) {
+        for (const d of declarations(r)) if (d.prop === prop) v = d.value
+      }
+    }
+    return v
+  }
+  const classesOf = (el) => [...(el.classList || [])]
+  // The ink an element shows (its own or the nearest ancestor's `color`, else the page's --text) and the product
+  // of every opacity on the way up.
+  const inkAndAlpha = (el) => {
+    let ink = null
+    let alpha = 1
+    for (let n = el; n && n !== document.body; n = n.parentElement) {
+      for (const c of classesOf(n)) {
+        if (!ink) ink = ruleDecl(c, 'color') || null
+        const o = ruleDecl(c, 'opacity')
+        if (o != null) alpha *= Number(o)
+      }
+    }
+    return { ink: ink || 'var(--text)', alpha }
+  }
+  const failures = (el) => {
+    const { ink, alpha } = inkAndAlpha(el)
+    const out = []
+    for (const theme of THEMES) {
+      const vars = themeVars()[theme]
+      for (const sname of SURFACES) {
+        const surface = opaque(parseColor(colorsIn(resolveVars(`var(${sname})`, vars))[0]), parseColor(resolveVars('var(--bg)', vars)).rgb)
+        const fg = parseColor(colorsIn(resolveVars(ink, vars))[0])
+        const r = contrast(opaque({ rgb: fg.rgb, alpha: alpha * fg.alpha }, surface), surface)
+        if (r < 4.5) out.push(`${theme} on ${sname}: ${r.toFixed(2)} (${ink} at ${alpha})`)
+      }
+    }
+    return out
+  }
+  const ALL = ['roam', 'craft', 'notion', 'obsidian', 'evernote']
+  const STATUS = { providers: Object.fromEntries(ALL.map((k) => [k, { configured: true, connected: false, sources: [] }])) }
+  afterEach(() => { cleanup(); window.history.replaceState({}, '', '/') })
+
+  it('the .enex offer under the consent panel', async () => {
+    installFetch([[/\/connectors\/status$/, STATUS]])
+    render(h(Providers, { route: '/settings' }, h(ConnectedAppsCard)))
+    const tile = await screen.findByTestId('connector-tile-evernote')
+    fireEvent.click(within(tile).getByRole('button', { name: /connect/i }))
+    const link = await within(tile).findByRole('link', { name: EVERNOTE_ENEX_OFFER })
+    expect(inkAndAlpha(link).ink).not.toBe('var(--text)')                     // non-vacuity: a rule was read
+    expect(failures(link)).toEqual([])
+    expect(failures(link.parentElement)).toEqual([])
+  })
+
+  it('the plan-return notice and its link', async () => {
+    window.history.replaceState({}, '', '/settings?section=connections&connector=evernote&connected=0&reason=evernote_plan')
+    installFetch([[/\/connectors\/status$/, STATUS]])
+    render(h(Providers, { route: '/settings' }, h(ConnectedAppsCard)))
+    const note = await screen.findByText((_, el) => el?.tagName === 'P' && el.textContent.startsWith(EVERNOTE_PLAN_RETURN))
+    expect(failures(within(note).getByRole('link'))).toEqual([])
+    expect(failures(note)).toEqual([])
+  })
+
+  // Review M4: the "Sync off" pill borrowed `.comingSoon`. Both pills now share a neutral `.statusPill`, and
+  // both are measured here as rendered.
+  it('the Sync off and Coming soon pills, with the pill class each one carries', async () => {
+    const off = { configured: false, connected: true, sources: [] }
+    const dark = { configured: false, connected: false, sources: [] }
+    installFetch([[/\/connectors\/status$/, { providers: { ...STATUS.providers, evernote: off, notion: dark } }]])
+    render(h(Providers, { route: '/settings' }, h(ConnectedAppsCard)))
+    const syncOff = await within(await screen.findByTestId('connector-tile-evernote')).findByText('Sync off')
+    const soon = within(screen.getByTestId('connector-tile-notion')).getByText('Coming soon')
+    for (const pill of [syncOff, soon]) {
+      expect([...pill.classList]).toEqual(['statusPill'])
+      expect(failures(pill)).toEqual([])
+    }
+  })
+
+  it('CONTROL: the walk multiplies the opacity of an ancestor', () => {
+    const p = document.createElement('p'); p.className = 'muted'
+    const a = document.createElement('a'); a.className = 'offerLink'; p.appendChild(a); document.body.appendChild(p)
+    expect(inkAndAlpha(a).alpha).toBeCloseTo(Number(ruleDecl('muted', 'opacity')), 5)
+    expect(Number(ruleDecl('muted', 'opacity'))).toBeLessThan(1)
+    p.remove()
+  })
+})
+

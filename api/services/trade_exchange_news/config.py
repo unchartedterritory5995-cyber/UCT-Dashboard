@@ -38,6 +38,52 @@ def _float(key: str, default: float) -> float:
         return default
 
 
+#: Press-release links (release_links.py): FOUR independent switches, all off by
+#: default. The thread runs only with ENABLED; each stage needs its own flag; what
+#: members see needs DISPLAY. So links can be resolved and reviewed dark, each
+#: source rolled back alone, and every link hidden at once without losing any.
+
+def release_links_enabled() -> bool:
+    """Start the resolver thread at boot. Off: nothing new is resolved."""
+    return os.environ.get("TXN_RELEASE_LINKS_ENABLED", "").strip() == "1"
+
+
+def release_links_fmp_enabled() -> bool:
+    """The FMP wire stage (company news, read-only). Read every pass."""
+    return os.environ.get("TXN_RELEASE_LINKS_FMP_ENABLED", "").strip() == "1"
+
+
+def release_links_sec_enabled() -> bool:
+    """The SEC EDGAR stage (free; the repo's fair-access client). Read every pass."""
+    return os.environ.get("TXN_RELEASE_LINKS_SEC_ENABLED", "").strip() == "1"
+
+
+def release_links_display_enabled() -> bool:
+    """Members see stored links (headline events, the live ``link`` event). Off
+    hides every link immediately; the stored rows are untouched."""
+    return os.environ.get("TXN_RELEASE_LINKS_DISPLAY_ENABLED", "").strip() == "1"
+
+
+def release_links_interval_s() -> float:
+    return max(15.0, _float("TXN_RELEASE_LINKS_INTERVAL_S", 60.0))
+
+
+def release_links_start_delay_s() -> float:
+    return _float("TXN_RELEASE_LINKS_START_DELAY_S", 90.0)
+
+
+def release_links_fmp_batch() -> int:
+    return min(1000, _int("TXN_RELEASE_LINKS_FMP_BATCH", 300, lo=1))
+
+
+def release_links_sec_budget() -> int:
+    """SEC requests per pass (one pass a minute): far under fair access. At least
+    20: one headline needs up to 18 (tickers, submissions, 4 filings x index + 3
+    documents), so a smaller budget could leave it stuck at the head of the queue.
+    TXN_RELEASE_LINKS_SEC_ENABLED is the off switch."""
+    return min(120, _int("TXN_RELEASE_LINKS_SEC_BUDGET", 40, lo=20))
+
+
 def db_path() -> str:
     return os.environ.get("TXN_DB_PATH") or os.path.join(
         os.environ.get("DATA_DIR", "/data"), "trade_exchange_news.db")

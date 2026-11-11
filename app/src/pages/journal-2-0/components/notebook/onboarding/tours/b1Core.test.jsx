@@ -57,7 +57,7 @@ describe('the B1 track is registered', () => {
       'meaning-search': '/journal/notebook?view=all',
       'formulas-rollups': { note: 'recent' },
       // P0.10: its door is in Research Home's New note menu
-      'voice-notes': '/journal/notebook',
+      'voice-notes': '/journal/notebook?view=home',
     })
   })
 })

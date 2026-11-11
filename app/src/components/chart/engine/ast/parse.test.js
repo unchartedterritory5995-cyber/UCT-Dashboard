@@ -671,7 +671,13 @@ describe('the manifest', () => {
     // reason each side moved.
     // ⭐ 137 -> 138 (2026-10-11): `dollar_vol_1d`, the newest session's dollar volume
     // (`tests/test_ast_scalars.py`'s partition pin has the reason)
-    expect(Object.keys(TABLE.scalars)).toHaveLength(138)
+    // ⭐ 138 -> 139 (2026-11-06, UCT RS Phase 2a unit 2a-01): `base_pivot_px` DECLARED.
+    // ⚰️ That commit did not move this line (outside its file list) and said so.
+    // ⭐ 139 -> 149 (2026-11-06, UCT RS Phase 2a unit 2a-07): the ten bar-derived RS
+    // columns DECLARED -- `tests/test_ast_scalars.py`'s partition pin has the names and
+    // the arithmetic ((139, 100) -> (149, 107)); the seven `rs_rating_*` columns are
+    // EXCLUDED there and do not count here.
+    expect(Object.keys(TABLE.scalars)).toHaveLength(149)
     const bar = new Set([
       ...Object.keys(TABLE.series), ...Object.keys(TABLE.clock),
       ...Object.keys(TABLE.operators), ...Object.keys(TABLE.functions),
@@ -736,7 +742,10 @@ describe('the manifest', () => {
     // ⭐ 131 -> 138 IS Phase 1's four plus `accum2`/`accum3`/`accum4` (2026-10-30) -- see the functions-count note above.
     expect(bar.size).toBe(138)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(276)
+    // ⭐ 276 -> 287 (2026-11-06, UCT RS Phase 2a units 2a-01 and 2a-07): the bar half
+    // is untouched at 138; the scalar half went 138 -> 139 (`base_pivot_px`) -> 149
+    // (the ten bar-derived RS columns), and this is their sum: 138 + 149 = 287.
+    expect(declared.size).toBe(287)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS

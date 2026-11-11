@@ -1,0 +1,134 @@
+[
+ [
+  "control",
+  "src/components/chart/engine/runtime/runtimeColumns.js",
+  "// ⭐⭐ W9-T11 — the run's `strategy` record (design 3.2) and the window a broker run takes.",
+  "// control (comment only)"
+ ],
+ [
+  "vm-not-told-window",
+  "src/components/chart/engine/runtime/runtimeColumns.js",
+  "      ...(ctx && ctx.historyWindowBars !== undefined ? { historyWindowBars: ctx.historyWindowBars } : {}),\n      // ⭐ UIE",
+  "      ...({}),\n      // ⭐ UIE"
+ ],
+ [
+  "drop-record-attach",
+  "src/components/chart/engine/runtime/runtimeColumns.js",
+  "  if (res.broker) {\n    withStrategyRecord(",
+  "  if (false) {\n    withStrategyRecord("
+ ],
+ [
+  "no-slice",
+  "src/components/chart/engine/runtime/runtimeColumns.js",
+  "  if (!(Number.isInteger(win) && win > 0) || rows.length <= win) return computeRuntimeColumnsOnce(def, rows, ctx, opts)",
+  "  return computeRuntimeColumnsOnce(def, rows, ctx, opts)"
+ ],
+ [
+  "cut-keeps-listing",
+  "src/components/chart/engine/runtime/runtimeColumns.js",
+  "{ ...(ctx || {}), historyFromListing: false }",
+  "(ctx || {})"
+ ],
+ [
+  "window-not-in-memo-key",
+  "src/components/chart/engine/runtime/runtimeColumns.js",
+  "${settings}${framed}${hw}`",
+  "${settings}${framed}`"
+ ],
+ [
+  "drop-gate-off-stamp-guard",
+  "src/components/chart/engine/runtime/runtimeColumns.js",
+  "  if (strategyDoc && !program.broker) {",
+  "  if (false) {"
+ ],
+ [
+  "drop-slides-guard",
+  "src/components/chart/engine/runtime/runtimeColumns.js",
+  "  if (program.broker && slides) {",
+  "  if (false) {"
+ ],
+ [
+  "probe-broker-false",
+  "src/components/chart/engine/runtime/runtimeColumns.js",
+  "    broker: !!program.broker,",
+  "    broker: false,"
+ ],
+ [
+  "literal-window-default",
+  "src/components/chart/engine/runtime/runtimeColumns.js",
+  "  const win = ctx && ctx.historyWindowBars\n",
+  "  const win = (ctx && ctx.historyWindowBars) || 5000\n"
+ ],
+ [
+  "strategy-skips-window",
+  "src/components/chart/engine/runtime/runtimeColumns.js",
+  "  if (def && def.meta && def.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY) return computeStrategyWindow(def, rows, ctx, opts)",
+  "  if (false) return computeStrategyWindow(def, rows, ctx, opts)"
+ ],
+ [
+  "worker-no-gate-register",
+  "src/components/chart/engine/runtime/runtimeWorker.js",
+  "registerStrategyBrokerGate(strategyBrokerEnabled)\n",
+  "\n"
+ ],
+ [
+  "worker-drops-record",
+  "src/components/chart/engine/runtime/runtimeWorker.js",
+  ", strategy: runtimeStrategyOf(columns) })",
+  " })"
+ ],
+ [
+  "main-drops-record",
+  "src/components/chart/engine/runtime/runtimeAsync.js",
+  "    if (landed && strategy) withStrategyRecord(landed, strategy)\n",
+  "\n"
+ ],
+ [
+  "message-drops-window",
+  "src/components/chart/engine/runtime/runtimeAsync.js",
+  "    ...(ctx && ctx.historyWindowBars !== undefined ? { historyWindowBars: ctx.historyWindowBars } : {}),\n  }",
+  "  }"
+ ],
+ [
+  "door-stamps-listing",
+  "src/components/chart/builder/memberPane/memberPaneDefinition.js",
+  "...(probe.broker === true ? { runtimeHistory: STRATEGY_WINDOW_HISTORY } : routed",
+  "...(false ? { runtimeHistory: STRATEGY_WINDOW_HISTORY } : routed"
+ ],
+ [
+  "door-stamps-always",
+  "src/components/chart/builder/memberPane/memberPaneDefinition.js",
+  "...(probe.broker === true ? { runtimeHistory: STRATEGY_WINDOW_HISTORY } : routed",
+  "...(true ? { runtimeHistory: STRATEGY_WINDOW_HISTORY } : routed"
+ ],
+ [
+  "asof-ignores-forming",
+  "src/components/chart/engine/runtime/strategyRecord.js",
+  "confirmed === true ? n - 1 : n - 2",
+  "n - 1"
+ ],
+ [
+  "shape-skips-unserved",
+  "src/components/chart/engine/runtime/strategyRecord.js",
+  "  for (const path of Object.keys(rec.unserved || {})) {",
+  "  for (const path of []) {"
+ ],
+ [
+  "shape-skips-window-bound",
+  "src/components/chart/engine/runtime/strategyRecord.js",
+  "&& w.bars <= w.historyWindowBars,",
+  "|| true,"
+ ],
+ [
+  "record-trade-time-index",
+  "src/components/chart/engine/runtime/strategyRecord.js",
+  "    entryTime: t.entry ? t.entry.time : null,",
+  "    entryTime: i,"
+ ],
+ [
+  "record-window-from-literal",
+  "src/components/chart/engine/runtime/strategyRecord.js",
+  "      historyWindowBars,\n",
+  "      historyWindowBars: 5000,\n"
+ ]
+]

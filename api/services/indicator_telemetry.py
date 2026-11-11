@@ -89,6 +89,16 @@ EVENTS = frozenset({
     # ⭐ CONTROLLED ROLLOUT (2026-10-07) -- UCT Intelligence conversational authoring.
     "converse_turn",     # server-only: one /converse turn's outcome, cost and shape
     "studio_action",     # client: the authoring funnel (opened / preview / saved / ...)
+    # ⭐ UCT RELATIVE STRENGTH (plan §13, 2026-11-07) -- counts only, client-fired
+    # by `app/src/lib/rsTelemetry.js`; see "the UCT RS counts" below.
+    # ⚰️ `rs_preset` (a preset was picked) RETIRED by the RS split (U9, 2026-11-09):
+    # the slim UCT RS Line has no presets, so the event is refused at the door (400)
+    # like any other unknown event, not left on the list with nothing to count.
+    "rs_on",              # an RS copy started drawing on a chart
+    "rs_off_within_60s",  # that copy stopped drawing within 60 s
+    "rs_benchmark",       # a copy's benchmark changed
+    "rs_marker_card",     # a readout card was opened
+    "rs_learn",           # a Learn link was followed
 })
 
 #: Of the five, only these two are ever fired FROM THE CLIENT (the three
@@ -97,7 +107,11 @@ EVENTS = frozenset({
 #: are server-derived only — a client must never be able to claim its own
 #: formula was "accepted" or "delivered"; that would let an unaccepted or
 #: unvalidated definition masquerade as a real one in the journey data.
-CLIENT_FIREABLE_EVENTS = frozenset({"import_submitted", "compile_finished", "studio_action"})
+CLIENT_FIREABLE_EVENTS = frozenset({"import_submitted", "compile_finished", "studio_action",
+                                    # the five UCT RS counts are observations of the
+                                    # member's own chart, never a server decision
+                                    "rs_on", "rs_off_within_60s", "rs_benchmark",
+                                    "rs_marker_card", "rs_learn"})
 
 #: Correlation/identity fields every event may carry — the "which journey,
 #: which formula, which door" axis. Never content: an import_id is a
@@ -250,6 +264,68 @@ EVENT_SCHEMAS.update({
         "failure": (str,), "turns": _N,
     },
 })
+
+# ─── ⭐ THE UCT RS COUNTS (plan §13; client `app/src/lib/rsTelemetry.js`) ────────
+#
+# Five events (six until U9 retired `rs_preset`), each carrying the correlation id the client always sends
+# (`import_id`, a fresh `crypto.randomUUID()` per event, so nothing is folded by
+# the de-dup lookup) and AT MOST ONE prop. ⛔ COUNTS ONLY, NEVER FREE TEXT: every
+# prop is held to a closed set or a strict pattern below, so a legal key cannot
+# carry a word a member typed. `dialect` is sent as null and therefore never
+# stored.
+#
+#   rs_on / rs_off_within_60s  symbol   a ticker (`_RS_TICKER`)
+#   rs_benchmark               value    a benchmark code the chart's menu offers
+#                                       (`registry_defs.RS_LINE_BENCHMARKS_V4`, read live:
+#                                       the v4 menu, CUSTOM included, as the JS enum)
+#   rs_marker_card             kind     a readout row key that has a card (`RS_CARD_KINDS`)
+#   rs_learn                   target   a lesson key of the definition (`RS_LEARN_TARGETS`)
+#
+# ⛔ The two closed sets are ONE FACT IN TWO FILES: the `rsLine` definition in
+# `app/src/components/chart/engine/nativeRegistry.js` owns them (`meta.learn[].key`,
+# the `readout[]` keys with a `card`), and `tests/test_rs_telemetry_door.py` PARSES
+# that file and pins these equal, so a lesson or card added there without a line
+# here reds the rail instead of being silently refused at the door. (`RS_PRESETS`,
+# the third set, left with the `rs_preset` event: U9.) `RS_CARD_KINDS` is today's
+# definition's full card list; the slim RS Line (`VITE_RS_SPLIT_ENABLED=1`) fires a
+# subset of it, which the door accepts unchanged.
+
+#: `meta.learn[].key` of the UCT RS definition.
+RS_LEARN_TARGETS = frozenset({"rsLine", "phase", "newHigh", "beforePrice", "redDay", "fourChecks"})
+#: The `readout[]` keys of the UCT RS definition whose row opens a card.
+RS_CARD_KINDS = frozenset({"benchmarkName", "ratingSummary", "fastRating", "phase", "mansfield", "rsHigh",
+                           "beforePrice", "redDay", "sensitivity", "regime", "checks",
+                           "rotation", "quality", "vars", "ratingView"})
+#: A chart symbol: upper-case letters and digits, with the class / exchange
+#: separators the app's symbols use (`BRK-B`, `BRK.B`, `X:BTCUSD`). Never a word
+#: in lower case, never a space.
+_RS_TICKER = re.compile(r"[A-Z0-9][A-Z0-9.:-]{0,11}")
+#: The correlation id: `crypto.randomUUID()`, or the client's fallback
+#: (`<event>:<ms>:<base36>`). The `studio_action` id rule.
+_RS_IMPORT_ID = re.compile(r"[A-Za-z0-9_:-]{1,64}")
+
+
+def _rs_benchmark_ok(value: str) -> bool:
+    """A benchmark code the RS chart menu offers. Read from the row module, so
+    a code added there is accepted here with no second list; fails CLOSED when
+    the row cannot be read. The v4 menu (CUSTOM included): a code, never the
+    member's typed ticker, so the count stays free of free text."""
+    try:
+        from api.services.signature import registry_defs
+        return value in registry_defs.RS_LINE_BENCHMARKS_V4
+    except Exception:  # noqa: BLE001
+        log.exception("[indicator-telemetry] RS benchmark list unavailable")
+        return False
+
+
+_RS_PROP = {"rs_on": "symbol", "rs_off_within_60s": "symbol",
+            "rs_benchmark": "value", "rs_marker_card": "kind", "rs_learn": "target"}
+_RS_PROP_RULE = {"symbol": _RS_TICKER, "value": _rs_benchmark_ok,
+                 "kind": RS_CARD_KINDS, "target": RS_LEARN_TARGETS}
+for _event, _prop in _RS_PROP.items():
+    EVENT_SCHEMAS[_event] = {"import_id": (str,), _prop: (str,)}
+    _VALUE_RULES[_event] = {"import_id": _RS_IMPORT_ID, _prop: _RS_PROP_RULE[_prop]}
+del _event, _prop
 
 #: Defense-in-depth ONLY — see the module docstring's 2026-09-04 hardening
 #: note. The allowlist above is what actually keeps content out; this just

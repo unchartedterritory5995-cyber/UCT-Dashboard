@@ -10,10 +10,12 @@
       "railway*.json",
       "Dockerfile.web",
       "tools/notebook_excerpt_anchor_audit.py",
-      "tools/ast_conformance.py"
+      "tools/ast_conformance.py",
+      "tools/note_import_repair.py"
     ]
   },
   "deploy": {
+    "numReplicas": 1,
     "drainingSeconds": 30,
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 600,

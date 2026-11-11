@@ -112,7 +112,7 @@ describe('flag ON', () => {
     await user.click(first)
     expect(screen.getByRole('combobox', { name: 'Property type' }).value).toBe('formula')
     // the editor (and so its starters) is showing, not just a preset select
-    expect(screen.getByRole('combobox', { name: 'Start from a trader formula' })).toBeInTheDocument()
+    expect(await screen.findByRole('group', { name: 'Start from a trader formula' })).toBeInTheDocument()
   })
 
   it('"Add a formula" leads even when the note has properties to add back (it is above them)', async () => {
@@ -147,7 +147,8 @@ describe('flag ON', () => {
     await user.selectOptions(screen.getByRole('combobox', { name: 'Property type' }), 'formula')
     const create = screen.getByRole('button', { name: 'Create' })
     expect(create.disabled).toBe(true)
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Start from a trader formula' }), 'r_multiple')
+    // S13: the trader formulas lead, as buttons (the editor is its own chunk, so it is awaited)
+    await user.click(await screen.findByRole('button', { name: 'R-multiple' }))
     expect(screen.getByRole('textbox', { name: 'Property name' }).value).toBe('R-multiple')
     expect(create.disabled).toBe(false)
     await user.click(create)
@@ -162,6 +163,7 @@ describe('flag ON', () => {
     await openNewPropertyForm(user)
     await user.type(screen.getByRole('textbox', { name: 'Property name' }), 'Bad')
     await user.selectOptions(screen.getByRole('combobox', { name: 'Property type' }), 'formula')
+    await user.click(await screen.findByRole('button', { name: 'Write your own' }))   // S13: raw syntax behind it
     await user.type(screen.getByRole('textbox', { name: 'Formula' }), '{{Entry} +')
     expect(screen.getByRole('button', { name: 'Create' }).disabled).toBe(true)
     expect(screen.getByText(/ends too soon/)).toBeTruthy()
@@ -228,6 +230,9 @@ describe('flag ON', () => {
     const user = userEvent.setup()
     renderSection()
     await user.click(screen.getByRole('button', { name: 'Edit formula R' }))
+    // S13: R is the R-multiple starter, so it opens with that starter pressed and the raw box behind "Write your own"
+    expect(await screen.findByRole('button', { name: 'R-multiple' })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(screen.getByRole('button', { name: 'Write your own' }))
     const box = screen.getByRole('textbox', { name: 'Formula' })
     expect(box.value).toBe('({Exit} - {Entry}) / ({Entry} - {Stop})')
     await user.clear(box)
@@ -250,6 +255,7 @@ describe('flag ON', () => {
     edit.focus()
     await user.keyboard('{Enter}')
     expect(edit.getAttribute('aria-expanded')).toBe('true')
+    await user.click(await screen.findByRole('button', { name: 'Write your own' }))
     screen.getByRole('textbox', { name: 'Formula' }).focus()
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('textbox', { name: 'Formula' })).toBeNull()

@@ -28,6 +28,7 @@
 // sheet does not lose it; when the sheet hosts the box (`onCommitState`), its
 // commit is the sheet footer's ONE primary button, not a second "Save changes".
 
+import { withoutGuardIds } from '../engine/ast/guardIdText'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   newAuthoringState, openAuthoringState, applyTurn, undo, readback, isDirty, PATCH_CONTRACT,
@@ -68,11 +69,11 @@ const dim = (style, disabled) => (disabled ? { ...style, opacity: 0.45, cursor: 
 function changeLine(c) {
   switch (c.kind) {
     case 'type-changed': return `${c.output} is now ${c.to} (was ${c.from}).`
-    case 'refused-on-chart': return `${c.output} cannot be drawn here: ${c.text}`
+    case 'refused-on-chart': return `${c.output} cannot be drawn here: ${withoutGuardIds(c.text)}`
     case 'foreign-source-replaced': return `${c.output}'s imported ${c.dialect || ''} text is replaced by the canonical formula (the original is kept aside).`
     case 'requests-cleared': return `Requests on ${c.output} were cancelled with it.`
     case 'intent-cleared': return `The signal choice on ${c.output} was cleared with it.`
-    case 'paint-removed': return c.text ? `${c.output}: ${c.text}` : null
+    case 'paint-removed': return c.text ? `${c.output}: ${withoutGuardIds(c.text)}` : null
     default: return null
   }
 }
@@ -348,7 +349,7 @@ export default function ConverseBox({
   useEffect(() => () => { if (hosted) onCommitState(null) }, [hosted, onCommitState])
 
   return (
-    <section style={S.box} aria-label="Build it by conversation" data-testid="converse">
+    <section style={S.box} aria-label="Build it by conversation" data-guide="builder.conversation" data-testid="converse">
       <div style={S.head}>Describe the indicator, then refine it — UCT shows exactly what will run</div>
 
       <div style={S.identity} data-testid="converse-identity"
@@ -361,7 +362,7 @@ export default function ConverseBox({
 
       {notEditable && (
         <div style={S.muted} role="note" data-testid="converse-not-editable" data-code={editability.code}>
-          {editability.text} Anything you describe here starts a new indicator.
+          {withoutGuardIds(editability.text)} Anything you describe here starts a new indicator.
         </div>
       )}
 
@@ -423,7 +424,7 @@ export default function ConverseBox({
           disabled={busy || disabled || !message.trim()} onClick={() => send(message)}>
           {busy ? 'Working…' : 'Send'}
         </button>
-        <button type="button" style={dim(S.button, !canUndo)} data-testid="converse-undo" disabled={!canUndo} onClick={undoLast}>
+        <button type="button" style={dim(S.button, !canUndo)} data-testid="converse-undo" data-guide="builder.undo" disabled={!canUndo} onClick={undoLast}>
           Undo last change
         </button>
       </div>

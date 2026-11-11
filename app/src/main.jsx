@@ -3,12 +3,15 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import { installErrorBeacon } from './lib/errorBeacon'
+import { installLayoutShiftDebug } from './lib/clsDebug'
 import { legacyRegistrations } from './utils/webPush'
 
 // Wave 6 (controller wiring, lane F's beacon): window error / unhandledrejection
 // / pagehide listeners, installed BEFORE the first render so a crash during
 // mount is reported too. Scrubbed client-side; POSTs to /api/client-errors.
 installErrorBeacon()
+// Debug only, off by default: a layout-shift logger behind localStorage `uct.debug.layoutShift` = 1 (lib/clsDebug.js).
+installLayoutShiftDebug()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

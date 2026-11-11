@@ -532,3 +532,81 @@ def test_corrections_overlay_sets_the_accept_list_and_names_who_wrote_a_lesson()
 
 def test_run_all_lists_every_generator():
     assert set(run_all.GENERATORS) == {gen_recall, gen_size, gen_fixtures, gen_regime, gen_candles, gen_walkthroughs, gen_terms}
+
+
+# ── a template never prints a missing number ─────────────────────────────────
+
+def test_the_committed_bank_never_prints_a_missing_number():
+    """A lesson template that read a fact the scan had not stored printed
+    'None%' (seen live 2026-11-04 on three Gap Support items). The grounding
+    check cannot catch it (None is not a number), so this reads every
+    committed segment: the bars decide the number or the clause is left out."""
+    bad = []
+    for path in sorted((REPO / "docs" / "study" / "bank").glob("*.json")):
+        for it in json.loads(path.read_text(encoding="utf-8")):
+            for field, text in si.lesson_texts(it):
+                if re.search(r"\bNone\b", text):
+                    bad.append(f"{path.stem}:{it.get('id')}:{field}")
+    assert not bad, bad[:12]
+
+
+def test_no_drafting_note_reaches_a_member_facing_field():
+    """The bear-gap drafts of 2026-10-27 carried "(owner ruling pending; owner
+    2026-10-27: ...)" inside lesson_text, a note to the reviewer printed where
+    a member would read it (backlog, cleared 2026-11-05). The rail reads every
+    committed segment, and validate() refuses a new one; a citation of a
+    settled ruling, the lessons' own style, stays allowed."""
+    bad = []
+    for path in sorted((REPO / "docs" / "study" / "bank").glob("*.json")):
+        for it in json.loads(path.read_text(encoding="utf-8")):
+            for v in _common.drafting_notes(it):
+                bad.append(f"{path.stem}:{it.get('id')}:{v}")
+    assert not bad, bad[:12]
+    cited = {"prompt_json": {"q": "Is the last bar a bear gap?"},
+             "lesson_text": "A gap against a downtrend is a different setup (owner rulings 2026-10-23/24)."}
+    assert _common.drafting_notes(cited) == []
+    clean = _common.make_item(
+        type="spot", skill_id="setup.family3.bear_gap", q="Is the last bar a bear gap off the highs?",
+        answer="yes", choices=["Yes", "No"], source_kind="setups", source_ref="t#bear#1", lesson_origin="session",
+        lesson_text="Bear Gap off the Highs: the first true gap down since a recent top, marked on the gap day itself.")
+    assert _common.validate([clean]) == []
+    for text in ('Bear Gap (owner ruling pending; owner 2026-10-27: "later"): the first gap down.',
+                 "What this lesson teaches is the owner's to rule on the charts.",
+                 "TODO: the stop goes under the low."):
+        noted = dict(clean, lesson_text=text)
+        assert any("drafting note in lesson_text" in p for p in _common.validate([noted])), text
+    asked = dict(clean, prompt_json={"q": "Is this a bear gap (ruling pending)?", "choices": ["Yes", "No"]})
+    assert any("drafting note in prompt_json.q" in p for p in _common.validate([asked]))
+
+
+def test_setup_fact_lines_leave_a_clause_out_rather_than_print_none():
+    from scripts.study import gen_setup_examples as gse
+    thin_gap = {"gap_pct": 4.49, "bars_since_gap": 7, "first_test": True, "levels_touched": ["top", "mid"]}
+    line = gse.fact_line("Gap Support", {"facts": thin_gap})
+    assert "None" not in line and line.startswith("Here the gap was 4.49% 7 sessions earlier.")
+    thin_go = {"dcr": 0.98, "red_to_green": True, "swept": ["prior_low"]}
+    line = gse.fact_line("Go Signal", {"facts": thin_go})
+    assert "None" not in line and line.startswith("Here the session opened weak, swept the prior day's low")
+    # the full Gap Support line reads the geometry against the GAP-UP DAY'S LOW
+    # (owner rulings 2026-10-26/27), never a verdict word
+    full = dict(thin_gap, test_low_vs_gap_low_pct=-3.2, close_vs_gap_low_pct=-0.7, close_vs_gap_top_pct=1.3,
+                reclaim_sessions=1, dcr_pct=54)
+    line = gse.fact_line("Gap Support", {"facts": full})
+    assert line == ("Here the gap was 4.49% 7 sessions earlier. The test day undercut the gap-up day's low by 3.2% "
+                    "and closed 0.7% under it, 1.3% above the gap top, so the gap stayed open; the close was back "
+                    "above the gap-up low the next session. It was the first test of the gap, and the day closed "
+                    "at 54% of its range.")
+    for word in ("failed", "held the gap", "breach"):
+        assert word not in gse.fact_line("Gap Support", {"facts": dict(full, reclaim_sessions=None)})
+    held = dict(full, test_low_vs_gap_low_pct=-0.2, close_vs_gap_low_pct=3.7, close_vs_gap_top_pct=4.4)
+    assert "held the gap-up day's low to within 0.2% and closed 3.7% above it" in gse.fact_line("Gap Support", {"facts": held})
+    # the Slingshot trigger gap: the finder stores it as gap_pct (the curation of pass 2 copied it to
+    # trigger_gap_pct); the line reads either, and leaves the clause out when there is neither
+    sling = {"earnings_like_gap": {"gap_pct": 8.6, "bars_ago": 14}, "pullback_sessions": 3, "pullback_depth_abs_pct": 6.7,
+             "day_pct": 3.79, "close_pos_pct": 94, "gap_pct": -0.03}
+    line = gse.fact_line("Slingshot", {"facts": sling})
+    assert line.endswith("closed up 3.79% at 94% of its range, gapping -0.03%.") and "None" not in line
+    assert gse.fact_line("Slingshot", {"facts": dict(sling, trigger_gap_pct=0.4)}).endswith("gapping 0.4%.")
+    no_gap = {k: v for k, v in sling.items() if k != "gap_pct"}
+    assert gse.fact_line("Slingshot", {"facts": no_gap}).endswith("closed up 3.79% at 94% of its range.")
+    assert gse.fact_line("Slingshot", {"facts": {"rally": {"rally_pct": 30.7, "bars_ago": 9}}}) == "Here the drive was a 30.7% rally that peaked 9 sessions earlier."

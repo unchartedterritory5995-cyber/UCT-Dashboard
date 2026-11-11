@@ -1,3 +1,5 @@
+// S7 (audit 2026-11-05, one vocabulary): the copy these rails pin was renamed (styles -> templates, Adopt -> Use,
+// Community styles/gallery -> Template library, Active setups -> Setups); the rails follow the new words.
 // Wave 11 (Task 11.19): My tools, the Templates tab. Every assertion reads what the member SEES (rendered text, roles,
 // names) or what the server is SENT (method, path, body), never component state. The journal-styles routes are Task
 // 11.12's (over Task 11.13's store), not built yet: this fetch stand-in answers them in the plan's shapes
@@ -24,7 +26,7 @@ vi.mock('../styles/StyleEditor', async () => {
   const { createElement } = await import('react')
   const FakeEditor = ({ style, kinds, onSaved, onCancel }) => (editorMounts.n += 1, createElement('div', { 'data-testid': 'fake-style-editor' },
     createElement('p', null, `Editing ${style.name} with ${kinds.length} kinds`),
-    createElement('button', { type: 'button', onClick: () => onSaved({ ...style, name: 'Morning prep v2' }) }, 'Save style'),
+    createElement('button', { type: 'button', onClick: () => onSaved({ ...style, name: 'Morning prep v2' }) }, 'Save template'),
     createElement('button', { type: 'button', onClick: onCancel }, 'Cancel edit')))
   return { default: FakeEditor }
 })
@@ -417,7 +419,7 @@ describe('My tools, Templates tab', () => {
     expect(await screen.findByTestId('fake-style-editor')).toHaveTextContent(`Editing Morning prep with ${KINDS.length} kinds`)
     expect(editorMounts.n).toBeGreaterThan(0)
     expect(sent('GET', 'journal-styles/s1')).toHaveLength(1)                 // the whole template, outline too
-    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     await saysLive('Saved “Morning prep v2”.')
     await waitFor(() => expect(sent('GET', 'journal-styles?view=live').length).toBeGreaterThanOrEqual(2))
   })

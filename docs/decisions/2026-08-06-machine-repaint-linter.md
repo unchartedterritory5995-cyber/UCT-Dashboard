@@ -111,13 +111,22 @@ adding one.
 
 ```
 LINTER-MEASUREMENT-V1
-definitions 53
-plots 125
+definitions 56
+plots 158
 decided 1
-undecidable-hand-written 124
+undecidable-hand-written 157
 verdict ichimoku.chikou preview-repaints forward=26
 disagreement ichimoku.chikou shipped=non-repainting measured=preview-repaints
 ```
+
+⭐ **2026-11-10 — the counts moved by three definitions and ten plots, and the FINDING
+did not move at all.** The UCT RS split (`feat/uct-rs-split`, fix lane F1) registered the three
+indicators carved out of `rsLine`: `rsRating` (`ratingLine`, `ratingMa`, the `ratingGuides`
+guide), `rsPhases` (`phase`, `divergence`, the `zero` guide) and `rsVsEma` (`dist`, `fast`,
+`slow`, the `zero` guide). All three are `server` computes like `rsLine`, so all ten plots land
+in `undecidable-hand-written`: `decided` stays 1, the one verdict and the one disagreement are
+unchanged. Measured by `ast/lint.test.js` on the integration branch at `7cbbaeb09d` (158 rows,
+24 of them `rsLine.*`), never edited into agreement.
 
 ⭐ **2026-09-16 — the counts moved by one definition and one plot, and the
 FINDING did not move at all.** `dollarVolume` was registered (the `$ Vol` reading
@@ -136,6 +145,39 @@ and gave Session VWAP six optional σ-band plots. Every one of them is hand-writ
 JS, so all eighty plots land in `undecidable-hand-written`: `decided` stays 1, the
 one verdict and the one disagreement are unchanged. Re-measured here, never edited
 into agreement — the same response as the `dollarVolume` note above.
+
+⭐ **2026-11-08 (later) — the counts moved by five more plots and no definition, and the
+FINDING did not move at all.** Two UCT RS lanes landed on master after the 3-14 re-measure:
+#955 (`feat/uct-rs-design`, `1906843ea7`) added the `dotCrossUp` / `dotCrossDown` cross
+markers, and #961 (`feat/uct-rs-rating-view`, `080bd7ad98`, rsLine rev 5) added `ratingLine`,
+`ratingMa` and the `ratingGuides` guide. `rsLine` is a `server` compute, so all five land in
+`undecidable-hand-written`: `decided` stays 1, the one verdict and the one disagreement are
+unchanged. Measured by `ast/lint.test.js` on master `3c2afe0a65` (148 rows, 24 of them
+`rsLine.*`), never edited into agreement.
+
+⭐ **2026-11-08 — the counts moved by eight plots and no definition, and the FINDING
+did not move at all.** UCT RS Phase 3 (`feat/uct-rs-phase3`, unit 3-08, rsLine v4) added
+the Phase 3 readings' plots: `rsRatio`, `rsMomentum`, the `rotationCentre` guide,
+`clenowScore`, `vars`, `varsMa`, the `varsZero` guide and the `dotClenowGap` dot. `rsLine`
+is a `server` compute, so all eight land in `undecidable-hand-written`: `decided` stays 1,
+the one verdict and the one disagreement are unchanged. Measured by `ast/lint.test.js` in
+the 3-14 integration gate (143 rows, 19 of them `rsLine.*`), never edited into agreement.
+
+⭐ **2026-11-07 — the counts moved by ten plots and no definition, and the FINDING
+did not move at all.** The UCT RS work (branches `feat/uct-rs-phase1` →
+`feat/uct-rs-phase2a`) grew `rsLine` from one plot to eleven: `rsAbove`, `rsMa`,
+`mansfield`, the `mansfieldZero` guide and six dots (`dotNH`, `dotNHred`,
+`dotNHbeforePx`, `dotNHpartial`, `dotNL`, `dotMansfieldCross`). `rsLine` is a
+`server` compute, so all ten land in `undecidable-hand-written`: `decided` stays 1,
+the one verdict and the one disagreement are unchanged. Measured, not assumed:
+`rsLine` had 1 plot at `f202ff9c48` and has 11 at `9b7e58ce3b`, the whole of the
+135 − 125. ⚠️ The same work had ALSO turned the measurement's own input red: the
+RS golden fixtures carry sparse event/dot columns that end in nulls, and the
+trailing-pad loop counted them as six new pads. That was the measurement's rule,
+not a finding — a pad is now counted only on a column a shipped definition draws
+as a CONTINUOUS plot at `<compute.fn>.<plotKey>`
+(`app/src/components/chart/engine/__tests__/goldenTrailingPads.js`), and the facts
+handed to the linter are `ichimoku.chikou` alone again.
 
 **Read `decided 1` before reading anything else.** Every shipped definition today
 is hand-written JS or Python, and spec §11 explicitly forbids static analysis of

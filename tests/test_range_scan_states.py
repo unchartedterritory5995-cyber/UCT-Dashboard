@@ -1,4 +1,4 @@
-"""The range-scan step's six states, EXECUTED against synthetic repositories.
+"""The range-scan step's states, EXECUTED against synthetic repositories.
 
 SD-1.2 B2 gates L1 on "six-state rails green". When that gate was read on 2026-09-15
 the rails did not exist: the six states had been exercised BY HAND in an earlier
@@ -71,14 +71,17 @@ def _step() -> dict:
 
 
 def _script() -> str:
-    """The shipped body, with the one Actions expression bound to a test variable."""
+    """The shipped body, executed as-is.
+
+    Since 2026-11-06 the body has NO Actions expressions: the `github.event.before`
+    fallback was removed, because falling back to the push's own range was the gap itself.
+    CONTROL: an expression added later would reach bash as a literal `${{ … }}` and could
+    change the branch taken, so the run would no longer be the run CI performs.
+    """
     body = _step()["run"]
     exprs = set(ACTIONS_EXPR_RE.findall(body))
-    # CONTROL: substituting is only safe while `before` is the ONLY expression in the
-    # body. A second one would reach bash as a literal `${{ … }}` and could change the
-    # branch taken, so the run would no longer be the run CI performs.
-    assert exprs == {"github.event.before"}, f"unexpected GitHub expressions: {sorted(exprs)}"
-    return ACTIONS_EXPR_RE.sub(f"${TEST_BEFORE_VAR}", body)
+    assert exprs == set(), f"unexpected GitHub expressions in the step body: {sorted(exprs)}"
+    return body
 
 
 # ----------------------------------------------------------------------------- rigging
@@ -152,9 +155,40 @@ def _build_no_range(root):
 
 
 def _build_inconclusive(root):
+    """origin/production resolves to an id whose object is not in the clone."""
     _new_repo(root)
     _commit(root, "base", {"README.md": "base\n"})
-    return {"before": UNREACHABLE_SHA}
+    ref = root / ".git" / "refs" / "remotes" / "origin" / "production"
+    ref.parent.mkdir(parents=True, exist_ok=True)
+    ref.write_text(UNREACHABLE_SHA + "\n", encoding="ascii", newline="\n")
+    return {"before": ""}
+
+
+def _build_diff_failed(root):
+    """production's commit is present but its TREE is not, so `git diff` itself errors.
+
+    Before 2026-11-06 the failure was swallowed by a pipe into `tr`, the file list came back
+    empty, and the step logged NOTHING-TO-SCAN and passed.
+    """
+    _new_repo(root)
+    base = _commit(root, "base", {"README.md": "base\n"})
+    tree = _git(root, "rev-parse", f"{base}^{{tree}}").strip()
+    _set_production(root, base)
+    _commit(root, "ahead", {"README.md": "changed\n"})
+    obj = root / ".git" / "objects" / tree[:2] / tree[2:]
+    os.chmod(obj, 0o644)   # git writes objects read-only; Windows will not unlink those
+    obj.unlink()
+    _install_scanner(root)
+    return {"before": ""}
+
+
+def _build_scanner_error(root):
+    """The range resolved, but the scanner cannot run (it is absent)."""
+    _new_repo(root)
+    base = _commit(root, "base", {"README.md": "base\n"})
+    _set_production(root, base)
+    _commit(root, "benign change", {"notes.md": BENIGN_TEXT})
+    return {"before": ""}
 
 
 def _build_nothing_ahead(root):
@@ -193,6 +227,8 @@ def _build_finding(root):
 STATES = {
     "NO RANGE":        (_build_no_range,        "range-scan: NO RANGE"),
     "INCONCLUSIVE":    (_build_inconclusive,    "range-scan: INCONCLUSIVE"),
+    "DIFF FAILED":     (_build_diff_failed,     "range-scan: DIFF FAILED"),
+    "SCANNER ERROR":   (_build_scanner_error,   "range-scan: SCANNER ERROR"),
     "NOTHING AHEAD":   (_build_nothing_ahead,   "range-scan: NOTHING AHEAD"),
     "NOTHING-TO-SCAN": (_build_nothing_to_scan, "verdict=NOTHING-TO-SCAN"),
     "CLEAN":           (_build_clean,           "range-scan: verdict=CLEAN"),
@@ -202,6 +238,10 @@ STATES = {
 # docs/breadth/range-scan-finding.md, "counts toward promotion?" — the criterion is
 # `EXECUTED` AND `verdict=CLEAN`, and only CLEAN satisfies both.
 COUNTS_TOWARD_PROMOTION = {"CLEAN"}
+
+# Every state that could not prove the range clean. NOTHING AHEAD and NOTHING-TO-SCAN
+# resolved their range (nothing ahead, or only deletions), so they pass.
+FAILS_THE_GATE = {"NO RANGE", "INCONCLUSIVE", "DIFF FAILED", "SCANNER ERROR", "FINDING"}
 
 
 def _slug(state: str) -> str:
@@ -221,9 +261,10 @@ def test_each_state_is_reached_and_named(tmp_path, state):
     root = tmp_path / _slug(state)
     r = _run(root, **build(root))
     assert expected in r.stdout, f"{state}\nstdout={r.stdout!r}\nstderr={r.stderr!r}"
-    # Advisory today: the step must never gate, whatever it found. Promotion means
-    # deleting `continue-on-error` and the trailing `exit 0` — a later, separate act.
-    assert r.returncode == 0, f"{state} exited {r.returncode}: {r.stderr!r}"
+    # GATING since 2026-11-06: a finding FAILS, and so does every state that could not
+    # compare. Only states whose range resolved may pass.
+    want = 1 if state in FAILS_THE_GATE else 0
+    assert r.returncode == want, f"{state} exited {r.returncode}, wanted {want}: {r.stdout!r} {r.stderr!r}"
 
 
 @pytest.mark.parametrize("state", list(STATES))
@@ -280,15 +321,62 @@ def test_the_planted_credential_is_one_the_scanner_actually_finds(tmp_path):
     assert r2.returncode == 0, f"the CLEAN fixture's file is not clean: {r2.stdout!r}"
 
 
-def test_the_body_under_test_is_the_shipped_advisory_step(tmp_path):
-    """Provenance control: prove we executed the real thing, not a stub."""
+def test_a_scanner_crash_is_not_reported_as_a_finding(tmp_path):
+    """The scanner exits 1 on a finding AND on an uncaught crash. A crash must read as
+    SCANNER ERROR (wrong advice otherwise: "rotate it"), never as FINDING or CLEAN."""
+    root = tmp_path / "scanner_crash"
+    _build_clean(root)
+    (root / "tools" / "secret_scrub.py").write_text("raise SystemExit(1)\n", encoding="utf-8", newline="\n")
+    r = _run(root)
+    assert "range-scan: SCANNER ERROR" in r.stdout, r.stdout
+    assert "verdict=FINDING" not in r.stdout and "verdict=CLEAN" not in r.stdout, r.stdout
+    assert r.returncode == 1, f"exited {r.returncode}: {r.stdout!r}"
+
+
+@pytest.mark.parametrize("name", ["dir with spaces/leak.md", "café/leak.md"])
+def test_a_credential_in_an_awkward_path_is_found(tmp_path, name):
+    """Paths with spaces or non-ASCII names used to be split or quoted, reach the scanner as
+    names that do not exist, and be skipped silently: CLEAN with the secret unscanned."""
+    root = tmp_path / ("awkward_" + str(abs(hash(name))))
+    _new_repo(root)
+    base = _commit(root, "base", {"README.md": "base\n"})
+    _set_production(root, base)
+    _commit(root, "a credential in an awkward path", {name: PLANTED_CREDENTIAL + "\n"})
+    _install_scanner(root)
+    r = _run(root)
+    assert "range-scan: verdict=FINDING" in r.stdout, f"{r.stdout!r} {r.stderr!r}"
+    assert r.returncode == 1
+
+
+def test_many_files_are_scanned_in_chunks_and_all_counted(tmp_path):
+    """More files than one chunk: every chunk must run, and a finding in the LAST chunk counts."""
+    root = tmp_path / "chunks"
+    _new_repo(root)
+    base = _commit(root, "base", {"README.md": "base\n"})
+    _set_production(root, base)
+    files = {f"bulk/f{i:04d}.md": BENIGN_TEXT for i in range(905)}
+    files["bulk/zz_last.md"] = PLANTED_CREDENTIAL + "\n"
+    _commit(root, "many files", files)
+    _install_scanner(root)
+    r = _run(root)
+    assert "files=906" in r.stdout, r.stdout[-400:]
+    assert "range-scan: verdict=FINDING" in r.stdout, r.stdout[-400:]
+    assert r.returncode == 1
+
+
+def test_the_body_under_test_is_the_shipped_gating_step(tmp_path):
+    """Provenance control: prove we executed the real thing, not a stub, and that it gates."""
     step = _step()
     body = step["run"]
-    assert step.get("continue-on-error") is True, "the range scan must not gate yet"
+    # GATING since 2026-11-06 (SD-1.1 A2.5 criterion met). Re-adding continue-on-error, or
+    # an `if:` that can skip it, would turn it back into a scan that cannot stop anything.
+    assert "continue-on-error" not in step, "the range scan gates: it must not be continue-on-error"
+    assert "if" not in step, "the range scan must run on every gate"
+    assert "ADVISORY" not in (step.get("name") or "")
     # The fetch is the fix for the vacuous first draft; without it every base is
     # unreachable and the step reports INCONCLUSIVE forever.
     assert "git fetch --no-tags" in body and "--depth=" in body
-    assert body.rstrip().endswith("exit 0"), "the advisory step must end in exit 0"
+    assert body.rstrip().endswith("exit 1"), "the gating step's last line is the FINDING failure"
     assert len(body) > 800, f"body is {len(body)} chars — too short to be the shipped step"
 
 

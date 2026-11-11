@@ -59,7 +59,7 @@
 // what Pine's `var line l = na` says and why 24 of the reachable 27 need one.
 
 import { isObjectColourLiteral } from '../objectColour.js'
-import { MESSAGE_NUMBER_PATTERNS } from '../pineTextFormat.js'
+import { isMessageNumberFormat } from '../pineTextFormat.js'
 import { RUNTIME_AT_CALL } from './parse.js'
 import { wholeTransparency } from '../colorInt.js'
 import { isThemeColour, themeColourWithTransparency } from '../objectTheme.js'
@@ -522,8 +522,10 @@ function assertTextNode(v, where, depth = 0, live = null) {
       // document is refused: the runtime has no rendering for any other.
       if (v.form !== undefined) {
         if (v.form !== 'message') throw new Error(`${where}: unknown number form ${JSON.stringify(v.form)}`)
-        if (v.fmt !== undefined && !Object.hasOwn(MESSAGE_NUMBER_PATTERNS, v.fmt)) {
-          throw new Error(`${where}: str.format pattern ${JSON.stringify(v.fmt)} is not one a capture pins`)
+        // ⭐ W3-S1 — `pineTextFormat.js::isMessageNumberFormat` is the one answer (a pinned
+        // pattern, or a keyword preset the published rule pins: `percent`).
+        if (v.fmt !== undefined && !isMessageNumberFormat(v.fmt)) {
+          throw new Error(`${where}: str.format pattern ${JSON.stringify(v.fmt)} is not one a capture or published rule pins`)
         }
       }
       return

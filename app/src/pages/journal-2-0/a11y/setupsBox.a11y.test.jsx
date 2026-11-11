@@ -1,15 +1,17 @@
+// S7 (audit 2026-11-05, one vocabulary): the copy these rails pin was renamed (styles -> templates, Adopt -> Use,
+// Community styles/gallery -> Template library, Active setups -> Setups); the rails follow the new words.
 // @vitest-environment jsdom
 // app/src/pages/journal-2-0/a11y/setupsBox.a11y.test.jsx
 //
-// P0.5's Active setups box on Research Home (components/notebook/SetupsBox.jsx) through 8A's axe
+// P0.5's Setups box on Research Home (components/notebook/SetupsBox.jsx) through 8A's axe
 // harness. It arrived with no entry in a11y/notebookSurfaces.js, so `surfaceCoverage.test.js` would
 // fail by name. It gets a recipe of its own: Research Home's rail runs with the setups board switch
 // off, so the box (which renders nothing while the switch is off) is never on screen there. Each
 // state proves it rendered before axe runs -- the count line, the link and its description -- so axe
 // is not run over an empty shell:
-//   * setups-box          -- "Active setups · 2 open", the link, the hidden description;
-//   * the count unreadable -- "Active setups" alone, the link still there;
-//   * none open           -- "Active setups · none open".
+//   * setups-box          -- "Setups · 2 open", the link, the hidden description;
+//   * the count unreadable -- "Setups" alone, the link still there;
+//   * none open           -- "Setups · none open".
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
@@ -37,14 +39,14 @@ function mount() {
   )
 }
 
-describe('Research Home\'s Active setups box', () => {
+describe('Research Home\'s Setups box', () => {
   beforeEach(() => latchNotebookFlags({ notebook_setups_board_enabled: true }))
   afterEach(() => __resetNotebookFlags())
 
   axeSurface('setups-box', async () => {
     stub({ cards: [{ noteId: 'a', example: false }, { noteId: 'b', example: false }, { noteId: 'x', example: true }] })
     const { container } = mount()
-    await screen.findByText('Active setups · 2 open')
+    await screen.findByText('Setups · 2 open')
     const link = screen.getByRole('link', { name: 'Open the setups board' })
     if (!document.getElementById(link.getAttribute('aria-describedby'))) throw new Error('the link has no description')
     return { root: container }
@@ -53,7 +55,7 @@ describe('Research Home\'s Active setups box', () => {
   it('none open: axe finds 0 violations', async () => {
     stub({ cards: [{ noteId: 'x', example: true }] })
     const { container } = mount()
-    await screen.findByText('Active setups · none open')
+    await screen.findByText('Setups · none open')
     await expectNoAxeViolations(container, { level: 'component' })
   }, 30000)
 
@@ -61,7 +63,7 @@ describe('Research Home\'s Active setups box', () => {
     stub(() => ({ ok: false, status: 500, json: async () => ({}) }))
     const { container } = mount()
     await new Promise((r) => setTimeout(r, 40))
-    expect(screen.getByText('Active setups')).toBeTruthy()
+    expect(screen.getByText('Setups')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Open the setups board' })).toBeTruthy()
     await expectNoAxeViolations(container, { level: 'component' })
   }, 30000)

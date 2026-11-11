@@ -1,6 +1,81 @@
 # Session state — Pine on our charts
 
-## READ THIS FIRST — the program as it stands (written 2026-10-01 by lane C44, on wave 10 `e4e24524ef`)
+## READ THIS FIRST — current state as of 2026-11-08 (origin/master `0ea4697b3f`)
+
+> This block is the current page. Everything below it is HISTORY: the 2026-10-01 block (lane C44,
+> wave 10) and the PR #145 record. When they disagree with this block, this block wins.
+> Every claim here cites a file or a git log line; re-check before acting on one.
+
+### Engine version
+
+- `SCRIPT_ENGINE_VERSION = 36` on master (`app/src/components/chart/engine/scriptEngineVersion.js`,
+  history lines `/** N = ... */` above the export). Recent bumps:
+  - 34 = I6a-N4: non-multiple-of-4 block indent refuses `pine:indent` (PR #945, `b732c57e41`)
+  - 35 = PT-GAPS: six host-lane gaps (L3, L4, L6, G-c, G-d, G-h); G-f/G-i queued as Q-PT6/Q-PT7 (PR #947, `7f699417a6`)
+  - 36 = HONESTY-SWEEP: probes vw-hs1..hs7 (PR #952, `43598d4735`)
+- LANDING (not on master when this was written): 37 = STRAT-COLOR (#946); 38 = the delete/removal
+  stack. Re-read `scriptEngineVersion.js` on master before trusting either number.
+
+### Recently landed Pine lanes (`git log origin/master --merges`)
+
+| PR | lane |
+|---|---|
+| #952 | honesty sweep (engine 36) |
+| #947 | PT-GAPS (engine 35) |
+| #945 | I6a-N4 switch indent (engine 34) |
+| #944 | W9-OQ-N1: strategy.* reads in a dark order argument are values |
+| #941 | RULING-0927 (engine 33: input.time T16 default form only) |
+| #938 | rail gaps 2026-11-07 (source of the honesty sweep's "unbacked served behaviour" list) |
+| #937, #933, #924 | probe docs (E, D, all) |
+| #936 | Pine design docs on master |
+| #935 | W9 open questions |
+| #934 | capture-queue non-capture rows |
+| #931, #917 | W9-T14 server backtests, single-symbol |
+| #929 | W9 decisions + T15 scorecard wording |
+| #927, #914 | W6-T10 reserved names / enum |
+| #925 | W6-T6-N1b indirect |
+| #915 | W9-T11 record |
+| #956 | test timeouts for four whole-corpus object-lane measurements |
+
+### Decisions: `docs/pine/W9-DECISIONS-2026-11-07.md` (D1-D10)
+
+- D1 pin before serve: every broker rule refuses `runtime:strategy-unpinned` until a MATCHing capture pins it.
+- D2 always show "this backtest starts on <date>; TradingView may start elsewhere" (implemented, railed in `tests/test_pine_strategy_backtest.py`).
+- D3 defer T9 (bar detalization). D4 NOT DECIDED (owner's rig-account plan).
+- D5 W9.4 route uses the W5 plan gate, single-symbol for now. D6 arming per W2 stage; arming is the owner's act.
+- D7 scorecard wording by the builder (T15). D8 uncomputable metrics show the refusal (T13a/T13b not built yet).
+- D9 `HISTORY_WINDOW_BARS` stays 5000. D10 grading floor stays 5 closed trades in TradingView's capture, reference only.
+
+### The honesty rule
+
+Serve only what the Pine reference/manual states exactly or a capture witnesses; otherwise refuse
+BY NAME, with a capture-queue row and a probe (`docs/pine/evidence/2026-11-07-honesty-sweep/EVIDENCE.md`;
+rails in `app/src/components/chart/engine/runtime/__tests__/honestySweep.test.js`).
+
+### Where reviews and evidence live
+
+- `docs/pine/evidence/<date>-<lane>/` — one directory per lane (latest: `2026-11-07-honesty-sweep`,
+  `-pt-gaps`, `-i6a-n4`, `-ruling-0927`, `-w9-open-questions`, `-w9-t14`, `-w6-t10n`, `-w6-t6-n1b`);
+  also `w2-arming-2026-11-02`, `w5-host-parity`, `rf-runtime-readiness-2026-10-02`.
+- Capture queues: `docs/pine/capture-queue-<date>-<lane>.md`, aggregated in `capture-queue.json`.
+- Vendor harness and triage: `tools/vendor_harness/`, `docs/pine/vendor-harness/objects-triage-2026-09-28.md`.
+
+### Test baseline
+
+- CI runs Node 20 (`.github/workflows/agent-ci.yml` `node-version: '20'`). Run chart vitest on Node 20.
+- Note: the hostParity digests for engines 34-36 were regenerated on Node 24 (commit subjects
+  `b732c57e41`, `7f699417a6`, `43598d4735`).
+- Whole-corpus object-lane measurements have sized timeouts (PR #956, `e79119bebe`).
+
+### Open, owner-only
+
+- Captures that need a TradingView sign-in on the rig (capture-queue rows, e.g. Q-HS1..Q-HS6, Q-PT6, Q-PT7).
+- Flag arming: per W2 stage, the owner's act (D6; `docs/pine/evidence/w2-arming-2026-11-02`).
+- D4: the rig account's plan (blocks W9-R1i 15-minute depth and plan-dependent captures).
+
+---
+
+## HISTORY (superseded 2026-11-08) — the program as it stood (written 2026-10-01 by lane C44, on wave 10 `e4e24524ef`)
 
 > Everything under the line **"History through 2026-09-19"** further down is the record of
 > PR #145 (`feat/indicator-r0r1`, merged `e855f62cdb`). It is closed and kept verbatim. It says

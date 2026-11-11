@@ -22,6 +22,7 @@
 // probe, because the absence of a literal is not behaviourally observable.
 //
 // Pattern mirrors ComparisonPicker.jsx (top:40px, right:8px, position absolute inside the chart wrapper).
+import { withoutGuardIds } from './engine/ast/guardIdText'
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import styles from './IndicatorAlertPopover.module.css'
 import {
@@ -435,7 +436,7 @@ export default function IndicatorAlertPopover({
   }
 
   return (
-    <div className={styles.popover} role="dialog" aria-label="Indicator alerts">
+    <div className={styles.popover} role="dialog" aria-label="Indicator alerts" data-guide="chart.alertsPopover">
       <div className={styles.header}>
         <span className={styles.title}>
           Indicator Alerts
@@ -513,6 +514,26 @@ export default function IndicatorAlertPopover({
         {inputKeys.map((key) => (
           <div className={styles.row} key={key}>
             <span className={styles.label}>{key}</span>
+            {/* ⭐ 2026-11-04 — a knob the served plot declares a CLOSED
+                vocabulary for (`input_options`, e.g. `ma_cross`'s ma_type:
+                ema | sma) is a choice, not a free-text box. Absent everywhere
+                else, so every existing knob renders exactly as before. */}
+            {Array.isArray(plotEntry.input_options?.[key]) ? (
+              <select
+                className={styles.select}
+                aria-label={`${key} input`}
+                value={params[key] ?? ''}
+                disabled={!catalogReady}
+                onChange={(e) => {
+                  const raw = e.target.value
+                  setParams((prev) => ({ ...prev, [key]: raw }))
+                }}
+              >
+                {plotEntry.input_options[key].map((opt) => (
+                  <option key={opt} value={opt}>{String(opt).toUpperCase()}</option>
+                ))}
+              </select>
+            ) : (
             <input
               className={styles.input}
               type={typeof plotEntry.inputs[key] === 'number' ? 'number' : 'text'}
@@ -530,6 +551,7 @@ export default function IndicatorAlertPopover({
                 }))
               }}
             />
+            )}
           </div>
         ))}
 
@@ -610,7 +632,7 @@ export default function IndicatorAlertPopover({
         {preflightRefused && (
           <div className={styles.catalogError} role="alert"
             data-testid="alert-signal-refused" data-guard={preflight.guard || undefined}>
-            {preflight.reason}
+            {withoutGuardIds(preflight.reason)}
           </div>
         )}
 
@@ -675,6 +697,7 @@ export default function IndicatorAlertPopover({
 
         <button
           type="submit"
+          data-guide="chart.alertAdd"
           className={styles.addBtn}
           disabled={!ownSym || submitting || !catalogReady || !plot || (needsThreshold && !threshold)
             || preflightRefused}
@@ -803,7 +826,7 @@ export default function IndicatorAlertPopover({
                   </div>
                   <div className={styles.alertSub}>
                     {cannotFire && (
-                      <span className={styles.cannotFire}>
+                      <span className={styles.cannotFire} data-guide="alert.cannotFire">
                         Cannot fire — this alert type is no longer evaluated
                       </span>
                     )}
@@ -813,7 +836,7 @@ export default function IndicatorAlertPopover({
                         the inputs it recorded — and saying so is the whole
                         point: an orphaned binding used to be invisible. */}
                     {a.instance_missing && (
-                      <span className={styles.cannotFire}>
+                      <span className={styles.cannotFire} data-guide="alert.cannotFire">
                         The chart indicator this alert was armed from was removed
                         — still watching {indLbl}
                       </span>
@@ -838,6 +861,7 @@ export default function IndicatorAlertPopover({
                 </div>
                 <button
                   className={`${styles.toggle} ${a.active ? styles.on : ''}`}
+                  data-guide="alert.toggle"
                   onClick={() => toggleIndicatorAlert(a.id)}
                   title={a.active ? 'Disable' : 'Enable'}
                 >

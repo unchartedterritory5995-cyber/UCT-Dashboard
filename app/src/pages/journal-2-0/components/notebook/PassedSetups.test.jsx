@@ -158,7 +158,7 @@ describe('PassedSetups', () => {
     const sent = added._contract.requestBody
     fireEvent.change(screen.getByLabelText('Ticker you passed on'), { target: { value: `$${sent.symbol.toLowerCase()}` } })
     fireEvent.change(screen.getByLabelText('Day you passed on it'), { target: { value: sent.savedOn } })
-    fireEvent.click(screen.getByRole('button', { name: /Add/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
     await screen.findByText('$PSNV')
     const post = calls.find((c) => c.method === 'POST')
     expect(post.url).toBe(added._contract.path)
@@ -181,7 +181,7 @@ describe('PassedSetups', () => {
     wrap()
     await screen.findByText(/Nothing here yet/)
     fireEvent.change(screen.getByLabelText('Ticker you passed on'), { target: { value: 'PSNV' } })
-    fireEvent.click(screen.getByRole('button', { name: /Add/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
     expect((await screen.findByRole('alert')).textContent).toBe(sentence)
   })
 })

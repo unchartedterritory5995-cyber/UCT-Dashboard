@@ -1,0 +1,20 @@
+//@version=6
+indicator("vw-w6-forin-fn-value")
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from row W6-F1 of
+// docs/pine/capture-queue-2026-11-06-w6-t6.md, whose shapes are W6-BREAKDOWN.md section 6's W6-F1 row
+// (branch docs/pine-w6-breakdown): "a UDF whose body ENDS in a `for ... in` (its value)".
+// One shape of W6-F1 per file. No licence-held text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: the value a function returns when its body ends in a `for ... in` loop: the last pass's value
+// (L01: `low * 2`), or something else? And over an EMPTY array (L02: no pass)?
+// Our runtime lane refuses it by name: "the value of a `for ... in` loop ..." (W6-F1). A00 is the control.
+// CAPTURE: NYSE:RDDT 1D, inputs at defaults.
+
+lastPass(array<float> a) =>
+    for x in a
+        x * 2
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(lastPass(array.from(open, high, low)), "L01_value_of_loop_three_elements")
+plot(lastPass(array.new_float()), "L02_value_of_loop_empty_array")

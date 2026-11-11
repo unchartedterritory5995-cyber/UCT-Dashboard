@@ -25,9 +25,12 @@
 //    subscribers at drag START, before any commit.
 
 import { uid } from '../../utils/uid'
+import { stampTimeBase, toRawUnixView } from './drawingTimeBase'
 import { normalizeDrawing, normalizeDrawings } from './drawingSchema'
+import { DRAWINGS_STORAGE_KEY, registerLiveDrawingsPeek } from './drawingsPeek'
 
-const STORAGE_KEY = 'uct-chart-drawings'
+// The key lives in drawingsPeek.js (the Notebook reads drawings through it without loading this store).
+const STORAGE_KEY = DRAWINGS_STORAGE_KEY
 const MAX_HISTORY = 100   // undo/redo depth per symbol (mirrors the legacy hook)
 
 export const EMPTY_SNAPSHOT = Object.freeze({
@@ -190,6 +193,8 @@ export function peekDrawings(sym) {
     return []
   }
 }
+// The Notebook's peek (drawingsPeek.js) answers from this live store once it has loaded.
+registerLiveDrawingsPeek(peekDrawings)
 
 // ── Mutations (all keyed by sym; falsy sym = no-op, mirroring the legacy guard) ─
 export function addDrawing(sym, d) {
@@ -207,8 +212,20 @@ export function addDrawing(sym, d) {
   _addGuard.set(key, id)
   queueMicrotask(() => _addGuard.delete(key))
   const e = _ensure(sym)
-  _commit(sym, e, [...e.drawings, normalizeDrawing({ ...d, id })])
+  // ONE time base on every write (drawingTimeBase.js): legacy Agent chart-time points become raw
+  // unix and a numeric-point drawing is stamped `tb:'unix'`.
+  _commit(sym, e, [...e.drawings, normalizeDrawing({ ...stampTimeBase(toRawUnixView([d])[0]), id })])
   return id
+}
+
+// Put back a drawing that was removed, exactly as it was and under its OWN id (the Agent's Undo): an earlier
+// change to that drawing is addressed by this id, so a new one would strand it. An id already in use mints a new one.
+export function restoreDrawing(sym, d) {
+  if (!sym || !d?.id) return addDrawing(sym, d)
+  const e = _ensure(sym)
+  if (e.drawings.some(x => x.id === d.id)) { const { id: _taken, ...body } = d; return addDrawing(sym, body) }
+  _commit(sym, e, [...e.drawings, normalizeDrawing(d)])
+  return d.id
 }
 
 export function removeDrawing(sym, id) {
@@ -226,7 +243,7 @@ export function updateDrawing(sym, id, updates, opts) {
   if (!e.drawings.some((x) => x.id === id)) return   // unknown id: no junk history step
   _commit(
     sym, e,
-    e.drawings.map((x) => (x.id === id ? { ...x, ...updates } : x)),
+    e.drawings.map((x) => (x.id === id ? { ...x, ...stampTimeBase(updates) } : x)),
     opts?.record !== false,
   )
 }

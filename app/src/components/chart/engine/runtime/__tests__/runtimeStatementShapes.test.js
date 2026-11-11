@@ -69,8 +69,8 @@ describe('A — a lone value whose value nothing reads', () => {
     expect(r.message).toContain('nosuchname')
   })
 
-  it('⛔ a function that ENDS in a loop is still valueless — its result is never the skipped line', () => {
-    const r = refusal('f(n) =>\n    s = 0\n    for i = 0 to n\n        s\nplot(f(3))')
+  it('⛔ a function that ENDS in a loop with break is still valueless — its result is never the skipped line', () => {
+    const r = refusal('f(n) =>\n    s = 0\n    for i = 0 to n\n        if i > 1\n            break\n        s\nplot(f(3))')
     expect(r.guard).toBe('runtime:function')
     expect(r.message).toMatch(/ends in a loop/)
   })

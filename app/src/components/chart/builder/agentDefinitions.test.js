@@ -16,6 +16,7 @@ import {
 } from './agentDefinitions'
 import { withoutEngineStamp, engineStampOf } from '../engine/scriptEngineVersion'
 import { readUserDefinition } from '../../../hooks/useUserDefinitions'
+import { isScriptDocument } from './memberPane/savedScriptUpgrade'
 
 const MINE = 'u_aaaaaaaaaac1'
 const THEIRS = 'u_aaaaaaaaaac2'
@@ -197,8 +198,9 @@ describe('I-13 — a colour input takes only a colour the chart can draw', () =>
 //     `has_pine_source`;
 //   - a delete's tombstone keeps the script;
 //   - a save strips `meta.engineVersion` unless it carries the script — the rule
-//     `saveUserDefinition` applies with the real `withoutEngineStamp` — and stores
-//     whatever script it was given (null when none).
+//     `saveUserDefinition` applies with the real `withoutEngineStamp` — marks a
+//     script-shaped document saved without its script `scriptEdited` (L2), and
+//     stores whatever script it was given (null when none).
 const SCRIPT = '//@version=5\nindicator("x")\nplot(ta.sma(close, 20))'
 function pineServer({ hasScript = true, stamp = true, dropScriptOnSave = false } = {}) {
   const meta = { ...(FIX.styled_markers.meta || {}), name: 'My Breakout Dots', ...(stamp ? { engineVersion: 1 } : {}) }
@@ -207,7 +209,7 @@ function pineServer({ hasScript = true, stamp = true, dropScriptOnSave = false }
   const calls = []
   const view = (r, opts) => {
     const { pine_source: src, live: _l, ...rest } = r
-    return { ...rest, has_pine_source: src != null, ...(opts && opts.source === true && src != null ? { pine_source: src } : {}) }
+    return { ...rest, has_pine_source: src != null, ...(opts && opts.withSource === true && src != null ? { pine_source: src } : {}) }
   }
   return {
     calls, rows, original: JSON.parse(JSON.stringify(definition)),
@@ -216,7 +218,8 @@ function pineServer({ hasScript = true, stamp = true, dropScriptOnSave = false }
     save: async (doc, id, _t, opts) => {
       calls.push(['save', id, opts || null])
       const script = opts && typeof opts.pineSource === 'string' && opts.pineSource.trim() ? opts.pineSource : null
-      const stored = script ? doc : withoutEngineStamp(doc)
+      let stored = script ? doc : withoutEngineStamp(doc)
+      if (!script && isScriptDocument(stored) && stored.meta.scriptEdited !== true) stored = { ...stored, meta: { ...stored.meta, scriptEdited: true } }
       const r = rows.get(id)
       Object.assign(r, { definition: JSON.parse(JSON.stringify(stored)), live: true, version: r.version + 1, pine_source: dropScriptOnSave ? null : script })
       return { ok: true, row: { def_id: id, version: r.version } }
@@ -235,7 +238,7 @@ describe('F-15 — deleting and undoing a saved Pine indicator is exact or refus
     const srv = pineServer()
     const { done, undone } = await deleteThenUndo(srv)
     expect(done.status).toBe('confirmed')
-    expect(srv.calls[0]).toEqual(['read', MINE, { source: true }]) // read WITH the script, before deleting
+    expect(srv.calls[0]).toEqual(['read', MINE, { withSource: true }]) // read WITH the script, before deleting
     expect(done.undo.pineSource).toBe(SCRIPT)
     expect(undone).toMatchObject({ status: 'confirmed', receipt: { undoOf: 'delete', defId: MINE } })
     const row = srv.rows.get(MINE)
@@ -311,10 +314,10 @@ describe('F-15 — deleting and undoing a saved Pine indicator is exact or refus
 
 describe('F-15 — the read door asks for the script only when told to', () => {
   afterEach(() => { vi.unstubAllGlobals() })
-  it('readUserDefinition(id, {source: true}) requests ?source=1; the default read does not', async () => {
+  it('readUserDefinition(id, {withSource: true}) requests ?source=1; the default read does not', async () => {
     const urls = []
     vi.stubGlobal('fetch', async (url) => { urls.push(url); return { ok: true, status: 200, json: async () => ({ def_id: MINE }) } })
-    await readUserDefinition(MINE, { source: true })
+    await readUserDefinition(MINE, { withSource: true })
     await readUserDefinition(MINE)
     expect(urls[0].endsWith(`/${MINE}?source=1`)).toBe(true)
     expect(urls[1].endsWith(`/${MINE}`)).toBe(true)

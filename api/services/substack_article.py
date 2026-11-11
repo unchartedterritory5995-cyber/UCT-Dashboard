@@ -38,6 +38,7 @@ which the whop button does not carry.
 from __future__ import annotations
 
 import html as _html
+import json
 import re
 from dataclasses import dataclass, field
 from functools import lru_cache
@@ -63,11 +64,14 @@ from api.services import cap_universe
 #   5 -> 6: the prose source also accepts ETFs -- the liquid-ETF watchlist
 #           plus this desk's thematic funds. cap_universe is an equity
 #           screen, so CIBR/TQQQ/LABU/SKYY were being refused.
+#   7 -> 8: Substack-native videos render as a player. The placeholder holds only
+#           an upload id, so every article carrying one had silently lost it.
+#   8 -> 9: YouTube embeds render too, rebuilt from the video id.
 # ⛔ ANY change to what convert() EMITS needs a bump here. Shipping the furniture
 # drop without one left every stored row on the previous output and the
 # improvement applied to nothing -- silently, because a backfill with no version
 # change has no work to find.
-CONVERTER_VERSION = 7
+CONVERTER_VERSION = 9
 
 # Matches the max reader measure in ArticleReader.module.css. Kept as a module
 # constant rather than inlined so the two can be pinned together by a test.
@@ -142,6 +146,13 @@ _ATTRS: dict[str, tuple[str, ...]] = {
 }
 
 _SAFE_SCHEMES = frozenset({"http", "https", "mailto"})
+
+# Substack's iframe player sends frame-ancestors for its own domains only, so the
+# video has to be ours. /src redirects to a Mux URL whose token lasts 24h and is
+# minted per request: store /src, never where it redirects to.
+_NATIVE_VIDEO_SRC = "https://substack.com/api/v1/video/upload/{id}/src"
+_UPLOAD_ID_RE = re.compile(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}")
+_YOUTUBE_ID_RE = re.compile(r"[A-Za-z0-9_-]{11}")
 
 # The label the Sunday Scans generator emits as ONE h3 with a <br>, followed by
 # the week's symbols. Matching the label (not the shape of the text after it) is
@@ -247,6 +258,56 @@ class ConvertedArticle:
 # anchor and the subscribe form's submit input, so keying on it would either
 # keep the dead email form or kill the membership CTA.
 _CTA_COMPONENT = "ButtonCreateButton"
+
+
+def _data_attrs(attrs: dict[str, str]) -> dict:
+    """Substack's data-attrs JSON, or {} when it is absent or malformed."""
+    try:
+        payload = json.loads(attrs.get("data-attrs") or "")
+    except ValueError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _embed_seconds(value) -> int | None:
+    """A positive whole-second offset, or None. bool is an int in Python."""
+    if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+        return value
+    return None
+
+
+def _embed_html(tag: str, attrs: dict[str, str]) -> str | None:
+    """Player markup for a Substack video block, or None.
+
+    Every interpolated value lands in dangerouslySetInnerHTML, so ids must match
+    their exact shape and offsets must be integers. Nothing else from the source
+    block is carried over, its iframe included.
+    """
+    if tag != "div":
+        return None
+    classes = attrs.get("class", "").split()
+    if "native-video-embed" in classes:
+        media_id = _data_attrs(attrs).get("mediaUploadId")
+        if isinstance(media_id, str) and _UPLOAD_ID_RE.fullmatch(media_id):
+            src = _NATIVE_VIDEO_SRC.format(id=media_id)
+            return (f'<video class="uctArticleVideo" controls playsinline '
+                    f'preload="metadata" src="{src}"></video>')
+    elif "youtube-wrap" in classes:
+        data = _data_attrs(attrs)
+        video_id = data.get("videoId")
+        if isinstance(video_id, str) and _YOUTUBE_ID_RE.fullmatch(video_id):
+            query = "rel=0"
+            for param, key in (("start", "startTime"), ("end", "endTime")):
+                seconds = _embed_seconds(data.get(key))
+                if seconds:
+                    query += f"&amp;{param}={seconds}"
+            return (f'<iframe class="uctArticleVideo" '
+                    f'src="https://www.youtube-nocookie.com/embed/{video_id}?{query}" '
+                    f'title="YouTube video" loading="lazy" '
+                    f'allow="autoplay; encrypted-media; picture-in-picture; fullscreen" '
+                    f'allowfullscreen referrerpolicy="strict-origin-when-cross-origin">'
+                    f'</iframe>')
+    return None
 
 
 def _is_cta(attrs: dict[str, str]) -> bool:
@@ -434,6 +495,12 @@ class _Converter(HTMLParser):
 
         if tag == "img":
             self._emit_img(attrs)
+            return
+
+        embed = _embed_html(tag, attrs)
+        if embed:
+            self._emit(embed)
+            self._drop_depth = 1  # the source block's own contents go
             return
 
         if tag in _HEADINGS and self._heading is None:

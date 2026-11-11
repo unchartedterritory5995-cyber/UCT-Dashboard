@@ -11,14 +11,19 @@ exposes and which dramatically improve answer quality for market questions.
 Shares PERPLEXITY_API_KEY with the morning-wire pipeline.
 """
 
+import contextvars
+import functools
+import inspect
 import json
 import logging
 import os
+import threading
 import time
 from typing import Any, AsyncIterator
 
 import requests
 
+from api.services import call_deadline
 from api.services.cache import TTLCache
 
 _log = logging.getLogger(__name__)
@@ -220,6 +225,20 @@ def _record_cost(model: str, usage: dict | None, surface: str) -> float | None:
     except Exception:
         return None
 
+# ⛔ THE DAILY LIMIT COUNTS LEDGER ROWS, so a call that may have been billed and
+# wrote no row is invisible to it. Timeouts, and 200 replies with an empty or
+# unusable answer, write a row through this. An HTTP error status writes none:
+# nothing was generated, and a provider outage must not eat the morning's budget.
+#
+# ⛔ AND ITS DOLLARS ARE THE WORST CASE WHEN NO USAGE CAME BACK. Priced from `None` usage, a timeout
+# cost the $0.006 request fee, so the day's dollars read low exactly when the provider was slowest.
+def _record_unanswered(model: str, usage: dict | None, surface: str, payload: dict | None = None) -> None:
+    if not usage and payload:
+        usage = {"prompt_tokens": len(json.dumps(payload.get("messages"), ensure_ascii=False).encode("utf-8")),
+                 "completion_tokens": int(payload.get("max_tokens") or 0)}
+    _record_cost(model, usage, surface)
+
+
 # Retry budget for transient upstream failures (429 / 5xx) on the blocking
 # path: up to 3 retries (4 attempts total), exponential backoff. Bounded so
 # the request path can never stack unboundedly; auth errors (4xx other than
@@ -310,10 +329,68 @@ def get_daily_status() -> dict:
         except Exception:
             n = 0
         surfaces[name] = {"calls_today": n, "limit": cap, "remaining": max(0, cap - n)}
+    try:
+        from api.services import narrative_cost_guard
+        by_type = narrative_cost_guard.spend_by_model_today(_PPLX_SURFACE_PREFIX)
+    except Exception:
+        by_type = {}
     return {"calls_today": count, "limit": limit,
             "remaining": max(0, limit - count),
             "pct": round(count / limit * 100, 1) if limit else 0.0,
-            "surfaces": surfaces}
+            "surfaces": surfaces,
+            # Telemetry-grade dollars by request type (model). A report, never a stop: the only stops
+            # here are the two call counts, and no dollar stop value exists.
+            "dollars_today": round(sum(t["usd"] for t in by_type.values()), 6),
+            "by_request_type": by_type}
+
+
+# ⛔ THE COUNT IS CHECKED, THEN THE CALL RUNS, AND ITS ROW COMES AFTER: requests in flight are invisible to
+# the ledger, so at 499 of 500 every thread in the pool could pass together. Admission holds a slot in this
+# process until the call returns, and the check counts those too. One process only: another pod is
+# still bounded by the rows, as it was.
+_slots_lock = threading.Lock()
+_slots: dict[str, int] = {}
+_held: contextvars.ContextVar = contextvars.ContextVar("pplx_budget_slot", default=None)
+
+
+def _take_slot(surface: str) -> None:
+    held = _held.get()
+    if held is not None:
+        _slots[surface] = _slots.get(surface, 0) + 1
+        held.append(surface)
+
+
+def _give_slots(held: list) -> None:
+    with _slots_lock:
+        for surface in held:
+            _slots[surface] = max(0, _slots.get(surface, 0) - 1)
+
+
+def _holds_slot(fn):
+    """`fn` admitted through `_check_daily_budget` keeps a slot until it returns or finishes streaming."""
+    if inspect.isasyncgenfunction(fn):
+        @functools.wraps(fn)
+        async def stream(*args, **kwargs):
+            held: list = []
+            token = _held.set(held)
+            try:
+                async for item in fn(*args, **kwargs):
+                    yield item
+            finally:
+                _held.reset(token)
+                _give_slots(held)
+        return stream
+
+    @functools.wraps(fn)
+    def call(*args, **kwargs):
+        held: list = []
+        token = _held.set(held)
+        try:
+            return fn(*args, **kwargs)
+        finally:
+            _held.reset(token)
+            _give_slots(held)
+    return call
 
 
 def _is_pytest_env() -> bool:
@@ -338,10 +415,15 @@ def _check_daily_budget(surface: str) -> str | None:
     if _is_pytest_env() and os.environ.get(
             "PERPLEXITY_TEST_ENFORCE_BUDGET", "").lower() not in ("1", "true", "yes"):
         return None
+    with _slots_lock:
+        return _admit(surface)
+
+
+def _admit(surface: str) -> str | None:
     try:
         from api.services import narrative_cost_guard
         limit = _daily_limit()
-        count = narrative_cost_guard.calls_today(_PPLX_SURFACE_PREFIX)
+        count = narrative_cost_guard.calls_today(_PPLX_SURFACE_PREFIX) + sum(_slots.values())
     except Exception:
         return None
     if count >= limit:
@@ -359,12 +441,14 @@ def _check_daily_budget(surface: str) -> str | None:
         try:
             from api.services import narrative_cost_guard
             used = narrative_cost_guard.calls_today_for_surface(_PPLX_SURFACE_PREFIX + surface)
+            used += _slots.get(surface, 0)
         except Exception:
             return None
         if used >= cap:
             _log.warning("perplexity surface budget EXHAUSTED (surface=%s %d/%d calls today, "
                          "global %d/%d) — refusing call", surface, used, cap, count, limit)
             return f"perplexity daily budget reached for {surface} ({cap} requests/day)"
+    _take_slot(surface)
     return None
 
 
@@ -449,6 +533,7 @@ def _build_messages(system_prompt: str, query: str, history: list | None = None)
     return msgs
 
 
+@_holds_slot
 def web_search(
     query: str,
     max_tokens: int = 400,
@@ -541,7 +626,15 @@ def web_search(
 
     t0 = time.time()
     data = None
+    attempts = 0                      # requests actually sent (each may be billed): the Agent ledger needs the count
     for attempt in range(_MAX_RETRIES + 1):
+        try:
+            attempt_timeout = call_deadline.cap(timeout)
+        except call_deadline.NotStarted:  # the caller's own deadline: no further billed attempt
+            _log_call(cost_surface, model, resolved_mode, ok=False, error="deadline")
+            return {"answer": "", "citations": [], "error": "deadline passed",
+                    "mode": resolved_mode, "model": model}
+        attempts += 1
         try:
             r = requests.post(
                 _BASE,
@@ -550,7 +643,7 @@ def web_search(
                     "Content-Type": "application/json",
                 },
                 json=payload,
-                timeout=timeout,
+                timeout=attempt_timeout,
             )
             r.raise_for_status()
             data = r.json()
@@ -560,6 +653,7 @@ def web_search(
             # never spin — an unbounded retry on a blocking call is the
             # threadpool surface behind the 524. Exponential backoff between
             # attempts (0.5s, 1s, 2s).
+            _record_unanswered(model, None, cost_surface, payload)
             if attempt < _MAX_RETRIES:
                 time.sleep(_retry_pause(attempt))
                 continue
@@ -592,6 +686,7 @@ def web_search(
         answer = _strip_think(data["choices"][0]["message"]["content"])
     except (KeyError, IndexError, TypeError) as e:
         _log.warning("perplexity unexpected response shape: %s", e)
+        _record_unanswered(model, data.get("usage") if isinstance(data, dict) else None, cost_surface, payload)
         _log_call(cost_surface, model, resolved_mode, ok=False, error="unexpected response")
         return {"answer": "", "citations": [], "error": "unexpected response",
                 "mode": resolved_mode, "model": model}
@@ -600,6 +695,7 @@ def web_search(
     # completion) must NOT be cached for the full TTL — return an error so the
     # caller can fall back, and don't poison the cache with 30 min of blank.
     if not answer:
+        _record_unanswered(model, data.get("usage"), cost_surface, payload)
         _log_call(cost_surface, model, resolved_mode, ok=False, error="empty answer")
         return {"answer": "", "citations": [], "error": "empty answer",
                 "mode": resolved_mode, "model": model}
@@ -634,8 +730,11 @@ def web_search(
     # ⭐ OPT-IN (`return_cost=True`, UCT Agent's spend ledger only): this call's own cost rides on the
     # RETURNED dict, never the cache and never any other caller's result — every other caller (AI Search,
     # voice, catalysts…) gets exactly the dict it always got, so no member-facing response changes shape.
-    if return_cost and cost is not None:
-        return {**result, "cost_usd": cost}
+    # `attempts` (requests sent, retries included) and `usage_reported` let that ledger charge the whole
+    # reservation when the returned cost cannot cover everything billed (an earlier attempt, missing usage).
+    if return_cost:
+        return {**result, **({"cost_usd": cost} if cost is not None else {}), "attempts": attempts,
+                "usage_reported": bool(data.get("usage"))}
     return result
 
 
@@ -692,6 +791,7 @@ class _ThinkFilter:
         return out
 
 
+@_holds_slot
 async def stream_search(
     query: str,
     max_tokens: int = 400,
@@ -813,6 +913,7 @@ async def stream_search(
                             yield {"type": "delta", "text": visible}
     except Exception as e:  # timeout / network / protocol — caller falls back
         _log.warning("perplexity stream failed: %s", e)
+        _record_unanswered(model, usage, cost_surface, payload)
         _log_call(cost_surface, model, resolved_mode, ok=False, error="stream failed")
         yield {"type": "error", "error": "stream failed"}
         return
@@ -822,6 +923,7 @@ async def stream_search(
         yield {"type": "delta", "text": tail}
     answer = _strip_think("".join(answer_parts))
     if not answer:
+        _record_unanswered(model, usage, cost_surface, payload)
         _log_call(cost_surface, model, resolved_mode, ok=False, error="no answer")
         yield {"type": "error", "error": "no answer"}
         return

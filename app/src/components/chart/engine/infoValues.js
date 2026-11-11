@@ -46,6 +46,7 @@
 // the gate and the readout) lives in `infoValueResolve.js`.
 
 import { isInstanceTombstone } from '../instanceShape'
+import { recordableLine, lineMatches } from './lineIdentity'
 
 /** The header field, in one place. */
 export const INFO_VALUES_KEY = 'infoValues'
@@ -70,12 +71,13 @@ const isStr = (v) => typeof v === 'string' && v.length > 0
  */
 export function sanitizeInfoValue(entry) {
   if (!isObj(entry)) return null
-  let instanceId, plotKey, format, severed
+  let instanceId, plotKey, format, severed, line
   try {
     instanceId = entry.instanceId
     plotKey = entry.plotKey
     format = entry.format
     severed = entry.severed
+    line = entry.line
   } catch { return null }   // booby-trapped getter: not a reference
   if (!isStr(instanceId) || !isStr(plotKey)) return null
   const out = {
@@ -84,7 +86,54 @@ export function sanitizeInfoValue(entry) {
     format: INFO_VALUE_FORMATS.includes(format) ? format : DEFAULT_INFO_VALUE_FORMAT,
   }
   if (severed === true) out.severed = true
+  // ⭐ LINE IDENTITY (2026-11-02, `lineIdentity.js`) — which line the value was made
+  // to read, so a line later re-added under the same key does not inherit it. Absent
+  // on every entry written before; an absent `line` binds by key exactly as before.
+  if (typeof line === 'string' && line.length > 0 && line.length <= 64) out.line = line
   return out
+}
+
+/** `ref` with the line it now names recorded as `line` (or the field dropped when the
+ *  line cannot be known: no `defOf`, an unloaded / native definition, a pending line). */
+function withRecordedLine(cs, ref, defOf) {
+  const s = sanitizeInfoValue(ref)
+  if (!s) return s
+  delete s.line
+  if (typeof defOf !== 'function') return s
+  const inst = liveInstanceOf(cs, s.instanceId)
+  const def = inst ? defOf(inst.defId) : null
+  const line = def ? recordableLine(def, s.plotKey) : null
+  if (line) s.line = line
+  return s
+}
+
+/** Does this stored entry still read the line it recorded on `def`? (True when it
+ *  recorded none — an entry written before line identity binds by key.) */
+export function infoValueLineIntact(ref, def) {
+  return lineMatches(ref && ref.line, def, ref && ref.plotKey)
+}
+
+/**
+ * ⭐ LEGACY ENTRIES LEARN THEIR LINE AT THE NEXT WRITE (decision 3d) — the info-value
+ * twin of `sourceRef.stampLegacySourceLines`. Pure; returns `cs` BY IDENTITY when
+ * nothing was stamped; never stamps an unloaded, native or pending target.
+ */
+export function stampLegacyInfoValueLines(cs, defOf) {
+  if (!isObj(cs) || !isObj(cs.header) || !Array.isArray(cs.header[INFO_VALUES_KEY])) return cs
+  if (typeof defOf !== 'function') return cs
+  const list = infoValuesOf(cs)
+  let touched = false
+  const next = list.map((o) => {
+    if (o.severed || o.line) return o
+    const inst = liveInstanceOf(cs, o.instanceId)
+    const def = inst ? defOf(inst.defId) : null
+    if (!def) return o
+    const line = recordableLine(def, o.plotKey, { retiredWhenMissing: true })
+    if (!line) return o
+    touched = true
+    return { ...o, line }
+  })
+  return touched ? withInfoValues(cs, next) : cs
 }
 
 const sameRef = (a, b) => !!a && !!b && a.instanceId === b.instanceId && a.plotKey === b.plotKey
@@ -180,7 +229,7 @@ export function infoValueAddRefusal(cs, ref, defOf, outputExists) {
  */
 export function addInfoValue(cs, ref, defOf, outputExists) {
   if (infoValueAddRefusal(cs, ref, defOf, outputExists)) return cs
-  const s = sanitizeInfoValue(ref)
+  const s = withRecordedLine(cs, ref, defOf)
   return withInfoValues(cs, [...infoValuesOf(cs), s])
 }
 
@@ -215,7 +264,7 @@ export function repairInfoValue(cs, oldRef, newRef, defOf, outputExists) {
   const without = withInfoValues(cs, list.filter((_, i) => i !== at))
   if (infoValueAddRefusal(without, newRef, defOf, outputExists)) return cs
   const next = list.slice()
-  next[at] = sanitizeInfoValue(newRef)
+  next[at] = withRecordedLine(without, newRef, defOf)
   return withInfoValues(cs, next)
 }
 

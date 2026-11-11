@@ -333,24 +333,32 @@ describe('deriveDeclaredSchema', () => {
     // (columns, dateMention, imageFigure/imageCaption, tableOfContents,
     // linkPreview, webEmbed), registered 2026-09-24 when wave 5 merged into 6.
     // 3 = wave 11 lane 11D (tradeCanvas, the trade-plan canvas), 2026-10-01.
-    expect(top).toBe(3)
-    expect(deriveDeclaredSchema(fake())).toBe(top)
+    // 5 = connector fidelity (importNotice, an import's "couldn't copy" marker),
+    // 2026-11-01; 4 is the `widgetEmbed.ta` ATTRIBUTE, so every type and the attribute
+    // must be registered to declare it.
+    expect(top).toBe(5)
+    expect(deriveDeclaredSchema(withTa(fake()))).toBe(top)
   })
   it('a bundle without the canvas node declares 2 -- so the server refuses its write to a canvas note', () => {
     expect(deriveDeclaredSchema(fake(['tradeCanvas']))).toBe(2)
   })
+  it('a bundle without the importNotice node declares 4 -- so the server refuses its write to a note holding one', () => {
+    expect(deriveDeclaredSchema(withTa(fake(['importNotice'])))).toBe(4)
+  })
 
   // ── wave 13 lane 13H-1: the ATTRIBUTE table (`widgetEmbed.ta`, level 4) ──
-  const withTa = (schema) => ({ ...schema, nodes: { ...schema.nodes, widgetEmbed: { attrs: { ta: {} } } } })
+  function withTa(schema) { return { ...schema, nodes: { ...schema.nodes, widgetEmbed: { attrs: { ta: {} } } } } }
   it('declares 4 only when the widgetEmbed node registers the `ta` attribute (13H-1)', () => {
     // A deliberate pin, like `top` above: 4 = wave 13 lane 13H-1, 2026-10-02.
+    // (`importNotice` is dropped here so the attribute's own level is what is read.)
     expect(Math.max(...Object.values(NOTEBOOK_ATTR_SCHEMA))).toBe(4)
-    expect(deriveDeclaredSchema(withTa(fake()))).toBe(4)
+    expect(deriveDeclaredSchema(withTa(fake(['importNotice'])))).toBe(4)
     // the type table alone is complete, but a widgetEmbed without `ta` would save
     // a ta-bearing note without it: it must declare BELOW the attribute's level
     expect(deriveDeclaredSchema(fake())).toBe(3)
     // a ProseMirror NodeType carries `attrs`; a raw spec carries `spec.attrs` -- both read
-    expect(deriveDeclaredSchema({ ...fake(), nodes: { ...fake().nodes, widgetEmbed: { spec: { attrs: { ta: {} } } } } })).toBe(4)
+    const noNotice = fake(['importNotice'])
+    expect(deriveDeclaredSchema({ ...noNotice, nodes: { ...noNotice.nodes, widgetEmbed: { spec: { attrs: { ta: {} } } } } })).toBe(4)
     // and a lower type missing still pulls the declaration down past the attribute
     expect(deriveDeclaredSchema(withTa(fake(['tradeCanvas'])))).toBe(2)
   })

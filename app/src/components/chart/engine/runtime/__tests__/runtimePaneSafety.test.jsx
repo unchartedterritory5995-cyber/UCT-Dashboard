@@ -51,7 +51,9 @@ const TINY = ['//@version=5', 'indicator("t")', 'var float s = 0.0', 's := s + c
 // a collection error on the first bar: Pine stops the script here, this lane names it
 // ⚰️ RT7 — this was `array.max` of an empty array, which is MEASURED now (na, as Pine;
 // `rt7ArrayNa.test.js`). `array.sum` of an empty array is still an unmeasured, named stop.
-const EMPTY_MAX = ['//@version=5', 'indicator("t")', 'a = array.new_float(0)', 'plot(array.median(a))', ''].join(LF)
+// ⭐ W6-T5 — `array.median` of an EMPTY array is `na` now (its v6 reference entry); an `na`
+// ELEMENT is what still stops the script by name (W6-A1).
+const EMPTY_MAX = ['//@version=5', 'indicator("t")', 'a = array.from(1.0, na)', 'plot(array.median(a))', ''].join(LF)
 
 const rtDef = (source, id = 'u_rf_safety') => ({
   id,
@@ -82,7 +84,7 @@ describe('RF — a VM throw and a limit stop are refusals by name, never `engine
     let err = null
     try { computeRuntimeColumns(rtDef(EMPTY_MAX), rows(30), { tf: 'D' }) } catch (e) { err = e }
     expect(err.guard).toBe(RUNTIME_FAILED_GUARD)
-    expect(err.message).toMatch(/stopped on bar 0 of 30/)
+    expect(err.message).toMatch(/stopped on bar 1 of 30/) // 1-based: the first bar (LIMITS r1)
     // ⭐ UIE PHASE 3 (M5) — `array.sum` of an empty array is measured now (na); `array.median`
     // is still a stop of the script's own
     expect(err.message).toMatch(/array\.median/)
@@ -99,7 +101,10 @@ describe('RF — a VM throw and a limit stop are refusals by name, never `engine
     const over = DEFAULT_LIMITS.HISTORY + 1
     try { computeRuntimeColumns(rtDef(TINY), rows(over), { tf: 'D' }) } catch (e) { err = e }
     expect(err.guard).toBe(RUNTIME_LIMIT_GUARD)
-    expect(err.message).toMatch(new RegExp(`HISTORY: at most ${DEFAULT_LIMITS.HISTORY}, it reached ${over}`))
+    // the NAME rides as a field; the member reads plain words and the numbers
+    expect(err.limit).toBe('HISTORY')
+    expect(err.message).toContain(`the number of bars a script may be drawn over (at most ${DEFAULT_LIMITS.HISTORY.toLocaleString('en-US')}, it reached ${over.toLocaleString('en-US')})`)
+    expect(err.message).not.toMatch(/HISTORY/)
     expect(err.message).not.toMatch(/_EXCEEDED/)
   })
 
@@ -120,7 +125,7 @@ describe('RF — `runtimeRunStopOf`: the sentence for a runtime pane that drew n
     const def = rtDef(EMPTY_MAX, 'u_rf_s1')
     const stop = registry.runtimeRunStopOf(def, registry.computeFor(def, rows(20), undefined, { tf: 'D' }))
     expect(stop.guard).toBe(RUNTIME_FAILED_GUARD)
-    expect(stop.sentence).toMatch(/^not drawn on this chart \(runtime:failed\): this script stopped on bar 0/)
+    expect(stop.sentence).toMatch(/^not drawn on this chart \(runtime:failed\): this script stopped on bar 1 /)
     const ok = rtDef(TINY, 'u_rf_s2')
     expect(registry.runtimeRunStopOf(ok, registry.computeFor(ok, rows(20), undefined, { tf: 'D' }))).toBeNull()
     expect(registry.runtimeRunStopOf(ok, {})).toBeNull() // in flight: no error recorded
@@ -187,8 +192,10 @@ describe('RF — the member reads WHY on the disclosure strip (real binder, real
     expect(notices.length).toBe(1)
     expect(notices[0][1]).toMatch(new RegExp(`\\(${RUNTIME_WARMUP_GUARD}\\)`))
     render(<AttachedPineDisclosures settings={settings} registry={registry} />)
-    const row = screen.getByText(/runtime:warmup-never-converges/)
-    expect(row.textContent).toMatch(/^ADX and DI — not drawn on this chart \(runtime:warmup-never-converges\): this script is drawn bar by bar/)
+    const row = screen.getByText(/^ADX and DI — not drawn on this chart/)
+    // the store keeps the guard id (rails read it); the DOM never prints it (ast/sentence.js::withoutGuardIds)
+    expect(row.textContent).toMatch(/^ADX and DI — not drawn on this chart: this script is drawn bar by bar/)
+    expect(row.textContent).not.toMatch(/\b(runtime|pine|strategy|enum):[a-z-]+/)
     // the chart is not wedged: syncing again is cheap and stays at one notice
     binder.sync(ctxFor())
     expect(runtimeErrorNotices().length).toBe(1)

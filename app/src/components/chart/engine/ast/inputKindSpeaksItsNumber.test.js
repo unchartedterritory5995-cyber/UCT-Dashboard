@@ -41,7 +41,9 @@ const REPO = path.resolve(__dirname, '../../../../../..')
 const SPECIMEN = {
   timeframe: 'corpus/committed/3-level-zigzag-semafor__3078.pine',
   session: 'corpus/committed/asianrange-and-killzones__ef41eb5ad6.pine',
-  time: 'corpus/committed/anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80.pine',
+  // ⚰️ `time` WAS A ROW HERE. RULING-0927 (2026-11-07) serves `input.time` at its default
+  // (capture T16), so it is no longer a retired kind and has no retirement sentence;
+  // `ruling0927.test.js` holds it now.
   string: 'corpus/committed/smart-money-concepts-by-welotrades__0bff41a2e5.pine',
 }
 
@@ -49,7 +51,6 @@ const SPECIMEN = {
 const MUST_SAY = {
   timeframe: ['input.timeframe', '158', '61', 'request.security', 'item (c)'],
   session: ['input.session', '70', '23', 'textop'],
-  time: ['input.time', '20', '11', 'item (c)'],
   string: ['input.string', '14', '3'],
 }
 

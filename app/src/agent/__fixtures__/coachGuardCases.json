@@ -1,0 +1,681 @@
+{
+  "_about": "W3-2 coach guard: the SAME cases run through api/services/uct_agent/coach/guard.py (pytest) and app/src/agent/coach/guard.js (vitest). `inputs` are the texts a figure may come from. `codes` are the exact violation codes expected (empty = clean). `why` names the regex the case exists for (delete that regex and this case fails: the mutation rail).",
+  "inputs": [
+    "Moving averages as context. Commonly watched lengths are the 20-day, 50-day and 200-day.",
+    "On this chart (NVDA, through 2026-10-30): the last close is above its 20-day average, and the 20-day average is above the 50-day average.",
+    "Review of your last 10 closed trades: 6 wins, 4 losses, win rate 60%, average R 0.8.",
+    "Member: will NVDA get to 200?"
+  ],
+  "cases": [
+    {
+      "text": "This breakout is guaranteed to work if volume comes in.",
+      "codes": [
+        "unsupported",
+        "uncertainty"
+      ],
+      "why": "guarantee (+ uncertainty: outcome words, no hedge)"
+    },
+    {
+      "text": "NVDA will go up from here once it clears the 50-day.",
+      "codes": [
+        "unsupported",
+        "uncertainty"
+      ],
+      "why": "will-move (+ uncertainty: outcome words, no hedge)"
+    },
+    {
+      "text": "The stock will definitely rally into earnings.",
+      "codes": [
+        "unsupported",
+        "uncertainty"
+      ],
+      "why": "will-move (definitely) (+ uncertainty: outcome words, no hedge)"
+    },
+    {
+      "text": "It's going to break out this week.",
+      "codes": [
+        "unsupported",
+        "uncertainty"
+      ],
+      "why": "going-to (+ uncertainty: outcome words, no hedge)"
+    },
+    {
+      "text": "You can't lose with a stop this tight.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "cant-lose"
+    },
+    {
+      "text": "This setup is a sure thing.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "sure-thing"
+    },
+    {
+      "text": "Honestly it's a no-brainer here.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "sure-thing (no-brainer)"
+    },
+    {
+      "text": "This one is certain to bounce off the 20-day.",
+      "codes": [
+        "unsupported",
+        "uncertainty"
+      ],
+      "why": "certain (+ uncertainty: outcome words, no hedge)"
+    },
+    {
+      "text": "Buy now before it runs.",
+      "codes": [
+        "unsupported",
+        "order"
+      ],
+      "why": "buy-sell-now + trade-now"
+    },
+    {
+      "text": "Sell it today, the trend is over.",
+      "codes": [
+        "unsupported",
+        "order"
+      ],
+      "why": "buy-sell-now + trade-now"
+    },
+    {
+      "text": "My price target is 180.",
+      "codes": [
+        "unsupported",
+        "figure",
+        "uncertainty"
+      ],
+      "why": "price-target + untraceable 180 (+ uncertainty: outcome words, no hedge)"
+    },
+    {
+      "text": "It should reach $200 by spring.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "price-target (should reach $) \u2014 200 is in the inputs"
+    },
+    {
+      "text": "This pattern always works in a bull market.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "always-works"
+    },
+    {
+      "text": "Tight bases never fail when the market is healthy.",
+      "codes": [
+        "unsupported",
+        "uncertainty"
+      ],
+      "why": "always-works (never fails) (+ uncertainty: outcome words, no hedge)"
+    },
+    {
+      "text": "From here it can only go higher.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "always-works (can only go)"
+    },
+    {
+      "text": "A trade like this is risk-free with a stop under the low.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "always-works (risk-free)"
+    },
+    {
+      "text": "No doubt this holds the 50-day.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "always-works (no doubt)"
+    },
+    {
+      "text": "Buy 200 shares at the open.",
+      "codes": [
+        "order"
+      ],
+      "why": "shares (+ trade-now) \u2014 200 is in the inputs"
+    },
+    {
+      "text": "Place a buy order above the high.",
+      "codes": [
+        "order"
+      ],
+      "why": "place-order"
+    },
+    {
+      "text": "You should sell half here.",
+      "codes": [
+        "order"
+      ],
+      "why": "you-should + trade-now"
+    },
+    {
+      "text": "I'd buy this pullback.",
+      "codes": [
+        "order"
+      ],
+      "why": "you-should (i'd buy)"
+    },
+    {
+      "text": "Take the trade and add to your position tomorrow.",
+      "codes": [
+        "order"
+      ],
+      "why": "take-trade + trade-now"
+    },
+    {
+      "text": "Go long here and exit at the close.",
+      "codes": [
+        "order"
+      ],
+      "why": "trade-now (go long here)"
+    },
+    {
+      "text": "Pull the trigger on it.",
+      "codes": [
+        "order"
+      ],
+      "why": "take-trade (pull the trigger)"
+    },
+    {
+      "text": "With a 65% win rate your edge is clear.",
+      "codes": [
+        "figure"
+      ],
+      "why": "65 is in no input (the review says 60)"
+    },
+    {
+      "text": "Risk 2% per trade and you will be fine.",
+      "codes": [
+        "figure",
+        "uncertainty"
+      ],
+      "why": "2 is in no input ('will be fine' is not a move) (+ uncertainty: outcome words, no hedge)"
+    },
+    {
+      "text": "Your average R of 1.4 is solid.",
+      "codes": [
+        "figure"
+      ],
+      "why": "1.4 is in no input (0.8 is)"
+    },
+    {
+      "text": "The 100-day average is the one to watch.",
+      "codes": [
+        "figure"
+      ],
+      "why": "100 is in no input"
+    },
+    {
+      "text": "The breakout should hold above the 50-day and follow through next week.",
+      "codes": [
+        "uncertainty"
+      ],
+      "why": "outcome words with no hedge"
+    },
+    {
+      "text": "Expect a rally once the 20-day is reclaimed.",
+      "codes": [
+        "uncertainty"
+      ],
+      "why": "expect + rally, no hedge"
+    },
+    {
+      "text": "The odds favour a breakout here.",
+      "codes": [
+        "unsupported",
+        "uncertainty"
+      ],
+      "why": "odds-favor (+ uncertainty: odds + breakout, no hedge)"
+    },
+    {
+      "text": "A guaranteed breakout: buy 300 shares now, target 250.",
+      "codes": [
+        "unsupported",
+        "order",
+        "figure",
+        "uncertainty"
+      ],
+      "why": "everything at once (300 and 250 untraceable); the reply is replaced (+ uncertainty: outcome words, no hedge)"
+    },
+    {
+      "text": "On this chart the last close is above its 20-day average, and the 20-day average is above the 50-day average. That describes the trend so far; it does not extend it. Educational, not advice.",
+      "codes": [],
+      "why": "the observation restated, hedged"
+    },
+    {
+      "text": "There is no guarantee a breakout holds: many fail within a few sessions. What would show you it had failed?",
+      "codes": [],
+      "why": "a negated guarantee is a hedge"
+    },
+    {
+      "text": "Breakouts often fail; a close back inside the range is one way to define that in advance.",
+      "codes": [],
+      "why": "outcome word (fail) with a hedge (often)"
+    },
+    {
+      "text": "Your last 10 closed trades: 6 wins, 4 losses, a 60% win rate and an average R of 0.8. Descriptive review, not a recommendation.",
+      "codes": [],
+      "why": "every figure is in the review input"
+    },
+    {
+      "text": "Commonly watched lengths are the 20-day, 50-day and 200-day. Which one do you have on your chart?",
+      "codes": [],
+      "why": "figures from the concept text"
+    },
+    {
+      "text": "A stop is where the trade idea is wrong, not where the loss feels comfortable. Where was your stop on that trade?",
+      "codes": [],
+      "why": "no outcome words, no figures"
+    },
+    {
+      "text": "Relative strength compares a stock with a benchmark. It describes past outperformance, not what happens next.",
+      "codes": [],
+      "why": "describes = hedge"
+    },
+    {
+      "text": "Position sizing: shares equals the dollar risk divided by the entry minus the stop. What amount to risk is your decision, not mine.",
+      "codes": [],
+      "why": "formula without figures, no order language"
+    },
+    {
+      "text": "Volume could confirm a move or not; a high-volume breakout can still fail. What did volume look like on the break?",
+      "codes": [],
+      "why": "hedged outcomes"
+    },
+    {
+      "text": "I can't tell you whether to buy or sell. I can explain what traders look at and ask what your plan was.",
+      "codes": [],
+      "why": "naming buy/sell as what it will not do is not an order"
+    },
+    {
+      "text": "Earnings reactions cannot be known in advance, and a strong first move may reverse within days.",
+      "codes": [],
+      "why": "hedged"
+    },
+    {
+      "text": "The report for NVDA was on 2026-10-30 according to the chart data shown. Educational, not advice.",
+      "codes": [],
+      "why": "a date from the observation input"
+    },
+    {
+      "text": "The breakout likely follows through.\n\nEducational, not advice.",
+      "codes": [
+        "uncertainty"
+      ],
+      "why": "C2: footer is not a hedge (outcome words + footer only)"
+    },
+    {
+      "text": "Volume expansion usually means the trend continues. Educational, not advice.",
+      "codes": [
+        "uncertainty"
+      ],
+      "why": "C2: footer is not a hedge"
+    },
+    {
+      "text": "This breakout may fail; watch whether the close holds the level.\n\nEducational, not advice.",
+      "codes": [],
+      "why": "C2: a real hedge plus the footer is clean"
+    },
+    {
+      "text": "You can\u2019t lose here.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "cant-lose (curly apostrophe, normalised)"
+    },
+    {
+      "text": "This won't lose money.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "wont-lose"
+    },
+    {
+      "text": "It won\u2019t go down from here.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "wont-lose (curly apostrophe)"
+    },
+    {
+      "text": "I'm confident it heads to 200.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "confident + headed-to (a member-typed number never licenses a target)"
+    },
+    {
+      "text": "It is headed to 200.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "headed-to"
+    },
+    {
+      "text": "Ride it to two hundred.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "ride-it"
+    },
+    {
+      "text": "Consider buying here.",
+      "codes": [
+        "order"
+      ],
+      "why": "trade-now (buying) + you-should (consider)"
+    },
+    {
+      "text": "Selling now makes sense.",
+      "codes": [
+        "order"
+      ],
+      "why": "trade-now (-ing form)"
+    },
+    {
+      "text": "Grab a position at the open.",
+      "codes": [
+        "order"
+      ],
+      "why": "trade-now (grab a position)"
+    },
+    {
+      "text": "Load up into strength.",
+      "codes": [
+        "order"
+      ],
+      "why": "load-up"
+    },
+    {
+      "text": "Trim half now.",
+      "codes": [
+        "order"
+      ],
+      "why": "trade-now (trim) + load-up (trim half)"
+    },
+    {
+      "text": "This one is gonna rip.",
+      "codes": [
+        "unsupported",
+        "uncertainty"
+      ],
+      "why": "going-to (gonna) (+ uncertainty)"
+    },
+    {
+      "text": "This setup is guarant\u0435\u0435d.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "guarantee (Cyrillic homoglyph, normalised)"
+    },
+    {
+      "text": "Odds favor the bulls and it might work.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "odds-favor is never cleared by a hedge word"
+    },
+    {
+      "text": "Based on this, I recommend buying it before earnings.",
+      "codes": [
+        "order"
+      ],
+      "why": "B2 recommend + buying"
+    },
+    {
+      "text": "I'd recommend picking up a starter position here; it may work.",
+      "codes": [
+        "order"
+      ],
+      "why": "B2 recommend + picking up"
+    },
+    {
+      "text": "You might want to accumulate shares on any dip.",
+      "codes": [
+        "order"
+      ],
+      "why": "B2 want-to + accumulate"
+    },
+    {
+      "text": "This may be a good spot to initiate a long position.",
+      "codes": [
+        "order"
+      ],
+      "why": "B2 position + worth-trading (good spot to initiate)"
+    },
+    {
+      "text": "This could be worth trading tomorrow morning.",
+      "codes": [
+        "order"
+      ],
+      "why": "B2 worth-trading"
+    },
+    {
+      "text": "It could pause first, but it'll rally next week.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "B2 will-move ('ll contraction)"
+    },
+    {
+      "text": "You will make money on this, historically.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "B2 will-profit"
+    },
+    {
+      "text": "There's essentially zero chance this fails.",
+      "codes": [
+        "unsupported",
+        "uncertainty"
+      ],
+      "why": "B2 no-chance (+ uncertainty)"
+    },
+    {
+      "text": "This name is poised to soar; it may happen soon.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "B2 hype (poised to)"
+    },
+    {
+      "text": "I suggest selling into this strength.",
+      "codes": [
+        "order"
+      ],
+      "why": "recommend (suggest + selling)"
+    },
+    {
+      "text": "You may want to add to your position on the open.",
+      "codes": [
+        "order"
+      ],
+      "why": "want-to (add) + trade-now"
+    },
+    {
+      "text": "Consider establishing a starter long position.",
+      "codes": [
+        "order"
+      ],
+      "why": "position (establishing)"
+    },
+    {
+      "text": "It's a good time to buy.",
+      "codes": [
+        "order"
+      ],
+      "why": "worth-trading (good time to buy)"
+    },
+    {
+      "text": "They'll explode higher after earnings.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "will-move ('ll contraction)"
+    },
+    {
+      "text": "This trade will make you money.",
+      "codes": [
+        "unsupported",
+        "uncertainty"
+      ],
+      "why": "will-profit (+ uncertainty)"
+    },
+    {
+      "text": "No chance it drops below the 50-day.",
+      "codes": [
+        "unsupported",
+        "uncertainty"
+      ],
+      "why": "no-chance (+ uncertainty)"
+    },
+    {
+      "text": "The stock is primed to rip higher.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "hype (primed to)"
+    },
+    {
+      "text": "I would recommend going long here.",
+      "codes": [
+        "order"
+      ],
+      "why": "recommend (going long) + trade-now"
+    },
+    {
+      "text": "There is little risk this breaks down.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "no-chance (little risk)"
+    },
+    {
+      "text": "This setup is guar\u00e1nt\u00e9\u00e9d.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "guarantee (accents folded)"
+    },
+    {
+      "text": "It is guaran\u2011teed to work.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "guarantee (in-word non-breaking hyphen dropped)"
+    },
+    {
+      "text": "Some traders suggest waiting for a close above the level; it may not work.",
+      "codes": [],
+      "why": "clean: suggest + waiting is not a trade verb"
+    },
+    {
+      "text": "It's worth reviewing your plan after each trade.",
+      "codes": [],
+      "why": "clean: worth reviewing"
+    },
+    {
+      "text": "There is no way to know whether the level holds.",
+      "codes": [],
+      "why": "clean: 'no way to know' is a hedge, not a certainty"
+    },
+    {
+      "text": "Institutions sometimes accumulate shares over weeks; volume may show it.",
+      "codes": [],
+      "why": "clean: a description of accumulation"
+    },
+    {
+      "text": "This approach has a \u0669\u0660% win rate.",
+      "codes": [
+        "figure"
+      ],
+      "why": "figure (Arabic-Indic digits read as ASCII on both sides)"
+    },
+    {
+      "text": "The 50\u00a0day average is one input; it may not matter.",
+      "codes": [],
+      "why": "clean: NBSP is a space"
+    },
+    {
+      "text": "I'll walk you through what to check; the level may or may not hold.",
+      "codes": [],
+      "why": "clean: \"I'll\" alone is not a claim about outcomes"
+    },
+    {
+      "text": "If I had cash, I'd be adding some here.",
+      "codes": [
+        "order"
+      ],
+      "why": "pre-activation class advisory-stance (a sibling, not a held-out phrase)"
+    },
+    {
+      "text": "You must get positioned ahead of this.",
+      "codes": [
+        "order"
+      ],
+      "why": "pre-activation class advisory-stance (a sibling, not a held-out phrase)"
+    },
+    {
+      "text": "Trimming into this pop might be smart.",
+      "codes": [
+        "order"
+      ],
+      "why": "pre-activation class endorsed-trade (a sibling, not a held-out phrase)"
+    },
+    {
+      "text": "Grab some while it is quiet.",
+      "codes": [
+        "order"
+      ],
+      "why": "pre-activation class imperative (a sibling, not a held-out phrase)"
+    },
+    {
+      "text": "Your best bet is picking up shares on the dip.",
+      "codes": [
+        "order"
+      ],
+      "why": "pre-activation class trade-timing (a sibling, not a held-out phrase)"
+    },
+    {
+      "text": "This one is set to keep climbing.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "pre-activation class prediction (a sibling, not a held-out phrase)"
+    },
+    {
+      "text": "There is no question about it, this works.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "pre-activation class certainty (a sibling, not a held-out phrase)"
+    },
+    {
+      "text": "Pure free money on this setup.",
+      "codes": [
+        "unsupported"
+      ],
+      "why": "pre-activation class hype-noun (a sibling, not a held-out phrase)"
+    },
+    {
+      "text": "Neither method works every time; each has trade-offs.",
+      "codes": [],
+      "why": "clean: a negated universal / a description is a hedge, not a claim"
+    },
+    {
+      "text": "Traders often describe buying on the pullback as a patience test; it may or may not suit you.",
+      "codes": [],
+      "why": "clean: a negated universal / a description is a hedge, not a claim"
+    }
+  ]
+}

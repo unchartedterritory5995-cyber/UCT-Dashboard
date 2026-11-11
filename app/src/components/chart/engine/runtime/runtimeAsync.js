@@ -18,6 +18,7 @@
 import { registerRuntimeLane } from '../nativeRegistry.js'
 import { notifyColumnsLanded } from '../serverCompute.js'
 import { withRuntimeObjects, RUNTIME_WARMUP_KEY } from './runtimeObjects.js'
+import { withStrategyRecord } from './strategyRecord.js'
 import {
   runtimeColumnsFor, computeRuntimeColumns, setRuntimeRunner, onRuntimeColumnsLanded,
   RUNTIME_PANE_TIME_BUDGET_MS, RUNTIME_TIME_BUDGET_GUARD, RUNTIME_LIMIT_GUARD, RUNTIME_FAILED_GUARD,
@@ -54,6 +55,7 @@ function errorOf(e) {
   const err = new Error(e && e.message ? e.message : 'the runtime lane failed')
   err.name = (e && e.name) || 'Error'
   if (e && e.guard) err.guard = e.guard
+  if (e && typeof e.limit === 'string') err.limit = e.limit
   if (e && Number.isInteger(e.bar)) err.bar = e.bar
   if (e && Number.isFinite(e.ms)) err.ms = e.ms
   return err
@@ -106,8 +108,8 @@ export function runtimeStopBeaconOf(def, rows, err, ms, lane) {
     lane: lane === 'main' ? 'main' : 'worker',
   }
   if (guard === RUNTIME_LIMIT_GUARD) {
-    const m = /\(([A-Z_]+): at most /.exec(String(err.message || ''))
-    if (m && LIMIT_NAMES.includes(m[1])) body.limit = m[1]
+    // the NAME rides the refusal as a field; the member's sentence carries none
+    if (LIMIT_NAMES.includes(err.limit)) body.limit = err.limit
   }
   return body
 }
@@ -227,7 +229,7 @@ function workerOf(factory) {
     return null
   }
   _worker.onmessage = (event) => {
-    const { id, ok, columns, error, objects, warmup } = event.data || {}
+    const { id, ok, columns, error, objects, warmup, strategy } = event.data || {}
     const job = _jobs.get(id)
     if (!job) return
     _jobs.delete(id)
@@ -236,6 +238,8 @@ function workerOf(factory) {
     if (landed && warmup) {
       Object.defineProperty(landed, RUNTIME_WARMUP_KEY, { value: warmup, enumerable: false, configurable: true })
     }
+    // ⭐⭐ W9-T11 — the run's `strategy` record, re-attached as the worker found it
+    if (landed && strategy) withStrategyRecord(landed, strategy)
     settle(job, ok ? null : errorOf(error), landed)
     postHeld(job.coalesce, factory)
   }
@@ -264,6 +268,8 @@ function messageOf(id, def, rows, ctx) {
       ? { symbol: { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange } } : {}),
     // ⭐ P3 WS-F — a framed instance's window slides, so the run refuses a `varip` there
     ...(ctx && ctx.framed === true ? { framed: true } : {}),
+    // ⭐⭐ W9-T11 — the window a broker run takes (design 3.4), as the context holds it
+    ...(ctx && ctx.historyWindowBars !== undefined ? { historyWindowBars: ctx.historyWindowBars } : {}),
   }
   const plainRows = rows.map((b) => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v }))
   return { id, def: plainDef, rows: plainRows, ctx: plainCtx }

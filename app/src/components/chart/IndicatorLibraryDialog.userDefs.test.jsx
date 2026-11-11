@@ -42,6 +42,9 @@ import { ENGINE_OWNED } from './engine/flipState'
 import { buildDefinition } from './builder/BuilderSheet'
 import { evaluateFormula } from './builder/FormulaField'
 import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
+// ⭐ RS split U1/U6 — a `meta.requiresServer` definition is shipped but not OFFERED
+// until the live server lists it; under vitest nothing lands, so the dialog hides it.
+import { isDefinitionOffered } from './engine/serverCompute'
 import { resultRows, getResultRow } from './__tests__/resultRows'
 
 // ─── …AND THE DIALOG'S LIST IS NOW `BUILT_IN_ROWS ∪ catalogRows ∪ userCatalogRows`
@@ -68,9 +71,13 @@ import { resultRows, getResultRow } from './__tests__/resultRows'
 // this mirror subtracts it from both halves or it stops describing the dialog.
 // These cases open an ORDINARY chart — no tombstoned overlay — which is exactly
 // when `hiddenLibraryIds` withholds `ma` so browse shows ONE Moving Average.
+// ⭐ …AND MINUS THE GATED DEFINITIONS (RS split U6): the same `isDefinitionOffered`
+// subtraction the dialog makes, so a definition the server has not listed is
+// expected absent rather than counted as "fell out".
+const offeredDef = (id) => isDefinitionOffered(engineRegistry.getDefinition(id) || { id })
 const OFFERED = () => [
   ...BUILT_IN_ROWS.filter((r) => !LIBRARY_HIDDEN_IDS.includes(r.id)),
-  ...catalogRows().filter((r) => !LIBRARY_HIDDEN_IDS.includes(r.id))]
+  ...catalogRows().filter((r) => !LIBRARY_HIDDEN_IDS.includes(r.id) && offeredDef(r.id))]
 
 const USER_ID = 'u_a1b2c3d4e5f6'
 const OTHER_ID = 'u_ffffffffffff'
@@ -167,7 +174,7 @@ describe('🔴 the library lists the member\'s own formulas', () => {
     // declares `Depends(require_paid)` — see the definition's own comment), so
     // its badge must still render. `indicatorCatalog.test.js` pins `d.meta.tier`
     // for it but never touches the DOM — this is that render-side half.
-    const rsLineRow = getResultRow(/Relative Strength Line/)
+    const rsLineRow = getResultRow(/UCT Relative Strength/)
     expect(within(rsLineRow).getByText('premium')).toBeTruthy()
   })
 
@@ -184,7 +191,7 @@ describe('🔴 the library lists the member\'s own formulas', () => {
     // asserted in `IndicatorLibraryDialog.test.jsx`; this sweep subtracts it so a
     // definition that REALLY fell out of the library still fails here.
     for (const shipped of [...SHIPPED_DEF_IDS.native, ...SHIPPED_DEF_IDS.server]
-      .filter((id) => !LIBRARY_HIDDEN_IDS.includes(id))) {
+      .filter((id) => !LIBRARY_HIDDEN_IDS.includes(id) && offeredDef(id))) {
       expect(ids, `${shipped} fell out of the library`).toContain(shipped)
     }
     expect(ids).toContain('volumeProfile')

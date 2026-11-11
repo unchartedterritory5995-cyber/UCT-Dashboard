@@ -46,7 +46,6 @@ def db(monkeypatch, tmp_path):
     path = str(tmp_path / "i3.db")
     monkeypatch.setattr(auth_db, "_DB_PATH", path)
     monkeypatch.setenv("NOTEBOOK_ONBOARDING_ENABLED", "1")
-    monkeypatch.setenv("NOTEBOOK_GETTING_STARTED_ENABLED", "1")
     auth_db.init_db()
     c = auth_db.get_connection()
     try:
@@ -399,6 +398,9 @@ GUARDED = {
     "api/services/journal_two/passed_setups.py": "names saved from a scan and not traded",
     "api/services/journal_two/similar_matches.py": "the templates the nightly market match runs on",
     "api/services/journal_two/setups_board.py": "the board's count: an example card is shown, marked, and not counted",
+    "api/services/journal_two/import_repair/runner.py": "the link repair's plan and its dry-run counts: classify() "
+                                                        "skips the sample (sample_marker.is_sample, ruling C6), so an "
+                                                        "example note is never repaired or counted",
     "api/services/journal_two/visual_playbook.py": "the playbook's count, facets and slice numbers: an example card "
                                                     "is shown, marked, and in none of them",
     "api/services/journal_two/note_kinds.py": "the kind-mapping offer's count and the notes its apply writes; the "
@@ -468,6 +470,20 @@ EXEMPT = {
     "api/services/journal_two/widget_engine/run.py": "the widget result cache's freshness stamp (COUNT and "
                                                      "MAX(updated_at) of notes, folders, kinds, properties); it "
                                                      "only decides when to recompute, never a shown number",
+    # Connector fidelity (Plans A, E, F): import plumbing that stores, links or repairs the note itself.
+    "api/services/journal_two/import_repair/links.py": "repairs links inside the member's own imported notes; "
+                                                       "the note itself, never a fact about the member",
+    "api/services/journal_two/note_connectors/adoption.py": "matches a live connector note to the member's own "
+                                                            "file-imported copy of it; the note itself",
+    "api/services/journal_two/note_connectors/corpora/corpora_gen.py": "the connector certification corpora "
+                                                                       "generator, an offline tool, not a member "
+                                                                       "surface",
+    "api/services/journal_two/note_connectors/dest_folder.py": "the connector's destination folder and its repair; "
+                                                               "folders and ownership, never a shown count",
+    "api/services/journal_two/note_connectors/link_keys.py": "the link heal pass: an imported note's placeholder "
+                                                             "links become in-app links; the note itself",
+    "api/services/journal_two/note_connectors/providers/obsidian.py": "the Obsidian sync writes and reconciles the "
+                                                                      "member's vault notes; the note itself",
 }
 for _name in ("ai_actions", "ask_retrieval", "attachment_gc", "capture_destinations", "document_ocr",
               "document_search", "excerpt_search", "note_computed", "note_connectors/engine", "note_mentions",

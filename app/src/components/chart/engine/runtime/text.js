@@ -27,6 +27,117 @@
 
 import { formatNumber } from '../objectRuntime.js'
 import { timestampMs, instantField, INSTANT_FIELDS } from './clockFns.js'
+// ⭐ ONE AUTHORITY for "a Pine runtime error, the script stops here": `collections.js`'s
+// `PineRuntimeError` (name 'runtime.error', guard 'runtime:runtime.error'). The pane
+// pipeline (`runtimeColumns.js`) tells a reached runtime error from an engine failure by
+// exactly that name; a second class here would be retried WITHOUT drawings and draw the
+// plots where TradingView stops the script.
+import { PineRuntimeError } from './collections.js'
+
+// ⭐⭐ W4-T11 INDEX RULES, ONE PLACE. Pine's `str.substring` is 0-BASED with an
+// EXCLUSIVE end (`begin_pos` is the first character kept, `end_pos - 1` the last).
+// ⛔ A position outside `0 <= begin <= end <= length`, or one that is not a whole
+// number, is a Pine RUNTIME ERROR rather than a silent clamp: clamping would draw
+// a value where TradingView stops the script. ⚠️ NEEDS CAPTURE (queue row W4-T11-a):
+// whether the error is raised or `na` returned for each bad position.
+function substringOf(s, begin, end) {
+  if (!Number.isInteger(begin) || !Number.isInteger(end)) {
+    throw new PineRuntimeError(`\`str.substring\` takes whole-number positions, got ${begin} and ${end}`)
+  }
+  if (begin < 0 || end < begin || end > s.length) {
+    throw new PineRuntimeError(
+      `\`str.substring\` positions ${begin}..${end} are outside a text of length ${s.length}; Pine stops the script here`)
+  }
+  return s.slice(begin, end)
+}
+
+// ⭐ `str.replace` replaces the Nth occurrence (0-BASED, left to right) of a
+// LITERAL target, occurrences NON-OVERLAPPING; a missing Nth occurrence leaves the
+// source unchanged. ⛔ An empty target has no defined occurrence: refused at run
+// time by name rather than answered with JavaScript's insert-at-0.
+function replaceNth(s, target, replacement, n) {
+  if (!Number.isInteger(n) || n < 0) {
+    throw new PineRuntimeError(`\`str.replace\` takes a whole-number occurrence from 0, got ${n}`)
+  }
+  if (target === '') throw new PineRuntimeError('`str.replace` cannot find an empty target')
+  let at = -1
+  let from = 0
+  for (let k = 0; k <= n; k += 1) {
+    at = s.indexOf(target, from)
+    if (at < 0) return s
+    from = at + target.length
+  }
+  return s.slice(0, at) + replacement + s.slice(at + target.length)
+}
+
+// ⭐ `str.tonumber`: a plain decimal (optional sign, digits, optional fraction,
+// optional exponent) is its value, ANYTHING else is `na` (NaN here). ⛔ Never
+// `Number(s)`: it answers `0` for "", accepts "0x10", "Infinity" and padded
+// spaces, none of which Pine reads as a number. ⚠️ NEEDS CAPTURE (W4-T11-b):
+// padded text and exponents.
+const DECIMAL = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/
+const toNumber = (s) => (DECIMAL.test(s) ? Number(s) : NaN)
+
+// ⭐ `str.pos`: 0-based index of the FIRST occurrence, `na` when absent.
+const posOf = (s, sub) => { const i = s.indexOf(sub); return i < 0 ? NaN : i }
+
+/**
+ * ⭐ `str.format_time` over the EXCHANGE's zone (America/New_York) with a literal
+ * pattern: the SimpleDateFormat letters this lane answers exactly, as tokens.
+ * `yyyy yy MM M dd d HH H mm m ss s`, `'quoted text'` (`''` is one quote) and any
+ * non-letter separator. Any other letter returns `null` (the front end refuses it
+ * by name; the run answers it with a runtime error).
+ */
+const FMT_RUNS = { y: ['yyyy', 'yy'], M: ['MM', 'M'], d: ['dd', 'd'], H: ['HH', 'H'], m: ['mm', 'm'], s: ['ss', 's'] }
+export function compileTimeFormat(fmt) {
+  if (typeof fmt !== 'string' || fmt === '') return null
+  const out = []
+  let i = 0
+  while (i < fmt.length) {
+    const ch = fmt[i]
+    if (ch === "'") {
+      let lit = ''
+      let closed = false
+      i += 1
+      while (i < fmt.length) {
+        if (fmt[i] === "'") {
+          if (fmt[i + 1] === "'") { lit += "'"; i += 2; continue }
+          closed = true; i += 1; break
+        }
+        lit += fmt[i]; i += 1
+      }
+      if (!closed) return null
+      out.push({ lit })
+    } else if (/[A-Za-z]/.test(ch)) {
+      let j = i
+      while (fmt[j] === ch) j += 1
+      const run = fmt.slice(i, j)
+      if (!FMT_RUNS[ch] || !FMT_RUNS[ch].includes(run)) return null
+      out.push({ f: run })
+      i = j
+    } else {
+      out.push({ lit: ch }); i += 1
+    }
+  }
+  return out
+}
+
+const FMT_FIELD = { y: 'year', M: 'month', d: 'dayofmonth', H: 'hour', m: 'minute', s: 'second' }
+function formatTimeNy(ms, fmt) {
+  if (!Number.isFinite(ms)) return ''
+  const toks = compileTimeFormat(fmt)
+  if (toks === null) throw new PineRuntimeError(`\`str.format_time\` does not read the pattern "${fmt}"`)
+  let o = ''
+  for (const t of toks) {
+    if (t.lit !== undefined) { o += t.lit; continue }
+    const v = instantField(FMT_FIELD[t.f[0]], ms, 'exchange')
+    if (!Number.isFinite(v)) return ''
+    if (t.f === 'yyyy') o += String(v).padStart(4, '0')
+    else if (t.f === 'yy') o += String(v % 100).padStart(2, '0')
+    else o += t.f.length === 2 ? String(v).padStart(2, '0') : String(v)
+  }
+  return o
+}
 
 /**
  * @typedef {object} TextFn
@@ -80,6 +191,37 @@ export const TEXT_FNS = Object.freeze({
     args: ['string', 'string'], returns: 'number', fn: (s, suf) => (s.endsWith(suf) ? 1 : 0),
   },
   'str.length': { args: ['string'], returns: 'number', fn: (s) => s.length },
+
+  // ── W4-T11: positions, parts and numbers over RUNTIME text ──
+  // `afterDoor: true` = added after master 685b5e91d7: the front end asks `objectDoorRefuses`
+  // before lowering it, so the C18 object door keeps master's answer (objectDoorGate.test.js).
+  // `variants` maps a GIVEN argument count below `args.length` to the entry that
+  // answers it (`WS_TEXT_FNS`): Pine's optional trailing arguments, one arity per
+  // entry because the VM checks arity against the declaration.
+  'str.substring': {
+    args: ['string', 'number', 'number'], returns: 'string', fn: substringOf,
+    afterDoor: true,
+    variants: { 2: 'str.substring/from' },
+  },
+  'str.replace': {
+    args: ['string', 'string', 'string', 'number'], returns: 'string', fn: replaceNth,
+    afterDoor: true,
+    variants: { 3: 'str.replace/first' },
+  },
+  'str.tonumber': { args: ['string'], returns: 'number', fn: toNumber, afterDoor: true },
+  'str.pos': { args: ['string', 'string'], returns: 'number', fn: posOf, afterDoor: true },
+})
+
+/** The shorter spellings of the optional-argument entries above, and the
+ *  exchange-zone `str.format_time` (the front end canonicalises its zone and pattern). */
+export const WS_TEXT_FNS = Object.freeze({
+  'str.substring/from': {
+    args: ['string', 'number'], returns: 'string', fn: (s, b) => substringOf(s, b, s.length),
+  },
+  'str.replace/first': {
+    args: ['string', 'string', 'string'], returns: 'string', fn: (s, t, r) => replaceNth(s, t, r, 0),
+  },
+  'str.format_time/ny': { args: ['number', 'string'], returns: 'string', fn: formatTimeNy },
 })
 
 /**
@@ -130,7 +272,7 @@ export const CLOCK_TEXT_FNS = Object.freeze({
 })
 
 /** Every text op the VM can execute: the shared table plus the run-only ones. */
-export const TEXT_IMPL = Object.freeze({ ...TEXT_FNS, ...RUN_TEXT_FNS, ...CLOCK_TEXT_FNS })
+export const TEXT_IMPL = Object.freeze({ ...TEXT_FNS, ...WS_TEXT_FNS, ...RUN_TEXT_FNS, ...CLOCK_TEXT_FNS })
 
 /** The names this lane serves, for the front end's admission check. */
 export const TEXT_NAMES = Object.freeze(Object.keys(TEXT_FNS))
@@ -139,4 +281,5 @@ export const TEXT_NAMES = Object.freeze(Object.keys(TEXT_FNS))
  *  returning a number composes with ordinary arithmetic and needs no text
  *  routing, while one returning a string must stay out of the columnar lane. */
 export const producesText = (name) => (
-  Object.prototype.hasOwnProperty.call(TEXT_FNS, name) && TEXT_FNS[name].returns === 'string')
+  name === 'str.format_time'
+  || (Object.prototype.hasOwnProperty.call(TEXT_FNS, name) && TEXT_FNS[name].returns === 'string'))

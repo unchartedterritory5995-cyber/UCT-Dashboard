@@ -48,6 +48,12 @@ export function boardRefusalSentence(count) {
   return fill(bound.refusal, count)
 }
 
+const REFUSAL_RE = new RegExp(bound.refusal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\{(?:max|count)\\\}/g, '\\d+'))
+/** The refusal sentence inside `text`, or null: how a writer that only has words says a board is full. */
+export function boardRefusalIn(text) {
+  return REFUSAL_RE.exec(String(text ?? ''))?.[0] ?? null
+}
+
 /** The sentence a refused layout open shows — `count` is the saved layout's size. */
 export function boardLayoutRefusalSentence(count) {
   return fill(bound.layoutRefusal, count)

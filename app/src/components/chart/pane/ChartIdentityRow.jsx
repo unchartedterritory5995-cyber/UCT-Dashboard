@@ -72,6 +72,9 @@ export default function ChartIdentityRow({
         // Dead ticker: a static badge in place of the (nonexistent) live day-change.
         <span
           className={styles.chartDayGain}
+          // Hook for an app-surface header (light /charts, popup, hub) to swap the inline
+          // gold below for its own surface's gold (ChartsWorkspace.module.css).
+          data-delisted=""
           style={{
             color: '#c9a84c',
             border: '1px solid rgba(201,168,76,0.45)',
@@ -98,7 +101,7 @@ export default function ChartIdentityRow({
           (0px) line plus a row gap, which the hub's fixed identity-row height had to hide. */}
       {hasRight && <div className={styles.headerTopRight}>
         {session?.mode === 'dwm' && (
-          <div className={styles.sessionToggle} role="group" aria-label="Chart session view">
+          <div className={styles.sessionToggle} role="group" aria-label="Chart session view" data-guide="chart.session">
             <button
               type="button"
               className={`${styles.sessionBtn} ${session.view === 'regular' ? styles.sessionBtnActive : ''}`}
@@ -115,7 +118,7 @@ export default function ChartIdentityRow({
           </div>
         )}
         {session?.mode === 'intraday' && (
-          <div className={styles.sessionToggle} role="group" aria-label="Chart extended hours">
+          <div className={styles.sessionToggle} role="group" aria-label="Chart extended hours" data-guide="chart.session">
             <button
               type="button"
               className={`${styles.sessionBtn} ${!session.extHoursOn ? styles.sessionBtnActive : ''}`}

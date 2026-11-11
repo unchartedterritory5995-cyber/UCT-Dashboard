@@ -1,15 +1,22 @@
-/* The "new in your Notebook" offer (wave 14, lane W14-C2). Portaled into Layout's in-flow
-   first-run slot, the same seat and visual idiom as the "Meet Compass" card
-   (FloatingOrb.module.css .coachmark): it takes page space and pushes the page down, so it
-   can never cover a control. ⛔ IN FLOW -- no position: fixed/absolute/sticky here; the
-   rail reads this file. Existing tokens only, no literal colour; the global
-   :focus-visible ring is the focus indicator. */
+/* The "new in your Notebook" offer (wave 14, lane W14-C2). Portaled into Layout's first-run slot.
+   VIS-4 (audit 2026-11-05, visual issue 11): it is a TOAST now, never in flow. In flow it arrived late
+   (about 18 s throttled) and pushed the whole page down 74 px on every visit until dismissed -- the
+   biggest share of the measured CLS (0.169 desktop, 0.220 phone). Fixed at the bottom-right on desktop,
+   above the voice orb's corner; a one-line chip at the bottom of a phone, clear of the floating "+".
+   It sits in the --z-toast layer and takes no page space, so its arrival moves nothing. Existing tokens
+   only, no literal colour; the global :focus-visible ring is the focus indicator. */
 .card {
+  position: fixed;
+  right: 24px;
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  z-index: var(--z-toast);
+  width: min(380px, calc(100vw - 48px));
+  box-shadow: var(--shadow-popover);
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 10px 14px;
-  margin: 12px 20px 0;
+  margin: 0;
   padding: 10px 12px 10px 14px;
   border: 1px solid var(--border-accent);
   border-left: 3px solid var(--ut-gold);
@@ -38,59 +45,39 @@
   flex: none;
   gap: 8px;
 }
-.accept,
-.later {
-  padding: 6px 14px;
-  border-radius: var(--radius-sm);
-  font: inherit;
-  cursor: pointer;
-}
-.accept {
-  border: 1px solid var(--ut-gold);
-  background: transparent;
-  color: var(--text-bright);
-  font-weight: 600;
-}
-.later {
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text-bright);
-}
-.accept:hover,
-.later:hover {
-  border-color: var(--ut-gold);
-}
-
+/* VIS-3 (audit 2026-11-05): the two actions are on the buttons.css roles (Take the tour secondary, Not now ghost);
+   the gold-outline `.accept` and the bespoke `.later` are retired. */
 /* The touch tier is <=1024px (phone AND tablet), never <=640 alone. */
 @media (max-width: 1024px) {
-  .accept,
-  .later {
+  .actions > button {
     min-height: var(--tap-min);
     min-width: var(--tap-min);
   }
 }
 @media (max-width: 640px) {
+  /* S12 + VIS-4 (V4): a one-line chip at the bottom, left of the floating "+" (NotebookPlusFab, 56 px at
+     right: 16px), so the first screen is notes, not an announcement. */
   .card {
-    margin: 10px 12px 0;
+    left: 12px;
+    right: 84px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    width: auto;
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 4px 6px 4px 10px;
   }
-  /* Finish pass (2026-10-10): on a phone the title says what is new and the two buttons say what
-     to do; the explanation line cost ~50 px of the first screen. It is still the card's
-     description for a screen reader: an element referenced DIRECTLY by aria-describedby counts
-     even when hidden (accname). `display: none`, not the usual clip pattern -- this file must stay
-     free of absolute positioning (TourOfferGate.test.jsx). */
+  .text { flex: 1 1 auto; }
+  .title {
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* The explanation line is still the card's description for a screen reader: an element referenced
+     DIRECTLY by aria-describedby counts even when hidden (accname). */
   .body { display: none; }
-  .actions {
-    flex: 1 1 100%;
-  }
-  .accept,
-  .later {
-    flex: 1 1 0;
-  }
-}
-/* Desktop: clear of the feedback "?" in the viewport's top-right corner, exactly as the
-   Compass card in the same slot does (FloatingOrb.module.css). */
-@media (min-width: 1025px) {
-  .card {
-    margin-right: 48px;
+  .actions { flex: none; gap: 6px; }
+  .actions > button {
+    padding: 0 10px;
   }
 }

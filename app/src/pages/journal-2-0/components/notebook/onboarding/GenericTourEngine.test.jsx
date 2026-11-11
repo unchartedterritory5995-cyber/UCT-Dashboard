@@ -165,7 +165,8 @@ describe('how it walks (same contract as the base engine)', () => {
   it('a missing anchor skips its step, after the bounded wait', async () => {
     render(<Page entry={TOUR_A} anchors={['anchor-a1']} stepWaitMs={150} />)
     await dialog()
-    expect(screen.getByText('Step 1 of 2')).toBeInTheDocument()
+    // S5 (B6): counted over the steps on screen when the tour opened.
+    expect(screen.getByText('Step 1 of 1')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     expect(screen.getByText('Looking for the next step…')).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())

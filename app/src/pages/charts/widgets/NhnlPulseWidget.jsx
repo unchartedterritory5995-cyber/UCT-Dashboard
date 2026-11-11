@@ -194,7 +194,7 @@ export default function NhnlPulseWidget({ opts, onOptsChange }) {
           ref={gearRef}
           type="button"
           className={`${chrome.gear} ${settingsOpen ? chrome.gearOn : ''}`}
-          onClick={() => setSettingsOpen(o => !o)}
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)}
           title="H/L Pulse settings"
           aria-label="H/L Pulse settings"
         >

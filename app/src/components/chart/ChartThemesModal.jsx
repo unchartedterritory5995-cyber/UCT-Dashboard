@@ -205,12 +205,13 @@ export default function ChartThemesModal({ open, onClose, onApply, canApplyAll =
 
         <div className={styles.footer}>
           <span className={styles.footLabel}>Apply to:</span>
-          <div className={styles.scopeSeg}>
+          <div className={styles.scopeSeg} data-guide="chartThemes.scope">
             <button type="button" className={`${styles.scopeBtn} ${effScope === 'one' ? styles.scopeOn : ''}`} onClick={() => setScope('one')}>{isWidget ? 'This widget' : 'This chart'}</button>
             {!isWidget && (
             <button
               type="button"
               className={`${styles.scopeBtn} ${effScope === 'all' ? styles.scopeOn : ''}`}
+              data-guide="chartThemes.scope.all"
               onClick={() => canApplyAll && setScope('all')}
               disabled={!canApplyAll}
               title={canApplyAll ? 'Apply the next pick to every chart in the layout' : 'Available on the Charts workspace'}
@@ -219,6 +220,7 @@ export default function ChartThemesModal({ open, onClose, onApply, canApplyAll =
             <button
               type="button"
               className={`${styles.scopeBtn} ${effScope === 'allwidgets' ? styles.scopeOn : ''}`}
+              data-guide="chartThemes.scope.allwidgets"
               onClick={() => canApplyAllWidgets && setScope('allwidgets')}
               disabled={!canApplyAllWidgets}
               title={canApplyAllWidgets ? 'Apply to every widget in the layout — watchlist, breadth, fundamentals, and the rest' : 'Available on the Charts workspace'}

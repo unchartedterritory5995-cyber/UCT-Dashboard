@@ -19,12 +19,25 @@ describe('ObsidianConnectModal', () => {
     expect(mintConnectCode).not.toHaveBeenCalled()
   })
 
-  it('is honest about what leaves the machine: markdown text yes, vault attachments no, never written back', async () => {
-    render(<ObsidianConnectModal open providerLabel="Obsidian" mintConnectCode={vi.fn()} onClose={() => {}} />)
+  it('is honest about what leaves the machine: markdown text and the images and files notes use, never written back', async () => {
+    render(<ObsidianConnectModal open providerLabel="Obsidian" attachments mintConnectCode={vi.fn()} onClose={() => {}} />)
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText(/markdown text of your notes/i)).toBeInTheDocument()
-    expect(within(dialog).getByText(/does not upload attachments or images/i)).toBeInTheDocument()
+    expect(within(dialog).getByText(/and the images and files your notes use/)).toBeInTheDocument()
+    expect(within(dialog).queryByText(/does not upload attachments/)).toBeNull()
     expect(within(dialog).getByText(/nothing is ever written back/i)).toBeInTheDocument()
+  })
+
+  // Final review I3: with the server's attachment switch OFF for this member (`/status`
+  // `obsidianAttachments` false, or absent), the text-only consent copy, word for word.
+  it('shows the text-only consent when attachments are off for the member', async () => {
+    for (const props of [{ attachments: false }, {}]) {
+      const { unmount } = render(<ObsidianConnectModal open providerLabel="Obsidian" {...props} mintConnectCode={vi.fn()} onClose={() => {}} />)
+      const dialog = await screen.findByRole('dialog')
+      expect(within(dialog).getByText(/It does not upload attachments or images stored in your\s+vault, and nothing is ever written back to your vault\./)).toBeInTheDocument()
+      expect(within(dialog).queryByText(/images and files your notes use/)).toBeNull()
+      unmount()
+    }
   })
 
   it('Generate code stays disabled until the consent checkbox is checked, and fires no request until then', async () => {

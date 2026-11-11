@@ -1,7 +1,7 @@
 // UCT Agent — Context & Awareness, Slice 1B: agent/deixis.js + the host's selection mapping.
 // End-to-end rails (real ChartsWorkspace + panel): pages/charts/ChartsWorkspace.thisChart.test.jsx.
 import { describe, it, expect } from 'vitest'
-import { pointsAtChart, resolveDeictic, screenDeicticOps } from './deixis'
+import { pointsAtChart, resolveDeictic, screenDeicticOps, screenUnnamedTargets, chartsNamedBy } from './deixis'
 import { buildChartSource } from './host'
 import { buildContext, getCapability, getTargetKind } from './capabilities'
 import { registerBuiltins } from './builtins'
@@ -72,7 +72,10 @@ describe('screenDeicticOps (model plans)', () => {
   const op = (target) => ({ action: 'chart.setTimeframe', target, args: { timeframe: 'W' } })
   it('a plan on another chart → asked; on the selected chart → passes; no deictic words → passes', () => {
     const { host } = makeHost({ selected: 'L' })
-    expect(screenDeicticOps({ host, ops: [op('R')], text: 'put this stock on weekly', getTargetKind, getCapability }).ask.text).toMatch(/^Did you mean .*\(NVDA\)\?$/)
+    expect(screenDeicticOps({ host, ops: [op('R')], text: 'make it weekly', getTargetKind, getCapability }).ask.text).toMatch(/^Did you mean .*\(NVDA\)\?$/)
+    // a true "this" with a click re-aims; the same plan with "the stock" is still asked about (AUDIT N1)
+    expect(screenDeicticOps({ host, ops: [op('R')], text: 'put the stock on weekly', getTargetKind, getCapability }).ask.text).toMatch(/^Did you mean .*\(NVDA\)\?$/)
+    expect(screenDeicticOps({ host, ops: [op('R')], text: 'put this stock on weekly', getTargetKind, getCapability }).aim[0].target).toBe('L')
     expect(screenDeicticOps({ host, ops: [op('L')], text: 'put this stock on weekly', getTargetKind, getCapability })).toBeNull()
     expect(screenDeicticOps({ host, ops: [op('R')], text: 'put the right one on weekly', getTargetKind, getCapability })).toBeNull()
   })
@@ -136,5 +139,58 @@ describe('chart qualifiers from live state', () => {
     expect(f.ops.map(o => [o.action, o.args])).toEqual([['chart.setTimeframe', { timeframe: 'W' }]])
     expect(f.target).toEqual({ qualifier: 'amd' })
     expect(fastParse('switch the qqq chart to weekly', { host })).toBeNull()
+  })
+})
+// AUTOTEST multi-chart-04 — "put SPY on the empty chart" asked which chart though the plan aimed at the one empty cell. A chart
+// is named by what it IS right now, so the gates and the fast path read the same qualifiers from the live board.
+describe('a chart named by its state or an indicator on it', () => {
+  const grid = (cells) => ({ charts: { list: () => cells, selected: () => cells.find(c => c.selected)?.ref || null } })
+  const cell = (ref, symbol, ids = [], extra = {}) => ({ ref, label: ref, symbol, tf: 'D', position: null, cs: { indicatorInstances: ids.map(defId => ({ defId })) }, ...extra })
+  const four = (over = {}) => [cell('g0', 'NVDA', ['rsi']), cell('g1', 'AMD'), cell('g2', 'TSLA'), cell('g3', null), ...(over.more || [])]
+  const scr = (host, ops, text) => screenDeicticOps({ host, ops, text, getTargetKind: () => ({ name: 'chart', list: () => host.charts.list() }), getCapability: () => ({ target: 'chart' }) })
+  const unn = (host, ops, text) => screenUnnamedTargets({ host, ops, text, getTargetKind: () => ({ name: 'chart', list: () => host.charts.list() }), getCapability: () => ({ target: 'chart' }) })
+  const put = (target) => [{ action: 'chart.setSymbol', target, args: { symbol: 'SPY' } }]
+
+  it.each(['put SPY on the empty chart', 'load SPY into the blank chart', 'SPY on the unused cell', 'use the vacant slot for SPY', 'the empty one gets SPY'])('%s', (t) => {
+    expect(chartQualifier(t, four())?.hits.map(c => c.ref)).toEqual(['g3'])
+    expect([...chartsNamedBy(t, four())]).toContain('g3')
+  })
+  it('the gates pass a plan on that cell, whichever gate reads the sentence', () => {
+    const host = grid(four())
+    expect(scr(host, put('g3'), 'put SPY on the empty chart')).toBeNull()
+    expect(unn(host, put('g3'), 'stick SPY in the empty one')).toBeNull()
+  })
+  it('it holds with another chart clicked: the words outrank the selection', () => {
+    const host = grid(four().map(c => (c.ref === 'g1' ? { ...c, selected: true } : c)))
+    expect(scr(host, put('g3'), 'put SPY on the empty chart')).toBeNull()
+  })
+  it('NEGATIVE: a plan aimed elsewhere is asked about, not obeyed', () => {
+    expect(scr(grid(four()), put('g0'), 'put SPY on the empty chart')?.ask).toBeTruthy()
+    expect(scr(grid(four()), put('g0'), 'stick SPY in the empty one')?.ask).toBeTruthy()
+  })
+  it('NEGATIVE: two empty cells name neither; no empty cell names none', () => {
+    const two = [...four(), cell('g4', '')]
+    expect(chartQualifier('put SPY on the empty chart', two)?.hits).toHaveLength(2)
+    expect([...chartsNamedBy('put SPY on the empty chart', two)]).toEqual([])
+    expect(scr(grid(two), put('g3'), 'put SPY on the empty chart')?.ask).toBeTruthy()
+    const full = four().filter(c => c.symbol)
+    expect(chartQualifier('put SPY on the empty chart', full)).toBeNull()
+  })
+  it('NEGATIVE: the word is an adjective of a chart only — an empty watchlist names no chart', () => {
+    expect(chartQualifier('add SPY to the empty watchlist', four())).toBeNull()
+    expect([...chartsNamedBy('add SPY to the empty watchlist', four())]).toEqual([])
+  })
+  it('an indicator on exactly one chart names it; on none or two it does not', () => {
+    expect(chartQualifier('make the rsi chart weekly', four())?.hits.map(c => c.ref)).toEqual(['g0'])
+    expect(chartQualifier('make the chart with RSI weekly', four())?.hits.map(c => c.ref)).toEqual(['g0'])
+    expect([...chartsNamedBy('make the one with the rsi weekly', four())]).toEqual(['g0'])
+    expect(chartQualifier('make the chart with MACD weekly', four())).toBeNull()
+    const both = [...four(), cell('g4', 'AAPL', ['rsi'])]
+    expect(chartQualifier('make the chart with RSI weekly', both)?.hits).toHaveLength(2)
+    expect([...chartsNamedBy('make the chart with RSI weekly', both)]).toEqual([])
+  })
+  it('a symbol still wins over the same letters as an indicator', () => {
+    const list = [cell('a', 'RSI'), cell('b', 'NVDA', ['rsi'])]
+    expect(chartQualifier('switch the rsi chart to weekly', list)?.hits.map(c => c.ref)).toEqual(['a'])
   })
 })

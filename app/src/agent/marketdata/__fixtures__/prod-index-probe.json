@@ -1,0 +1,8294 @@
+{
+ "_meta": {
+  "source": "GET https://uctintelligence.com/api/ticker-search (public, read-only)",
+  "fetched_at": "2026-11-02T17:11:32Z",
+  "limit": 50
+ },
+ "nvda": {
+  "all": [
+   {
+    "ticker": "NVDA",
+    "name": "Nvidia Corp",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "NVDACW",
+    "name": "Cboe NVIDIA Call Writing Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NVDADI",
+    "name": "Cboe NVIDIA Defined Income Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NVDAIO",
+    "name": "Cboe NVIDIA Income Only Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NVD",
+    "name": "GraniteShares ETF Trust GraniteShares 2x Short NVDA Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "NVDL",
+    "name": "GraniteShares ETF Trust GraniteShares 2x Long NVDA Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "NVDU",
+    "name": "Direxion Shares ETF Trust Direxion Daily NVDA Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "NVDY",
+    "name": "YieldMax NVDA Option Income Strategy ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NVDD",
+    "name": "Direxion Shares ETF Trust Direxion Daily NVDA Bear 1X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "NVDG",
+    "name": "Leverage Shares 2X Long NVDA Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "NVDS",
+    "name": "Investment Managers Series Trust II Tradr 1.5X Short NVDA Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "NVII",
+    "name": "REX NVDA Growth & Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "NVDW",
+    "name": "Roundhill NVDA WeeklyPay ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "NVDB",
+    "name": "ProShares Ultra NVDA",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NVIT",
+    "name": "YieldMax NVDA Performance & Distribution Target 25 ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "NVYY",
+    "name": "GraniteShares YieldBOOST NVDA ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ANV",
+    "name": "GraniteShares Autocallable NVDA ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "XVNV",
+    "name": "FT Vest NVDA & Target Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "DIPS",
+    "name": "YieldMax Short NVDA Option Income Strategy ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NYYY",
+    "name": "xETFs NVDA Daily Income ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NVC",
+    "name": "Corgi NVDA 2x Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "NVIB",
+    "name": "Direxion NVDA Defined Income Boost ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "NVDBIV",
+    "name": "ProShares Ultra NVDA Intraday Indicative Value",
+    "type": "index",
+    "exchange": "Index"
+   }
+  ],
+  "capped": false
+ },
+ "tsla": {
+  "all": [
+   {
+    "ticker": "TSLA",
+    "name": "Tesla, Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TSLACW",
+    "name": "Cboe Tesla Call Writing Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "TSLADI",
+    "name": "Cboe Tesla Defined Income Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "TSLAIO",
+    "name": "Cboe Tesla Income Only Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "TSLL",
+    "name": "Direxion Shares ETF Trust Direxion Daily TSLA Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TSLG",
+    "name": "Leverage Shares 2X Long TSLA Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TSLQ",
+    "name": "Investment Managers Series Trust II Tradr 2X Short TSLA Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TSDD",
+    "name": "GraniteShares ETF Trust GraniteShares 2x Short TSLA Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TSLR",
+    "name": "GraniteShares ETF Trust GraniteShares 2x Long TSLA Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TSLY",
+    "name": "YieldMax TSLA Option Income Strategy ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "TSLS",
+    "name": "Direxion Shares ETF Trust Direxion Daily TSLA Bear 1X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TSL",
+    "name": "GraniteShares 1.25x Long TSLA  Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TSLW",
+    "name": "Roundhill TSLA WeeklyPay ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "TSII",
+    "name": "REX TSLA Covered Call ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "ELOL",
+    "name": "Leverage Shares 100% TSLA AND 100% SPCX Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TSYY",
+    "name": "GraniteShares YieldBOOST TSLA ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CRSH",
+    "name": "YieldMax Short TSLA Option Income Strategy ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "XVTS",
+    "name": "FT Vest TSLA & Target Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "TSLI",
+    "name": "ProShares Ultra TSLA",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "TLA",
+    "name": "GraniteShares Autocallable TSLA ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TESL",
+    "name": "Simplify Volt TSLA Revolution ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "TEST",
+    "name": "YieldMax TSLA Performance & Distribution Target 25 ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "TSIB",
+    "name": "Direxion TSLA Defined Income Boost ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "TESC",
+    "name": "Corgi TSLA 2x Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "TYYY",
+    "name": "xETFs TSLA Daily Income ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "TSLIIV",
+    "name": "ProShares Ultra TSLA Intraday Indicative Value",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "TSLP",
+    "name": "Kurv Yield Premium Strategy Tesla (TSLA) ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   }
+  ],
+  "capped": false
+ },
+ "aapl": {
+  "all": [
+   {
+    "ticker": "AAPL",
+    "name": "Apple Inc.",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AAPLCW",
+    "name": "Cboe Apple Call Writing Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "AAPLDI",
+    "name": "Cboe Apple Defined Income Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "AAPLIO",
+    "name": "Cboe Apple Income Only Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "AAPD",
+    "name": "Direxion Shares ETF Trust Direxion Daily AAPL Bear 1X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AAPU",
+    "name": "Direxion Shares ETF Trust Direxion Daily AAPL Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "APLY",
+    "name": "YieldMax AAPL Option Income Strategy ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "AAPB",
+    "name": "GraniteShares ETF Trust GraniteShares 2x Long AAPL Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AAPW",
+    "name": "Roundhill AAPL WeeklyPay ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "XVAP",
+    "name": "FT Vest AAPL & Target Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "AAPE",
+    "name": "Leverage Shares 2X Long AAPL Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "IOSX",
+    "name": "Corgi AAPL 2x Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "AAPY",
+    "name": "Kurv Yield Premium Strategy Apple (AAPL) ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   }
+  ],
+  "capped": false
+ },
+ "msft": {
+  "all": [
+   {
+    "ticker": "MSFT",
+    "name": "Microsoft Corp",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "MSFTCW",
+    "name": "Cboe Microsoft Call Writing Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "MSFTDI",
+    "name": "Cboe Microsoft Defined Income Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "MSFTIO",
+    "name": "Cboe Microsoft Income Only Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "MSFU",
+    "name": "Direxion Shares ETF Trust Direxion Daily MSFT Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "MSFD",
+    "name": "Direxion Shares ETF Trust Direxion Daily MSFT Bear 1X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "MSFL",
+    "name": "GraniteShares 2x Long MSFT Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "MSFO",
+    "name": "YieldMax MSFT Option Income Strategy ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "MSFW",
+    "name": "Roundhill MSFT WeeklyPay ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "XVMS",
+    "name": "FT Vest MSFT & Target Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "MSFC",
+    "name": "Corgi MSFT 2x Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "MSFY",
+    "name": "Kurv Yield Premium Strategy Microsoft (MSFT) ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   }
+  ],
+  "capped": false
+ },
+ "amd": {
+  "all": [
+   {
+    "ticker": "AMD",
+    "name": "Advanced Micro Devices",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AMDL",
+    "name": "GraniteShares 2x Long AMD Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AMDY",
+    "name": "YieldMax AMD Option Income Strategy ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "AMDW",
+    "name": "Roundhill AMD WeeklyPay ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "AMDD",
+    "name": "Direxion Shares ETF Trust Direxion Daily AMD Bear 1X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AMDG",
+    "name": "Leverage Shares 2X Long AMD Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AMDC",
+    "name": "Corgi AMD 2x Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "DAMD",
+    "name": "Defiance Daily Target 2X Short AMD ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BAMD",
+    "name": "Brookstone Dividend Stock ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "MSBAMD",
+    "name": "Morningstar Europe Basic Materials Select 10 Equal Weight Decrement 50 Point GR EUR",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "MSBAMD5",
+    "name": "Morningstar Europe Basic Materials Select 10 Equal Weight Decrement 5 NR EUR",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "DOX",
+    "name": "Amdocs Limited",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AMUU",
+    "name": "Direxion Shares ETF Trust Direxion Daily AMD Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AMYY",
+    "name": "GraniteShares YieldBOOST AMD ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "XVAD",
+    "name": "FT Vest AMD & Target Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "CPT",
+    "name": "Camden Property Trust",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "CAC",
+    "name": "Camden National Corporation",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AMDA",
+    "name": "Amedica Corporation",
+    "type": "delisted",
+    "exchange": null
+   },
+   {
+    "ticker": "AMDI",
+    "name": "Amphitrite Digital Incorporated",
+    "type": "delisted",
+    "exchange": null
+   },
+   {
+    "ticker": "ADL",
+    "name": "AMDL INC",
+    "type": "delisted",
+    "exchange": null
+   }
+  ],
+  "capped": false
+ },
+ "brk.b": {
+  "all": [
+   {
+    "ticker": "BRK-B",
+    "name": "BERKSHIRE HATHAWAY Class B",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "BRKC",
+    "name": "YieldMax BRK.B Option Income Strategy ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   }
+  ],
+  "capped": false
+ },
+ "amzn": {
+  "all": [
+   {
+    "ticker": "AMZN",
+    "name": "Amazon.Com Inc",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AMZNCW",
+    "name": "Cboe Amazon Call Writing Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "AMZNDI",
+    "name": "Cboe Amazon Defined Income Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "AMZNIO",
+    "name": "Cboe Amazon Income Only Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "AMZD",
+    "name": "Direxion Shares ETF Trust Direxion Daily AMZN Bear 1X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AMZU",
+    "name": "Direxion Shares ETF Trust Direxion Daily AMZN Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AMZZ",
+    "name": "GraniteShares 2x Long AMZN Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AMZY",
+    "name": "YieldMax AMZN Option Income Strategy ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "AMZG",
+    "name": "Leverage Shares 2X Long AMZN Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "AMZO",
+    "name": "Tradr 2X Short AMZN Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "AMZW",
+    "name": "Roundhill AMZN WeeklyPay ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "XVAZ",
+    "name": "FT Vest AMZN & Target Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "AMAA",
+    "name": "Corgi AMZN 2x Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "AZYY",
+    "name": "GraniteShares YieldBoost AMZN ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "VXAZN",
+    "name": "Cboe Options on AMZN - Amazon Inc.",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "AMZP",
+    "name": "Kurv Yield Premium Strategy Amazon (AMZN) ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   }
+  ],
+  "capped": false
+ },
+ "nflx": {
+  "all": [
+   {
+    "ticker": "NFLX",
+    "name": "NetFlix Inc",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "NFXL",
+    "name": "Direxion Shares ETF Trust Direxion Daily NFLX Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "NFLU",
+    "name": "T-Rex 2X Long NFLX Daily Target ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "NFLY",
+    "name": "YieldMax NFLX Option Income Strategy ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NFLW",
+    "name": "Roundhill NFLX WeeklyPay ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "NFXS",
+    "name": "Direxion Shares ETF Trust Direxion Daily NFLX Bear 1X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "NFX",
+    "name": "Corgi NFLX 2x Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "NFLP",
+    "name": "Kurv Yield Premium Strategy Netflix (NFLX) ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   }
+  ],
+  "capped": false
+ },
+ "pltr": {
+  "all": [
+   {
+    "ticker": "PLTR",
+    "name": "Palantir Technologies Inc. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "PLTRCW",
+    "name": "Cboe Palantir Call Writing Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "PLTRDI",
+    "name": "Cboe Palantir Defined Income Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "PLTRIO",
+    "name": "Cboe Palantir Income Only Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "PLTD",
+    "name": "Direxion Shares ETF Trust Direxion Dailly PLTR Bear 1X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "PTIR",
+    "name": "GraniteShares 2x Long PLTR Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "PLTU",
+    "name": "Direxion Shares ETF Trust Direxion Daily PLTR Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "PLTZ",
+    "name": "Defiance Daily Target 2x Short PLTR ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "PLTW",
+    "name": "Roundhill PLTR WeeklyPay ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "PLTY",
+    "name": "YieldMax PLTR Option Income Strategy ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "PLTG",
+    "name": "Leverage Shares 2X Long PLTR Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "PLTA",
+    "name": "ProShares Ultra PLTR",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "XVPT",
+    "name": "FT Vest PLTR & Target Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "PLA",
+    "name": "GraniteShares Autocallable PLTR ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "PLTL",
+    "name": "Corgi PLTR 2x Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "PLYY",
+    "name": "GraniteShares YieldBOOST PLTR ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "PLIB",
+    "name": "Direxion PLTR Defined Income Boost ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "PLTAIV",
+    "name": "ProShares Ultra PLTR Intraday Indicative Value",
+    "type": "index",
+    "exchange": "Index"
+   }
+  ],
+  "capped": false
+ },
+ "intc": {
+  "all": [
+   {
+    "ticker": "INTC",
+    "name": "Intel Corp",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "DJINTCUN",
+    "name": "Dow Jones International Internet Index (USD) NTR",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "DJINTCUP",
+    "name": "Dow Jones International Internet Index (USD)",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "DJINTCUT",
+    "name": "Dow Jones International Internet Index (USD) TR",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "INTW",
+    "name": "GraniteShares 2x Long INTC Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "LINT",
+    "name": "Direxion Daily INTC Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "INYY",
+    "name": "YieldMax INTC Option Income Strategy ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "INT",
+    "name": "Corgi INTC 2x Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "ICG",
+    "name": "Intchains Group Limited American Depositary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   }
+  ],
+  "capped": false
+ },
+ "avgo": {
+  "all": [
+   {
+    "ticker": "AVGO",
+    "name": "Broadcom Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AVS",
+    "name": "Direxion Shares ETF Trust Direxion Daily AVGO Bear 1X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AVL",
+    "name": "Direxion Shares ETF Trust Direxion Daily AVGO Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AVGX",
+    "name": "Defiance Daily Target 2X Long AVGO ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AVGG",
+    "name": "Leverage Shares 2X Long AVGO Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AVGU",
+    "name": "GraniteShares 2x Long AVGO Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AVGW",
+    "name": "Roundhill AVGO WeeklyPay ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "AVGC",
+    "name": "Corgi AVGO 2x Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   }
+  ],
+  "capped": false
+ },
+ "smci": {
+  "all": [
+   {
+    "ticker": "SMCI",
+    "name": "Super Micro Computer, Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SMCIP",
+    "name": "Super Micro Computer, Inc. Depositary Shares representing a 1/20th Interest in a Share of 7% Series A Mandatory Convertible Preferred Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SMCX",
+    "name": "Defiance Daily Target 2X Long SMCI ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SMCZ",
+    "name": "Defiance Daily Target 2X Short SMCI ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SMCL",
+    "name": "GraniteShares 2x Long SMCI Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SMCY",
+    "name": "YieldMax SMCI Option Income Strategy ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "SMYY",
+    "name": "GraniteShares YieldBOOST SMCI ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SCA",
+    "name": "GraniteShares Autocallable SMCI ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SMCC",
+    "name": "Corgi SMCI 2x Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   }
+  ],
+  "capped": false
+ },
+ "crwd": {
+  "all": [
+   {
+    "ticker": "CRWD",
+    "name": "CrowdStrike Holdings, Inc. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CRWL",
+    "name": "GraniteShares 2x Long CRWD Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CRWC",
+    "name": "Corgi CRWD 2x Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   }
+  ],
+  "capped": false
+ },
+ "jpm": {
+  "all": [
+   {
+    "ticker": "JPM",
+    "name": "JPMorgan Chase & Co.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "JPMPD",
+    "name": "JPMorgan Chase & Co. Depositary Shares, each representing a 1/400th  interest in a share of 5.75% Non-Cumulative  Preferred Stock, Series DD",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "JPMPC",
+    "name": "JPMorgan Chase & Co. Depositary Shares, each representing a 1/400th interest in a share of 6.00% Non-Cumulative Preferred Stock, Series EE",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "JPMPK",
+    "name": "JPMorgan Chase & Co. Depositary Shares, each representing a 1/400th interest in a share of 4.55% Non-Cumulative Preferred Stock, Series JJ",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "JPMPL",
+    "name": "JPMorgan Chase & Co. Depositary Shares, each representing a 1/400th interest in a share of 4.625% Non-Cumulative Preferred Stock, Series LL",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "JPMPM",
+    "name": "JPMorgan Chase & Co. Depositary Shares, each representing a 1/400th interest in a share of 4.20% Non-Cumulative Preferred Stock, Series MM",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "JPMPJ",
+    "name": "JPMorgan Chase & Co. Depositary Shares, each representing a 1/400th interest in a share of JPMorgan Chase & Co. 4.75% Non-Cumulative Preferred Stock, Series GG",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "JPME",
+    "name": "JPMorgan Diversified Return US Mid Cap Equity ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JPMB",
+    "name": "JPMorgan USD Emerging Markets Sovereign Bond ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NQJPMC",
+    "name": "NASDAQ Japan Mid Cap Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQJPMCN",
+    "name": "NASDAQ Japan Mid Cap NTR Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQJPMCT",
+    "name": "NASDAQ Japan Mid Cap TR Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQDXJPMH",
+    "name": "NASDAQ AlphaDEX Japan Hedged USD",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQDMASPAXJPMC",
+    "name": "Nasdaq DM ASPA Ex Japan Mid Cap",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQDMASPAXJPMCN",
+    "name": "Nasdaq DM ASPA Ex Japan Mid Cap NTR",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQDMASPAXJPMCT",
+    "name": "Nasdaq DM ASPA Ex Japan Mid Cap TR",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "JPST",
+    "name": "JPMorgan Ultra-Short Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JEPI",
+    "name": "JPMorgan Equity Premium Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JMUB",
+    "name": "JPMorgan Municipal ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JCPB",
+    "name": "JPMorgan Core Plus Bond ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JMST",
+    "name": "JPMorgan Ultra-Short Municipal Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JPIE",
+    "name": "JPMorgan Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BBJP",
+    "name": "JPMorgan BetaBuilders Japan ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "JBND",
+    "name": "JPMorgan Active Bond ETF",
+    "type": "etf",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "JQUA",
+    "name": "JPMorgan U.S. Quality Factor ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BBCA",
+    "name": "JPMorgan BetaBuilders Canada ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "JAVA",
+    "name": "JPMorgan Active Value ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JGRO",
+    "name": "JPMorgan Active Growth ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JMTG",
+    "name": "JPMorgan Mortgage-Backed Securities ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BBUS",
+    "name": "JPMorgan BetaBuilders U.S. Equity ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "JIVE",
+    "name": "JPMorgan International Value ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "JIRE",
+    "name": "JPMorgan International Research Enhanced Equity ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JPLD",
+    "name": "JPMorgan Limited Duration Bond ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BBEU",
+    "name": "JPMorgan BetaBuilders Europe ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "JTEK",
+    "name": "JPMorgan U.S. Tech Leaders ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ROCQ",
+    "name": "JPMorgan Nasdaq Equity Premium Yield ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "HELO",
+    "name": "JPMorgan Hedged Equity Laddered Overlay ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BBAG",
+    "name": "JPMorgan BetaBuilders U.S. Aggregate Bond ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BBAX",
+    "name": "JPMorgan BetaBuilders Developed Asia Pacific-ex Japan ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "JPIB",
+    "name": "JPMorgan International Bond Opportunities ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JGLO",
+    "name": "JPMorgan Global Select Equity ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "JMOM",
+    "name": "JPMorgan U.S. Momentum Factor ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ROCY",
+    "name": "JPMorgan Equity Premium Yield ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "JSCP",
+    "name": "JPMorgan Short Duration Core Plus ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JMEE",
+    "name": "JPMorgan Small & Mid Cap Enhanced Equity ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JFLX",
+    "name": "JPMorgan Flexible Debt ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BBIN",
+    "name": "JPMorgan BetaBuilders International Equity ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "JCAL",
+    "name": "JPMorgan California Tax Free Bond ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JPRF",
+    "name": "JPMorgan Preferred and Income Securities ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JEMA",
+    "name": "JPMorgan ActiveBuilders Emerging Markets Equity ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   }
+  ],
+  "stock": [
+   {
+    "ticker": "JPM",
+    "name": "JPMorgan Chase & Co.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "JPMPD",
+    "name": "JPMorgan Chase & Co. Depositary Shares, each representing a 1/400th  interest in a share of 5.75% Non-Cumulative  Preferred Stock, Series DD",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "JPMPC",
+    "name": "JPMorgan Chase & Co. Depositary Shares, each representing a 1/400th interest in a share of 6.00% Non-Cumulative Preferred Stock, Series EE",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "JPMPK",
+    "name": "JPMorgan Chase & Co. Depositary Shares, each representing a 1/400th interest in a share of 4.55% Non-Cumulative Preferred Stock, Series JJ",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "JPMPL",
+    "name": "JPMorgan Chase & Co. Depositary Shares, each representing a 1/400th interest in a share of 4.625% Non-Cumulative Preferred Stock, Series LL",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "JPMPM",
+    "name": "JPMorgan Chase & Co. Depositary Shares, each representing a 1/400th interest in a share of 4.20% Non-Cumulative Preferred Stock, Series MM",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "JPMPJ",
+    "name": "JPMorgan Chase & Co. Depositary Shares, each representing a 1/400th interest in a share of JPMorgan Chase & Co. 4.75% Non-Cumulative Preferred Stock, Series GG",
+    "type": "stock",
+    "exchange": "NYSE"
+   }
+  ],
+  "etf": [
+   {
+    "ticker": "JPME",
+    "name": "JPMorgan Diversified Return US Mid Cap Equity ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JPMB",
+    "name": "JPMorgan USD Emerging Markets Sovereign Bond ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JPST",
+    "name": "JPMorgan Ultra-Short Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JEPI",
+    "name": "JPMorgan Equity Premium Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JMUB",
+    "name": "JPMorgan Municipal ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JCPB",
+    "name": "JPMorgan Core Plus Bond ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JMST",
+    "name": "JPMorgan Ultra-Short Municipal Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JPIE",
+    "name": "JPMorgan Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BBJP",
+    "name": "JPMorgan BetaBuilders Japan ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "JBND",
+    "name": "JPMorgan Active Bond ETF",
+    "type": "etf",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "JQUA",
+    "name": "JPMorgan U.S. Quality Factor ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BBCA",
+    "name": "JPMorgan BetaBuilders Canada ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "JAVA",
+    "name": "JPMorgan Active Value ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JGRO",
+    "name": "JPMorgan Active Growth ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JMTG",
+    "name": "JPMorgan Mortgage-Backed Securities ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BBUS",
+    "name": "JPMorgan BetaBuilders U.S. Equity ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "JIVE",
+    "name": "JPMorgan International Value ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "JIRE",
+    "name": "JPMorgan International Research Enhanced Equity ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JPLD",
+    "name": "JPMorgan Limited Duration Bond ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BBEU",
+    "name": "JPMorgan BetaBuilders Europe ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "JTEK",
+    "name": "JPMorgan U.S. Tech Leaders ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ROCQ",
+    "name": "JPMorgan Nasdaq Equity Premium Yield ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "HELO",
+    "name": "JPMorgan Hedged Equity Laddered Overlay ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BBAG",
+    "name": "JPMorgan BetaBuilders U.S. Aggregate Bond ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BBAX",
+    "name": "JPMorgan BetaBuilders Developed Asia Pacific-ex Japan ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "JPIB",
+    "name": "JPMorgan International Bond Opportunities ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JGLO",
+    "name": "JPMorgan Global Select Equity ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "JMOM",
+    "name": "JPMorgan U.S. Momentum Factor ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ROCY",
+    "name": "JPMorgan Equity Premium Yield ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "JSCP",
+    "name": "JPMorgan Short Duration Core Plus ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JMEE",
+    "name": "JPMorgan Small & Mid Cap Enhanced Equity ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JFLX",
+    "name": "JPMorgan Flexible Debt ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BBIN",
+    "name": "JPMorgan BetaBuilders International Equity ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "JCAL",
+    "name": "JPMorgan California Tax Free Bond ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JPRF",
+    "name": "JPMorgan Preferred and Income Securities ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JEMA",
+    "name": "JPMorgan ActiveBuilders Emerging Markets Equity ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "JMSI",
+    "name": "JPMorgan Sustainable Municipal Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JTNY",
+    "name": "JPMorgan New York Tax Free Bond ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JPEF",
+    "name": "JPMorgan Equity Focus ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "JMHI",
+    "name": "JPMorgan High Yield Municipal ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JVAL",
+    "name": "JPMorgan U.S. Value Factor ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JUSA",
+    "name": "JPMorgan U.S. Research Enhanced Large Cap ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BBRE",
+    "name": "JPMorgan BetaBuilders MSCI U.S. REIT ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BBHY",
+    "name": "JPMorgan BetaBuilders USD High Yield Corporate Bond ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BBEM",
+    "name": "JPMorgan BetaBuilders Emerging Markets Equity ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "JPHY",
+    "name": "JPMorgan Active High Yield ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JIG",
+    "name": "JPMorgan International Growth ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JCPI",
+    "name": "JPMorgan Inflation Managed Bond ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JMMF",
+    "name": "JPMorgan 100% U.S. Treasury Securities Money Market ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BBMC",
+    "name": "JPMorgan BetaBuilders U.S. Mid Cap Equity ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   }
+  ],
+  "capped": true
+ },
+ "xom": {
+  "all": [
+   {
+    "ticker": "XOM",
+    "name": "ExxonMobil Holdings Corporation",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "XOMX",
+    "name": "Direxion Shares ETF Trust Direxion Daily XOM Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "XOMO",
+    "name": "YieldMax XOM Option Income Strategy ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "XMTR",
+    "name": "Xometry, Inc. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "XOMA",
+    "name": "XOMA Royalty Corporation Common Stock",
+    "type": "delisted",
+    "exchange": null
+   },
+   {
+    "ticker": "XOMAO",
+    "name": "XOMA Royalty Corporation Depositary Shares Rep Series B 8.375% Cumulative Preferred Stock",
+    "type": "delisted",
+    "exchange": null
+   }
+  ],
+  "capped": false
+ },
+ "ibm": {
+  "all": [
+   {
+    "ticker": "IBM",
+    "name": "International Business Machines Corporation",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "IBMQ",
+    "name": "iShares iBonds Dec 2028 Term Muni Bond ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "IBMS",
+    "name": "iShares iBonds Dec 2030 Term Muni Bond ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "IBMR",
+    "name": "iShares iBonds Dec 2029 Term Muni Bond ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "IBMP",
+    "name": "iShares iBonds Dec 2027 Term Muni Bond ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "IBMT",
+    "name": "iShares iBonds Dec 2031 Term Muni Bond ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "IBMO",
+    "name": "iShares iBonds Dec 2026 Term Muni Bond ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "IBMU",
+    "name": "iShares iBonds Dec 2032 Term Muni Bond ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "IBMV",
+    "name": "iShares iBonds Dec 2033 Term Muni Bond ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "IBMX",
+    "name": "iShares iBonds Dec 2035 Term Muni Bond ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "IBMW",
+    "name": "iShares iBonds Dec 2034 Term Muni Bond ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "VXIBM",
+    "name": "Cboe Equity VIX on IBM",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "IBX",
+    "name": "Tradr 2X Long IBM Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "IBMW-2021",
+    "name": "International Business Machines Corporation",
+    "type": "delisted",
+    "exchange": null
+   }
+  ],
+  "capped": false
+ },
+ "gold": {
+  "all": [
+   {
+    "ticker": "GOLD",
+    "name": "Gold.com, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "GLD",
+    "name": "SPDR Gold Trust, SPDR Gold Shares",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GS",
+    "name": "Goldman Sachs Group Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "GDX",
+    "name": "VanEck Gold Miners ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GDXJ",
+    "name": "VanEck Junior Gold Miners ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "IAU",
+    "name": "iShares Gold Trust",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GLDM",
+    "name": "SPDR Gold MiniShares",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "KGC",
+    "name": "Kinross Gold Corporation",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "GDXU",
+    "name": "MicroSectors Gold Miners 3x Leveraged ETN",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "RGLD",
+    "name": "Royal Gold Inc",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "GFI",
+    "name": "Gold Fields Ltd ADR",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "IAUM",
+    "name": "iShares Gold Trust Micro",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "EQX",
+    "name": "Equinox Gold Corp.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "EGO",
+    "name": "Eldorado Gold Corporation",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "UGL",
+    "name": "ProShares Ultra Gold",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GPIQ",
+    "name": "Goldman Sachs ETF Trust Goldman Sachs Nasdaq-100 Premium Income ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AGI",
+    "name": "Alamos Gold Inc. Class A Common Shares",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "SGOL",
+    "name": "abrdn Physical Gold Shares ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "PHYS",
+    "name": "Sprott Physical Gold Trust",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NUGT",
+    "name": "Direxion Daily Gold Miners Index Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GBIL",
+    "name": "Goldman Sachs Access Treasury 0-1 Year ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GLL",
+    "name": "ProShares UltraShort Gold",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GPIX",
+    "name": "Goldman Sachs ETF Trust Goldman Sachs S&P 500 Premium Income ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "HMY",
+    "name": "Harmony Gold Mining Company Limited",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "AAAU",
+    "name": "Goldman Sachs Physical Gold ETF Shares",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "GDXD",
+    "name": "MicroSectors Gold Miners -3x Inverse Leveraged ETN",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "DUST",
+    "name": "Direxion Daily Gold Miners Index Bear 2X ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JNUG",
+    "name": "Direxion Daily Junior Gold Miners Index Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "RING",
+    "name": "iShares MSCI Global Gold Miners ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CEF",
+    "name": "Sprott Physical Gold and Silver Trust",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GSLC",
+    "name": "Goldman Sachs ActiveBeta U.S. Large Cap Equity ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "CGAU",
+    "name": "Centerra Gold Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "GMUB",
+    "name": "Goldman Sachs Municipal Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "OUNZ",
+    "name": "VanEck Merk Gold ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "AYA",
+    "name": "Aya Gold & Silver Inc. Common Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "JDST",
+    "name": "Direxion Daily Junior Gold Miners Index Bear 2X ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GSIE",
+    "name": "Goldman Sachs ActiveBeta International Equity ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ASM",
+    "name": "Avino Silver & Gold Mines Ltd. (Canada)",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "GSEW",
+    "name": "Goldman Sachs Equal Weight U.S. Large Cap Equity ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "SA",
+    "name": "Seabridge Gold, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "GSUS",
+    "name": "Goldman Sachs MarketBeta U.S. Equity ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "GSST",
+    "name": "Goldman Sachs Ultra Short Bond ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "USAS",
+    "name": "Americas Gold and Silver Corporation",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "DGP",
+    "name": "DB Gold Double Long ETN due February 15, 2038",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GLDI",
+    "name": "UBS AG ETRACS Gold Shares Covered Call ETNs due February 2, 2033",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "IAUX",
+    "name": "i-80 Gold Corp.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "GDE",
+    "name": "WisdomTree Efficient Gold Plus Equity Strategy Fund",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "IAUI",
+    "name": "NEOS Gold High Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BAR",
+    "name": "GraniteShares Gold Shares",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "AAUC",
+    "name": "Allied Gold Corporation",
+    "type": "stock",
+    "exchange": "NYSE"
+   }
+  ],
+  "stock": [
+   {
+    "ticker": "GOLD",
+    "name": "Gold.com, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "GS",
+    "name": "Goldman Sachs Group Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "KGC",
+    "name": "Kinross Gold Corporation",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "RGLD",
+    "name": "Royal Gold Inc",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "GFI",
+    "name": "Gold Fields Ltd ADR",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "EQX",
+    "name": "Equinox Gold Corp.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "EGO",
+    "name": "Eldorado Gold Corporation",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "AGI",
+    "name": "Alamos Gold Inc. Class A Common Shares",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "HMY",
+    "name": "Harmony Gold Mining Company Limited",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "CGAU",
+    "name": "Centerra Gold Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "AYA",
+    "name": "Aya Gold & Silver Inc. Common Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ASM",
+    "name": "Avino Silver & Gold Mines Ltd. (Canada)",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "SA",
+    "name": "Seabridge Gold, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "USAS",
+    "name": "Americas Gold and Silver Corporation",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "IAUX",
+    "name": "i-80 Gold Corp.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "AAUC",
+    "name": "Allied Gold Corporation",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "SHNY",
+    "name": "MicroSectors Gold 3x Leveraged ETN",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GSBD",
+    "name": "Goldman Sachs BDC, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "VGZ",
+    "name": "Vista Gold Corp.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "DC",
+    "name": "Dakota Gold Corp.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "GDXY",
+    "name": "YieldMax Gold Miners Option Income Strategy ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GAU",
+    "name": "Galiano Gold Inc.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "OGG",
+    "name": "Osisko Gold Group Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "CTGO",
+    "name": "Contango Silver & Gold Inc.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "GORO",
+    "name": "Goldgroup Mining Inc.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "GSPD",
+    "name": "Goldman Sachs Group, Inc. (Each representing 1/1000th Interest in a Share of Floating Rate Non-cumulative Preferred Stock Series D, $1.01 par value",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "GROY",
+    "name": "Gold Royalty Corp.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "TRX",
+    "name": "TRX Gold Corporation",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "WRN",
+    "name": "Western Copper and Gold Corporation",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "USAU",
+    "name": "U.S. Gold Corp. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "NFGC",
+    "name": "New Found Gold Corp",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "GSPA",
+    "name": "Goldman Sachs Group, Inc. (The) Depositary shares",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "USGO",
+    "name": "U.S. GoldMining Inc. Common stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "GLDG",
+    "name": "GoldMining Inc.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "GSPC",
+    "name": "Goldman Sachs Group Dep. Shares (1/1000 Int. of Floating Rate Non-Cum. Prfrd. Stk., Ser. C)",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "MINE",
+    "name": "Mayfair Gold Corp.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "DULL",
+    "name": "MicroSectors Gold -3x Inverse Leveraged ETN",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BGL",
+    "name": "Blue Gold Limited Class A Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "PZG",
+    "name": "Paramount Gold Nevada Corp.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "GSUN",
+    "name": "Golden Sun Technology Group Limited Class A Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "FURY",
+    "name": "Fury Gold Mines Limited",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "SGLD",
+    "name": "Scorpio Gold Corporation American Depositary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "GDHG",
+    "name": "Golden Heaven Group Holdings Ltd. Class A Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AUXX",
+    "name": "Gold X2 Mining Inc.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "GJS",
+    "name": "Synthetic Fixed-Income Securities STRATS 2006-2 Goldman Sachs Group",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "GGNPB",
+    "name": "GAMCO Global Gold Natural Resources & Income Trust 5.00% Series B",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "AUST",
+    "name": "Austin Gold Corp.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "JBK",
+    "name": "Lehman ABS Corp 3.50 Adj Corp Backed Tr Cert Goldman Cap I",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "GNTPA",
+    "name": "GAMCO Natural Resources, Gold & Income Trust 5.2 Percent Series A Cumulative Preferred Shares (Liquidation Preference $25.00 per share)",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "BGLWW",
+    "name": "Blue Gold Limited Warrant",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   }
+  ],
+  "etf": [
+   {
+    "ticker": "GLD",
+    "name": "SPDR Gold Trust, SPDR Gold Shares",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GDX",
+    "name": "VanEck Gold Miners ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GDXJ",
+    "name": "VanEck Junior Gold Miners ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "IAU",
+    "name": "iShares Gold Trust",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GLDM",
+    "name": "SPDR Gold MiniShares",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GDXU",
+    "name": "MicroSectors Gold Miners 3x Leveraged ETN",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "IAUM",
+    "name": "iShares Gold Trust Micro",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "UGL",
+    "name": "ProShares Ultra Gold",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GPIQ",
+    "name": "Goldman Sachs ETF Trust Goldman Sachs Nasdaq-100 Premium Income ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SGOL",
+    "name": "abrdn Physical Gold Shares ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "PHYS",
+    "name": "Sprott Physical Gold Trust",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NUGT",
+    "name": "Direxion Daily Gold Miners Index Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GBIL",
+    "name": "Goldman Sachs Access Treasury 0-1 Year ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GLL",
+    "name": "ProShares UltraShort Gold",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GPIX",
+    "name": "Goldman Sachs ETF Trust Goldman Sachs S&P 500 Premium Income ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AAAU",
+    "name": "Goldman Sachs Physical Gold ETF Shares",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "GDXD",
+    "name": "MicroSectors Gold Miners -3x Inverse Leveraged ETN",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "DUST",
+    "name": "Direxion Daily Gold Miners Index Bear 2X ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JNUG",
+    "name": "Direxion Daily Junior Gold Miners Index Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "RING",
+    "name": "iShares MSCI Global Gold Miners ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CEF",
+    "name": "Sprott Physical Gold and Silver Trust",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GSLC",
+    "name": "Goldman Sachs ActiveBeta U.S. Large Cap Equity ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GMUB",
+    "name": "Goldman Sachs Municipal Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "OUNZ",
+    "name": "VanEck Merk Gold ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "JDST",
+    "name": "Direxion Daily Junior Gold Miners Index Bear 2X ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GSIE",
+    "name": "Goldman Sachs ActiveBeta International Equity ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GSEW",
+    "name": "Goldman Sachs Equal Weight U.S. Large Cap Equity ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "GSUS",
+    "name": "Goldman Sachs MarketBeta U.S. Equity ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "GSST",
+    "name": "Goldman Sachs Ultra Short Bond ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "DGP",
+    "name": "DB Gold Double Long ETN due February 15, 2038",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GLDI",
+    "name": "UBS AG ETRACS Gold Shares Covered Call ETNs due February 2, 2033",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "GDE",
+    "name": "WisdomTree Efficient Gold Plus Equity Strategy Fund",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "IAUI",
+    "name": "NEOS Gold High Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BAR",
+    "name": "GraniteShares Gold Shares",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GEM",
+    "name": "Goldman Sachs ActiveBeta Emerging Markets Equity ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GCAL",
+    "name": "Goldman Sachs Dynamic California Municipal Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "IGLD",
+    "name": "FT Vest Gold Strategy Target Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "GIGB",
+    "name": "Goldman Sachs Access Investment Grade Corporate Bond ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GCOR",
+    "name": "Goldman Sachs Access U.S. Aggregate Bond ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GUSE",
+    "name": "Goldman Sachs Enhanced U.S. Equity ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "GSWO",
+    "name": "Goldman Sachs ActiveBeta World Equity ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "SGDJ",
+    "name": "Sprott Junior Gold Miners ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GDMN",
+    "name": "WisdomTree Efficient Gold Plus Gold Miners Strategy Fund",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "GSID",
+    "name": "Goldman Sachs MarketBeta International Equity ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "KGLD",
+    "name": "Kurv Gold Enhanced Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "UGLD",
+    "name": "DIREXION DAILY GOLD BULL 2X ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GUMI",
+    "name": "Goldman Sachs Ultra Short Municipal Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GBND",
+    "name": "Goldman Sachs Core Bond ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GDXW",
+    "name": "Roundhill Gold Miners WeeklyPay ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "GGN",
+    "name": "GAMCO Global Gold, Natural Resources & Income Trust",
+    "type": "etf",
+    "exchange": "NYSE American"
+   }
+  ],
+  "capped": true
+ },
+ "dow": {
+  "all": [
+   {
+    "ticker": "DOW",
+    "name": "Dow Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "UDOW",
+    "name": "ProShares UltraPro Dow 30",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "SDOW",
+    "name": "ProShares UltraPro Short Dow 30",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NDOW",
+    "name": "Anydrus Advantage ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "EDOW",
+    "name": "First Trust Dow 30 Equal Weight ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GDOW",
+    "name": "The Global Dow (USD)",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "A1DOW",
+    "name": "Dow Jones Americas Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "ATDOW",
+    "name": "Dow Jones Austria Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "BEDOW",
+    "name": "Dow Jones Belgium Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "CADOW",
+    "name": "Dow Jones Canada Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "CHDOW",
+    "name": "Dow Jones Switzerland Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "CLDOW",
+    "name": "Dow Jones Chile Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "DEDOW",
+    "name": "Dow Jones Germany Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "DKDOW",
+    "name": "Dow Jones Denmark Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "E1DOW",
+    "name": "Dow Jones Europe Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "E2DOW",
+    "name": "Dow Jones Europe ex-U.K. Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "E3DOW",
+    "name": "Dow Jones Europe - Nordic Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "ENDOW",
+    "name": "Endowment Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "ESDOW",
+    "name": "Dow Jones Spain Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "FIDOW",
+    "name": "Dow Jones Finland Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "FRDOW",
+    "name": "Dow Jones France Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GBDOW",
+    "name": "Dow Jones U.K. Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GDOWE",
+    "name": "The Global Dow (EUR)",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GRDOW",
+    "name": "Dow Jones Greece Index (EUR)",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "HKDOW",
+    "name": "Dow Jones Hong Kong Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "IDDOW",
+    "name": "Dow Jones Indonesia Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "IEDOW",
+    "name": "Dow Jones Ireland Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "ITDOW",
+    "name": "Dow Jones Italy Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "JPDOW",
+    "name": "Dow Jones Japan Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "KRDOW",
+    "name": "Dow Jones South Korea Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "MXDOW",
+    "name": "Dow Jones Mexico Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "MYDOW",
+    "name": "Dow Jones Malaysia Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NLDOW",
+    "name": "Dow Jones Netherlands Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NODOW",
+    "name": "Dow Jones Norway Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NZDOW",
+    "name": "Dow Jones New Zealand Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "PHDOW",
+    "name": "Dow Jones Philippines Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "PTDOW",
+    "name": "Dow Jones Portugal Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "SEDOW",
+    "name": "Dow Jones Sweden Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "SGDOW",
+    "name": "Dow Jones Singapore Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "TWDOW",
+    "name": "Dow Jones Taiwan Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "W1DOW",
+    "name": "Dow Jones Global Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "W2DOW",
+    "name": "Dow Jones Global ex-U.S. Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "ZADOW",
+    "name": "Dow Jones South Africa Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "ATDOWD",
+    "name": "Dow Jones Austria Index (USD)",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "AUDOWD",
+    "name": "Dow Jones Australia Index (USD)",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "BEDOWD",
+    "name": "Dow Jones Belgium Index (USD)",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "CADOWD",
+    "name": "Dow Jones Canada Index (USD)",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "CHDOWD",
+    "name": "Dow Jones Switzerland Index (USD)",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "CLDOWD",
+    "name": "Dow Jones Chile Index (USD)",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "DEDOWD",
+    "name": "Dow Jones Germany Index (USD)",
+    "type": "index",
+    "exchange": "Index"
+   }
+  ],
+  "stock": [
+   {
+    "ticker": "DOW",
+    "name": "Dow Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "CHDN",
+    "name": "Churchill Downs Inc",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "DDI",
+    "name": "DoubleDown Interactive Co., Ltd. American Depository Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   }
+  ],
+  "etf": [
+   {
+    "ticker": "UDOW",
+    "name": "ProShares UltraPro Dow 30",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "SDOW",
+    "name": "ProShares UltraPro Short Dow 30",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NDOW",
+    "name": "Anydrus Advantage ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "EDOW",
+    "name": "First Trust Dow 30 Equal Weight ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "DIA",
+    "name": "State Street SPDR Dow Jones Industrial Average ETF Trust",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "DOG",
+    "name": "ProShares Short Dow30",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "DXD",
+    "name": "ProShares UltraShort Dow 30",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "FDN",
+    "name": "First Trust Dow Jones Internet Index Fund ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "RWR",
+    "name": "State Street SPDR Dow Jones REIT ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "DDM",
+    "name": "ProShares Ultra Dow30",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "FGD",
+    "name": "First Trust Dow Jones Global Select Dividend Index Fund",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "RWO",
+    "name": "State Street SPDR Dow Jones Global Real Estate ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "IYY",
+    "name": "iShares Dow Jones U.S. ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "SPSK",
+    "name": "SP Funds Dow Jones Global Sukuk ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "DJD",
+    "name": "Invesco Dow Jones Industrial Average Dividend ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "DJIA",
+    "name": "Global X Dow 30 Covered Call ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "UMMA",
+    "name": "Wahed Dow Jones Islamic World ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "DGT",
+    "name": "State Street SPDR Global Dow ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "WEBL",
+    "name": "Direxion Daily Dow Jones Internet Bull 3X ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "RWX",
+    "name": "State Street SPDR Dow Jones International Real Estate ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "SPD",
+    "name": "Simplify US Equity PLUS Downside Convexity ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "FDM",
+    "name": "First Trust Dow Jones Select MicroCap Index Fund",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "WEBS",
+    "name": "Direxion Daily Dow Jones Internet Bear 3X ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GYLD",
+    "name": "Arrow Dow Jones Global Yield ETF",
+    "type": "etf",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "PHDG",
+    "name": "Invesco S&P 500 Downside Hedged ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "FDND",
+    "name": "FT Vest Dow Jones Internet & Target Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "FDNI",
+    "name": "First Trust Dow Jones International Internet ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "DYLG",
+    "name": "Global X Dow 30\u00a0Covered Call & Growth ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ENDW",
+    "name": "Cambria Endowment Style ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "UCBG",
+    "name": "State Street SPDR UC Investments 90/10 Endowment Strategy Index ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "TDSC",
+    "name": "Exchange Listed Funds Trust ETC Cabana Target Drawdown 10 ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   }
+  ],
+  "capped": false
+ },
+ "meta": {
+  "all": [
+   {
+    "ticker": "META",
+    "name": "Meta Platforms, Inc. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "METAM",
+    "name": "Meta Platforms, Inc. Depositary Shares representing a 1/20th Interest in a Share of Series A Mandatory Convertible Preferred Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "METAL",
+    "name": "Nasdaq Sprott Energy Transition Materials Select Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "METACW",
+    "name": "Cboe META Call Writing Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "METADI",
+    "name": "Cboe Meta Defined Income Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "METAIO",
+    "name": "Cboe META Income Only Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "METALA",
+    "name": "Nasdaq Sprott Energy Transition Materials Select AUD Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "METALNR",
+    "name": "Nasdaq Sprott Energy Transition Materials Select Net Total Return Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "METALTR",
+    "name": "Nasdaq Sprott Energy Transition Materials Select Total Return Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "METALANR",
+    "name": "Nasdaq Sprott Energy Transition Materials Select Net Total Return AUD Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "METALATR",
+    "name": "Nasdaq Sprott Energy Transition Materials Select Total Return AUD Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "METALEUR",
+    "name": "Nasdaq Sprott Critical Minerals Select EUR Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "METALEURN",
+    "name": "Nasdaq Sprott Critical Minerals Select EUR Net Total Return Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "METALEURT",
+    "name": "Nasdaq Sprott Critical Minerals Select EUR Total Return Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "METALEURN3D",
+    "name": "Nasdaq Sprott Critical Minerals Select EUR Net Total Return 3% Decrement Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "METALEURN4D",
+    "name": "Nasdaq Sprott Critical Minerals Select EUR Net Total Return 4% Decrement Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "METALEURN5D",
+    "name": "Nasdaq Sprott Critical Minerals Select EUR Net Total Return 5% Decrement Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NYMETA",
+    "name": "Nasdaq Yewno Metaverse Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NYMETAN",
+    "name": "Nasdaq Yewno Metaverse Net Total Return Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NYMETAT",
+    "name": "Nasdaq Yewno Metaverse Total Return Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "WPM",
+    "name": "Wheaton Precious Metals Corp. Common Stock",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "XME",
+    "name": "State Street SPDR S&P Metals & Mining ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "METU",
+    "name": "Direxion Shares ETF Trust Direxion Daily META Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CMC",
+    "name": "Commercial Metals Company",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "REMX",
+    "name": "VanEck Rare Earth and Strategic Metals ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "CRML",
+    "name": "Critical Metals Corp. Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AMR",
+    "name": "Alpha Metallurgical Resources, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "PICK",
+    "name": "iShares MSCI Global Metals & Mining Producers ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "TGB",
+    "name": "Trekor Metals Limited",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "SVM",
+    "name": "Silvercorp Metals Inc. Common Shares",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "FBL",
+    "name": "GraniteShares ETF Trust GraniteShares 2x Long META Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TMC",
+    "name": "TMC the metals company Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TFPM",
+    "name": "Triple Flag Precious Metals Corp.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "AMBP",
+    "name": "Ardagh Metal Packaging S.A.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "GLTR",
+    "name": "abrdn Physical Precious Metals Basket Shares ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "METD",
+    "name": "Direxion Shares ETF Trust Direxion Daily META Bear 1X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "METQ",
+    "name": "Tradr 2X Short META Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "SLVP",
+    "name": "iShares MSCI Global Silver and Metals Miners ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "MTUS",
+    "name": "Metallus Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "QDPL",
+    "name": "Pacer Metaurus US Large Cap Dividend Multiplier 400 ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NEWP",
+    "name": "New Pacific Metals Corp.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "DBB",
+    "name": "Invesco DB Base Metals Fund",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ICOP",
+    "name": "iShares Copper and Metals Mining ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TMQ",
+    "name": "Trilogy Metals Inc",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "MTA",
+    "name": "Metalla Royalty & Streaming Ltd.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "APXC",
+    "name": "Apex Critical Metals Corp. American Depositary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "GMTL",
+    "name": "Guardian Metal Resources PLC American Depositary Shares, each representing five (5) ordinary shares",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "LZM",
+    "name": "Lifezone Metals Limited",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "EMAT",
+    "name": "Evolution Metals & Technologies Corp. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ASA",
+    "name": "ASA GOLD AND PRECIOUS METALS LIMITED",
+    "type": "etf",
+    "exchange": "NYSE"
+   }
+  ],
+  "stock": [
+   {
+    "ticker": "META",
+    "name": "Meta Platforms, Inc. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "METAM",
+    "name": "Meta Platforms, Inc. Depositary Shares representing a 1/20th Interest in a Share of Series A Mandatory Convertible Preferred Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "WPM",
+    "name": "Wheaton Precious Metals Corp. Common Stock",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "CMC",
+    "name": "Commercial Metals Company",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "CRML",
+    "name": "Critical Metals Corp. Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AMR",
+    "name": "Alpha Metallurgical Resources, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "TGB",
+    "name": "Trekor Metals Limited",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "SVM",
+    "name": "Silvercorp Metals Inc. Common Shares",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "TMC",
+    "name": "TMC the metals company Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TFPM",
+    "name": "Triple Flag Precious Metals Corp.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "AMBP",
+    "name": "Ardagh Metal Packaging S.A.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "MTUS",
+    "name": "Metallus Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "NEWP",
+    "name": "New Pacific Metals Corp.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "TMQ",
+    "name": "Trilogy Metals Inc",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "MTA",
+    "name": "Metalla Royalty & Streaming Ltd.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "APXC",
+    "name": "Apex Critical Metals Corp. American Depositary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "GMTL",
+    "name": "Guardian Metal Resources PLC American Depositary Shares, each representing five (5) ordinary shares",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "LZM",
+    "name": "Lifezone Metals Limited",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "EMAT",
+    "name": "Evolution Metals & Technologies Corp. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "BMMX",
+    "name": "Black Mammoth Metals Corporation Common Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "FBY",
+    "name": "YieldMax META Option Income Strategy ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "PLG",
+    "name": "Platinum Group Metals LTD.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "BMM",
+    "name": "Blue Moon Metals Inc. Common Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "FDMM",
+    "name": "Freedom Metals Acquisition Corp. Class A Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "MTAL",
+    "name": "Metals Acquisition Corp. II",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "TMCR",
+    "name": "The Metals Royalty Company Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "MGX",
+    "name": "Metagenomi Therapeutics, Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "MTVA",
+    "name": "MetaVia Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AQMS",
+    "name": "Aqua Metals, Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CRMLW",
+    "name": "Critical Metals Corp. Warrants",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "MATH",
+    "name": "Metalpha Technology Holding Limited Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "FDMMU",
+    "name": "Freedom Metals Acquisition Corp. Units",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "FDMMW",
+    "name": "Freedom Metals Acquisition Corp. Warrants",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "LZM-WS",
+    "name": "Lifezone Metals Limited Warrants, each whole warrant exercisable for one Ordinary Share at an exercise price of $11.50",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "MTAL-U",
+    "name": "Metals Acquisition Corp. II Units, each consisting of one Class A ordinary share and one-third of one redeemable warrant",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "MTAL-WS",
+    "name": "Metals Acquisition Corp. II Warrants, each whole warrant exercisable for one Class A ordinary share at an exercise price of $11.50 per share",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "KMT",
+    "name": "Kennametal Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "NEXM",
+    "name": "NexMetals Mining Corp. Common Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   }
+  ],
+  "etf": [
+   {
+    "ticker": "XME",
+    "name": "State Street SPDR S&P Metals & Mining ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "METU",
+    "name": "Direxion Shares ETF Trust Direxion Daily META Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "REMX",
+    "name": "VanEck Rare Earth and Strategic Metals ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "PICK",
+    "name": "iShares MSCI Global Metals & Mining Producers ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "FBL",
+    "name": "GraniteShares ETF Trust GraniteShares 2x Long META Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "GLTR",
+    "name": "abrdn Physical Precious Metals Basket Shares ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "METD",
+    "name": "Direxion Shares ETF Trust Direxion Daily META Bear 1X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "METQ",
+    "name": "Tradr 2X Short META Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "SLVP",
+    "name": "iShares MSCI Global Silver and Metals Miners ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "QDPL",
+    "name": "Pacer Metaurus US Large Cap Dividend Multiplier 400 ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "DBB",
+    "name": "Invesco DB Base Metals Fund",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ICOP",
+    "name": "iShares Copper and Metals Mining ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ASA",
+    "name": "ASA GOLD AND PRECIOUS METALS LIMITED",
+    "type": "etf",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "METG",
+    "name": "Leverage Shares 2X Long META Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "METV",
+    "name": "Roundhill Metaverse ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "DBP",
+    "name": "Invesco DB Precious Metals Fund",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GOAU",
+    "name": "US Global GO Gold and Precious Metal Miners ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "METW",
+    "name": "Roundhill META WeeklyPay ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "METL",
+    "name": "Sprott Active Metals & Miners ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "FMTL",
+    "name": "First Trust Indxx Critical Metals ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "FMET",
+    "name": "Fidelity Metaverse ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "YSAU",
+    "name": "Texas Precious Metals Trust Y'all Street Physical Gold ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "WDIG",
+    "name": "WisdomTree Efficient Rare Earth Plus Strategic Metals Fund",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "XVMT",
+    "name": "FT Vest META & Target Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "ACBE",
+    "name": "Pacer Metaurus Enhanced Core Income Autocallable ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "EMET",
+    "name": "VanEck Copper and Electrification Metals ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ISTM",
+    "name": "iShares U.S. ETF Trust iShares Strategic Metals ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "MINY",
+    "name": "YieldMax Strategic Metals & Mining Portfolio Option Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ION",
+    "name": "ProShares S&P Global Core Battery Metals ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "YSAG",
+    "name": "Texas Precious Metals Trust Y'all Street Physical Silver ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "BEGS",
+    "name": "Rareview 2x Bull Cryptocurrency & Precious Metals ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "ACBH",
+    "name": "Pacer Metaurus High Income Autocallable ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "PMTL",
+    "name": "First Trust Indxx Quality Precious Metals Miners ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "QSIX",
+    "name": "Pacer Metaurus Nasdaq 100 Dividend Multiplier 600 ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ARVR",
+    "name": "First Trust Indxx Metaverse ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "EVMT",
+    "name": "Invesco Electric Vehicle Metals Commodity Strategy No K-1 ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "FBYY",
+    "name": "GraniteShares YieldBOOST META ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "MEIB",
+    "name": "Direxion META Defined Income Boost ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "MTAW",
+    "name": "Meta AI Lab Ecosystem ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "FBX",
+    "name": "Corgi META 2x Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   }
+  ],
+  "capped": false
+ },
+ "key": {
+  "all": [
+   {
+    "ticker": "KEY",
+    "name": "KeyCorp",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "KEYS",
+    "name": "Keysight Technologies, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "KEYPI",
+    "name": "KeyCorp Depositary Shares each representing a 1/40th ownership interest in a share of Fixed-to-Floating Rate Perpetual Non-Cumulative Preferred Stock, Series E",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "KEYPK",
+    "name": "KeyCorp Depositary Shares, each representing a 1/40th ownership interest in a share of Fixed Rate Perpetual Non-Cumulative Preferred Stock, Series G",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "KEYPJ",
+    "name": "KeyCorp Depositary Shares each representing a 1/40th ownership interest in a share of Fixed Rate Perpetual Non-Cumulative Preferred Stock, Series F",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "KEYPL",
+    "name": "KeyCorp Depositary Shares each representing a 1/40th ownership interest in a share of Fixed Rate Perpetual Non-Cumulative Preferred Stock, Series H",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "KEYY",
+    "name": "Keystone Acquisition Corp. Class A Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "KEYG",
+    "name": "Leverage Shares 2X Long KEYS Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "KEYYW",
+    "name": "Keystone Acquisition Corp. Warrants",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "KEYYU",
+    "name": "Keystone Acquisition Corp. Unit",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "KEYX",
+    "name": "Corgi KEYS 2x Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "KTCC",
+    "name": "KEY Tronic Corp",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "HLI",
+    "name": "Houlihan Lokey, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "BKYI",
+    "name": "BIO-key International, Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "HAWK",
+    "name": "HawkEye 360, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "TUR",
+    "name": "iShares MSCI Turkey ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "NQTR",
+    "name": "NASDAQ Turkey Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "TR20",
+    "name": "Dow Jones Turkey Titans 20 Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTRN",
+    "name": "NASDAQ Turkey NTR Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTRT",
+    "name": "NASDAQ Turkey TR Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "TR20D",
+    "name": "Dow Jones Turkey Titans 20 Index (USD)",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "TR20E",
+    "name": "Dow Jones Turkey Titans 20 Index (EUR)",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "DJIMTR",
+    "name": "Dow Jones Islamic Market Turkey Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR30",
+    "name": "NASDAQ Turkey Financials Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR40",
+    "name": "Nasdaq Turkey Consumer Discretionary Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR45",
+    "name": "Nasdaq Turkey Consumer Staples Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR50",
+    "name": "Nasdaq Turkey Industrials Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR55",
+    "name": "Nasdaq Turkey Basic Materials Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR60",
+    "name": "Nasdaq Turkey Energy Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR65",
+    "name": "NASDAQ Turkey Utilities Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTRLC",
+    "name": "NASDAQ Turkey Large Cap Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTRLM",
+    "name": "NASDAQ Turkey Large Mid Cap Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTRMC",
+    "name": "NASDAQ Turkey Mid Cap Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTRSC",
+    "name": "NASDAQ Turkey Small Cap Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "TR20DT",
+    "name": "Dow Jones Turkey Titans 20 Total Return Index (USD)",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR30N",
+    "name": "NASDAQ Turkey Financials NTR Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR30T",
+    "name": "NASDAQ Turkey Financials TR Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR35T",
+    "name": "Nasdaq Turkey Real Estate Total Return Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR40N",
+    "name": "Nasdaq Turkey Consumer Discretionary NTR Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR40T",
+    "name": "Nasdaq Turkey Consumer Discretionary TR Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR45N",
+    "name": "Nasdaq Turkey Consumer Staples NTR Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR45T",
+    "name": "Nasdaq Turkey Consumer Staples TR Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR50N",
+    "name": "Nasdaq Turkey Industrials NTR Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR50T",
+    "name": "Nasdaq Turkey Industrials TR Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR55N",
+    "name": "Nasdaq Turkey Basic Materials NTR Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR55T",
+    "name": "Nasdaq Turkey Basic Materials TR Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR60N",
+    "name": "Nasdaq Turkey Energy NTR Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR60T",
+    "name": "Nasdaq Turkey Energy TR Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR65N",
+    "name": "NASDAQ Turkey Utilities NTR Ind",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQTR65T",
+    "name": "NASDAQ Turkey Utilities TR Inde",
+    "type": "index",
+    "exchange": "Index"
+   }
+  ],
+  "stock": [
+   {
+    "ticker": "KEY",
+    "name": "KeyCorp",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "KEYS",
+    "name": "Keysight Technologies, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "KEYPI",
+    "name": "KeyCorp Depositary Shares each representing a 1/40th ownership interest in a share of Fixed-to-Floating Rate Perpetual Non-Cumulative Preferred Stock, Series E",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "KEYPK",
+    "name": "KeyCorp Depositary Shares, each representing a 1/40th ownership interest in a share of Fixed Rate Perpetual Non-Cumulative Preferred Stock, Series G",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "KEYPJ",
+    "name": "KeyCorp Depositary Shares each representing a 1/40th ownership interest in a share of Fixed Rate Perpetual Non-Cumulative Preferred Stock, Series F",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "KEYPL",
+    "name": "KeyCorp Depositary Shares each representing a 1/40th ownership interest in a share of Fixed Rate Perpetual Non-Cumulative Preferred Stock, Series H",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "KEYY",
+    "name": "Keystone Acquisition Corp. Class A Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "KEYYW",
+    "name": "Keystone Acquisition Corp. Warrants",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "KEYYU",
+    "name": "Keystone Acquisition Corp. Unit",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "KTCC",
+    "name": "KEY Tronic Corp",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "HLI",
+    "name": "Houlihan Lokey, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "BKYI",
+    "name": "BIO-key International, Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "HAWK",
+    "name": "HawkEye 360, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   }
+  ],
+  "etf": [
+   {
+    "ticker": "KEYG",
+    "name": "Leverage Shares 2X Long KEYS Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "KEYX",
+    "name": "Corgi KEYS 2x Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "TUR",
+    "name": "iShares MSCI Turkey ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   }
+  ],
+  "capped": false
+ },
+ "coin": {
+  "all": [
+   {
+    "ticker": "COIN",
+    "name": "Coinbase Global, Inc. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CONL",
+    "name": "GraniteShares ETF Trust GraniteShares 2x Long COIN Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "WGMI",
+    "name": "CoinShares ETF Trust CoinShares Bitcoin Mining and Digital Power ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CONY",
+    "name": "YieldMax COIN Option Income Strategy ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "CONI",
+    "name": "GraniteShares ETF Trust GraniteShares 2x Short COIN Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "COIW",
+    "name": "Roundhill COIN WeeklyPay ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "CSHR",
+    "name": "CoinShares PLC Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "FIAT",
+    "name": "YieldMax Short COIN Option Income Strategy ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BRRR",
+    "name": "Coinshares Bitcoin ETF Common Shares of Beneficial Interest",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "GDLC",
+    "name": "Grayscale CoinDesk Crypto 5 ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "COIG",
+    "name": "Leverage Shares 2X Long COIN Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CONX",
+    "name": "Direxion Daily COIN Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "COYY",
+    "name": "GraniteShares YieldBOOST COIN ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "COIA",
+    "name": "ProShares Ultra COIN",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "CNCK",
+    "name": "Coincheck Group N.V. Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "KRYP",
+    "name": "ProShares CoinDesk 20 Crypto ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ATC",
+    "name": "GraniteShares Autocallable COIN ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CSHRW",
+    "name": "CoinShares PLC Warrants",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "COIX",
+    "name": "Corgi COIN 2x Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "CNCKW",
+    "name": "Coincheck Group N.V. Warrant expiring 12/10/2029",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "COIAIV",
+    "name": "ProShares Ultra Coin Intraday Indicative Value",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "KRYPIV",
+    "name": "Proshares Coindesk 20 Crypto ETF Intraday Indicative Value",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "CMDAIUSD",
+    "name": "CM USD Dai Stable Coin / US Dollar Reference Price",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "CMUSDCUSD",
+    "name": "CM USD Circle Stable Coin / US Dollar Reference Price",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "CMUSDTUSD",
+    "name": "CM USD Tether Stable Coin / US Dollar Reference Price",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "IBIT",
+    "name": "iShares Bitcoin Trust ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "BITO",
+    "name": "ProShares Bitcoin ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "FBTC",
+    "name": "Fidelity Wise Origin Bitcoin Fund",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BITX",
+    "name": "2x Bitcoin ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "GBTC",
+    "name": "Grayscale Bitcoin Trust ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BTC",
+    "name": "Grayscale Bitcoin Mini Trust ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "SDEV",
+    "name": "Stablecoin Development Corporation",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "BTCZ",
+    "name": "T-Rex 2X Inverse Bitcoin Daily Target ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BITU",
+    "name": "ProShares Ultra Bitcoin ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ARKB",
+    "name": "ARK 21Shares Bitcoin ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BITB",
+    "name": "Bitwise Bitcoin ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "SBIT",
+    "name": "ProShares UltraShort Bitcoin ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BITI",
+    "name": "ProShares Short Bitcoin ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BTCI",
+    "name": "NEOS Bitcoin High Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "USDE",
+    "name": "StablecoinX Inc. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "MSBT",
+    "name": "Morgan Stanley Bitcoin Trust",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "HODL",
+    "name": "VanEck Bitcoin ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "XBCI",
+    "name": "NEOS Boosted Bitcoin High Income ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ABTC",
+    "name": "American Bitcoin Corp. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "EZBC",
+    "name": "Franklin Bitcoin ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BTCO",
+    "name": "Invesco Galaxy Bitcoin ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BITA",
+    "name": "The iShares Bitcoin Premium Income ETF Shares of Fractional Undivided Beneficial Interest",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "BTCW",
+    "name": "WisdomTree Bitcoin Fund",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BTCL",
+    "name": "T-Rex 2X Long Bitcoin Daily Target ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "YBTC",
+    "name": "Roundhill Bitcoin Covered Call Strategy ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   }
+  ],
+  "stock": [
+   {
+    "ticker": "COIN",
+    "name": "Coinbase Global, Inc. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CONY",
+    "name": "YieldMax COIN Option Income Strategy ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "CSHR",
+    "name": "CoinShares PLC Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "FIAT",
+    "name": "YieldMax Short COIN Option Income Strategy ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "COIA",
+    "name": "ProShares Ultra COIN",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "CNCK",
+    "name": "Coincheck Group N.V. Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CSHRW",
+    "name": "CoinShares PLC Warrants",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CNCKW",
+    "name": "Coincheck Group N.V. Warrant expiring 12/10/2029",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SDEV",
+    "name": "Stablecoin Development Corporation",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "USDE",
+    "name": "StablecoinX Inc. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ABTC",
+    "name": "American Bitcoin Corp. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "USDEW",
+    "name": "StablecoinX Inc. Warrants",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "BIXI",
+    "name": "Bitcoin Infrastructure Acquisition Corp Ltd. Class A Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "OBTC",
+    "name": "Osprey Bitcoin Trust Common Units of Beneficial Interest",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "BIXIU",
+    "name": "Bitcoin Infrastructure Acquisition Corp Ltd. Unit",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "BIXIW",
+    "name": "Bitcoin Infrastructure Acquisition Corp Ltd. Warrant",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   }
+  ],
+  "etf": [
+   {
+    "ticker": "CONL",
+    "name": "GraniteShares ETF Trust GraniteShares 2x Long COIN Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "WGMI",
+    "name": "CoinShares ETF Trust CoinShares Bitcoin Mining and Digital Power ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CONI",
+    "name": "GraniteShares ETF Trust GraniteShares 2x Short COIN Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "COIW",
+    "name": "Roundhill COIN WeeklyPay ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BRRR",
+    "name": "Coinshares Bitcoin ETF Common Shares of Beneficial Interest",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "GDLC",
+    "name": "Grayscale CoinDesk Crypto 5 ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "COIG",
+    "name": "Leverage Shares 2X Long COIN Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CONX",
+    "name": "Direxion Daily COIN Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "COYY",
+    "name": "GraniteShares YieldBOOST COIN ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "KRYP",
+    "name": "ProShares CoinDesk 20 Crypto ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ATC",
+    "name": "GraniteShares Autocallable COIN ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "COIX",
+    "name": "Corgi COIN 2x Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "IBIT",
+    "name": "iShares Bitcoin Trust ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "BITO",
+    "name": "ProShares Bitcoin ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "FBTC",
+    "name": "Fidelity Wise Origin Bitcoin Fund",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BITX",
+    "name": "2x Bitcoin ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "GBTC",
+    "name": "Grayscale Bitcoin Trust ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BTC",
+    "name": "Grayscale Bitcoin Mini Trust ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BTCZ",
+    "name": "T-Rex 2X Inverse Bitcoin Daily Target ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BITU",
+    "name": "ProShares Ultra Bitcoin ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ARKB",
+    "name": "ARK 21Shares Bitcoin ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BITB",
+    "name": "Bitwise Bitcoin ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "SBIT",
+    "name": "ProShares UltraShort Bitcoin ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BITI",
+    "name": "ProShares Short Bitcoin ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BTCI",
+    "name": "NEOS Bitcoin High Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "MSBT",
+    "name": "Morgan Stanley Bitcoin Trust",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "HODL",
+    "name": "VanEck Bitcoin ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "XBCI",
+    "name": "NEOS Boosted Bitcoin High Income ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "EZBC",
+    "name": "Franklin Bitcoin ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BTCO",
+    "name": "Invesco Galaxy Bitcoin ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BITA",
+    "name": "The iShares Bitcoin Premium Income ETF Shares of Fractional Undivided Beneficial Interest",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "BTCW",
+    "name": "WisdomTree Bitcoin Fund",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BTCL",
+    "name": "T-Rex 2X Long Bitcoin Daily Target ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "YBTC",
+    "name": "Roundhill Bitcoin Covered Call Strategy ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "LTCC",
+    "name": "Canary Capital Group, LLC Canary Litecoin ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "RSSX",
+    "name": "Return Stacked U.S. Stocks & Gold/Bitcoin ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BTGD",
+    "name": "Tidal Trust II STKd 100% Bitcoin & 100% Gold ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "BTCU",
+    "name": "DIREXION DAILY BITCOIN BULL 2X ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "CBTO",
+    "name": "Calamos Bitcoin 80 Series Structured Alt Protection ETF - October",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "GDOG",
+    "name": "Grayscale Dogecoin Trust ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "YBIT",
+    "name": "YieldMax Bitcoin Option Income Strategy ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "MAXI",
+    "name": "Simplify Exchange Traded Funds Simplify Bitcoin Strategy ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TXXD",
+    "name": "21Shares 2x Long Dogecoin ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CBXJ",
+    "name": "Calamos Bitcoin 90 Series Structured Alt Protection ETF - January",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BTCC",
+    "name": "Grayscale Bitcoin High Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "HBIT",
+    "name": "Hedgeye Hedged Bitcoin ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NGHT",
+    "name": "Nicholas Bitcoin and Treasuries AfterDark ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QBF",
+    "name": "Innovator Uncapped Bitcoin 20 Floor ETF - Quarterly",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "SPBC",
+    "name": "Simplify Exchange Traded Funds Simplify US Equity PLUS Bitcoin Strategy ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ISBG",
+    "name": "IncomeSTKd 1x Bitcoin & 1x Gold Premium ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   }
+  ],
+  "capped": true
+ },
+ "roku": {
+  "all": [
+   {
+    "ticker": "ROKU",
+    "name": "Roku, Inc. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   }
+  ],
+  "capped": false
+ },
+ "snow": {
+  "all": [
+   {
+    "ticker": "SNOW",
+    "name": "Snowflake Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "SNOU",
+    "name": "T-REX 2X Long SNOW Daily Target ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "SNOY",
+    "name": "YieldMax SNOW Option Income Strategy  ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ISNR",
+    "name": "Snow Rothschild Acquisition Corp. Class A Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ISNRU",
+    "name": "Snow Rothschild Acquisition Corp. Units",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ISNRW",
+    "name": "Snow Rothschild Acquisition Corp. Warrants",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "LITM",
+    "name": "Snow Lake Resources Ltd. Common Shares",
+    "type": "delisted",
+    "exchange": null
+   }
+  ],
+  "capped": false
+ },
+ "shop": {
+  "all": [
+   {
+    "ticker": "SHOP",
+    "name": "Shopify Inc. Class A subordinate voting shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SHOPH",
+    "name": "Sunstone Hotel Investors, Inc. 6.125% Series H Cumulative Redeemable Preferred Stock",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "SHOPI",
+    "name": "Sunstone Hotel Investors, Inc. 5.70% Series I Cumulative Redeemable Preferred Stock",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "SHPU",
+    "name": "Direxion Daily SHOP Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "VIPS",
+    "name": "Vipshop Holdings Limited",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "NWGL",
+    "name": "CL Workshop Group Limited American Depositary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "BBW",
+    "name": "Build-A-Bear Workshop, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "WSHP",
+    "name": "WeShop Holdings Limited Class A Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "FPAY",
+    "name": "FlexShopper, Inc. Common Stock",
+    "type": "delisted",
+    "exchange": null
+   },
+   {
+    "ticker": "SKO",
+    "name": "SHOPKO STORES INC",
+    "type": "delisted",
+    "exchange": null
+   },
+   {
+    "ticker": "TTSH",
+    "name": "Tile Shop Holdings, Inc.",
+    "type": "delisted",
+    "exchange": null
+   },
+   {
+    "ticker": "VSI",
+    "name": "Vitamin Shoppe Inc.",
+    "type": "delisted",
+    "exchange": null
+   }
+  ],
+  "capped": false
+ },
+ "spot": {
+  "all": [
+   {
+    "ticker": "SPOT",
+    "name": "Spotify Technology S.A.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "SPOTVOL",
+    "name": "Cboe S&P 500 Spot Volatility Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "SPOG",
+    "name": "Leverage Shares 2X Long SPOT Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "BTCK",
+    "name": "7RCC Spot Bitcoin and Carbon Credit Futures ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "DJCMED",
+    "name": "Dow Jones CME Spot FX$Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "HUBS",
+    "name": "HUBSPOT, INC.",
+    "type": "stock",
+    "exchange": "NYSE"
+   }
+  ],
+  "capped": false
+ },
+ "uber": {
+  "all": [
+   {
+    "ticker": "UBER",
+    "name": "Uber Technologies, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "UBRL",
+    "name": "GraniteShares 2x Long UBER Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "UBEW",
+    "name": "Roundhill UBER WeeklyPay ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "NBSD",
+    "name": "Neuberger Short Duration Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NBOS",
+    "name": "Neuberger Option Strategy ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NBCM",
+    "name": "Neuberger Commodity Strategy ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NBXG",
+    "name": "Neuberger Next Generation Connectivity Fund Inc.",
+    "type": "etf",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "NBH",
+    "name": "Neuberger Municipal Fund Inc.",
+    "type": "etf",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "NHS",
+    "name": "Neuberger High Yield Strategies Fund Inc.",
+    "type": "etf",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "NBFC",
+    "name": "Neuberger Flexible Credit Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NBCR",
+    "name": "Neuberger Core Equity ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NML",
+    "name": "Neuberger Energy Infrastructure and Income Fund Inc.",
+    "type": "etf",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "NEMD",
+    "name": "Neuberger Emerging Markets Debt Hard Currency ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NBIE",
+    "name": "Neuberger International Core Equity ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NRO",
+    "name": "Neuberger Real Estate Securities Income Fund Inc.",
+    "type": "etf",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "NBSM",
+    "name": "Neuberger Small-Mid Cap ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NBET",
+    "name": "Neuberger Energy Transition & Infrastructure ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NBDS",
+    "name": "Neuberger Disrupters ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NBJP",
+    "name": "Neuberger Japan Equity ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NBTR",
+    "name": "Neuberger Total Return Bond ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NBGX",
+    "name": "Neuberger Growth ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NQLT",
+    "name": "Neuberger Quality Select ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NBCE",
+    "name": "Neuberger China Equity ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NDD",
+    "name": "NEUBERGER BERMAN DIV ADVG FD INC",
+    "type": "delisted",
+    "exchange": null
+   },
+   {
+    "ticker": "NOX",
+    "name": "NEUBERGER BERMAN INCOME OPPORTUNITY FD INC",
+    "type": "delisted",
+    "exchange": null
+   },
+   {
+    "ticker": "NRI",
+    "name": "NEUBERGER BERMAN REALTY INCM FD INC",
+    "type": "delisted",
+    "exchange": null
+   },
+   {
+    "ticker": "NRL",
+    "name": "NEUBERGER BERMAN REAL ESTATE INC FD",
+    "type": "delisted",
+    "exchange": null
+   },
+   {
+    "ticker": "PCPL",
+    "name": "CC Neuberger Principal Holdings I",
+    "type": "delisted",
+    "exchange": null
+   },
+   {
+    "ticker": "PRPB",
+    "name": "CC Neuberger Principal Holdings II Class A Ordinary Shares",
+    "type": "delisted",
+    "exchange": null
+   },
+   {
+    "ticker": "PRPC",
+    "name": "CC Neuberger Principal Holdings III",
+    "type": "delisted",
+    "exchange": null
+   }
+  ],
+  "capped": false
+ },
+ "btc": {
+  "all": [
+   {
+    "ticker": "BTC",
+    "name": "Grayscale Bitcoin Mini Trust ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BTCZ",
+    "name": "T-Rex 2X Inverse Bitcoin Daily Target ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BTCI",
+    "name": "NEOS Bitcoin High Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BTCO",
+    "name": "Invesco Galaxy Bitcoin ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BTCW",
+    "name": "WisdomTree Bitcoin Fund",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BTCL",
+    "name": "T-Rex 2X Long Bitcoin Daily Target ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BTCS",
+    "name": "BTCS Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "BTCT",
+    "name": "BTC Digital Ltd. Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "BTCU",
+    "name": "DIREXION DAILY BITCOIN BULL 2X ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BTCC",
+    "name": "Grayscale Bitcoin High Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BTCK",
+    "name": "7RCC Spot Bitcoin and Carbon Credit Futures ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BTC1RP",
+    "name": "Cboe 1 Bitcoin / USD RealPrice",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "BTC5RP",
+    "name": "Cboe 5 Bitcoin / USD RealPrice",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "BTCOIV",
+    "name": "Invesco Galaxy Bitcoin ETF Intraday Indicative Value",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "BTC10RP",
+    "name": "Cboe 10 Bitcoin / USD RealPrice",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "BTC20RP",
+    "name": "Cboe 20 Bitcoin / USD RealPrice",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "BTC20PRP",
+    "name": "Cboe 0.2 Bitcoin / USD RealPrice",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "FBTC",
+    "name": "Fidelity Wise Origin Bitcoin Fund",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "GBTC",
+    "name": "Grayscale Bitcoin Trust ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ABTC",
+    "name": "American Bitcoin Corp. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "YBTC",
+    "name": "Roundhill Bitcoin Covered Call Strategy ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "OBTC",
+    "name": "Osprey Bitcoin Trust Common Units of Beneficial Interest",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "HBTC",
+    "name": "Fortuna Hedged Bitcoin ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "NQBTC",
+    "name": "Nasdaq Bitcoin Reference Price",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "DWCBTC",
+    "name": "Dow Jones U.S. Biotechnology Total Stock Market Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "BXGBTCA",
+    "name": "Cboe GBTC ATM BuyWrite Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "BXGBTCT",
+    "name": "Cboe GBTC 20% OTM BuyWrite Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "MSABTC5",
+    "name": "Morningstar Trans ABLTT ESG Screened Select 60 Capped Decrement 5 NR EUR",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "CMBTCEUR",
+    "name": "CM Bitcoin / Euro Reference Price",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "CMSOLBTC",
+    "name": "CM Solana / Bitcoin Reference Price",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "MSABTC50",
+    "name": "Morningstar Trans ABLTT ESG Screened Select 60 Capped Decrement 50 Point GR EUR",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "MSABTCGE",
+    "name": "Morningstar Transatlantic Auto Banks Luxury Tech  Telecom ESG Screened Select 60 Capped GR EUR",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "MSABTCNE",
+    "name": "Morningstar Transatlantic Auto Banks Luxury Tech  Telecom ESG Screened Select 60 Capped NR EUR",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "MSABTCPE",
+    "name": "Morningstar Transatlantic Auto Banks Luxury Tech  Telecom ESG Screened Select 60 Capped PR EUR",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NYDTBTCNY",
+    "name": "Nasdaq Yewno Global Disruptive Tech Bench CNY TR",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "BDCI",
+    "name": "BTC Development Corp. Class A Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "BDCIU",
+    "name": "BTC Development Corp. Unit",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "BDCIW",
+    "name": "BTC Development Corp. Warrant",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TXBC",
+    "name": "21Shares FTSE Crypto 10 ex-BTC Index ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BTC.U",
+    "name": "COMMUNITY BANKERS TRUST CORPORATION UTS",
+    "type": "delisted",
+    "exchange": null
+   },
+   {
+    "ticker": "BTCY",
+    "name": "Biotricity, Inc. Common Stock",
+    "type": "delisted",
+    "exchange": null
+   },
+   {
+    "ticker": "EBTC",
+    "name": "Enterprise Bancorp Inc.",
+    "type": "delisted",
+    "exchange": null
+   },
+   {
+    "ticker": "MBTC",
+    "name": "Nocturne Acquisition Corporation Ordinary Shares",
+    "type": "delisted",
+    "exchange": null
+   }
+  ],
+  "capped": false
+ },
+ "eth": {
+  "all": [
+   {
+    "ticker": "ETH",
+    "name": "Grayscale Ethereum Staking Mini ETF Shares",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ETHA",
+    "name": "iShares Ethereum Trust ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ETHU",
+    "name": "2x Ether ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "ETHE",
+    "name": "Grayscale Ethereum Staking ETF Shares",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ETHD",
+    "name": "ProShares UltraShort Ether ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ETHT",
+    "name": "ProShares Ultra Ether ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ETHB",
+    "name": "iShares Staked Ethereum Trust ETF Shares of Fractional Undivided Beneficial Interest",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ETHW",
+    "name": "Bitwise Ethereum ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ETHV",
+    "name": "VanEck Ethereum ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "ETHO",
+    "name": "Amplify Etho Climate Leadership U.S. ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ETH5RP",
+    "name": "Cboe 5 Ethereum / USD RealPrice",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "ETHDIV",
+    "name": "ProShares UltraShort Ether ETF Intraday Indicative Value",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "ETHTIV",
+    "name": "ProShares Ultra Ether ETF Intraday Indicative Value",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "ETH20RP",
+    "name": "Cboe 20 Ethereum / USD RealPrice",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "ETH50RP",
+    "name": "Cboe 50 Ethereum / USD RealPrice",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "ETH100RP",
+    "name": "Cboe 100 Ethereum / USD RealPrice",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "ETH200RP",
+    "name": "Cboe 200 Ethereum / USD RealPrice",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "ETH400RP",
+    "name": "Cboe 400 Ethereum / USD RealPrice",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "FETH",
+    "name": "Fidelity Ethereum Fund",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "TETH",
+    "name": "21Shares Ethereum Staking ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "EETH",
+    "name": "ProShares Ether ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "SETH",
+    "name": "ProShares Short Ether ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "QETH",
+    "name": "Invesco Galaxy Ethereum ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "YETH",
+    "name": "Roundhill Ether Covered Call Strategy ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "WETH",
+    "name": "Wetouch Technology Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "BETH",
+    "name": "ProShares Bitcoin & Ether Market Cap Weight ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NQETH",
+    "name": "Nasdaq Ether Reference Price",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "BETHIV",
+    "name": "BITCOIN & ETHER MARKET CAP WEIGHT STRATEGY ETF",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "EETHIV",
+    "name": "ETHER STRATEGY ETF",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "QETHIV",
+    "name": "Invesco Galaxy Ethereum ETF Intraday Indicative Value",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "SETHIV",
+    "name": "Short Ether Strategy ETF Intraday Indicative Value",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "CMETHEUR",
+    "name": "CM Ethereum / Euro Reference Price",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "LIFE",
+    "name": "Ethos Technologies Inc. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ETD",
+    "name": "Ethan Allen Interiors Inc",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "NEHI",
+    "name": "NEOS Ethereum High Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "EZET",
+    "name": "Franklin Ethereum ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "MSSE",
+    "name": "Morgan Stanley Ethereum Trust",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ETU",
+    "name": "T-Rex 2X Long Ether Daily Target ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "EVMU",
+    "name": "DIREXION DAILY ETHER BULL 2X ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "EHY",
+    "name": "Amplify Ethereum Max Income Covered Call ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "ETCO",
+    "name": "Grayscale Ethereum High Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ETTY",
+    "name": "Amplify Ethereum 3% Monthly Option Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BETE",
+    "name": "ProShares Bitcoin & Ether Equal Weight ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "EHCC",
+    "name": "Global X Ethereum Covered Call ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "EEE",
+    "name": "CYBER HORNET S&P 500 and Ethereum 75/25 Strategy ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "XEY",
+    "name": "GraniteShares YieldBOOST Ether ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "LKRE",
+    "name": "Lukka Digital Asset Reference Rate - Ether - U.S. Dollar",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "BETEIV",
+    "name": "BITCOIN & ETHER EQUAL WEIGHT STRATEGY ETF",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "ETC1KRP",
+    "name": "Cboe 1000 Ethereum Classic / US Dollar RealPrice Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "ETC2KRP",
+    "name": "Cboe 2000 Ethereum Classic / US Dollar RealPrice Index",
+    "type": "index",
+    "exchange": "Index"
+   }
+  ],
+  "stock": [
+   {
+    "ticker": "WETH",
+    "name": "Wetouch Technology Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "LIFE",
+    "name": "Ethos Technologies Inc. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ETD",
+    "name": "Ethan Allen Interiors Inc",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "MEOH",
+    "name": "Methanex Corp",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "MEI",
+    "name": "Methode Electronics",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "FTH",
+    "name": "Faeth Therapeutics, Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AETR",
+    "name": "Aetherion Technologies Inc. Common Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AEMD",
+    "name": "AETHLON MEDICAL INC",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ATHR",
+    "name": "Aether Holdings, Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "JENAR",
+    "name": "Jena Acquisition Corporation II Rights, each right to acquire one-twentieth (1/20) of one Class A ordinary share",
+    "type": "stock",
+    "exchange": "NYSE"
+   }
+  ],
+  "etf": [
+   {
+    "ticker": "ETH",
+    "name": "Grayscale Ethereum Staking Mini ETF Shares",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ETHA",
+    "name": "iShares Ethereum Trust ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ETHU",
+    "name": "2x Ether ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "ETHE",
+    "name": "Grayscale Ethereum Staking ETF Shares",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ETHD",
+    "name": "ProShares UltraShort Ether ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ETHT",
+    "name": "ProShares Ultra Ether ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ETHB",
+    "name": "iShares Staked Ethereum Trust ETF Shares of Fractional Undivided Beneficial Interest",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ETHW",
+    "name": "Bitwise Ethereum ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ETHV",
+    "name": "VanEck Ethereum ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "ETHO",
+    "name": "Amplify Etho Climate Leadership U.S. ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "FETH",
+    "name": "Fidelity Ethereum Fund",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "TETH",
+    "name": "21Shares Ethereum Staking ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "EETH",
+    "name": "ProShares Ether ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "SETH",
+    "name": "ProShares Short Ether ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "QETH",
+    "name": "Invesco Galaxy Ethereum ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "YETH",
+    "name": "Roundhill Ether Covered Call Strategy ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BETH",
+    "name": "ProShares Bitcoin & Ether Market Cap Weight ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "NEHI",
+    "name": "NEOS Ethereum High Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "EZET",
+    "name": "Franklin Ethereum ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "MSSE",
+    "name": "Morgan Stanley Ethereum Trust",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ETU",
+    "name": "T-Rex 2X Long Ether Daily Target ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "EVMU",
+    "name": "DIREXION DAILY ETHER BULL 2X ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "EHY",
+    "name": "Amplify Ethereum Max Income Covered Call ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "ETCO",
+    "name": "Grayscale Ethereum High Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ETTY",
+    "name": "Amplify Ethereum 3% Monthly Option Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BETE",
+    "name": "ProShares Bitcoin & Ether Equal Weight ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "EHCC",
+    "name": "Global X Ethereum Covered Call ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "EEE",
+    "name": "CYBER HORNET S&P 500 and Ethereum 75/25 Strategy ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "XEY",
+    "name": "GraniteShares YieldBOOST Ether ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "EWN",
+    "name": "iShares MSCI Netherlands ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   }
+  ],
+  "capped": false
+ },
+ "sol": {
+  "all": [
+   {
+    "ticker": "SOLS",
+    "name": "Solstice Advanced Materials Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SOLV",
+    "name": "Solventum Corporation",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "SOLT",
+    "name": "2x Solana ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SOLZ",
+    "name": "Solana ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SOLC",
+    "name": "Canary Marinade Solana ETF Shares of Beneficial Interest",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SOLM",
+    "name": "Amplify Solana 3% Monthly Option Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "SOL1KRP",
+    "name": "Cboe 1000 Solana / US Dollar RealPrice Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "SOL2500",
+    "name": "Cboe 2500 Solana / US Dollar RealPrice Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "SOL5KRP",
+    "name": "Cboe 5000 Solana / US Dollar RealPrice Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "SOL100RP",
+    "name": "Cboe 100 Solana / US Dollar RealPrice Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "SOL500RP",
+    "name": "Cboe 500 Solana / US Dollar RealPrice Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "SOLQKEXP",
+    "name": "Solution Quant K-Export PR KRW",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "BSOL",
+    "name": "Bitwise Solana Staking ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GSOL",
+    "name": "Grayscale Solana Staking ETF Shares",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "FSOL",
+    "name": "Fidelity Solana Fund",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "MSOL",
+    "name": "Morgan Stanley Solana Trust",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "VSOL",
+    "name": "VanEck Solana ETF Shares of Beneficial Interest",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QSOL",
+    "name": "Invesco Galaxy Solana ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "TSOL",
+    "name": "21Shares Solana Staking ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "NQSOL",
+    "name": "Nasdaq Solana Reference Price I",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "DJUSOL",
+    "name": "Dow Jones U.S. Integrated Oil & Gas Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "QSOLIV",
+    "name": "Invesco Galaxy Solana ETF Intraday Indicative Value",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "CMSOLBTC",
+    "name": "CM Solana / Bitcoin Reference Price",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "MTSI",
+    "name": "MACOM Technology Solutions Holdings, Inc",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CTSH",
+    "name": "Cognizant Technology Solutions",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "MSI",
+    "name": "Motorola Solutions, Inc. New",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "SWKS",
+    "name": "Skyworks Solutions Inc",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "FSLR",
+    "name": "First Solar, Inc.",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "PENG",
+    "name": "Penguin Solutions, Inc. Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CCC",
+    "name": "CCC Intelligent Solutions Holdings Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "FPS",
+    "name": "Forgent Power Solutions, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "SEI",
+    "name": "Solaris Energy Infrastructure, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "KTOS",
+    "name": "Kratos Defense & Security Solutions, Inc.",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "VIAV",
+    "name": "Viavi Solutions Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ESI",
+    "name": "Element Solutions Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "BR",
+    "name": "Broadridge Financial Solutions Inc",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "J",
+    "name": "Jacobs Solutions Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "FIGR",
+    "name": "Figure Technology Solutions, Inc. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SEDG",
+    "name": "SolarEdge Technologies, Inc.",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ULS",
+    "name": "UL Solutions Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "BFAM",
+    "name": "BRIGHT HORIZONS FAMILY SOLUTIONS INC.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "ZWS",
+    "name": "Zurn Elkay Water Solutions Corporation",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "TAN",
+    "name": "Invesco Solar ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "MAIR",
+    "name": "Madison Air Solutions Corporation",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "AESI",
+    "name": "Atlas Energy Solutions Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "MWH",
+    "name": "SOLV Energy, Inc. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "PRM",
+    "name": "Perimeter Solutions, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "MNDR",
+    "name": "Mobile-health Network Solutions Class A Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "WTTR",
+    "name": "Select Water Solutions, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "PDFS",
+    "name": "PDF Solutions Inc",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   }
+  ],
+  "stock": [
+   {
+    "ticker": "SOLS",
+    "name": "Solstice Advanced Materials Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SOLV",
+    "name": "Solventum Corporation",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "MTSI",
+    "name": "MACOM Technology Solutions Holdings, Inc",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CTSH",
+    "name": "Cognizant Technology Solutions",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "MSI",
+    "name": "Motorola Solutions, Inc. New",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "SWKS",
+    "name": "Skyworks Solutions Inc",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "FSLR",
+    "name": "First Solar, Inc.",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "PENG",
+    "name": "Penguin Solutions, Inc. Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CCC",
+    "name": "CCC Intelligent Solutions Holdings Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "FPS",
+    "name": "Forgent Power Solutions, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "SEI",
+    "name": "Solaris Energy Infrastructure, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "KTOS",
+    "name": "Kratos Defense & Security Solutions, Inc.",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "VIAV",
+    "name": "Viavi Solutions Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ESI",
+    "name": "Element Solutions Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "BR",
+    "name": "Broadridge Financial Solutions Inc",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "J",
+    "name": "Jacobs Solutions Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "FIGR",
+    "name": "Figure Technology Solutions, Inc. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SEDG",
+    "name": "SolarEdge Technologies, Inc.",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ULS",
+    "name": "UL Solutions Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "BFAM",
+    "name": "BRIGHT HORIZONS FAMILY SOLUTIONS INC.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "ZWS",
+    "name": "Zurn Elkay Water Solutions Corporation",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "MAIR",
+    "name": "Madison Air Solutions Corporation",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "AESI",
+    "name": "Atlas Energy Solutions Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "MWH",
+    "name": "SOLV Energy, Inc. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "PRM",
+    "name": "Perimeter Solutions, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "MNDR",
+    "name": "Mobile-health Network Solutions Class A Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "WTTR",
+    "name": "Select Water Solutions, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "PDFS",
+    "name": "PDF Solutions Inc",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "PSIX",
+    "name": "Power Solutions International, Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CSIQ",
+    "name": "Canadian Solar Inc. Common Shares (ON)",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "DFIN",
+    "name": "Donnelley Financial Solutions, Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "HLMN",
+    "name": "Hillman Solutions Corp. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TIC",
+    "name": "TIC Solutions, Inc",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "DSGR",
+    "name": "Distribution Solutions Group, Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SLDB",
+    "name": "Solid Biosciences Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SLNH",
+    "name": "Soluna Holdings, Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "GMRS",
+    "name": "GMR Solutions Inc.",
+    "type": "stock",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "SLDP",
+    "name": "Solid Power, Inc. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CLMB",
+    "name": "Climb Global Solutions, Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "IA",
+    "name": "Innovative Solutions & Support",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CCSI",
+    "name": "Consensus Cloud Solutions, Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "PANL",
+    "name": "Pangaea Logistics Solutions Ltd.",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AZ",
+    "name": "A2Z Cust2Mate Solutions Corp. Common Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SLGL",
+    "name": "Sol-Gel Technologies Ltd. Ordinary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "AXG",
+    "name": "Solowin Holdings Class A Ordinary Share",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ADV",
+    "name": "Advantage Solutions Inc. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SLSR",
+    "name": "Solaris Resources Inc.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "SMXT",
+    "name": "Solarmax Technology Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "HSDT",
+    "name": "Solana Company Class A Common Stock (DE)",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "NMAD",
+    "name": "Nomad Power Solutions, Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   }
+  ],
+  "etf": [
+   {
+    "ticker": "SOLT",
+    "name": "2x Solana ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SOLZ",
+    "name": "Solana ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SOLC",
+    "name": "Canary Marinade Solana ETF Shares of Beneficial Interest",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SOLM",
+    "name": "Amplify Solana 3% Monthly Option Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "BSOL",
+    "name": "Bitwise Solana Staking ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GSOL",
+    "name": "Grayscale Solana Staking ETF Shares",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "FSOL",
+    "name": "Fidelity Solana Fund",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "MSOL",
+    "name": "Morgan Stanley Solana Trust",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "VSOL",
+    "name": "VanEck Solana ETF Shares of Beneficial Interest",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QSOL",
+    "name": "Invesco Galaxy Solana ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "TSOL",
+    "name": "21Shares Solana Staking ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "TAN",
+    "name": "Invesco Solar ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "DSL",
+    "name": "DOUBLELINE INCOME SOLUTIONS FUND",
+    "type": "etf",
+    "exchange": "NYSE"
+   },
+   {
+    "ticker": "SLON",
+    "name": "ProShares Ultra Solana ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "UFOX",
+    "name": "ETF Series Solutions Defiance Space and Connective Tech ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SSK",
+    "name": "REX-Osprey SOL + Staking ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "SOEZ",
+    "name": "Franklin Solana ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "FPWR",
+    "name": "First Trust EIP Power Solutions ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "EKG",
+    "name": "First Trust Nasdaq Lux Digital Health Solutions ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CCSO",
+    "name": "Carbon Collective Climate Solutions U.S. Equity ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "FOWF",
+    "name": "Pacer Solactive Whitney Future of Warfare ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "ETEC",
+    "name": "iShares Breakthrough Environmental Solutions ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TOS",
+    "name": "Twin Oak Strategic Solutions ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "SSS",
+    "name": "CYBER HORNET S&P 500 and Solana 75/25 Strategy ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "UGA",
+    "name": "United States Gasoline Fund, LP",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "FAAR",
+    "name": "First Trust Alternative Absolute Return Strategy ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "USE",
+    "name": "USCF Energy Commodity Strategy Absolute Return Fund",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "TOAK",
+    "name": "Twin Oak Short Horizon Absolute Return ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ABEQ",
+    "name": "Absolute Select Value ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "IINC",
+    "name": "Alki Consolidated Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "DBAR",
+    "name": "iMGP DBi Absolute Return ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "FARX",
+    "name": "Frontier Asset Absolute Return ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "ROMO",
+    "name": "Strategy Shares Newfound/ReSolve Robust Momentum ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "HALX",
+    "name": "Tuttle Capital Heavy Assets Low Obsolescence ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "HF",
+    "name": "DGA Core Plus Absolute Return ETF",
+    "type": "etf",
+    "exchange": "NYSE"
+   }
+  ],
+  "capped": true
+ },
+ "spy": {
+  "all": [
+   {
+    "ticker": "SPY",
+    "name": "State Street SPDR S&P 500 ETF Trust",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "SPYM",
+    "name": "State Street SPDR Portfolio S&P 500 ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "SPYG",
+    "name": "State Street SPDR Portfolio S&P 500 Growth ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "SPYV",
+    "name": "State Street SPDR Portfolio S&P 500 Value ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "SPYI",
+    "name": "NEOS S&P 500 High Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "SPYD",
+    "name": "State Street SPDR Portfolio S&P 500 High Dividend ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "SPYU",
+    "name": "MAX S&P 500 4x Leveraged ETN",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "SPYX",
+    "name": "State Street SPDR S&P 500 Fossil Fuel Reserves Free ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "SPYT",
+    "name": "Defiance S&P 500 Income Target ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "SPYC",
+    "name": "Simplify US Equity PLUS Convexity ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "SPYH",
+    "name": "NEOS S&P 500 Hedged Equity Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "SPYQ",
+    "name": "Tradr 2X Long SPY Quarterly ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SPYA",
+    "name": "Twin Oak Endure ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "TSPY",
+    "name": "ETF Opportunities Trust TappAlpha S&P 500 Growth & Daily Income ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ISPY",
+    "name": "ProShares S&P 500 High Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "KSPY",
+    "name": "KraneShares Hedgeye Hedged Equity Index ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "DSPY",
+    "name": "Tema S&P 500 Historical Weight ETF Strategy",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GSPY",
+    "name": "Gotham Enhanced 500 ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "SSPY",
+    "name": "Stratified LargeCap Index ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "YSPY",
+    "name": "GraniteShares YieldBOOST SPY ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "ISPYIV",
+    "name": "ProShares S&P 500 High Income ETF Intraday Indicative Value",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "SYRE",
+    "name": "Spyre Therapeutics, Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SGP",
+    "name": "SpyGlass Pharma, Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "DVSP",
+    "name": "WEBs ETF Trust WEBs SPY Defined Volatility ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "DVSPIV",
+    "name": "Webs Defined Volatility SPY ETF Intraday Indicative Value",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "DNUT",
+    "name": "Krispy Kreme, Inc. Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TSYX",
+    "name": "TSPY Lift ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "KKD",
+    "name": "KRISPY KREME DOUGHNUTS INC",
+    "type": "delisted",
+    "exchange": null
+   }
+  ],
+  "capped": false
+ },
+ "qqq": {
+  "all": [
+   {
+    "ticker": "QQQ",
+    "name": "Invesco QQQ Trust, Series 1",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQM",
+    "name": "Invesco NASDAQ 100 ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQI",
+    "name": "NEOS Nasdaq 100 High Income ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQE",
+    "name": "Direxion Shares ETF Trust Direxion NASDAQ-100 Equal Weighted Index ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQJ",
+    "name": "Invesco NASDAQ Next Gen 100 ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQX",
+    "name": "Nuveen NASDAQ 100 Dynamic Overwrite Fund - Shares of Beneficial Interest",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQY",
+    "name": "Tidal Trust II Defiance Nasdaq 100 Weekly Distribution ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQH",
+    "name": "NEOS Nasdaq-100 Hedged Equity Income ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQU",
+    "name": "Direxion Daily Magnificent 7 Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "QQQG",
+    "name": "Pacer Nasdaq 100 Top 50 Cash Cows Growth Leaders ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQA",
+    "name": "ProShares Nasdaq-100 Dorsey Wright Momentum ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQD",
+    "name": "Direxion Daily Magnificent 7 Bear 1X ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "QQQT",
+    "name": "Defiance Nasdaq 100 Income Target ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQS",
+    "name": "Invesco NASDAQ Future Gen 200 ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQP",
+    "name": "Investment Managers Series Trust II Tradr 2X Long Innovation 100 Quarterly ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQB",
+    "name": "VistaShares Shield Nasdaq 100 Enhanced Protection ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQAIV",
+    "name": "PROSHARES NAS-100 DORSEY WRIGHT MOMENTUM",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "TQQQ",
+    "name": "ProShares  UltraPro QQQ",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SQQQ",
+    "name": "ProShares UltraPro Short QQQ",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CQQQ",
+    "name": "Invesco China Technology ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "MQQQ",
+    "name": "Investment Managers Series Trust II Tradr 2X Long Innovation 100 Monthly ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "IQQQ",
+    "name": "ProShares Nasdaq-100 High Income ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "KQQQ",
+    "name": "Kurv Technology Titans Select ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "GQQQ",
+    "name": "Astoria US Quality Growth Kings ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "YQQQ",
+    "name": "YieldMax Short N100 Option Income Strategy ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "EQQQ",
+    "name": "ProShares Ultra QQQ Equal Weight",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "EQQQIV",
+    "name": "Proshares Tr Ultra Qqq Equal Weight Etf Intraday Indicative Value",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "IQQQIV",
+    "name": "Nasdaq-100 High Income ETF Intraday Indicative Value",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "SQQQIV",
+    "name": "PROSHARES ULTRAPRO SHORT QQQ ETF",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "TQQQIV",
+    "name": "PROSHARES ULTRAPRO QQQ ETF",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "PSQ",
+    "name": "ProShares Short QQQ",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "QID",
+    "name": "ProShares UltraShort QQQ",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "QLD",
+    "name": "ProShares Ultra QQQ",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "QQA",
+    "name": "Invesco QQQ Income Advantage ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QEW",
+    "name": "Invesco QQQ Equal Weight ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQUP",
+    "name": "ProShares Trust ProShares Ultra QQQ Mega",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQXL",
+    "name": "ProShares Ultra QQQ Top 30",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QBIG",
+    "name": "Invesco Top QQQ ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TQQY",
+    "name": "GraniteShares YieldBOOST QQQ ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQHG",
+    "name": "Invesco QQQ Hedged Advantage ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQLV",
+    "name": "Invesco QQQ Low Volatility ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "DVQQ",
+    "name": "WEBs ETF Trust WEBs QQQ Defined Volatility ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQDN",
+    "name": "ProShares Trust ProShares UltraShort QQQ Mega",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "PSQIV",
+    "name": "PROSHARES SHORT QQQ ETF",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "QIDIV",
+    "name": "PROSHARES ULTRASHORT QQQ ETF",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "QLDIV",
+    "name": "PROSHARES ULTRA QQQ ETF",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "DVQQIV",
+    "name": "Webs Defined Volatility QQQ ETF Intraday Indicative Value",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "QQDNIV",
+    "name": "ProShares UltraShort Top QQQ Intraday Indicative Value",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "QQUPIV",
+    "name": "ProShares Ultra Top QQQ Intraday Indicative Value",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "QQXLIV",
+    "name": "ProShares Ultra QQQ Top 30 Intraday Indicative Value",
+    "type": "index",
+    "exchange": "Index"
+   }
+  ],
+  "stock": [],
+  "etf": [
+   {
+    "ticker": "QQQ",
+    "name": "Invesco QQQ Trust, Series 1",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQM",
+    "name": "Invesco NASDAQ 100 ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQI",
+    "name": "NEOS Nasdaq 100 High Income ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQE",
+    "name": "Direxion Shares ETF Trust Direxion NASDAQ-100 Equal Weighted Index ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQJ",
+    "name": "Invesco NASDAQ Next Gen 100 ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQX",
+    "name": "Nuveen NASDAQ 100 Dynamic Overwrite Fund - Shares of Beneficial Interest",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQY",
+    "name": "Tidal Trust II Defiance Nasdaq 100 Weekly Distribution ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQH",
+    "name": "NEOS Nasdaq-100 Hedged Equity Income ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQU",
+    "name": "Direxion Daily Magnificent 7 Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "QQQG",
+    "name": "Pacer Nasdaq 100 Top 50 Cash Cows Growth Leaders ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQA",
+    "name": "ProShares Nasdaq-100 Dorsey Wright Momentum ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQD",
+    "name": "Direxion Daily Magnificent 7 Bear 1X ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "QQQT",
+    "name": "Defiance Nasdaq 100 Income Target ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQS",
+    "name": "Invesco NASDAQ Future Gen 200 ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQP",
+    "name": "Investment Managers Series Trust II Tradr 2X Long Innovation 100 Quarterly ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQQB",
+    "name": "VistaShares Shield Nasdaq 100 Enhanced Protection ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TQQQ",
+    "name": "ProShares  UltraPro QQQ",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "SQQQ",
+    "name": "ProShares UltraPro Short QQQ",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "CQQQ",
+    "name": "Invesco China Technology ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "MQQQ",
+    "name": "Investment Managers Series Trust II Tradr 2X Long Innovation 100 Monthly ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "IQQQ",
+    "name": "ProShares Nasdaq-100 High Income ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "KQQQ",
+    "name": "Kurv Technology Titans Select ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "GQQQ",
+    "name": "Astoria US Quality Growth Kings ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "YQQQ",
+    "name": "YieldMax Short N100 Option Income Strategy ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "EQQQ",
+    "name": "ProShares Ultra QQQ Equal Weight",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "PSQ",
+    "name": "ProShares Short QQQ",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "QID",
+    "name": "ProShares UltraShort QQQ",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "QLD",
+    "name": "ProShares Ultra QQQ",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "QQA",
+    "name": "Invesco QQQ Income Advantage ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QEW",
+    "name": "Invesco QQQ Equal Weight ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQUP",
+    "name": "ProShares Trust ProShares Ultra QQQ Mega",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQXL",
+    "name": "ProShares Ultra QQQ Top 30",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QBIG",
+    "name": "Invesco Top QQQ ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "TQQY",
+    "name": "GraniteShares YieldBOOST QQQ ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQHG",
+    "name": "Invesco QQQ Hedged Advantage ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQLV",
+    "name": "Invesco QQQ Low Volatility ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "DVQQ",
+    "name": "WEBs ETF Trust WEBs QQQ Defined Volatility ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "QQDN",
+    "name": "ProShares Trust ProShares UltraShort QQQ Mega",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   }
+  ],
+  "capped": false
+ },
+ "iwm": {
+  "all": [
+   {
+    "ticker": "IWM",
+    "name": "iShares Russell 2000 ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "IWMI",
+    "name": "NEOS Russell 2000 High Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "IWMY",
+    "name": "Defiance R2000 Weekly Distribution ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "IWMW",
+    "name": "iShares IWM Premium Income+ ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "IWMWIV",
+    "name": "iShares Russell 2000 BuyWrite ETF Intraday Indicative Value",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "BXWBW",
+    "name": "Cboe FTSE Russell IWM 2% OTM BuyWrite Index",
+    "type": "index",
+    "exchange": "Index"
+   }
+  ],
+  "capped": false
+ },
+ "gld": {
+  "all": [
+   {
+    "ticker": "GLD",
+    "name": "SPDR Gold Trust, SPDR Gold Shares",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GLDM",
+    "name": "SPDR Gold MiniShares",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GLDI",
+    "name": "UBS AG ETRACS Gold Shares Covered Call ETNs due February 2, 2033",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "GLDG",
+    "name": "GoldMining Inc.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "GLDW",
+    "name": "Roundhill Gold WeeklyPay ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "GLDB",
+    "name": "IDX Alternative FIAT ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "GLDN",
+    "name": "Nicholas Gold Income ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GLDTI",
+    "name": "Cboe Gold Target Income Index Monthly Series",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GLDBUF",
+    "name": "Cboe Gold 10% (-5% to -15%) Buffer Protect Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GLDPRO",
+    "name": "Cboe Gold 10% Buffer Protect Index Balanced Series",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GLDPRO01",
+    "name": "Cboe Gold 10% Buffer Protect Index January Series",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GLDPRO02",
+    "name": "Cboe Gold 10% Buffer Protect Index February Series",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GLDPRO03",
+    "name": "Cboe Gold 10% Buffer Protect Index March Series",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GLDPRO04",
+    "name": "Cboe Gold 10% Buffer Protect Index April Series",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GLDPRO05",
+    "name": "Cboe Gold 10% Buffer Protect Index May Series",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GLDPRO06",
+    "name": "Cboe Gold 10% Buffer Protect Index June Series",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GLDPRO07",
+    "name": "Cboe Gold 10% Buffer Protect Index July Series",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GLDPRO08",
+    "name": "Cboe Gold 10% Buffer Protect Index August Series",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GLDPRO09",
+    "name": "Cboe Gold 10% Buffer Protect Index September Series",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GLDPRO10",
+    "name": "Cboe Gold 10% Buffer Protect Index October Series",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GLDPRO11",
+    "name": "Cboe Gold 10% Buffer Protect Index November Series",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GLDPRO12",
+    "name": "Cboe Gold 10%  Buffer Protect Index December Series",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "RGLD",
+    "name": "Royal Gold Inc",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "IGLD",
+    "name": "FT Vest Gold Strategy Target Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "KGLD",
+    "name": "Kurv Gold Enhanced Income ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "UGLD",
+    "name": "DIREXION DAILY GOLD BULL 2X ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "YGLD",
+    "name": "Simplify Gold Strategy ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "BGLD",
+    "name": "FT Vest Gold Strategy Quarterly Buffer ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "SGLD",
+    "name": "Scorpio Gold Corporation American Depositary Shares",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "MGLD",
+    "name": "The Marygold Companies, Inc.",
+    "type": "stock",
+    "exchange": "NYSE American"
+   },
+   {
+    "ticker": "QGLDI",
+    "name": "Credit Suisse NASDAQ Gold FLOWS103 Price Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "FGLDIV",
+    "name": "FRANKLIN RESPONSIBLY SOURCED GOLD ETF",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "QGLDID",
+    "name": "Credit Suisse NASDAQ Gold FLOWS 103 Distribution I",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "EDGEGLD",
+    "name": null,
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GOOGLDI",
+    "name": "Cboe Alphabet Defined Income Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "QGLDITR",
+    "name": "Credit Suisse NASDAQ Gold FLOWS103 Total Return In",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQXAUGLD",
+    "name": "Nasdaq Global Ex-Australia Gold Miners Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQXAUGLDN",
+    "name": "Nasdaq Global Ex-Australia Gold Miners NTR Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQXAUGLDT",
+    "name": "Nasdaq Global Ex-Australia Gold Miners TR Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQXAUGLDAUD",
+    "name": "Nasdaq Global Ex-Australia Gold Miners AUD Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQXAUGLDAUDN",
+    "name": "Nasdaq Global Ex-Australia Gold Miners AUD NTR",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQXAUGLDAUDT",
+    "name": "Nasdaq Global Ex-Australia Gold Miners AUD TR",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQXAUGLDAUDMH",
+    "name": "NQXAUGLDAUD Monthly Currency Hedged",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQXAUGLDAUDNMH",
+    "name": "NQXAUGLDAUDN Monthly Currency Hedged",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "NQXAUGLDAUDTMH",
+    "name": "NQXAUGLDAUDT Monthly Currency Hedged",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GLDD",
+    "name": "Great Lakes Dredge & Dock Corporation",
+    "type": "delisted",
+    "exchange": null
+   },
+   {
+    "ticker": "RD",
+    "name": "ROYAL DUTCH PET (NEW)1.25GLDRS",
+    "type": "delisted",
+    "exchange": null
+   }
+  ],
+  "capped": false
+ },
+ "googl": {
+  "all": [
+   {
+    "ticker": "GOOGL",
+    "name": "Alphabet Inc. Class A Common Stock",
+    "type": "stock",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "GOOGLCW",
+    "name": "Cboe Alphabet Call Writing Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GOOGLDI",
+    "name": "Cboe Alphabet Defined Income Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GOOGLIO",
+    "name": "Cboe Alphabet Income Only Index",
+    "type": "index",
+    "exchange": "Index"
+   },
+   {
+    "ticker": "GGLL",
+    "name": "Direxion Shares ETF Trust Direxion Daily GOOGL Bull 2X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "GGLS",
+    "name": "Direxion Shares ETF Trust Direxion Daily GOOGL Bear 1X ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "GOOY",
+    "name": "YieldMax GOOGL Option Income Strategy ETF",
+    "type": "stock",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "GOU",
+    "name": "GraniteShares 2x Long GOOGL Daily ETF",
+    "type": "etf",
+    "exchange": "NASDAQ"
+   },
+   {
+    "ticker": "GOOL",
+    "name": "Leverage Shares 2X Long GOOGL Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "GOOW",
+    "name": "Roundhill GOOGL WeeklyPay ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "GOGL",
+    "name": "Corgi GOOGL 2x Daily ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "GOOP",
+    "name": "Kurv Yield Premium Strategy Google (GOOGL) ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "GOIB",
+    "name": "Direxion GOOGL Defined Income Boost ETF",
+    "type": "etf",
+    "exchange": "CBOE"
+   },
+   {
+    "ticker": "DEPW",
+    "name": "Google DeepMind AI Lab Ecosystem ETF",
+    "type": "etf",
+    "exchange": "NYSE Arca"
+   },
+   {
+    "ticker": "VXGOG",
+    "name": "Cboe Equity VIX on Google",
+    "type": "index",
+    "exchange": "Index"
+   }
+  ],
+  "capped": false
+ }
+}

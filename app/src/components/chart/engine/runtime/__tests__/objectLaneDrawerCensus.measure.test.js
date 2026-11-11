@@ -101,7 +101,14 @@ const NEW_RE = new RegExp(`\\b(?:${OBJECT_FAMILIES.join('|')})\\.new\\b`)
 
 const isDrawer = (src) => NEW_RE.test(stripComments(src))
 
-describe('⭐⭐ the drawable ceiling, cross-tabbed against where the drawing dies', () => {
+// A whole-corpus measurement (buildObjectLane over every committed script), so
+// wall time grades the MACHINE, not the code: measured ~43s for its slowest test
+// alone on Node 20 (--maxWorkers=1, 2026-11-08) and slower in a folder run, past
+// vite.config's 15s testTimeout. 150s is ~3x the slow-box duration. A genuine
+// hang still fails; no assertion is weakened.
+const MEASURE_TIMEOUT_MS = 150000
+
+describe('⭐⭐ the drawable ceiling, cross-tabbed against where the drawing dies', { timeout: MEASURE_TIMEOUT_MS }, () => {
   it('⛔ CONTROL — the corpus is actually on disk', () => {
     expect(SCRIPTS.length).toBeGreaterThan(200)
   })

@@ -148,8 +148,9 @@ def _adjudicate(ctx):
         f'{{"theme_id": "..."|null, "tier": "relevant"|"peripheral", "confidence": 0.0-1.0, "rationale": "<=140 chars"}}')
     try:
         client = _get_anthropic_client().with_options(timeout=45)
-        msg = client.messages.create(model=_MODEL, max_tokens=200,
-                                     messages=[{"role": "user", "content": prompt}])
+        request = dict(model=_MODEL, max_tokens=200, messages=[{"role": "user", "content": prompt}])
+        with store.charge_if_failed(ctx["run_id"], request):
+            msg = client.messages.create(**request)
         u = getattr(msg, "usage", None)
         store.log_cost(ctx["run_id"], _MODEL, getattr(u, "input_tokens", 0) or 0,
                        getattr(u, "output_tokens", 0) or 0)

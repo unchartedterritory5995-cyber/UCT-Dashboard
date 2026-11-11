@@ -106,9 +106,13 @@ def test_the_fixture_is_not_vacuous():
     # C45: the two `bar-index:` codes ride the same channel and are exercised by their
     # OWN fixture (tests/test_ast_bar_index_shift_parity.py) -- this one has no Pine
     # document reading `bar_index`, so they are set aside here by prefix, not by name.
-    clock = {c for c in ai.CHART_CLOCK_WITHHELD_CODES if not c.startswith("bar-index:")}
+    # 2026-11-09: so do the `running-total:` and `var-origin:` codes, held by that same fixture.
+    clock = {c for c in ai.CHART_CLOCK_WITHHELD_CODES
+             if not c.startswith(("bar-index:", "running-total:", "var-origin:"))}
     assert clock - named == {"time-anchor:other-bars"}
-    assert set(ai.CHART_CLOCK_WITHHELD_CODES) - clock == {"bar-index:window", "bar-index:early-bars"}
+    assert set(ai.CHART_CLOCK_WITHHELD_CODES) - clock == {
+        "bar-index:window", "bar-index:early-bars", "bar-index:first-bar",
+        "running-total:window", "running-total:early-bars", "var-origin:window", "var-origin:bars"}
 
 
 def test_the_builders_are_the_fixtures_own_trees():

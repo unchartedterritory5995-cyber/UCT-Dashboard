@@ -1,3 +1,5 @@
+// S7 (audit 2026-11-05, one vocabulary): the copy these rails pin was renamed (styles -> templates, Adopt -> Use,
+// Community styles/gallery -> Template library, Active setups -> Setups); the rails follow the new words.
 // Finish program, lane KEYS: focus lands on the new page after an in-app navigation.
 //
 // The click-budget measurement (docs/notebook/fin-clicks.md) found focus left on <body> after
@@ -74,7 +76,7 @@ describe('Journal routes: focus lands on the new page after an in-app navigation
     ['/journal/trades', 'Trades'],
     ['/journal/calendar', 'Calendar'],
     ['/journal/notebook', 'Notebook'],
-    ['/journal/notebook/setups', 'Active setups'],
+    ['/journal/notebook/setups', 'Setups'],
     ['/journal/notebook/research/NVDA', 'NVDA research'],
     ['/journal/insights', 'Insights'],
     ['/journal/compass', 'Compass'],
@@ -116,7 +118,7 @@ describe('Journal routes: focus lands on the new page after an in-app navigation
     const page = screen.getByTestId('trades')
     // the target sits directly before the page in document order, after every header control
     expect(el.compareDocumentPosition(page) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    const header = screen.getByRole('button', { name: 'Show keyboard shortcuts' })
+    const header = screen.getByRole('button', { name: 'Help' })
     expect(header.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 

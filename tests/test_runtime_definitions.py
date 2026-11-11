@@ -72,7 +72,7 @@ def store(tmp_path, monkeypatch):
     # starter allowlist answered "graded" for these synthetic sources.
     # `test_pine_runtime_switch_on.py` rails both doors themselves.
     monkeypatch.setenv(rt.STAGE_ENV, rt.STAGE_ALL)
-    monkeypatch.setattr(rt, "not_graded", lambda source: None)
+    monkeypatch.setattr(rt, "not_graded", lambda source, graded_only=False: None)
     return tmp_path
 
 
@@ -236,12 +236,17 @@ def test_the_relint_pass_skips_a_runtime_row_rather_than_calling_it_uncomparable
 
 
 def test_an_alert_cannot_bind_a_runtime_row(store, monkeypatch):
+    """⭐ W5-T13: the alert lane now admits a runtime row ONLY where
+    `server_lane_refusal` answers None; on a box with no server stage (this one) it is
+    refused at its own gate, `server-lane`, by name (`tests/test_alert_runtime_lane.py`
+    holds the admitted half)."""
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     svc.save(USER, DEF_ID, runtime_defn())
     from api.services import alert_user_series
     row = svc.get(USER, DEF_ID)
-    with pytest.raises(alert_user_series.AdmissionRefused, match="compute.kind 'runtime'"):
+    with pytest.raises(alert_user_series.AdmissionRefused, match=r"\[gate:server-lane\]") as e:
         alert_user_series._gate_lane(row)
+    assert e.value.gate == "server-lane"
 
 
 # ─── one repaint class, two languages (RT2) ──────────────────────────────────

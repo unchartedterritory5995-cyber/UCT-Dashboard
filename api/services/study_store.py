@@ -50,6 +50,9 @@ DUE_WRONG_DAYS = 1
 XP_CORRECT = 10                   # per correct answer, × difficulty
 XP_WRONG = 2                      # showing up is worth something, never zero
 XP_PER_LEVEL = 500
+# the trophies a member earns from their own record (record_attempt 4b; the shelf's catalog is app/src/pages/study/studyBadges.js)
+BADGE_STREAKS = (3, 7, 30)
+BADGE_LEVELS = (5, 10, 20)
 DAILY_GOAL_DEFAULT = 50
 MASTERY_MIN_REPS = 8              # minimum attempts to leave Learning (§7.1)
 BAND_PRACTISED = 50.0
@@ -139,6 +142,20 @@ CREATE TABLE IF NOT EXISTS study_bars (
   bars_json    TEXT NOT NULL,                        -- [{t,o,h,l,c,v}] through asof
   forward_json TEXT,                                 -- bars after asof; reveal/step only
   sha256       TEXT
+);
+
+-- the replay within the day (2026-11-08): a chart's forward days as their regular-session 30-minute (or hourly) bars,
+-- only the days that add up to the daily candle the chart draws (study_intraday.build); filled once on the server
+-- (scripts/study/fill_replay_intraday.py), served only after the member's own attempt
+CREATE TABLE IF NOT EXISTS study_intraday (
+  bars_id      TEXT PRIMARY KEY,                     -- study_bars.id
+  tf           TEXT NOT NULL,                        -- '30' or '60' (minutes)
+  days_json    TEXT NOT NULL,                        -- {"YYYYMMDD": [[t,o,h,l,c,v], ...]}
+  passed       INTEGER NOT NULL DEFAULT 0,
+  failed       INTEGER NOT NULL DEFAULT 0,
+  why_json     TEXT,
+  source       TEXT,
+  fetched_at   TEXT
 );
 
 CREATE TABLE IF NOT EXISTS study_corrections (
@@ -460,9 +477,14 @@ def upsert_items(items: Iterable[dict], *, now: Optional[datetime] = None) -> di
     """Insert or update bank items. `review_status` defaults to 'draft' and a
     re-import with a HIGHER version resets an approved item to draft (nothing
     goes live unreviewed, §8.8); a re-import at the same version keeps the
-    status the owner gave it. Returns {inserted, updated, ids}."""
+    status the owner gave it, and his grade on the example (review 'grade'
+    writes reveal_json.example_grade, which the bank never carries). A row
+    whose version is HIGHER than the bank's was edited on the pod (review
+    'fix' bumps it: the owner's own words on a lesson, 2026-10-25) and is
+    KEPT as it stands; the bank at a lower version never writes over it.
+    Returns {inserted, updated, kept, ids}."""
     stamp = _iso(now or _now_utc())
-    inserted = updated = 0
+    inserted = updated = kept = 0
     ids: list[str] = []
     with _write() as c:
         for raw in items:
@@ -479,7 +501,7 @@ def upsert_items(items: Iterable[dict], *, now: Optional[datetime] = None) -> di
             vals["review_lane"] = vals.get("review_lane") or "manual"
             version = int(it.get("version") or 1)
             status = it.get("review_status") or STATUS_DRAFT
-            row = c.execute("SELECT version, review_status FROM study_items WHERE id=?",
+            row = c.execute("SELECT version, review_status, reveal_json FROM study_items WHERE id=?",
                             (iid,)).fetchone()
             if row is None:
                 c.execute(
@@ -490,9 +512,27 @@ def upsert_items(items: Iterable[dict], *, now: Optional[datetime] = None) -> di
                 )
                 inserted += 1
             else:
+                row_version = int(row["version"] or 1)
+                if version < row_version:
+                    # The pod row outranks the bank: its version was raised by an
+                    # owner fix on the pod, so the bank at a lower version keeps its
+                    # hands off (a bank that means to replace the row carries a
+                    # higher version, and the row goes back to draft for review).
+                    kept += 1
+                    ids.append(iid)
+                    continue
                 new_status = row["review_status"]
                 reviewed = None
-                if version > int(row["version"] or 1):
+                if version == row_version:
+                    # the owner's grade on the example rides a same-version re-import
+                    old_reveal = _loads(row["reveal_json"], {}) or {}
+                    new_reveal = _loads(vals["reveal_json"], {}) or {}
+                    if (isinstance(old_reveal, dict) and isinstance(new_reveal, dict)
+                            and old_reveal.get("example_grade") is not None
+                            and new_reveal.get("example_grade") is None):
+                        new_reveal["example_grade"] = old_reveal["example_grade"]
+                        vals["reveal_json"] = _dumps(new_reveal)
+                if version > row_version:
                     new_status = STATUS_DRAFT
                 elif status == STATUS_APPROVED and row["review_status"] == STATUS_DRAFT:
                     # The save file carries the owner's approval (corrections.py
@@ -507,15 +547,14 @@ def upsert_items(items: Iterable[dict], *, now: Optional[datetime] = None) -> di
                 sets = ", ".join(f"{k}=?" for k in _ITEM_CONTENT_FIELDS)
                 c.execute(
                     f"UPDATE study_items SET {sets}, version=?, review_status=? WHERE id=?",
-                    (*[vals[k] for k in _ITEM_CONTENT_FIELDS],
-                     max(version, int(row["version"] or 1)), new_status, iid),
+                    (*[vals[k] for k in _ITEM_CONTENT_FIELDS], version, new_status, iid),
                 )
                 if reviewed:
                     c.execute("UPDATE study_items SET reviewed_by=?, reviewed_at=? WHERE id=?",
                               (reviewed, stamp, iid))
                 updated += 1
             ids.append(iid)
-    return {"inserted": inserted, "updated": updated, "ids": ids}
+    return {"inserted": inserted, "updated": updated, "kept": kept, "ids": ids}
 
 
 def upsert_bars(bars_id: str, tf: str, bars: list, forward: Optional[list] = None,
@@ -561,6 +600,11 @@ def get_item_prompt(item_id: str, *, approved_only: bool = True) -> Optional[dic
         return None
     d = dict(row)
     d["prompt_json"] = _loads(d.get("prompt_json"), {})
+    # The generators tag a recall prompt with its `subject` (the term the question is about), which IS the
+    # answer for a "which name fits" item; a member payload must never carry it (found 2026-11-03: every
+    # live candle item named its answer in the network tab).
+    if isinstance(d["prompt_json"], dict):
+        d["prompt_json"] = {k: v for k, v in d["prompt_json"].items() if k != "subject"}
     d["has_chart"] = bool(d.pop("bars_ref", None))
     return d
 
@@ -589,6 +633,51 @@ def get_forward_bars(item_id: str) -> list:
             "SELECT b.forward_json FROM study_items i JOIN study_bars b ON b.id=i.bars_ref "
             "WHERE i.id=?", (item_id,)).fetchone()
     return _loads(row["forward_json"], []) if row else []
+
+
+def upsert_intraday(bars_id: str, tf: str, built: dict, *, source: str = "") -> None:
+    """Store one chart's replay within the day (`study_intraday.build`'s result). A re-fill replaces the row."""
+    with _write() as c:
+        c.execute(
+            "INSERT INTO study_intraday (bars_id, tf, days_json, passed, failed, why_json, source, fetched_at) "
+            "VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(bars_id) DO UPDATE SET tf=excluded.tf, days_json=excluded.days_json, "
+            "passed=excluded.passed, failed=excluded.failed, why_json=excluded.why_json, source=excluded.source, "
+            "fetched_at=excluded.fetched_at",
+            (bars_id, str(tf), _dumps(built.get("days") or {}), int(built.get("passed") or 0),
+             int(built.get("failed") or 0), _dumps(built.get("why") or {}), source or None,
+             datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")))
+
+
+def intraday_candidates() -> list[dict]:
+    """Approved daily chart items that name their symbol: what the replay within the day can be filled for. One row per
+    item (several items can share a chart snapshot; the fill groups by `bars_ref`)."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT i.id, i.type, i.skill_id, i.sym, i.bars_ref FROM study_items i JOIN study_bars b ON b.id=i.bars_ref "
+            "WHERE i.review_status=? AND b.tf='D' AND i.sym IS NOT NULL AND i.sym != '' ORDER BY i.id",
+            (STATUS_APPROVED,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def intraday_filled(*, with_days_only: bool = False) -> set:
+    """The chart snapshots that already have a replay within the day stored; `with_days_only`: only those where at least
+    one day added up (so a re-try skips just those)."""
+    q = "SELECT bars_id FROM study_intraday" + (" WHERE passed > 0" if with_days_only else "")
+    with contextlib.closing(_connect()) as c:
+        return {r["bars_id"] for r in c.execute(q)}
+
+
+def get_intraday(item_id: str) -> Optional[dict]:
+    """An item's replay within the day: {tf, days}. ⛔ Like the forward bars, callers must have verified the member's own
+    attempt at this item first (the days ARE the forward bars, finer)."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT d.tf, d.days_json FROM study_items i JOIN study_intraday d ON d.bars_id=i.bars_ref "
+            "WHERE i.id=?", (item_id,)).fetchone()
+    if not row:
+        return None
+    days = _loads(row["days_json"], {}) or {}
+    return {"tf": row["tf"], "days": days} if days else None
 
 
 def reveal_for(item: dict) -> dict:
@@ -1016,6 +1105,7 @@ def record_attempt(user_id: str, item_id: str, answer_json, correct: bool, score
         last_day = prof["last_done_day"]
         freeze_week = prof["freeze_used_week"]
         daily_done = False
+        perfect_set = False
         if session_id:
             sess = c.execute(
                 "SELECT kind, day_et, finished_at, item_ids_json FROM study_sessions "
@@ -1039,11 +1129,32 @@ def record_attempt(user_id: str, item_id: str, answer_json, correct: bool, score
                                    session_id))
                         streak, best, last_day, freeze_week = _streak_after(
                             prof, sess["day_et"] or today)
+                        perfect_set = int(n_right) >= len(ids)
         c.execute(
             "UPDATE study_profile SET xp=?, level=?, streak=?, streak_best=?, last_done_day=?, "
             "freeze_used_week=?, updated_at=? WHERE user_id=?",
             (xp, level, streak, best, last_day, freeze_week, stamp, user_id),
         )
+
+        # 4b. trophies (2026-11-08: award_badge was defined and never called, so no member had ever earned one). Each is
+        #     the member's own record crossing a line, granted once, in the same transaction as the answer.
+        new_badges = []
+
+        def _grant(badge_id: str) -> None:
+            cur = c.execute("INSERT OR IGNORE INTO study_badges (user_id, badge_id, earned_at) VALUES (?,?,?)",
+                            (user_id, badge_id, stamp))
+            if cur.rowcount:
+                new_badges.append(badge_id)
+        if daily_done:
+            _grant("first_set")
+            if perfect_set:
+                _grant("perfect_set")
+        for n in BADGE_STREAKS:
+            if streak >= n:
+                _grant(f"streak_{n}")
+        for n in BADGE_LEVELS:
+            if level >= n:
+                _grant(f"level_{n}")
 
         # 5. weekly xp
         c.execute(
@@ -1055,7 +1166,7 @@ def record_attempt(user_id: str, item_id: str, answer_json, correct: bool, score
                        (user_id, week)).fetchone()
     return {
         "attempt_id": attempt_id, "due_at": due_at, "xp_gained": gained, "xp": xp,
-        "level": level, "streak": streak, "streak_best": best, "daily_done": daily_done,
+        "level": level, "streak": streak, "streak_best": best, "daily_done": daily_done, "badges_new": new_badges,
         "unscored": False,
         "skill": {"skill_id": skill_id, "mastery": mastery, "band": band, "reps": reps},
         "week_et": week, "weekly_xp": int(wk["xp"]) if wk else gained,

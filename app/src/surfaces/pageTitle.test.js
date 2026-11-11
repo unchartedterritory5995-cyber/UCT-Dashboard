@@ -9,7 +9,7 @@
 import { describe, it, test, expect } from 'vitest'
 import { MANIFEST } from './manifest.js'
 import { NAV_ITEMS } from '../components/NavBar.jsx'
-import { titleForPath, APP_BRAND, SURFACE_PATHS } from './pageTitle.js'
+import { titleForPath, APP_BRAND, SURFACE_PATHS, noteDocumentTitle, EXPLICIT_TITLES } from './pageTitle.js'
 
 const NAV_LABEL_BY_PATH = new Map(NAV_ITEMS.map((i) => [i.to, i.label]))
 
@@ -37,8 +37,10 @@ describe('S1 CP2 — the title is derived from the manifest + NAV_ITEMS, never g
   })
 
   it('a surface-kind path NOT in NAV_ITEMS returns null — never a generic guess', () => {
+    // (S5/B11: Settings and the Notebook are NAMED on purpose -- EXPLICIT_TITLES -- and are railed below.)
+    const named = new Set(EXPLICIT_TITLES.map(([p]) => p))
     const uncovered = MANIFEST.filter(
-      (m) => m.kind === 'surface' && m.pathKind === 'literal' && !NAV_LABEL_BY_PATH.has(m.path)
+      (m) => m.kind === 'surface' && m.pathKind === 'literal' && !NAV_LABEL_BY_PATH.has(m.path) && !named.has(m.path)
     )
     expect(uncovered.length).toBeGreaterThan(0) // non-vacuity
     for (const m of uncovered) expect(titleForPath(m.path), m.path).toBeNull()
@@ -93,4 +95,29 @@ test('CONTROL: the matcher does not fire on a path that merely starts with the s
   // '/dashboards-are-fun' must NOT match '/dashboard' — this is a real route
   // boundary check, not a substring scan.
   expect(titleForPath('/dashboards-are-fun')).toBeNull()
+})
+
+// ⛔ Audit 2026-11-05, spec S5 (B11): Settings kept index.html's "UCT Intelligence: Coming soon",
+// and the Notebook read "Journal" on its home and on every note.
+describe('S5 (B11): Settings and the Notebook are named', () => {
+  it('Settings, and every Settings section', () => {
+    expect(titleForPath('/settings')).toBe('Settings · UCT Intelligence')
+    expect(titleForPath('/settings/connections')).toBe('Settings · UCT Intelligence')
+  })
+  it('the Notebook home, never the Journal', () => {
+    expect(titleForPath('/journal/notebook')).toBe('Notebook · UCT Intelligence')
+    expect(titleForPath('/journal')).toBe(`Journal — ${APP_BRAND}`)        // control
+  })
+  it('an open note is "{title} · Notebook · UCT Intelligence"', () => {
+    expect(noteDocumentTitle('NVDA swing plan')).toBe('NVDA swing plan · Notebook · UCT Intelligence')
+    expect(noteDocumentTitle('  ')).toBe('Untitled · Notebook · UCT Intelligence')
+  })
+})
+
+describe('fix round 1: an open note owns the tab', () => {
+  it('the Notebook with ?note= is left to the editor; without it, the home title', () => {
+    expect(titleForPath('/journal/notebook', '?note=n1')).toBeNull()
+    expect(titleForPath('/journal/notebook', '?view=all&note=n1')).toBeNull()
+    expect(titleForPath('/journal/notebook', '?view=all')).toBe('Notebook · UCT Intelligence')
+  })
 })

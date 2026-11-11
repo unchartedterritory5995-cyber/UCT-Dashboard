@@ -92,6 +92,11 @@ on:
 # ⛔ Never cancel a previous run: the whole value of this job is a complete record of
 # which tests were red on which commit, and a cancelled run leaves a hole that reads
 # exactly like a green one.
+# ⚠️ A newer run therefore QUEUES behind the running one; runs never overlap. But GitHub keeps
+# only ONE pending run per group, so a THIRD trigger cancels the run already waiting. That
+# run never starts and publishes nothing; `ci_inventory.classify_run` (and
+# `ci_outcome.job_never_started` for its jobs) report it as NOT_RUN — never as a result,
+# never as a timeout.
 concurrency:
   group: full-suite-${{ github.ref }}
   cancel-in-progress: false
@@ -132,6 +137,8 @@ jobs:
     outputs:
       shards: ${{ steps.p.outputs.shards }}
       profile_dirs: ${{ steps.p.outputs.profile_dirs }}
+      vitest_shards: ${{ steps.v.outputs.vitest_shards }}
+      vitest_shard_count: ${{ steps.v.outputs.vitest_shard_count }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -158,9 +165,43 @@ jobs:
           python tools/pytest_shards.py --plan
           echo "shards=$(python tools/pytest_shards.py --list)" >> "$GITHUB_OUTPUT"
           echo "profile_dirs=$(python tools/collect_profile_dirs.py)" >> "$GITHUB_OUTPUT"
+      # ⛔⛔ THE VITEST PARTITION IS PROVED HERE TOO, BEFORE FOUR JOBS RUN IT. Same rule as the
+      # pytest one above: a file in two shards runs twice, a file in none is never tested and
+      # reads as a pass. ⚰️ `npx vitest list --shard=i/4 --filesOnly` CANNOT prove it on
+      # vitest 4.0.18 — `list --filesOnly` never applies `--shard` (it is applied only at run
+      # time, in the pool), and measured locally it printed all 4,581 files for `1/4`. So
+      # `app/scripts/vitest-shard-plan.mjs` asks vitest for the relevant files and calls the
+      # configured sequencer's own `shard()` per index — the code `vitest run --shard=i/4`
+      # runs — and `tools/vitest_shards.py --prove` checks union = full, no overlap, none
+      # missing, no shard empty.
+      # ⛔ A failed proof FAILS THIS JOB, which is this file's existing philosophy (the pytest
+      # `--self-check` above does the same): every suite job `needs: plan`, so nothing runs
+      # on an unproved plan, and `publish` (`if: always()`) still writes the record — with
+      # every vitest shard MISSING, i.e. INVALID — so the failure is recorded, not silent.
+      # ⚠️ COST: this job now installs node + `npm ci` (~1-2 min) to load vitest's config.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install (vitest is needed to compute its own shard plan)
+        working-directory: app
+        run: npm ci
+      - name: Prove the vitest partition, then emit it
+        id: v
+        run: |
+          N=$(python tools/vitest_shards.py --count)
+          (cd app && node scripts/vitest-shard-plan.mjs "$N" ../vitest-shard-plan.json)
+          python tools/vitest_shards.py --prove vitest-shard-plan.json
+          echo "vitest_shards=$(python tools/vitest_shards.py --list)" >> "$GITHUB_OUTPUT"
+          echo "vitest_shard_count=$N" >> "$GITHUB_OUTPUT"
 
   vitest:
-    name: vitest — all files (report-only)
+    # ⛔ `shard-<i>` is a whole token in the name and the COUNT is deliberately absent:
+    # `ci_aggregate --suite vitest` finds each shard's runner verdict by `\bshard-<i>\b`,
+    # and a name carrying `/4` would make shard 4 match every job.
+    name: vitest — shard-${{ matrix.shard }} (report-only)
+    needs: plan
     runs-on: ubuntu-latest
     continue-on-error: true
     # ⛔⛔ A0 (2026-10-13) — 45 WAS BELOW THE SUITE'S OWN WALL TIME. The last complete run
@@ -170,7 +211,23 @@ jobs:
     # 100 gives it room to finish. `ci_inventory.diff` now refuses a vitest record with no
     # totals line (INVALID), so a timeout reads as RED, never as a quiet zero. ⚠️ If the
     # suite approaches ~80 minutes, shard it (`--shard=i/n`) rather than raising this again.
-    timeout-minutes: 100
+    #
+    # ⛔⛔ 2026-11-09 — SHARDED, AS THE LINE ABOVE SAID TO. Every nightly since 10-28 was
+    # killed at the 100-minute cap (GitHub: "cancelled"), so the suite now runs as
+    # `--shard=i/4` (the count lives in tools/vitest_shards.py, proved a partition by
+    # `plan`). ⚠️ Per-shard wall time is NOT YET MEASURED: the basis is arithmetic only —
+    # >100 min unsharded / 4 ≈ 25+ min per shard plus ~3-5 min setup — so 60 is the cap,
+    # with room, and the first three nightly runs report each shard's measured time
+    # (`shard_totals.<i>.elapsed_s` in the vitest record). Caps come DOWN as shards prove
+    # their duration, never up.
+    # ⛔ NO RETRIES, anywhere. A failed, killed or missing shard makes the vitest record
+    # INVALID (`ci_inventory.vitest_shard_problems`); it is never re-run to get a count.
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.vitest_shards) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -214,10 +271,13 @@ jobs:
         # E CP4: the default reporter feeds the human log and the totals-line
         # assertion; the junit report is what `tools/ci_extract.py` turns into
         # per-test failure text. Counts alone are a status badge, not a diagnosis.
-        run: npx vitest run --reporter=default --reporter=junit --outputFile.junit=../vitest-junit.xml 2>&1 | tee ../vitest.log
+        # ⛔ Each shard's log and junit are THAT SHARD's: the suite totals are summed from
+        # all four logs in `publish` (`ci_aggregate --suite vitest`), never read off one.
+        run: npx vitest run --shard=${{ matrix.shard }}/${{ needs.plan.outputs.vitest_shard_count }} --reporter=default --reporter=junit --outputFile.junit=../vitest-junit.xml 2>&1 | tee ../vitest.log
       # ⛔ A RUN WITHOUT A TOTALS LINE IS NOT A RUN. The pipe above means this step's
       # exit code is tee's, so the totals line is asserted explicitly rather than
-      # inferred from a status.
+      # inferred from a status. Kept PER SHARD: a shard with no totals line is red here,
+      # and INVALID (`shards_without_totals`) in the record.
       - name: Assert the run produced a totals line
         if: always()
         run: |
@@ -225,10 +285,13 @@ jobs:
             echo "::error::vitest produced no totals line — this is NOT a green run"
             exit 1
           }
+      # ⛔ ONE ARTIFACT PER SHARD: upload-artifact@v4 REFUSES a duplicate name, so four shards
+      # uploading `vitest-log` would fail three of them. `publish` downloads `vitest-log-*`
+      # with merge-multiple false, so each shard's files stay in their own directory.
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: vitest-log
+          name: vitest-log-${{ matrix.shard }}
           path: |
             vitest.log
             vitest-junit.xml
@@ -453,8 +516,10 @@ jobs:
         # "comparable", so no flake was invented and every NEW entry would still have
         # fired the gate. ⛔ pyyaml only — the stdlib-alone property is worth keeping.
         run: python -m pip install --quiet pyyaml
+      # ⛔ `merge-multiple: false`: each shard unpacks into vshards/vitest-log-<i>/, so four
+      # files all named vitest.log never overwrite one another.
       - uses: actions/download-artifact@v4
-        with: { name: vitest-log, path: logs }
+        with: { pattern: vitest-log-*, path: vshards, merge-multiple: false }
         continue-on-error: true
       - uses: actions/download-artifact@v4
         with: { pattern: pytest-shard-*, path: shards }
@@ -517,8 +582,19 @@ jobs:
       - name: Prove the artifacts exist before reading them
         if: always()
         run: |
-          python tools/ci_publish.py --check-artifact jobs.json \
-            --check-artifact logs/vitest.log --check-artifact logs/vitest-junit.xml || true
+          python tools/ci_publish.py --check-artifact jobs.json || true
+          echo "--- vitest shard results ---"
+          ls -la vshards 2>/dev/null || echo "UNREADABLE: vshards/ does not exist"
+          for d in vshards/*/; do
+            [ -d "$d" ] || continue
+            for f in vitest.log vitest-junit.xml; do
+              if [ -f "$d/$f" ]; then
+                echo "$d/$f exists, $(wc -c < "$d/$f") bytes"
+              else
+                echo "UNREADABLE: $d/$f does not exist"
+              fi
+            done
+          done
           echo "--- shard results ---"
           ls -la shards 2>/dev/null || echo "UNREADABLE: shards/ does not exist"
           for d in shards/*/; do
@@ -556,8 +632,16 @@ jobs:
       - name: Summarise
         if: always()
         run: |
-          touch logs/vitest.log
-          python tools/ci_summarize.py --suite vitest --log logs/vitest.log --out v.json
+          # ⛔⛔ VITEST IS 4 SHARDS: its suite record is the SUM of the four shard logs'
+          # totals lines, built by the same bucket logic as pytest's (`shards_missing`,
+          # `shards_without_totals`, `shards_unreadable`), each shard's own line kept in
+          # `shard_totals`. ⛔ `--expect` comes from the plan; if the plan failed it is empty
+          # and the tool falls back to its OWN shard list, so every shard reads MISSING —
+          # never "no shards, nothing failed".
+          python tools/ci_aggregate.py --suite vitest \
+            --shards-dir vshards --expect '${{ needs.plan.outputs.vitest_shards }}' \
+            --dir-prefix vitest-log- \
+            --jobs jobs.json --out v.json
           # E CP6: pytest is now N shards. Its suite-level numbers come from the
           # aggregator, which refuses to let a MISSING shard read as zero.
           ls -la shards || true
@@ -591,12 +675,17 @@ jobs:
               ARGS="$ARGS --pytest-junit $d/pytest-junit.xml"
             fi
           done
+          # ⛔ VITEST: every shard's junit, built from disk the same way. `ci_extract` MERGES
+          # them into `extract/<run>/vitest-junit.xml` (failure names + the RAN set only —
+          # the counts come from the shard logs, never from a junit).
+          for d in vshards/*/; do
+            if [ -f "$d/vitest-junit.xml" ]; then
+              ARGS="$ARGS --vitest-junit $d/vitest-junit.xml"
+            fi
+          done
           echo "shard inputs: $ARGS"
           python tools/ci_extract.py $ARGS \
-            --vitest-log logs/vitest.log \
-            --vitest-junit logs/vitest-junit.xml \
             --out-dir "extract/$GITHUB_RUN_ID"
-          cp logs/vitest-junit.xml "extract/$GITHUB_RUN_ID/" 2>/dev/null || true
           cp collect_profile.json "extract/$GITHUB_RUN_ID/" 2>/dev/null || true
           cp -r shards "extract/$GITHUB_RUN_ID/shards" 2>/dev/null || true
           ls -la "extract/$GITHUB_RUN_ID"
@@ -625,7 +714,9 @@ jobs:
         env:
           VITEST_RESULT: ${{ needs.vitest.result }}
           PYTEST_RESULT: ${{ needs.pytest.result }}
-          SUITE_TIMEOUT_MINUTES: "45"
+          # ⛔ The VITEST cap `ci_outcome` derives `timed_out` against — each shard's
+          # `timeout-minutes` above. It said 45 while the job's real cap was 100.
+          SUITE_TIMEOUT_MINUTES: "60"
         run: |
           # ⛔ E CP19 - `--detail-dir` is where the detail files live AT BUILD TIME.
           # Without it the record cannot check its own `detail` paths and says so
@@ -658,7 +749,20 @@ jobs:
           mkdir -p allruns/results
           git archive FETCH_HEAD results 2>/dev/null | tar -x -C allruns || \
             echo "::warning title=record store unreadable::the flaky set will be EMPTY, and an empty set means every NEW entry fires the gate"
-          cp -r "extract/$GITHUB_RUN_ID" "allruns/results/$GITHUB_RUN_ID" 2>/dev/null || true
+          # ⛔⛔ NO RETRY LAUNDERING. On a MANUAL re-run (attempt > 1) whose attempt 1 is
+          # already on the branch, attempt 1 stays THE record being judged: this attempt is
+          # placed BESIDE it as `attempt-<n>/`, the diff below reads attempt 1, and
+          # `ci_inventory.rerun_flaky` names any test that failed then and passed now as
+          # FLAKY. A re-run can never turn this run's verdict green.
+          CUR="extract/$GITHUB_RUN_ID"
+          if [ "${GITHUB_RUN_ATTEMPT:-1}" != "1" ] && [ -f "allruns/results/$GITHUB_RUN_ID/summary.json" ]; then
+            mkdir -p "allruns/results/$GITHUB_RUN_ID/attempt-$GITHUB_RUN_ATTEMPT"
+            cp -r "extract/$GITHUB_RUN_ID/." "allruns/results/$GITHUB_RUN_ID/attempt-$GITHUB_RUN_ATTEMPT/"
+            CUR="allruns/results/$GITHUB_RUN_ID"
+            echo "::warning title=manual re-run::attempt $GITHUB_RUN_ATTEMPT — judged on attempt 1's record; this attempt is evidence for FLAKY only"
+          else
+            cp -r "extract/$GITHUB_RUN_ID" "allruns/results/$GITHUB_RUN_ID" 2>/dev/null || true
+          fi
           echo "record store: $(ls allruns/results 2>/dev/null | wc -l) run(s)"
           # ⛔⛔ R-ROLLING-BASELINE (E CP38) — `BASELINE_RUN_ID` is RETIRED for MASTER runs.
           # A fixed baseline on a shared branch measures every workstream's drift against
@@ -669,7 +773,7 @@ jobs:
           if [ "$GITHUB_REF_NAME" = "master" ]; then
             python tools/ci_inventory.py \
               --baseline previous-valid-master --current "$GITHUB_RUN_ID" \
-              --current-dir "extract/$GITHUB_RUN_ID" \
+              --current-dir "$CUR" \
               --results-root allruns/results --repo . \
               --out "extract/$GITHUB_RUN_ID/diff.json" > diff.md || true
           else
@@ -685,7 +789,7 @@ jobs:
             done
             python tools/ci_inventory.py \
               --baseline "$B" --current "$GITHUB_RUN_ID" \
-              --baseline-dir "base/$B" --current-dir "extract/$GITHUB_RUN_ID" \
+              --baseline-dir "base/$B" --current-dir "$CUR" \
               --results-root allruns/results --repo . \
               --out "extract/$GITHUB_RUN_ID/diff.json" > diff.md || true
           fi
@@ -752,6 +856,17 @@ jobs:
                   print("- **%s**: %s" % (k, p[k]))
           if p.get("ok_basis"):
               print("- basis: `%s`" % p["ok_basis"])
+          # ⛔ VITEST SHARDS — the same fields, and each shard's own wall time and line.
+          for k in ("shards_total", "shards_success", "shards_cancelled", "shards_missing",
+                    "shards_without_totals", "shards_unreadable", "shards_not_run"):
+              if k in v:
+                  print("- **vitest %s**: %s" % (k, v[k]))
+          for sid, st in sorted((v.get("shard_totals") or {}).items()):
+              print("- vitest shard %s: %s · elapsed_s=%s · `%s`"
+                    % (sid, st.get("job_result"), st.get("elapsed_s"), st.get("tests_line")))
+          if rec.get("run_attempt") not in (None, "1"):
+              print("- ⛔ **run_attempt %s** — a manual re-run; attempt 1 stays THE record"
+                    % rec["run_attempt"])
           # E CP12 - a producer that stopped emitting something the record builder reads
           # no longer kills publish, so it has to be LOUD somewhere a phone can see it.
           gaps = rec.get("contract_gaps") or []
@@ -850,10 +965,16 @@ jobs:
               "Written by .github/workflows/full-suite-report.yml. Do not edit by hand." \
               > README.md
           fi
-          mkdir -p "results/$RUN"
-          cp -r "/tmp/out/$RUN/." "results/$RUN/"
+          # ⛔⛔ NO RETRY LAUNDERING. A manual re-run keeps the run_id and bumps
+          # GITHUB_RUN_ATTEMPT; it must never overwrite attempt 1's record. `--record-dest`
+          # says `results/<run>` for attempt 1 and `results/<run>/attempt-<n>` after, and
+          # EXITS 1 (the ERR trap names it) rather than replace an existing summary.json.
+          DEST=$(python "/tmp/ci_publish.py" --record-dest "$RUN" "${GITHUB_RUN_ATTEMPT:-1}" --results-root results)
+          echo "record destination: $DEST (attempt ${GITHUB_RUN_ATTEMPT:-1})"
+          mkdir -p "$DEST"
+          cp -r "/tmp/out/$RUN/." "$DEST/"
           git add results README.md 2>/dev/null || git add results
-          git commit -m "ci run $RUN on $GITHUB_REF_NAME ($GITHUB_SHA)" || {
+          git commit -m "ci run $RUN attempt ${GITHUB_RUN_ATTEMPT:-1} on $GITHUB_REF_NAME ($GITHUB_SHA)" || {
             echo "::error title=publish failed::nothing to commit — no record was produced"
             exit 1; }
           # ⛔ Bounded fetch/rebase/push. On final failure this EXITS NON-ZERO: a publisher

@@ -1,0 +1,14 @@
+[hl] 18:11:13 free RAM 989 MB before 'w2-allowlist-parity'
+[heavy-lock] 'w2-allowlist-parity' waiting: held by 'w0-fix-gates' (pid 25564) for 5.3 min
+
+ RUN  v4.0.18 C:/Users/pgosz/uct-worktrees/pine-w2/app
+
+ ✓ src/components/chart/engine/__tests__/vendorHarness/runtimeAllowlistParity.test.js (4 tests) 9384ms
+     ✓ ⛔ control: a runtime-only script the allowlist does not name is declined BY THE GATE, by name  9104ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  18:24:48
+   Duration  20.28s (transform 6.98s, setup 460ms, import 8.94s, tests 9.38s, environment 1.28s)
+
+[heavy-lock] 'w2-allowlist-parity' released after 21s

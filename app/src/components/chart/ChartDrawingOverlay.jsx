@@ -1,5 +1,6 @@
 // app/src/components/chart/ChartDrawingOverlay.jsx — Canvas overlay for chart annotations
 import React, { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { isHiddenDeskKey } from '../../pages/charts/deskKeyGate'
 import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import isModalOpen from '../../utils/modalOpen'
@@ -29,6 +30,7 @@ import {
   resolveLevels, withBand, withLevel,
 } from './drawingFib'
 import { parseBoundId, POSITION_LEVELS, positionLevelDirection, positionSide } from './drawingAlertAnchors'
+import { toRawUnixView, stampTimeBase, pointChartTime } from './drawingTimeBase'
 import { sectionsFor, defaultsPayloadFor, newDrawingProps, isRetired } from './drawingSettingsSchema'
 import {
   PRICE, VOLUME, resolveZones, paneKeyAtY, rectForKey, inferPaneKey,
@@ -357,7 +359,7 @@ export default function ChartDrawingOverlay({
   color, lineWidth,
   lineStyle = 'solid',
   magnet = false,
-  drawings, addDrawing, updateDrawing, removeDrawing,
+  drawings: drawingsIn, addDrawing: addDrawingIn, updateDrawing: updateDrawingIn, removeDrawing,
   // ⛔ `reorderDrawing` IS GONE FROM THIS SIGNATURE. It arrived from StockChart
   // solely to feed the menu's `canReorder` / `onBringFront` / `onSendBack`
   // props — which this component never read (eslint has flagged all three as
@@ -397,6 +399,12 @@ export default function ChartDrawingOverlay({
   quickBarInset = 10,        // px above the chart's bottom edge for the touch quick-action
                              //   bar — the phone shell raises it above its docked draw bar.
 }) {
+  // ⭐ ONE TIME BASE (drawingTimeBase.js): every numeric point time this overlay reads or writes is
+  // RAW UNIX — the raw bars' own `t`. Legacy Agent points (chart time) are re-expressed on the way in;
+  // every write is stamped `tb:'unix'`; LWC (keyed by CHART time) is only ever asked via pointChartTime.
+  const drawings = useMemo(() => toRawUnixView(drawingsIn), [drawingsIn])
+  const addDrawing = useCallback((d, ...rest) => addDrawingIn?.(stampTimeBase(d), ...rest), [addDrawingIn])
+  const updateDrawing = useCallback((id, upd, ...rest) => updateDrawingIn?.(id, stampTimeBase(upd), ...rest), [updateDrawingIn])
   // ⭐ LIVE, not frozen. Every touch affordance below (auto-select after placing,
   // the touch pointer-routing effect, the coach chip, the quick bar, sheet-vs-
   // popover) reads THIS, so attaching or detaching an iPad keyboard re-renders
@@ -768,7 +776,8 @@ export default function ChartDrawingOverlay({
       }
     }
     if (x == null && time != null) {
-      try { x = chart.timeScale().timeToCoordinate(time) } catch {}
+      // the series is keyed by CHART time; stored points are raw unix (drawingTimeBase.js)
+      try { x = chart.timeScale().timeToCoordinate(pointChartTime(time)) } catch {}
       // Fallback: extrapolate from logical index. Uses the CONTAINING bar so a
       // daily-anchored drawing maps onto the right weekly/monthly bar (and vice
       // versa) instead of disappearing when the exact date isn't a bar.
@@ -2719,6 +2728,8 @@ export default function ChartDrawingOverlay({
     if (readOnly) return undefined
     const handler = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+      // A drawing on a popped desk does not answer keys typed on the page in the main window.
+      if (isHiddenDeskKey(e)) return
       // ⭐ THE THIRD KEY HANDLER THAT IS NOT SCOPED TO THE CHART.
       //
       // This listener is on `window`, so it fires wherever focus is. The
@@ -4221,6 +4232,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
       ref={menuRef}
       onPointerDown={(e) => e.stopPropagation()}
       style={shell}
+      data-guide="chart.drawingMenu"
     >
       {sheet && (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0 8px' }}>

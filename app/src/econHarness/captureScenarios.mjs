@@ -9,11 +9,11 @@
 //
 // ⛔ LOCAL ONLY: refuses any base URL whose host is not 127.0.0.1 / localhost.
 import { spawn } from 'node:child_process'
-import { mkdirSync, writeFileSync, mkdtempSync, statSync, readFileSync, existsSync } from 'node:fs'
+import { mkdirSync, writeFileSync, statSync, readFileSync, existsSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-import { tmpdir } from 'node:os'
 import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { tempProfile, trackChrome } from './cdp.mjs'
 
 const BASE = process.argv[2] || 'http://127.0.0.1:5187'
 const SRC = process.argv[3] || 'fixtures'
@@ -46,9 +46,9 @@ function dbFacts(path) {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-const profile = mkdtempSync(join(tmpdir(), 'econ-cdp-'))
-const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${profile}`,
-  '--window-size=1320,780', '--no-first-run', '--no-default-browser-check', 'about:blank'], { stdio: 'ignore' })
+const profile = tempProfile('econ-cdp-')
+const chrome = trackChrome(spawn(CHROME, ['--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${profile}`,
+  '--window-size=1320,780', '--no-first-run', '--no-default-browser-check', 'about:blank'], { stdio: 'ignore' }))
 
 async function target() {
   for (let i = 0; i < 50; i++) {

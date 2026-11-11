@@ -49,3 +49,9 @@
   white-space: nowrap;
   border: 0;
 }
+
+/* Tier 4 fix round 2 (live CLS): on a phone the box is ALWAYS two rows (the count, then the link). It used to be one
+   row until its count arrived and wrapped it to two (58 -> 81 px at 390, measured), pushing everything below. */
+@media (max-width: 640px) {
+  .box { flex-direction: column; align-items: flex-start; }
+}

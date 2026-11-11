@@ -1,0 +1,212 @@
+/* Audit 2026-11-05, S16 (M2): the 60-second first run. Breakpoints: 1024 only. Every control reaches var(--tap-min)
+   on the touch tier. The step-2 rows fade in one by one (300 ms each, 1.2 s in all); not under reduced motion. */
+.flow {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: var(--font-sans);
+  color: var(--text);
+}
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+.textBtn {
+  font: inherit;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.question {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.legend {
+  margin: 0 0 4px;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.packs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pack {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+.pack[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  font-weight: 600;
+}
+.previewLine,
+.promise {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+.names {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.chips {
+  display: contents;
+  list-style: none;
+}
+.nameChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 3px 4px 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.remove {
+  font: inherit;
+  color: var(--text-dim);
+  background: transparent;
+  border: 0;
+  padding: 0 6px;
+  cursor: pointer;
+}
+.combo {
+  position: relative;
+}
+.input {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--field-edge, var(--border));
+  border-radius: var(--radius-md);
+  padding: 5px 8px;
+  width: 10em;
+  text-transform: uppercase;
+}
+.input::placeholder { text-transform: none; }
+.listbox {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 16em;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--surface, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.option {
+  display: flex;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.optionActive { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.optionSym { font-weight: 600; color: var(--accent); }
+.optionName { color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.status {
+  margin: 0;
+  min-height: 1.2em;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.built {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.builtRow {
+  font-size: 13.5px;
+  line-height: 1.45;
+  padding-left: 22px;
+  position: relative;
+  animation: rowIn 300ms ease-out both;
+}
+.builtRow::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+}
+.rowActions { color: var(--text-dim); }
+.tryIt {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+.tryIt:hover { text-decoration: underline; }
+@keyframes rowIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .builtRow { animation: none; }
+}
+.inline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.inlineTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.textBtn:focus-visible,
+.pack:focus-visible,
+.remove:focus-visible,
+.input:focus-visible,
+.tryIt:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1024px) {
+  .textBtn { min-height: var(--tap-min); }
+  .pack { min-height: var(--tap-min); }
+  .remove { min-height: var(--tap-min); min-width: var(--tap-min); }
+  .input { min-height: var(--tap-min); }
+  .option { min-height: var(--tap-min); }
+  .tryIt { min-height: var(--tap-min); display: inline-flex; align-items: center; }
+}

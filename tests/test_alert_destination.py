@@ -102,6 +102,9 @@ CONVERTED = {
     # 2026-10-11 — the breadth alerts (#breadth-alerts). Its own DISCORD_BREADTH_WEBHOOK_URL
     # first; the OPS resolver as the fallback, so an unset variable never silences it.
     "api/services/breadth_alerts.py",
+    # 2026-11-03 — the Chart IQ pack-behind page (api/services/chart_iq/pack.py::alert_if_behind): born on the
+    # OPS resolver, never a literal read. Fires after the lab PC's build window when members read an older session.
+    "api/services/chart_iq/pack.py",
     # TERM-011 step 5, 2026-09-27 — the OPS member of D7's nine, converted to the shared
     # resolver rather than its own dedicated variable because it is the OUTAGE ORACLE and
     # must not fail closed. `_post_discord` and the `start_liveflow_monitor` gate both ask
@@ -137,6 +140,9 @@ CONVERTED = {
     # R2 recovery failing, headlines unconfirmed in R2). New (never a literal reader), an ops
     # message (counts only, never headline content), resolved lazily inside `_post`.
     "api/services/trade_exchange_news/ops_alerts.py",
+    # 2026-11-10 -- desktop app telemetry halt triggers + daily digest (desktop plan 5.1). New
+    # (never a literal reader), an ops message (enum counts only), resolved lazily inside `_post_ops`.
+    "api/services/desktop_events.py",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════

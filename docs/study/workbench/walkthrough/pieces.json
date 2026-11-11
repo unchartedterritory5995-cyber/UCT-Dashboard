@@ -1,0 +1,1626 @@
+[
+ {
+  "id": "b17-drill",
+  "batch": 17,
+  "title": "1 · The daily drill, round 17 (your batch-16 notes applied)",
+  "url": "http://127.0.0.1:5232/lab.html?piece=64&set=free",
+  "what": "Your batch-16 notes, applied to the real member drill: the mark turns beside a bigger, bolder question; the bar count is gone and a facts strip reads % off high, % vs the 20 and 50 MA and the 20-day ADR off the bars; the progress strip is a journey the mark walks, one lit stop per question (red on a miss); the chart is the member's own Charts-tab look with the study gates on top; the pointer is the halo + arrow + label; the answer cards and the Check pill are the premium versions; the verdict takes over the whole screen (mark, stamp, CORRECT / NOT QUITE, the answer, the lesson, one Continue, confetti on a right answer); the run-on is gone; the end card counts up with a bigger ring. Nothing on screen says 'the firm' any more. ?set=free gives a fresh set each load.",
+  "judge": "Rank each part again. Say what is still weak and what would make it Great.",
+  "parts": [
+   {
+    "id": "bubble",
+    "label": "the turning mark and the bigger question bubble"
+   },
+   {
+    "id": "facts",
+    "label": "the setup chip and the facts strip (off high, vs 20 MA, vs 50 MA, ADR)"
+   },
+   {
+    "id": "journey",
+    "label": "the journey strip the mark walks (top bar)"
+   },
+   {
+    "id": "chart",
+    "label": "the chart in your own Charts-tab look"
+   },
+   {
+    "id": "pointer",
+    "label": "the pointer: halo, arrow and label on the candle"
+   },
+   {
+    "id": "cards",
+    "label": "the answer cards"
+   },
+   {
+    "id": "check",
+    "label": "the Check pill"
+   },
+   {
+    "id": "takeover",
+    "label": "the full-screen verdict (mark, stamp, the big word)"
+   },
+   {
+    "id": "answer",
+    "label": "the answer line under the big word"
+   },
+   {
+    "id": "lesson",
+    "label": "the lesson card inside the verdict"
+   },
+   {
+    "id": "continue",
+    "label": "the Continue pill (gold right, red wrong)"
+   },
+   {
+    "id": "end",
+    "label": "the end card"
+   }
+  ]
+ },
+ {
+  "id": "b1-question-card-v2",
+  "batch": 1,
+  "title": "1 · The question card, on our chart",
+  "url": "http://127.0.0.1:5232/lab.html?piece=1",
+  "what": "Piece 1 again, now on the firm's own chart component with the house settings. The candle in question is pointed at (arrow) and painted gold; 'Point at it' switches the pointer off and on.",
+  "judge": "Is this now our chart? Is the pointer the right way to say 'this candle'? Chart size, question line, choices, button."
+ },
+ {
+  "id": "b1-answer-card",
+  "batch": 1,
+  "title": "2 · The answer card",
+  "url": "http://127.0.0.1:5232/lab.html?piece=2",
+  "what": "After Check. The same chart now shows the next 20 sessions, a ray at the Kicker's low, right or wrong at the top, the ticker and date, the WHY in your words, three numbers measured from the bars.",
+  "judge": "Does this teach? Is the why in your voice? Are the three numbers the right three? Toggle right/wrong to see both."
+ },
+ {
+  "id": "b1-highlights",
+  "batch": 1,
+  "title": "3 · How the chart points at things",
+  "url": "http://127.0.0.1:5232/lab.html?piece=3",
+  "what": "Six ways to point at a candle on the same chart: arrow, gold paint, white dot, mark the red day too, ray at the close, AVWAP. Each toggles.",
+  "judge": "Which of these a student actually sees. Which to use for 'look here', which for 'this is the level'. Anything missing (a box around several candles, a zoom)?"
+ },
+ {
+  "id": "b1-lesson-intro",
+  "batch": 1,
+  "title": "4 · Teach first: show, explain, find",
+  "url": "http://127.0.0.1:5232/lab.html?piece=4",
+  "what": "Three screens before any question: SHOW the Kicker, SAY what makes it one (four rules, in your words), then FIND it: tap the candle on the chart.",
+  "judge": "Is this how a new idea should be introduced? Too much text, too little? Does tap-the-candle feel like learning or like a gimmick?"
+ },
+ {
+  "id": "b1-progress",
+  "batch": 1,
+  "title": "5 · Progress and the finish card",
+  "url": "http://127.0.0.1:5232/lab.html?piece=5",
+  "what": "The strip at the top while answering (green/red/gold, streak at the right), then the finish card: score ring, one sentence about the misses, XP, streak, level, next lesson.",
+  "judge": "Does finishing feel like anything? Is the ring right, or do you want a chart-shaped progress instead? What should the finish say?"
+ },
+ {
+  "id": "b2-question-v3",
+  "batch": 2,
+  "title": "1 · The question card: your chart, an arrow from the left",
+  "url": "http://127.0.0.1:5232/lab.html?piece=6",
+  "what": "Your own saved chart settings now (hollow candles in your colours, your 9/20/50/200, your volume). The candle is never recoloured: an arrow spaced to its left points at it, with the label further left so nothing is cut off. Switches for the arrow and for marking the red day.",
+  "judge": "Is THIS our chart now? Is the arrow spaced right, and is the label readable? Anything else on the card?"
+ },
+ {
+  "id": "b2-flow",
+  "batch": 2,
+  "title": "2 · The whole loop, played like a game",
+  "url": "http://127.0.0.1:5232/lab.html?piece=7",
+  "what": "Three real questions on three real charts (Kicker, Slingshot, Launchpad). Pick, Check: a sheet slides up green or red with a pop, +10 XP flies, the bar fills, a combo counts, the next 20 sessions appear with the line that mattered. Wrong answers shake and show the right one. Ends on a result card. Play it through.",
+  "judge": "Does it FEEL like Duolingo yet? What is missing from the feel: sound, a mascot, hearts, a timer, bigger reactions? What is too much?"
+ },
+ {
+  "id": "b2-answer-v2",
+  "batch": 2,
+  "title": "3 · The answer card with the trade in it",
+  "url": "http://127.0.0.1:5232/lab.html?piece=8",
+  "what": "Why in your words, then IF YOU TRADED IT: entry over the Kicker high, stop under its low, the distance, the size the house rule gives at 0.5% risk, the shares on a $25k account, whether it filled and whether the stop held, best move and close in 20 sessions. Entry and stop lines drawn on the chart.",
+  "judge": "Are these the right entry and stop tactics for a Kicker? Right numbers to show? Too much for a reveal, or exactly what a student needs?"
+ },
+ {
+  "id": "b2-teach-v2",
+  "batch": 2,
+  "title": "4 · Teach by replay, then find it",
+  "url": "http://127.0.0.1:5232/lab.html?piece=9",
+  "what": "The chart plays forward one day at a time and stops itself on the red day (why it matters) and on the Kicker (what to see), with a slider to scrub. Then the chart runs on 20 more sessions and the member has to tap the Kicker.",
+  "judge": "Is replay the right way to teach a setup? Speed? Do the two stops say enough? Is find-it a real test now that the candle is not the last one?"
+ },
+ {
+  "id": "b2-finish-v2",
+  "batch": 2,
+  "title": "5 · The frame and the finish",
+  "url": "http://127.0.0.1:5232/lab.html?piece=10",
+  "what": "The frame while answering: a glowing bar, a combo counter, +XP pops. Then the finish: the ring and XP count up, confetti on a strong score, chips for what you learned, your misses with the one-line fix, next lesson.",
+  "judge": "Does finishing feel like something now? What would make you open it again tomorrow?"
+ },
+ {
+  "id": "b3-widget",
+  "batch": 3,
+  "title": "1 · The question on the FULL UCT chart widget",
+  "url": "http://127.0.0.1:5232/lab.html?piece=11",
+  "what": "The real Chart widget this time: the same ChartPane every /charts widget, popup and journal card mounts, with its identity row, timeframe bar, toolbar, legend and your saved look, on the real data path, cut off at the question date. Two candles of gap at the right. Switch Full / Compact / Mini; mini can hide the ticker; 1, 2 or 3 candle gap.",
+  "judge": "Is THIS the widget you meant? Full, compact or mini for a question? The full one shows the ticker: fine, or hide it until the answer? Is the gap right at 2?"
+ },
+ {
+  "id": "b3-questions",
+  "batch": 3,
+  "title": "2 · The loop with no leading questions",
+  "url": "http://127.0.0.1:5232/lab.html?piece=12",
+  "what": "Five questions in three forms. NAME it: four choices, the right one in a different slot each time, None of these always offered, no arrow, the chart just ends on the day. FIND it: the chart already ran on, tap the candle that triggered the trade. ENTER it: your tactics in your words (ORB, or the break of the previous day's high) against three wrong ones. The game feel stays.",
+  "judge": "Are these questions fair now? Are the wrong choices wrong by the house's rules, or did I invent any? Which form teaches best?"
+ },
+ {
+  "id": "b3-answer",
+  "batch": 3,
+  "title": "3 · The answer card, corrected",
+  "url": "http://127.0.0.1:5232/lab.html?piece=13",
+  "what": "The red day shows its performance, no body talk. Two entry tactics, yours: the opening range break next morning (lives on the 5-minute chart, so not measured here) and the break of the previous day's high (measured: price, fill day). Tap either. The stop under the low and the sizing stay marked as proposed.",
+  "judge": "Right tactics, right wording? Should the ORB get its own 5-minute chart in the answer? What is still missing from a reveal?"
+ },
+ {
+  "id": "b3-replay",
+  "batch": 3,
+  "title": "4 · The replay, rebuilt",
+  "url": "http://127.0.0.1:5232/lab.html?piece=14",
+  "what": "The chart keeps its zoom and new candles scroll in from the right, no re-framing per bar. Play, pause, step a day either way, half, 1x and 2x speed, a scrubber, space bar and arrow keys. It stops itself on the red day and on the Kicker, then runs 20 sessions so you watch the line hold. Then you find it.",
+  "judge": "Is the playback good now? Speed defaults? Should it stop by itself or run through? Anything the chart's own Time Machine does better?"
+ },
+ {
+  "id": "b3-finish",
+  "batch": 3,
+  "title": "5 · The frame and the finish, cut down",
+  "url": "http://127.0.0.1:5232/lab.html?piece=15",
+  "what": "The frame is a bar, a combo and nothing else. The finish is one card: ring counts up, one word for how you did, XP, best run, day streak, three chips, the misses one tap away, one button.",
+  "judge": "Cleaner? Cool enough? What is the one thing that would make it feel like a real product?"
+ },
+ {
+  "id": "b4-loop-widget",
+  "batch": 4,
+  "title": "1 · The question loop on the real widget",
+  "url": "http://127.0.0.1:5232/lab.html?piece=16",
+  "what": "The loop you scored 2 with no words, now every chart is the Chart widget you loved. Four questions: name it (JBI), tap the trigger candle on a chart that ran on (HAS, tap works on the widget), name it (MSTR), enter it (your two tactics, 30-minute ORB on day 1 or the previous day high).",
+  "judge": "Is the loop right now that it is on the widget? If it still scores low, say which part: the questions, the choices, the feel, the chart size."
+ },
+ {
+  "id": "b4-answer-numbers",
+  "batch": 4,
+  "title": "2 · The answer with both entries and their numbers",
+  "url": "http://127.0.0.1:5232/lab.html?piece=17",
+  "what": "Two tabs. Day 1 · 30-minute ORB: the real 30-minute chart of the Kicker day (bars from the site's own bars route), the opening range drawn, the break marked, entry = opening range high. Day 2 · previous day high: the daily widget with the Kicker's high as entry. One numbers table per tactic: entry, stop, risk %, size, shares on $25k, dollars at risk, fill, day-1 close, stop held, best in 20, close of 20. One sentence of why.",
+  "judge": "Right numbers, right tactics? The stops are the structure's lows and marked proposed: what is the house stop for each? Is the table the right shape?"
+ },
+ {
+  "id": "b4-replay-teach",
+  "batch": 4,
+  "title": "3 · The replay that teaches, on the widget",
+  "url": "http://127.0.0.1:5232/lab.html?piece=18",
+  "what": "Starts ten bars before the red day, not forty. Every candle gets a caption from measured facts: up or down how much, above or under the 9 and 20, widest range in ten days, closes at the high or low. The house rule appears at the red day and the Kicker, then it runs twenty on and watches the line. Slower default speed so the captions can be read.",
+  "judge": "Does the play teach now? Is ten bars the right lead-in? Which captions matter, which are noise? Would you narrate anything differently?"
+ },
+ {
+  "id": "b4-finish-real",
+  "batch": 4,
+  "title": "4 · The real end of a lesson",
+  "url": "http://127.0.0.1:5232/lab.html?piece=19",
+  "what": "No mock frame. The tenth question on the widget, Check, the sheet, then the finish: ring fills, the level bar fills and levels up, XP, streak flame, next lesson flips open as Unlocked, and each miss opens its own chart with the one-line fix.",
+  "judge": "Exciting enough? Interactive enough? What would you add: sounds, a share card, a leaderboard, a daily chest?"
+ },
+ {
+  "id": "b4-home-path",
+  "batch": 4,
+  "title": "5 · The home: a path of lessons",
+  "url": "http://127.0.0.1:5232/lab.html?piece=20",
+  "what": "Where a member lands every day. Today's goal ring, the streak, a winding path of units (Foundations, then the Method's setups) as done / current / locked nodes. Tap a node and the lesson card slides up with Start.",
+  "judge": "Is this the direction? Foundations first then setups, or setups first? What belongs on the home screen that is missing?"
+ },
+ {
+  "id": "b5-loop-duo",
+  "batch": 5,
+  "title": "1 · The loop with the Duolingo lesson chrome",
+  "url": "http://127.0.0.1:5232/lab.html?piece=21",
+  "what": "Your 75 piece, dressed the way the apps do it: close + segmented green progress + hearts up top, the coach asks in a speech bubble, big choice cards with number keys (press 1-4, Enter), Check lights up green, a Nicely done sheet with the coach and the why, a heart lost on a miss, a combo toast, a soft sound on each answer. The chart is the widget.",
+  "judge": "More fun, more interactive? Keep the hearts? Keep the coach (it is the compass mark for now; a real character is a design job)? Sound on or off?"
+ },
+ {
+  "id": "b5-answer-one-chart",
+  "batch": 5,
+  "title": "2 · The answer: one chart, switch the timeframe yourself",
+  "url": "http://127.0.0.1:5232/lab.html?piece=22",
+  "what": "One widget on the real data path, cut off at the Kicker day. Switch 1D / 30m / 1h on the chart's own bar (the 30-minute bars of Dec 13-14 are loaded locally). Entry and stop are price lines so they stay on every timeframe. Two tabs for the tactic, one strip of numbers under the chart. Nothing else.",
+  "judge": "Is this the shape? Still need the house stop for each entry. Should the strip show fewer numbers?"
+ },
+ {
+  "id": "b5-story",
+  "batch": 5,
+  "title": "3 · The replay as a story with questions",
+  "url": "http://127.0.0.1:5232/lab.html?piece=23",
+  "what": "Four chapters on a rail: Setup, Red day, Kicker, Follow-through. Press Play the story and the chart plays itself; big captions change with each bar; at each chapter it stops and the coach asks one quick question (is this red day real, where is the line, did the line hold) with instant feedback, then it goes on. One button.",
+  "judge": "Is this a production now? Right questions at the stops? Faster, slower, more chapters?"
+ },
+ {
+  "id": "b5-finish-seq",
+  "batch": 5,
+  "title": "4 · The end of a lesson, as a sequence of screens",
+  "url": "http://127.0.0.1:5232/lab.html?piece=24",
+  "what": "Not one card. Four full screens, tap through: Lesson complete with XP cards counting up and confetti; the streak screen with the flame lighting and the week's days; the daily goal ring filling to Goal met; one thing to fix and what is next.",
+  "judge": "Does this feel like a different thing now? Which screen would you cut? What is missing (league rank, gems, a chest)?"
+ },
+ {
+  "id": "b5-home-duo",
+  "batch": 5,
+  "title": "5 · The home, laid out like Duolingo",
+  "url": "http://127.0.0.1:5232/lab.html?piece=25",
+  "what": "Top bar with course, streak, gems, hearts. A colored unit banner with a Guidebook button. Big round nodes down the middle, a bouncing START bubble over the current one, gold for done, grey locked, chests and a trophy, the coach beside the path. Tap a node: its popup opens under it with Start. Bottom tabs: Learn, Practice, League, Quests, Profile. Units: Reading a candle, Candles that trap (Kicker, Oops), Pullbacks that fire (Slingshot, Launchpad).",
+  "judge": "Is this the familiar thing you meant? Unit names and order right? Gems and league: keep or drop for traders?"
+ },
+ {
+  "id": "b6-loop-v4",
+  "batch": 6,
+  "title": "1 · The loop: bigger widget, the arrow back, on brand",
+  "url": "http://127.0.0.1:5232/lab.html?piece=26",
+  "what": "Your 50: the widget is taller, the gold arrow points at the candle in question again, the coach bubble and the choice cards are in the site's gold and black (no more Duolingo green and blue). Hearts, number keys, the Nicely done sheet, the sound all stay.",
+  "judge": "Big enough now? Is the arrow the cool one you meant, or do you want a different pointer (glow, box, zoom)? Bubbles better?"
+ },
+ {
+  "id": "b6-answer-v6",
+  "batch": 6,
+  "title": "2 · The answer: one chart, your own 30m / 1h / 1D, the trigger visible",
+  "url": "http://127.0.0.1:5232/lab.html?piece=27",
+  "what": "No fetch any more, so it cannot fail to load: the widget carries its own 30-minute, hourly and daily bars (hourly pulled once from the site). The chart runs past the Kicker so you SEE the trigger: the entry is a stop-buy OVER the day-1 high, filled on day 2 where price crossed it, marked with an arrow. One table with both tactics and every number; click a row to draw it.",
+  "judge": "Is the entry right now? Is the table the presentation you want, or still wrong? And the stop for each: what is the house rule?"
+ },
+ {
+  "id": "b6-story-ticks",
+  "batch": 6,
+  "title": "3 · The story, tick by tick",
+  "url": "http://127.0.0.1:5232/lab.html?piece=28",
+  "what": "Every daily candle now forms from its hourly closes: the open prints, the high and low stretch, the close moves seven times before the day is done. Ordinary days run fast, the red day and the Kicker run slow. No flashing, no bouncing text. The chapter questions stay.",
+  "judge": "Is this the tick-by-tick you meant? Speeds right? Would 30-minute ticks be better than hourly?"
+ },
+ {
+  "id": "b6-finish-brand",
+  "batch": 6,
+  "title": "4 · The end of a lesson, on brand",
+  "url": "http://127.0.0.1:5232/lab.html?piece=29",
+  "what": "The same four screens in the site's gold and black with the compass mark; the miss is shown on the firm's own chart.",
+  "judge": "On brand now? Anything that still looks borrowed?"
+ },
+ {
+  "id": "b6-home-v2",
+  "batch": 6,
+  "title": "5 · The home, higher production",
+  "url": "http://127.0.0.1:5232/lab.html?piece=30",
+  "what": "Same layout as Duolingo, now on brand: gold and black, a drawn path curving through the nodes, crowns on finished levels, unit progress in a banner that sticks while you scroll, XP instead of gems, the coach beside the path.",
+  "judge": "Better? What would make it feel like a finished product: real artwork per unit, a character, animations when a node completes?"
+ },
+ {
+  "id": "b7-loop-pointer",
+  "batch": 7,
+  "title": "1 · The loop with the new pointer",
+  "url": "http://127.0.0.1:5232/lab.html?piece=31",
+  "what": "Your 70: THIS CANDLE is now a gold chip in capitals, the arrow is thicker with a bigger head, and once the chart runs on a soft gold halo rings the candle. The same pointer is used on every chart in this round.",
+  "judge": "Is this the production look you meant for the pointer? Chip, arrow, halo: keep all three or drop one?"
+ },
+ {
+  "id": "b7-answer-day1",
+  "batch": 7,
+  "title": "2 · The answer: both entries on day 1, the header redone",
+  "url": "http://127.0.0.1:5232/lab.html?piece=32",
+  "what": "Your correction: the previous day is the RED day. Entry 1 is a stop-buy one cent over the red day's high ($11.05), filled on day 1 when price crosses it; entry 2 is the day-1 30-minute opening range break. The day-2 row is gone. The verdict header is a ringed check, KICKER in gold, the definition as a quote; the Kicker and the red day get the new pointer chips. Stop per your rule. 30m / 1h / 1D switch on the chart.",
+  "judge": "Is the entry right now? Header and labels good enough? Any number wrong?"
+ },
+ {
+  "id": "b7-story-manage",
+  "batch": 7,
+  "title": "3 · The story: one screen, a Manage stop, 8 sessions",
+  "url": "http://127.0.0.1:5232/lab.html?piece=33",
+  "what": "Two columns on a desktop: chart left, caption + question + button right, nothing to scroll for. Eight sessions after the Kicker instead of twenty. A new Manage chapter three sessions in: the coach asks where you would take some off, you tap a candle, nothing is graded, and the card says the sell rules get written with you next.",
+  "judge": "Is the layout right now? Is the Manage stop in the right place? What should the sell-rules lesson ask first?"
+ },
+ {
+  "id": "b7-finish-cards",
+  "batch": 7,
+  "title": "4 · The end screens with the cards redone",
+  "url": "http://127.0.0.1:5232/lab.html?piece=34",
+  "what": "The boxes are premium cards now: gold metallic frame, dark glass inside, an icon, the number counting up, a shine that sweeps across, a glow, each arriving a beat after the last. The streak and goal screens use the same cards (week, chest, crowns).",
+  "judge": "A lot better? What would make them 10/10: a trophy illustration, sound, a share button?"
+ },
+ {
+  "id": "b7-home-ours",
+  "batch": 7,
+  "title": "5 · The home in our layout, with the reward system",
+  "url": "http://127.0.0.1:5232/lab.html?piece=35",
+  "what": "The site's own TileCard panels and gold headers. Today tile with the goal ring and a rank card (Rookie, Apprentice, Trader, Pro, Mentor by XP). Your path with the Setup Library's own candle art as unit artwork; units mix Foundations and setups. A Rewards tile that states the economy: +10 XP a right answer, combo +5 per step to +25, +30 for a perfect lesson, 1-3 crowns per level at 60/80/100%, a daily chest at five right, streaks, a badge per setup at three crowns, a weekly league. A league tile.",
+  "judge": "Our layout now? The reward numbers: keep, change, add? What is still not 3X?"
+ },
+ {
+  "id": "b8-coach-sound",
+  "batch": 8,
+  "title": "1 · The coach, the sounds, your voice lines",
+  "url": "http://127.0.0.1:5232/lab.html?piece=36",
+  "what": "A drawn coach built from the compass mark with five moods: idle, thinking, pleased, wincing, on fire. Tap each. The full sound map (right, wrong, combo, level up, chest, streak, buy, tick), mutable. The voice-line player: the lines are listed for you to record (docs/study/VOICE_LINES.md); until a file exists it shows the caption and stays silent. Below, a real question where the coach reacts to what you do.",
+  "judge": "Does the coach work as a character, or do you want a different look (an illustrator's version can replace it)? Sounds: keep, soften, cut? Will you record the lines?"
+ },
+ {
+  "id": "b8-hit-buy",
+  "batch": 8,
+  "title": "2 · Live reveal: hit BUY on the trigger",
+  "url": "http://127.0.0.1:5232/lab.html?piece=37",
+  "what": "The Kicker day plays tick by tick on the real 30-minute chart. The red day's high is the line. Hit BUY (or space) the moment a bar trades over it. Early is wrong, on the bar is perfect (+25), one bar late is good (+15), later is late (+5). Reaction time shown. The trigger is measured from the bars.",
+  "judge": "Is this the game? Tick speed right? Should early cost a heart?"
+ },
+ {
+  "id": "b8-daily-set",
+  "batch": 8,
+  "title": "3 · The Daily Set with a leaderboard",
+  "url": "http://127.0.0.1:5232/lab.html?piece=38",
+  "what": "Five charts, the same for every member today, twenty seconds each, points for right and for fast, then today's board with your rank. The five here reuse the three stored charts; names on the board are placeholders.",
+  "judge": "Would you open this every day? Clock length? Points for speed: keep?"
+ },
+ {
+  "id": "b8-intro-flow",
+  "batch": 8,
+  "title": "4 · Lesson intro, one transition, the miss side by side",
+  "url": "http://127.0.0.1:5232/lab.html?piece=39",
+  "what": "An intro screen per lesson with the setup's own glyph art, the length and a Start. Every screen slides in from the right at one speed. Tap a wrong candle on the first question and the candle you picked and the trigger sit side by side on two small charts with the difference in one line.",
+  "judge": "Is the intro the right amount? Is the side by side the way to teach a miss?"
+ },
+ {
+  "id": "b8-profile",
+  "batch": 8,
+  "title": "5 · The profile",
+  "url": "http://127.0.0.1:5232/lab.html?piece=40",
+  "what": "Rank and XP to the next one, charts seen, best run, every setup with crowns and accuracy, a cracked crown after 14 idle days with a Review button, a practice heat map of the last twelve weeks, the league card. Numbers are placeholders shaped like the real ones.",
+  "judge": "What else belongs on a trader's profile? Crown decay at 14 days: right?"
+ },
+ {
+  "id": "b9-blitz",
+  "batch": 9,
+  "title": "1 · Timed Blitz",
+  "url": "http://127.0.0.1:5232/lab.html?piece=41",
+  "what": "Sixty seconds, no hearts, name the setup on each candle as fast as you can; keys 1 to 4 answer instantly and the next chart loads at once. The multiplier climbs with the combo (x2 at one, x3 at three, x4 at six, x5 at nine) and resets on a miss. Charts cycle through the three stored examples.",
+  "judge": "Fun? Sixty seconds right? Multiplier steps right?"
+ },
+ {
+  "id": "b9-boss",
+  "batch": 9,
+  "title": "2 · The Boss lesson",
+  "url": "http://127.0.0.1:5232/lab.html?piece=42",
+  "what": "End of a unit: ten charts, one heart. A single miss ends it and the failure screen names the setup to review. Pass all ten and the unit trophy and a chest open.",
+  "judge": "One heart: too brutal or exactly right? What should the failure screen say?"
+ },
+ {
+  "id": "b9-hard",
+  "batch": 9,
+  "title": "3 · Hard mode",
+  "url": "http://127.0.0.1:5232/lab.html?piece=43",
+  "what": "The real widget stripped to candles: no ticker, no averages, no volume. A perfect run earns the legendary fourth crown and double XP.",
+  "judge": "Is candles-only the right hard mode, or should it hide something else?"
+ },
+ {
+  "id": "b9-draw-it",
+  "batch": 9,
+  "title": "4 · Draw it: your stop with the real tools",
+  "url": "http://127.0.0.1:5232/lab.html?piece=44",
+  "what": "You are in a Kicker over the previous day's high. Pick the horizontal ray in the widget's own toolbar, click where your stop goes, Check. Graded by distance from the house stop: within 0.5% perfect, within 1.5% close, else off. The house line is drawn on Check.",
+  "judge": "Is drawing on the chart the right test? Tolerances right?"
+ },
+ {
+  "id": "b9-trap",
+  "batch": 9,
+  "title": "5 · Spot the trap",
+  "url": "http://127.0.0.1:5232/lab.html?piece=45",
+  "what": "Up to three candles are marked A, B, C. One is the Kicker; the others are look-alikes found in the bars by your rules (the red day before was under 1%, or the close was in the lower half). Tap the real one, Check, and every candidate shows its reason.",
+  "judge": "Are these the traps you want taught? Other look-alike rules to add?"
+ },
+ {
+  "id": "b10-logo",
+  "batch": 10,
+  "title": "1 · The logo, not a character",
+  "url": "http://127.0.0.1:5232/lab.html?piece=46",
+  "what": "Your compass mark as a 3D coin: it turns slowly, throbs and bounces on separate rhythms. Five moods change only the tempo and the glow (idle, think, happy, oops, fire). Tap each. Below it at every size it appears, in the ask bubble, and in the verdict row. The character is gone from every screen.",
+  "judge": "Is this the throbbing, bouncing, slowly spinning 3D logo you meant? Speed, size, glow?"
+ },
+ {
+  "id": "b10-blitz",
+  "batch": 10,
+  "title": "2 · Blitz V2: tutorial, start card, logo",
+  "url": "http://127.0.0.1:5232/lab.html?piece=47",
+  "what": "First run: a three-step HOW IT WORKS, then one practice chart with no clock, then the start card. The button now sits right under the words in one card (no gap to the bottom of the page). Later runs open on the start card with a How-it-works link. Enter starts.",
+  "judge": "Does the tutorial teach it in one pass? Is the start card and button what you wanted?"
+ },
+ {
+  "id": "b10-boss",
+  "batch": 10,
+  "title": "3 · Boss V2: the bar, the beating heart, the run-on",
+  "url": "http://127.0.0.1:5232/lab.html?piece=48",
+  "what": "The boss has a 10-segment bar that loses a segment (with a flash) on every right answer; the single heart beats, faster as you go. Each question slides in, the cards cascade, Check stamps the chart and the chart runs on bar by bar. A miss shakes the screen, cracks the heart and closes the red in. Win: the medallion flips in, the chest opens, the XP counts up.",
+  "judge": "Is this the level of animation and graphics you meant? What is still flat?"
+ },
+ {
+  "id": "b10-hard",
+  "batch": 10,
+  "title": "4 · Hard mode V2: lights out",
+  "url": "http://127.0.0.1:5232/lab.html?piece=49",
+  "what": "A dark start card with three lit crowns and a dim fourth (it ignites on a perfect run), the new start button. On the first chart the full look shows for a beat, then a veil passes and the averages and volume are gone: candles only, and you saw them go. Same stamp, cascade and run-on as the Boss. The empty volume row is gone.",
+  "judge": "Score the start screen and the strip transition. Is the start button right now?"
+ },
+ {
+  "id": "b10-draw",
+  "batch": 10,
+  "title": "5 · Draw it V2: tap, ray, or type",
+  "url": "http://127.0.0.1:5232/lab.html?piece=50",
+  "what": "The two stacked toolbars are gone (the top one was drawing into the chart's own saved layer, so your line never reached the grader). Now: tap the chart where the stop goes, or draw a ray with the single toolbar, or type the price; nudge by a cent or 0.1%. The newest line always wins, drawn thick and red with its price. Check shows the house stop, the distance in $ and %, and the chart runs on so you see whether yours held.",
+  "judge": "Does placing the stop work now, on your PC and your phone? Is the 0.5% / 1.5% grading fair?"
+ },
+ {
+  "id": "b10-trap",
+  "batch": 10,
+  "title": "6 · Spot the trap V2: breathing candles",
+  "url": "http://127.0.0.1:5232/lab.html?piece=51",
+  "what": "The three marked candles now BREATHE (a swelling halo) with letter chips; all of them sit inside the visible window. Tap near one: it snaps, the halo turns solid and the candle is boxed, its card lights. Check shows each reason, the right one green, and the chart runs on. The look-alikes are still found by your rules (baby red day under 1%, weak close in the lower half).",
+  "judge": "Are the breathing halos the highlight you meant? Do the two trap rules match how you would teach it?"
+ },
+ {
+  "id": "b11-logo",
+  "batch": 11,
+  "title": "1 · The logo in real 3D",
+  "url": "http://127.0.0.1:5232/lab.html?piece=52",
+  "what": "Your compass mark is now real geometry (four ring arcs, two spikes, two points, the split candle and wicks) extruded with lit side faces, so it is a solid object from every angle, including sideways. Slow spin, throb, bounce; moods only change tempo and glow.",
+  "judge": "Score the side view first. Then the proportions of the mark versus the real logo, the speed, the glow."
+ },
+ {
+  "id": "b11-blitz",
+  "batch": 11,
+  "title": "2 · Blitz V4: five quick-recognition questions from the bank",
+  "url": "http://127.0.0.1:5232/lab.html?piece=53",
+  "what": "Your ruling applied: every chart is an approved bank item and the question varies: NAME IT (four setup names), FIRES? (the bank's Yes/No on a named setup), CANDLE NAME (which name fits the last N bars, boxed), CHART WORD, and one-tap facts measured from the bars (green or red; over yesterday's high). The workbench now loads the app's typeface and the type scale is tighter. Tutorial and practice kept; the end card lists every question with what you said and what it was.",
+  "judge": "Is this the mix? Which question kinds to add or drop? Style: size, font, spacing, the intro card."
+ },
+ {
+  "id": "b11-boss",
+  "batch": 11,
+  "title": "3 · Boss V3: ten bank charts",
+  "url": "http://127.0.0.1:5232/lab.html?piece=54",
+  "what": "Ten different approved charts each run, scored on the server, the follow-through from the item's own forward bars, slower. The bar, the beating heart, the stamp, the crack, the medallion and the chest stay.",
+  "judge": "What graphics still feel flat? Name the screen."
+ },
+ {
+  "id": "b11-hard",
+  "batch": 11,
+  "title": "4 · Hard mode V3: name it, enter it, stop it",
+  "url": "http://127.0.0.1:5232/lab.html?piece=55",
+  "what": "One chart, three steps: name the setup with candles only; then DAY 1: yesterday's high is drawn with its close and today's open, tap the line you buy over; then tap where the stop goes, graded against the house rule; then the next days arrive slowly, one every third of a second. Three for three = the fourth crown.",
+  "judge": "Is this the interactive buy-day lesson you meant? Are the words for why/where/how right?"
+ },
+ {
+  "id": "b11-draw",
+  "batch": 11,
+  "title": "5 · Draw it V3: the entry explained, a bigger quiet chart",
+  "url": "http://127.0.0.1:5232/lab.html?piece=56",
+  "what": "The entry line is drawn from the start with why (sellers beaten over their high), where (one cent over yesterday's high) and how (a stop-buy). No pulsing border. The chart is taller and quiet (no toolbar, legend or range bar), 48 bigger candles. Stop: tap to place, tap again to move, HOLD an arrow to slide it, or type it; the ray tool is a toggle.",
+  "judge": "Is placing and adjusting the stop easy enough now? Is the chart sized right?"
+ },
+ {
+  "id": "b11-trap",
+  "batch": 11,
+  "title": "6 · Spot the trap V3: gold candles and rule cards",
+  "url": "http://127.0.0.1:5232/lab.html?piece=57",
+  "what": "The three choosable candles are painted gold on the chart with a big letter; nothing pulses. Tap near one. On Check every candidate shows its rule card: a real red day before it (size), opens above the red body, closes strong, each ticked or crossed from the bars.",
+  "judge": "Do the rule cards teach it the way you would? Which rules are missing?"
+ },
+ {
+  "id": "b12-logo",
+  "batch": 12,
+  "title": "1 · The logo, pass 2",
+  "url": "http://127.0.0.1:5232/lab.html?piece=52",
+  "what": "Same real 3D, rendered better: thicker body, a bright bevel along the lit edges, a metallic sheen that slides as it turns, a faint floor reflection. It now draws at 30 frames a second and stops when off screen, which helps your PC.",
+  "judge": "Score the quality. Say what a 100 would still need: lighting, colour, speed, size."
+ },
+ {
+  "id": "b12-blitz",
+  "batch": 12,
+  "title": "2 · Blitz, pass 5: the craftsmanship round",
+  "url": "http://127.0.0.1:5232/lab.html?piece=53",
+  "what": "The yellow bar is gone: every primary button is now black glass with a gold rim and gold type. Icons are the app's own icon set, no glyphs. Tighter phone layout: shorter bubbles, smaller stamps on the left so they never cover the price axis, nothing hidden under the bottom bar.",
+  "judge": "Does it still feel AI-coded? Name the first thing that does."
+ },
+ {
+  "id": "b12-boss",
+  "batch": 12,
+  "title": "3 · Boss, pass 4: lighter and faster",
+  "url": "http://127.0.0.1:5232/lab.html?piece=54",
+  "what": "The bank fetch is a quarter of the size so the Boss starts in about a second on a normal connection; the lesson after Check is a collapsible card instead of a wall of text; the stamp sits on the left.",
+  "judge": "Is it still stuck or slow? Where exactly?"
+ },
+ {
+  "id": "b12-hard",
+  "batch": 12,
+  "title": "4 · Hard mode, pass 4: taps that work on a phone",
+  "url": "http://127.0.0.1:5232/lab.html?piece=55",
+  "what": "A real phone tap now lands (the chart ignored touches before; measured and fixed in the chart itself). Two-line bubbles with a Why card under the chart; short labels on a phone so nothing is cut off; one step pill instead of four; the number strip in one row.",
+  "judge": "Tap the line and the stop on your phone. Did both land where you tapped?"
+ },
+ {
+  "id": "b12-draw",
+  "batch": 12,
+  "title": "5 · Draw it, pass 4: tidy",
+  "url": "http://127.0.0.1:5232/lab.html?piece=56",
+  "what": "Phone taps land. The bubble is two lines and the entry's why/where/how sits in a Why card under the chart. The entry, stop and house labels are short on a phone and never cut off. The number strip is one row with the stop input and the risk inside it. Shorter chart on a phone so the controls sit above the fold.",
+  "judge": "Cheap and sloppy still? Point at the exact element."
+ },
+ {
+  "id": "b12-trap",
+  "batch": 12,
+  "title": "6 · Spot the trap, pass 4: your rules, corrected",
+  "url": "http://127.0.0.1:5232/lab.html?piece=57",
+  "what": "The rule cards now test YOUR Kicker rules: a real red day that closed weak; a gap over the red day's close (not its body top, which wrongly failed the real Kicker before); a strong close above the red day's high. The letter chips sit beside each gold candle at its mid price so they never clip. Phone taps land; no volume pane on a phone.",
+  "judge": "Are the three rules exactly how you would teach it? Add or reword any."
+ },
+ {
+  "id": "b13-logo",
+  "batch": 13,
+  "title": "1 · The logo, pass 3: smoother",
+  "url": "http://127.0.0.1:5232/lab.html?piece=52",
+  "what": "Finer curves on the ring, no seams between faces, a full 60 frames a second while on screen, slower turn, a gentler throb and bounce with eased timing.",
+  "judge": "Smoother now? What still catches your eye: shape, edges, or movement?",
+  "parts": [
+   {
+    "id": "shape",
+    "label": "the shape of the mark"
+   },
+   {
+    "id": "edges",
+    "label": "the edges and bevel"
+   },
+   {
+    "id": "move",
+    "label": "the movement (turn, throb, bounce)"
+   },
+   {
+    "id": "glow",
+    "label": "the glow"
+   },
+   {
+    "id": "speed",
+    "label": "the speed"
+   }
+  ]
+ },
+ {
+  "id": "b13-blitz",
+  "batch": 13,
+  "title": "2 · Blitz: the empty-bank message, fixed",
+  "url": "http://127.0.0.1:5232/lab.html?piece=53",
+  "what": "\"No chart items\" meant the local sandbox had signed you out (the lab has no login screen). Now the piece says so and lets you sign in right there with the local test account; the bank loads after.",
+  "judge": "Sign in if asked, then play. Does the mix of questions work for you?",
+  "parts": [
+   {
+    "id": "start",
+    "label": "start card"
+   },
+   {
+    "id": "how",
+    "label": "how it works steps"
+   },
+   {
+    "id": "practice",
+    "label": "the practice chart, no clock"
+   },
+   {
+    "id": "clock",
+    "label": "the clock"
+   },
+   {
+    "id": "points",
+    "label": "points and the multiplier"
+   },
+   {
+    "id": "qchip",
+    "label": "the question chip (Name it / Fires / Quick read)"
+   },
+   {
+    "id": "chart",
+    "label": "the chart framing"
+   },
+   {
+    "id": "pointer",
+    "label": "the pointer chip on the candle"
+   },
+   {
+    "id": "cards",
+    "label": "the answer cards"
+   },
+   {
+    "id": "flash",
+    "label": "the right / wrong flash"
+   },
+   {
+    "id": "end",
+    "label": "the end card"
+   },
+   {
+    "id": "log",
+    "label": "the run log"
+   },
+   {
+    "id": "signin",
+    "label": "the signed-out card"
+   }
+  ]
+ },
+ {
+  "id": "b13-boss",
+  "batch": 13,
+  "title": "3 · Boss: a button that always answers",
+  "url": "http://127.0.0.1:5232/lab.html?piece=54",
+  "what": "\"Face the boss\" did nothing because the bank had not loaded (signed out). The button now says \"Loading the bank\", then \"Face the boss\", or tells you to sign in; the sign-in card appears when the sandbox is signed out.",
+  "judge": "Does it start now? How does the run feel on your PC?",
+  "parts": [
+   {
+    "id": "intro",
+    "label": "intro card"
+   },
+   {
+    "id": "heart",
+    "label": "the heart"
+   },
+   {
+    "id": "bar",
+    "label": "the boss bar"
+   },
+   {
+    "id": "bubble",
+    "label": "the bubble and the logo"
+   },
+   {
+    "id": "qchip",
+    "label": "the setup chip and question"
+   },
+   {
+    "id": "chart",
+    "label": "the chart"
+   },
+   {
+    "id": "check",
+    "label": "the Check button"
+   },
+   {
+    "id": "stamp",
+    "label": "the verdict stamp"
+   },
+   {
+    "id": "runon",
+    "label": "the follow-through running on"
+   },
+   {
+    "id": "lesson",
+    "label": "the lesson card"
+   },
+   {
+    "id": "win",
+    "label": "the win card"
+   },
+   {
+    "id": "fail",
+    "label": "the fail card"
+   }
+  ]
+ },
+ {
+  "id": "b13-hard",
+  "batch": 13,
+  "title": "4 · Hard mode: candles only from the first frame",
+  "url": "http://127.0.0.1:5232/lab.html?piece=55",
+  "what": "The strip transition is gone: the chart is candles-only from the start. Level labels are now quiet tags at the left edge of the chart, clear of the candles; the pointer arrow sits further from the candle.",
+  "judge": "Is candles-only from the start the one you wanted? Are the tags out of the way now?",
+  "parts": [
+   {
+    "id": "start",
+    "label": "start card"
+   },
+   {
+    "id": "name",
+    "label": "the Name step"
+   },
+   {
+    "id": "enter",
+    "label": "the Enter step (the line)"
+   },
+   {
+    "id": "stop",
+    "label": "the Stop step"
+   },
+   {
+    "id": "run",
+    "label": "the Run step"
+   },
+   {
+    "id": "tags",
+    "label": "the level tags at the left edge"
+   },
+   {
+    "id": "pointer",
+    "label": "the pointer arrow"
+   },
+   {
+    "id": "why",
+    "label": "the why cards"
+   },
+   {
+    "id": "chart",
+    "label": "candles-only chart"
+   },
+   {
+    "id": "pill",
+    "label": "the step pill"
+   },
+   {
+    "id": "end",
+    "label": "the end"
+   }
+  ]
+ },
+ {
+  "id": "b13-draw",
+  "batch": 13,
+  "title": "5 · Draw it: labels out of the way",
+  "url": "http://127.0.0.1:5232/lab.html?piece=56",
+  "what": "A new label design: small caps on a near-black plate with a hairline in the line's colour, anchored at the far left edge of the window, so the entry, your stop and the house stop never sit on the candles. The pointer arrow is further from the Kicker. More bars in view.",
+  "judge": "Further away enough? Is this the label design you had in mind, or describe the one you do?",
+  "parts": [
+   {
+    "id": "start",
+    "label": "start card"
+   },
+   {
+    "id": "ways",
+    "label": "tap / hold / type a stop"
+   },
+   {
+    "id": "entry",
+    "label": "the entry line and tag"
+   },
+   {
+    "id": "mine",
+    "label": "your stop tag"
+   },
+   {
+    "id": "house",
+    "label": "the house stop tag"
+   },
+   {
+    "id": "pointer",
+    "label": "the pointer"
+   },
+   {
+    "id": "why",
+    "label": "the Why this entry card"
+   },
+   {
+    "id": "strip",
+    "label": "the live strip"
+   },
+   {
+    "id": "verdict",
+    "label": "the verdict"
+   }
+  ]
+ },
+ {
+  "id": "b13-kicker",
+  "batch": 13,
+  "title": "6 · Spot the Kicker",
+  "url": "http://127.0.0.1:5232/lab.html?piece=57",
+  "what": "Renamed as you said. Three gold candles each gapped up after a red day; one is the real Kicker; the rule cards show your three rules per candle after Check. The letter chips are quiet tags now.",
+  "judge": "Do the three rules read the way you teach it?",
+  "parts": [
+   {
+    "id": "bubble",
+    "label": "the bubble text"
+   },
+   {
+    "id": "gold",
+    "label": "the gold candles"
+   },
+   {
+    "id": "letters",
+    "label": "the letter chips"
+   },
+   {
+    "id": "tapchart",
+    "label": "tapping on the chart"
+   },
+   {
+    "id": "cards",
+    "label": "the candidate cards"
+   },
+   {
+    "id": "rules",
+    "label": "the rule cards after Check"
+   },
+   {
+    "id": "stamp",
+    "label": "the stamp"
+   },
+   {
+    "id": "again",
+    "label": "Again"
+   }
+  ]
+ },
+ {
+  "id": "b13-ladder",
+  "batch": 13,
+  "title": "7 · The logo in a real 3D engine: twelve steps",
+  "url": "http://127.0.0.1:5232/lab.html?piece=58",
+  "what": "Your mark rendered by three.js, with anti-aliasing. Twelve steps, each keeping everything before it: flat extrude, bevel, key light, fill and rim, metal, contact shadow, finer curves, gold trim, tone mapping, depth and tilt, eased sway, halo and sparks. Step 0 is the canvas one you scored. Tap any step to see it large; idle / happy / fire change the tempo.",
+  "judge": "Which step is the logo? What should step 13 add?",
+  "parts": [
+   {
+    "id": "stage",
+    "label": "the big stage"
+   },
+   {
+    "id": "grid",
+    "label": "the steps grid"
+   },
+   {
+    "id": "labels",
+    "label": "the step labels"
+   },
+   {
+    "id": "moods",
+    "label": "the mood buttons"
+   },
+   {
+    "id": "zero",
+    "label": "step 0 beside the rest"
+   }
+  ]
+ },
+ {
+  "id": "b14-logo",
+  "batch": 14,
+  "title": "1 · The logo, decided",
+  "url": "http://127.0.0.1:5232/lab.html?piece=52",
+  "what": "Step 12 of the ladder with the glow turned down a touch, now the one logo in every piece: idle, think, happy, oops and fire, at every size, beside the bubble and on the verdict row.",
+  "judge": "Score the decision. Anything you would still change?",
+  "parts": [
+   {
+    "id": "shape",
+    "label": "the shape"
+   },
+   {
+    "id": "edges",
+    "label": "the edges"
+   },
+   {
+    "id": "light",
+    "label": "the lighting"
+   },
+   {
+    "id": "glow",
+    "label": "the glow"
+   },
+   {
+    "id": "turn",
+    "label": "the turn speed"
+   },
+   {
+    "id": "throb",
+    "label": "the throb and bounce"
+   },
+   {
+    "id": "idle",
+    "label": "idle"
+   },
+   {
+    "id": "think",
+    "label": "think"
+   },
+   {
+    "id": "happy",
+    "label": "happy"
+   },
+   {
+    "id": "oops",
+    "label": "oops"
+   },
+   {
+    "id": "fire",
+    "label": "fire"
+   },
+   {
+    "id": "small",
+    "label": "the small sizes (28 / 44 px)"
+   }
+  ]
+ },
+ {
+  "id": "b14-landing",
+  "batch": 14,
+  "title": "2 · The product landing with the mark",
+  "url": "http://127.0.0.1:5232/lab.html?piece=60",
+  "what": "The real Study landing (Desk -> Courses -> Study) rendered from the product component on sample progress, with the mark in its hero. This is what ships when the branch merges.",
+  "judge": "Does the mark sit right in the hero on PC and phone?",
+  "parts": [
+   {
+    "id": "mark",
+    "label": "the mark in the hero"
+   },
+   {
+    "id": "herotext",
+    "label": "the hero text"
+   },
+   {
+    "id": "trail",
+    "label": "the trail chart"
+   },
+   {
+    "id": "stations",
+    "label": "the stations deck"
+   },
+   {
+    "id": "found",
+    "label": "the Foundations deck"
+   },
+   {
+    "id": "chal",
+    "label": "the Challenges deck"
+   },
+   {
+    "id": "badges",
+    "label": "the badges shelf"
+   },
+   {
+    "id": "phone",
+    "label": "the phone layout"
+   }
+  ]
+ },
+ {
+  "id": "b15-blitz",
+  "batch": 15,
+  "title": "1 · Blitz, in the product",
+  "url": "http://127.0.0.1:5232/lab.html?piece=61",
+  "what": "The real member component: sixty seconds, the bank's charts, name it / fires / candle name / quick read, the multiplier, the run log. Every answer is a real attempt.",
+  "judge": "Score it as the product. Anything from the workbench version missing?",
+  "parts": [
+   {
+    "id": "start",
+    "label": "start card"
+   },
+   {
+    "id": "bank",
+    "label": "the bank line under the button"
+   },
+   {
+    "id": "how",
+    "label": "how it works"
+   },
+   {
+    "id": "clock",
+    "label": "the clock"
+   },
+   {
+    "id": "points",
+    "label": "points and the multiplier"
+   },
+   {
+    "id": "qchip",
+    "label": "the question chip"
+   },
+   {
+    "id": "chart",
+    "label": "the chart framing"
+   },
+   {
+    "id": "pointer",
+    "label": "the pointer chip"
+   },
+   {
+    "id": "cards",
+    "label": "the answer cards"
+   },
+   {
+    "id": "flash",
+    "label": "the right / wrong flash"
+   },
+   {
+    "id": "end",
+    "label": "the end card"
+   },
+   {
+    "id": "log",
+    "label": "the run log"
+   },
+   {
+    "id": "close",
+    "label": "the close button and top bar"
+   }
+  ]
+ },
+ {
+  "id": "b15-boss",
+  "batch": 15,
+  "title": "2 · Boss, in the product",
+  "url": "http://127.0.0.1:5232/lab.html?piece=62",
+  "what": "Ten bank charts, one heart, the follow-through runs on, the lesson under each verdict, the trophy and the chest. The XP shown is what the attempts earned.",
+  "judge": "Score it as the product.",
+  "parts": [
+   {
+    "id": "intro",
+    "label": "intro card"
+   },
+   {
+    "id": "heart",
+    "label": "the heart and boss bar"
+   },
+   {
+    "id": "bubble",
+    "label": "the bubble and the mark"
+   },
+   {
+    "id": "chart",
+    "label": "the chart"
+   },
+   {
+    "id": "cards",
+    "label": "the answer cards"
+   },
+   {
+    "id": "check",
+    "label": "Check"
+   },
+   {
+    "id": "stamp",
+    "label": "the stamp"
+   },
+   {
+    "id": "runon",
+    "label": "the follow-through"
+   },
+   {
+    "id": "lesson",
+    "label": "the lesson card"
+   },
+   {
+    "id": "next",
+    "label": "Next"
+   },
+   {
+    "id": "win",
+    "label": "the win card"
+   },
+   {
+    "id": "fail",
+    "label": "the fail card"
+   }
+  ]
+ },
+ {
+  "id": "b15-kicker",
+  "batch": 15,
+  "title": "3 · Spot the Kicker, in the product",
+  "url": "http://127.0.0.1:5232/lab.html?piece=63",
+  "what": "Kicker charts from the bank with look-alikes found by your three rules; tap the real one on the chart or its card; the rule cards after Check; the attempt is scored on the server.",
+  "judge": "Score it as the product. Do the three rules read the way you teach it?",
+  "parts": [
+   {
+    "id": "start",
+    "label": "start card"
+   },
+   {
+    "id": "bubble",
+    "label": "the bubble text"
+   },
+   {
+    "id": "gold",
+    "label": "the gold candidates"
+   },
+   {
+    "id": "chips",
+    "label": "the letter chips"
+   },
+   {
+    "id": "tapchart",
+    "label": "tapping on the chart"
+   },
+   {
+    "id": "cards",
+    "label": "the candidate cards"
+   },
+   {
+    "id": "check",
+    "label": "Check"
+   },
+   {
+    "id": "rules",
+    "label": "the rule cards"
+   },
+   {
+    "id": "stamp",
+    "label": "the stamp"
+   },
+   {
+    "id": "runon",
+    "label": "the follow-through"
+   },
+   {
+    "id": "next",
+    "label": "Next"
+   },
+   {
+    "id": "end",
+    "label": "the end card"
+   }
+  ]
+ },
+ {
+  "id": "b16-drill",
+  "batch": 16,
+  "title": "1 · The daily drill, in the workbench look",
+  "url": "http://127.0.0.1:5232/lab.html?piece=64",
+  "what": "The real member drill (Today's set from the sandbox) with the workbench face: the mark and its bubble asking the question, the setup chip, the progress strip, the pointer on the candle, the numbered answer cards, the footer Check, the stamp and the bars running on after the verdict, the lesson card, the end card with gems and a medal on a perfect set. Same server, same bank, same scoring.",
+  "judge": "Is this the look you scored on the workbench? Rank every part.",
+  "parts": [
+   {
+    "id": "bubble",
+    "label": "the mark and its bubble asking the question"
+   },
+   {
+    "id": "chip",
+    "label": "the setup chip and the framing line"
+   },
+   {
+    "id": "prog",
+    "label": "the progress strip"
+   },
+   {
+    "id": "chart",
+    "label": "the chart framing"
+   },
+   {
+    "id": "pointer",
+    "label": "the pointer on the candle"
+   },
+   {
+    "id": "cards",
+    "label": "the answer cards"
+   },
+   {
+    "id": "check",
+    "label": "the Check button"
+   },
+   {
+    "id": "stamp",
+    "label": "the stamp on the chart"
+   },
+   {
+    "id": "runon",
+    "label": "the bars running on after the verdict"
+   },
+   {
+    "id": "cardcolors",
+    "label": "the right / wrong colours on the cards"
+   },
+   {
+    "id": "reveal",
+    "label": "the lesson card"
+   },
+   {
+    "id": "end",
+    "label": "the end card"
+   }
+  ]
+ },
+ {
+  "id": "b18-hard",
+  "batch": 18,
+  "title": "1 · Hard mode, in the product (plan piece 43)",
+  "url": "http://127.0.0.1:5232/lab.html?piece=65",
+  "what": "Eight charts from the bank with nothing to lean on: no ticker, no averages, no volume, candles only. On each you name what fired, or say nothing did; the answer is scored on the server against the bank's own key, the ticker and the lesson come back with the verdict, and the next candles arrive slowly. No hearts: a miss is a miss and the run goes on. Eight for eight lights the fourth crown on the end card. The lab's name-enter-stop version waits on your levels rulings per setup; this is the part that needs none.",
+  "judge": "Score it as the product. Is 'name it' the right Hard question until the levels are ruled? Rank every part.",
+  "parts": [
+   {
+    "id": "intro",
+    "label": "the start card"
+   },
+   {
+    "id": "crowns",
+    "label": "the three crowns and the dark fourth"
+   },
+   {
+    "id": "hidden",
+    "label": "the 'hidden' gem (ticker, averages, volume)"
+   },
+   {
+    "id": "topbar",
+    "label": "the HARD tag, the step pill and the crown legend"
+   },
+   {
+    "id": "bubble",
+    "label": "the mark and its bubble"
+   },
+   {
+    "id": "chip",
+    "label": "the 'Name it' chip and the framing line"
+   },
+   {
+    "id": "chart",
+    "label": "the bare chart (candles only)"
+   },
+   {
+    "id": "pointer",
+    "label": "the pointer on the candle"
+   },
+   {
+    "id": "cards",
+    "label": "the four cards (three setups and 'Nothing fired')"
+   },
+   {
+    "id": "check",
+    "label": "the Check button"
+   },
+   {
+    "id": "stamp",
+    "label": "the stamp"
+   },
+   {
+    "id": "runon",
+    "label": "the next candles arriving slowly"
+   },
+   {
+    "id": "ticker",
+    "label": "the ticker revealed in the chip after the verdict"
+   },
+   {
+    "id": "lesson",
+    "label": "the lesson card"
+   },
+   {
+    "id": "cardcolors",
+    "label": "the right / wrong colours on the cards"
+   },
+   {
+    "id": "next",
+    "label": "Next / See the run"
+   },
+   {
+    "id": "end",
+    "label": "the end card"
+   },
+   {
+    "id": "crownsEnd",
+    "label": "the fourth crown on the end card (lit on a perfect run)"
+   }
+  ]
+ },
+ {
+  "id": "b19-hard",
+  "batch": 19,
+  "title": "1 · Hard mode, round 18: the production rebuild on your batch-18 words",
+  "url": "http://127.0.0.1:5232/lab.html?piece=65",
+  "what": "Your batch-18 verdict was 'needs dramatic production, graphic, layout improvement on brand', with Check, Next, the end card and the fourth crown Cut. This is the same Hard mode (eight bank charts, candles only, name what fired, scored on the server) on a new Study UI kit: a HUD with the run's segments; the chart is YOUR Charts-tab widget (its header, its timeframe bar, your own candle settings, our compass mark) with the ticker masked until the verdict and then shown in the badge and as the watermark; the pointer is a callout that never crosses a candle; numbered gold-coin cards; one brushed-gold Check with a real edge; a seal for the verdict; a lesson card that leads with what happened on this chart, the rule's first sentence under it, the whole rule on demand; a stage for the start and the end, with drawn crowns and a ray burst when the fourth lights.",
+  "judge": "Rank every part against the best learning apps you know. Where it is still Weak, say what a big shot would do.",
+  "parts": [
+   {
+    "id": "intro",
+    "label": "the start card (the stage)"
+   },
+   {
+    "id": "toggles",
+    "label": "the three switches turned off: ticker, averages, volume"
+   },
+   {
+    "id": "crowns",
+    "label": "the drawn crowns, three gold and the dark fourth"
+   },
+   {
+    "id": "start",
+    "label": "the Start button"
+   },
+   {
+    "id": "hud",
+    "label": "the HUD: the mode tag, the run's segments, the step, what is hidden"
+   },
+   {
+    "id": "segs",
+    "label": "the eight segments (gold = named, red = miss, sweep = in play)"
+   },
+   {
+    "id": "bubble",
+    "label": "the mark and its bubble"
+   },
+   {
+    "id": "chip",
+    "label": "the 'Name it' chip and the framing line"
+   },
+   {
+    "id": "frame",
+    "label": "the widget header: the masked ticker badge, our mark"
+   },
+   {
+    "id": "tfbar",
+    "label": "the widget's timeframe bar, locked on 1D"
+   },
+   {
+    "id": "chart",
+    "label": "the chart: your own widget look, candles only"
+   },
+   {
+    "id": "pointer",
+    "label": "the callout on the candle (chip above, arrow down, off the candles)"
+   },
+   {
+    "id": "cards",
+    "label": "the four cards with their coins"
+   },
+   {
+    "id": "check",
+    "label": "the Check button"
+   },
+   {
+    "id": "footer",
+    "label": "the footer bar: the message and the one action"
+   },
+   {
+    "id": "stamp",
+    "label": "the verdict seal on the chart"
+   },
+   {
+    "id": "runon",
+    "label": "the next candles arriving; the ticker as the watermark"
+   },
+   {
+    "id": "ticker",
+    "label": "the ticker revealed in the badge, with its logo"
+   },
+   {
+    "id": "lesson",
+    "label": "the lesson card: what happened here, then the rule"
+   },
+   {
+    "id": "cardcolors",
+    "label": "the right / wrong colours and marks on the cards"
+   },
+   {
+    "id": "next",
+    "label": "Next / See the run, in the verdict's colour"
+   },
+   {
+    "id": "bubbleVerdict",
+    "label": "the bubble after the verdict"
+   },
+   {
+    "id": "end",
+    "label": "the end card"
+   },
+   {
+    "id": "crownsEnd",
+    "label": "the fourth crown on the end card (lit with a ray burst on a perfect run)"
+   },
+   {
+    "id": "gems",
+    "label": "the two gems: Named and XP earned"
+   }
+  ]
+ },
+ {
+  "id": "b21-hard",
+  "batch": 21,
+  "title": "1 · Hard mode, round 20: the revamp — the chart is the hero, nothing else is a box",
+  "url": "http://127.0.0.1:5232/lab.html?piece=65",
+  "what": "You said round 19 needed a revamp before ranking it. This is the revamp: one status line (no bar), your widget full width as the hero, one question line in display type beside the mark (no bubble), four pills in a row, one action in your black-glass family, the lesson as a plain block under a hairline, a verdict flash. The start and the end are a full stage on a dim chart, not a card. References: a lesson screen with nothing boxed around the question (Duolingo, Brilliant) and our own Charts tab.",
+  "judge": "Rank every part. Name an app that does a part better, and I build to it.",
+  "parts": [
+   {
+    "id": "intro",
+    "label": "the start stage"
+   },
+   {
+    "id": "title",
+    "label": "the HARD MODE title"
+   },
+   {
+    "id": "medal",
+    "label": "the Legendary medal, waiting"
+   },
+   {
+    "id": "lockup",
+    "label": "the brief: No ticker"
+   },
+   {
+    "id": "start",
+    "label": "the Start button"
+   },
+   {
+    "id": "status",
+    "label": "the status line: mode, dots, step, ticker hidden, the ring"
+   },
+   {
+    "id": "frame",
+    "label": "the widget's header: the masked badge, our mark"
+   },
+   {
+    "id": "chart",
+    "label": "the chart, full width: your widget, your averages and volume"
+   },
+   {
+    "id": "spotlight",
+    "label": "the spotlight on the candle"
+   },
+   {
+    "id": "prompt",
+    "label": "the question line beside the mark"
+   },
+   {
+    "id": "pills",
+    "label": "the four pills"
+   },
+   {
+    "id": "check",
+    "label": "the Check button"
+   },
+   {
+    "id": "hint",
+    "label": "the keyboard hint"
+   },
+   {
+    "id": "verdictLine",
+    "label": "the verdict line: the headline, the detail, the seal"
+   },
+   {
+    "id": "runon",
+    "label": "the next candles arriving; the ticker as the watermark"
+   },
+   {
+    "id": "ticker",
+    "label": "the ticker revealed in the badge, with its logo"
+   },
+   {
+    "id": "cardcolors",
+    "label": "the pills after the verdict"
+   },
+   {
+    "id": "lesson",
+    "label": "the lesson block under the hairline"
+   },
+   {
+    "id": "next",
+    "label": "Next / See the run"
+   },
+   {
+    "id": "end",
+    "label": "the end stage"
+   },
+   {
+    "id": "medalEnd",
+    "label": "the medal on the end stage"
+   },
+   {
+    "id": "gems",
+    "label": "the two gems"
+   },
+   {
+    "id": "runlog",
+    "label": "the run log"
+   }
+  ]
+ },
+ {
+  "id": "b22-hard",
+  "batch": 22,
+  "title": "1 · Hard mode, round 21: your batch-21 ranks, every part",
+  "url": "http://127.0.0.1:5232/lab.html?piece=65",
+  "what": "Your AAPL call was right: the engine's Oops Reversal rule fires on that candle, so 'Nothing fired' was wrong. Every Hard chart is now checked against all seven setups before it can play: a chart keeps its place only when its own setup is the one thing that fires, or nothing fires at all. 216 of 363 bank charts pass; your AAPL chart and a WFRD chart where a Launchpad also fires are out. The arrow and the box are replaced: a ring round the candle, a label in open space, an arrow to it, never over another candle. After you answer, the chart runs on to the trade's best point and a few days past it (up to 60 sessions, not 20), quick after the first few candles, and a gold label marks the move: '+20.4% in 22 sessions'. The best point counts only while the trade is alive: once a close breaks the signal candle's low, a later high is not credited to it. When nothing fired, the chart runs on 30 sessions. The ticker shows with the company name, and the big name across the candles is gone. The lesson is a coach's card: a straight headline, the last candle measured in six numbers, what happened on this chart, and the rule as numbered steps in your own words. The status line, the buttons, the start and end screens are rebuilt; the keyboard hint is gone. Final pass against all your earlier notes: our logo rides the progress bar as it fills; the measured numbers add how far the stock sits under its high and how stretched it is from the 20-day and 50-day averages; text no longer bounces in; the answer seal fills the screen for a moment after Check; the chart is a little bigger with only 1-2 candles of space on the right; phone answer pills fit on one line. Still waiting on you: entry and stop levels per setup (you gave the Kicker's: over the prior day's high, or the day-1 30-minute opening range).",
+  "judge": "Rank every part. Name an app that does a part better, and I build to it.",
+  "parts": [
+   {
+    "id": "intro",
+    "label": "the start screen"
+   },
+   {
+    "id": "title",
+    "label": "the HARD MODE title"
+   },
+   {
+    "id": "medal",
+    "label": "the Legendary medal, locked"
+   },
+   {
+    "id": "rules",
+    "label": "the three rule tiles (replaces the paragraph)"
+   },
+   {
+    "id": "start",
+    "label": "the Start button"
+   },
+   {
+    "id": "status",
+    "label": "the status line: mode, progress bar with our logo riding it, count, charts named"
+   },
+   {
+    "id": "frame",
+    "label": "the widget's header (you ranked it Good; unchanged)"
+   },
+   {
+    "id": "chart",
+    "label": "the chart with the new pointer"
+   },
+   {
+    "id": "pointer",
+    "label": "the pointer: ring, label, arrow"
+   },
+   {
+    "id": "prompt",
+    "label": "the question line (you ranked it Good; unchanged)"
+   },
+   {
+    "id": "pills",
+    "label": "the four pills"
+   },
+   {
+    "id": "check",
+    "label": "the Check button"
+   },
+   {
+    "id": "verdictLine",
+    "label": "the verdict line"
+   },
+   {
+    "id": "runon",
+    "label": "the run-on to the high point, with the gold move label"
+   },
+   {
+    "id": "ticker",
+    "label": "the ticker and company name revealed"
+   },
+   {
+    "id": "cardcolors",
+    "label": "the pills after the verdict"
+   },
+   {
+    "id": "lesson",
+    "label": "the coach's card on the first chart (eight measured numbers)"
+   },
+   {
+    "id": "lessonFired",
+    "label": "the coach's card on a chart where a setup fired"
+   },
+   {
+    "id": "lessonNone",
+    "label": "the coach's card on a chart where nothing fired"
+   },
+   {
+    "id": "runonNone",
+    "label": "the run-on on a chart where nothing fired"
+   },
+   {
+    "id": "next",
+    "label": "Next / See the run"
+   },
+   {
+    "id": "end",
+    "label": "the end screen"
+   },
+   {
+    "id": "score",
+    "label": "the score ring (or the lit medal on a perfect run)"
+   },
+   {
+    "id": "stats",
+    "label": "the three stat cards"
+   },
+   {
+    "id": "runlog",
+    "label": "the run log, with what you said on a miss"
+   }
+  ]
+ }
+]

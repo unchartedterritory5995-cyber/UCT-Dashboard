@@ -72,7 +72,9 @@ describe('⭐⭐ a window over an expression, inside a request', () => {
     // declared into the caller's root list would be shared by every site. That
     // is real work with its own measurement, and until it is done the wall keeps
     // its name rather than becoming a plausible number.
-    const r = build('f(v) =>\n    ta.sma(v + 1, 3)\nplot(f(close))\n')
+    // W4-T7: a function body's own list now hoists into a frame-local slot
+    // (`w4FrameHoist.test.js`); a NESTED list inside the body keeps the wall.
+    const r = build('f(v) =>\n    r = 0.0\n    if v > 0\n        r := ta.sma(v + 1, 3)\n    r\nplot(f(close))\n')
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:history-expression')
   })

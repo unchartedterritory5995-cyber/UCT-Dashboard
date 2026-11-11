@@ -440,6 +440,32 @@ GATE_READ_PATHS = (
     "docs/decisions/2026-08-06-machine-repaint-linter.md",
     "docs/superpowers/specs/2026-07-31-indicator-platform-design.md",
     # python sources the cross-lane rails read — and one they EXECUTE
+    # UCT RS split (2026-11-10): rails read these sources directly (test_rs_split_js_rows
+    # diffs the server rows against the JS definitions; test_gen_rs reads the drill bank).
+    "api/routers/signature.py",
+    "api/services/signature/registry_defs.py",
+    "api/services/signature/rs_provider.py",
+    "docs/study/bank/rs.drills.json",
+    # Reads the read-set rail (test_gate_shards) found uncovered on 2026-11-10 while the UCT RS
+    # split ran it; every one is read by a suite already on master (the closure tool is the one
+    # the split touched). Listed so a re-derivation never carries a verdict across them.
+    "api/services/bars_window.py",
+    "api/services/journal_two/note_connectors/corpora/corpora_gen.py",
+    "api/services/journal_two/note_connectors/test_connector_corpora.py",
+    "api/services/uct_agent/scan/eval/composition_flatten_cases.json",
+    "docs/agent/CHARTS_COVERAGE_MATRIX.md",
+    "docs/agent/CHARTS_TEACH_STATUS.md",
+    "docs/economic-data/integration/tools/probe.mjs",
+    "services/pine_runtime/job.mjs",
+    "services/pine_runtime/protocol.mjs",
+    "tests/test_notebook_tweet_capture.py",
+    "tools/pine_coverage/census_peel.mjs",
+    "tools/pine_runtime_closure.mjs",
+    "tools/pine_runtime_host_parity.mjs",
+    "tools/pine_survey/emit_length_qualifiers.js",
+    "tools/vendor_harness",
+    "tools/vendor_harness/strategy_capture.mjs",
+    "tools/vendor_harness/strategy_report_slots.json",
     "api/routers/auth.py",
     "api/routers/breadth_monitor.py",
     "api/routers/definition_record.py",
@@ -517,6 +543,22 @@ GATE_READ_PATHS = (
     "docs/pine/pine-presentation-spec.md",
     "docs/pine/pine-version-evolution.md",
     "docs/superpowers/specs/universal-indicator-ecosystem/OOS_2_PARITY_SET.json",
+    # 2026-11-04 sweep: found missing by the read-set rail on master 01a7006e03. Exact paths, each
+    # named by a vitest source: the Notebook widget builder / share / formula rails pin client
+    # tables to these Python sources, the importer rail reads the emoji table, the caution layer
+    # reads auto_structures, the agent rails read their corpora, and the Pine door census reads
+    # the runtime lane. Adding a path only makes C0 short-circuit less often (never more).
+    "api/routers/notebook_widget_definitions.py",
+    "api/services/auto_structures.py",
+    "api/services/journal_two/note_connectors/convert/emoji.py",
+    "api/services/journal_two/widget_engine/payload.py",
+    "api/services/journal_two/widget_engine/plan.py",
+    "api/services/journal_two/widget_engine/share.py",
+    "api/services/journal_two/widget_formula.py",
+    "api/services/uct_agent/scan/eval/discovery.json",
+    "api/services/uct_agent/scan/sat/section_b_requests.json",
+    "docs/agent/program/contracts/MD-1-phrasings.md",
+    "tools/pine_coverage/runtime_lane.mjs",
 )
 
 

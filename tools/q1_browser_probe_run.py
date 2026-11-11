@@ -30,8 +30,10 @@ summarised on stdout.
 from __future__ import annotations
 
 import argparse
+import atexit
 import json
 import pathlib
+import shutil
 import sys
 import tempfile
 import time
@@ -77,6 +79,13 @@ def outcome_for(result: dict) -> str:
     return BROWSER_TEST_FAILED
 
 
+def _temp_profile(prefix: str) -> str:
+    """A browser profile that goes when the process ends: a run leaves none behind in %TEMP%."""
+    path = tempfile.mkdtemp(prefix=prefix)
+    atexit.register(shutil.rmtree, path, ignore_errors=True)
+    return path
+
+
 def run_one(pw, label: str, url: str, timeout_s: int, user_data_dir: str | None = None) -> dict:
     engine, how = TARGETS[label]
     browser_type = getattr(pw, engine)
@@ -101,7 +110,7 @@ def run_one(pw, label: str, url: str, timeout_s: int, user_data_dir: str | None 
             # A brand-new user-data-dir IS the fresh-profile case: first-ever
             # origin, no prior IndexedDB, no prior quota history.
             if tmpdir is None:
-                tmpdir = tempfile.mkdtemp(prefix=f"q1-{label}-")
+                tmpdir = _temp_profile(f"q1-{label}-")
             args = ["--incognito"] if how == "incognito" else []
             context = browser_type.launch_persistent_context(
                 tmpdir, headless=True, args=args
@@ -321,7 +330,7 @@ def main() -> int:
                     # it TWICE against the SAME user-data-dir: a genuine private
                     # session cannot find its own carryover record on the second
                     # launch, and an ordinary profile always will.
-                    shared = tempfile.mkdtemp(prefix="q1-incognito-")
+                    shared = _temp_profile("q1-incognito-")
                     result = run_one(pw, label, url, args.timeout, user_data_dir=shared)
                     second = run_one(pw, label, url, args.timeout, user_data_dir=shared)
                     carried = bool((second.get("carryover") or {}).get("found"))

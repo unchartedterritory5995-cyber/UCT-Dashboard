@@ -122,9 +122,9 @@ const sendKeyed = keyedSender({ confirmed: answerSettled })
  * The member: the server scopes every key to the session's member (`_key_lookup ... WHERE user_id = ?`), so a key
  * still held when another member signs in on this page is, for them, an unused key and a plain first request.
  */
-function keyedPost(door, galleryId, raw) {
+function keyedPost(door, galleryId, raw, scope = '') {
   if (bodyOf(raw) === null) return Promise.resolve(fail('network'))
-  return sendKeyed(`${door}:${String(galleryId)}`, null,
+  return sendKeyed(`${door}:${String(galleryId)}${scope ? `:${scope}` : ''}`, null,
     (key) => post(`${GALLERY}/${enc(galleryId)}/${door}`, raw, { 'Idempotency-Key': key }))
 }
 
@@ -256,7 +256,20 @@ export function adoptTool(galleryId, body = {}) {
 /** Use a listed template to make a note: `body` is `{answers?, choices?, ticker?, title?}`. */
 export function useTemplate(galleryId, body = {}) {
   if (!isId(galleryId)) return Promise.resolve(fail('unavailable'))
-  return keyedPost('use-template', galleryId, body)
+  // Audit 2026-11-05 S9, fix round 1 (review finding 9): a Use that leaves a routine or tracker OUT ("not now",
+  // `skip`) is its own press. A lost unticked Use followed by a ticked one must not replay the first note and silently
+  // drop the routine the member just asked for. Every other change of body still resends the held key (W11-R44): a
+  // lost Use that MADE the routine, reopened as "Use your <routine>" or asking nothing, still replays its note.
+  const choices = isRecord(body) && isRecord(body.choices) ? Object.values(body.choices) : []
+  const leavesOut = choices.some((c) => isRecord(c) && c.skip === true)
+  const sent = keyedPost('use-template', galleryId, body, leavesOut ? 'not-now' : '')
+  if (leavesOut) return sent
+  // Fix round 2 (re-review R1-4): once a Use that puts the routine IN has a settled answer, the held "not now" press for
+  // this item is moot: forget it, so a later unticked Use is a new note, never a replay of an older one.
+  return sent.then((got) => {
+    if (sendKeyed.settled(got)) sendKeyed.forget(`use-template:${String(galleryId)}:not-now`)
+    return got
+  })
 }
 
 /** Adopt a listed template as one of the member's own: `body` is `{notify?, answers?, choices?}`. */

@@ -154,7 +154,6 @@ def db_path(monkeypatch):
 
 @pytest.fixture
 def client(db_path, monkeypatch):
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
     from api.routers import notebook_journal_styles as r
     app = FastAPI()
     app.include_router(r.router)
@@ -184,10 +183,7 @@ def quote(monkeypatch):
     return q
 
 
-def test_gate_off_404_signed_out_401_free_402(client, monkeypatch, quote):
-    monkeypatch.delenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", raising=False)
-    assert client.post(URL, json={"noteId": "n1", "ticker": "NVDA"}).status_code == 404
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
+def test_signed_out_401_free_402(client, monkeypatch, quote):
     assert client.post(URL, json={"noteId": "n1", "ticker": "NVDA"}).status_code == 401
     _as(client, plan="free")
     assert client.post(URL, json={"noteId": "n1", "ticker": "NVDA"}).status_code == 402

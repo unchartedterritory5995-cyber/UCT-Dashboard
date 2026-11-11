@@ -175,9 +175,12 @@
   padding: 0;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
+/* ON is the muted gold track every chart settings switch uses (decision B5,
+   2026-11-07; ChartSettingsModal, IndicatorSettingsDialog and MobileCharts carry
+   the same rule): never green, which means money going up, and never a
+   full-gold track, which spends the one accent. */
 .toggleOn {
-  background: color-mix(in srgb, var(--gain) 22%, transparent);
-  border-color: color-mix(in srgb, var(--gain) 50%, transparent);
+  background: linear-gradient(var(--ut-gold-dim), var(--ut-gold-dim)), var(--menu-input-bg, rgba(255, 255, 255, 0.05));
 }
 .knob {
   position: absolute;
@@ -187,6 +190,6 @@
   height: 14px;
   border-radius: 50%;
   background: var(--menu-text, var(--text-bright, #e0dac8));
-  transition: transform 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
-.toggleOn .knob { transform: translateX(16px); background: var(--ut-green-bright); }
+.toggleOn .knob { transform: translateX(16px); box-shadow: inset 0 0 0 1.5px var(--ut-gold); }

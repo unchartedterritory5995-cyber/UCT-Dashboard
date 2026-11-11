@@ -10,8 +10,6 @@ computes a stat. The patterns are `playbook_patterns.py`: fixed word lists, coun
 No model is called anywhere on this path.
 
 The rules (13A's router, `notebook_plan_grades.py`):
-  * THE GATE IS A ROUTER DEPENDENCY: `NOTEBOOK_PLAYBOOK_ENABLED` off answers the one 404 for every
-    route before the session is read.
   * MEMBER-SCOPED: every read is keyed on the session member's id; `accountId` only narrows the
     member's OWN trades (another member's account id simply matches nothing).
   * READ-ONLY: no route here writes a trade, a note or a table. The frozen snapshot note is created
@@ -27,26 +25,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.auth_db import get_connection
 from api.services.journal_two import playbook_patterns, playbook_stats, sample_size
-from api.services.notebook_flags import flag_on
-
-FLAG = "NOTEBOOK_PLAYBOOK_ENABLED"
-
-
-def enabled() -> bool:
-    """The gate, read per call through the one parser (unset = OFF)."""
-    return flag_on(FLAG, False)
-
-
-def _require_enabled() -> None:
-    """Router-level: an off gate reads no session."""
-    if not enabled():
-        raise HTTPException(status_code=404, detail="Not Found")
 
 
 router = APIRouter(
     prefix="/api/j2/my-playbook",
     tags=["journal-2-0", "notebook-playbook"],
-    dependencies=[Depends(_require_enabled)],
 )
 
 

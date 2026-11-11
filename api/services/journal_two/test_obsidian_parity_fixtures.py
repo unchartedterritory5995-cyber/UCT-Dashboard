@@ -103,3 +103,63 @@ def test_generate_is_idempotent_across_two_temp_runs(tmp_path_factory):
 
     for name in names_a:
         assert (out_a / name).read_bytes() == (out_b / name).read_bytes()
+
+
+# ── Plan C Task 4 review M1: a staged attachment maps by sha AND encoded name ──
+
+_SHA = "a" * 64
+
+
+def test_an_attachment_src_maps_to_its_ref_path_only_when_the_encoded_name_matches():
+    refs = [{"sha256": _SHA, "path": "attachments/my chart #1 (v2).png"}]
+    right = f"import-ref://obsidian-att:{_SHA}/my%20chart%20%231%20%28v2%29.png"
+    assert gen._normalize_image_src(right, refs) == "attachments/my chart #1 (v2).png"
+    # A wrong or double-encoded name is a server defect: it stays as written, so the
+    # parity rail shows it instead of reporting the right path.
+    for wrong in ("my%2520chart%20%231%20%28v2%29.png", "my chart #1 (v2).png",
+                  "other.png", ""):
+        src = f"import-ref://obsidian-att:{_SHA}/{wrong}"
+        assert gen._normalize_image_src(src, refs) == src[len("import-ref://"):]
+    # An unknown sha with the right name stays as written too.
+    other = f"import-ref://obsidian-file:{'b' * 64}/my%20chart%20%231%20%28v2%29.png"
+    assert gen._normalize_image_src(other, refs) == other[len("import-ref://"):]
+
+
+def test_two_files_with_the_same_bytes_each_map_to_their_own_path():
+    # One screenshot saved twice: identical bytes, one sha, two names.
+    refs = [{"sha256": _SHA, "path": "a/shot.png"}, {"sha256": _SHA, "path": "b/shot copy.png"}]
+    assert gen._normalize_image_src(f"import-ref://obsidian-att:{_SHA}/shot.png", refs) == "a/shot.png"
+    assert (gen._normalize_image_src(f"import-ref://obsidian-att:{_SHA}/shot%20copy.png", refs)
+            == "b/shot copy.png")
+
+
+# ── D2 fix round 5 (final), ruling B: the adversarial alias corpus ───────────
+
+def test_the_adversarial_corpus_is_byte_identical_to_its_regeneration(tmp_path):
+    """The committed corpus (inputs and the server's link targets) is what the generator
+    writes now; the JS rail runs the client over the same inputs."""
+    regenerated = gen.generate_adversarial(tmp_path / "corpus.json")
+    norm = lambda b: b.replace(b"\r\n", b"\n")
+    assert norm(gen.ADVERSARIAL_OUT_PATH.read_bytes()) == norm(regenerated.read_bytes()), (
+        "obsidian_adversarial/corpus.json is STALE: regenerate with `python -m api.services."
+        "journal_two.note_connectors.convert.obsidian_parity_fixtures_gen`")
+    assert len(gen.adversarial_corpus()) >= 190
+
+
+def test_no_internal_marker_is_ever_visible_text_on_the_adversarial_corpus():
+    """Ruling B: whatever shape the alias takes, a member never reads an internal key or
+    scheme. On both attachment branches (a ref list, and an old plugin's none)."""
+    from api.services.journal_two.note_connectors.providers.obsidian import (
+        ObsidianProvider, _build_basename_map,
+    )
+    paths = ["a.md", "Plan.md"]
+    provider = ObsidianProvider(user_id="u", vault_id="vault-1")
+    leaks = []
+    for body in gen.adversarial_corpus():
+        for refs in ([], None):
+            doc = provider._convert_row("a.md", body, paths, _build_basename_map(paths),
+                                        refs=refs)["doc"]
+            seen = " ".join(gen.visible_strings(doc))
+            if any(marker in seen for marker in gen.INTERNAL_MARKERS):
+                leaks.append((body, refs, seen))
+    assert leaks == []

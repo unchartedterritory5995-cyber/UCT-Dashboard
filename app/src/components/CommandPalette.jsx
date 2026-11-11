@@ -113,7 +113,7 @@ const NOTEBOOK_COMMANDS = [
     match: phraseStart('earnings prep', 'reporting soon', 'prep note'),
     when: () => notebookFlag(NOTEBOOK_PREP_FLAG) === true },
   // Q23: the active setups board, a plain route. Its link on Research Home is 9 Tab stops in.
-  { id: 'nb-active-setups', kind: 'command', label: 'Active setups', icon: 'library',
+  { id: 'nb-active-setups', kind: 'command', label: 'Setups', icon: 'library',
     to: SETUPS_BOARD_PATH, keywords: [],
     match: phraseStart('active setups', 'setups board', 'setups'),
     when: () => setupsBoardEnabled() },

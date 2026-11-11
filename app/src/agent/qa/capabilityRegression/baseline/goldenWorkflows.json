@@ -1,0 +1,1792 @@
+{
+  "version": 1,
+  "about": "GOLDEN WORKFLOWS — previously VERIFIED successful UCT Agent workflows (live production acceptance, owner sessions, hotfix #766), replayed deterministically through the real panel (faithful scripted model where the live run used the model; value-free). A baseline: an entry may only be removed or weakened with a recorded decision in docs/agent/COMPATIBILITY-DECISIONS.md (enforced by baseline.lock.json + tests/test_uct_agent_capreg_baseline.py). `source` names the evidence.",
+  "workflows": [
+    {
+      "id": "GW-01.symbol-weekly-emas-log-undo",
+      "source": "LIVE-TESTING-RESULTS-2026-11-03.md E-01 (E each; D/LM)",
+      "capabilities": [
+        "chart.setSymbol",
+        "chart.setTimeframe",
+        "indicator.add",
+        "chart.setScale",
+        "agent.undo"
+      ],
+      "board": "ONE_SPY",
+      "steps": [
+        {
+          "say": "nvda",
+          "model": {
+            "ops": [
+              {
+                "action": "chart.setSymbol",
+                "target": "$charts[0]",
+                "args": {
+                  "symbol": "NVDA"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "charts": {
+              "symbols": [
+                "NVDA"
+              ]
+            },
+            "receipt": true
+          }
+        },
+        {
+          "say": "weekly",
+          "expect": {
+            "charts": {
+              "tf": "W"
+            },
+            "receipt": true,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "add the 9 and 20 ema",
+          "expect": {
+            "indicators": {
+              "chart": 0,
+              "include": [
+                "movingAverage(9 ema)",
+                "movingAverage(20 ema)"
+              ]
+            },
+            "receipt": true,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "log scale",
+          "model": {
+            "ops": [
+              {
+                "action": "chart.setScale",
+                "target": "$charts[0]",
+                "args": {
+                  "scale": "log"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "setting": {
+              "key": "logScale",
+              "value": true
+            },
+            "receipt": true
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "setting": {
+              "key": "logScale",
+              "value": false
+            },
+            "charts": {
+              "tf": "W",
+              "symbols": [
+                "NVDA"
+              ]
+            },
+            "modelTurns": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-02.empty-board-honest",
+      "source": "LIVE-TESTING-RESULTS-2026-11-03.md E-01′ (R, 0 model calls)",
+      "capabilities": [
+        "chart.setTimeframe",
+        "indicator.add",
+        "agent.undo"
+      ],
+      "board": "EMPTY",
+      "steps": [
+        {
+          "say": "weekly",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "add the 9 and 20 ema",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-03.breadth-member-side",
+      "source": "LIVE-TESTING-RESULTS-2026-11-03.md P-07 (answered from UCT's breadth store; the live reading came through the server's breadth path, so here: routed to breadth.show and read through the canonical breadth route)",
+      "capabilities": [
+        "breadth.show"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "hows breadth today",
+          "routes": [
+            "breadth.show"
+          ],
+          "model": {
+            "ops": [
+              {
+                "action": "breadth.show",
+                "target": "$breadth",
+                "args": {
+                  "mode": "value",
+                  "universe": "us",
+                  "metrics": [],
+                  "date": null,
+                  "compare_date": null,
+                  "start": null,
+                  "end": null,
+                  "basis": null,
+                  "side": null,
+                  "sessions": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "breadth"
+            ],
+            "unchanged": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-04.earnings-when",
+      "source": "LIVE-TESTING-RESULTS-2026-11-03.md A-10a (earnings card)",
+      "capabilities": [
+        "stock.earnings"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "when does nvda report",
+          "model": {
+            "ops": [
+              {
+                "action": "stock.earnings",
+                "target": "$stockData",
+                "args": {
+                  "symbol": "NVDA"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "earnings.*NVDA"
+            ],
+            "unchanged": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-05.screen-price-rvol",
+      "source": "LIVE-TESTING-RESULTS-2026-11-03.md A-13 (E scan)",
+      "capabilities": [
+        "screener.run"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "find stocks above 10 bucks w volume 2x avg",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.run",
+                "target": "$screener",
+                "args": {
+                  "filters": [
+                    {
+                      "field": "price",
+                      "op": "gte",
+                      "value": 10,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "rel_volume",
+                      "op": "gte",
+                      "value": 2,
+                      "max": null,
+                      "values": null
+                    }
+                  ],
+                  "sort_field": null,
+                  "sort_dir": null,
+                  "mode": "new",
+                  "show": null,
+                  "as": null,
+                  "within": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "^POST /api/screener/scan|^POST /api/agent/data .*screen\\.run"
+            ],
+            "unchanged": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-06.hidden-field-refused",
+      "source": "LIVE-TESTING-RESULTS-2026-11-03.md C-08a / LT-8 fix (W1.1 R-05): F-16 refusal, nothing substituted",
+      "capabilities": [
+        "screener.run"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "show me my strongest stocks",
+          "expect": {
+            "unchanged": true,
+            "modelTurns": 0,
+            "noCalls": [
+              "^POST /api/screener/scan",
+              "screen\\.run"
+            ]
+          }
+        },
+        {
+          "say": "now only the ones with rs rank over 90",
+          "expect": {
+            "unchanged": true,
+            "modelTurns": 0,
+            "noCalls": [
+              "^POST /api/screener/scan",
+              "screen\\.run"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-07.protected-layout-rename",
+      "source": "LIVE-TESTING-RESULTS-2026-11-03.md P-09 / LT-9 fix (W1.1 R-03): refused by name, 0 model calls",
+      "capabilities": [
+        "layout.rename"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "rename Main Trading to x",
+          "expect": {
+            "unchanged": true,
+            "modelTurns": 0,
+            "refusal": true,
+            "receipt": false,
+            "refusedAction": "layout.rename"
+          }
+        }
+      ],
+      "refuses": [
+        "layout.rename"
+      ]
+    },
+    {
+      "id": "GW-08.indicator-alert-routed",
+      "source": "LIVE-TESTING-RESULTS-2026-11-03.md B-07 / LT-4 fix (W1.1 R-04): the indicator-alert group is offered",
+      "capabilities": [
+        "indicatorAlert.create"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "mark when the 9 ema crosses above the 20 on this chart",
+          "routes": [
+            "indicatorAlert.create"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "GW-09.two-new-charts",
+      "source": "hotfix #766 T1 (owner live regression, verified 11-03); AUDIT live production pass 2026-11-04 (edd353fc06): two new daily charts, re-tiled",
+      "capabilities": [
+        "widget.add",
+        "chart.setSymbol",
+        "chart.setTimeframe"
+      ],
+      "board": "HALF",
+      "steps": [
+        {
+          "say": "Create a new chart for NVDA on the daily timeframe, then add a second chart for QQQ.",
+          "model": {
+            "ops": [
+              {
+                "action": "widget.add",
+                "target": "$workspace",
+                "args": {
+                  "type": "chart",
+                  "as": "new1"
+                }
+              },
+              {
+                "action": "chart.setSymbol",
+                "target": "new1",
+                "args": {
+                  "symbol": "NVDA"
+                }
+              },
+              {
+                "action": "chart.setTimeframe",
+                "target": "new1",
+                "args": {
+                  "timeframe": "D"
+                }
+              },
+              {
+                "action": "widget.add",
+                "target": "$workspace",
+                "args": {
+                  "type": "chart",
+                  "as": "new2"
+                }
+              },
+              {
+                "action": "chart.setSymbol",
+                "target": "new2",
+                "args": {
+                  "symbol": "QQQ"
+                }
+              },
+              {
+                "action": "chart.setTimeframe",
+                "target": "new2",
+                "args": {
+                  "timeframe": "D"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "charts": {
+              "count": 3,
+              "symbolSet": [
+                "NVDA",
+                "NVDA",
+                "QQQ"
+              ],
+              "keepsIds": [
+                "c1"
+              ]
+            },
+            "receipt": true,
+            "refusal": false
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "restored": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-10.grid-then-undo-by-kind",
+      "source": "hotfix #766 T3 + review F2 (owner's exact words); AUDIT live production pass 2026-11-04 (edd353fc06): 2×2, 1 reused, 3 new",
+      "capabilities": [
+        "chartGrid.set",
+        "agent.undo"
+      ],
+      "board": "HALF",
+      "steps": [
+        {
+          "say": "Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size.",
+          "expect": {
+            "charts": {
+              "count": 4,
+              "symbols": [
+                "SPY",
+                "QQQ",
+                "NVDA",
+                "TSLA"
+              ],
+              "sameSize": true,
+              "keepsIds": [
+                "c1"
+              ]
+            },
+            "receipt": true,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "undo the last change you made to my charts",
+          "expect": {
+            "restored": true,
+            "modelTurns": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-11.change-then-undo-compound",
+      "source": "hotfix #766 T2 (owner's exact words); AUDIT live production pass 2026-11-04 (edd353fc06): 2 steps, ends on daily",
+      "capabilities": [
+        "chart.setTimeframe",
+        "agent.undo"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "Change the NVDA chart to the weekly timeframe, then undo that change.",
+          "expect": {
+            "charts": {
+              "tf": "D"
+            },
+            "restored": true,
+            "modelTurns": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-12.emas-coloured-exact-undo",
+      "source": "agentExactUndo test 1 / owner acceptance 2026-10-29 (Indicators #517)",
+      "capabilities": [
+        "indicator.add",
+        "agent.undo"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "throw the 9 and 20 ema on my chart. make the fast one green and the other one yellow",
+          "expect": {
+            "indicators": {
+              "chart": 0,
+              "include": [
+                "movingAverage(9 ema)",
+                "movingAverage(20 ema)"
+              ],
+              "count": 2
+            },
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "indicators": {
+              "chart": 0,
+              "count": 0
+            },
+            "restored": true,
+            "modelTurns": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-13.model-undo-is-the-receipt-undo",
+      "source": "hotfix #766 T2 (the model plans agent.undo → doUndo, never a claim)",
+      "capabilities": [
+        "chart.setTimeframe",
+        "agent.undo"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "weekly",
+          "expect": {
+            "charts": {
+              "tf": "W"
+            },
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "hmm could you maybe take back whatever you did to my nvda chart",
+          "model": {
+            "ops": [
+              {
+                "action": "agent.undo",
+                "target": "$agent",
+                "args": {
+                  "scope": "last",
+                  "about": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "charts": {
+              "tf": "D"
+            },
+            "restored": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-14.price-alert-needs-approval",
+      "source": "agentAlerts (alert.create is confirm-risk: a proposal, written only on Apply)",
+      "capabilities": [
+        "alert.create"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "alert me if nvda goes above 150",
+          "model": {
+            "disposition": "propose",
+            "ops": [
+              {
+                "action": "alert.create",
+                "target": "$alertLibrary",
+                "args": {
+                  "symbol": "NVDA",
+                  "price": 150,
+                  "direction": "above"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "proposal": true,
+            "noCalls": [
+              "^POST /api/watchlist-alerts"
+            ]
+          },
+          "approve": true,
+          "afterApprove": {
+            "writes": [
+              "^POST /api/watchlist-alerts .*\"sym\":\"NVDA\""
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-15.live-undo-last-change-charts",
+      "source": "AUDIT live production pass 2026-11-04 (edd353fc06): 'Undo the last change you made to my charts.'",
+      "capabilities": [
+        "chart.setTimeframe",
+        "agent.undo"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "weekly",
+          "expect": {
+            "charts": {
+              "tf": "W"
+            }
+          }
+        },
+        {
+          "say": "Undo the last change you made to my charts.",
+          "expect": {
+            "charts": {
+              "tf": "D"
+            },
+            "restored": true,
+            "modelTurns": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-16.live-grid-2x2-daily",
+      "source": "AUDIT live production pass 2026-11-04 (edd353fc06): 'Create four charts in a 2×2 grid: … all on the daily timeframe.'",
+      "capabilities": [
+        "chartGrid.set"
+      ],
+      "board": "HALF",
+      "steps": [
+        {
+          "say": "Create four charts in a 2×2 grid: SPY, QQQ, NVDA, and TSLA, all on the daily timeframe.",
+          "model": {
+            "ops": [
+              {
+                "action": "chartGrid.set",
+                "target": "$board",
+                "args": {
+                  "symbols": [
+                    "SPY",
+                    "QQQ",
+                    "NVDA",
+                    "TSLA"
+                  ],
+                  "timeframe": "D",
+                  "layout": "grid",
+                  "new_charts": null,
+                  "watchlist": null,
+                  "replace": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "charts": {
+              "count": 4,
+              "symbols": [
+                "SPY",
+                "QQQ",
+                "NVDA",
+                "TSLA"
+              ],
+              "sameSize": true,
+              "tf": "D",
+              "keepsIds": [
+                "c1"
+              ]
+            },
+            "receipt": true,
+            "refusal": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-17.live-earnings-next",
+      "source": "AUDIT live production pass 2026-11-04 (edd353fc06): 'When does TSLA report earnings next?' (stock.earnings card)",
+      "capabilities": [
+        "stock.earnings"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "When does TSLA report earnings next?",
+          "model": {
+            "ops": [
+              {
+                "action": "stock.earnings",
+                "target": "$stockData",
+                "args": {
+                  "symbol": "TSLA"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "earnings.*TSLA"
+            ],
+            "unchanged": true,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-18.live-emas-already-present",
+      "source": "AUDIT live production pass 2026-11-04 (edd353fc06): 'Add the 9 and 20 EMAs to the TSLA chart.' on a chart that shows them → honest no-op",
+      "capabilities": [
+        "indicator.add"
+      ],
+      "board": "ONE_TSLA_DEFAULT",
+      "steps": [
+        {
+          "say": "Add the 9 and 20 EMAs to the TSLA chart.",
+          "expect": {
+            "unchanged": true,
+            "refusal": false,
+            "modelTurns": 0,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-19.daily-charts-each-with-50sma",
+      "source": "Batch E6 (11-04): multi-step combos (AUDIT list): charts + indicator, timeframe + indicator, two charts side by side — the owner's acceptance phrasing (agentFlagshipOperator: CYPH kept, three new daily charts, SMA 50 on each) (the SMA adds are asserted on the state; the static reading of this sentence names only chartGrid.set, so only that is credited)",
+      "capabilities": [
+        "chartGrid.set"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "open daily charts for AAPL, MSFT and NVDA, each with a 50 SMA",
+          "expect": {
+            "charts": {
+              "count": 4,
+              "symbolSet": [
+                "NVDA",
+                "AAPL",
+                "MSFT",
+                "NVDA"
+              ],
+              "sameSize": true,
+              "keepsIds": [
+                "c1"
+              ]
+            },
+            "indicatorsEach": {
+              "include": [
+                "movingAverage(50 sma)"
+              ],
+              "except": [
+                "c1"
+              ]
+            },
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "undo all of that",
+          "expect": {
+            "restored": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-20.weekly-then-20ema",
+      "source": "Batch E6 (11-04): multi-step combos (AUDIT list): charts + indicator, timeframe + indicator, two charts side by side — a compound: the timeframe, then the indicator, each its own receipt",
+      "capabilities": [
+        "chart.setTimeframe",
+        "indicator.add"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "switch to weekly and add the 20 ema",
+          "expect": {
+            "charts": {
+              "tf": "W"
+            },
+            "indicators": {
+              "chart": 0,
+              "include": [
+                "movingAverage(20 ema)"
+              ]
+            },
+            "modelTurns": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-21.two-charts-side-by-side",
+      "source": "Batch E6 (11-04): multi-step combos (AUDIT list): charts + indicator, timeframe + indicator, two charts side by side — two charts + grid (agentMultiActionRegression routing set)",
+      "capabilities": [
+        "chartGrid.set"
+      ],
+      "board": "HALF",
+      "steps": [
+        {
+          "say": "put NVDA and AMD side by side",
+          "model": {
+            "ops": [
+              {
+                "action": "chartGrid.set",
+                "target": "$board",
+                "args": {
+                  "symbols": [
+                    "NVDA",
+                    "AMD"
+                  ],
+                  "timeframe": null,
+                  "layout": "columns",
+                  "new_charts": null,
+                  "watchlist": null,
+                  "replace": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "charts": {
+              "count": 2,
+              "symbols": [
+                "NVDA",
+                "AMD"
+              ],
+              "sameSize": true
+            },
+            "receipt": true
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "restored": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-22.new-chart-then-rsi-on-it",
+      "source": "Batch F4 (11-04): multi-step combos across turns (the AUDIT list) — add a chart, then an indicator on 'it' (the chart the conversation just made). The new chart is born with the product's default overlays (EMA 9/20, SMA 50/200), so the follow-up adds RSI",
+      "capabilities": [
+        "widget.addCharts",
+        "indicator.add"
+      ],
+      "board": "HALF",
+      "steps": [
+        {
+          "say": "open a chart for AMD",
+          "model": {
+            "ops": [
+              {
+                "action": "widget.addCharts",
+                "target": "$workspace",
+                "args": {
+                  "symbols": [
+                    "AMD"
+                  ],
+                  "timeframe": null,
+                  "chart_type": null,
+                  "exact": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "charts": {
+              "count": 2,
+              "symbolSet": [
+                "NVDA",
+                "AMD"
+              ]
+            },
+            "receipt": true
+          }
+        },
+        {
+          "say": "add rsi to it",
+          "model": {
+            "ops": [
+              {
+                "action": "indicator.add",
+                "target": "$indicatorEdits[1]",
+                "args": {
+                  "defId": "rsi",
+                  "inputs": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "instance": {
+              "chart": 1,
+              "find": {
+                "defId": "rsi"
+              }
+            },
+            "receipt": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-23.weekly-and-ema-then-undo-all",
+      "source": "Batch F4 (11-04): multi-step combos across turns (the AUDIT list) — timeframe + indicator in one request, then ONE 'undo all of that'",
+      "capabilities": [
+        "chart.setTimeframe",
+        "indicator.add",
+        "agent.undo"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "switch to weekly and add the 20 ema",
+          "expect": {
+            "charts": {
+              "tf": "W"
+            },
+            "indicators": {
+              "chart": 0,
+              "include": [
+                "movingAverage(20 ema)"
+              ]
+            },
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "undo all of that",
+          "expect": {
+            "charts": {
+              "tf": "D"
+            },
+            "indicators": {
+              "chart": 0,
+              "count": 0
+            },
+            "modelTurns": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-24.grid-then-all-weekly",
+      "source": "Batch F4 (11-04): multi-step combos across turns (the AUDIT list) — four charts, then one change on all of them",
+      "capabilities": [
+        "chartGrid.set",
+        "chart.setTimeframe"
+      ],
+      "board": "HALF",
+      "steps": [
+        {
+          "say": "Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size.",
+          "expect": {
+            "charts": {
+              "count": 4,
+              "sameSize": true
+            },
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "make them all weekly",
+          "model": {
+            "ops": [
+              {
+                "action": "chart.setTimeframe",
+                "target": "$charts[0]",
+                "args": {
+                  "timeframe": "W"
+                }
+              },
+              {
+                "action": "chart.setTimeframe",
+                "target": "$charts[1]",
+                "args": {
+                  "timeframe": "W"
+                }
+              },
+              {
+                "action": "chart.setTimeframe",
+                "target": "$charts[2]",
+                "args": {
+                  "timeframe": "W"
+                }
+              },
+              {
+                "action": "chart.setTimeframe",
+                "target": "$charts[3]",
+                "args": {
+                  "timeframe": "W"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "charts": {
+              "count": 4,
+              "tf": "W"
+            },
+            "receipt": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-25.scan-conversation",
+      "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings: screen, sector, price, sort, watchlist, charts, undo",
+      "capabilities": [
+        "screener.run",
+        "watchlist.add",
+        "widget.addCharts",
+        "agent.undo"
+      ],
+      "board": "SCAN",
+      "steps": [
+        {
+          "say": "find stocks up 20% this month near 52-week highs with volume above average",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.run",
+                "target": "$screener",
+                "args": {
+                  "filters": [
+                    {
+                      "field": "chg_pct_1m",
+                      "op": "gte",
+                      "value": 20,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "dist_52w_high_pct",
+                      "op": "gte",
+                      "value": -5,
+                      "max": null,
+                      "values": null
+                    },
+                    {
+                      "field": "vol_ratio",
+                      "op": "gt",
+                      "value": 1,
+                      "max": null,
+                      "values": null
+                    }
+                  ],
+                  "sort_field": null,
+                  "sort_dir": null,
+                  "mode": "new",
+                  "show": null,
+                  "as": null,
+                  "within": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "^POST /api/agent/data .*screen\\.run.*chg_pct_1m.*dist_52w_high_pct.*vol_ratio"
+            ],
+            "unchanged": true
+          }
+        },
+        {
+          "say": "only tech",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.run",
+                "target": "$screener",
+                "args": {
+                  "filters": [
+                    {
+                      "field": "sector",
+                      "op": "in",
+                      "value": null,
+                      "max": null,
+                      "values": [
+                        "technology"
+                      ]
+                    }
+                  ],
+                  "sort_field": null,
+                  "sort_dir": null,
+                  "mode": "refine",
+                  "show": null,
+                  "as": null,
+                  "within": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "^POST /api/agent/data .*screen\\.run.*chg_pct_1m.*\"sector\".*Technology"
+            ],
+            "unchanged": true
+          }
+        },
+        {
+          "say": "drop anything under $10",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.run",
+                "target": "$screener",
+                "args": {
+                  "filters": [
+                    {
+                      "field": "price",
+                      "op": "gte",
+                      "value": 10,
+                      "max": null,
+                      "values": null
+                    }
+                  ],
+                  "sort_field": null,
+                  "sort_dir": null,
+                  "mode": "refine",
+                  "show": null,
+                  "as": null,
+                  "within": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "^POST /api/agent/data .*screen\\.run.*chg_pct_1m.*\"sector\".*\"key\":\"price\""
+            ],
+            "unchanged": true
+          }
+        },
+        {
+          "say": "sort them by 3-month performance",
+          "model": {
+            "ops": [
+              {
+                "action": "screener.run",
+                "target": "$screener",
+                "args": {
+                  "filters": [],
+                  "sort_field": "chg_pct_3m",
+                  "sort_dir": "desc",
+                  "mode": "refine",
+                  "show": null,
+                  "as": null,
+                  "within": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "reads": [
+              "^POST /api/agent/data .*screen\\.run.*\"sector\".*\"key\":\"price\".*\"sort\":\\{\"key\":\"chg_pct_3m\",\"dir\":\"desc\"\\}"
+            ],
+            "unchanged": true
+          }
+        },
+        {
+          "say": "add those to my Momentum list",
+          "model": {
+            "disposition": "propose",
+            "ops": [
+              {
+                "action": "watchlist.add",
+                "target": "$watchlists[0]",
+                "args": {
+                  "symbols": {
+                    "from": "lastScreen",
+                    "top": null
+                  }
+                }
+              }
+            ]
+          },
+          "expect": {
+            "proposal": true,
+            "unchanged": true
+          },
+          "approve": true,
+          "afterApprove": {
+            "watchlist": {
+              "name": "Momentum",
+              "include": [
+                "T01",
+                "T12",
+                "NVDA",
+                "TSLA"
+              ]
+            },
+            "receipt": true,
+            "reads": [
+              "^POST /api/screener/scan .*\"sector\".*\"sort\":\\{\"key\":\"chg_pct_3m\""
+            ]
+          }
+        },
+        {
+          "say": "chart the top 3",
+          "model": {
+            "disposition": "propose",
+            "ops": [
+              {
+                "action": "widget.addCharts",
+                "target": "$workspace",
+                "args": {
+                  "symbols": {
+                    "from": "lastScreen",
+                    "top": 3
+                  },
+                  "timeframe": null,
+                  "chart_type": null,
+                  "exact": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "proposal": true,
+            "unchanged": true
+          },
+          "approve": true,
+          "afterApprove": {
+            "charts": {
+              "count": 4,
+              "symbolSet": [
+                "NVDA",
+                "T01",
+                "T02",
+                "T03"
+              ]
+            },
+            "receipt": true
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "charts": {
+              "count": 1,
+              "symbols": [
+                "NVDA"
+              ]
+            },
+            "restored": true,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "watchlist": {
+              "name": "Momentum",
+              "include": [
+                "NVDA",
+                "TSLA"
+              ],
+              "exclude": [
+                "T01",
+                "T12"
+              ]
+            },
+            "modelTurns": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-26.history-questions",
+      "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings: event studies, a dark kind (history.eventStudy)",
+      "kinds": "ALL",
+      "capabilities": [
+        "history.afterEvent"
+      ],
+      "board": "ONE",
+      "steps": [
+        {
+          "say": "how does SPY do after new 50-day highs",
+          "expect": {
+            "reads": [
+              "history\\.eventStudy.*\"symbol\":\"SPY\".*pct_from_high"
+            ],
+            "unchanged": true,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "what happens to AMD after it crosses above its 50-day",
+          "expect": {
+            "reads": [
+              "history\\.eventStudy.*\"symbol\":\"AMD\".*pct_from_sma"
+            ],
+            "unchanged": true,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "how does SPY do after breadth thrusts",
+          "expect": {
+            "unchanged": true,
+            "modelTurns": 0,
+            "noCalls": [
+              "history\\.eventStudy"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-27.indicator-package-draft-to-delete",
+      "source": "PACKAGE 3 (11-04): indicator creation and configuration end to end — the owner's example (\"marks days where close is above the 21 EMA and volume is 1.5x the 50-day average\") through the REAL authoring interface, a scripted builder model (seed.builder), human names, follow-ups — the whole lifecycle in one conversation, each committed step undone",
+      "capabilities": [
+        "indicator.draft",
+        "indicator.previewDraft",
+        "indicator.saveDraft",
+        "indicator.add",
+        "indicatorStyle.set",
+        "definition.delete",
+        "agent.undo"
+      ],
+      "board": "AUTHOR",
+      "seed": {
+        "builder": [
+          {
+            "match": "21",
+            "ops": [
+              {
+                "op": "create",
+                "name": "Volume Thrust Days",
+                "placement": "price",
+                "outputs": [
+                  {
+                    "key": "signal",
+                    "label": "Thrust day",
+                    "formula": "close > ema(close, 21) and volume > sma(volume, 50) * 1.5"
+                  }
+                ]
+              },
+              {
+                "op": "set_marker",
+                "output": "signal",
+                "shape": "arrowUp",
+                "position": "belowBar"
+              }
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "say": "draft an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+          "model": {
+            "disposition": "apply",
+            "ops": [
+              {
+                "action": "indicator.draft",
+                "target": "$indicatorDrafts{new}",
+                "args": {
+                  "message": "draft an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average",
+                  "chart": "$ctx:charts.0.ref",
+                  "edit": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drafts": {
+              "count": 1,
+              "name": "Volume Thrust Days"
+            },
+            "customIndicators": {
+              "saved": 0
+            },
+            "receipt": true
+          }
+        },
+        {
+          "say": "show me the preview",
+          "model": {
+            "ops": [
+              {
+                "action": "indicator.previewDraft",
+                "target": "$indicatorDrafts{active}",
+                "args": {
+                  "chart": "$ctx:charts.0.ref"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "preview": {
+              "chart": 0
+            },
+            "customIndicators": {
+              "saved": 0
+            },
+            "receipt": true
+          }
+        },
+        {
+          "say": "save it",
+          "expect": {
+            "customIndicators": {
+              "saved": 1,
+              "count": 0,
+              "name": "Volume Thrust Days"
+            },
+            "drafts": {
+              "count": 0
+            },
+            "preview": null,
+            "receipt": true,
+            "modelTurns": 0
+          },
+          "model": {
+            "ops": [
+              {
+                "action": "indicator.saveDraft",
+                "target": "$indicatorDrafts{active}",
+                "args": {
+                  "addTo": [],
+                  "name": null
+                }
+              }
+            ]
+          }
+        },
+        {
+          "say": "apply it",
+          "expect": {
+            "customIndicators": {
+              "chart": 0,
+              "count": 1,
+              "saved": 1
+            },
+            "receipt": true,
+            "modelTurns": 0
+          },
+          "model": {
+            "ops": [
+              {
+                "action": "indicator.add",
+                "target": "$indicatorEdits[0]",
+                "args": {
+                  "defId": "u_aaaaaaaaae10",
+                  "inputs": null
+                }
+              }
+            ]
+          }
+        },
+        {
+          "say": "make it thicker",
+          "model": {
+            "ops": [
+              {
+                "action": "indicatorStyle.set",
+                "target": "$indicatorEdits[0]",
+                "args": {
+                  "instance": "inst:u_aaaaaaaaae10:1",
+                  "property": "lineWidth",
+                  "value": "thicker",
+                  "output": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "instance": {
+              "find": {
+                "defId": "u_aaaaaaaaae10"
+              },
+              "has": {
+                "inputs.lineWidth": 2
+              }
+            },
+            "receipt": true
+          }
+        },
+        {
+          "say": "only show it on the daily",
+          "model": {
+            "ops": [
+              {
+                "action": "indicatorStyle.set",
+                "target": "$indicatorEdits[0]",
+                "args": {
+                  "instance": "inst:u_aaaaaaaaae10:1",
+                  "property": "showOn",
+                  "value": "daily",
+                  "output": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "instance": {
+              "find": {
+                "defId": "u_aaaaaaaaae10"
+              },
+              "has": {
+                "visibility": {
+                  "preset": "custom",
+                  "tfs": [
+                    "D"
+                  ]
+                }
+              }
+            },
+            "receipt": true
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "instance": {
+              "find": {
+                "defId": "u_aaaaaaaaae10"
+              },
+              "lacks": [
+                "visibility"
+              ],
+              "has": {
+                "inputs.lineWidth": 2
+              }
+            },
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "instance": {
+              "find": {
+                "defId": "u_aaaaaaaaae10"
+              },
+              "has": {
+                "inputs.lineWidth": 1
+              }
+            },
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "customIndicators": {
+              "chart": 0,
+              "count": 0,
+              "saved": 1
+            },
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "delete Volume Thrust Days from my indicators",
+          "model": {
+            "ops": [
+              {
+                "action": "definition.delete",
+                "target": "$definitionLibrary",
+                "args": {
+                  "defId": "u_aaaaaaaaae10"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "proposal": true,
+            "customIndicators": {
+              "saved": 1
+            }
+          },
+          "approve": true,
+          "afterApprove": {
+            "customIndicators": {
+              "saved": 0
+            },
+            "receipt": true
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "customIndicators": {
+              "saved": 1,
+              "name": "Volume Thrust Days"
+            },
+            "modelTurns": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-28.counted-others-four-charts",
+      "source": "Owner 11-05: a stated chart count is part of the target; a count that does not match the board changes nothing and says so, with no model call",
+      "capabilities": [
+        "indicator.add"
+      ],
+      "board": "FOUR",
+      "steps": [
+        {
+          "say": "add rsi to the top right chart"
+        },
+        {
+          "say": "Actually, do the same for the other two.",
+          "expect": {
+            "unchanged": true,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "do the same for the other three",
+          "expect": {
+            "modelTurns": 0,
+            "bySymbol": {
+              "SPY": {
+                "has": [
+                  "rsi"
+                ]
+              },
+              "NVDA": {
+                "has": [
+                  "rsi"
+                ]
+              },
+              "TSLA": {
+                "has": [
+                  "rsi"
+                ]
+              },
+              "QQQ": {
+                "has": [
+                  "rsi"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-29.counted-others-two-charts",
+      "source": "Owner 11-05: a stated chart count is part of the target; a count that does not match the board changes nothing and says so, with no model call",
+      "capabilities": [
+        "chart.setTimeframe"
+      ],
+      "board": "TWO",
+      "steps": [
+        {
+          "say": "make the left chart weekly"
+        },
+        {
+          "say": "do the same for the other three",
+          "expect": {
+            "unchanged": true,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "do the same for the other one",
+          "expect": {
+            "modelTurns": 0,
+            "bySymbol": {
+              "NVDA": {
+                "tf": "W"
+              },
+              "AMD": {
+                "tf": "W"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-34.watchlist-setFlag-bare",
+      "source": "Agent integration 1 (11-05): through the real panel, reached by the need_groups reroute. A golden workflow rather than a corpus intent because neither router sends this action for its phrasings today (see the \"Agent integration 1\" PR).",
+      "capabilities": [
+        "watchlist.setFlag"
+      ],
+      "board": "LISTVIEW",
+      "steps": [
+        {
+          "say": "flag NVDA",
+          "model": {
+            "ops": [
+              {
+                "action": "watchlist.setFlag",
+                "target": "$flagged[0]",
+                "args": {
+                  "symbols": [
+                    "NVDA"
+                  ],
+                  "flagged": true
+                }
+              }
+            ]
+          },
+          "expect": {
+            "flagged": {
+              "include": [
+                "NVDA"
+              ]
+            },
+            "writes": [
+              "^POST /api/watchlists/flagged/sync .*NVDA"
+            ],
+            "unchanged": true,
+            "receipt": true,
+            "refusal": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "GW-35.drawing-add-arrow",
+      "source": "Agent integration 1 (11-05): through the real panel and the real drawings store, reached by the need_groups reroute. A golden workflow rather than a corpus intent because the legacy router does not send drawing.add for its phrasings today (see the \"Agent integration 1\" PR).",
+      "capabilities": [
+        "drawing.add"
+      ],
+      "board": "TIMED",
+      "steps": [
+        {
+          "say": "draw an arrow from 2026-09-02 at 100 to 2026-10-28 at 180",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.add",
+                "target": "$drawings[0]",
+                "args": {
+                  "tool": "arrow",
+                  "points": [
+                    {
+                      "date": "2026-09-02",
+                      "price": 100
+                    },
+                    {
+                      "date": "2026-10-28",
+                      "price": 180
+                    }
+                  ],
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1,
+              "has": {
+                "type": "arrow",
+                "points.1.price": 180
+              }
+            },
+            "receipt": true,
+            "refusal": false
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "drawings": {
+              "count": 0
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

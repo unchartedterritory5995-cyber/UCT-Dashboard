@@ -1,4 +1,6 @@
-// Notebook widgets phase 2, wave 11 (Task 11.17): the adoption sheet, "Make it yours".
+// Notebook widgets phase 2, wave 11 (Task 11.17): the adoption sheet, "Make it yours" -- since the 2026-11-05 audit
+// (spec S7/S9) titled "Customize" and reached for a template only through "Customize first": a template's Use makes
+// the note in one press (oneStepUse.js) and this sheet is the optional way to change its choices first.
 //
 // A shared template, widget, routine or tracker carries no member value: each one arrived as a typed "pick yours"
 // choice (ruling W11-R5). This sheet shows a WORKING preview at once, with every choice at the member's suggested
@@ -23,9 +25,11 @@ import { adoptTemplate, adoptTool, previewMine, updateTool, useTemplate } from '
 import { openNoteInPlace, noteHref } from '../../../lib/noteHref'
 import { PreviewCard, PreviewTool } from './PreviewParts'
 import SlotPicker, { anyWords, numberOf } from './SlotPicker'
+import { answered, firstAnswers, questionChoice, questionsOf, slotsOf, templateNoteTitle } from './oneStepUse'
 import styles from './library.module.css'
 
-export const TITLE = 'Make it yours'
+// S7 (one vocabulary): "Make it yours" retired; the door beside Use reads "Customize first".
+export const TITLE = 'Customize'
 export const USE_LABEL = 'Use'
 export const CHANGE_LABEL = 'Change'
 export const MISSING_HINT = 'Pick a value for each choice, or Any.'
@@ -47,6 +51,9 @@ export const DEBOUNCE_MS = 600
 /** "Use your Morning routine" / "Create Pre-market routine from the template": the two answers to a reuse question. */
 export const useYourWords = (name) => `Use your ${name}`
 export const createWords = (name) => `Create ${name} from the template`
+/** S9: the third answer, and the default when the member has none of their own: nothing is made, the steps go in the
+ *  note as plain content (a routine starts only when the member asks for one). */
+export const SKIP_WORDS = 'Just this note'
 
 /**
  * The credit line (rulings W11-R7, W11-R24): ONLY the server's `credit` from the preview answer ("Based on UCT's ...",
@@ -66,38 +73,16 @@ const listOf = (v) => (Array.isArray(v) ? v : [])
 const text = (v) => (typeof v === 'string' ? v : '')
 const isAnyAnswer = (a) => isRecord(a) && a.any === true
 
-/** Whether a choice has an answer the server can take: Any (where allowed), a number for a number, else a value. */
-export function answered(slot, a) {
-  if (a === undefined || a === null) return false
-  if (isAnyAnswer(a)) return slot?.any === true
-  if (slot?.type === 'number') return numberOf(a) !== null
-  if (typeof a === 'string') return a.trim() !== ''
-  return Array.isArray(a) && a.length > 0 && a.every((x) => typeof x === 'string' && x.trim())
-}
+// `answered` and `firstAnswers` live in oneStepUse.js (S9), shared with the one-press Use so the two can never read
+// the server's first answers differently. `answered` is re-exported for the rails that import it from here.
+export { answered }
 
-/**
- * The first answer of each choice: the SERVER's own `value` for it (F-FE-1 F3; template_preview, W11-R27b: the
- * member's suggestion, else Any where allowed, else none), the value the first preview ran with. The client never
- * re-derives that rule, and never reads `sampleValue` (what a Sample data card ran with instead) or a card's payload:
- * Use sends exactly these values and the member's own changes. A value the sheet cannot send leaves the choice unpicked.
- */
-function firstAnswers(slots) {
-  const answers = {}
-  const labels = {}
-  for (const s of slots) {
-    const v = s.value
-    if (!answered(s, v)) continue
-    answers[s.id] = v
-    const sug = isRecord(s.suggested) ? s.suggested : null
-    if (!isAnyAnswer(v)) labels[s.id] = (sug && JSON.stringify(sug.value) === JSON.stringify(v) && text(sug.label)) || ''
-  }
-  return { answers, labels }
-}
-
-/** The reuse questions' first answers: "Use your <name>" when the server found one, else "Create … from the template". */
-function firstChoices(questions) {
+/** The reuse questions' first answers: "Use your <name>" when the server found one, else "Just this note" (S9: a
+ *  routine or tracker starts only when the member picks it; it was "Create … from the template" by default). */
+function firstChoices(questions, copy = false) {
   const out = {}
-  for (const q of questions) out[q.slot] = isRecord(q.use) && q.use.id != null ? { use: String(q.use.id) } : { create: true }
+  // A copy (Adopt) has no note to hold the steps, so it keeps the old default: make it.
+  for (const q of questions) out[q.slot] = questionChoice(q, copy)
   return out
 }
 
@@ -109,8 +94,6 @@ function valueWords(slot, a, labels) {
   return labels[slot.id] || String(a)
 }
 
-const slotsOf = (data) => listOf(data?.slots).filter((s) => isRecord(s) && typeof s.id === 'string' && s.id)
-const questionsOf = (data) => listOf(data?.questions).filter((q) => isRecord(q) && typeof q.slot === 'string' && q.slot)
 
 /** A refusal, in the server's own words. */
 function Refusal({ p }) {
@@ -136,7 +119,7 @@ function Refusal({ p }) {
  *                  template's Use hands it the new note INSTEAD of navigating, so the host closes its own sheet and
  *                  opens the note through the same door its other picks use (focus in the new note)
  */
-export default function AdoptSheet({ galleryId, kind, navigate = null, editor = null, onClose, onDone, mode = 'use', copyId = null, landNote = null }) {
+export default function AdoptSheet({ galleryId, kind, navigate = null, editor = null, onClose, onDone, mode = 'use', copyId = null, landNote = null, name = '' }) {
   const uid = useId()
   const isUpdate = mode === 'update' && UPDATABLE.has(kind) && (typeof copyId === 'string' ? copyId !== '' : Number.isFinite(copyId))
   const isTemplate = kind === 'template' && !isUpdate
@@ -186,7 +169,7 @@ export default function AdoptSheet({ galleryId, kind, navigate = null, editor = 
         setQuestions(q)
         setAnswers(first.answers)
         setLabels(first.labels)
-        setChoices(firstChoices(q))
+        setChoices(firstChoices(q, isTemplateCopy))
         // The server already previewed the suggestions: the next ask is only for a change.
         latest.current = first.answers
       }
@@ -199,7 +182,7 @@ export default function AdoptSheet({ galleryId, kind, navigate = null, editor = 
       return
     }
     setAsking(false)
-  }, [galleryId])
+  }, [galleryId, isTemplateCopy])
 
   useEffect(() => {
     alive.current = true
@@ -245,6 +228,8 @@ export default function AdoptSheet({ galleryId, kind, navigate = null, editor = 
     setUseProblem(null)
     const body = { answers: { ...answers } }
     if (isTemplate) body.choices = { ...choices }
+    // S9: a template's note is titled "{Template} · {Ddd, Mon D}" when the door knows the template's name.
+    if (isTemplate && !isTemplateCopy && text(name).trim()) body.title = templateNoteTitle(name)
     const out = isUpdate ? await updateTool(kind, copyId, body)
       : isTemplateCopy ? await adoptTemplate(galleryId, body)
         : isTemplate ? await useTemplate(galleryId, body) : await adoptTool(galleryId, body)
@@ -351,6 +336,14 @@ export default function AdoptSheet({ galleryId, kind, navigate = null, editor = 
                       onChange={() => setChoices({ ...choices, [q.slot]: { create: true } })} />
                     <span>{createWords(name)}</span>
                   </label>
+                  {/* S9: a copy (Adopt) keeps no note to put the steps in, so it is offered for a Use only. */}
+                  {!isTemplateCopy && (
+                    <label className={styles.choice}>
+                      <input type="radio" name={`${uid}-${q.slot}`} checked={c.skip === true}
+                        onChange={() => setChoices({ ...choices, [q.slot]: { skip: true } })} />
+                      <span>{SKIP_WORDS}</span>
+                    </label>
+                  )}
                 </fieldset>
               )
             })}

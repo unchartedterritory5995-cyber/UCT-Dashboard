@@ -362,13 +362,43 @@ _ADDRESS_PLOT: dict[str, tuple[str, str]] = {
     "ichimoku.chikou": ("ichimoku", "chikou"),
     "sar.priceCrossedSar": ("sar", "priceCrossedSar"),
     "sar.trendFlipped": ("sar", "trendFlipped"),
+    # 2026-11-06 (RS 2b-05) — the UCT Relative Strength plots that EXIST on the
+    # `rsLine` server definition today (`nativeRegistry.js` RS_LINE_RAW.plots):
+    # the line (chip `legend.decimals: 4`), its average (`precision: 4`, legend
+    # hidden), the hidden above-average state column and the two new-high dot
+    # markers. ⚠️ `rsLine` is a SERVER definition (`id: 'rsLine'`, not a
+    # `nativeDef(` call), so `_js_plot_decimals` does not parse it and the
+    # decimals rail below skips these five; the Python 4 for the two line
+    # addresses is pinned by the RS section of `test_indicator_alert_evaluator.py`.
+    "rs_line.value": ("rsLine", "rsLine"),
+    "rs_line.ma": ("rsLine", "rsMa"),
+    "rs_line.above": ("rsLine", "rsAbove"),
+    "rs_line.newHigh": ("rsLine", "dotNH"),
+    "rs_line.newHighBeforePrice": ("rsLine", "dotNHbeforePx"),
 }
 
 # ⛔ THESE THREE HAVE NO CHART PLOT AT ALL, and it is not an omission.
 # `bb` reports the CLOSE (`alert_series._series_bb`), `price_vs_ma` is a spread
 # this module synthesises and `close` is the bar's own close — all three are
 # prices on the candles' scale, which is what `DEFAULT_DECIMALS` is FOR.
-_NO_CHART_PLOT = {"bb", "price_vs_ma", "close"}
+# 2026-11-04: `ma_cross` is a fast−slow MA SPREAD (price scale), like `price_vs_ma`.
+# 2026-11-06 (RS 2b-05): the RS/MA crosses and the green-on-red new high are
+# COLUMNS, not markers, by the design spec ("a triangle or arrow is the
+# platform's entry/exit vocabulary"), and the Mansfield plot arrives with unit
+# 2a-14 — none of these six has a chart plot to name yet. Move each one to
+# `_ADDRESS_PLOT` the day its plot lands.
+# 2026-11-07 (RS 2b-06): `rs_line.rating` is read from the nightly
+# `rs_rating_history` side table, not drawn — the chart shows the rating as a
+# readout fact in the chip, not as a plot — so it has no chart plot either; its
+# Python decimals (0, an integer 1–99) are pinned by the RS section of
+# `test_indicator_alert_evaluator.py` and by `test_rs_alert_series.py`.
+_NO_CHART_PLOT = {"bb", "price_vs_ma", "close", "ma_cross",
+                  "rs_line.crossUp", "rs_line.crossDown", "rs_line.newHighRed",
+                  "rs_line.mansfield", "rs_line.mansfieldCrossUp",
+                  "rs_line.mansfieldCrossDown", "rs_line.rating",
+                  # 2026-11-10 (RS split, S2): the four split EVENT addresses are 0 / 1 columns
+                  # with no plot of their own (the chart shades phases / draws a histogram).
+                  "rs_phases.flipBlue", "rs_phases.flipRed", "rs_vs_ema.crossUp", "rs_vs_ema.crossDown"}
 
 
 def test_the_address_to_plot_map_covers_every_address_that_exists():

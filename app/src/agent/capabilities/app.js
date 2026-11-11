@@ -37,6 +37,8 @@ const labelFor = ({ page, section, symbol }) => (page === 'research' ? `${upper(
   : page === 'settings' && section ? `Settings → ${section[0].toUpperCase()}${section.slice(1)}` : DESTINATIONS[page]?.label || page)
 
 const appSnap = (host) => ({ ref: 'app', label: 'UCT', here: host?.location?.() || '/charts' })
+// ⭐ W2-C1: the page the Agent is on (a page host says where it is; the Charts host says nothing = Charts)
+export const pageLabel = (path) => Object.values(DESTINATIONS).find(d => d.to === String(path || '').split('?')[0])?.label || 'Charts'
 export const appKind = {
   name: 'app',
   undoable: false,                      // navigation: no Undo (agentContracts.test.js rails its capabilities)
@@ -64,13 +66,13 @@ export function registerAppCapabilities() {
   if (registered) return
   registered = true
   registerTargetKind(appKind)
-  registerContextProvider({ key: 'app', build: (host, refFor) => (host?.navigate ? [{ ref: refFor('app', 'app'), label: 'UCT pages (open one here)', current: 'Charts' }] : undefined) })
+  registerContextProvider({ key: 'app', build: (host, refFor) => (host?.navigate ? [{ ref: refFor('app', 'app'), label: 'UCT pages (open one here)', current: pageLabel(host.location?.()) }] : undefined) })
 
   registerCapability({
     name: 'app.open',
     // Navigation has no Undo (the member uses Back); it is not destructive, so it may still apply.
     undo: 'none',
-    surfaces: ['charts'],
+    surfaces: ['*'],
     target: 'app',
     summary: 'Open another UCT page for the member, exactly like clicking it in the sidebar: the Screener, Dashboard, Breadth, Settings, a stock\'s Research page, etc. This closes this panel (the conversation is kept).',
     hints: `target = the ref of the app entry. page: one of ${Object.entries(DESTINATIONS).map(([k, d]) => `${k} (${d.label})`).join(', ')}. `
@@ -114,7 +116,7 @@ export function registerAppCapabilities() {
       if (!path || path === st.here) return st
       return { ...st, go: { path, label: labelFor(args) } }
     },
-    noop: () => 'You are already on Charts',
-    describe: (b, a) => (a.go ? `Opening ${a.go.label} — this panel closes; your conversation is kept (it reopens on Charts), but Undo for earlier changes won't be available` : null),
+    noop: (st) => `You are already on ${pageLabel(st.here)}`,
+    describe: (b, a) => (a.go ? `Opening ${a.go.label} — this panel closes; your conversation is kept (it reopens where UCT Agent is available), but Undo for earlier changes won't be available` : null),
   })
 }

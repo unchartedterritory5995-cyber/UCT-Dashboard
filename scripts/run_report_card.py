@@ -73,6 +73,10 @@ def main() -> int:
     os.environ["AUTH_DB_PATH"] = args.db
     os.environ.setdefault("BRAIN_TOOLS_ENABLED", "1")
     os.environ.setdefault("COMPASS_MENTOR_MODE", "1")
+    # The RS read tools (unit 4-07) are measured with the exam: R1-11 and R2-11/12
+    # require them, and the ledger arms RS_COMPASS_TOOLS_ENABLED only after this run
+    # passes its safety checks with them on.
+    os.environ.setdefault("RS_COMPASS_TOOLS_ENABLED", "1")
 
     # ⏱️ Compass chat now bounds a whole member TURN, not just each call — a
     # request-path budget, sized for someone staring at a spinner. The exam is an
@@ -90,6 +94,7 @@ def main() -> int:
                           str(int(llm_timeouts.REQUEST_PATH_LONG)))
     print(f"flags: BRAIN_TOOLS_ENABLED={os.environ['BRAIN_TOOLS_ENABLED']}"
           f" COMPASS_MENTOR_MODE={os.environ['COMPASS_MENTOR_MODE']}"
+          f" RS_COMPASS_TOOLS_ENABLED={os.environ['RS_COMPASS_TOOLS_ENABLED']}"
           f" COMPASS_CHAT_TURN_BUDGET_SECS={os.environ['COMPASS_CHAT_TURN_BUDGET_SECS']}")
 
     from api.services.compass_eval import runner, golden_set

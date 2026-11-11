@@ -1,0 +1,11 @@
+{
+  "_comment": "D2 fix round 5, M-r4-1: a wikilink or embed target or alias never spans a blank line or a fence. Both lanes leave such text exactly as written: no link, never an internal key. A single newline inside an alias is still the one link.",
+  "vault_id": "vault-1",
+  "self_path": "a.md",
+  "vault_paths": [
+    "a.md",
+    "Plan.md",
+    "attachments/chart.png"
+  ],
+  "attachments": []
+}

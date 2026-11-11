@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import StockChart from '../../../../components/StockChart'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import styles from './SetupsBoard.module.css'
+import { planRoleColor } from '../../lib/planColors'
 import { money, distanceText, STATE_LABEL } from '../../lib/blocks/setupsBoardText'
 
 /**
@@ -20,7 +21,6 @@ import { money, distanceText, STATE_LABEL } from '../../lib/blocks/setupsBoardTe
  */
 
 const NEVER = () => false
-const LINE_COLORS = { entry: '#dcbb5e', stop: '#f87171', target: '#4ade80' }
 const ROLE_LABEL = { entry: 'Entry', stop: 'Stop', target: 'Target' }
 
 // The distance and state words live in lib/blocks/setupsBoardText.js, shared with the daily prep pack's
@@ -31,7 +31,7 @@ export { distanceText }
 export function planPriceLines(card) {
   return ['entry', 'stop', 'target']
     .filter((role) => typeof card?.[role] === 'number')
-    .map((role) => ({ price: card[role], color: LINE_COLORS[role], lineWidth: 1, lineStyle: 2, title: ROLE_LABEL[role] }))
+    .map((role) => ({ price: card[role], color: planRoleColor(role), lineWidth: 1, lineStyle: 2, title: ROLE_LABEL[role] }))
 }
 
 /** Calendar days since the plan's note was created (the server counts them, ET). */

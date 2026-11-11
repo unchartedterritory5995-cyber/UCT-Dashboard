@@ -7,10 +7,12 @@ import { WorkspaceContext } from '../WorkspaceContext'
 // Mock StockChart to surface the symbol + the change callback; mock the
 // auth-dependent hooks (useWatchlistAlerts/useFlagged need an AuthProvider)
 // and the presentational children the widget header renders.
+import { PanelSlotContext } from '../panelSlot'
 vi.mock('../../../components/StockChart', () => ({
-  default: ({ sym, onSymbolChange }) => (
+  default: ({ sym, onSymbolChange, onBarsReady }) => (
     <div>
-      <span data-testid="chart-sym">{sym}</span>
+      <span data-testid="chart-sym" data-has-ready={String(typeof onBarsReady === 'function')}>{sym}</span>
+      {onBarsReady && <button onClick={onBarsReady}>bars-ready</button>}
       <button onClick={() => onSymbolChange && onSymbolChange('AAPL')}>change</button>
     </div>
   ),
@@ -66,6 +68,18 @@ function Wrap({ color, initialGroups = { A: null, B: null, C: null, D: null } })
     </MemoryRouter>
   )
 }
+
+// Speed pass 2026-11-09: the main board releases this panel's mount slot on first bars.
+test('a chart on the main board reports its first bars to the mount queue', () => {
+  const ready = vi.fn()
+  render(<PanelSlotContext.Provider value={ready}><Wrap color="A" /></PanelSlotContext.Provider>)
+  fireEvent.click(screen.getByText('bars-ready'))
+  expect(ready).toHaveBeenCalledTimes(1)
+})
+test('CONTROL: outside the main board the chart reports to nobody', () => {
+  render(<Wrap color="A" />)
+  expect(screen.getByTestId('chart-sym').dataset.hasReady).toBe('false')
+})
 
 test('defaults to SPY when its color group is empty', () => {
   render(<Wrap color="A" />)

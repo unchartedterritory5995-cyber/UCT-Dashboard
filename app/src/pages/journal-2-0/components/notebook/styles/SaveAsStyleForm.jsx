@@ -1,4 +1,4 @@
-// Notebook P1 (spec P1.4): "Save this note's setup as a style". The SERVER reads the note (its blocks, the
+// Notebook P1 (spec P1.4): "Save as template with blocks". The SERVER reads the note (its blocks, the
 // rest of the body as the outline, its property values), so the editor's pending words go first:
 // `onBeforeSave` is the editor's sendPendingEdits (the note menu's onBeforeTemplate). If words are still
 // unsent, nothing is copied. Lazy chunk (NoteMenuActions lazyChunk).
@@ -12,14 +12,14 @@ import { reportError } from './styleErrors'
 import styles from './SaveAsStyleForm.module.css'
 
 export const UNSENT_BEFORE_STYLE = 'Some words are still saving. Try again in a moment.'
-const SAVE_FAILED = "Couldn't save this style. Nothing was saved."
+const SAVE_FAILED = "Couldn't save this template. Nothing was saved."
 
 // Review M-4: what the server left out of the style (`leftOut`), said in one plain sentence. A widget is named by
 // its own label (KindSection's rule), else as a block from a newer version.
-const WHY = { repeat: 'a style holds each block once' }
+const WHY = { repeat: 'a template holds each block once' }
 const widgetName = (id) => (id && WIDGET_REGISTRY[id]?.labels?.header) || blockLabel(id)
 const leftOutSentence = (items) => (items?.length
-  ? ` Left out: ${items.map((x) => `${x.reason === 'repeat' ? 'another ' : ''}${widgetName(x.widgetId)} (${WHY[x.reason] || 'not a style block yet'})`).join(', ')}.`
+  ? ` Left out: ${items.map((x) => `${x.reason === 'repeat' ? 'another ' : ''}${widgetName(x.widgetId)} (${WHY[x.reason] || 'not a template block yet'})`).join(', ')}.`
   : '')
 
 /**
@@ -75,7 +75,7 @@ export default function SaveAsStyleForm({ note, onBeforeSave, onDone }) {
         ...(picked && picked !== defaultKind ? { kindId: picked } : {}),
       }, { via: 'from_note' })
       mutate()
-      onDone?.(`Saved as the style “${out?.style?.name || name.trim() || note.title || 'Untitled style'}”.${leftOutSentence(out?.leftOut)}`)
+      onDone?.(`Saved as the template “${out?.style?.name || name.trim() || note.title || 'Untitled template'}”.${leftOutSentence(out?.leftOut)}`)
     } catch (err) {
       setError(reportError(err, SAVE_FAILED))                    // never a bare "500" (review M-2)
     } finally {
@@ -87,17 +87,17 @@ export default function SaveAsStyleForm({ note, onBeforeSave, onDone }) {
   return (
     <form className={styles.form} onSubmit={submit}>
       <label className={styles.field}>
-        <span className={styles.label}>Style name</span>
+        <span className={styles.label}>Template name</span>
         <input className={styles.input} value={name} onChange={(e) => setName(e.target.value)} maxLength={MAX_STYLE_NAME_CHARS} autoFocus autoComplete="off" />
       </label>
       <label className={styles.field}>
-        <span className={styles.label}>Kind of note</span>
+        <span className={styles.label}>Note type</span>
         <select className={styles.input} value={chosenKind} onChange={(e) => setPicked(e.target.value)}>
           {!defaultKind && <option value="">Choose a kind</option>}
           {kinds.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
         </select>
       </label>
-      <button type="submit" className={styles.btn} disabled={busy || cannotSave}>Save style</button>
+      <button type="submit" className={styles.btn} disabled={busy || cannotSave}>Save template</button>
       <button type="button" className={styles.btn} onClick={() => onDone?.(null)}>Cancel</button>
       {error && <span className={styles.error} role="alert">{error}</span>}
     </form>

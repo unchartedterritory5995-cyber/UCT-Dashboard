@@ -1,4 +1,4 @@
-// Notebook P1 (spec P1.4): the note menu's "Save this note's setup as a style" door -- the button, the
+// Notebook P1 (spec P1.4): the note menu's "Save as template with blocks" door -- the button, the
 // naming form and the sentence it leaves behind. It lives in the lazy styles chunk; NoteMenuActions shows a
 // plain button while journal styles are on and mounts this only on that button's first press, replacing it
 // (the form is already open). Same look as the menu's own buttons (a copy of their rules).
@@ -15,9 +15,9 @@ export default function SaveStyleDoor({ note, onBeforeSave }) {
     <>
       <button ref={btnRef} type="button" className={styles.btn} aria-expanded={open} autoFocus
         onClick={() => { setStatus(null); setOpen((v) => !v) }}
-        title="Reuse this note's blocks, outline and property values as a journal style">
+        title="Reuse this note's blocks, outline and property values as a template">
         <UIcon name="sliders" size={13} gold={false} />
-        Save this note&apos;s setup as a style
+        Save as template with blocks
       </button>
       {open && (
         <SaveAsStyleForm

@@ -290,6 +290,16 @@ def peek_ticker_meta(ticker: str):
     return None if base is None else {**base, "theme": _primary_theme(ticker)}
 
 
+def peek_exchange(ticker: str):
+    """W9-T4-F1 r1 -- the ticker's CACHED exchange (our store's spelling), or None. A cache read only
+    (memory, then the 24h disk entry): never a provider call and never the theme lookup, so a request
+    path can ask it at no cost. The pine strategy backtest route reads ``syminfo.*``'s exchange here."""
+    ticker = (ticker or "").upper().strip()
+    base = _peek_base(ticker) if ticker else None
+    exch = base.get("exchange") if isinstance(base, dict) else None
+    return exch if isinstance(exch, str) and exch else None
+
+
 def get_ticker_meta(ticker: str) -> dict:
     """{name, sector, industry, exchange, theme}. The first four are 24h-cached
     (yfinance → FMP → Finnhub); theme is the live UCT-taxonomy primary theme."""

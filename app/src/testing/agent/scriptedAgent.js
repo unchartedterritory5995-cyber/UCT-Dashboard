@@ -12,6 +12,14 @@ export function scriptedTurn(body) {
   const names = new Set((body.capabilities || []).map(c => c.name))
   const first = charts[0]?.ref
 
+  // "@ops [{...}]": a browser run names the ops itself, aimed at the board or the calendar by their own context entries, so
+  // what it proves is the path after the model
+  const direct = /^@ops (.+)$/s.exec(String(body.message || ''))
+  if (direct) {
+    const at = { board: body.context?.board?.[0]?.ref, calendar: body.context?.calendar?.[0]?.ref }
+    return env('apply', JSON.parse(direct[1]).map(o => ({ ...o, target: at[o.target] || o.target })))
+  }
+
   // Screener requests — the production model's shape (measured 2026-10-07): field keys
   // taken from the screener catalog in context, "above"=gt, "at least"=gte.
   const scr = body.context?.screener?.[0]

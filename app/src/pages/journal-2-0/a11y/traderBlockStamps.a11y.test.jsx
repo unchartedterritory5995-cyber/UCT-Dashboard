@@ -48,7 +48,7 @@ axeSurface('trader-block-stamps:off', async () => {
     const sw = await screen.findByRole('switch', { name: 'Stamp prices as I write' })
     expect(sw.disabled).toBe(true)
     expect(PRICE_STAMPS_KEY.get(editor.state)).toBeUndefined()
-    expect(screen.getByText('This block needs Journal styles, which is not on for you.')).toBeTruthy()
+    expect(screen.getByText('This block needs Templates, which is not on for you.')).toBeTruthy()
   } finally {
     STYLES_ON = true
   }

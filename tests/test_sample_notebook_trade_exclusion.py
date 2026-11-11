@@ -74,7 +74,6 @@ def db(monkeypatch, tmp_path):
     # W14-C1 ruling: the per-capability examples exist only while the wave-14 switch is on
     # (sample_notebook.seed; tests/test_sample_notebook_switch.py proves both states)
     monkeypatch.setenv("NOTEBOOK_ONBOARDING_ENABLED", "1")
-    monkeypatch.setenv("NOTEBOOK_GETTING_STARTED_ENABLED", "1")
     auth_db.init_db()
     c = auth_db.get_connection()
     try:

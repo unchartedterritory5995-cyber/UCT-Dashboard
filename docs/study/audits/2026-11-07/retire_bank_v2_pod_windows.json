@@ -1,0 +1,60 @@
+{
+ "why": "the web pod draws a different chart: the signal day is missing from its bars, or a gap inside the 120-bar window stretches it (pod_window_check.py, 2026-11-07); replaced in the bank",
+ "ids": {
+  "spot.setups": [
+   "si_017492c16b26",
+   "si_081810855350",
+   "si_49e4de526a08",
+   "si_5839814ec23e",
+   "si_625dcd99a017",
+   "si_71a8744deb39",
+   "si_7f100f86d925",
+   "si_86b9b74c97d3",
+   "si_8a9b3580c9a5",
+   "si_954c1ed47f60",
+   "si_a424ea87be26",
+   "si_a9c18a57668d",
+   "si_aeed2b887284",
+   "si_b15a24f67c3e",
+   "si_d6e74f99d17c"
+  ],
+  "cycle.price_action": [
+   "si_04b3730a2c46",
+   "si_19973544a9c8",
+   "si_218871c3dfb6",
+   "si_274395d94efe",
+   "si_342d8ee000dc",
+   "si_4d69d8279566",
+   "si_4e3b8e667330",
+   "si_4ecb33e3375c",
+   "si_684d1bdc5342",
+   "si_98bb218b6db3",
+   "si_a3ffe421e201",
+   "si_bee6c276b1cb",
+   "si_d9bfafd33024",
+   "si_ed1c422ee928"
+  ],
+  "chart.events": [
+   "si_0c3918b680f3",
+   "si_15c42d7de5c6",
+   "si_209fd953034a",
+   "si_2a3c4dc11c3a",
+   "si_5e74c882d67f",
+   "si_771737f2ef8b",
+   "si_7ddca56e59c6",
+   "si_a03532be3ccb",
+   "si_ab2d759fc103",
+   "si_ae0fed52794a",
+   "si_b26799736f49",
+   "si_bd1e24d0e4ab",
+   "si_c43d039fd5e6",
+   "si_d9ce6eb0f26b",
+   "si_d9d429424cf7",
+   "si_dd244f8dda37",
+   "si_eaf1e3cc4f4f",
+   "si_ef951f6c1161",
+   "si_f21b4f45a7e9",
+   "si_f65790ec7f35"
+  ]
+ }
+}

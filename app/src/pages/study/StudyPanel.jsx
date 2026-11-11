@@ -54,7 +54,7 @@ function StreakChip({ streak, dots }) {
   )
 }
 
-export default function StudyPanel({ onStart, onPractise, onOpenUnit }) {
+export default function StudyPanel({ onStart, onPractise, onOpenUnit, hidePrimary = false }) {
   const { data: today, error, mutate: retryToday } = useStudyToday()
   const { data: mapData } = useStudyMap()
   const { data: board } = useStudyLeaderboard()
@@ -134,9 +134,12 @@ export default function StudyPanel({ onStart, onPractise, onOpenUnit }) {
         <p className={s.lead}>Ten quick questions, no setup. Your trail starts here.</p>
       )}
 
-      <button type="button" className={s.primary} onClick={onPrimary}>
-        {button}
-      </button>
+      {/* the home's hero carries today's one big button (2026-11-08); the panel keeps the streak, XP today and the rank */}
+      {hidePrimary ? null : (
+        <button type="button" className={s.primary} onClick={onPrimary}>
+          {button}
+        </button>
+      )}
 
       {upNext && !upNext.complete && (
         <button

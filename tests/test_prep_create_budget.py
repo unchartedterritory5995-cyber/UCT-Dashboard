@@ -281,7 +281,6 @@ def test_the_create_regime_read_never_asks_the_default_breadth(db_path, monkeypa
 
 def _route(monkeypatch):
     from api.routers import notebook_journal_styles as r
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
     app = FastAPI()
     app.include_router(r.router)
     app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": "u1", "role": "member", "plan": "pro"}
@@ -295,7 +294,6 @@ def test_capture_now_with_stalled_reads_answers_the_failure_shape_within_the_bud
     from api.services.cache import cache
     from api.services.journal_two import trader_blocks as tb
     cache.set(engine.EARNINGS_CACHE_KEY, {"date": "2026-10-13", "bmo": [{"sym": "AAA"}]}, ttl=60)
-    monkeypatch.setenv("NOTEBOOK_SETUPS_BOARD_ENABLED", "1")
     if part == "movers":
         monkeypatch.setattr(tb, "_my_names", lambda uid: [f"N{i:03d}" for i in range(20)])
     client = _route(monkeypatch)                  # review M-3: build and import BEFORE the clock starts

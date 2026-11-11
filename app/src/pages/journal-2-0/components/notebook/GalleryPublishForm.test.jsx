@@ -1,4 +1,4 @@
-// GalleryPublishForm: "Share to the community gallery" for one of Your templates. The form
+// GalleryPublishForm: "Share to the Template library" for one of Your templates. The form
 // tells the member, in words, what will and will not leave their account, then submits for
 // review. Every server answer here is the REAL one (contract fixtures) through a fake `fetch`.
 //
@@ -53,7 +53,7 @@ async function fill(user, { titleText = SENT.title, descriptionText = SENT.descr
 describe('what the member sees before submitting', () => {
   it('names the template in the form\'s label and starts the title from its name', () => {
     renderForm()
-    expect(screen.getByRole('form', { name: 'Share My checklist to the community gallery' })).toBeInTheDocument()
+    expect(screen.getByRole('form', { name: 'Share My checklist to the Template library' })).toBeInTheDocument()
     expect(title()).toHaveValue('My checklist')
     expect(description()).toHaveValue('')
     expect(category()).toHaveValue('')
@@ -145,7 +145,7 @@ describe('submitting', () => {
     await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1))
     const stored = contractBody('template-gallery.publish').template.title
     expect(onDone).toHaveBeenCalledWith(
-      `Submitted “${stored}” for review. You'll see it under Your submissions in the community gallery.`)
+      `Submitted “${stored}” for review. You'll see it under Your submissions in the Template library.`)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 

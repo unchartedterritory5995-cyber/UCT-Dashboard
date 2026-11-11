@@ -66,7 +66,7 @@ describe('Phase 2 — the brief\'s integrated conversations', () => {
     await say('Add RSI to this chart.')
     expect(rsi(board, 'c')).toHaveLength(1)
     const out = await say('Make that indicator green.')
-    expect(out).toMatch(/Changed RSI \(14\)'s colour on Chart \(QQQ\) to #2faf68/)
+    expect(out).toMatch(/Changed RSI \(14\)'s colour on Chart \(QQQ\) to green/)
     await say('Show me how to change its settings.')
     await waitFor(() => expect(card()).toBeTruthy())
     expect(rsi(board, 'c')).toHaveLength(1)

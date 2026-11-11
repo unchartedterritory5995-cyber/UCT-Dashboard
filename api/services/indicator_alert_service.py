@@ -36,7 +36,7 @@ import json
 import os
 import sqlite3
 import time
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from api.services import alert_fired_log
 
@@ -202,6 +202,10 @@ _MIGRATIONS: tuple[tuple[str, str], ...] = (
     # one of its TWO signals (see `_is_user_authored` — the other is structural,
     # so a row that lost this column still cannot accrue one).
     ("def_source", "ALTER TABLE indicator_alerts ADD COLUMN def_source TEXT"),
+    # ⭐ 2026-11-02 -- WHICH LINE, not which key (`user_definitions.line_identity`).
+    # NULL for every builtin row and for every user row stored before this column;
+    # the latter is bound once, on first evaluation, by `alert_user_series._check_line`.
+    ("plot_uid", "ALTER TABLE indicator_alerts ADD COLUMN plot_uid TEXT"),
 )
 
 #: The two provenances. `NULL` in the column reads as `DEF_SOURCE_BUILTIN`
@@ -281,14 +285,28 @@ def _row_to_dict(row: tuple) -> dict:
         # NULL and therefore reads `"builtin"`, which is what they have always
         # been.
         "def_source": row[23] or DEF_SOURCE_BUILTIN,
+        # ⭐ 2026-11-02 -- the line a USER alert is bound to (None: builtin, or not
+        # yet bound). Read by `alert_user_series._check_line`.
+        "plot_uid": row[24],
     }
+
+
+def bind_plot_uid(alert_id: int, plot_uid: str) -> bool:
+    """Record the line a pre-identity user alert is bound to. ONCE: a row that
+    already carries a `plot_uid` is never rebound, so a later line can never be
+    adopted by an alert that was bound to an earlier one."""
+    with _conn() as db:
+        cur = db.execute(
+            "UPDATE indicator_alerts SET plot_uid=? WHERE id=? AND plot_uid IS NULL",
+            (str(plot_uid), int(alert_id)))
+        return cur.rowcount == 1
 
 
 _COLS = (
     "id, user_id, sym, indicator, condition, threshold, tf, params_json, "
     "active, last_value, last_evaluated_at, triggered_at, trigger_count, created_at, "
     "state, state_detail, state_at, arm_epoch, snooze_until, last_fire_key, "
-    "instance_id, instance_missing_at, scope, def_source"
+    "instance_id, instance_missing_at, scope, def_source, plot_uid"
 )
 
 
@@ -369,8 +387,20 @@ def create(
     # path validation exists to end, reached one step later. A refusal before it
     # means there is nothing to go quiet.
     from api.services import alert_user_series
-    admitted = alert_user_series.arm_for_alert(user_id, indicator, sym.upper(), tf)
+    from api.services import indicator_alert_evaluator as _ev
+    # ⭐ L1 — with the params this row will store and evaluate with (`params_json`,
+    # decoded by the evaluator's own reader), so a gate reading a member's input is
+    # asked at THAT value, not the author's default.
+    admitted = alert_user_series.arm_for_alert(
+        user_id, indicator, sym.upper(), tf,
+        params=_ev._parse_params({"params_json": params_json}))
     source = None if admitted is None else DEF_SOURCE_USER
+    # ⭐ 2026-11-02 -- the LINE this alert is bound to, read off the function the
+    # arm just admitted (`fn.line_id`). None for a builtin.
+    plot_uid = None
+    if admitted is not None:
+        plot_uid = getattr(alert_user_series.user_value_function(user_id, indicator),
+                           "line_id", None)
 
     now = int(time.time())
     # ⛔⛔ `BEGIN IMMEDIATE` BEFORE THE COUNT, AND THE CAP DEPENDS ON IT.
@@ -398,8 +428,8 @@ def create(
             "INSERT INTO indicator_alerts "
             "(user_id, sym, indicator, condition, threshold, tf, params_json, "
             "active, trigger_count, created_at, state, state_at, arm_epoch, "
-            "instance_id, scope, def_source) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, 0, ?, ?, ?)",
+            "instance_id, scope, def_source, plot_uid) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, 0, ?, ?, ?, ?)",
             (
                 str(user_id),
                 sym.upper(),
@@ -419,6 +449,7 @@ def create(
                 # NULL for a builtin — the same "absence means what it always
                 # meant" rule the `scope` column above is built on.
                 source,
+                plot_uid,
             ),
         )
         new_id = int(cur.lastrowid)
@@ -845,6 +876,101 @@ def mark_needs_attention(alert_id: int, detail: Any, *,
 CLOSED_LANE_TRAILING_PAD = "is displaced forward and has no value on a CLOSED bar"
 
 
+# ─── 2026-11-06 (RS 2b-04): THE BENCHMARK SEAM FOR THE PROBES ────────────────
+#
+# ⭐ A `reads_benchmark` column (`alert_rs_series`, the UCT Relative Strength
+# addresses) needs three things the probes below never passed a column: a
+# timeframe, a symbol and a SECOND series. Called bare -- `fn(bars, {})` -- it
+# answers `[None] * len(bars)`, which a probe reads as "could not tell". So the
+# probes call through `_probe_column`: an ordinary column gets `(bars, params)`
+# exactly as before, byte for byte; a benchmark-reading one gets the timeframe
+# the bars' own encoding implies, the probe symbol, and a benchmark served by
+# this seam inside a pass of its own (`alert_rs_series.rs_pass`).
+#
+# ⛔ THE SEAM IS A MODULE ATTRIBUTE A TEST REPLACES (`_PROBE_BENCHMARK_FETCH`),
+# and the default is derived from the probe bars themselves -- the same `t`s, a
+# drifted close -- so the ratio moves and no store is read. On the instant
+# encoding the RS column RAISES its typed timeframe refusal (daily / weekly
+# only), which every probe already treats as "not measured": the honest answer
+# for a lane that is not offered there.
+#
+# ⭐ 2026-11-07 (RS 2b-06) — AND A RATING HISTORY, THE SAME WAY. `rs_line.rating`
+# reads no benchmark; it reads the nightly `rs_rating_history` side table by
+# ticker and session (`fn.reads_rating`). The probes run on a box with no such
+# table (a test, the worker), so the pass this seam opens also carries a
+# rating reader: `_PROBE_RATING_READ` when a test injects one, else a history
+# DERIVED from the probe bars themselves — one row per calendar bar, a rating
+# that moves — so the measurement is of the column's own alignment and not of
+# a store. The alternative (a stub returning no rows, the rating read as "no
+# value, by design") would have made `test_the_probe_resolves_every_catalog_
+# address` carry an exception for the one address whose alignment is the
+# thing worth probing; this keeps that rail total.
+_PROBE_SYM = "PROBE"
+_PROBE_TF_CALENDAR = "D"
+_PROBE_TF_INSTANT = "60"
+_PROBE_BENCHMARK_DRIFT = 0.0005
+#: ``(ticker, tf, want) -> bars``, or ``None`` ⇒ a drifted copy of the probe bars.
+_PROBE_BENCHMARK_FETCH: Optional[Callable[[str, str, int], list]] = None
+#: ``(ticker, limit) -> rows`` (`rs_history.ticker_history`'s shape), or ``None``
+#: ⇒ a rating history derived from the probe bars' own calendar dates.
+_PROBE_RATING_READ: Optional[Callable[[str, int], list]] = None
+
+
+def _is_calendar_encoded(bars: list) -> bool:
+    """`YYYYMMDD` ints (what `bars_sqlite` stores for D/W/M) vs unix seconds."""
+    try:
+        t = int(bars[-1]["t"])
+    except (TypeError, ValueError, KeyError, IndexError):
+        return False
+    return 10_000_000 <= t < 100_000_000
+
+
+def _probe_benchmark_fetcher(bars: list) -> Callable[[str, str, int], list]:
+    if _PROBE_BENCHMARK_FETCH is not None:
+        return _PROBE_BENCHMARK_FETCH
+    bench = [{"t": b["t"], "c": float(b["c"]) * (1.0 + _PROBE_BENCHMARK_DRIFT * i)}
+             for i, b in enumerate(bars)]
+
+    def fetch(ticker: str, tf: str, want: int) -> list:
+        return bench[-int(want):] if 0 < int(want) < len(bench) else list(bench)
+    return fetch
+
+
+def _probe_rating_reader(bars: list) -> Callable[[str, int], list]:
+    """2026-11-07 (RS 2b-06): the probe's rating history — injected, or derived
+    from the probe bars: one row per CALENDAR bar (an instant encoding yields
+    none; the rating column refuses that timeframe before reading anyway), with
+    a rating that walks the 1–99 scale so a cross is there to be found."""
+    if _PROBE_RATING_READ is not None:
+        return _PROBE_RATING_READ
+    rows = []
+    for i, b in enumerate(bars):
+        try:
+            t = int(b["t"])
+        except (TypeError, ValueError, KeyError):
+            continue
+        if not 10_000_000 <= t < 100_000_000:
+            continue
+        rows.append({"session": f"{t // 10000:04d}-{(t // 100) % 100:02d}-{t % 100:02d}",
+                     "ibd": 1 + (i * 7) % 99})
+    rows.reverse()                                     # newest first, the table's order
+
+    def read(ticker: str, limit: int) -> list:
+        return rows[:int(limit)] if 0 < int(limit) < len(rows) else list(rows)
+    return read
+
+
+def _probe_column(column: Any, bars: list, params: dict) -> list:
+    """Call a column the way the lane would (see the block above)."""
+    if not getattr(column, "reads_benchmark", False):
+        return column(bars, params)
+    from api.services import alert_rs_series, alert_user_series
+    tf = _PROBE_TF_CALENDAR if _is_calendar_encoded(bars) else _PROBE_TF_INSTANT
+    with alert_rs_series.rs_pass(fetch_bars=_probe_benchmark_fetcher(bars),
+                                 read_ratings=_probe_rating_reader(bars)):
+        return alert_user_series.call_series(column, bars, params, tf=tf, sym=_PROBE_SYM)
+
+
 def closed_lane_pad(address: str, bars: Optional[list], params: dict) -> int:
     """How many bars of TRAILING `None` this address's column ends with here.
 
@@ -866,7 +992,7 @@ def closed_lane_pad(address: str, bars: Optional[list], params: dict) -> int:
     if fn is None or not bars:
         return 0
     try:
-        column = fn(list(bars), dict(params or {}))
+        column = _probe_column(fn, list(bars), dict(params or {}))
     except Exception:  # noqa: BLE001 - a raising compute is diagnosed elsewhere
         return 0
     if not any(v is not None for v in column):
@@ -923,6 +1049,35 @@ def _closed_lane_offer_text(address: str, bars: Optional[list],
             + ", ".join(offers) + ".")
 
 
+def _closed_value_for(alert: dict, address: str, judged: list, params: dict):
+    """The closed lane's value AT the judged bar, through the lane's own call shape.
+
+    ⭐ 2026-11-06 (RS 2b-05). `ev._closed_address_value` is the right-hand
+    operand's resolver — `series_for(address, bars, params)`: no timeframe, no
+    symbol — and a benchmark-reading column answers `[None] * n` to that call by
+    construction, so `diagnose` read every RS alert as "no value … not enough
+    history" however much history it had, and the silence sweep would never
+    have flagged the one that was genuinely refused. A `reads_benchmark` column
+    is called the way `_evaluate_one_closed` calls it (`call_series` with the
+    alert's own `tf` and `sym`, inside an RS pass that joins the cycle's or
+    opens its own), and its typed timeframe refusal propagates to the caller's
+    `except`, where the message IS the diagnosis. Every other address goes
+    through the resolver it always did, byte for byte.
+    """
+    from api.services import alert_series
+    from api.services import indicator_alert_evaluator as ev
+    fn = alert_series.series_function(address)
+    if not getattr(fn, "reads_benchmark", False):
+        return ev._closed_address_value(address, judged, params)
+    if not judged:
+        return None
+    from api.services import alert_rs_series, alert_user_series
+    with alert_rs_series.rs_pass():
+        series = alert_user_series.call_series(
+            fn, judged, params, tf=alert.get("tf"), sym=alert.get("sym"))
+    return series[-1] if series else None
+
+
 def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
     """WHY does this alert produce no value? ``(is_fault, detail)``.
 
@@ -961,6 +1116,13 @@ def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
     raw = alert.get("indicator")
     address = ev.resolve_address(raw)
     if ev.value_function(address) is None:
+        # ⭐⭐ M2 (review round 2) — A MEMBER'S OWN FORMULA IS NOT IN THE GLOBAL
+        # PARTITIONS (`alert_user_series.USER_FUNCS` is per account, by design), and
+        # this said every one of them was "not an indicator this chart can evaluate".
+        # It is answered by the user lane's own resolver instead (`_diagnose_user`).
+        user = _diagnose_user(alert, bars)
+        if user is not None:
+            return user
         return True, (f"{raw!r} is not an indicator this chart can evaluate — "
                       "this alert can never fire")
     if not bars:
@@ -968,7 +1130,13 @@ def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
                       "so nothing can be computed")
 
     params = ev._parse_params(alert)
-    mode = ev.eval_mode()
+    # ⭐ 2026-11-06 (RS 2b-05) — THE LANE THE ADDRESS IS ACTUALLY JUDGED IN, not
+    # the mode alone: a CLOSED-ONLY address (`ma_cross`, every `rs_line.*`) is
+    # judged on the closed lane under the rollback lever too (`ev._lane_for`),
+    # so diagnosing it through the forming resolver would read a value nothing
+    # judges — for an RS column `None` by construction, i.e. "not enough
+    # history" forever. Every other address reads `eval_mode()` exactly as before.
+    mode = ev._lane_for(address, None)
     judged = bars
     if mode == "closed":
         index = ev.closed_bar_index(bars, str(alert.get("tf") or ""),
@@ -981,13 +1149,42 @@ def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
 
     try:
         if mode == "closed":
-            value = ev._closed_address_value(address, judged, params)
+            value = _closed_value_for(alert, address, judged, params)
         else:
             value = ev.address_value(address, judged, params)
     except Exception as exc:  # noqa: BLE001 - the message IS the diagnosis
         return True, f"{type(exc).__name__}: {exc}"
 
     if value is None:
+        # ⭐ 2026-11-07 (RS 2b-06) — the rating has no warm-up and no
+        # displacement: `None` at the judged bar means the nightly side table
+        # holds NO ROW for this ticker on that session (the job has not run for
+        # it, the table is not on this pod, or the name was unrated that
+        # night). Not a fault — it fills in with the next nightly — and not
+        # "not enough history", which is what the generic sentence below would
+        # have called it. Named by session so the operator can check the row.
+        from api.services import alert_series as _alert_series
+        if getattr(_alert_series.series_function(address), "reads_rating", False):
+            label = ev.ALERT_LABELS.get(address, address)
+            try:
+                day = int(judged[-1].get("t"))
+                when = f"{day // 10000:04d}-{(day // 100) % 100:02d}-{day % 100:02d}"
+            except (TypeError, ValueError, AttributeError):
+                when = "the judged session"
+            return False, (f"{label} has no stored rating for {alert.get('sym')} on "
+                           f"{when} — the nightly rs_rating_history table holds no row "
+                           f"for that session (web pod, written after the 03:00 ET "
+                           f"screener build), so there is nothing to compare yet")
+        # ⭐ 2026-11-07 (RS fix U1, review #17) — an RS column blank because its
+        # benchmark IS the symbol, or has no stored bars, is not warming up: it
+        # never fills in. Named as the fault it is, so the silence sweep raises
+        # it to needs_attention instead of reading "not enough history" forever.
+        from api.services import alert_rs_series as _ars
+        fault = _ars.benchmark_fault(address, alert.get("sym"), alert.get("tf"),
+                                     params, judged)
+        if fault is not None:
+            label = ev.ALERT_LABELS.get(address, address)
+            return True, f"{label} on {alert.get('sym')}: {fault}"
         pad = closed_lane_pad(address, judged, params)
         if mode == "closed" and pad > 0:
             label = ev.ALERT_LABELS.get(address, address)
@@ -1000,6 +1197,79 @@ def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
                 f"before the closed-bar cutover and the rows are deliberately "
                 f"left active rather than deleted.{instead}")
         return False, (f"{address} has no value on the bars stored for this "
+                       "timeframe yet — not enough history")
+    return False, None
+
+
+def _diagnose_user(alert: dict, bars: Optional[list]) -> Optional[tuple[bool, Optional[str]]]:
+    """``diagnose`` for an alert on a MEMBER'S OWN formula (`u_<12 hex>.<plot>`), or
+    ``None`` for any other address.
+
+    ⭐⭐ C48 / C45 (review round 2, M2) — THE WITHHELD PLOT, MADE VISIBLE. A plot the
+    member's chart withholds on this symbol's bars (`meta.blockRuns`: a call whose code
+    runs only on some bars, and here it ran after a bar it skipped) evaluates to no
+    number on every bar, so the alert goes quiet — and since this deploy that includes
+    every C48 stamp ALREADY SAVED, which the server lanes now honour. Quiet is not the
+    member's to guess at: the silent-alert sweep (`sweep_silent_alerts`) puts this
+    answer in `state_detail` under `needs_attention`, which every alert surface renders
+    verbatim (`app/src/components/chart/alertState.jsx`). The sentence is the gate's own,
+    in an ARMED alert's words (`alert_user_series.withheld_alert_detail`: "Withheld: … .
+    This alert resumes when the value is computable."), whole under the 500 the state
+    holds — on both paths: the column withheld, and the re-arm refusal, which carries the
+    gate's sentence (`block_runs_why`).
+
+    ⛔ EVERY ANSWER COMES FROM THE LANE'S OWN CODE, never a copy of it — the
+    resolver the evaluator calls (`_user_value_function`, whose re-arm raises the
+    same refusal on a registry miss), the one gate check (`fn.withheld`, under the
+    alert's own params and timeframe) and the column itself, judged at the bar the
+    closed lane judges. A refusal (the arm-time door, re-run) is a fault and says
+    which door; a guard that cannot be evaluated is withheld by its own sentence
+    (`block_runs.block_runs_refusal`); anything that RAISES is a fault with its own
+    message; a column with no number YET is not a fault, as for a builtin.
+    """
+    from api.services import alert_user_series as aus
+    from api.services import indicator_alert_evaluator as ev
+    from api.services import runtime_server_lane as rsl
+
+    raw = str(alert.get("indicator") or "")
+    if not aus.is_user_address(raw):
+        return None
+    if not bars:
+        return True, ("no bars are stored for this symbol and timeframe yet, "
+                      "so nothing can be computed")
+    params = ev._parse_params(alert)
+    tf = alert.get("tf")
+    # a runtime plot is always judged on the closed lane (W5-T13 FIX r1, `_evaluate_for_cycle`)
+    closed = ev.eval_mode() == "closed" or aus.runtime_window_for_alert(alert) is not None
+    try:
+        fn = ev._user_value_function(alert, bars)
+        why = fn.withheld(bars, params, tf)
+        if why:
+            return True, aus.withheld_alert_detail(why)
+        index = len(bars) - 1
+        if closed:
+            index = ev.closed_bar_index(bars, str(tf or ""), time.time())
+            if index < 1:
+                return False, (f"no bar of this timeframe has closed yet in the "
+                               f"{len(bars)} stored — the closed-bar lane has "
+                               f"nothing to judge")
+        column = aus.call_series(fn.column, bars, params, tf=tf, sym=alert.get("sym"))
+    except aus.AdmissionRefused as exc:
+        # ⭐ L1 — the gates withholding the plot read in an armed alert's words; any other
+        # door's sentence is quoted verbatim (it carries its `[gate:…]` attribution)
+        why = getattr(exc, "block_runs_why", None)
+        return True, (aus.withheld_alert_detail(why) if why else str(exc))
+    except rsl.ServerLaneWithheld as exc:
+        # W5-T13 -- a runtime plot the server lane withholds (killed, staged off, the
+        # service down, a run refusal): the guard and its own sentence, as an armed
+        # alert says it (design 3.7 rule 4).
+        return True, aus.withheld_alert_detail(f"{exc.guard} — {str(exc.sentence).rstrip('.')}")
+    except Exception as exc:  # noqa: BLE001 - the message IS the diagnosis
+        return True, f"{type(exc).__name__}: {exc}"
+    # the bar each lane judges: the closed bar, or (forming) the newest number
+    value = column[index] if closed else next((v for v in reversed(column) if v is not None), None)
+    if value is None:
+        return False, (f"{raw} has no value on the bars stored for this "
                        "timeframe yet — not enough history")
     return False, None
 
@@ -1187,6 +1457,30 @@ def user_definition_refusals(user_id: Optional[Any] = None) -> list[dict]:
 REFUSAL_UNJUDGEABLE_CONDITION = "is not a trigger rule this evaluator can judge"
 REFUSAL_INTRADAY_ONLY = "is only defined on an intraday timeframe"
 REFUSAL_NO_LEVEL = "compares against a level, and no level was given"
+#: 2026-11-06 (RS 2b-05) — the anchor of the FIFTH gate in `refusal_for`: the
+#: phrase every sentence `alert_rs_series.timeframe_refusal` produces carries.
+#: Not a copy of that sentence (the sentence is the lane's own); the phrase a test
+#: anchors on, kept disjoint from the four above so `match=` cannot be satisfied
+#: by a different gate (the Task 9 lesson), and pinned to the lane's sentence by
+#: `test_the_door_refuses_an_intraday_rs_create_with_the_lanes_own_sentence` and
+#: `test_the_three_refusals_are_DISJOINT`.
+#: 2026-11-07 (RS 2b-06): shortened from "… daily or weekly bars only" to the
+#: prefix BOTH of the lane's sentence families carry — the eleven say "closed
+#: daily or weekly bars only", the rating (daily-only) says "closed daily bars
+#: only" — so one anchor still names the one gate, and no other gate's sentence
+#: contains it (the disjointness rail is unchanged).
+REFUSAL_RS_TIMEFRAME = "are judged on closed daily"
+#: 2026-11-07 (RS fix U1, review #2) — the anchor of the RS OFFER gate: an RS
+#: address whose flag is dark (`ev.rs_address_offered`). Disjoint from the five
+#: above (`tests/test_rs_fix_u1_alert_lane.py` asserts it both ways).
+REFUSAL_RS_NOT_OFFERED = "are not offered yet"
+#: 2026-11-10 (RS split, lane S2) -- the anchor of the WITHHELD-address refusal (the
+#: three Mansfield addresses: registered and evaluating, but not offered to a new
+#: alert). Disjoint from `REFUSAL_RS_NOT_OFFERED` ("yet" would be a promise).
+REFUSAL_RS_WITHHELD = "are no longer offered for new alerts"
+#: 2026-11-07 (RS fix U1, review #17) — the anchor of the self-benchmark gate
+#: (`alert_rs_series.self_benchmark_refusal`'s sentence carries it).
+REFUSAL_RS_SELF_BENCHMARK = "would measure the symbol against itself"
 
 #: How many bars the classification probe below runs on. Ichimoku needs 52 + a
 #: 26-bar displacement before it resolves at all, so a short probe would report
@@ -1267,8 +1561,8 @@ def instant_only_addresses() -> frozenset:
         if column is None:
             continue
         try:
-            on_instant = column(instant, {})
-            on_calendar = column(calendar, {})
+            on_instant = _probe_column(column, instant, {})
+            on_calendar = _probe_column(column, calendar, {})
         except Exception:  # noqa: BLE001 - a raising compute is `diagnose`'s job
             continue
         if any(v is not None for v in on_instant) and all(
@@ -1356,8 +1650,30 @@ def conditions_needing_a_level() -> frozenset:
     )
 
 
+def _rs_not_offered_sentence(address: str) -> str:
+    """2026-11-07 (RS fix U1, review #2): the member sentence for an RS address
+    whose flag is dark. Carries `REFUSAL_RS_NOT_OFFERED`."""
+    from api.services import alert_rs_series
+    if address == alert_rs_series.RS_RATING_ADDRESS:
+        return (f"IBD-style RS rating alerts {REFUSAL_RS_NOT_OFFERED}: the nightly "
+                f"rating job they read from is not switched on, so an alert armed "
+                f"now could never fire.")
+    if address in alert_rs_series.RS_WITHHELD_ADDRESSES:
+        # 2026-11-10 (RS split, lane S2): withheld, not removed.
+        return (f"Mansfield RS alerts {REFUSAL_RS_WITHHELD}. An alert you already set "
+                f"on Mansfield RS keeps running. Use the RS line, RS Phases or RS vs "
+                f"21 EMA alerts instead.")
+    if address in alert_rs_series.RS_SPLIT_ADDRESSES:
+        return (f"UCT RS Phases and RS vs 21 EMA alerts {REFUSAL_RS_NOT_OFFERED}: they "
+                f"open with those indicators on the chart.")
+    return (f"UCT Relative Strength alerts {REFUSAL_RS_NOT_OFFERED}: they open with "
+            f"the next version of the RS line on the chart.")
+
+
 def refusal_for(indicator: Optional[str], condition: Optional[str],
-                tf: Optional[str], threshold: Optional[float]) -> Optional[str]:
+                tf: Optional[str], threshold: Optional[float], *,
+                sym: Optional[str] = None,
+                params: Optional[dict] = None) -> Optional[str]:
     """Why this alert could NEVER fire, or ``None`` if it could.
 
     Three gates, and every one of them is true under `ALERT_EVAL_MODE ==
@@ -1383,12 +1699,40 @@ def refusal_for(indicator: Optional[str], condition: Optional[str],
     code = str(tf or "").strip().upper()
     label = ev.ALERT_LABELS.get(address, address)
 
+    # ⭐ 2026-11-07 (RS fix U1, review #2) — THE RS OFFER GATE, FIRST. The
+    # catalog hides an RS address while its flag is dark; this is the same
+    # answer at the door, so a hand-written POST cannot arm what the dropdown
+    # does not offer. Registration is untouched: rows already stored still run.
+    if address in ev.RS_ADDRESSES and not ev.rs_address_offered(address):
+        return _rs_not_offered_sentence(address)
+
     if rule not in evaluable_conditions():
         offered = ", ".join(sorted(evaluable_conditions()))
         return (f"{condition!r} {REFUSAL_UNJUDGEABLE_CONDITION} — it matches no "
                 f"branch of check_condition, which answers no for it on every "
                 f"bar, before and after the closed-bar cutover alike. The rules "
                 f"it can judge are: {offered}.")
+
+    # ⭐ 2026-11-06 (RS 2b-05) — THE RS TIMEFRAME GATE, AT THE DOOR. An RS column
+    # RAISES `RsTimeframeRefused` on an intraday or monthly timeframe before it
+    # reads anything, so a row that got past here would be a logged refusal
+    # every cycle (`_evaluate_one_closed`) and never a fire. The member reads
+    # the lane's own sentence (`alert_rs_series.timeframe_refusal`) here
+    # instead. True in BOTH lanes: an RS address is CLOSED-ONLY, so
+    # `eval_mode()` is not consulted — the rollback lever cannot make an
+    # intraday RS alert judgeable, which is what lets this gate sit above the
+    # mode-reading one without pre-judging it.
+    if address in ev.RS_ADDRESSES:
+        from api.services import alert_rs_series
+        why = alert_rs_series.timeframe_refusal(tf, address)
+        if why is not None:
+            return why
+        # 2026-11-07 (RS fix U1, review #17): a symbol measured against itself
+        # blanks the column on every bar. Asked only when the caller names the
+        # symbol (the member route does); the params decide the benchmark.
+        why = alert_rs_series.self_benchmark_refusal(address, sym, params)
+        if why is not None:
+            return why
 
     if address in instant_only_addresses() and code in ev._CALENDAR_TFS:
         intraday = ", ".join(sorted(ev._TF_MINUTES))

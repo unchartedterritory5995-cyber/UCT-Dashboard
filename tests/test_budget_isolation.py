@@ -264,9 +264,23 @@ def test_D3_there_is_no_rolling_window(ledger):
 
 # ═══ E. COST ══════════════════════════════════════════════════════════════
 
-def test_E1_a_failed_call_without_usage_charges_nothing(ledger, conv, monkeypatch):
+def test_E1_a_failed_call_without_usage_is_charged_its_worst_case(ledger, conv, monkeypatch):
+    """A timeout or dropped connection may have been billed and reports nothing: $0 here left both caps unreached."""
     monkey_day(conv, D1)
     monkeypatch.setattr(conv, "_call_model", lambda _m: (_ for _ in ()).throw(RuntimeError("down")))
+    r = conv.converse("make it 80", user_id="m1", view=rsi_view())
+    assert r["gate"] == "model:transport"
+    assert dc().spend_for("m1", D1) > 0.0
+    assert cg().budget_state(D1)["total_spend"] == pytest.approx(dc().spend_for("m1", D1), abs=1e-3)
+
+
+def test_E1b_an_HTTP_error_response_charges_nothing(ledger, conv, monkeypatch):
+    import anthropic
+    import httpx
+    err = anthropic.InternalServerError("x", response=httpx.Response(
+        500, request=httpx.Request("POST", "https://api.anthropic.com/v1/messages")), body=None)
+    monkey_day(conv, D1)
+    monkeypatch.setattr(conv, "_call_model", lambda _m: (_ for _ in ()).throw(err))
     r = conv.converse("make it 80", user_id="m1", view=rsi_view())
     assert r["gate"] == "model:transport"
     assert dc().spend_for("m1", D1) == 0.0 and cg().budget_state(D1)["total_spend"] == 0.0
@@ -390,8 +404,11 @@ def test_G2_every_ledger_writer_is_classified_as_audited():
     interactive = {
         "api/services/definition_concierge.py": 'f"concierge:{user_id}"',
         "api/services/definition_conversation.py": 'f"concierge:{user_id}"',
-        "api/services/indicator_from_image.py": 'f"indicator-vision:{user_id}"',
     }
+    # vision writes its row as a RESERVATION before the model runs (cost_guard.reserve_member_call)
+    vision = (ROOT / "api/services/indicator_from_image.py").read_text("utf-8")
+    assert 'ticker = f"indicator-vision:{user_id}"' in vision
+    assert "reserve_member_call(market_date, ticker" in vision
     background = ("api/services/catalyst/synthesize.py", "api/services/catalyst/hunter.py",
                   "api/services/catalyst/curator.py", "api/services/catalyst/rule_learner.py",
                   "api/services/call_recap.py", "api/services/calendar_sector_read.py")

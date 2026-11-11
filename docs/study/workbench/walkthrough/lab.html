@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Study workbench</title>
+<style>
+  @font-face { font-family:"Instrument Sans"; src:url(/fonts/instrument-sans-v4-latin.woff2) format("woff2"); font-weight:400 700; font-display:swap }
+  :root { --bg:#0b0b0b; --panel:#141414; --line:#262626; --fg:#f2efe6; --mute:#9a958a; --gold:#d9b84a; --gold-dim:#5e4f1f; --up:#2faf68; --dn:#df4646 }
+  * { box-sizing:border-box }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--fg); font:15px/1.45 "Instrument Sans", system-ui, sans-serif }
+  .wrap { display:grid; grid-template-columns: 1fr 460px; height:100vh }
+  .stage { display:flex; flex-direction:column; min-width:0 }
+  .bar { display:flex; align-items:center; gap:10px; padding:8px 14px; border-bottom:1px solid var(--line); font-size:12px; color:var(--mute) }
+  .bar .sz button, .bar .mode button { padding:4px 10px; border-radius:999px; border:1px solid var(--line); background:#111; color:var(--mute); cursor:pointer; font:inherit; font-size:12px }
+  .bar .sz button.on, .bar .mode button.on { border-color:var(--gold); color:var(--gold) }
+  .bar a { color:var(--gold); text-decoration:none; border:1px solid var(--gold-dim); border-radius:999px; padding:4px 10px; background:#111 }
+  .frameWrap { flex:1; display:flex; justify-content:center; align-items:flex-start; background:#050505; overflow:auto; padding:0; position:relative }
+  iframe { border:0; background:#0f0f0f; width:100%; height:100%; transition:width .2s }
+  .frameWrap.phone iframe { width:390px; height:844px; margin:16px auto; border:1px solid #2a2a2a; border-radius:28px }
+  .shot { display:none; width:100%; height:100%; align-items:flex-start; justify-content:center; overflow:auto; background:#050505 }
+  .shot img { max-width:100%; max-height:100%; object-fit:contain; display:block }
+  .frameWrap.showShot .shot { display:flex } .frameWrap.showShot iframe { display:none }
+  .panel { border-left:1px solid var(--line); background:var(--panel); display:flex; flex-direction:column; min-width:0 }
+  .head { padding:12px 18px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:10px }
+  .head .k { color:var(--gold); letter-spacing:.14em; font-size:11px; text-transform:uppercase }
+  .head .n { margin-left:auto; color:var(--mute); font-size:12px }
+  .tabs { display:flex; gap:6px; padding:10px 18px 0; flex-wrap:wrap }
+  .tabs button { font:inherit; font-size:12px; padding:5px 10px; border-radius:999px; border:1px solid var(--line); background:#111; color:var(--mute); cursor:pointer }
+  .tabs button.on { border-color:var(--gold); color:var(--gold) }
+  .list { padding:10px 18px 0; display:flex; flex-direction:column; gap:4px }
+  .list button { text-align:left; font-size:12px; padding:6px 10px; border-radius:8px; border:1px solid var(--line); background:#111; color:var(--mute); cursor:pointer; font:inherit }
+  .list button.cur { border-color:var(--gold); color:var(--gold) }
+  .list button.done::after { content:" · saved"; color:var(--mute) }
+  .body { padding:14px 18px; overflow:auto; flex:1 }
+  h1 { font-size:17px; margin:0 0 4px; text-wrap:balance }
+  .what { margin:0 0 8px; font-size:13px; color:var(--mute) }
+  .stepLine { display:flex; align-items:center; gap:10px; margin:12px 0 6px; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--mute) }
+  .stepLine .dots { flex:1; display:flex; gap:3px } .stepLine .dots i { flex:1; height:4px; border-radius:2px; background:#242424 } .stepLine .dots i.on { background:var(--gold) } .stepLine .dots i.cur { background:#e9cd77; box-shadow:0 0 6px #e9cd77 }
+  .partCard { border:1px solid var(--gold-dim); border-radius:14px; padding:14px; background:#101010 }
+  .partName { font-size:22px; font-weight:700; margin:0 0 4px; text-wrap:balance }
+  .partHint { color:var(--mute); font-size:13px; margin:0 0 12px }
+  .thumb { display:block; width:100%; border-radius:10px; border:1px solid var(--line); background:#050505; cursor:zoom-in; margin:0 0 12px }
+  .noShot { color:var(--mute); font-size:13px; border:1px dashed var(--line); border-radius:10px; padding:10px; margin:0 0 12px }
+  .ranks { display:grid; grid-template-columns: repeat(5, 1fr); gap:6px }
+  .ranks button { padding:12px 4px; border-radius:10px; border:1px solid var(--line); background:#141414; color:var(--mute); cursor:pointer; font:inherit; display:flex; flex-direction:column; align-items:center; gap:2px }
+  .ranks button b { font-size:18px } .ranks button small { font-size:11px }
+  .ranks button.on1, .ranks button.on2 { background:#2a1113; border-color:var(--dn); color:#ff9d9d }
+  .ranks button.on3 { background:#1f1a0a; border-color:var(--gold-dim); color:var(--gold) }
+  .ranks button.on4, .ranks button.on5 { background:#0f2a18; border-color:var(--up); color:#8fe3b1 }
+  textarea { width:100%; min-height:70px; background:#0f0f0f; color:var(--fg); border:1px solid var(--line); border-radius:10px; padding:10px; font:inherit; resize:vertical; margin-top:10px }
+  .nav { display:flex; gap:8px; margin-top:12px }
+  button.b { padding:12px 16px; border-radius:10px; border:1px solid var(--line); background:#1a1a1a; color:var(--fg); cursor:pointer; font:inherit; font-weight:600 }
+  button.b.gold { background:var(--gold); color:#111; border-color:var(--gold); flex:1 }
+  button.b:disabled { opacity:.45; cursor:default }
+  .score { display:flex; align-items:center; gap:12px }
+  .score input[type=range] { flex:1; accent-color:var(--gold) }
+  .score output { width:54px; text-align:right; font-size:26px; font-weight:700; color:var(--gold); font-variant-numeric:tabular-nums }
+  label.l { display:block; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--mute); margin:14px 0 6px }
+  .summary { font-size:13px; color:var(--mute); margin:0 0 6px } .summary b { color:var(--fg) }
+  .saved { font-size:12px; color:var(--mute); margin-top:8px; min-height:18px }
+  .hist { border-top:1px solid var(--line); padding:10px 18px; font-size:12px; color:var(--mute); max-height:18vh; overflow:auto }
+  .hist div { margin:4px 0 } .hist b { color:var(--gold) }
+  .big { position:fixed; inset:0; background:rgba(0,0,0,.92); display:none; align-items:center; justify-content:center; z-index:20; cursor:zoom-out }
+  .big.on { display:flex } .big img { max-width:96vw; max-height:96vh }
+  @media (max-width: 900px) { .wrap { grid-template-columns:1fr; grid-template-rows: 46vh 1fr } .panel { border-left:0; border-top:1px solid var(--line) } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="stage">
+    <div class="bar"><span id="label"></span>
+      <span class="mode" style="margin-left:auto"><button type="button" data-m="live" class="on">Live piece</button> <button type="button" data-m="shot">Highlight</button></span>
+      <span class="sz"><button type="button" data-sz="desk" class="on">Desktop</button> <button type="button" data-sz="phone">Phone</button></span>
+      <a id="open" href="#" target="_blank" rel="noopener">open alone</a><a href="/signin?back=/">Sign the sandbox in</a></div>
+    <div class="frameWrap" id="frameWrap"><iframe id="frame" src="about:blank" title="piece"></iframe><div class="shot"><img id="shotImg" alt=""></div></div>
+  </div>
+  <aside class="panel">
+    <div class="head"><span class="k">Study workbench</span><span class="n" id="counter"></span></div>
+    <div class="tabs" id="tabs"></div>
+    <div class="list" id="list"></div>
+    <div class="body">
+      <h1 id="title"></h1>
+      <p class="what" id="what"></p>
+      <div class="stepLine"><span id="stepText"></span><span class="dots" id="dots"></span></div>
+      <div id="partView"></div>
+      <div id="wholeView" style="display:none">
+        <p class="summary" id="summary"></p>
+        <label class="l">The whole piece, out of 100</label>
+        <div class="score"><input id="score" type="range" min="0" max="100" value="50"><output id="scoreOut">50</output></div>
+        <label class="l">Anything I did not list, or the one thing that matters most</label>
+        <textarea id="note" placeholder="Say it the way you would say it out loud." style="margin-top:0"></textarea>
+        <div class="nav"><button class="b" id="backToParts" type="button">Back</button><button class="b gold" id="save" type="button">Save</button></div>
+      </div>
+      <div class="saved" id="saved"></div>
+    </div>
+    <div class="hist" id="hist"></div>
+  </aside>
+</div>
+<div class="big" id="big"><img id="bigImg" alt=""></div>
+<script>
+const RANKS = [['Cut', 'remove it'], ['Weak', 'needs real work'], ['Okay', 'fine, not special'], ['Good', 'keep it'], ['Great', 'exactly right']];
+let all = [], pieces = [], i = 0, done = new Set(), batch = 0, batches = [], shots = {}, vp = 'desk', mode = 'live';
+let k = 0, ranks = {}, words = {};          // k = part index within the piece
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s || '').replace(/</g, '&lt;');
+async function load() {
+  all = await fetch('/pieces.json', {cache:'no-store'}).then(r => r.json());
+  shots = await fetch('/parts/index.json', {cache:'no-store'}).then(r => r.ok ? r.json() : {}).catch(() => ({}));
+  const hist = await fetch('/feedback', {cache:'no-store'}).then(r => r.json());
+  hist.forEach(h => done.add(h.step)); renderHist(hist);
+  batches = [...new Set(all.map(p => p.batch || 1))].sort((a, b) => b - a).slice(0, 3);
+  const qb = +(new URLSearchParams(location.search).get('b') || 0);
+  pickBatch(batches.includes(qb) ? qb : batches[0], new URLSearchParams(location.search).get('p'));
+}
+function pickBatch(b, pieceId) {
+  batch = b;
+  pieces = all.filter(p => (p.batch || 1) === batch);
+  const j = pieces.findIndex(p => p.id === pieceId);
+  const firstOpen = pieces.findIndex(p => !done.has(p.id));
+  i = j >= 0 ? j : (firstOpen >= 0 ? firstOpen : 0);
+  $('tabs').innerHTML = batches.map(x => `<button type="button" class="${x === batch ? 'on' : ''}" data-b="${x}">Batch ${x}${all.filter(p => (p.batch || 1) === x).every(p => done.has(p.id)) ? ' ✓' : ''}</button>`).join('');
+  $('tabs').querySelectorAll('button').forEach(t => t.onclick = () => pickBatch(+t.dataset.b));
+  showPiece();
+}
+function renderHist(hist) {
+  $('hist').innerHTML = hist.length ? '<div><b>Saved so far</b></div>' + hist.slice().reverse().slice(0, 30).map(h => {
+    const parts = Array.isArray(h.parts) ? h.parts : [];
+    const low = parts.filter(p => p.rank && p.rank <= 2).map(p => p.label).slice(0, 4).join(', ');
+    return `<div><b>${h.score}</b> · ${esc(h.title || h.step)}${parts.length ? ` · ${parts.length} parts${low ? ` · low: ${esc(low)}` : ''}` : ''}${h.note ? ' · ' + esc(h.note).slice(0, 120) : ''}</div>`;
+  }).join('') : '<div>Nothing saved yet.</div>';
+}
+function piece() { return pieces[i]; }
+function parts() { return Array.isArray(piece().parts) ? piece().parts : []; }
+// A draft of the ranks lives in this browser until Save (2026-11-05: an hour of batch-18 ranks was lost to a tab that
+// never reached the gold button). A reload or a closed tab picks up where the owner left off; Save clears the draft.
+const draftKey = () => 'wb-draft:' + piece().id;
+function persistDraft() { try { localStorage.setItem(draftKey(), JSON.stringify({ ranks, words, score: $('score').value, note: $('note').value })); } catch (e) {} }
+function restoreDraft() {
+  let d = null; try { d = JSON.parse(localStorage.getItem(draftKey()) || 'null'); } catch (e) {}
+  if (!d) return;
+  ranks = d.ranks || {}; words = d.words || {}; $('score').value = d.score || 50; $('scoreOut').value = $('score').value; $('note').value = d.note || '';
+  const list = parts(); const first = list.findIndex(x => !ranks[x.id]); k = first >= 0 ? first : list.length;
+  $('saved').textContent = 'Picked up where you left off. Nothing is sent until you press Save.';
+}
+function showPiece() {
+  const p = piece();
+  $('title').textContent = p.title; $('what').textContent = p.what;
+  $('counter').textContent = (i + 1) + ' of ' + pieces.length; $('label').textContent = p.title;
+  const src = (p.url || ('/' + p.file)).replace('127.0.0.1:5232', location.hostname + ':5232');
+  $('frame').src = src; $('open').href = src;
+  k = 0; ranks = {}; words = {}; $('score').value = 50; $('scoreOut').value = 50; $('note').value = ''; $('saved').textContent = '';
+  restoreDraft();
+  $('list').innerHTML = pieces.map((x, j) => `<button type="button" class="${j === i ? 'cur' : ''} ${done.has(x.id) ? 'done' : ''}" data-j="${j}">${esc(x.title)}</button>`).join('');
+  $('list').querySelectorAll('button').forEach(b => b.onclick = () => { i = +b.dataset.j; showPiece(); });
+  showPart();
+}
+function shotFor(partId) { const s = (shots[piece().id] || {})[partId] || {}; return { url: s[vp] || s.desk || s.phone || null, note: s.note || '' }; }
+function showPart() {
+  const list = parts();
+  if (!list.length || k >= list.length) return showWhole();
+  $('wholeView').style.display = 'none'; $('partView').style.display = '';
+  const pt = list[k];
+  $('stepText').textContent = `Part ${k + 1} of ${list.length}`;
+  $('dots').innerHTML = list.map((x, n) => `<i class="${ranks[x.id] ? 'on' : ''} ${n === k ? 'cur' : ''}"></i>`).join('');
+  const s = shotFor(pt.id);
+  $('partView').innerHTML = `
+    <div class="partCard">
+      <p class="partName">${esc(pt.label)}</p>
+      <p class="partHint">${s.url ? 'The gold box on the picture is this part. Tap the picture to see it big; "Live piece" above shows the real thing.' : 'No picture for this one yet' + (s.note ? ': ' + esc(s.note) : '') + '. Use "Live piece" above to find it.'}</p>
+      ${s.url ? `<img class="thumb" id="thumb" src="/${s.url}" alt="">` : `<div class="noShot">Rank it from the live piece.</div>`}
+      <div class="ranks">${RANKS.map((r, n) => `<button type="button" data-n="${n + 1}" class="${ranks[pt.id] === n + 1 ? 'on' + (n + 1) : ''}"><b>${n + 1}</b><small>${r[0]}</small></button>`).join('')}</div>
+      <textarea id="pw" placeholder="Words for this part, if a number is not enough.">${esc(words[pt.id] || '')}</textarea>
+      <div class="nav"><button class="b" id="prev" type="button" ${k === 0 ? 'disabled' : ''}>Back</button><button class="b gold" id="next" type="button">${ranks[pt.id] ? 'Next part' : 'Skip this part'}</button></div>
+    </div>`;
+  $('partView').querySelectorAll('.ranks button').forEach(b => b.onclick = () => { ranks[pt.id] = +b.dataset.n; words[pt.id] = $('pw').value.trim(); persistDraft(); k += 1; showPart(); });
+  $('pw').oninput = () => { words[pt.id] = $('pw').value.trim(); persistDraft(); };
+  $('next').onclick = () => { words[pt.id] = $('pw').value.trim(); persistDraft(); k += 1; showPart(); };
+  $('prev').onclick = () => { words[pt.id] = $('pw').value.trim(); k = Math.max(0, k - 1); showPart(); };
+  if ($('thumb')) { $('thumb').onclick = () => { $('bigImg').src = $('thumb').src; $('big').classList.add('on'); }; if (mode === 'shot') { $('shotImg').src = $('thumb').src; } }
+  if (mode === 'shot' && !s.url) setMode('live');
+}
+function showWhole() {
+  $('partView').style.display = 'none'; $('wholeView').style.display = '';
+  const list = parts(); const n = list.filter(x => ranks[x.id]).length;
+  $('stepText').textContent = 'The whole piece';
+  $('dots').innerHTML = list.map(x => `<i class="${ranks[x.id] ? 'on' : ''}"></i>`).join('');
+  const low = list.filter(x => ranks[x.id] && ranks[x.id] <= 2).map(x => x.label);
+  $('summary').innerHTML = list.length ? `<b>${n} of ${list.length}</b> parts ranked${low.length ? `. Low: ${esc(low.join(', '))}` : ''}.` : 'No parts listed for this piece.';
+  $('save').textContent = i < pieces.length - 1 ? 'Save and next piece' : 'Save';
+  if (n) $('saved').textContent = 'Nothing is sent until you press Save.';
+  $('backToParts').onclick = () => { k = Math.max(0, list.length - 1); showPart(); };
+}
+function setMode(m) { mode = m; document.querySelectorAll('.mode button').forEach(x => x.classList.toggle('on', x.dataset.m === m)); $('frameWrap').classList.toggle('showShot', m === 'shot'); if (m === 'shot' && $('thumb')) $('shotImg').src = $('thumb').src; }
+document.querySelectorAll('.mode button').forEach(b => b.onclick = () => setMode(b.dataset.m));
+document.querySelectorAll('.sz button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.sz button').forEach(x => x.classList.toggle('on', x === b));
+  vp = b.dataset.sz; $('frameWrap').classList.toggle('phone', vp === 'phone'); showPart();
+});
+$('big').onclick = () => $('big').classList.remove('on');
+$('score').oninput = () => { $('scoreOut').value = $('score').value; persistDraft(); };
+$('note').oninput = () => persistDraft();
+document.addEventListener('keydown', (e) => {
+  if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+  if (/^[1-5]$/.test(e.key) && $('partView').style.display !== 'none') { const b = $('partView').querySelector(`.ranks button[data-n="${e.key}"]`); if (b) b.click(); }
+});
+$('save').onclick = async () => {
+  const p = piece();
+  const list = parts();
+  const partRows = list.map(pt => (ranks[pt.id] || words[pt.id]) ? { id: pt.id, label: pt.label, rank: ranks[pt.id] || null, rank_word: ranks[pt.id] ? RANKS[ranks[pt.id] - 1][0] : null, note: words[pt.id] || '' } : null).filter(Boolean);
+  const body = { step: p.id, title: p.title, batch, score: +$('score').value, note: $('note').value.trim(), parts: partRows };
+  $('save').disabled = true;
+  try {
+    await fetch('/feedback', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    done.add(p.id); try { localStorage.removeItem(draftKey()); } catch (e) {}
+    renderHist(await fetch('/feedback', {cache:'no-store'}).then(r => r.json()));
+    if (i < pieces.length - 1) { i++; showPiece(); $('saved').textContent = 'Saved. Next piece.'; }
+    else { pickBatch(batch); $('saved').textContent = 'Saved. That was the last of this batch; pick another batch above, or I will read it all and come back.'; }
+  } catch (e) { $('saved').textContent = 'Could not save: ' + e; }
+  $('save').disabled = false;
+};
+load();
+</script>
+</body>
+</html>

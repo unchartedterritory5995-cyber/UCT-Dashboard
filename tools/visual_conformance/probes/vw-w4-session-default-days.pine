@@ -1,0 +1,26 @@
+//@version=5
+indicator("UCTPROBE_VW_W4_SESSION_DEFAULT_DAYS", overlay = false)
+
+// W4 T3, row W4-T3a. A SESSION WITH NO DAY LIST: WHICH DAYS DOES IT MEAN?
+//
+// The columnar lane refuses a session with no `:days` suffix before Pine v5 ("the unsuffixed default
+// was never measured on a weekend bar", `pine.js::sessionClockOf`): corpus scripts such as
+// `ict-killzone` (v2: `BarInSession(sess) => time(period, sess) != 0` with "0100-0500") and
+// `cm-forex-sessions-highlight-v1` write sessions with none. SPY has no weekend bar, so this needs a
+// 24x7 symbol. The sibling `-v4.pine` is the same probe under `//@version=4`.
+//
+// No zone argument anywhere: the session and `dayofweek` are both read in the exchange's zone, so
+// the grade is independent of what that zone is.
+//
+// Grade: row N1 against DOW. A session with no day list that means every day reads 0 (in) on
+// Saturday (DOW 7) and Sunday (DOW 1); one that means Monday-Friday reads 1 (na) there.
+//
+// ⛔ CAPTURE: BITSTAMP:BTCUSD 60 (>= 400 bars, several whole weeks), inputs at defaults.
+
+isNa(t) => na(t) ? 1 : 0
+
+plot(bar_index, "N0_bar_index_CONTROL")
+plot(dayofweek, "DOW_dayofweek")
+plot(isNa(time(timeframe.period, "0000-2359")), "N1_na_no_day_list")
+plot(isNa(time(timeframe.period, "0000-2359:1234567")), "N2_na_every_day_CONTROL")
+plot(isNa(time(timeframe.period, "0000-2359:23456")), "N3_na_monday_to_friday_CONTROL")

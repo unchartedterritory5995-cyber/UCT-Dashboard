@@ -408,15 +408,17 @@ describe('C48 — MANY executions: a chart\'s plot is refused where its block sk
       // longer history, where our count is lower by a number of bars we cannot know - so
       // the plot is withheld BY NAME (`bar-index:window`), never drawn as the window's own
       // count. This test adds the offset itself (`firstIndex`); the product cannot.
-      if (file === SPY) {
-        expect(ours.plots[0].column).toBeNull()
-        expect(ours.notes.some((n) => n.includes('(bar-index:window)'))).toBe(true)
-        continue
-      }
+      // ⭐ DIV-1 RE-PIN (2026-11-09): SPY was "withheld by name (bar-index:window)". The
+      // harness now replays SPY's proved history from its 1993 listing before the window —
+      // the series the member's daily chart computes — so the count IS TradingView's
+      // (absolute, from the listing): served on SPY too, and compared with NO offset added.
+      const replayed = ours.historyReplay && ours.historyReplay.kind === 'replayed'
+      expect(replayed, file).toBe(file === SPY)
+      expect(ours.notes.some((n) => n.includes('(bar-index:window)')), file).toBe(false)
       const col = ours.plots[0].column
       const vendor = columnOf(cap, 'C06_bar_index1_cond')
       const at = vendor.findIndex((v) => v !== undefined && v !== null)
-      const firstIndex = vendor[at] - (at - 1)
+      const firstIndex = replayed ? 0 : vendor[at] - (at - 1)
       let ok = 0
       let n = 0
       vendor.forEach((v, i) => {

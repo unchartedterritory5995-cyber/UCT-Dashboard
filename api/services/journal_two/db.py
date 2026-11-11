@@ -437,6 +437,13 @@ CREATE TABLE IF NOT EXISTS j2_notes (
     import_key      TEXT,
     import_hash     TEXT,
     imported_at     TEXT,
+    -- Connector fidelity Plan A Task 1: the REMOTE's own revision (the import
+    -- entry's `updatedAt` string) last confirmed or baselined. The sync
+    -- engine's "did the remote change" gate keys on this, never on
+    -- import_hash, which also moves when OUR converter changes. NULL for
+    -- legacy rows (the engine falls back to imported_at). Mirrored by the
+    -- ALTER in _PHASE_2_ALTERS.
+    import_remote_rev TEXT,
     -- audit B5: 1 while this note's body still carries an unresolved
     -- import-time placeholder (import-ref://<media> or import-link://
     -- <note>) that the client's post-confirm media-upload + link-rewrite
@@ -447,6 +454,13 @@ CREATE TABLE IF NOT EXISTS j2_notes (
     -- failed media upload gets retried on the member's next import attempt
     -- instead of being silently and permanently missing forever.
     import_media_pending INTEGER,
+    -- Connector fidelity Plan A Task 4: 1 iff the stored body still carries an
+    -- import-link://<key> mark (a link whose target is not here yet). Split out
+    -- of import_media_pending, which now answers media (import-ref://) only, so
+    -- an unreachable link no longer re-imports the note on every pass; the
+    -- link heal pass (note_connectors/link_keys.py) reads it, through
+    -- idx_j2_notes_links_pending. Mirrored by the ALTER in _PHASE_2_ALTERS.
+    import_links_pending INTEGER,
     created_at      TEXT NOT NULL,
     updated_at      TEXT NOT NULL
 );
@@ -711,6 +725,9 @@ CREATE TABLE IF NOT EXISTS j2_note_sources (
     last_sync_status  TEXT,
     last_sync_error   TEXT,
     warming_until     TEXT,
+    last_full_sync_at TEXT,
+    removal_skips     INTEGER NOT NULL DEFAULT 0,
+    sync_state        TEXT,
     created_at        TEXT NOT NULL,
     UNIQUE(user_id, provider, remote_id)
 );
@@ -730,7 +747,9 @@ CREATE TABLE IF NOT EXISTS j2_note_sync_log (
     notes_skipped   INTEGER,
     media_uploaded  INTEGER,
     conflicts       INTEGER,
-    source_deleted  INTEGER
+    source_deleted  INTEGER,
+    failures_json   TEXT,
+    adopted         INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS j2_note_remote_index (
@@ -757,6 +776,9 @@ CREATE TABLE IF NOT EXISTS j2_obsidian_devices (
     label        TEXT,
     last_seen_at TEXT,
     created_at   TEXT NOT NULL,
+    -- Plan C: the plugin version last reported (X-UCT-Plugin-Version). Mirrored by
+    -- the ALTER in _OBSIDIAN_ALTERS.
+    plugin_version TEXT,
     UNIQUE(user_id, vault_id)
 );
 CREATE INDEX IF NOT EXISTS idx_j2_obsidian_devices_user
@@ -772,7 +794,25 @@ CREATE TABLE IF NOT EXISTS j2_obsidian_staging (
     body_md      TEXT NOT NULL,
     updated_at   TEXT NOT NULL,
     received_at  TEXT NOT NULL,
+    -- Plan C: the note's attachment references as the plugin resolved them, a JSON
+    -- list of {sha256, ...}; NULL from a plugin that predates attachments. Mirrored
+    -- by the ALTER in _OBSIDIAN_ALTERS.
+    attachments_json TEXT,
     PRIMARY KEY (user_id, vault_id, vault_path)
+);
+
+-- Plan C: the vault's attachments, staged by content hash
+-- (note_connectors/obsidian_attachments.py). The bytes live under
+-- blob_root()/<user_id>/<vault_id>/<sha256>, OUTSIDE attachment_root().
+CREATE TABLE IF NOT EXISTS j2_obsidian_attachments (
+    user_id       TEXT NOT NULL,
+    vault_id      TEXT NOT NULL,
+    sha256        TEXT NOT NULL,
+    size          INTEGER NOT NULL,
+    declared_mime TEXT,
+    name          TEXT,
+    received_at   TEXT NOT NULL,
+    PRIMARY KEY (user_id, vault_id, sha256)
 );
 
 -- The vault's COMPLETE file list at the last full push. This is what feeds
@@ -785,6 +825,38 @@ CREATE TABLE IF NOT EXISTS j2_obsidian_manifest (
     vault_path  TEXT NOT NULL,
     recorded_at TEXT NOT NULL,
     PRIMARY KEY (user_id, vault_id, vault_path)
+);
+
+-- L2 (live Obsidian probe 2026-11-03): a rename the last final push showed. Written by
+-- `obsidian_staging.ingest_batch` when ONE push drops `old_path` from the manifest and adds
+-- `new_path` whose staged body is byte-identical (sha256 `body_sha`), the pairing unique both
+-- ways; consumed by the sync engine, which re-keys the existing note onto `new_path`
+-- (`engine._apply_source_renames`) instead of importing a duplicate. Member data: purged with
+-- the account (account_purge) and with the vault (obsidian_link disconnect). Declared once,
+-- here: `_J2_SCHEMA` runs on every `ensure_schema`, so an existing database gets it on boot.
+CREATE TABLE IF NOT EXISTS j2_obsidian_renames (
+    user_id     TEXT NOT NULL,
+    vault_id    TEXT NOT NULL,
+    new_path    TEXT NOT NULL,
+    old_path    TEXT NOT NULL,
+    body_sha    TEXT NOT NULL,
+    recorded_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, vault_id, new_path)
+);
+
+-- L4 (live Obsidian probe 2026-11-03): what a synced note's content-named media ref (an
+-- Obsidian blob ref carries its sha256) is stored as, so an update reuses the stored file (same
+-- URL, no fetch, no copy) instead of copying every attachment again on every edit. One row per
+-- (note, ref); `stored_json` is a media_policy.StoredMedia. Written and read only by the sync
+-- engine (`_record_stored_media` / `_reusable_stored_media`); a reuse also checks the file is
+-- still on disk. Member data: purged with the account (account_purge).
+CREATE TABLE IF NOT EXISTS j2_note_import_media (
+    user_id     TEXT NOT NULL,
+    note_id     TEXT NOT NULL,
+    ref         TEXT NOT NULL,
+    stored_json TEXT NOT NULL,
+    recorded_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, note_id, ref)
 );
 
 -- 2026-09-02 adversarial audit, "single-process assumptions" #1:
@@ -800,6 +872,61 @@ CREATE TABLE IF NOT EXISTS j2_obsidian_manifest (
 CREATE TABLE IF NOT EXISTS j2_obsidian_connect_epoch (
     user_id TEXT PRIMARY KEY,
     epoch   INTEGER NOT NULL DEFAULT 0
+);
+
+-- ── Import repair (connector fidelity Plan F, Task 5) ───────────────────────
+-- The one-off repair of notes members already imported (tools/note_import_repair.py,
+-- runbook docs/runbooks/note-import-repair.md). The store is
+-- api/services/journal_two/import_repair/store.py. All three are member tables, purged
+-- with the account (account_purge._DIRECT_USER_TABLES); the log holds note bodies.
+-- Declared ONCE, here: `_J2_SCHEMA` runs on every `ensure_schema`, so an existing
+-- database gets them on its next boot (the path Plan C's j2_obsidian_attachments takes).
+-- Per-member progress of one run, so a stopped run resumes where it stopped.
+CREATE TABLE IF NOT EXISTS j2_import_repair_progress (
+    run_id          TEXT NOT NULL,
+    user_id         TEXT NOT NULL,
+    status          TEXT NOT NULL,
+    notes_checked   INTEGER NOT NULL DEFAULT 0,
+    notes_repaired  INTEGER NOT NULL DEFAULT 0,
+    started_at      TEXT NOT NULL,
+    finished_at     TEXT,
+    -- One runner per member at a time (store.claim_member): the holder's token and its last
+    -- renewal; NULL once the member is finished or its stale lease was taken over.
+    lease_holder    TEXT,
+    lease_at        TEXT,
+    PRIMARY KEY (run_id, user_id)
+);
+-- One row per note outcome. `before_body_json` is the pre-repair body of a note the run
+-- wrote: the undo source (applied only through engine._apply_resolved_body, runbook step 9;
+-- never a raw UPDATE of j2_notes), never a j2_note_versions row, which would
+-- surface in the member's History and change what legacy_finalize_shape reads. A
+-- `repair_started` row holding it is committed BEFORE the write; the outcome row supersedes it.
+CREATE TABLE IF NOT EXISTS j2_import_repair_log (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id           TEXT NOT NULL,
+    user_id          TEXT NOT NULL,
+    note_id          TEXT NOT NULL,
+    outcome          TEXT NOT NULL,
+    shapes_json      TEXT NOT NULL,
+    actions_json     TEXT NOT NULL,
+    before_body_json TEXT,
+    created_at       TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_j2_import_repair_log_run_user ON j2_import_repair_log(run_id, user_id);
+-- store.latest_outcome(run_id, note_id), called per note on resume: an index seek, never a scan.
+CREATE INDEX IF NOT EXISTS idx_j2_import_repair_log_run_note ON j2_import_repair_log(run_id, note_id);
+-- store.failed_hotlinks(note_id): a dead hotlink's history across runs, an index seek.
+CREATE INDEX IF NOT EXISTS idx_j2_import_repair_log_note ON j2_import_repair_log(note_id, outcome);
+-- The member's one notice that some of their imported notes lost pictures or files.
+-- Written by import_repair.store.record_notice as an upsert: ON CONFLICT(user_id) DO UPDATE SET
+-- loss_notes = MAX(loss_notes, new count) WHERE dismissed_at IS NULL, so while it is pending a later
+-- run can only raise the count, and created_at keeps the first time. Dismissing it is an UPDATE
+-- (dismissed_at); the WHERE clause means a later run never re-arms or changes a dismissed notice.
+CREATE TABLE IF NOT EXISTS j2_import_repair_notices (
+    user_id      TEXT PRIMARY KEY,
+    loss_notes   INTEGER NOT NULL,
+    created_at   TEXT NOT NULL,
+    dismissed_at TEXT
 );
 
 -- ── Notebook widget-embed sidecar (Journal Widgets) ─────────────────────────
@@ -1349,6 +1476,36 @@ END;
 -- idiom invented for this.
 CREATE TRIGGER IF NOT EXISTS j2_note_documents_excerpts_ad AFTER DELETE ON j2_note_documents BEGIN
     DELETE FROM j2_note_excerpts WHERE document_id = old.id;
+END;
+
+-- Import a tweet: what an excerpt cannot hold about a saved X post (author, permalink, copied
+-- images, price at post). One row per document, written in the document's own transaction.
+-- Declared ONCE, here: `_J2_SCHEMA` runs on every `ensure_schema`, so an existing database
+-- gets it on boot. The document's AFTER DELETE trigger below is what removes a member's rows
+-- at account purge (the purge deletes `j2_note_documents`).
+CREATE TABLE IF NOT EXISTS j2_note_tweet_captures (
+    document_id          TEXT PRIMARY KEY,
+    user_id              TEXT NOT NULL,
+    note_id              TEXT NOT NULL,
+    tweet_id             TEXT NOT NULL,
+    author_handle        TEXT,
+    author_name          TEXT,
+    avatar_url           TEXT,
+    permalink            TEXT,
+    posted_at            INTEGER,
+    media_json           TEXT NOT NULL DEFAULT '[]',
+    price_symbol         TEXT,
+    price_at_post        REAL,
+    price_label          TEXT,
+    price_session_date   TEXT,
+    gone_first_missed_at TEXT,
+    removed_at           TEXT,
+    created_at           TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_tweet_captures_tweet
+    ON j2_note_tweet_captures(tweet_id);
+CREATE TRIGGER IF NOT EXISTS j2_note_documents_tweet_captures_ad AFTER DELETE ON j2_note_documents BEGIN
+    DELETE FROM j2_note_tweet_captures WHERE document_id = old.id;
 END;
 
 -- Standalone FTS5 mirror over captured_text + annotation, same rowid-map
@@ -2004,6 +2161,11 @@ _PHASE_2_ALTERS = [
     #   web_reference — title + URL + domain only. No body text at all.
     #   web_passage   — the passages the member selected, and nothing else.
     "ALTER TABLE j2_note_documents ADD COLUMN capture_type TEXT NOT NULL DEFAULT 'pdf_full_text'",
+    # Plan F (Task 7 round 2, S-1): the pending sweep (`document_extraction.requeue_stale_pending`)
+    # counts its re-queues of a row, and after `MAX_SWEEP_ATTEMPTS` marks it `processing_failed`
+    # with a reason, so a row whose extraction never writes a status is never re-queued forever.
+    "ALTER TABLE j2_note_documents ADD COLUMN sweep_attempts INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE j2_note_documents ADD COLUMN failure_reason TEXT",
     # ── Phase 2a — joystick hub planned trades ────────────────────────────
     #
     # The hub's "plan a trade" surface writes here. It is deliberately NOT a
@@ -2097,6 +2259,16 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_notes ADD COLUMN style_id TEXT",
     "ALTER TABLE j2_notes ADD COLUMN style_version INTEGER",
     "ALTER TABLE j2_notes ADD COLUMN kind_id TEXT",
+    # Connector fidelity Plan A Task 1: see the column's comment on the fresh CREATE TABLE.
+    # Nullable, no backfill: a NULL reads as "legacy row, use the imported_at fallback".
+    "ALTER TABLE j2_notes ADD COLUMN import_remote_rev TEXT",
+    # Connector fidelity Plan A Task 4: see the column's comment on the fresh CREATE TABLE.
+    # Nullable, no backfill: a legacy row whose link is still pending carries
+    # import_media_pending = 1 (the old combined flag), so its next sync re-confirms it once
+    # and both flags are recomputed there. The index is HERE, after its column, never in the
+    # initial executescript (that runs before this ALTER on an existing database).
+    "ALTER TABLE j2_notes ADD COLUMN import_links_pending INTEGER",
+    "CREATE INDEX IF NOT EXISTS idx_j2_notes_links_pending ON j2_notes(user_id, import_links_pending)",
     # fin-security I-2: the remembered "unplanned" (plan_grading.MatchScope). One row per trade
     # that had no plan the last time it was matched, with a stamp of everything that could
     # change that. A memo, never a freeze: a stamp that no longer matches is ignored and the
@@ -2572,6 +2744,18 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     except Exception as e:  # noqa: BLE001 — never crash startup over this
         print(f"[notebook-migration-v6] aborted: {e}")
 
+    # Connector fidelity Plan C Task 1: the Obsidian tables' additive columns. Their own
+    # pass AFTER v6, never in _PHASE_2_ALTERS: v6 is what creates these tables on a DB
+    # whose schema script predates them, and _PHASE_2_ALTERS runs before it. Same
+    # idempotent idiom (a duplicate column is ignored, anything else raises).
+    for stmt in _OBSIDIAN_ALTERS:
+        try:
+            conn.execute(stmt)
+        except sqlite3.OperationalError as e:
+            if "duplicate column" not in str(e).lower():
+                raise
+    conn.commit()
+
     # body_plain is DERIVED from body_json; v7 re-derives it under the
     # 2026-09-23 textBetween rule (see its docstring). After v6 because it only
     # reads/updates j2_notes + j2_note_versions, which every earlier step made.
@@ -2606,6 +2790,18 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         # structurally blind to deletions -- the one lifecycle outcome
         # a member is most likely to want explained.
         "ALTER TABLE j2_note_sync_log ADD COLUMN source_deleted INTEGER",
+        # Plan D (Sync now): when the last FULL pass finished (NULL = never),
+        # and the per-note failures of a pass (JSON array, written by plan A).
+        "ALTER TABLE j2_note_sources ADD COLUMN last_full_sync_at TEXT",
+        # Plan E Task 6 review R2: consecutive full passes whose removal check was SKIPPED
+        # (the complete listing failed). 3+ keeps the source in a visible warning.
+        "ALTER TABLE j2_note_sources ADD COLUMN removal_skips INTEGER NOT NULL DEFAULT 0",
+        # Evernote rate-limit fix round 1: the engine's small JSON state per source (the learned
+        # pacing interval and an import's progress record). NULL = none.
+        "ALTER TABLE j2_note_sources ADD COLUMN sync_state TEXT",
+        "ALTER TABLE j2_note_sync_log ADD COLUMN failures_json TEXT",
+        # Plan E Task 8: file-imported notes adopted into live sync this pass (NULL in older rows = 0).
+        "ALTER TABLE j2_note_sync_log ADD COLUMN adopted INTEGER",
         # Chart-parity round: capture-time drawings ride the inbox row.
         "ALTER TABLE j2_capture_inbox ADD COLUMN annotations_json TEXT",
         # Wave 3 (Thesis-Trade Link): j2_trades.id and j2_option_strategies.id
@@ -2987,6 +3183,9 @@ _NOTE_CONNECTOR_TABLE_DDL = {
             last_sync_status  TEXT,
             last_sync_error   TEXT,
             warming_until     TEXT,
+            last_full_sync_at TEXT,
+            removal_skips     INTEGER NOT NULL DEFAULT 0,
+            sync_state        TEXT,
             created_at        TEXT NOT NULL,
             UNIQUE(user_id, provider, remote_id)
         )
@@ -3005,7 +3204,9 @@ _NOTE_CONNECTOR_TABLE_DDL = {
             notes_skipped   INTEGER,
             media_uploaded  INTEGER,
             conflicts       INTEGER,
-            source_deleted  INTEGER
+            source_deleted  INTEGER,
+            failures_json   TEXT,
+            adopted         INTEGER
         )
     """,
     "j2_note_remote_index": """
@@ -3920,6 +4121,14 @@ def run_notebook_migration_v5(conn: sqlite3.Connection) -> None:
 # Literal DDL, duplicated (not shared/interpolated) with the matching block in
 # _J2_SCHEMA -- same convention as _NOTE_CONNECTOR_TABLE_DDL above, so this
 # migration reads standalone.
+# Plan C Task 1: see the columns' comments on the fresh CREATE TABLEs in _J2_SCHEMA.
+# Nullable, no backfill: NULL = a 0.1.x plugin that never sent attachments or a version.
+# Applied by ensure_schema right after run_notebook_migration_v6.
+_OBSIDIAN_ALTERS = (
+    "ALTER TABLE j2_obsidian_staging ADD COLUMN attachments_json TEXT",
+    "ALTER TABLE j2_obsidian_devices ADD COLUMN plugin_version TEXT",
+)
+
 _OBSIDIAN_TABLE_DDL = {
     "j2_obsidian_devices": """
         CREATE TABLE IF NOT EXISTS j2_obsidian_devices (
@@ -3930,6 +4139,7 @@ _OBSIDIAN_TABLE_DDL = {
             label        TEXT,
             last_seen_at TEXT,
             created_at   TEXT NOT NULL,
+            plugin_version TEXT,
             UNIQUE(user_id, vault_id)
         )
     """,
@@ -3942,6 +4152,7 @@ _OBSIDIAN_TABLE_DDL = {
             body_md      TEXT NOT NULL,
             updated_at   TEXT NOT NULL,
             received_at  TEXT NOT NULL,
+            attachments_json TEXT,
             PRIMARY KEY (user_id, vault_id, vault_path)
         )
     """,
@@ -3952,6 +4163,18 @@ _OBSIDIAN_TABLE_DDL = {
             vault_path  TEXT NOT NULL,
             recorded_at TEXT NOT NULL,
             PRIMARY KEY (user_id, vault_id, vault_path)
+        )
+    """,
+    "j2_obsidian_attachments": """
+        CREATE TABLE IF NOT EXISTS j2_obsidian_attachments (
+            user_id       TEXT NOT NULL,
+            vault_id      TEXT NOT NULL,
+            sha256        TEXT NOT NULL,
+            size          INTEGER NOT NULL,
+            declared_mime TEXT,
+            name          TEXT,
+            received_at   TEXT NOT NULL,
+            PRIMARY KEY (user_id, vault_id, sha256)
         )
     """,
 }
@@ -4219,3 +4442,168 @@ def run_notebook_migration_v7(conn: sqlite3.Connection, *, clock=time.monotonic)
         count_table="j2_notes", extra_columns=_BODY_PLAIN_BACKFILL_EXTRA,
         on_changed=_rebuild_note_mentions(conn), clock=clock, label="notebook-migration-v7",
     )
+
+
+# ── Plan A Task 2 (L-2): project internal link MARKS already stored ─────────────
+_INTERNAL_LINK_BACKFILL_FLAG = ".note_links_internal_href_v1"
+#: How many candidate ids one unlocked scan returns (ids only: never bodies).
+_INTERNAL_LINK_BACKFILL_BATCH = 500
+#: How many notes one write transaction re-reads and projects. Small on purpose:
+#: auth.db is on the universal request path and its web connections wait 3 s.
+_INTERNAL_LINK_BACKFILL_CHUNK = 25
+#: How many times a chunk's `BEGIN IMMEDIATE` may find the database busy before
+#: the pass gives up for this boot; no flag is written, so the next boot resumes.
+_INTERNAL_LINK_BACKFILL_LOCK_TRIES = 5
+_INTERNAL_LINK_LIKE = "%j2tab=notebook%"
+
+
+def _internal_link_backfill_pause(seconds: float = 0.05) -> None:
+    """The yield between chunks, so member writes queue behind at most one chunk.
+    Its own function so a rail can observe the lock being free right here."""
+    time.sleep(seconds)
+
+
+def _scan_internal_link_candidates(conn: sqlite3.Connection, after: str, limit: int) -> list[str]:
+    """Candidate note ids after `after`, id order. A plain read (no transaction is
+    open when it runs), so it never holds the write lock while the LIKE walks every
+    remaining body, and it returns ids only, never bodies."""
+    return [r[0] for r in conn.execute(
+        "SELECT id FROM j2_notes WHERE id > ? AND body_json LIKE ? ORDER BY id LIMIT ?",
+        (after, _INTERNAL_LINK_LIKE, limit),
+    ).fetchall()]
+
+
+def _begin_immediate_with_retry(conn: sqlite3.Connection) -> None:
+    for attempt in range(_INTERNAL_LINK_BACKFILL_LOCK_TRIES):
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            return
+        except sqlite3.OperationalError as e:
+            if "locked" not in str(e).lower() or attempt == _INTERNAL_LINK_BACKFILL_LOCK_TRIES - 1:
+                raise
+            _internal_link_backfill_pause(0.5 * (attempt + 1))
+
+
+def run_internal_link_projection_backfill(conn: sqlite3.Connection) -> dict[str, Any]:
+    """One-shot: every stored note whose body holds an internal note link MARK
+    (`/journal?j2tab=notebook&note=<id>`, an imported wiki link) gets its sidecars
+    rebuilt through `notes._sync_note_sidecars` -- the same function every save
+    reaches -- so the link becomes a backlink and a graph edge. Saves already do
+    this from Plan A Task 2 on; this covers bodies written before it.
+
+    ⛔ Writes the sidecar tables ONLY: never `updated_at`, never `body_json` (the
+    offline store's baseline and the sync engine's optimistic lock).
+
+    ⛔ Fix round 1, I1: the write lock is NEVER held while scanning. Candidate IDS
+    come from an unlocked read (`_scan_internal_link_candidates`, pages of
+    `_INTERNAL_LINK_BACKFILL_BATCH`); then each chunk of `_INTERNAL_LINK_BACKFILL_CHUNK`
+    takes `BEGIN IMMEDIATE`, RE-READS each body by id inside it (so a member save
+    that landed after the scan is what gets projected, never a stale body),
+    projects, commits, and pauses before the next chunk. One body is in memory at
+    a time.
+
+    Trashed notes are included: a restore does not rebuild sidecars, and every
+    read path already filters trashed sources. The LIKE is a pre-filter only
+    (params may come in either order); `_sync_note_sidecars` decides what counts.
+    Idempotent (the sidecars are delete+insert); the flag
+    `.note_links_internal_href_v1` in DATA_DIR is written when the walk finishes
+    and at least one note exists (v4's rule: a flag over zero notes would let a
+    restored backup skip the pass forever).
+
+    A note whose projection raises is logged, skipped and counted in "failed"; the
+    walk goes on and the flag is still written when it finishes.
+
+    Returns {"scanned", "synced", "failed"} or {"skipped": True} once flagged."""
+    from api.services.journal_two.notes import _sync_note_sidecars, extract_plain_text
+
+    flag = _data_dir() / _INTERNAL_LINK_BACKFILL_FLAG
+    if flag.exists():
+        return {"skipped": True}
+    out = {"scanned": 0, "synced": 0, "failed": 0}
+    if conn.in_transaction:
+        conn.commit()
+    last = ""
+    while True:
+        ids = _scan_internal_link_candidates(conn, last, _INTERNAL_LINK_BACKFILL_BATCH)
+        if not ids:
+            break
+        last = ids[-1]
+        for i in range(0, len(ids), _INTERNAL_LINK_BACKFILL_CHUNK):
+            chunk = ids[i:i + _INTERNAL_LINK_BACKFILL_CHUNK]
+            _begin_immediate_with_retry(conn)
+            try:
+                for note_id in chunk:
+                    out["scanned"] += 1
+                    row = conn.execute(
+                        "SELECT user_id, body_json, body_plain FROM j2_notes WHERE id = ?",
+                        (note_id,),
+                    ).fetchone()
+                    if row is None:
+                        continue  # purged since the scan
+                    user_id, body_json, body_plain = row[0], row[1], row[2]
+                    doc = _stored_doc(body_json)
+                    if doc is None:
+                        continue
+                    # Final review (promoted minor): one note that cannot be projected is
+                    # logged and skipped, its own partial sidecar writes undone (a
+                    # SAVEPOINT), never the end of the pass: an abort wrote no flag, so
+                    # the same note aborted every boot and nothing behind it was projected.
+                    conn.execute("SAVEPOINT internal_link_backfill_note")
+                    try:
+                        if body_plain is None:
+                            body_plain = extract_plain_text(doc)
+                        _sync_note_sidecars(conn, user_id, note_id, doc, body_plain)
+                    except Exception:  # noqa: BLE001 -- one poison note, named in the log
+                        conn.execute("ROLLBACK TO SAVEPOINT internal_link_backfill_note")
+                        conn.execute("RELEASE SAVEPOINT internal_link_backfill_note")
+                        logger.warning("[note-links-internal-href] note %s not projected, skipped",
+                                       note_id, exc_info=True)
+                        out["failed"] += 1
+                        continue
+                    conn.execute("RELEASE SAVEPOINT internal_link_backfill_note")
+                    out["synced"] += 1
+                conn.commit()
+            except BaseException:
+                conn.rollback()
+                raise
+            _internal_link_backfill_pause()
+        if len(ids) < _INTERNAL_LINK_BACKFILL_BATCH:
+            break
+    if conn.execute("SELECT COUNT(*) FROM j2_notes").fetchone()[0] == 0:
+        return out
+    try:
+        _write_flag_atomic(flag, b"1")
+    except Exception:  # noqa: BLE001 -- a missed flag costs one idempotent re-pass, never data
+        pass
+    return out
+
+
+def start_internal_link_projection_backfill(connect=None):
+    """Start `run_internal_link_projection_backfill` on a daemon thread with its OWN
+    connection (`connect()`, default `auth_db.get_connection`). Fix round 1, I1:
+    called from main.py's lifespan AFTER `init_db` has committed, never from inside
+    `ensure_schema`, so it can never race the boot connection's own schema writes.
+    Returns the thread, or None when the flag already exists."""
+    import threading
+
+    if (_data_dir() / _INTERNAL_LINK_BACKFILL_FLAG).exists():
+        return None
+    if connect is None:
+        from api.services.auth_db import get_connection as connect
+
+    def run() -> None:
+        try:
+            c = connect()
+            try:
+                out = run_internal_link_projection_backfill(c)
+                if out.get("synced") or out.get("failed"):
+                    logger.info("[note-links-internal-href] projected: %s", out)
+            finally:
+                c.close()
+        except Exception:  # noqa: BLE001 -- a background one-shot never takes the pod down
+            logger.warning("[note-links-internal-href] aborted (the next boot resumes)",
+                           exc_info=True)
+
+    t = threading.Thread(target=run, name="note-links-internal-href-backfill", daemon=True)
+    t.start()
+    return t

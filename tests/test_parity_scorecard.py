@@ -335,6 +335,23 @@ def test_a_flag_status_the_ledger_does_not_hold_is_refused():
     assert not psc.verify(text, rev=rev)[1], 'control: the unplanted text verifies'
 
 
+def test_a_gate_retired_as_always_on_still_satisfies_an_armed_record():
+    """2026-11-04: NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED moved from the ledger's `flags` to `retired` ("always on").
+    The three cells that record it `armed` (G-160, G-166 and the B07 row) must not become problems: the
+    capability is on for every member. A retired row that is NOT "always on" proves nothing, and a live `flags` row
+    always wins."""
+    import json as _json
+    head = psc._flags_now()
+    assert (head.get("NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED") or {}).get("status") == "armed"
+    doc = {"flags": {"LIVE_ENABLED": {"status": "dark"}},
+           "retired": {"GONE_ENABLED": {"state": "always on"}, "ODD_ENABLED": {"state": "something else"},
+                       "LIVE_ENABLED": {"state": "always on"}}}
+    got = psc._flags_of(_json.dumps(doc))
+    assert got["GONE_ENABLED"]["status"] == "armed"
+    assert "ODD_ENABLED" not in got                                       # control: only "always on" counts
+    assert got["LIVE_ENABLED"]["status"] == "dark"                        # control: a live row is never overridden
+
+
 # ── §0, the evidence index (wave 10, F3; fix round 1): provenance, each property shown failing ─────
 
 W9 = ('wave 9', 'notebook-wave9-tip-2026-09-26', 'e7c196f38', '1c4b0bf74')

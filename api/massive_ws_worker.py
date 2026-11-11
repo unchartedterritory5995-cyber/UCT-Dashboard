@@ -1436,6 +1436,9 @@ _TICK_TEST_CACHE: dict = {}
 from collections import deque
 _RAW_T_HISTORY: dict = {}  # sym -> deque[(ts_ns, price)]
 _RAW_T_MAX = 50            # keep last 50 prints per contract
+# OBSERVE ONLY (2026-11-06): counts prints a proposed 24 h quiet-eviction would touch. No behaviour change.
+from api.services.mem_observe import bump as _memobs_bump
+_MEMOBS_QUIET_NS = 24 * 3600 * 1_000_000_000
 
 
 # Phase 2 (6/29 audit): per-contract NBBO history with time-aligned lookup.
@@ -3406,6 +3409,10 @@ async def _run_session(ws):
                     if hist is None:
                         hist = deque(maxlen=_RAW_T_MAX)
                         _RAW_T_HISTORY[sym] = hist
+                    elif hist and ts_ms * 1_000_000 - hist[-1][0] > _MEMOBS_QUIET_NS:
+                        # OBSERVE ONLY (mem_observe, 2026-11-06): this print's tick test reads history
+                        # older than 24 h -- exactly the prints a 24 h eviction would re-classify.
+                        _memobs_bump("raw_t_quiet24_prints")
                     hist.append((ts_ms * 1_000_000, price))
                     # Phase 2c: refresh LRU tracker for this contract so
                     # active contracts stay in the Q subscription pool

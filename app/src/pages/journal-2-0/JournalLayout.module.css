@@ -32,7 +32,7 @@
 
 .heading {
   margin: 0;
-  font-size: 19px;
+  font-size: 20px;
   font-weight: 700;
   letter-spacing: 0.2px;
   color: var(--text-heading);
@@ -79,7 +79,7 @@
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 120ms, border-color 120ms;
+  transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
 }
 
 .settingsPill:hover:not(:disabled) {
@@ -93,7 +93,7 @@
 }
 
 .gearIcon {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1;
 }
 
@@ -118,7 +118,7 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 120ms, border-color 120ms;
+  transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
 }
 
 .logTradeBtn:hover {
@@ -176,7 +176,7 @@
   text-align: left;
   text-decoration: none;
   cursor: pointer;
-  transition: background 120ms, color 120ms;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
 
 .menuItem:hover {
@@ -216,7 +216,7 @@
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
-  transition: color 120ms, border-color 120ms;
+  transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
   position: relative;
   top: 1px;
 }
@@ -342,7 +342,7 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 120ms, color 120ms;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
 
 .segBtn:hover {
@@ -476,4 +476,16 @@
     font-weight: 600;
     cursor: pointer;
   }
+}
+
+/* ── Tier 2 fix round 1 (review Important 1): the phone Notebook list's first screen ───────────────────────
+   Measured on production (Tier 1b, 390 x 844): the first note sat at y=320 -- the app bar, a "Journal tools" row of
+   its own, the 70 px section strip, then the filter row. While the Notebook LIST is on screen it offers the header's
+   tools through a "Journal tools" row in its own ⋯ menu (lib/journalToolsDoor.js, `data-tools-door`), so the folded
+   header takes NO row; opened from that row, the header is laid out exactly as D2 laid it out, with its toggle to
+   close it. Where no page offers the door (Home, an open note, the research page) the folded toggle stays.
+   ⛔ Nothing here sits over the section strip (a control laid over it hid Insights and Compass: the Tier 2 review).
+   ⛔ Phone only, Notebook routes only. Rail: JournalLayout.compactHeader.test.jsx. */
+@media (max-width: 640px) {
+  .root[data-compact-header][data-tools-door]:not([data-tools-open]) .header { display: none; }
 }

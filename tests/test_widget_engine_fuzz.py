@@ -61,7 +61,6 @@ CASES = list(_cases())
 @pytest.fixture(autouse=True)
 def _note_kinds_on(monkeypatch):
     """W10-R62: the notes `kind` field is offered (and fuzzed) while note kinds are."""
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
 
 
 def _plan(source, field, op, value, view=None):

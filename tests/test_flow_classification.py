@@ -592,11 +592,41 @@ def test_ask_accum_curated_survives_hide_block_only():
 
 
 def test_cream_meta_key():
-    # (ticker, CALL/PUT, strike normalized to int-text when whole, exp)
+    # CANONICAL KEY, per `_cream_ck` (changed 2026-09-15 in 6b606990c4):
+    #   (SYMBOL upper, "C"/"P", float strike rounded to 4dp, exp stripped).
+    # ⚰️ This assertion used to demand the PRE-FIX key ("CALL", "65") and so had
+    # been RED on production code from 2026-09-15 until 2026-11-08 — 54 days —
+    # because no runner in this repo names this file and an unscoped pytest OOMs
+    # the box. The stale half was the test, not the router.
     assert m._cream_meta_key({"ticker": "IREN", "cp": "C", "strike": 65.0,
-                              "exp": "3/19/2027"}) == ("IREN", "CALL", "65", "3/19/2027")
+                              "exp": "3/19/2027"}) == ("IREN", "C", 65.0, "3/19/2027")
     assert m._cream_meta_key({"ticker": "SPY", "cp": "P", "strike": 47.5,
-                              "exp": "1/1/2027"}) == ("SPY", "PUT", "47.5", "1/1/2027")
+                              "exp": "1/1/2027"}) == ("SPY", "P", 47.5, "1/1/2027")
+
+
+def test_cream_key_collapses_db_row_and_alert_to_one_key():
+    """The property 6b606990c4 actually bought, which the assertion above did not test.
+
+    `_cream_contract_meta` keys (is_weekly, has_sweep) off RAW flow.db rows, where
+    CallPut is "C"/"P" and Strike reads back as "300.0"; `_cream_meta_key` keys off a
+    CLASSIFIED alert, where the same contract can arrive as "PUT" / "300" / " 300 ".
+    If the two spellings do not collapse, the `.get(key, (False, True))` lookup MISSES
+    and FAILS OPEN — not-weekly + has-a-sweep — which silently disables BOTH the
+    weekly and the block-only filters on the Discord Top Flow card. Measured
+    2026-09-15: SNOW P300 and SKHY P175, zero sweeps between them, on the card with
+    CREAM_EXCLUDE_BLOCK_ONLY=1.
+    """
+    db_row = m._cream_ck("SNOW", "P", "300.0", "1/16/2026")       # as SQLite reads it
+    for alert in ({"ticker": "SNOW", "cp": "PUT", "strike": "300", "exp": "1/16/2026"},
+                  {"ticker": "snow", "cp": "P", "strike": 300, "exp": " 1/16/2026 "},
+                  {"ticker": "SNOW", "cp": "Put", "strike": 300.0, "exp": "1/16/2026"}):
+        assert m._cream_meta_key(alert) == db_row, alert
+
+    # ...and a genuinely different contract must NOT collapse onto it.
+    assert m._cream_meta_key({"ticker": "SNOW", "cp": "C", "strike": 300,
+                              "exp": "1/16/2026"}) != db_row
+    assert m._cream_meta_key({"ticker": "SNOW", "cp": "P", "strike": 300.5,
+                              "exp": "1/16/2026"}) != db_row
 
 
 def test_alpha_leaps_auto_push_own_toggle():

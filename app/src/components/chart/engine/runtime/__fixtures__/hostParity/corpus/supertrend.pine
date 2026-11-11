@@ -1,0 +1,5 @@
+//@version=5
+indicator("hp supertrend", overlay=true)
+[st, dir] = ta.supertrend(3.0, 10)
+plot(st, "st")
+plot(dir, "dir")

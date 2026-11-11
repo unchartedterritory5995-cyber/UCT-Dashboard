@@ -61,7 +61,20 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     // screener columns crossed from `_scalars_excluded` into the vocabulary.
     // 137 -> 138 on 2026-10-11: `dollar_vol_1d`, the newest session's dollar volume (see
     // `tests/test_ast_scalars.py`'s partition pin)
-    expect(names.length).toBe(138)
+    // 138 -> 139 on 2026-11-06 (UCT RS Phase 2a, unit 2a-01): `base_pivot_px`, the
+    // pivot the HEAD base structure's own detection computed -- REAL, written by the
+    // shipped `bases.classify` beside `base_relation_count`, so `bars_asof` like every
+    // column that producer emits. Same commit: `premarket_price`/`premarket_chg_pct`
+    // EXCLUDED (the excluded pin below). Python pin: (138, 68) -> (139, 100).
+    // 139 -> 149 on 2026-11-06 (UCT RS Phase 2a, unit 2a-07): the ten BAR-DERIVED RS
+    // columns -- `rs_new_high`, `rs_nh_before_price`, `rs_nh_red_day`, `rs_line_above_ma`,
+    // `rs_benchmark_agree` (`bool`, 0/1 flags); `rs_nh_bars_ago`, `rs_cross_up_bars_ago`,
+    // `mansfield_cross_bars_ago`, `green_on_red_20`, `mansfield` (`num`) -- written by
+    // the shipped `rs_columns.collect_one` as the `bars_rs` step inside `build_row`'s
+    // `if bars:` block (unit 2a-05), so every one rides `bars_asof`. Same commit: the
+    // seven `rs_rating_*` columns EXCLUDED (the excluded pin below). Python pin:
+    // (139, 100) -> (149, 107).
+    expect(names.length).toBe(149)
     for (const name of names) {
       const spec = TABLE.scalars[name]
       expect(spec.source.store).toBe('screener_rows')
@@ -118,7 +131,50 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     //                               so no formula, saved scan or alert can key
     //                               on it (owner decision 3), and blank whenever
     //                               the archive is off.
-    expect(Object.keys(excluded).length).toBe(77)
+    //   excluded 77 + 21 = 98        the scan primitives (2026-11-05), filterable
+    //                               through the screener catalog; a formula
+    //                               scalar over them is a separate decision.
+    //   excluded 98 + 2 = 100        `premarket_price` and `premarket_chg_pct`
+    //                               (2026-11-06, UCT RS Phase 2a unit 2a-01) --
+    //                               the extended-hours print and its change vs
+    //                               the prior close, LIVE-ONLY for `rvol_live`'s
+    //                               reason: `snapshot_db.LIVE_ONLY_COLUMNS`,
+    //                               served through query.py's `pm` join on
+    //                               `screener_premarket` and NULL in every
+    //                               nightly row, so a scalar over them would be
+    //                               a hole at every hour. The Python pin moved
+    //                               with it: (138, 68) -> (139, 100).
+    //   excluded 100 + 7 = 107       the seven RATING-HISTORY columns
+    //                               (2026-11-06, UCT RS Phase 2a unit 2a-07):
+    //                               `rs_rating_ibd`, `rs_rating_chg_5`,
+    //                               `rs_rating_chg_20`, `rs_rating_1m`, `_3m`,
+    //                               `_6m`, `_12m` -- read from the
+    //                               `rs_rating_history` side table the 04:15 ET
+    //                               job writes only when RS_HISTORY_ENABLED=1,
+    //                               OFF in production, so every nightly row is
+    //                               NULL there: R8, with each reason dated and
+    //                               naming its re-admission (flag armed AND the
+    //                               artifact showing the column filled). The
+    //                               Python pin moved with it: (139, 100) ->
+    //                               (149, 107).
+    //   excluded 107 + 3 = 110       the three PHASE 3 RS columns (2026-11-07,
+    //                               UCT RS Phase 3 unit 3-11): `rrg_quadrant`,
+    //                               `clenow_score`, `vars_state` -- written by
+    //                               `rs_columns.collect_one` only while
+    //                               RS_V3_ENABLED is armed, OFF in production,
+    //                               so every nightly row is NULL there (R8).
+    //                               `clenow_score` is re-admitted once the flag
+    //                               is armed and the artifact shows it filled;
+    //                               the two TEXT names stay excluded for
+    //                               `rs_line_trend`'s reason. The Python pin
+    //                               moved with it: (149, 107) -> (149, 110).
+    //   excluded 110 + 1 = 111       `min_volume_3d_prior` (2026-11-10, TC2000's MINV3.1 for the
+    //                                Anticipation starter): a scan primitive, excluded with theirs.
+    //   excluded 111 + 4 = 115       the four `live_base_*` columns (2026-11-10): live-tier bases,
+    //                                not member columns, excluded with their own reason.
+    // 110 -> 111 on 2026-11-10 (RS split S1): rs_rating_9m, excluded like the other rating-history columns.
+    // => 116: master's four live_base_* columns + the RS split's rs_rating_9m (both 2026-11-10).
+    expect(Object.keys(excluded).length).toBe(116)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)

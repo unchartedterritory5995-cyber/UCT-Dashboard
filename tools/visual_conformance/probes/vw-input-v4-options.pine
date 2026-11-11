@@ -1,0 +1,15 @@
+//@version=4
+study("UCTPROBE_VW_INPUT_V4_OPTIONS", overlay = false)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme, capture queue row Q-D5
+// (docs/pine/capture-queue-2026-10-31-wsd-input-kinds.md). NEVER COMPILED ON TRADINGVIEW.
+// A member's pick on a v4 text input with `options` reaches the run (the columnar lane used to
+// fold it from the default). P01 is the picked line; E01 / E02 are both candidates, for reference.
+// CAPTURE: AMEX:SPY 1D twice: once at the default ("EMA"), once with "SMA" picked in the dialog.
+
+m = input("EMA", options=["EMA", "SMA"])
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(ema(close, 20), "E01_ema20")
+plot(sma(close, 20), "E02_sma20")
+plot(m == "SMA" ? sma(close, 20) : ema(close, 20), "P01_picked")

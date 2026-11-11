@@ -63,7 +63,7 @@ vi.mock('../../../hooks/useThemeIndexBars', () => ({
 }))
 // null meta => the header label falls back to the raw ticker, so the identity
 // label is assertable as "NVDA" in either the search or the static branch.
-vi.mock('../../../hooks/useTickerMeta', () => ({ default: () => null }))
+vi.mock('../../../hooks/useTickerMeta', () => ({ default: vi.fn(() => null) }))
 vi.mock('../../../hooks/useMarketOpen', () => ({
   default: () => ({ isOpen: false, isPremarket: false, isExtended: false }),
 }))
@@ -73,6 +73,7 @@ import ChartPane from './ChartPane'
 import { PANE_LOOK, paneLookProps } from './paneLook'
 import { mergeChartSettings } from '../chartDefaults'
 import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
+import useTickerMeta from '../../../hooks/useTickerMeta'
 
 beforeEach(() => {
   mockPrefs = {}
@@ -121,6 +122,18 @@ test('density="full" (the /charts default) still fetches fundamentals with enabl
 // (Finding 2: omitting onTfChange left a full row of clickable-but-dead TF buttons,
 // and visibleTfs always derived from the user's global favorites with no way for a
 // host — e.g. Journal locked to Daily/Weekly — to override them.)
+// --- identityLabel: a host whose `sym` is an exhibit, not a ticker (Study, round 19: the real pane around a bank chart) ---
+test('identityLabel renders the host label in the static slot and looks nothing up on sym', () => {
+  useTickerMeta.mockClear()
+  render(<ChartPane sym="si_7d53fd256e37" tf="D" density="compact" showTfBar={false} identityLabel={<span data-testid="exhibit-label">MASKED</span>} />)
+  expect(screen.getByTestId('exhibit-label').textContent).toBe('MASKED')
+  expect(screen.getByTestId('sym-label').textContent).toBe('MASKED')      // never the item id
+  expect(screen.queryByTestId('day-gain')).toBeNull()                      // no day change on an exhibit
+  expect(useTickerMeta).toHaveBeenCalledWith(null)                          // no meta lookup on the item id
+  expect(useTickerMeta).not.toHaveBeenCalledWith('si_7d53fd256e37')
+  expect(screen.getByTestId('chart-sym').textContent).toBe('si_7d53fd256e37')   // the canvas still mounts under the item id
+})
+
 test('showTfBar={false} renders no timeframe bar at all', () => {
   render(<ChartPane sym="NVDA" tf="D" onSymbolChange={() => {}} onTfChange={() => {}} showTfBar={false} />)
   expect(screen.queryByRole('button', { name: '1D' })).toBeNull()

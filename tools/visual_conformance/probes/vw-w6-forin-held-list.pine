@@ -1,0 +1,56 @@
+//@version=6
+indicator("vw-w6-forin-held-list")
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from row Q-W6T6-H (review N1) of
+// docs/pine/capture-queue-2026-11-06-w6-t6.md: `type Q` with an `array<float> arr` field; `for q in qs` with
+// `array.push(q.arr, 1)`, `q.arr.push(1)`, `array.clear(q.arr)` and a helper `fill1(Q z) => array.push(z.arr, 1)`
+// called on `q`; each element's size and sum plotted after the walk. One walk per member, in that order, over
+// one `qs` (built as the N1b rows state: three `Q.new(array.from(1.0, 2.0))`, `var`, bar 0).
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: a write through the loop variable to a list the element holds: do the element's lists change
+// (and keep changing bar to bar, since qs is `var`)? A00 is the control.
+// CAPTURE: NYSE:RDDT 1D, inputs at defaults.
+
+type Q
+    array<float> arr
+
+fill1(Q z) => array.push(z.arr, 1)
+
+plot(bar_index, "A00_bar_index_CONTROL")
+var array<Q> qs = array.from(Q.new(array.from(1.0, 2.0)), Q.new(array.from(1.0, 2.0)), Q.new(array.from(1.0, 2.0)))
+
+for q in qs
+    array.push(q.arr, 1)
+plot(array.size(array.get(qs, 0).arr), "P1_push_q0_size")
+plot(array.sum(array.get(qs, 0).arr), "P1_push_q0_sum")
+plot(array.size(array.get(qs, 1).arr), "P1_push_q1_size")
+plot(array.sum(array.get(qs, 1).arr), "P1_push_q1_sum")
+plot(array.size(array.get(qs, 2).arr), "P1_push_q2_size")
+plot(array.sum(array.get(qs, 2).arr), "P1_push_q2_sum")
+
+for q in qs
+    q.arr.push(1)
+plot(array.size(array.get(qs, 0).arr), "P2_method_push_q0_size")
+plot(array.sum(array.get(qs, 0).arr), "P2_method_push_q0_sum")
+plot(array.size(array.get(qs, 1).arr), "P2_method_push_q1_size")
+plot(array.sum(array.get(qs, 1).arr), "P2_method_push_q1_sum")
+plot(array.size(array.get(qs, 2).arr), "P2_method_push_q2_size")
+plot(array.sum(array.get(qs, 2).arr), "P2_method_push_q2_sum")
+
+for q in qs
+    array.clear(q.arr)
+plot(array.size(array.get(qs, 0).arr), "P3_clear_q0_size")
+plot(array.sum(array.get(qs, 0).arr), "P3_clear_q0_sum")
+plot(array.size(array.get(qs, 1).arr), "P3_clear_q1_size")
+plot(array.sum(array.get(qs, 1).arr), "P3_clear_q1_sum")
+plot(array.size(array.get(qs, 2).arr), "P3_clear_q2_size")
+plot(array.sum(array.get(qs, 2).arr), "P3_clear_q2_sum")
+
+for q in qs
+    fill1(q)
+plot(array.size(array.get(qs, 0).arr), "P4_helper_fill1_q0_size")
+plot(array.sum(array.get(qs, 0).arr), "P4_helper_fill1_q0_sum")
+plot(array.size(array.get(qs, 1).arr), "P4_helper_fill1_q1_size")
+plot(array.sum(array.get(qs, 1).arr), "P4_helper_fill1_q1_sum")
+plot(array.size(array.get(qs, 2).arr), "P4_helper_fill1_q2_size")
+plot(array.sum(array.get(qs, 2).arr), "P4_helper_fill1_q2_sum")

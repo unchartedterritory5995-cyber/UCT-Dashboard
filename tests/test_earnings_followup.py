@@ -53,8 +53,6 @@ def db(monkeypatch):
     from api.services import auth_db
     importlib.reload(auth_db)
     auth_db.init_db()
-    monkeypatch.setenv("NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED", "1")
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
     conn = auth_db.get_connection()
     yield conn
     conn.close()
@@ -277,26 +275,6 @@ def test_an_unpaid_member_rings_nothing_and_warms_nothing(db, world):
     assert sent == [] and world["warmed"] == [] and result["members"] == 0
 
 
-def test_the_followup_switch_off_rings_nothing_and_reads_nothing(db, world, monkeypatch):
-    world["reports"] = {"2026-10-15": {"ORCL": "bmo"}}
-    world["sets"], world["paid"] = {"u1": {"ORCL": ["watchlist"]}}, {"u1"}
-    monkeypatch.delenv("NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED")
-    result, sent = ring(db, at(date(2026, 10, 15)))
-    assert sent == [] and result["skipped"] == "switched-off" and world["warmed"] == [] and world["lookups"] == []
-
-
-def test_the_journal_styles_switch_is_a_prerequisite(db, world, monkeypatch):
-    """The card's create goes through the styled-create door, which refuses without NOTEBOOK_JOURNAL_STYLES_ENABLED:
-    a notice that opens a card that cannot make its note is worse than no notice."""
-    world["reports"] = {"2026-10-15": {"ORCL": "bmo"}}
-    world["sets"], world["paid"] = {"u1": {"ORCL": ["watchlist"]}}, {"u1"}
-    monkeypatch.delenv("NOTEBOOK_JOURNAL_STYLES_ENABLED")
-    result, sent = ring(db, at(date(2026, 10, 15)))
-    assert sent == [] and result["skipped"] == "switched-off" and world["warmed"] == [] and world["lookups"] == []
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
-    assert len(ring(db, at(date(2026, 10, 15)))[1]) == 1            # non-vacuity: both on, it rings
-
-
 def test_the_notice_names_the_card_link_and_the_source(db, world):
     world["reports"] = {"2026-10-15": {"BRK.B": "bmo"}}
     world["sets"], world["paid"] = {"u1": {"BRK.B": ["flagged"]}}, {"u1"}
@@ -408,13 +386,7 @@ def test_catch_up_skips_a_day_whose_run_completed(db, world):
     assert out == {"ran": False, "reason": "already-complete", "day": "2026-10-15"}
 
 
-def test_the_registrar_reads_no_switch_and_wires_three_jobs(monkeypatch):
-    from api.services.journal_two import journal_styles
-
-    def boom():
-        raise AssertionError("read at registration")
-    monkeypatch.setattr(ef, "enabled", boom)
-    monkeypatch.setattr(journal_styles, "enabled", boom)
+def test_the_registrar_wires_three_jobs(monkeypatch):
     jobs = []
 
     full = {}

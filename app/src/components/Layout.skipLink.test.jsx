@@ -97,6 +97,37 @@ describe('on the Notebook, inside the shell (A2R-01)', () => {
   }, 30000)
 })
 
+// VIS-7 (audit 2026-11-05, visual-report §2.7): a keyboard walk counted 37 Tab stops before the first Notebook
+// control (24 app-nav links, the banner, the Journal tabs and header). The skip link is the way past them: two Tabs
+// and Enter put focus on the Notebook, and the very next Tab is a Notebook control -- not a nav link, not the header.
+describe('the skip link reaches the Notebook content first (VIS-7)', () => {
+  beforeEach(() => { document.body.innerHTML = ''; installFetch(); latchWave8Flags(true) })
+
+  it('Tab, Tab, Enter, Tab: the fourth key press is on a control inside the Notebook pane', async () => {
+    const user = userEvent.setup()
+    render(
+      <Providers route="/journal/notebook?folder=f1">
+        <Layout><NotebookTab /></Layout>
+      </Providers>,
+    )
+    await waitFor(() => expect(document.querySelectorAll('[data-note-card-id]').length).toBeGreaterThan(1))
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    await user.tab()
+    await user.tab()
+    expect(document.activeElement.textContent.trim()).toBe('Skip to notes list')
+    await user.keyboard('{Enter}')
+    await user.tab()
+    const first = document.activeElement
+    const pane = document.getElementById('notebook-pane')
+    expect(pane, 'the Notebook pane').not.toBeNull()
+    expect(pane.contains(first), `the first stop after the skip is in the Notebook pane: ${first.outerHTML.slice(0, 120)}`).toBe(true)
+    // CONTROL: the app nav really is there, and its links sit BEFORE the pane in document order (what was skipped)
+    const nav = screen.getByTestId('nav-sidebar')
+    expect(nav.querySelectorAll('a[href]').length).toBeGreaterThan(5)
+    expect(nav.compareDocumentPosition(pane) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  }, 30000)
+})
+
 // Wave 14, lane W14-keys: "Skip to getting started" -- on Research Home, while the get-started
 // checklist is on screen, it is the Notebook's FIRST skip link (right after "Skip to main
 // content"), and Enter lands on the checklist's heading (docs/notebook/wave14-keys.md).

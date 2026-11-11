@@ -1,0 +1,9 @@
+//@version=6
+indicator("UCTPROBE_VW_W3N_DRAW_BLOCK_HISTORY_D", overlay = true, max_labels_count = 500)
+float p = na
+if close > open
+    x = close * 2
+    label.new(bar_index, x[1], "D|" + str.tostring(x[1]))
+    p := x[1]
+plot(p, "D04_block_local_x1_plot")
+plot(bar_index, "D00_bar_index_CONTROL")

@@ -96,3 +96,31 @@ describe('EODRecap — "Draft in today’s note" (wave 13 lane 13F, flag on)', (
     vi.doUnmock('../lib/reviewDrafts')
   })
 })
+
+// Fix round 1 (review finding 7): the Compass recap card made the day's note and the Daily folder
+// in silence. A NEW note queues the sentence for the Notebook (the card navigates away).
+describe('EODRecap: the Daily folder is said (fix round 1)', () => {
+  it('a draft that MADE the day’s note queues "Saved in your Daily folder."', async () => {
+    sessionStorage.clear()
+    vi.resetModules()
+    vi.doMock('../lib/reviewDrafts', () => ({
+      reviewDraftsEnabled: () => true,
+      draftDailyReview: vi.fn(async () => ({ note: { id: 'daily1' }, created: true })),
+      todayDayIso: () => SAMPLE.day,
+    }))
+    const navigateSpy = vi.fn()
+    vi.doMock('react-router-dom', async () => {
+      const actual = await vi.importActual('react-router-dom')
+      return { ...actual, useNavigate: () => navigateSpy }
+    })
+    const { default: EODRecapFresh } = await import('./EODRecap')
+    const { takeQueuedNotebookNotice } = await import('../lib/dailyNote')
+    const user = userEvent.setup()
+    render(<MemoryRouter><EODRecapFresh recap={SAMPLE} onFeedback={() => {}} onRegenerate={() => {}} onForget={() => {}} /></MemoryRouter>)
+    await user.click(screen.getByRole('button', { name: /draft in today/i }))
+    await waitFor(() => expect(navigateSpy).toHaveBeenCalled())
+    expect(takeQueuedNotebookNotice({ noteId: 'daily1' })).toBe('Saved in your Daily folder.')
+    vi.doUnmock('../lib/reviewDrafts')
+    vi.doUnmock('react-router-dom')
+  })
+})

@@ -1,5 +1,6 @@
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { isHiddenDeskKey } from '../deskKeyGate'
 import ChartPane from '../../../components/chart/pane/ChartPane'
 import useChartSurfaceSettings from '../../../components/chart/pane/useChartSurfaceSettings'
 import { useWorkspace } from '../WorkspaceContext'
@@ -20,6 +21,8 @@ import ChartTabStrip from './ChartTabStrip'
 import { prefetchReplayTimeframes } from '../../../utils/prefetchBars'
 import { fetchTf } from '../../../components/chart/timeframes'
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
+import useSymbolSettle from '../../../hooks/useSymbolSettle'
+import { memHas } from '../../../utils/barsMemCache'
 import {
   sanitizeChartTabs, chartTabList, addChartTab, closeChartTab,
   setActiveChartTab, renameChartTab, patchChartTab,
@@ -27,6 +30,8 @@ import {
 import { buildWidgetEmbedAttrs } from '../../journal-2-0/lib/widgetEmbedCore'
 import { kickSnapshotWarm } from '../../journal-2-0/lib/embedArchive'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useWidgetDoor } from '../widgetDoors'
+import { PanelSlotContext } from '../panelSlot'
 import { chartJournalCapture } from './chartJournalCapture'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import { WORKSPACE_PICKER_TYPES, labelMap, catalogMeta } from '../../../widgets/registry'
@@ -48,7 +53,7 @@ const ADD_WIDGET_LABELS = labelMap('menu')
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, setGroupSym, setGroupTf, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets } = useWorkspace()
+  const { groupSyms, setGroupSym, setGroupTf, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, canOpenCompare } = useWorkspace()
   const navigate = useNavigate()
   const { createAlert } = useWatchlistAlerts()
   // Imperative handle on the pane: the right-click menu opens its settings
@@ -96,26 +101,18 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     ? null
     : (isMainTab || !activeExtra ? chartId : `${chartId}:${activeExtra.id}`)
 
-  // Debounce the linked ticker (~90ms): during a fast arrow-scan through a watchlist,
-  // the group sym changes many times/sec — without this every intermediate ticker
-  // runs the full StockChart fetch/framing pipeline and the charts fall behind. The
-  // chart settles on the ticker you land on when the scan pauses.
+  // The settled request: which symbol the member has landed on. A single switch
+  // applies in the same commit; a burst of arrow keys resolves to the last one
+  // (useSymbolSettle). This is still a derived view of the colour group, the one
+  // writable symbol authority.
   const groupSym = groupSyms[activeColor] || 'SPY'
-  // The SETTLED request: which symbol the member has landed on. (The debounce
-  // above stops a fast arrow-scan running the full pipeline per intermediate
-  // ticker.) This is still a derived view of the colour group — the group
-  // remains the one writable symbol authority.
-  // A host may set its own wait (chartHostOverlay.js): the screener sets 0, because it already
-  // warms the rows on screen into memory and a pause there is only latency on every step.
+  // A host may turn the wait off (chartHostOverlay.js): the screener sets 0, because it
+  // already warms the rows on screen into memory and a pause there is only latency.
   const hostOverlay = useContext(ChartHostOverlayContext)
+  const panelSlotReady = useContext(PanelSlotContext)
   const symDebounceMs = Number.isFinite(hostOverlay?.symbolDebounceMs) ? hostOverlay.symbolDebounceMs : 90
-  const [debouncedSym, setDebouncedSym] = useState(groupSym)
-  useEffect(() => {
-    if (symDebounceMs <= 0) return undefined
-    const t = setTimeout(() => setDebouncedSym(groupSym), symDebounceMs)
-    return () => clearTimeout(t)
-  }, [groupSym, symDebounceMs])
-  const requestedSym = symDebounceMs <= 0 ? groupSym : debouncedSym
+  const symIsWarm = useCallback((s) => memHas(s, fetchTf(tf)), [tf])
+  const requestedSym = useSymbolSettle(groupSym, { debounceMs: symDebounceMs, isWarm: symIsWarm })
 
   // ⭐⭐ ATOMIC SYMBOL HANDOFF. `sym` is what the chart DISPLAYS, and it only
   // advances to the request once current-enough data for it exists — so the
@@ -195,7 +192,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const markActive = useCallback(() => {
     if (activeChartRef) activeChartRef.current = widgetIdRef.current
   }, [activeChartRef])
-  const hotkeysIsActive = useCallback(() => {
+  const hotkeysIsActive = useCallback((e) => {
+    // ⛔ A chart on a popped desk does not answer keys typed on the page in the main window.
+    if (isHiddenDeskKey(e)) return false
     const a = activeChartRef?.current
     return a == null || a === widgetIdRef.current
   }, [activeChartRef])
@@ -285,7 +284,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   agentRef.current = {
     chartId, tabId: isMainTab ? null : (activeExtra?.id || null),
     opts, isMainTab, activeExtra, onOptsChange, setGroupSym, activeColor,
-    symbol: groupSym, tf, cs: chartCs, stored: activeStoredSettings,
+    symbol: groupSym, tf, cs: chartCs, stored: activeStoredSettings, chartsTheme,
   }
   useEffect(() => {
     if (!chartApiById) return undefined
@@ -314,6 +313,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           return {
             chartId: r.chartId, tabId: r.tabId, groupKey: r.activeColor,
             symbol: r.symbol, tf: r.tf, cs: r.cs, stored: r.stored ?? null,
+            watermarkPos: r.opts?.watermarkPos ?? null, canvasTheme: r.chartsTheme ?? null,
           }
         },
         // The Time Navigator's own read-out and jump (ChartPane → StockChart date-nav API):
@@ -322,6 +322,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         // the symbol StockChart keys its drawings by (the handed-off `sym` it is rendered with)
         drawSym: () => symRef.current,
         goToDate: (ms) => paneRef.current?.goToDate?.(ms),
+        viewDo: (op, arg) => !!paneRef.current?.viewDo?.(op, arg),
         // INDICATORS M1 (AGENT-INTEGRATION-HANDOFF §11): the chart's own Create Indicator door.
         openCreateIndicator: (o) => paneRef.current?.openCreateIndicatorFor?.(o) ?? { ok: false, reason: 'unavailable', prefilled: false, draft: false, editing: false },
         canCreateIndicator: () => !!paneRef.current?.canCreateIndicator?.(),
@@ -334,15 +335,17 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         clearAuthoringPreview: () => !!paneRef.current?.clearAuthoringPreview?.(),
         // ONE onOptsChange for settings + tf; the ticker through the colour group.
         // `settings` present (even null) means "store exactly this blob".
+        // `watermarkPos` is the widget's own (every tab shows it), in the shape endWatermarkAdjust / resetWatermark write.
         commit: (patch) => {
           const r = agentRef.current
           const tabPatch = {}
           if ('settings' in patch) tabPatch.settings = patch.settings
           if ('tf' in patch) tabPatch.tf = patch.tf
-          if (Object.keys(tabPatch).length) {
+          const widgetPatch = 'watermarkPos' in patch ? { watermarkPos: patch.watermarkPos } : {}
+          if (Object.keys(tabPatch).length || 'watermarkPos' in patch) {
             const o = r.opts || {}
-            if (r.isMainTab) r.onOptsChange?.({ ...o, ...tabPatch })
-            else if (r.activeExtra) r.onOptsChange?.(patchChartTab(o, r.activeExtra.id, tabPatch))
+            if (r.isMainTab || !Object.keys(tabPatch).length) r.onOptsChange?.({ ...o, ...(r.isMainTab ? tabPatch : {}), ...widgetPatch })
+            else if (r.activeExtra) r.onOptsChange?.({ ...patchChartTab(o, r.activeExtra.id, tabPatch), ...widgetPatch })
             else return false
           }
           if (patch.symbol) r.setGroupSym?.(r.activeColor, patch.symbol)
@@ -426,8 +429,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const [ctxToast, setCtxToast] = useState(null)
   const [ctxSub, setCtxSub] = useState(null)     // 'add' when the Add-widget submenu is open
   const [tplFlyout, setTplFlyout] = useState(false)  // "Chart template" side flyout open
+  const [presetFlyout, setPresetFlyout] = useState(false)  // pane indicator's "Preset" side flyout open
   const [wmAdjusting, setWmAdjusting] = useState(false)  // watermark "adjust position" mode active
-  const closeCtx = useCallback(() => { setCtxMenu(null); setCtxSub(null); setTplFlyout(false) }, [])
+  const closeCtx = useCallback(() => { setCtxMenu(null); setCtxSub(null); setTplFlyout(false); setPresetFlyout(false) }, [])
   const ctxMenuRef = useRef(null)
   // Location-aware in Y too: after the menu renders, measure it and nudge it fully
   // on-screen so a right-click near the bottom (or right) never clips off. Runs in a
@@ -516,7 +520,10 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
       price: p.clickPrice, bar: p.bar, currentPrice: p.currentPrice,
       resetView: p.resetView, openSettings: p.openSettings,
       clearDrawings: p.clearDrawings, hasDrawings: p.hasDrawings,
-      onWatermark: p.onWatermark, region: p.region, onCandle: p.onCandle })
+      onWatermark: p.onWatermark, region: p.region, onCandle: p.onCandle,
+      // B9: the pane owner's chip rows when the click landed in an indicator pane.
+      paneIndicator: p.paneIndicator && Array.isArray(p.paneIndicator.items) && p.paneIndicator.items.length
+        ? p.paneIndicator : null })
   }, [])
 
   useEffect(() => {
@@ -542,6 +549,14 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const buildJournalCapture = useCallback(() => chartJournalCapture({
     pane: paneRef.current, symbol: symRef.current, tf: tfRef.current, settings: chartCsRef.current,
   }), [])
+
+  // the View Holdings button (an ETF or a UCT index): its toggle, read back from whether its panel is open
+  const holdingsRef = useRef(null)
+  useWidgetDoor(() => ({
+    capture: () => ({ kind: 'chart', capture: buildJournalCapture() }),
+    read: () => { const h = holdingsRef.current; return h && (h.holdable || h.open) ? { holdingsOpen: !!h.open } : {} },
+    write: (key, v) => { if (key === 'holdingsOpen') holdingsRef.current?.set?.(v) },
+  }))
 
   const handleSendToJournal = useCallback(async () => {
     closeCtx()
@@ -569,6 +584,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   useEffect(() => {
     const onKey = (e) => {
       if (!(e.ctrlKey && e.altKey && (e.key === 'j' || e.key === 'J'))) return
+      if (isHiddenDeskKey(e)) return
       // ⛔ NOT hotkeysIsActive(): its null-means-all baseline is right for TF
       // keys (legacy behavior) but a CAPTURE with no hovered chart would fire
       // on EVERY mounted chart — N inbox rows per press. Capture demands an
@@ -642,10 +658,17 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           watermarkAdjusting: wmAdjusting,
           onWatermarkAdjustEnd: endWatermarkAdjust,
           onWatermarkAnchor: adoptWatermarkAnchor,
+          // ⭐ UCT RS 3-09 — the workspace mounts a Compare Symbols panel (desktop
+          // only), so a readout row may offer "Open the rotation map". Any other
+          // host of this widget (breadth drill, screener focus) leaves it off.
+          canOpenCompare: canOpenCompare === true,
           // ⭐ WHICH CHART (Phase C Task 12). `ChartPane` spreads
           // `stockChartProps` onto `StockChart`, which forwards it to
           // `ChartToolbar` → `IndicatorAlertPopover` → the `?scope=` request.
           chartId: paneChartId,
+          // The workspace's mount queue: this panel's bars are up, so the next queued one may
+          // start. Once per mount (StockChart's latch); null outside the main board.
+          onBarsReady: panelSlotReady || undefined,
           // Custom-Period Sort: drag-to-highlight mode + the completed selection,
           // tagged with THIS chart's symbol for the config popover's % readout.
           periodSelect: !!periodSortMode,
@@ -716,7 +739,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                   the fund/index constituents (a thematic index lists the theme's merged
                   basket, which tracks the Theme Tracker). ViewHoldingsControl decides
                   whether to render based on the symbol. */}
-              <ViewHoldingsControl sym={sym} candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }} />
+              <ViewHoldingsControl sym={sym} doorRef={holdingsRef} candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }} />
               {/* Add-tab entry point — only when the strip isn't showing yet (0
                   extra tabs). Once a tab exists, the strip's own + button takes over. */}
               {extraTabs.length === 0 && (
@@ -725,6 +748,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                   className={styles.chartSettingsBtn}
                   onClick={handleAddTab}
                   title="New chart tab (independent settings, loads as UCT Default)"
+                  data-guide="chart.addTab"
                   aria-label="New chart tab"
                 >
                   <UIcon name="plus" size={15} />
@@ -770,7 +794,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             onClick={closeCtx}
             onContextMenu={(e) => { e.preventDefault(); closeCtx() }}
           />
-          <div ref={ctxMenuRef} className={styles.chartCtxMenu} style={{ left: ctxMenu.x, top: ctxMenu.y, ...menuVars }} role="menu">
+          <div ref={ctxMenuRef} className={styles.chartCtxMenu} style={{ left: ctxMenu.x, top: ctxMenu.y, ...menuVars }} role="menu" data-guide="chart.contextMenu">
             {ctxSub === 'add' ? (
               /* Add-widget picker — same roster the workspace Widgets menu shows.
                  Selecting one drops it onto the canvas as a floating widget. */
@@ -792,10 +816,80 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
               </>
             ) : (
               <>
+                {/* ── B9 · The indicator pane under the pointer ──
+                    A right-click inside an indicator's own pane leads with that
+                    indicator's rows: the legend chip's rows and handlers, built
+                    by StockChart (`paneMenuItems`), so this menu and the chip
+                    cannot drift. The chart menu continues below the rule. */}
+                {ctxMenu.paneIndicator && (
+                  <>
+                    {ctxMenu.paneIndicator.items.map((row) => {
+                      if (row.key === 'preset' && Array.isArray(row.submenu)) {
+                        return (
+                          <div key={row.key} className={styles.chartCtxSubWrap}>
+                            <button
+                              type="button"
+                              className={`${styles.chartCtxItem} ${presetFlyout ? styles.chartCtxItemOpen : ''}`}
+                              data-menu-id="pane-preset"
+                              aria-haspopup="true"
+                              aria-expanded={presetFlyout}
+                              onClick={() => { setTplFlyout(false); setPresetFlyout(v => !v) }}
+                            >
+                              <UIcon name={row.icon} size={14} className={styles.chartCtxIcon} />{row.label}
+                              <span className={styles.chartCtxTrail} data-preset-current="">{row.trailing}</span>
+                              <span className={styles.chartCtxCaret} aria-hidden="true">▸</span>
+                            </button>
+                            {presetFlyout && (
+                              <div className={styles.chartCtxFlyout} role="menu" aria-label="Preset">
+                                {row.submenu.map(s => (
+                                  <button
+                                    key={s.key}
+                                    type="button"
+                                    role="menuitemradio"
+                                    aria-checked={!!s.checked}
+                                    className={styles.chartCtxItem}
+                                    data-menu-id={`pane-${s.key}`}
+                                    // Custom is a state, not a choice: shown, ticked when
+                                    // nothing matches, never pressable (chipMenu.presetSubmenu).
+                                    disabled={!s.onClick}
+                                    title={s.origin || undefined}
+                                    onClick={() => { s.onClick?.(); closeCtx() }}
+                                  >
+                                    <span className={styles.chartCtxCheck} aria-hidden="true">
+                                      {s.checked ? <UIcon name="check" size={13} gold={false} /> : null}
+                                    </span>
+                                    <span className={styles.chartCtxTplName}>{s.label}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      }
+                      // A refused row (a read-only alert form) is shown with its
+                      // reason, never hidden and never live.
+                      const refused = typeof row.disabled === 'string' && row.disabled ? row.disabled : null
+                      return (
+                        <button
+                          key={row.key}
+                          type="button"
+                          className={styles.chartCtxItem}
+                          data-menu-id={`pane-${row.key}`}
+                          disabled={!!refused || !row.onClick}
+                          title={refused ? `Unavailable: ${refused}` : undefined}
+                          onClick={() => { closeCtx(); row.onClick?.() }}
+                        >
+                          <UIcon name={row.icon} size={14} className={styles.chartCtxIcon} />{row.label}
+                        </button>
+                      )
+                    })}
+                    <div className={styles.menuDivider} />
+                  </>
+                )}
                 {/* ── Price action (at the clicked bar) ── */}
                 {Number.isFinite(ctxMenu.price) && (
                   <>
-                    <button type="button" className={styles.chartCtxItem} onClick={handleSetAlert}>
+                    <button type="button" className={styles.chartCtxItem} data-menu-id="set-alert" onClick={handleSetAlert}>
                       <UIcon name="bell" size={14} className={styles.chartCtxIcon} />
                       Set alert @ ${ctxMenu.price.toFixed(2)}
                     </button>
@@ -803,13 +897,13 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                   </>
                 )}
                 {/* ── Chart actions ── */}
-                <button type="button" className={styles.chartCtxItem} onClick={handleSendToJournal}>
+                <button type="button" className={styles.chartCtxItem} data-menu-id="journal" onClick={handleSendToJournal}>
                   <UIcon name="journal" size={14} className={styles.chartCtxIcon} />Send to Journal
                 </button>
-                <button type="button" className={styles.chartCtxItem} onClick={handleSendToJournalChoose}>
+                <button type="button" className={styles.chartCtxItem} data-menu-id="journal-choose" onClick={handleSendToJournalChoose}>
                   <UIcon name="journal" size={14} className={styles.chartCtxIcon} />Send to Journal (choose where)…
                 </button>
-                <button type="button" className={styles.chartCtxItem} onClick={() => {
+                <button type="button" className={styles.chartCtxItem} data-menu-id="reset" onClick={() => {
                   ctxMenu.resetView?.(); closeCtx()
                   // Return focus to the chart so type-to-search works immediately (else
                   // the first keypress hits a global drawing-tool hotkey, not the search).
@@ -823,23 +917,24 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 {ctxLocItem && (
                   <>
                     <div className={styles.menuDivider} />
-                    <button type="button" className={styles.chartCtxItem} onClick={() => { paneRef.current?.openSettings(ctxLocItem.target); closeCtx() }}>
+                    <button type="button" className={styles.chartCtxItem} data-menu-id={`settings-${ctxLocItem.target}`} onClick={() => { paneRef.current?.openSettings(ctxLocItem.target); closeCtx() }}>
                       <UIcon name={ctxLocItem.icon} size={14} className={styles.chartCtxIcon} />{ctxLocItem.label}
                     </button>
                   </>
                 )}
                 <div className={styles.menuDivider} />
                 {/* ── Chart configuration ── */}
-                <button type="button" className={styles.chartCtxItem} onClick={() => { paneRef.current?.openSettings(); closeCtx() }}>
+                <button type="button" className={styles.chartCtxItem} data-menu-id="settings" onClick={() => { paneRef.current?.openSettings(); closeCtx() }}>
                   <UIcon name="gear" size={14} className={styles.chartCtxIcon} />Chart settings
                 </button>
                 <div className={styles.chartCtxSubWrap}>
                   <button
                     type="button"
                     className={`${styles.chartCtxItem} ${tplFlyout ? styles.chartCtxItemOpen : ''}`}
+                    data-menu-id="template"
                     aria-haspopup="true"
                     aria-expanded={tplFlyout}
-                    onClick={() => setTplFlyout(v => !v)}
+                    onClick={() => { setPresetFlyout(false); setTplFlyout(v => !v) }}
                   >
                     <UIcon name="copy" size={14} className={styles.chartCtxIcon} />Chart template
                     <span className={styles.chartCtxCaret} aria-hidden="true">▸</span>
@@ -867,20 +962,20 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                     </div>
                   )}
                 </div>
-                <button type="button" className={styles.chartCtxItem} onClick={() => setCtxSub('add')}>
+                <button type="button" className={styles.chartCtxItem} data-menu-id="add-widget" onClick={() => setCtxSub('add')}>
                   <UIcon name="plus" size={14} className={styles.chartCtxIcon} />Add widget ▸
                 </button>
                 {/* ── Drawings ── */}
                 {ctxMenu.hasDrawings && (
                   <>
                     <div className={styles.menuDivider} />
-                    <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.clearDrawings?.(); setCtxToast('Drawings cleared'); closeCtx() }}>
+                    <button type="button" className={styles.chartCtxItem} data-menu-id="clear-draw" onClick={() => { ctxMenu.clearDrawings?.(); setCtxToast('Drawings cleared'); closeCtx() }}>
                       <UIcon name="trash" size={14} className={styles.chartCtxIcon} />Clear all drawings
                     </button>
                   </>
                 )}
                 {ctxMenu.bar && (
-                  <button type="button" className={`${styles.chartCtxItem} ${styles.chartCtxAi}`} onClick={handleAiSearch}>
+                  <button type="button" className={`${styles.chartCtxItem} ${styles.chartCtxAi}`} data-menu-id="ask-ai" onClick={handleAiSearch}>
                     <UIcon name="compass" size={14} className={styles.chartCtxIcon} />Ask AI about {sym}
                   </button>
                 )}

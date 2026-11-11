@@ -693,16 +693,21 @@ MOVERS_MAX = 8
 MOVERS_SCAN_MAX = 200
 
 #: The sentence for each gap code (the client shows `detail`; the code is for rails and logic).
+#: Audit 2026-11-05, spec S9 (detail #49): a gap that fills itself (`PREP_RETRYABLE`) never asks the member to
+#: "capture again": the open note reads the part again in the background the same day and fills the block
+#: (PrepCapture.jsx). Fix round 1 (review finding 7): the FROZEN sentence promises nothing ("was still loading when
+#: this was captured"), so it stays true on every later day; the live "fills in" words are the client's alone.
 PREP_GAPS = {
     "no_wire": "The morning wire has not published yet today.",
-    "no_earnings_yet": "Today's earnings list has not been loaded yet. Capture again in a few minutes.",
+    "no_earnings_yet": "Today's earnings list was still loading when this was captured.",
     "no_names": "Add names to a watchlist, flag them, or hold a position to see them here.",
-    "no_quotes": "None of your names has a price yet. Capture again in a few minutes.",
+    "no_quotes": "Your names' prices were still loading when this was captured.",
     "no_setups": "No setups on your board yet. Draw a plan's entry on a chart to see its levels here.",
-    "source_error": "This could not be read just now. Capture again in a moment.",
+    "source_error": "This couldn't be read when it was captured.",
 }
-#: What the levels part needs when the setups board is off (BlockNeedsSwitch's `what`).
-LEVELS_NEEDS = "the active setups board"
+#: The gaps the client reads again by itself (railed against PrepCapture.jsx's RETRYABLE by
+#: tests/test_prep_gaps_s9.py, which parses the client list rather than restating it).
+PREP_RETRYABLE = ("no_earnings_yet", "no_quotes", "source_error")
 
 
 #: The member's own name sources (`member_interest.SOURCES` less the UCT 20) that `_my_names` could
@@ -861,13 +866,10 @@ def _prep_movers(user_id: str, now: datetime, memo: dict) -> dict:
 def _prep_levels(user_id: str, now: datetime, memo: dict) -> dict:
     """The member's setups board, its prices CACHE-ONLY (the `prices` seam, so the board's own
     reader never runs). N12: sample (example) cards are never frozen into a member's note; one board
-    page at most, with the member's own total. Off, it says what it needs."""
+    page at most, with the member's own total."""
     from api.services.auth_db import get_connection
     from api.services.journal_two import setups_board
     out = _base("levels", now)
-    if not setups_board.enabled():
-        out.update(needs=LEVELS_NEEDS)
-        return out
 
     def prices(symbols) -> dict:
         got: dict = {}
@@ -967,8 +969,6 @@ BUILDERS.update({PREP_BLOCK[p]: _prep_builder(p) for p in PREP_PARTS})
 # (`id:<row id>` / `ext:<external id>`, trade_refs.trade_ref_for_row) and the trade list carries it.
 _TRADE_KEYS = ("id", "symbol", "side", "entryDate", "exitDate", "entryPrice", "exitPrice", "rMultiple",
                "result", "setup", "pnlPercent")
-#: What the plan grade needs when its switch is off (BlockNeedsSwitch's `what`).
-PLAN_GRADE_NEEDS = "plan grading"
 
 
 def recent_closed_trades(user_id: str, limit: int = 20) -> list[dict]:
@@ -1016,11 +1016,8 @@ def trade_review(user_id: str, trade_key: str) -> dict | None:
         # THE one join (R-PF-N7, adherence_of_trade): the same fallback the before/after numbers use.
         pre = adherence_of_trade(lambda ref: adherence_store.get_adherence(user_id, ref, conn=c),
                                  detail["tradeRef"], t.get("positionId"))
-        if plan_grading.enabled():
-            row = plan_grading.get_trade(c, user_id, t["id"])
-            grade = plan_grading.grade_payload(c, user_id, row) if row is not None else None
-        else:
-            grade = {"needs": PLAN_GRADE_NEEDS}
+        row = plan_grading.get_trade(c, user_id, t["id"])
+        grade = plan_grading.grade_payload(c, user_id, row) if row is not None else None
         return {"trade": {**{k: t.get(k) for k in _TRADE_KEYS}, "tradeRef": detail["tradeRef"]},
                 "tags": {"mistakes": t.get("mistakeTags") or [], "emotions": t.get("emotionTags") or []},
                 "preEntry": ({"setup": pre.get("setup"), "checkedRuleIds": pre.get("checkedRuleIds") or [],

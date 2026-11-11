@@ -264,6 +264,14 @@ function trackedModules() {
  *  and nothing else is'). */
 const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stubs)[\\/]|(^|[\\/])test-[^\\/]*$|(^|[\\/])pages[\\/]journal-2-0[\\/]a11y[\\/]/
 
+/** The Study WORKBENCH, `src/lab/`: a dev-server-only Vite entry (app/lab.html, <script src="/src/lab/main.jsx">)
+ *  the owner scores design pieces on, never built (lab/labAbsent.test.js is the rail, the econHarness shape). A
+ *  walk from App.jsx can never see a second HTML entry, so its ~70 pieces would read as abandoned here while being
+ *  used daily. Named by its FULL path under src, so a `lab/` directory anywhere else is judged like any other
+ *  module. The product MAY import single lab modules (the challenges reuse the workbench's start card, bits and
+ *  stylesheet); those are then reachable like anything else and need no excuse. */
+const WORKBENCH = /^lab[\\/]/
+
 /**
  * Unreachable ON PURPOSE, each with the reason and the decision still owed.
  *
@@ -521,19 +529,6 @@ const AWAITING_A_DECISION = {
     'NOT dead — a hand-written DECLARATION of the shipped catalogue that imports '
     + 'nothing on purpose, so nine rails can disagree with it. Deriving it from '
     + 'the registry would make it true by construction and unable to fail.',
-  'app/src/components/chart/engine/ast/doorCoverage.js':
-    'MEASUREMENT INFRASTRUCTURE, same class as registrySizes.js above: its '
-    + 'consumer is a RAIL, not a route. It asks which declared engine functions '
-    + 'each importer can actually reach — the question that was being answered by '
-    + 'hand, one indicator at a time, and that no gate measured because the corpus '
-    + 'can only exercise the names 75 chosen scripts happen to use. '
-    + '⛔ DELIBERATELY NOT MOUNTED. Answering it runs three translators over every '
-    + 'declared function; that belongs in a test, not in a page load, and putting '
-    + 'it on the reference page would make a member wait for a number computed for '
-    + 'engineers. ⚠️ It is nonetheless a REAL candidate for a product surface — '
-    + '"which of your platforms can reach this" is a question a member evaluating '
-    + 'a switch would want answered — so this entry is a decision recorded, not a '
-    + 'file forgotten. Rail: doorCoverage.test.js.',
   'app/src/pages/EducationalVideos.jsx':
     'A 4-line re-export shim over the LIVE pages/desk/VideosSection. Its test is '
     + 'not test-only coverage: it renders the shim, i.e. VideosSection, and carries '
@@ -720,6 +715,70 @@ const AWAITING_A_DECISION = {
   // reached from App.jsx like any rendered module; the block, its expiry and
   // `panelSet.test.js`'s "nothing imports it" rail went in that commit, as the
   // block's own text said.)
+  // ── RS TEACHING EXPORT — A BUILD-TOOL ENTRY, NOT A SCREEN (2026-11-07) ──────
+  // UCT RS Phase 4. `content/rs/teaching.js` is the module the export tool runs; no
+  // screen imports it, ON PURPOSE, and the unit that checked (4-04) recorded why
+  // rather than wiring it somewhere it does not belong. Same shape as
+  // `cotFactsEntry.js` / `flowFactsEntry.js` above: a walk from App.jsx cannot see
+  // a build-script entry. ⏳ The decision owed by the expiry: either a Phase 4
+  // surface (4-05's chip menu) imports its readout CARDS, which makes it reachable
+  // and this entry goes in that commit, or this rail learns build-tool entries as
+  // roots the way `configEntryPoints()` reads the Vite ones (this file and the two
+  // facts entries together), and the block goes then.
+  'app/src/content/rs/teaching.js':
+    'NOT dead — the ENTRY POINT of the RS teaching export: tools/export_rs_teaching.mjs '
+    + 'bundles it with esbuild and writes api/data/rs_teaching.json (Compass explain_rs in '
+    + 'api/services/rs_read_tools.py reads that JSON, never app/src), and '
+    + 'content/rs/teaching.export.test.js diffs the export against the committed file. It reads '
+    + 'the readout cards off the registered rsLine definition, so importing it pulls in the chart '
+    + 'engine. That is why the app reads the words from content/rs/teachingData.js instead: the '
+    + 'public glossary page (RsGlossary.test.jsx pins that its import walk never reaches teaching.js) '
+    + 'and nativeRegistry.js (rsLine meta.tour; importing teaching.js there is an import cycle). '
+    + 'Do NOT mount it to green this rail.',
+  // ⚰️ W9-T13a STRATEGY REPORT METRICS stood here until 2026-11-08: `runtime/brokerReport.js` was
+  // parked waiting for its consumer. W9-T13b mounted it the same day: `pane/AttachedStrategyReports.jsx`
+  // (imported by `ChartPane.jsx`) renders `pane/StrategyReportPanel.jsx` from `strategyReportOf`. It is
+  // REACHABLE and still DARK: the mount returns null unless VITE_PINE_STRATEGY_BROKER_ENABLED === '1'
+  // (`strategyBrokerGate.js`, unset on every service), railed by `strategyReportPanel.test.jsx`
+  // ("gate off"). Reachable is not armed: arming is the owner's act, per W2 stage (D6).
+  // ── W5/W9 PINE + NLM-1 + SUPPORT LOOP — DRIVEN BY A TOOL OR A TEST, NOT A SCREEN (2026-11-08) ──
+  // Recorded 2026-11-08 when master was found red with these orphans
+  // (each landed 2026-10-30..11-07 while the rail was already red on the lapsed
+  // cockpit block, so nobody saw them arrive). No remote branch (60 most recent
+  // checked) imports any of them from non-test code. ⏳ The decision owed by the
+  // expiry, per entry: a consumer lands (entry goes in that commit), or the rail
+  // learns build-tool entries as roots (see the RS TEACHING block), or the owner
+  // deletes. ⛔ Not dead code: each one's job is named beside it.
+  'app/src/components/chart/engine/runtime/serverEntry.js':
+    'BUILD-TOOL ENTRY: app/scripts/build-pine-runtime.mjs bundles it into '
+    + 'dist-server/pine-runtime.mjs for the W5 server runtime (docs/pine/SERVER-RUNTIME-DESIGN.md '
+    + 'T1). A walk from App.jsx cannot see a build-script entry, same shape as content/rs/teaching.js.',
+  'app/src/components/chart/engine/runtime/columnDigest.js':
+    'Reached ONLY through serverEntry.js (the W5 T3 column codec, JS half; the Python half is '
+    + 'api/services/pine_runtime_codec.py). Leaves this register with serverEntry.js.',
+  'app/src/components/chart/engine/runtime/brokerPinsLock.js':
+    'W9-T2 pin-ledger lock: a pure check its own header says is NOT imported by the bundle; '
+    + 'its consumer is the rail __tests__/brokerPinsLock.test.js (docs/pine/W9-STRATEGY-DESIGN.md).',
+  'app/src/components/chart/engine/ast/strategyScorecard.js':
+    'W9-T15 / ruling D7 scorecard wording for strategy backtests (docs/pine/W9-DECISIONS-2026-11-07.md). '
+    + 'Built dark: only strategiesAreRuled/productScorecard tests read it; no scorecard surface '
+    + 'renders it yet because strategy backtests are not served (D6).',
+  'app/src/components/chart/supportLoop/doorNameCoverage.js':
+    'Support loop Phase B (docs/pine/support-loop/PHASE-B.md): its test regenerates the committed '
+    + 'doorNameCoverage.json that the Python digest reads. A generator, not a screen.',
+  'app/src/agent/nlm1/routers.js':
+    'NLM-1 D1 pluggable routers for the dev/held-out scorers (devMetrics, nlm1Routing tests), '
+    + 'behind the dark UCT_AGENT_ROUTING_V2 flag (default off). Measurement tooling, not a route.',
+  'app/src/agent/qa/chartsOutcome/outcomeHarness.jsx':
+    'Test harness for the eight *.outcome.test.jsx files beside it. Lives outside the TEST_INFRA '
+    + 'directories; the honest fix is moving it under a testing/ path, not widening TEST_INFRA.',
+  // ── STUDY UI KIT LEFTOVER — NO IMPORTER AT ALL, OWNER DECIDES (2026-11-08) ──
+  // Zero importers anywhere, tests included, on master and on the 60 most recent
+  // remote branches. Built in round 18 (4a82de5757) and orphaned by the same day's
+  // fix 27f0e7c614 ("the seal off the chart"). Reported as DEAD; kept only because
+  // deleting is the owner's call.
+  'app/src/pages/study/ui/MarkBubble.jsx':
+    'DEAD candidate: the Study kit mark+bubble, unused since the round 18 fix. Delete or re-mount.',
   }
 
 /**
@@ -761,9 +820,17 @@ const PARKING_EXPIRES = {
   // (The WAVE 2 block's expiry, 2026-10-23, was deleted 2026-10-24 with the
   // block: it lapsed three times, and on the third its five modules were
   // deleted or moved to test infrastructure rather than renewed.)
-  'THE DASHBOARD COCKPIT RETIREMENT (2026-08-30)': '2026-10-31',
+  // Cockpit renewed 2026-11-08 (lapsed 2026-10-31 unnoticed). Short on purpose: ten weeks
+  // live and nobody has asked for a preview back, so the tiles are deletion candidates
+  // and the decision is the owner's. doorCoverage.js left the block that day (now wired).
+  'THE DASHBOARD COCKPIT RETIREMENT (2026-08-30)': '2026-11-30',
+  'W5/W9 PINE + NLM-1 + SUPPORT LOOP — DRIVEN BY A TOOL OR A TEST, NOT A SCREEN (2026-11-08)': '2026-12-31',
+  'STUDY UI KIT LEFTOVER — NO IMPORTER AT ALL, OWNER DECIDES (2026-11-08)': '2026-11-30',
   'SEAM 18 / COMMUNITY SURFACE — RECORDED, NOT DELETED (2026-09-11)': '2026-11-30',
   'The Community surface itself: 15 files, one coherent feature': '2026-11-30',
+  'RS TEACHING EXPORT — A BUILD-TOOL ENTRY, NOT A SCREEN (2026-11-07)': '2026-12-31',
+  // (W9-T13a STRATEGY REPORT METRICS' expiry, 2026-12-31, was deleted 2026-11-08 with its block:
+  // W9-T13b mounted brokerReport.js, dark, behind the broker gate.)
   'S4 CP1 DIVERGENCE DETECTOR — RECORDED, NOT MOUNTED (2026-09-25, R-29)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
   'FILTER BAND — ORPHANED BY #178, RECORDED NOT DELETED (2026-09-25)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
   // ⭐⭐ ADDED BY THE 2026-09-23 MERGE, AND NEITHER PARENT WAS WRONG.
@@ -920,6 +987,16 @@ describe('🔴 every module under app/src is REACHABLE from an entry point', () 
       + 'committed — the tracked set is wrong, not the allow-list').toEqual([])
   })
 
+  it('the Study workbench directory is a dev-only entry, and a lab/ anywhere else is not', () => {
+    const rel = (...p) => path.join(...p)
+    expect(WORKBENCH.test(rel('lab', 'main.jsx'))).toBe(true)
+    expect(WORKBENCH.test(rel('lab', 'pieces', 'Piece58LogoLadder.jsx'))).toBe(true)
+    // the product's own modules, including the challenges that IMPORT lab modules, are judged like any other
+    expect(WORKBENCH.test(rel('pages', 'study', 'challenges', 'BlitzChallenge.jsx'))).toBe(false)
+    expect(WORKBENCH.test(rel('components', 'lab', 'Bench.jsx'))).toBe(false)
+    expect(WORKBENCH.test(rel('labels', 'x.js'))).toBe(false)
+  })
+
   it('the Notebook a11y rail directory is test infrastructure, and nothing else is', () => {
     const rel = (...p) => path.join(...p)
     expect(TEST_INFRA.test(rel('pages', 'journal-2-0', 'a11y', 'axeHarness.js'))).toBe(true)
@@ -934,7 +1011,7 @@ describe('🔴 every module under app/src is REACHABLE from an entry point', () 
     const orphans = modules
       .filter((f) => tracked.has(f))
       .filter((f) => !reachable.has(f))
-      .filter((f) => !TEST_INFRA.test(path.relative(SRC, f)))
+      .filter((f) => !TEST_INFRA.test(path.relative(SRC, f)) && !WORKBENCH.test(path.relative(SRC, f)))
       .map(key)
       .filter((k) => !(k in AWAITING_A_DECISION))
     expect(orphans,
@@ -1141,7 +1218,7 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
 
     const classify = (trackedSet) => [planted]
       .filter((f) => trackedSet.has(f))
-      .filter((f) => !TEST_INFRA.test(path.relative(SRC, f)))
+      .filter((f) => !TEST_INFRA.test(path.relative(SRC, f)) && !WORKBENCH.test(path.relative(SRC, f)))
       .map(key)
       .filter((k) => !(k in AWAITING_A_DECISION))
 

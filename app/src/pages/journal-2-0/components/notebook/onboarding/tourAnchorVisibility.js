@@ -70,10 +70,14 @@ export function requestReveal(anchor) {
 
 /** The on-screen element for an anchor, or null. Explicitly hidden elements do not count,
  *  and nor does one the member cannot see (M-7: a collapsed sidebar's anchors). */
+/** The containers whose anchors the engine never shows. ONE rule, read by `anchorFor` and by the
+ *  engine's start-of-tour step count (GenericTourEngine `anchorExists`). */
+export const NEVER_SHOWN = '[hidden],[aria-hidden="true"]'
+
 export function anchorFor(anchor) {
   if (typeof document === 'undefined') return null
   const el = document.querySelector(`[data-tour="${anchor}"]`)
-  if (!el || el.closest('[hidden],[aria-hidden="true"]')) return null
+  if (!el || el.closest(NEVER_SHOWN)) return null
   if (!isOnScreen(el)) return null
   return el
 }

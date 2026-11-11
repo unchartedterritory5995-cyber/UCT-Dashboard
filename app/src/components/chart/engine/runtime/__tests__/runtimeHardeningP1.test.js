@@ -134,7 +134,8 @@ describe('A — every declared limit is counted, and stops by name', () => {
     let err = null
     try { computeRuntimeColumns({ id: 'x', compute: { fn: 'x', source: huge, outputs: { v: 0 } } }, rows(), { tf: 'D' }) } catch (e) { err = e }
     expect(err && err.guard).toBe(RUNTIME_LIMIT_GUARD)
-    expect(err.message).toMatch(/PROGRAM_SIZE/)
+    expect(err.limit).toBe('PROGRAM_SIZE')
+    expect(err.message).not.toMatch(/PROGRAM_SIZE/)
     expect(probeRuntimeProgram(huge)).toMatchObject({ ok: false, refusal: { guard: RUNTIME_LIMIT_GUARD } })
     expect(probeObjectRuntime(huge, [])).toMatchObject({ ok: false, refusal: { guard: RUNTIME_LIMIT_GUARD } })
     // the boundary, in UTF-8 bytes rather than characters

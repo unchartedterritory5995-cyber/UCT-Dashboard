@@ -216,3 +216,23 @@ For the scoped regression run, see the PR description.
 **UI refactors with no behaviour change:**
 - `ChartSettingsIndicators.jsx` now imports `ohlcCapableFor` / `sourceCapabilityFor` from `engine/styleCapability.js`, moved verbatim.
 - Its active-row filter is now `chartDataMap.activeIndicatorRows`, so the panel and `paneKeysOf` share one rule.
+
+---
+
+## 8. PACKAGE 3 seam — I-14 `setVisibility` (Agent, 2026-11-04)
+
+"Only show it on the daily" is the Inspector's **Show on** row: which CHART timeframes an instance draws on
+(`inst.visibility`, `engine/instanceTimeframe.js`). It was the one per-instance presentation control the mutation
+contract did not expose.
+
+- `STYLE_OPS` gains `setVisibility`: `{op: 'setVisibility', instanceId, visibility}` where `visibility` is `null` /
+  `'all'` (every timeframe — the absent key) or the stored policy shape (`{preset: 'intraday'}`,
+  `{preset: 'dailyUp'}`, `{preset: 'custom', tfs: [chart timeframe codes]}`).
+- Writer: `setInstanceVisibility` — the one the settings row uses. Per instance, presentation only; refusals
+  `no-change` and `bad-input` (with the presets as `options`); `change: {what: 'visibility', before, after}` in
+  `visibilitySummary` words ("All timeframes", "Daily only").
+- Plan, apply, confirm and exact Undo are the existing style-op path (`agentMutations.ext.test.js` I-14).
+
+Agent side: `indicatorStyle.set` property `showOn` (value "daily", "weekly", "daily and weekly", "intraday",
+"daily and above", "all"). An indicator built in Create Indicator has no Inspector width control: "thicker" /
+"thinner" there change its own **Line width** setting (the `lineWidth` input) through `setInputs`.

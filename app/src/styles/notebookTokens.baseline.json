@@ -1,0 +1,1321 @@
+{
+ "pages/journal-2-0/JournalLayout.module.css": {
+  "border-radius 10px": 1,
+  "border-radius 7px": 1,
+  "font-size 16px": 1,
+  "spacing 10px": 4,
+  "spacing 14px": 4,
+  "spacing 18px": 1,
+  "spacing 20px": 2,
+  "spacing 3px": 1,
+  "spacing 40px": 1,
+  "spacing 6px": 3,
+  "spacing 7px": 5,
+  "spacing 9px": 2
+ },
+ "pages/journal-2-0/SharedNotePage.module.css": {
+  "border-radius 10px": 1,
+  "font-size 18px": 2,
+  "font-size 30px": 1,
+  "font-size 34px": 1,
+  "spacing 10px": 1,
+  "spacing 14px": 2,
+  "spacing 18px": 3,
+  "spacing 20px": 2,
+  "spacing 22px": 1,
+  "spacing 28px": 1,
+  "spacing 40px": 1,
+  "spacing 60px": 1
+ },
+ "pages/journal-2-0/components/SaveToNotebookButton.module.css": {
+  "spacing 10px": 2,
+  "spacing 5px": 1,
+  "spacing 6px": 2,
+  "spacing 9px": 1
+ },
+ "pages/journal-2-0/components/accounts/AccountSelector.module.css": {
+  "border-radius 10px": 1,
+  "spacing 10px": 2,
+  "spacing 6px": 3
+ },
+ "pages/journal-2-0/components/connectors/NoteConnectorsTrustStrip.module.css": {
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/AiActionsPanel.jsx": {
+  "icon-size 13px": 1,
+  "icon-size 14px": 1
+ },
+ "pages/journal-2-0/components/notebook/AiActionsPanel.module.css": {
+  "border-radius 10px": 1,
+  "font-size 10px": 1,
+  "font-size 15px": 1,
+  "spacing 10px": 4,
+  "spacing 18px": 1,
+  "spacing 1px": 1,
+  "spacing 3px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 4
+ },
+ "pages/journal-2-0/components/notebook/AlertPhraseMenu.jsx": {
+  "icon-size 14px": 2
+ },
+ "pages/journal-2-0/components/notebook/AlertPhraseMenu.module.css": {
+  "spacing 3px": 1,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/AskCitationView.module.css": {
+  "spacing 1px": 2
+ },
+ "pages/journal-2-0/components/notebook/AskInsertPicker.jsx": {
+  "icon-size 12px": 1,
+  "spacing 5px": 1
+ },
+ "pages/journal-2-0/components/notebook/AskInsertPicker.module.css": {
+  "font-size 16px": 1,
+  "spacing 10px": 1,
+  "spacing 6px": 3
+ },
+ "pages/journal-2-0/components/notebook/AskInsertView.jsx": {
+  "icon-size 13px": 2,
+  "spacing 5px": 2
+ },
+ "pages/journal-2-0/components/notebook/AskInsertView.module.css": {
+  "spacing 10px": 1,
+  "spacing 14px": 2,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/AskPanel.jsx": {
+  "icon-size 11px": 2,
+  "icon-size 12px": 3,
+  "icon-size 13px": 1,
+  "spacing 5px": 2
+ },
+ "pages/journal-2-0/components/notebook/AskPanel.module.css": {
+  "border-radius 10px": 1,
+  "border-radius 5px": 1,
+  "font-size 10.5px": 2,
+  "font-size 10px": 1,
+  "font-size 11.5px": 2,
+  "font-size 16px": 2,
+  "spacing -1px": 1,
+  "spacing 10px": 4,
+  "spacing 14px": 1,
+  "spacing 1px": 3,
+  "spacing 3px": 2,
+  "spacing 5px": 3,
+  "spacing 6px": 5,
+  "spacing 7px": 3
+ },
+ "pages/journal-2-0/components/notebook/BarReplay.jsx": {
+  "icon-size 12px": 1,
+  "icon-size 14px": 2
+ },
+ "pages/journal-2-0/components/notebook/BarReplay.module.css": {
+  "border-radius 10px": 1,
+  "font-size 11.5px": 2,
+  "font-size 16px": 2,
+  "spacing 10px": 5,
+  "spacing 14px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 4
+ },
+ "pages/journal-2-0/components/notebook/BlockedBadge.jsx": {
+  "icon-size 11px": 1
+ },
+ "pages/journal-2-0/components/notebook/BlockedBadge.module.css": {
+  "font-size 10px": 1,
+  "spacing 1px": 1,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/BulkActionBar.jsx": {
+  "icon-size 10px": 1
+ },
+ "pages/journal-2-0/components/notebook/BulkActionBar.module.css": {
+  "border-radius 10px": 1,
+  "border-radius 7px": 2,
+  "spacing -1px": 1,
+  "spacing 10px": 3,
+  "spacing 14px": 2,
+  "spacing 28px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 5
+ },
+ "pages/journal-2-0/components/notebook/CaptureAlertOffer.jsx": {
+  "icon-size 14px": 1
+ },
+ "pages/journal-2-0/components/notebook/CaptureConnectPage.jsx": {
+  "icon-size 14px": 2
+ },
+ "pages/journal-2-0/components/notebook/CaptureConnectPage.module.css": {
+  "border-radius 10px": 1,
+  "spacing 10px": 2,
+  "spacing 14px": 3,
+  "spacing 18px": 1,
+  "spacing 20px": 3,
+  "spacing 3px": 1,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/CaptureDialog.module.css": {
+  "font-size 15px": 1,
+  "font-size 16px": 2,
+  "spacing 10px": 6,
+  "spacing 11px": 1,
+  "spacing 14px": 1,
+  "spacing 6px": 1,
+  "spacing 7px": 1,
+  "spacing 9px": 1
+ },
+ "pages/journal-2-0/components/notebook/CaptureDoors.module.css": {
+  "font-size 12.5px": 1,
+  "spacing -1px": 1,
+  "spacing 10px": 2,
+  "spacing 14px": 2,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/CapturedSourceSheet.jsx": {
+  "icon-size 12px": 2,
+  "icon-size 13px": 2
+ },
+ "pages/journal-2-0/components/notebook/CapturedSourceSheet.module.css": {
+  "font-size 10px": 1,
+  "spacing 10px": 2,
+  "spacing 14px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/ChartPlanLevelControls.jsx": {
+  "icon-size 11px": 1
+ },
+ "pages/journal-2-0/components/notebook/ChartPlanPanel.module.css": {
+  "border-radius 5px": 3,
+  "font-size 11.5px": 5,
+  "font-size 12.5px": 2,
+  "spacing 10px": 2,
+  "spacing 3px": 3,
+  "spacing 6px": 6,
+  "spacing 9px": 1
+ },
+ "pages/journal-2-0/components/notebook/ComputedFilterControl.jsx": {
+  "icon-size 11px": 1
+ },
+ "pages/journal-2-0/components/notebook/ComputedValue.module.css": {
+  "spacing -1px": 1,
+  "spacing 1px": 1
+ },
+ "pages/journal-2-0/components/notebook/DateSuggestList.module.css": {
+  "spacing 10px": 2,
+  "spacing 6px": 4
+ },
+ "pages/journal-2-0/components/notebook/DocumentPreviewSheet.jsx": {
+  "icon-size 13px": 2
+ },
+ "pages/journal-2-0/components/notebook/DocumentPreviewSheet.module.css": {
+  "spacing 10px": 1,
+  "spacing 14px": 2,
+  "spacing 5px": 1
+ },
+ "pages/journal-2-0/components/notebook/DocumentTextStatus.jsx": {
+  "icon-size 12px": 1
+ },
+ "pages/journal-2-0/components/notebook/DocumentTextStatus.module.css": {
+  "spacing 10px": 3,
+  "spacing 7px": 2
+ },
+ "pages/journal-2-0/components/notebook/EmojiMenu.module.css": {
+  "font-size 18px": 1,
+  "spacing 10px": 2,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/EmptyNamesAsk.module.css": {
+  "spacing 10px": 2,
+  "spacing 3px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/ExcerptView.jsx": {
+  "icon-size 11px": 1,
+  "icon-size 12px": 2,
+  "icon-size 13px": 1,
+  "spacing 5px": 2
+ },
+ "pages/journal-2-0/components/notebook/ExcerptView.module.css": {
+  "spacing 10px": 2,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/FinancialFactView.jsx": {
+  "icon-size 12px": 1,
+  "icon-size 13px": 1,
+  "spacing 5px": 1
+ },
+ "pages/journal-2-0/components/notebook/FinancialFactView.module.css": {
+  "spacing 10px": 2,
+  "spacing 3px": 1,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/FingerprintPanel.module.css": {
+  "spacing -1px": 1,
+  "spacing 10px": 3,
+  "spacing 3px": 3,
+  "spacing 6px": 11
+ },
+ "pages/journal-2-0/components/notebook/FirstRunSheet.module.css": {
+  "font-size 12.5px": 2,
+  "font-size 13.5px": 1,
+  "font-size 15px": 1,
+  "spacing 10px": 2,
+  "spacing 14px": 1,
+  "spacing 22px": 1,
+  "spacing 3px": 2,
+  "spacing 5px": 2,
+  "spacing 6px": 5
+ },
+ "pages/journal-2-0/components/notebook/FolderSidebar.jsx": {
+  "icon-size 11px": 6,
+  "icon-size 12px": 9,
+  "icon-size 13px": 1,
+  "icon-size 14px": 1
+ },
+ "pages/journal-2-0/components/notebook/FolderSidebar.module.css": {
+  "border-radius 2px": 1,
+  "border-radius 3px": 3,
+  "border-radius 7px": 3,
+  "font-size 16px": 7,
+  "font-size 9px": 2,
+  "spacing 10px": 13,
+  "spacing 14px": 1,
+  "spacing 1px": 2,
+  "spacing 28px": 1,
+  "spacing 30px": 1,
+  "spacing 3px": 1,
+  "spacing 5px": 3,
+  "spacing 62px": 1,
+  "spacing 6px": 25,
+  "spacing 7px": 2,
+  "spacing 9px": 1
+ },
+ "pages/journal-2-0/components/notebook/FollowupOffer.module.css": {
+  "border-radius 10px": 1,
+  "spacing 10px": 1,
+  "spacing 14px": 2,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/FormulaEditor.module.css": {
+  "spacing 6px": 4
+ },
+ "pages/journal-2-0/components/notebook/FrozenList.module.css": {
+  "font-size 10.5px": 1,
+  "font-size 11.5px": 1,
+  "font-size 12.5px": 1,
+  "spacing 10px": 1,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/GettingStartedList.jsx": {
+  "icon-size 12px": 1
+ },
+ "pages/journal-2-0/components/notebook/GettingStartedList.module.css": {
+  "spacing 10px": 2,
+  "spacing 14px": 1
+ },
+ "pages/journal-2-0/components/notebook/HeroImagePicker.jsx": {
+  "icon-size 12px": 1
+ },
+ "pages/journal-2-0/components/notebook/HeroImagePicker.module.css": {
+  "border-radius 10px": 2,
+  "font-size 16px": 2,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/ImageDocumentViewer.module.css": {
+  "spacing 10px": 2,
+  "spacing 14px": 2
+ },
+ "pages/journal-2-0/components/notebook/ImportRepairNotice.jsx": {
+  "icon-size 18px": 1
+ },
+ "pages/journal-2-0/components/notebook/ImportRepairNotice.module.css": {
+  "spacing 10px": 2,
+  "spacing 14px": 1
+ },
+ "pages/journal-2-0/components/notebook/InternalCaptureEmbed.module.css": {
+  "border-radius 10px": 1,
+  "spacing 10px": 4,
+  "spacing 3px": 1,
+  "spacing 6px": 3,
+  "spacing 7px": 1
+ },
+ "pages/journal-2-0/components/notebook/LayoutLibraryCard.jsx": {
+  "icon-size 13px": 2
+ },
+ "pages/journal-2-0/components/notebook/LinkPasteMenu.jsx": {
+  "icon-size 14px": 3
+ },
+ "pages/journal-2-0/components/notebook/LinkPasteMenu.module.css": {
+  "spacing 3px": 1,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/LinkedNotesPanel.module.css": {
+  "spacing 10px": 2,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/LockedGlyph.jsx": {
+  "icon-size 12px": 1
+ },
+ "pages/journal-2-0/components/notebook/MemberTemplates.jsx": {
+  "icon-size 12px": 1
+ },
+ "pages/journal-2-0/components/notebook/NewNoteMenu.jsx": {
+  "icon-size 12px": 1,
+  "icon-size 14px": 4
+ },
+ "pages/journal-2-0/components/notebook/NewNoteMenu.module.css": {
+  "spacing 10px": 1,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteBacklinksSection.jsx": {
+  "icon-size 12px": 2,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/NoteBacklinksSection.module.css": {
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteBoardView.jsx": {
+  "icon-size 12px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteBoardView.module.css": {
+  "font-size 10px": 1,
+  "spacing -1px": 1,
+  "spacing 10px": 4,
+  "spacing 1px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 1,
+  "spacing 7px": 1,
+  "spacing 9px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteCalendarView.jsx": {
+  "icon-size 14px": 2
+ },
+ "pages/journal-2-0/components/notebook/NoteCalendarView.module.css": {
+  "font-size 10px": 2,
+  "spacing 10px": 3,
+  "spacing 3px": 3,
+  "spacing 5px": 2,
+  "spacing 6px": 4
+ },
+ "pages/journal-2-0/components/notebook/NoteCard.module.css": {
+  "border-radius 10px": 1,
+  "font-size 10px": 1,
+  "spacing 10px": 2,
+  "spacing 14px": 1,
+  "spacing 1px": 1,
+  "spacing 3px": 1,
+  "spacing 40px": 2,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/NoteDetailsLine.module.css": {
+  "spacing 10px": 1,
+  "spacing 14px": 1,
+  "spacing 7px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteEditorPage.jsx": {
+  "icon-size 12px": 3,
+  "icon-size 13px": 5,
+  "icon-size 14px": 2,
+  "spacing 10px": 1,
+  "spacing 5px": 2,
+  "spacing 7px": 2
+ },
+ "pages/journal-2-0/components/notebook/NoteEditorPage.module.css": {
+  "border-radius 2px": 1,
+  "border-radius 3px": 1,
+  "border-radius 5px": 1,
+  "font-size 15px": 1,
+  "font-size 16px": 3,
+  "font-size 18px": 2,
+  "font-size 28px": 2,
+  "font-size 30px": 1,
+  "spacing -1px": 1,
+  "spacing 10px": 20,
+  "spacing 14px": 11,
+  "spacing 1px": 2,
+  "spacing 20px": 3,
+  "spacing 22px": 2,
+  "spacing 28px": 2,
+  "spacing 36px": 1,
+  "spacing 3px": 4,
+  "spacing 44px": 1,
+  "spacing 5px": 8,
+  "spacing 60px": 2,
+  "spacing 6px": 13,
+  "spacing 72px": 1,
+  "spacing 7px": 1,
+  "spacing 80px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteExportControls.jsx": {
+  "icon-size 12px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteExportControls.module.css": {
+  "spacing 10px": 1,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteFindBar.jsx": {
+  "icon-size 13px": 4,
+  "icon-size 14px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteFindBar.module.css": {
+  "border-radius 5px": 2,
+  "font-size 11.5px": 1,
+  "font-size 16px": 1,
+  "spacing 10px": 1,
+  "spacing 3px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 1,
+  "spacing 7px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteGraphView.module.css": {
+  "spacing 10px": 3,
+  "spacing 1px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteHistoryPanel.jsx": {
+  "icon-size 14px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteHistoryPanel.module.css": {
+  "spacing 10px": 6,
+  "spacing 40px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteLinkMenu.jsx": {
+  "icon-size 12px": 1,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteLinkMenu.module.css": {
+  "spacing 10px": 2,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteLinkView.jsx": {
+  "icon-size 12px": 1,
+  "spacing 3px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteLinkView.module.css": {
+  "border-radius 3px": 1,
+  "font-size 10px": 1,
+  "spacing 1px": 2,
+  "spacing 5px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteMenuActions.jsx": {
+  "icon-size 13px": 5
+ },
+ "pages/journal-2-0/components/notebook/NoteMenuActions.module.css": {
+  "spacing 10px": 1,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/NoteMoreMenu.jsx": {
+  "icon-size 15px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteMoreMenu.module.css": {
+  "spacing 10px": 1,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/NoteOutline.jsx": {
+  "icon-size 13px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteOutline.module.css": {
+  "font-size 10px": 1,
+  "font-size 12.5px": 1,
+  "font-size 15px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 3
+ },
+ "pages/journal-2-0/components/notebook/NoteShareControls.jsx": {
+  "icon-size 13px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteShareControls.module.css": {
+  "font-size 12.5px": 7,
+  "spacing 10px": 2,
+  "spacing 20px": 1,
+  "spacing 6px": 3
+ },
+ "pages/journal-2-0/components/notebook/NoteStats.module.css": {
+  "font-size 11.5px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteTagsField.jsx": {
+  "icon-size 10px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteTagsField.module.css": {
+  "spacing 1px": 2,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteTasksView.jsx": {
+  "icon-size 11px": 2,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteTasksView.module.css": {
+  "border-radius 3px": 1,
+  "font-size 18px": 1,
+  "spacing 10px": 1,
+  "spacing 14px": 1,
+  "spacing 5px": 2,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/NoteTimelineView.jsx": {
+  "icon-size 12px": 2
+ },
+ "pages/journal-2-0/components/notebook/NoteTimelineView.module.css": {
+  "spacing 10px": 2,
+  "spacing 3px": 1,
+  "spacing 6px": 5
+ },
+ "pages/journal-2-0/components/notebook/NoteVideoRails.module.css": {
+  "border-radius 10px": 1,
+  "spacing 10px": 1,
+  "spacing 11px": 1,
+  "spacing 18px": 1,
+  "spacing 6px": 4,
+  "spacing 7px": 2,
+  "spacing 9px": 1
+ },
+ "pages/journal-2-0/components/notebook/NotebookPlusFab.jsx": {
+  "icon-size 24px": 1
+ },
+ "pages/journal-2-0/components/notebook/NotebookPlusFab.module.css": {
+  "font-size 15px": 1
+ },
+ "pages/journal-2-0/components/notebook/NotebookPlusSheet.jsx": {
+  "icon-size 18px": 2
+ },
+ "pages/journal-2-0/components/notebook/NotebookTip.module.css": {
+  "spacing 10px": 2,
+  "spacing 14px": 1
+ },
+ "pages/journal-2-0/components/notebook/NotesTableView.jsx": {
+  "icon-size 10px": 1
+ },
+ "pages/journal-2-0/components/notebook/NotesTableView.module.css": {
+  "spacing 10px": 2,
+  "spacing 3px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 4
+ },
+ "pages/journal-2-0/components/notebook/NoticesBox.module.css": {
+  "border-radius 10px": 1,
+  "font-size 12.5px": 2,
+  "font-size 13.5px": 1,
+  "spacing 11px": 1,
+  "spacing 14px": 1
+ },
+ "pages/journal-2-0/components/notebook/PassedSetups.jsx": {
+  "icon-size 12px": 1,
+  "icon-size 13px": 1
+ },
+ "pages/journal-2-0/components/notebook/PassedSetups.module.css": {
+  "font-size 11.5px": 2,
+  "font-size 12.5px": 2,
+  "font-size 13.5px": 1,
+  "spacing 10px": 5,
+  "spacing 1px": 2,
+  "spacing 6px": 6
+ },
+ "pages/journal-2-0/components/notebook/PdfDocumentViewer.module.css": {
+  "border-radius 2px": 1,
+  "spacing 14px": 1,
+  "spacing 40px": 1,
+  "spacing 7px": 1
+ },
+ "pages/journal-2-0/components/notebook/PropertiesSection.jsx": {
+  "icon-size 11px": 3
+ },
+ "pages/journal-2-0/components/notebook/PropertiesSection.module.css": {
+  "spacing 10px": 7,
+  "spacing 14px": 1,
+  "spacing 20px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 7
+ },
+ "pages/journal-2-0/components/notebook/PublishFolderSheet.module.css": {
+  "font-size 12.5px": 4,
+  "spacing 10px": 1,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/RefusedCopyOffer.module.css": {
+  "spacing 10px": 5,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/RelationPropertyValue.jsx": {
+  "icon-size 10px": 2
+ },
+ "pages/journal-2-0/components/notebook/RelationPropertyValue.module.css": {
+  "spacing 3px": 1,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/ReportingSoon.jsx": {
+  "icon-size 13px": 2
+ },
+ "pages/journal-2-0/components/notebook/ReportingSoon.module.css": {
+  "font-size 12.5px": 2,
+  "font-size 13.5px": 1,
+  "spacing 10px": 3,
+  "spacing 1px": 1,
+  "spacing 6px": 3
+ },
+ "pages/journal-2-0/components/notebook/ResearchHome.jsx": {
+  "icon-size 12px": 1,
+  "icon-size 13px": 1,
+  "icon-size 14px": 14,
+  "spacing 10px": 1
+ },
+ "pages/journal-2-0/components/notebook/ResearchHome.module.css": {
+  "font-size 16px": 1,
+  "spacing -1px": 1,
+  "spacing 10px": 8,
+  "spacing 14px": 1,
+  "spacing 18px": 2,
+  "spacing 20px": 2,
+  "spacing 22px": 2,
+  "spacing 28px": 1,
+  "spacing 40px": 3,
+  "spacing 6px": 8,
+  "spacing 7px": 1
+ },
+ "pages/journal-2-0/components/notebook/SaveTranscriptPassage.jsx": {
+  "icon-size 13px": 2
+ },
+ "pages/journal-2-0/components/notebook/SaveTranscriptPassage.module.css": {
+  "font-size 12.5px": 2,
+  "spacing 10px": 5,
+  "spacing 14px": 1,
+  "spacing 18px": 1,
+  "spacing 6px": 8
+ },
+ "pages/journal-2-0/components/notebook/SavedViewEditor.module.css": {
+  "spacing 10px": 1
+ },
+ "pages/journal-2-0/components/notebook/ScannedTextPanel.jsx": {
+  "icon-size 12px": 1
+ },
+ "pages/journal-2-0/components/notebook/ScannedTextPanel.module.css": {
+  "font-size 12.5px": 1,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/ScreenshotTagOffer.jsx": {
+  "icon-size 14px": 2
+ },
+ "pages/journal-2-0/components/notebook/ScreenshotTagOffer.module.css": {
+  "spacing 3px": 1
+ },
+ "pages/journal-2-0/components/notebook/SetupsBoard.jsx": {
+  "icon-size 14px": 1
+ },
+ "pages/journal-2-0/components/notebook/SetupsBoard.module.css": {
+  "spacing 10px": 8,
+  "spacing 18px": 1,
+  "spacing 1px": 1,
+  "spacing 20px": 2,
+  "spacing 40px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 5,
+  "spacing 7px": 1
+ },
+ "pages/journal-2-0/components/notebook/SetupsBox.module.css": {
+  "border-radius 10px": 1,
+  "spacing -1px": 1,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/ShortcutHowTo.module.css": {
+  "spacing 14px": 2,
+  "spacing 18px": 1,
+  "spacing 22px": 1,
+  "spacing 6px": 3
+ },
+ "pages/journal-2-0/components/notebook/SlashMenu.module.css": {
+  "font-size 10px": 2,
+  "spacing -1px": 1,
+  "spacing 10px": 3,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/SourceRemovedNotice.jsx": {
+  "icon-size 14px": 1
+ },
+ "pages/journal-2-0/components/notebook/SourceRemovedNotice.module.css": {
+  "spacing 10px": 1,
+  "spacing 3px": 1
+ },
+ "pages/journal-2-0/components/notebook/StyleLibraryCard.jsx": {
+  "icon-size 13px": 2
+ },
+ "pages/journal-2-0/components/notebook/TableToolbar.module.css": {
+  "spacing 3px": 1
+ },
+ "pages/journal-2-0/components/notebook/TagSuggestInput.module.css": {
+  "border-radius 7px": 1,
+  "font-size 16px": 1,
+  "spacing 10px": 1,
+  "spacing 5px": 1
+ },
+ "pages/journal-2-0/components/notebook/TemplateGallery.jsx": {
+  "icon-size 13px": 2
+ },
+ "pages/journal-2-0/components/notebook/TemplateGallery.module.css": {
+  "border-radius 10px": 3,
+  "font-size 11.5px": 4,
+  "font-size 12.5px": 2,
+  "font-size 13.5px": 1,
+  "font-size 15px": 1,
+  "spacing -1px": 1,
+  "spacing 10px": 10,
+  "spacing 14px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 7,
+  "spacing 9px": 2
+ },
+ "pages/journal-2-0/components/notebook/TemplatePicker.jsx": {
+  "icon-size 12px": 1,
+  "icon-size 13px": 1,
+  "icon-size 14px": 2
+ },
+ "pages/journal-2-0/components/notebook/TemplatePicker.module.css": {
+  "border-radius 10px": 2,
+  "spacing 10px": 1,
+  "spacing 14px": 2,
+  "spacing 34px": 1,
+  "spacing 3px": 1,
+  "spacing 5px": 2,
+  "spacing 6px": 7,
+  "spacing 9px": 1
+ },
+ "pages/journal-2-0/components/notebook/TemplatePreview.module.css": {
+  "border-radius 10px": 1,
+  "font-size 12.5px": 1,
+  "font-size 13.5px": 1,
+  "spacing 10px": 3,
+  "spacing 20px": 1,
+  "spacing 6px": 3
+ },
+ "pages/journal-2-0/components/notebook/TextAlertSheet.module.css": {
+  "font-size 16px": 1,
+  "spacing 14px": 1,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/TextColorMenu.module.css": {
+  "font-size 16px": 1,
+  "spacing 10px": 1,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/TextPagesViewer.module.css": {
+  "spacing 10px": 1,
+  "spacing 14px": 3,
+  "spacing 20px": 1
+ },
+ "pages/journal-2-0/components/notebook/ThesisChip.module.css": {
+  "font-size 10.5px": 1,
+  "font-size 12.5px": 1,
+  "spacing 10px": 4,
+  "spacing 1px": 1,
+  "spacing 3px": 2,
+  "spacing 5px": 1,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/ThesisReviewSection.jsx": {
+  "icon-size 11px": 1
+ },
+ "pages/journal-2-0/components/notebook/ThesisReviewSection.module.css": {
+  "font-size 10px": 2,
+  "spacing -1px": 1,
+  "spacing 10px": 6,
+  "spacing 3px": 1,
+  "spacing 5px": 3,
+  "spacing 6px": 9
+ },
+ "pages/journal-2-0/components/notebook/ThesisSection.jsx": {
+  "icon-size 11px": 5
+ },
+ "pages/journal-2-0/components/notebook/ThesisSection.module.css": {
+  "border-radius 3px": 1,
+  "font-size 10px": 1,
+  "font-size 9px": 1,
+  "spacing -1px": 1,
+  "spacing 10px": 5,
+  "spacing 20px": 1,
+  "spacing 3px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 5,
+  "spacing 7px": 1
+ },
+ "pages/journal-2-0/components/notebook/TickerResearchWorkspace.jsx": {
+  "icon-size 12px": 2,
+  "icon-size 13px": 5,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/TickerResearchWorkspace.module.css": {
+  "font-size 10px": 1,
+  "font-size 13.5px": 1,
+  "font-size 22px": 1,
+  "spacing -11px": 1,
+  "spacing 10px": 6,
+  "spacing 11px": 1,
+  "spacing 14px": 1,
+  "spacing 22px": 1,
+  "spacing 40px": 2,
+  "spacing 6px": 3,
+  "spacing 7px": 1
+ },
+ "pages/journal-2-0/components/notebook/TickerSuggestion.module.css": {
+  "spacing 10px": 3,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/TodayHome.module.css": {
+  "border-radius 3px": 2,
+  "spacing 10px": 2,
+  "spacing 14px": 1,
+  "spacing 18px": 1,
+  "spacing 3px": 1,
+  "spacing 40px": 1,
+  "spacing 6px": 3
+ },
+ "pages/journal-2-0/components/notebook/TradeCanvasBoard.jsx": {
+  "icon-size 12px": 1,
+  "icon-size 14px": 6
+ },
+ "pages/journal-2-0/components/notebook/TradeCanvasBoard.module.css": {
+  "font-size 16px": 1,
+  "spacing -1px": 1,
+  "spacing 10px": 11,
+  "spacing 14px": 1,
+  "spacing 18px": 1,
+  "spacing 1px": 2,
+  "spacing 20px": 1,
+  "spacing 3px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 14
+ },
+ "pages/journal-2-0/components/notebook/TranscriptDoors.jsx": {
+  "icon-size 13px": 1
+ },
+ "pages/journal-2-0/components/notebook/UnlinkedMentions.jsx": {
+  "icon-size 12px": 1
+ },
+ "pages/journal-2-0/components/notebook/UnlinkedMentions.module.css": {
+  "border-radius 2px": 1,
+  "spacing 10px": 1,
+  "spacing 14px": 1,
+  "spacing 1px": 1,
+  "spacing 3px": 1,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/VisualPlaybook.module.css": {
+  "spacing 10px": 5,
+  "spacing 5px": 1,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/VoiceNoteDialog.jsx": {
+  "icon-size 12px": 1,
+  "icon-size 15px": 4
+ },
+ "pages/journal-2-0/components/notebook/VoiceNoteDialog.module.css": {
+  "border-radius 2px": 1,
+  "font-size 15px": 1,
+  "font-size 28px": 1,
+  "spacing 10px": 9,
+  "spacing 14px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 12
+ },
+ "pages/journal-2-0/components/notebook/WidgetEmbedView.module.css": {
+  "border-radius 2px": 1,
+  "border-radius 5px": 2,
+  "font-size 10px": 2,
+  "font-size 11.5px": 1,
+  "font-size 18px": 1,
+  "spacing -1px": 1,
+  "spacing 10px": 4,
+  "spacing 14px": 1,
+  "spacing 1px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 3,
+  "spacing 7px": 3
+ },
+ "pages/journal-2-0/components/notebook/WidgetPalette.module.css": {
+  "border-radius 10px": 1,
+  "border-radius 5px": 1,
+  "border-radius 7px": 1,
+  "font-size 10.5px": 1,
+  "spacing 10px": 4,
+  "spacing 6px": 4,
+  "spacing 7px": 1,
+  "spacing 9px": 1
+ },
+ "pages/journal-2-0/components/notebook/WritingHelpPanel.module.css": {
+  "spacing 10px": 7,
+  "spacing 14px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/blocks/Blocks.module.css": {
+  "border-radius 10px": 1,
+  "spacing 10px": 1,
+  "spacing 18px": 1,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/blocks/MoodCheckInBlock.module.css": {
+  "spacing 10px": 1,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/blocks/PositionSizingBlock.module.css": {
+  "spacing 18px": 1,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/blocks/RoutineBlock.jsx": {
+  "icon-size 14px": 2
+ },
+ "pages/journal-2-0/components/notebook/blocks/RoutineBlock.module.css": {
+  "spacing 10px": 4,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/blocks/SizeCalcBlock.module.css": {
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/blocks/TrackerBlock.module.css": {
+  "font-size 16px": 1,
+  "spacing 10px": 1,
+  "spacing 6px": 3
+ },
+ "pages/journal-2-0/components/notebook/blocks/VsPnlPanel.module.css": {
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/export/ExportDialog.jsx": {
+  "icon-size 26px": 2
+ },
+ "pages/journal-2-0/components/notebook/export/ExportDialog.module.css": {
+  "spacing 10px": 3,
+  "spacing 14px": 1,
+  "spacing 3px": 1,
+  "spacing 6px": 3
+ },
+ "pages/journal-2-0/components/notebook/import/ExportGuide.jsx": {
+  "icon-size 13px": 1,
+  "icon-size 14px": 1
+ },
+ "pages/journal-2-0/components/notebook/import/ExportGuide.module.css": {
+  "font-size 12.5px": 3,
+  "spacing 10px": 3,
+  "spacing 14px": 1,
+  "spacing 6px": 4
+ },
+ "pages/journal-2-0/components/notebook/import/ImportWizard.jsx": {
+  "icon-size 13px": 10,
+  "icon-size 14px": 1,
+  "icon-size 18px": 1,
+  "icon-size 26px": 3,
+  "icon-size 30px": 1
+ },
+ "pages/journal-2-0/components/notebook/import/ImportWizard.module.css": {
+  "border-radius 3px": 1,
+  "font-size 11.5px": 1,
+  "font-size 12.5px": 8,
+  "font-size 13.5px": 1,
+  "font-size 15px": 2,
+  "spacing -18px": 1,
+  "spacing -6px": 1,
+  "spacing 10px": 7,
+  "spacing 14px": 5,
+  "spacing 18px": 4,
+  "spacing 20px": 2,
+  "spacing 36px": 1,
+  "spacing 40px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 10,
+  "spacing 9px": 1
+ },
+ "pages/journal-2-0/components/notebook/library/HelpfulPromptLine.jsx": {
+  "icon-size 14px": 1
+ },
+ "pages/journal-2-0/components/notebook/library/HelpfulPromptLine.module.css": {
+  "spacing -1px": 1,
+  "spacing 14px": 1,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/library/TemplateLibrarySection.jsx": {
+  "icon-size 13px": 1
+ },
+ "pages/journal-2-0/components/notebook/library/library.module.css": {
+  "font-size 16px": 2,
+  "spacing -1px": 1,
+  "spacing 10px": 3,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/myTools/TemplatesTab.jsx": {
+  "icon-size 18px": 1
+ },
+ "pages/journal-2-0/components/notebook/myTools/ToolsTab.jsx": {
+  "icon-size 14px": 1,
+  "icon-size 18px": 1
+ },
+ "pages/journal-2-0/components/notebook/myTools/WidgetsTab.jsx": {
+  "icon-size 14px": 2,
+  "icon-size 18px": 1
+ },
+ "pages/journal-2-0/components/notebook/myTools/myTools.module.css": {
+  "border-radius 2px": 1,
+  "font-size 16px": 1,
+  "font-size var(--text-xs)": 1,
+  "spacing -1px": 1,
+  "spacing 10px": 2,
+  "spacing 14px": 1,
+  "spacing 1px": 1,
+  "spacing 6px": 7
+ },
+ "pages/journal-2-0/components/notebook/onboarding/CapabilityPreview.module.css": {
+  "spacing 10px": 1,
+  "spacing 14px": 1,
+  "spacing 20px": 1
+ },
+ "pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.module.css": {
+  "spacing 14px": 1,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/onboarding/LearnMenu.jsx": {
+  "icon-size 12px": 1,
+  "icon-size 14px": 1
+ },
+ "pages/journal-2-0/components/notebook/onboarding/LearnMenu.module.css": {
+  "spacing 10px": 4,
+  "spacing 6px": 7
+ },
+ "pages/journal-2-0/components/notebook/onboarding/LearnMenuPanel.jsx": {
+  "icon-size 14px": 1
+ },
+ "pages/journal-2-0/components/notebook/onboarding/NotebookTour.module.css": {
+  "font-size 16px": 1,
+  "spacing 10px": 1,
+  "spacing 14px": 2,
+  "spacing 18px": 2,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/onboarding/RegistryToursGate.jsx": {
+  "spacing 10px": 1,
+  "spacing 14px": 1
+ },
+ "pages/journal-2-0/components/notebook/onboarding/TourOfferPrompt.module.css": {
+  "spacing 10px": 5,
+  "spacing 14px": 2,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/routines/routines.module.css": {
+  "font-size 16px": 1,
+  "spacing 10px": 1,
+  "spacing 14px": 1,
+  "spacing 6px": 2
+ },
+ "pages/journal-2-0/components/notebook/styles/ExampleNote.module.css": {
+  "border-radius 10px": 3,
+  "font-size 12.5px": 2,
+  "font-size 13.5px": 3,
+  "spacing -1px": 1,
+  "spacing 10px": 6,
+  "spacing 6px": 4
+ },
+ "pages/journal-2-0/components/notebook/styles/ExamplesInUse.jsx": {
+  "icon-size 13px": 1
+ },
+ "pages/journal-2-0/components/notebook/styles/KindSection.jsx": {
+  "icon-size 14px": 1
+ },
+ "pages/journal-2-0/components/notebook/styles/KindSection.module.css": {
+  "spacing 10px": 2,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/styles/LibraryDoor.jsx": {
+  "icon-size 14px": 1
+ },
+ "pages/journal-2-0/components/notebook/styles/SaveAsStyleForm.module.css": {
+  "spacing 10px": 1,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/styles/SaveStyleDoor.jsx": {
+  "icon-size 13px": 1
+ },
+ "pages/journal-2-0/components/notebook/styles/SaveStyleDoor.module.css": {
+  "spacing 10px": 1
+ },
+ "pages/journal-2-0/components/notebook/styles/StarterPackOffer.module.css": {
+  "border-radius 10px": 1,
+  "font-size 15px": 1,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/styles/StyleHost.module.css": {
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/styles/StyleUpdateBanner.module.css": {
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/styles/StyleUpdateSheet.module.css": {
+  "font-size 13.5px": 1,
+  "spacing 10px": 1,
+  "spacing 18px": 1,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/styles/StylesManager.jsx": {
+  "icon-size 14px": 3
+ },
+ "pages/journal-2-0/components/notebook/styles/StylesManager.module.css": {
+  "border-radius 10px": 3,
+  "font-size 12.5px": 1,
+  "font-size 13.5px": 3,
+  "spacing -1px": 1,
+  "spacing 10px": 5,
+  "spacing 1px": 1,
+  "spacing 6px": 12,
+  "spacing 7px": 1
+ },
+ "pages/journal-2-0/components/notebook/widgetBuilder/ExamplesGallery.module.css": {
+  "font-size var(--text-xs)": 5,
+  "spacing -1px": 1,
+  "spacing 14px": 1,
+  "spacing 1px": 1,
+  "spacing 6px": 4
+ },
+ "pages/journal-2-0/components/notebook/widgetBuilder/PreviewPane.jsx": {
+  "icon-size 14px": 1
+ },
+ "pages/journal-2-0/components/notebook/widgetBuilder/WidgetBuilderSheet.module.css": {
+  "font-size 10px": 1,
+  "font-size var(--text-xs)": 11,
+  "spacing -1px": 1,
+  "spacing 10px": 3,
+  "spacing 14px": 1,
+  "spacing 6px": 6
+ },
+ "pages/journal-2-0/components/notebook/widgetBuilder/sections/FormulaSection.jsx": {
+  "icon-size 14px": 2
+ },
+ "pages/journal-2-0/components/notebook/widgetBuilder/sections/FormulaSection.module.css": {
+  "font-size 16px": 1,
+  "font-size var(--text-xs)": 1,
+  "spacing 10px": 2,
+  "spacing 6px": 3
+ },
+ "pages/journal-2-0/components/notebook/widgetBuilder/sections/MeasureSection.jsx": {
+  "icon-size 14px": 2
+ },
+ "pages/journal-2-0/components/notebook/widgetBuilder/sections/SplitSection.jsx": {
+  "icon-size 14px": 2
+ },
+ "pages/journal-2-0/components/notebook/widgetBuilder/sections/WhichOnesSection.jsx": {
+  "icon-size 14px": 4
+ },
+ "pages/journal-2-0/components/notebook/widgets/BuiltWidgetEmbed.jsx": {
+  "icon-size 14px": 1
+ },
+ "pages/journal-2-0/components/notebook/widgets/BuiltWidgetEmbed.module.css": {
+  "spacing 6px": 3
+ },
+ "pages/journal-2-0/components/notebook/widgets/DedicatedEmbeds.module.css": {
+  "spacing -3px": 2,
+  "spacing 3px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/widgets/MyMistakesEmbed.jsx": {
+  "icon-size 12px": 1
+ },
+ "pages/journal-2-0/components/notebook/widgets/SetsDialog.jsx": {
+  "icon-size 14px": 2
+ },
+ "pages/journal-2-0/components/notebook/widgets/SetsDialog.module.css": {
+  "spacing 10px": 4,
+  "spacing 6px": 3
+ },
+ "pages/journal-2-0/components/notebook/widgets/SnapshotFrame.jsx": {
+  "icon-size 12px": 1
+ },
+ "pages/journal-2-0/components/notebook/widgets/SnapshotFrame.module.css": {
+  "font-size 10px": 1,
+  "font-size 16px": 1,
+  "spacing -1px": 1,
+  "spacing 10px": 6,
+  "spacing 1px": 1,
+  "spacing 3px": 2,
+  "spacing 5px": 1,
+  "spacing 6px": 9,
+  "spacing 7px": 1
+ },
+ "pages/journal-2-0/components/notebook/widgets/TickerCardEmbed.jsx": {
+  "icon-size 12px": 1
+ },
+ "pages/journal-2-0/components/notebook/widgets/TickerCardPopover.jsx": {
+  "icon-size 14px": 2
+ },
+ "pages/journal-2-0/components/notebook/widgets/TickerCardPopover.module.css": {
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/components/notebook/widgets/builtViews/builtViews.module.css": {
+  "font-size 10px": 1,
+  "font-size 22px": 1,
+  "spacing 10px": 6,
+  "spacing 14px": 1,
+  "spacing 3px": 1,
+  "spacing 5px": 1,
+  "spacing 6px": 8
+ },
+ "pages/journal-2-0/lib/UnreadableNoteNotice.module.css": {
+  "spacing 10px": 1
+ },
+ "pages/journal-2-0/lib/noteContent.css": {
+  "border-radius 2px": 1,
+  "font-size 0.85em": 1,
+  "font-size 0.88em": 1,
+  "font-size 0.8em": 2,
+  "font-size 0.92em": 2,
+  "font-size 0.9em": 3,
+  "font-size 1.12em": 1,
+  "font-size 16px": 2,
+  "font-size 1em": 1,
+  "spacing 10px": 6,
+  "spacing 14px": 9,
+  "spacing 18px": 3,
+  "spacing 1px": 2,
+  "spacing 3px": 1,
+  "spacing 6px": 11
+ },
+ "pages/journal-2-0/surfaces/TodaySurface.module.css": {
+  "border-radius 10px": 5,
+  "font-size 30px": 1,
+  "spacing 10px": 5,
+  "spacing 11px": 1,
+  "spacing 14px": 8,
+  "spacing 18px": 2,
+  "spacing 1px": 1,
+  "spacing 20px": 1,
+  "spacing 3px": 2,
+  "spacing 6px": 5,
+  "spacing 7px": 2,
+  "spacing 9px": 1
+ },
+ "pages/journal-2-0/surfaces/today/panels/panels.module.css": {
+  "spacing 14px": 1,
+  "spacing 6px": 1
+ },
+ "pages/journal-2-0/tabs/NotebookTab.jsx": {
+  "icon-size 12px": 4,
+  "icon-size 14px": 1,
+  "icon-size 15px": 4
+ },
+ "pages/journal-2-0/tabs/NotebookTab.module.css": {
+  "border-radius 10px": 2,
+  "border-radius 7px": 2,
+  "font-size 16px": 1,
+  "spacing -1px": 2,
+  "spacing 10px": 8,
+  "spacing 14px": 7,
+  "spacing 18px": 1,
+  "spacing 20px": 2,
+  "spacing 22px": 1,
+  "spacing 40px": 2,
+  "spacing 5px": 1,
+  "spacing 60px": 1,
+  "spacing 62px": 1,
+  "spacing 6px": 4,
+  "spacing 7px": 2,
+  "spacing 96px": 1
+ }
+}

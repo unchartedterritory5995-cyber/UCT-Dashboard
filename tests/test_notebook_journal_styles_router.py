@@ -31,7 +31,6 @@ def db_path(monkeypatch):
 
 @pytest.fixture
 def client(db_path, monkeypatch):
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
     from api.routers import notebook_journal_styles as r
     app = FastAPI()
     app.include_router(r.router)
@@ -45,24 +44,6 @@ def _as(client, uid="u1", plan="pro"):
     user = {"id": uid, "role": "member", "plan": plan}
     client.app_ref.dependency_overrides[authmw.get_current_user] = lambda: dict(user)
     client.app_ref.dependency_overrides[authmw.get_current_user_with_plan] = lambda: dict(user)
-
-
-def test_gate_off_is_one_404_before_the_session(client, monkeypatch):
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "0")
-    assert client.get("/api/j2/journal-styles").status_code == 404
-    assert client.post("/api/j2/note-kinds", json={"name": "x"}).status_code == 404
-    r = client.post("/api/j2/notes/n1/apply-style-update", content=b"[not json")
-    assert (r.status_code, r.json()) == (404, {"detail": "Not found"})
-
-
-def test_gate_off_answers_before_the_body_is_read(client, monkeypatch):
-    """Signed in and paid, a malformed body: with the gate OFF the answer is the one 404, never
-    the body's 422 -- the gate runs before the body reader."""
-    _as(client)
-    assert client.post("/api/j2/journal-styles", content=b"[1]").status_code == 422      # control: gate on
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "0")
-    r = client.post("/api/j2/journal-styles", content=b"[1]")
-    assert (r.status_code, r.json()) == (404, {"detail": "Not found"})
 
 
 def test_signed_out_is_401_and_free_is_402(client):

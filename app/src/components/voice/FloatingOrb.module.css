@@ -15,7 +15,13 @@
     0 0 0 1px rgba(220, 187, 94, 0.18),
     0 0 18px rgba(220, 187, 94, 0.25);
   transition: transform 140ms ease, box-shadow 220ms ease, filter 220ms ease;
-  animation: idleBreath 4.6s ease-in-out infinite;
+  /* ⛔ FINITE, NEVER `infinite` (2026-11-10, measured). The orb is on every page, and a
+     box-shadow animation cannot run on the compositor: an endless breath repainted the whole
+     page every frame, forever (~115 paints a second with 12 chart widgets popped). Removing it
+     cut the desk's CPU a further 35% after the clock fix. Three breaths on arrival, then rest.
+     Side effect, intended: an animation outranks :hover, so the hover glow below was never
+     visible while the breath ran; it is now. */
+  animation: idleBreath 4.6s ease-in-out 3;
 }
 .orb:hover {
   transform: scale(1.06);
@@ -206,6 +212,16 @@
     bottom: calc(68px + env(safe-area-inset-bottom, 0px));
   }
 }
+/* Decision B3 (2026-11-07): on the chart shell the orb tucks away while a finger is
+   on the chart (html[data-chart-touching], set by hooks/useChartTouchTuck.js) and
+   fades back a short idle after it lifts. Never during a live call (the orb is how
+   the member sees the call) and never mid-drag (the finger is ON the orb). */
+@media (max-width: 1024px) {
+  :global(html[data-mobile-chart-shell][data-chart-touching]) .orbCluster:not([data-in-session]):not(.dragging) {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
 .orbCluster.dragging .orb {
   transition: none;
   animation: none;
@@ -310,16 +326,25 @@
   .trainBtn { width: var(--tap-min); height: var(--tap-min); }
 }
 
-/* Wave 10 follow-up F5: the one-time "Meet Compass" card. It is portaled into the
-   first-run slot at the top of <main> (Layout.jsx), so it lives IN the page flow and
-   pushes the page down -- it never floats over a control, at any width. Theme tokens
-   only, so it reads on the light theme as well as the dark ones (the floating card was
-   a fixed dark panel). */
+/* Wave 10 follow-up F5: the one-time "Meet Compass" card, portaled into the first-run slot (Layout.jsx).
+   Theme tokens only, so it reads on the light theme as well as the dark ones. */
+/* VIS-4 follow-up (Tier 2, found on production after Tier 1a, 1440x900): the card used to sit IN FLOW in
+   Layout's first-run slot (F5), so it arrived late at the top of the Journal shell and pushed the whole page
+   down -- a layout jump on desktop and tablet. It is a TOAST now, the same pattern as the "New in your
+   Notebook" offer (TourOfferPrompt.module.css): fixed at the bottom-right, above the orb it describes, in the
+   --z-toast layer, taking no page space. It cannot cover the tour or the offer: both claim the first-run
+   stage, and the card waits while the stage is held (firstRunStage.js). */
 .coachmark {
+  position: fixed;
+  right: 24px;
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  z-index: var(--z-toast);
+  width: min(380px, calc(100vw - 48px));
+  box-shadow: var(--shadow-popover);
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 12px 20px 0;
+  margin: 0;
   padding: 10px 12px 10px 14px;
   border: 1px solid var(--border-accent);
   border-left: 3px solid var(--ut-gold);
@@ -346,12 +371,17 @@
 .coachmarkDismiss:hover { border-color: var(--ut-gold); }
 .coachmarkDismiss:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
 @media (max-width: 640px) {
-  .coachmark { margin: 10px 12px 0; }
+  /* A phone: full width less a 12 px gutter, above the orb's corner AND above the Journal's "+ Log" button
+     (JournalLayout.module.css `.logFab`: bottom 70 px, 44 px tall, so its top is at 114 px) -- Tier 2 review minor 14. */
+  .coachmark { left: 12px; right: 12px; width: auto; bottom: calc(128px + env(safe-area-inset-bottom, 0px)); }
 }
-/* Desktop: the feedback "?" (FeedbackWidget.jsx, fixed in the viewport's top-right
-   corner) overlapped the card's "Got it" by a 5x11 px corner at 1200 px (after run,
-   docs/notebook/proof/f5-after-aa2417c2c/). The card ends clear of it. The rail derives
-   the clearance from FeedbackWidget's own numbers (FloatingOrb.coachmark.test.jsx). */
-@media (min-width: 1025px) {
-  .coachmark { margin-right: 48px; }
+
+/* S12 + VIS-4 (audit 2026-11-05, M9): on a PHONE's Notebook the orb cluster (Compass, Train Me, the paperclip and
+   the agent menu) gives way to the Notebook's one floating "+" (NotebookPlusFab, which writes
+   `data-notebook-route` on <html> while the Notebook is on screen). Every other page keeps it, and an orb in a live
+   call is never hidden: its controls are the way out of the call. */
+@media (max-width: 640px) {
+  :global(html[data-notebook-route]) .orbCluster:not([data-in-session]) {
+    display: none;
+  }
 }

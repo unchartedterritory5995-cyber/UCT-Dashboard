@@ -1,0 +1,6 @@
+{
+  "_comment": "D3 item 4: whitespace between side-by-side images is no paragraph on either lane (the server wrote a lone paragraph(' ') between them, the client none). Text between images still makes its paragraph.",
+  "vault_id": "vault-1",
+  "self_path": "a.md",
+  "vault_paths": ["a.md"]
+}

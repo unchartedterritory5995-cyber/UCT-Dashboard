@@ -1,0 +1,18 @@
+J5: vite production build, run through the heavy lock (label w2-vite-build), 2026-11-02
+command: cd app && node node_modules/vite/bin/vite.js build --outDir C:/Users/pgosz/uct-worktrees/_resume-laptop/runs/w2/dist
+tree: feat/pine-w2-arming (master 67a6dada10 merged) at the time of the run
+
+free RAM at lock: 4021 MB
+vite v7.3.1 building client environment for production...
+(!) outDir C:\Users\pgosz\uct-worktrees\_resume-laptop\runs\w2\dist is not inside project root and will not be emptied.
+../../_resume-laptop/runs/w2/dist/assets/runtimeWorker-D_Ovmt9Z.js                 1,142.62 kB
+✓ built in 1m 10s
+
+B4, the worker chunk (one self-contained file, fetched by `new Worker` on the first runtime job only):
+  file          : assets/runtimeWorker-D_Ovmt9Z.js
+  raw bytes     : 1142621
+  gzip -9 bytes : 358048  (python gzip level 9, mtime 0)  / 358185  (gzip -9 -c, the CLI)
+  sha256        : a89fd45908cfc13c24e4542432ec27ba3e365a9ec261d9ee2d6f0d3ea2eee6f1
+  budget        : <= 450 KB gzip (PHASE3-RUNTIME-PLAN 4.3 B4)
+  previous      : 1,055,914 B raw, 330,012 B gzip -9 (plan B4, WS-H, 2026-10-31)
+  change        : +86707 B raw (+8.2%), +28173 B gzip (+8.5%)

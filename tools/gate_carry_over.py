@@ -417,8 +417,9 @@ def main(argv=None) -> int:
         print("  ✅ C4: nothing owed — C0 was identical and the branch carries no Python.")
     if r.get("c4_python_required"):
         print("  ⛔⛔ C4-PYTHON IS MANDATORY ON THE LANDING TREE AND IS NOT SHORT-CIRCUITED BY C0.")
-        print("     C0 reads GATE_READ_PATHS, which contains no Python path, so it cannot")
-        print("     speak for a landing that carries Python. Branch Python files:")
+        print("     C0 reads GATE_READ_PATHS, which names only the Python sources the VITEST suite")
+        print("     reads, never the pytest suite's, so it cannot speak for a landing that")
+        print("     carries Python. Branch Python files:")
         for f in r.get("c4_python_paths") or []:
             print(f"       {f}")
     print("  ⛔ C5 is the master deploy-gate workflow on the LANDED sha. It gates the")

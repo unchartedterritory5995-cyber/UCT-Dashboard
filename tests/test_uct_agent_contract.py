@@ -25,13 +25,21 @@ _GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layo
              "drawing": "drawings", "indicator": "indicators", "breadth": "breadth",
              "chartSetup": "chartSetup", "indicatorStyle": "indicatorSetup", "indicatorCopy": "indicatorSetup",
              "pane": "indicatorSetup", "definition": "definitions", "chartGrid": "chartGrid", "board": "boardEdit",
-             "guide": "guide"}
+             "guide": "guide",
+             # W1-B (2026-11-02): indicator alerts in their own fillLast group (app/src/agent/routing.js)
+             "indicatorAlert": "indicatorAlerts",
+             "indicatorTemplate": "chartSetup",
+             # Wave 3 (2026-11-03): the coach's own fillLast group (registered only while UCT_AGENT_COACH is on)
+             "coach": "coach", "journal": "coach", "calendar": "calendar"}
+#: membership by ACTION NAME (routing.js `actions`), ahead of the domain — hotfix 2026-11-03: agent.undo's own group
+_GROUP_BY_ACTION = {"agent.undo": "undo", "indicatorTemplate.list": "chartSetup", "indicatorTemplate.apply": "chartSetup",
+                    "indicatorTemplate.save": "chartSetup", "indicatorTemplate.delete": "chartSetup"}
 
 
 def _requests():
     groups = {}
     for c in CAPS:
-        groups.setdefault(_GROUP_OF[c["name"].split(".")[0]], []).append(c)
+        groups.setdefault(_GROUP_BY_ACTION.get(c["name"]) or _GROUP_OF[c["name"].split(".")[0]], []).append(c)
     agent = groups.pop("agent", [])
     return [(g, cs + agent) for g, cs in groups.items()]
 
@@ -43,6 +51,7 @@ def test_server_limits_equal_the_shared_contract():
     assert turn.MAX_HINTS == L["maxHints"]
     assert turn.MAX_CONTEXT_BYTES == L["maxContextBytes"]
     assert turn.MAX_OPS == L["maxOps"]
+    assert turn.MAX_SHAPE == L["maxShape"]          # W1.1 R-01: a capability's exact-shape example
     assert CONTRACT["manifestVersion"] in turn.MANIFEST_VERSIONS
     assert GOLDEN["manifestVersion"] == CONTRACT["manifestVersion"]
 
@@ -90,16 +99,20 @@ def test_every_compact_op_example_round_trips_through_args_match():
     for c in [c for _, req in _requests() for c in turn.validate_manifest(req)]:
         props = c["args"]["properties"]
         sample = {}
-        for k, p in props.items():
+        # (W1.1 R-01: args_match now checks anyOf / nested objects as the grammar does, so a sample is built the same
+        # way all the way down — an anyOf arg from its first branch, an object arg from its own properties)
+        def sample_of(p):
+            p = p["anyOf"][0] if isinstance(p.get("anyOf"), list) and p["anyOf"] else p
             if p.get("enum"):
-                sample[k] = next(v for v in p["enum"] if v is not None) if any(v is not None for v in p["enum"]) else None
-            else:
-                t = p.get("type")
-                t = t[0] if isinstance(t, list) else t
-                sample[k] = {"string": "x", "number": 1, "integer": 1, "boolean": True, "null": None,
-                             "array": [], "object": {}}.get(t, None)
+                return next(v for v in p["enum"] if v is not None) if any(v is not None for v in p["enum"]) else None
+            if isinstance(p.get("properties"), dict):
+                return {k: sample_of(v) for k, v in p["properties"].items()}
+            t = p.get("type")
+            t = t[0] if isinstance(t, list) else t
+            return {"string": "x", "number": 1, "integer": 1, "boolean": True, "null": None, "array": [], "object": {}}.get(t, None)
+        sample = {k: sample_of(p) for k, p in props.items()}
         if any(v is None and "null" not in json.dumps(props[k]) for k, v in sample.items()):
-            continue  # an anyOf/object arg with no simple sample; the browser re-validates it
+            continue  # an arg with no simple sample; the browser re-validates it
         assert turn.args_match(c["args"], sample), c["name"]
 
 

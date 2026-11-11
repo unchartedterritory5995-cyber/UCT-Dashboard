@@ -65,11 +65,13 @@ describe('B1 — paints graded against the captures that record them', () => {
     // paint to replay (folded to `na` or withheld), so there was nothing to warm.
     'artemis-oscillator-pro-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 notReplayed', 'plot_32 naBoth 1800/1800 painted=0'],
     'atr-stepped-pdf-ma-loxx-rddt-1d-2026-10-03.json': ['refused pine:block'],
-    // plot_8 / plot_11 are the OBV bar colour (`obvOnOff and ta.obv > obvEMA ? … : na`):
-    // the door folds them to `na`, and at the default (obvOnOff false) TradingView
-    // draws nothing either (`naBoth`).
-    'atr-support-and-resistance-rddt-1d-2026-09-28.json': ['supply bar0 warmup=0', 'plot_0 agree 632/632 painted=25', 'plot_3 hiddenBoth', 'plot_8 naBoth 632/632 painted=0', 'plot_11 naBoth 632/632 painted=0'],
-    'atr-support-and-resistance-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 listing=on', 'plot_0 agree 1800/1800 painted=73', 'plot_3 hiddenBoth', 'plot_8 naBoth 1800/1800 painted=0', 'plot_11 naBoth 1800/1800 painted=0'],
+    // plot_8 / plot_11 are the OBV bar colour (`obvOnOff and ta.obv > obvEMA ? … : na`).
+    // ⭐ W1 (2026-11-02): `ta.obv` is served on a pane (its published `cum` body), so the
+    // door CARRIES these paints instead of folding them to `na`, and at the default
+    // (obvOnOff false) they paint no bar, as TradingView paints none (`agree`, painted=0;
+    // `naBoth` before W1).
+    'atr-support-and-resistance-rddt-1d-2026-09-28.json': ['supply bar0 warmup=0', 'plot_0 agree 632/632 painted=25', 'plot_3 hiddenBoth', 'plot_8 agree 632/632 painted=0', 'plot_11 agree 632/632 painted=0'],
+    'atr-support-and-resistance-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 listing=on', 'plot_0 agree 1800/1800 painted=73', 'plot_3 hiddenBoth', 'plot_8 agree 1800/1800 painted=0', 'plot_11 agree 1800/1800 painted=0'],
     'atr-trailing-stop-by-ceyhun-rddt-1d-2026-10-02.json': ['supply bar0 warmup=0', 'plot_5 agree 636/636 painted=636'],
     // ⭐ lane B1P's finding (2026-10-04): its 1088 differing bars were NULL paints — the
     // listing-only pass (`interpret.js` `listingPass`) never ran on a capture that is not
@@ -235,9 +237,13 @@ describe('RC1 — paints replayed over the same series\' proved history', () => 
     const g = gradePaints(cap, ours)
     expect(g.supply.warmupBars).toBe(PAINT_WARMUP_FLOOR)
     const row = g.rows.find((r) => r.id === 'plot_0')
-    // measured cold: 15 bars differ, every one inside the warm-up — counted apart,
-    // never as agreeing, and never in the graded count
-    expect(row.warmup).toEqual({ bars: PAINT_WARMUP_FLOOR, compared: PAINT_WARMUP_FLOOR, differ: 15 })
+    // measured cold: 30 bars differ, every one inside the warm-up — counted apart,
+    // never as agreeing, and never in the graded count.
+    // ⭐ 2026-11-09 — it was 15: the first 15 bars were DRAWN from the loaded count
+    // `cum_1 < 16` (TradingView's count is past 16 there) and differed; now that guard
+    // is a running-total threshold, withheld by name on its first 15 bars plus the
+    // 15 its 15-bar reach carries (`running-total:early-bars`), so 30 are blank.
+    expect(row.warmup).toEqual({ bars: PAINT_WARMUP_FLOOR, compared: PAINT_WARMUP_FLOOR, differ: 30 })
     expect(row.compared).toBe(cap.bars.rows.length - PAINT_WARMUP_FLOOR)
     expect(row.state).toBe('agree')
   }, 120000)

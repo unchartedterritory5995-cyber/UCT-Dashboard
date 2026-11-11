@@ -29,6 +29,12 @@
 // overlay — never a retry storm and never a client-side "are you paid?" branch
 // that could disagree with the server.
 
+import { withDerivedColumns } from './derivedColumns'
+// ⭐ U2b — the forming bar's live value for a `plots[].liveTail` (`liveTail.js`):
+// the one cell of a cached envelope that moves with price, recomputed where the
+// envelope is aligned. The module imports nothing of this one.
+import { withLiveTail, benchmarkTailFor, subscribeBenchmarkTails, registerBenchmarkTailRequest } from './liveTail'
+
 /** The ONE path every server-lane definition is fetched through. */
 export const SERVER_COLUMNS_PATH = '/api/signature/columns'
 
@@ -95,7 +101,7 @@ export function columnsFromWire(wire) {
     throw new Error('serverCompute: the envelope is not an object')
   }
   const rawCols = wire.columns
-  if (rawCols === undefined || rawCols === null) return { times: [], columns: {} }
+  if (rawCols === undefined || rawCols === null) return withEnvelopeExtras({ times: [], columns: {} }, wire)
   if (typeof rawCols !== 'object' || Array.isArray(rawCols)) {
     throw new Error('serverCompute: `columns` must be a mapping of key to array')
   }
@@ -139,7 +145,54 @@ export function columnsFromWire(wire) {
       }
     }
   }
-  return { times, columns }
+  return withEnvelopeExtras({ times, columns }, wire)
+}
+
+/**
+ * ⭐ THE ENVELOPE'S SCALARS RIDE BESIDE THE COLUMNS (plan §8.3, audit A7).
+ *
+ * `columnsFromWire` used to keep `{times, columns}` and drop every other key —
+ * which meant a server that computed a benchmark label, a legend sentence or a
+ * "last RS high" scalar had no way to reach the chip or the readout. Two keys
+ * are kept now, and only when the wire carries them, so an envelope without
+ * them parses to exactly the shape it always did:
+ *
+ *   payload — a plain object of scalars the definition's `readout` (Phase 2a)
+ *             and legend read through `scalarsFor`. Never a column: nothing in
+ *             it is per-bar, so nothing in it is aligned or drawn.
+ *   rev     — the server definition's `compute.rev`. `serverColumnsFor` treats a
+ *             cached entry whose rev differs from the CLIENT definition's as a
+ *             miss, so a deploy that changes the maths never draws new plots over
+ *             old columns (and never the reverse).
+ */
+function withEnvelopeExtras(parsed, wire) {
+  if (wire && wire.payload && typeof wire.payload === 'object' && !Array.isArray(wire.payload)) {
+    parsed.payload = wire.payload
+  }
+  if (wire && Number.isFinite(wire.rev)) parsed.rev = Number(wire.rev)
+  return parsed
+}
+
+/**
+ * The inputs a definition actually SENDS to the server: `meta.serverInputs`
+ * when the definition names them (the keys its server row declares), else all
+ * of them. A colour pick or a line width is the Style tab's business and must
+ * not re-key the fetch (plan §8.3) — `resolve_inputs` would drop it on arrival
+ * anyway, so without this filter two cache entries held one answer.
+ */
+export function pickServerInputs(def, inputs) {
+  const keys = def && def.meta && Array.isArray(def.meta.serverInputs) ? def.meta.serverInputs : null
+  if (!keys || !inputs || typeof inputs !== 'object') return inputs
+  const out = {}
+  for (const k of keys) if (inputs[k] !== undefined) out[k] = inputs[k]
+  return out
+}
+
+/** A landed entry computed by a server definition on a different `compute.rev`
+ *  than the client's: the maths changed under the cache. */
+export function revMismatch(parsed, def) {
+  const want = def && def.compute && Number.isFinite(def.compute.rev) ? def.compute.rev : undefined
+  return !!parsed && want !== undefined && parsed.rev !== undefined && parsed.rev !== want
 }
 
 /**
@@ -255,6 +308,21 @@ function _notify(key) {
     try { fn(key) } catch { /* a bad subscriber must not break the lane */ }
   }
 }
+
+// ⭐ U2b — a landed BENCHMARK TAIL says "something landed, ask again" through the
+// same door as a landed envelope, so the chart's one listener (`useServerColumns`)
+// repaints and the binder's memo (which carries the tail's version, see
+// `nativeRegistry.computeSignature`) recomputes the forming bar.
+subscribeBenchmarkTails((key) => _notify(`liveTail:${key}`))
+
+// ⭐ F2 (2026-11-10) — and THIS module is the benchmark tail's door: the store
+// (`liveTail.js`) holds no request of its own, so the browser's — the same
+// `fetch` the envelopes above use — is registered here, on import, by the one
+// module that already owns the lane's network (H4). A host that never imports
+// this door (the runtime worker, the server bundle, a test file before it arms
+// its own) asks for no tail at all. `test-setup.js` takes it away before every
+// test; `liveTail.test.js` proves both the registration and the refusal.
+registerBenchmarkTailRequest(_defaultFetch)
 
 /** ⭐ RT1 — another lane whose columns arrive AFTER the paint that asked (the
  *  runtime pane's off-thread run, `runtime/runtimeAsync.js`) says so through the
@@ -374,7 +442,339 @@ export function ensureColumns(defId, sym, tf, inputs, fetcher) {
 export function serverColumnsFor(def, bars, inputs, ctx) {
   const sym = ctx && typeof ctx.sym === 'string' ? ctx.sym : ''
   if (!sym) return {}
-  const parsed = ensureColumns(def.id, sym, ctx.tf, inputs, ctx.fetcher)
+  const sent = pickServerInputs(def, inputs)
+  const parsed = ensureColumns(def.id, sym, ctx.tf, sent, ctx.fetcher)
   if (!parsed) return {}
-  return alignColumns(parsed, bars)
+  // ⭐ A DIFFERENT SERVER REV IS DRAWN, NOT RE-ASKED (review finding, 2026-11-06).
+  // The first cut treated a rev mismatch as a cache miss and asked again. But the
+  // only way the two revs differ is a SERVER that is on another revision — the
+  // flag off (the dark default: v1 row, rev 1, one column) or a deploy skew —
+  // and asking again returns the same envelope, so every render re-asked:
+  // an unbounded loop that drew nothing. The in-memory cache cannot hold an
+  // entry from before a deploy (it lives one page load), so there is no stale
+  // entry for gating to catch. What arrives is drawn: the binder binds the plots
+  // whose columns exist and ignores the rest, which on the v1 server is exactly
+  // "the RS line and nothing else". `revMismatch` stays exported as a SIGNAL for
+  // the readout ("this chart is drawing an older server answer").
+  // ⭐ UCT RS design round (2026-11-08): the declared `plots[].derive` columns —
+  // an event's glyph riding the line — are built here, the one place a server
+  // definition's columns are aligned, from columns the envelope already carries.
+  // ⭐ U2b (RS split, 2026-11-09): and the declared `plots[].liveTail` moves the
+  // FORMING bar's cell first — the cached envelope's history is served as it is,
+  // its last cell is `close / benchmarkClose` (and the average's exact one-step
+  // continuation) on the chart's own last bar, with the benchmark's forming bar
+  // read from the bars route the candle itself is served from. Before `derive`,
+  // so a glyph that fires on the last bar rides the live line, not the stale one.
+  // Fail closed in `withLiveTail`: anything it cannot prove leaves the server's
+  // value in place.
+  const aligned = alignColumns(parsed, bars)
+  const live = withLiveTail(def, aligned, bars, inputs, {
+    scalars: parsed.payload || null, sym, tf: ctx.tf,
+    newestBarIsForming: ctx.newestBarIsForming,
+    timeKey: barTimeKey,
+    tail: (benchSym, tf) => benchmarkTailFor(benchSym, tf),
+  })
+  return withDerivedColumns(def, live, inputs)
+}
+
+/**
+ * The scalars the server sent beside a definition's columns — `payload` of the
+ * landed envelope for this (definition, symbol, timeframe, server inputs) — or
+ * `null` while nothing has landed or the entry is on the wrong rev. Read-only:
+ * it never asks the server; `serverColumnsFor` is what asks.
+ */
+export function scalarsFor(def, inputs, ctx) {
+  const sym = ctx && typeof ctx.sym === 'string' ? ctx.sym : ''
+  if (!def || !sym) return null
+  const parsed = cachedColumns(def.id, sym, ctx.tf, pickServerInputs(def, inputs))
+  if (!parsed) return null
+  // Same rule as the columns: what the server sent is what the readout reads.
+  // A v1 server sends no payload, so this is simply null there.
+  return parsed.payload || null
+}
+
+// ─── WHAT THE LIVE SERVER DECLARES (UCT RS Phase 3, unit 3-01) ───────────────
+//
+// ⭐⭐ ONE JS DEFINITION REACHES EVERY MEMBER AT MERGE, SO DARK WORK NEEDS A
+// CLIENT GATE. The client cannot see a server flag: it draws whatever columns
+// arrive. A definition therefore marks an input, an enum option or a preset
+// `requiresServer: true`, and the settings surfaces hide it until the LIVE server
+// row — `SERVER_DEFINITIONS_PATH`, published as data and until now read by
+// nobody — declares it. Merging a control ahead of its server half then shows
+// members nothing, instead of a switch that draws nothing.
+//
+// ⛔ FAIL CLOSED, EVERY WAY. Not fetched yet, the fetch failed (a 402 is a
+// routine state here, exactly as on the columns lane), the body is malformed,
+// or the row is absent: every answer is `null`, which the readers treat as "not
+// declared". A gated control that appears one paint late is a non-event; one
+// that appears against a server that cannot answer it is the defect.
+//
+// ⚠️ ONE GET PER PAGE LOAD, SHAPED LIKE SWR. `serverDeclares` is a synchronous
+// read (the last answer, possibly null) that starts the one request the first
+// time anybody asks; the answer lands for every definition at once and is
+// announced through `subscribeServerDefinitions`, whose subscribers re-read. A
+// success is never re-asked: the route answers the same rows until the next
+// deploy, and a deploy is a page load. The answers are memoised per definition,
+// so a `useSyncExternalStore` snapshot is reference-stable.
+//
+// ⭐ 3-02: ONE RETRY, AND ONLY ONE. A failure (a throw, a 402, a malformed body)
+// is answered "nothing declared" at once, and the request is asked exactly once
+// more `DEFINITIONS_RETRY_MS` later: a pod restarting under a page load would
+// otherwise keep every gated control dark until the member reloads. A second
+// failure stays "nothing declared" for the rest of the page load. Two GETs at
+// most, ever.
+//
+// ⛔ AND NO TEST PAYS FOR IT BY ACCIDENT. Under vitest (`MODE === 'test'`) the
+// default request is disarmed: a suite that counts `fetch` calls must not meet
+// a stray GET it never asked for. A test injects a fetcher per call, or arms one
+// for the module with `__setServerDefinitionsFetcherForTests`.
+
+const _DEFINITIONS_TEST_MODE = (() => {
+  try { return !!(import.meta && import.meta.env && import.meta.env.MODE === 'test') } catch { return false }
+})()
+
+let _defsRows = null          // Map defId -> declaration, once landed
+let _defsPromise = null       // the one request (or its one retry), once asked
+let _defsTestFetcher = null   // armed by a test
+let _defsRetryTimer = null    // the one retry, while scheduled
+let _defsGeneration = 0       // bumped by clear/prime, so a stale answer lands nowhere
+let _defsVersion = 0          // bumped on every landing / prime, read by `serverDefinitionsVersion`
+const _defsSubscribers = new Set()
+
+/** ⭐ 3-02 — how long after a failed definitions fetch the ONE retry is asked. */
+export const DEFINITIONS_RETRY_MS = 30_000
+
+/** An option entry's VALUE, in the three shapes a definition (or a row) may use. */
+function _optionValue(option) {
+  if (Array.isArray(option)) return option[0]
+  if (option && typeof option === 'object' && 'value' in option) return option.value
+  return option
+}
+
+/**
+ * ONE server row → what it declares, or null for a row that is not one.
+ *
+ * PURE and exported so the parse is pinned against the real shape. The route
+ * answers `{schemaVersion, definitions: [row, …]}`, and a row's `inputs` is a
+ * list of `{key, type, default, options?, min?, max?}`; an enum's `options` is a
+ * bare list of VALUES (`["SPY", "RSP", …]`, `["EMA", "SMA"]`). Pairs and
+ * `{value}` objects are read too, so a row that one day carries labels still
+ * parses to the same values.
+ *
+ * @returns {{defId: string, inputs: string[], options: {[key: string]: Array<string|number|boolean>}}|null}
+ *   frozen. `options` holds a key only for an input whose row lists options.
+ */
+export function declarationFromRow(row) {
+  if (!row || typeof row !== 'object' || Array.isArray(row)) return null
+  if (typeof row.id !== 'string' || !row.id) return null
+  const list = Array.isArray(row.inputs) ? row.inputs : []
+  const inputs = []
+  const options = {}
+  for (const spec of list) {
+    if (!spec || typeof spec !== 'object' || typeof spec.key !== 'string' || !spec.key) continue
+    if (inputs.includes(spec.key)) continue
+    inputs.push(spec.key)
+    if (Array.isArray(spec.options)) {
+      options[spec.key] = Object.freeze(spec.options.map(_optionValue)
+        .filter((v) => ['string', 'number', 'boolean'].includes(typeof v)))
+    }
+  }
+  return Object.freeze({ defId: row.id, inputs: Object.freeze(inputs), options: Object.freeze(options) })
+}
+
+/** The route's body → `Map(defId → declaration)`, or null for a body that is not one. */
+function _declarationsFromBody(body) {
+  if (!body || typeof body !== 'object' || !Array.isArray(body.definitions)) return null
+  const out = new Map()
+  for (const row of body.definitions) {
+    const d = declarationFromRow(row)
+    if (d && !out.has(d.defId)) out.set(d.defId, d)
+  }
+  return out
+}
+
+function _notifyDefinitions() {
+  // ⭐ RS split U1 — a surface that lists OFFERED definitions memoises on this
+  // number (a `useSyncExternalStore` snapshot), so a landing re-lists.
+  _defsVersion += 1
+  for (const fn of [..._defsSubscribers]) {
+    try { fn() } catch { /* a bad subscriber must not break the gate */ }
+  }
+}
+
+/** Notified when the definitions land (or fail), and once more after the one retry (3-02). @returns {() => void} */
+export function subscribeServerDefinitions(fn) {
+  if (typeof fn !== 'function') return () => {}
+  _defsSubscribers.add(fn)
+  return () => { _defsSubscribers.delete(fn) }
+}
+
+/** One attempt: the body parsed to declarations, or a throw for anything that is not one. */
+function _askDefinitions(get) {
+  return Promise.resolve()
+    .then(() => get(SERVER_DEFINITIONS_PATH))
+    .then((body) => {
+      const rows = _declarationsFromBody(body)
+      if (!rows) throw new Error('malformed definitions body')
+      return rows
+    })
+}
+
+/**
+ * The one request. Memoised for the page load: the second call returns the
+ * first call's promise, landed or not. A failure resolves `null` ("nothing
+ * declared") at once and schedules exactly ONE retry `DEFINITIONS_RETRY_MS`
+ * later (see the header); while that retry is in flight this returns ITS
+ * promise, and a second failure is remembered as "nothing declared".
+ *
+ * @param {(url: string) => Promise<any>} [fetcher] injected for tests.
+ * @returns {Promise<Map<string, object>|null>}
+ */
+export function fetchServerDefinitions(fetcher) {
+  if (_defsPromise) return _defsPromise
+  const get = typeof fetcher === 'function' ? fetcher
+    : (typeof _defsTestFetcher === 'function' ? _defsTestFetcher
+      : (_DEFINITIONS_TEST_MODE ? null : _defaultFetch))
+  if (!get) return Promise.resolve(null)
+  const gen = _defsGeneration
+  const land = (rows) => {
+    if (gen !== _defsGeneration) return rows
+    _defsRows = rows
+    _notifyDefinitions()
+    // ⭐ UCT RS 3-14 — and the chart repaints: the pool reads the declaration to
+    // decide a gated guide (`pool.plotActiveFor`), so a chart painted before the
+    // answer landed plans its guides again. Same message as a landing column:
+    // "something landed, ask again" (`useServerColumns`).
+    _notify('definitions')
+    return rows
+  }
+  const retry = () => {
+    _defsRetryTimer = null
+    if (gen !== _defsGeneration) return
+    _defsPromise = _askDefinitions(get).then(land, () => land(null))
+  }
+  _defsPromise = _askDefinitions(get)
+    .then(land, () => {
+      const out = land(null)
+      if (gen === _defsGeneration && _defsRetryTimer === null) {
+        _defsRetryTimer = setTimeout(retry, DEFINITIONS_RETRY_MS)
+      }
+      return out
+    })
+  return _defsPromise
+}
+
+/** Cancel a scheduled retry and orphan anything in flight. */
+function _resetDefinitionsRequest() {
+  if (_defsRetryTimer !== null) clearTimeout(_defsRetryTimer)
+  _defsRetryTimer = null
+  _defsGeneration += 1
+}
+
+/**
+ * ⭐ What the live server row of `defId` declares — its input keys and each
+ * enum input's option values — or `null` while unknown, after a failed fetch,
+ * or for an id the server does not publish. Synchronous; the first call starts
+ * the page's one request (see the header).
+ *
+ * @returns {{defId: string, inputs: string[], options: object}|null}
+ */
+export function serverDeclares(defId, fetcher) {
+  const id = typeof defId === 'string' ? defId : ''
+  if (!id) return null
+  if (!_defsPromise) fetchServerDefinitions(fetcher)
+  return (_defsRows && _defsRows.get(id)) || null
+}
+
+// ─── THE DEFINITION-LEVEL GATE (UCT RS split, unit U1) ────────────────────────
+//
+// ⭐⭐ A WHOLE DEFINITION CAN MERGE AHEAD OF ITS SERVER ROW. The per-input gate
+// above hides a CONTROL until the live row declares it; the three new RS
+// definitions (`rsRating`, `rsPhases`, `rsVsEma`, unit U6) have no row at all
+// until `RS_SPLIT_ENABLED` is armed on the web pod (map §(e) step 1), and a
+// library row that adds an indicator the server cannot compute is an empty pane
+// with a name on it. So a definition declares `meta.requiresServer: true`
+// (`defSchema.validateMeta`), and every surface that OFFERS indicators to add
+// — the library dialog, the discovery catalogue and its search, the phone
+// indicator sheet, Chart Settings' Indicators tab, the agent's catalogue —
+// asks `isDefinitionOffered(def)` before listing it.
+//
+// ⛔ FAIL CLOSED, THE SAME WAY, FROM THE SAME FETCH. "Offered" is
+// `serverDeclares(def.id) !== null`: not fetched yet, failed, malformed, or an
+// id the server does not publish all read "not offered". It is the one GET the
+// per-input gate already pays for — there is no second request, no second cache.
+//
+// ⭐ AN INSTANCE ALREADY ON A CHART IS NOT A ROW IN A LIST. The gate hides the
+// OFFER only. `getDefinition` still resolves a gated definition, so a stored
+// instance validates (`instances.validateInstance`), keeps its settings row and
+// draws when the server answers — and draws nothing, never a guess, when it
+// cannot, exactly as the columns lane already behaves.
+//
+// ⛔ A DEFINITION WITHOUT THE FLAG IS NEVER ASKED ABOUT. `isDefinitionOffered`
+// returns true for it without touching `serverDeclares`, so listing RSI never
+// spends the page's one definitions GET, and a catalogue of ungated definitions
+// is exactly the list it was before this gate existed.
+
+/** Does this definition declare the definition-level server gate (`meta.requiresServer: true`)? */
+export function definitionRequiresServer(def) {
+  return !!(def && def.meta && def.meta.requiresServer === true)
+}
+
+/**
+ * ⭐ May a surface OFFER this definition (list it as something to add)?
+ * `true` for any definition without `meta.requiresServer`; for one with it,
+ * only once the live server lists its id (`serverDeclares`), which starts the
+ * page's one request on first ask. `null`/non-object → false.
+ */
+export function isDefinitionOffered(def) {
+  if (!def || typeof def !== 'object') return false
+  if (!definitionRequiresServer(def)) return true
+  return serverDeclares(def.id) !== null
+}
+
+/**
+ * The catalogue-row form of the same question, for the surfaces that read
+ * `indicatorCatalog.catalogRows()` (rows, not definitions). A row with no
+ * definition behind it (a carved-out section such as `volumeProfile`, a
+ * built-in row) is offered: there is nothing to gate. `registry` is whatever
+ * the surface was handed (`getDefinition`); absent, every row is offered.
+ */
+export function isCatalogRowOffered(row, registry) {
+  if (!row || typeof row !== 'object') return false
+  const id = typeof row.id === 'string' ? row.id : (typeof row.defId === 'string' ? row.defId : '')
+  if (!id || !registry || typeof registry.getDefinition !== 'function') return true
+  let def = null
+  try { def = registry.getDefinition(id) } catch { def = null }
+  return def ? isDefinitionOffered(def) : true
+}
+
+/**
+ * A number that moves on every landing (success, failure or prime) of the
+ * definitions answer: the `useSyncExternalStore` snapshot a surface keys its
+ * offered-list memo on, beside `subscribeServerDefinitions`.
+ */
+export function serverDefinitionsVersion() {
+  return _defsVersion
+}
+
+/** Seed the answer from a body somebody already holds (and the test seam). */
+export function primeServerDefinitions(body) {
+  _resetDefinitionsRequest()
+  _defsRows = _declarationsFromBody(body)
+  _defsPromise = Promise.resolve(_defsRows)
+  _notifyDefinitions()
+  _notify('definitions')
+  return _defsRows
+}
+
+/** Test seam: forget the answer and the request, as a new page load would. */
+export function clearServerDefinitions() {
+  _resetDefinitionsRequest()
+  _defsRows = null
+  _defsPromise = null
+}
+
+/** Test seam: arm (or, with null, disarm) the request for the whole module. */
+export function __setServerDefinitionsFetcherForTests(fn) {
+  _defsTestFetcher = typeof fn === 'function' ? fn : null
 }

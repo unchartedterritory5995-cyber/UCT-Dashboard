@@ -68,7 +68,7 @@ const LWC_LINE_DEFAULTS_RESTATED = {
   pointMarkersVisible: false,
   pointMarkersRadius: 3,
   lineVisible: true,     // lineStyleDefaults.lineVisible ("Last value horizontal" turns it off)
-  priceFormat: { type: 'price', precision: 2 },
+  priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
   // MACD owns its own stacked band, so `placement` returns 'default' and the
   // identity provider is the restatement. A price overlay would carry
   // AUTOSCALE_EXCLUDE here instead.
@@ -92,6 +92,16 @@ const LWC_HIST_DEFAULTS_RESTATED = {
   visible: true,
   color: '#26a69a',
   autoscaleInfoProvider: AUTOSCALE_DEFAULT,
+}
+
+/** The ONE place the engine deliberately differs from the legacy histogram, by
+ *  decision B1 (2026-11-07). The legacy call set `precision: 5` and left LWC's
+ *  `minMove: 0.01`, and LWC 5.2.0 rounds to `minMove` while padding to
+ *  `precision`, so its tag printed 0.12000 for 0.12345. `minMove: 1e-5` makes the
+ *  five decimals real. Kept apart from `LEGACY_HIST` so that constant stays a
+ *  faithful record of what the legacy block said. */
+const B1_HIST_CORRECTION = {
+  priceFormat: { type: 'price', precision: 5, minMove: 0.00001 },
 }
 
 /** `applyIndScale('macd', …, { autoScale: true })` — `:6117`, expanded through
@@ -233,7 +243,7 @@ describe('MACD Flip A — two lines, a histogram, one guide', () => {
     const { F } = sync()
     const hist = F.callsOf('addSeries')[2].args[1]
     expect(hist).toMatchObject(LEGACY_HIST)
-    expect(hist).toEqual({ ...LEGACY_HIST, ...LWC_HIST_DEFAULTS_RESTATED })
+    expect(hist).toEqual({ ...LEGACY_HIST, ...LWC_HIST_DEFAULTS_RESTATED, ...B1_HIST_CORRECTION })
     // Named individually as well as covered by the `toEqual`, because these are
     // the four the histogram branch exists to NOT emit — a shared key set across
     // pool keys is the exact bug `pool.js:524-531` is written against.
@@ -241,11 +251,10 @@ describe('MACD Flip A — two lines, a histogram, one guide', () => {
       'pointMarkersVisible', 'pointMarkersRadius']) {
       expect(hist, `a histogram has no ${key}`).not.toHaveProperty(key)
     }
-    // `minMove` must NOT be emitted: LWC's `merge` recurses into a nested plain
-    // object, so the series keeps its own 0.01 — exactly what the legacy call
-    // (`{type:'price', precision:5}` and nothing else) leaves it at.
-    expect(hist.priceFormat).toEqual({ type: 'price', precision: 5 })
-    expect(hist.priceFormat).not.toHaveProperty('minMove')
+    // ⚰️ This asserted `minMove` was NOT emitted, to match the legacy call. That
+    // left LWC's 0.01 in place and the tag rounded five decimals to two. Decision
+    // B1: `minMove` follows `precision`, so the tag shows the five it prints.
+    expect(hist.priceFormat).toEqual({ type: 'price', precision: 5, minMove: 0.00001 })
   })
 
   it('the band AUTOSCALES — the complete set, and NO fixed range', () => {

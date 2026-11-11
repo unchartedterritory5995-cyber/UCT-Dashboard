@@ -15,6 +15,12 @@ import { noDefaultAverages } from './__fixtures__/adoptedAverages'
 import * as engineRegistry from './engine/nativeRegistry'
 import { ENGINE_OWNED } from './engine/flipState'
 import { removeDefinition, HIDDEN_VIA_DEFINITION } from './engine/instanceControls'
+// ⭐ RS split F1 (2026-11-10): the rows are the OFFERED definitions — a
+// `meta.requiresServer` definition the live server has not listed gets no row
+// (`listEngineIndicators` asks the same gate; nothing lands under vitest).
+import { isDefinitionOffered } from './engine/serverCompute'
+
+const offeredDefinitions = () => engineRegistry.listDefinitions().filter(isDefinitionOffered)
 
 // VWAP was the first indicator folded out of the old flat `indicators` map and into
 // the registry-driven Indicators tab, and at B3 Task 12 it became the first one
@@ -64,11 +70,17 @@ describe('the rail — the hand-written registry lists nothing the engine owns',
     // This rail is about one row per DEFINITION, so its chart has deleted them.
     const ids = listEngineIndicators(mergeChartSettings(noDefaultAverages(null)), engineRegistry).map((r) => r.id)
     expect(ids, 'a definition lost its generated row, or a row appeared for a non-definition')
-      .toEqual(engineRegistry.listDefinitions().map((d) => d.id))
+      .toEqual(offeredDefinitions().map((d) => d.id))
     expect(ids, 'VWAP is still one of them — it was the FIRST, at B3 Task 12').toContain('vwap')
     for (const id of ENGINE_OWNED) {
+      if (!isDefinitionOffered(engineRegistry.getDefinition(id))) continue
       expect(ids, `${id} is migrated and has no row`).toContain(id)
     }
+    // …and the gate really withheld something, so "offered" is not "all" by accident.
+    const withheld = engineRegistry.listDefinitions().filter((d) => !isDefinitionOffered(d)).map((d) => d.id).sort()
+    expect(withheld, 'the three server-gated RS definitions get no row until the server lists them')
+      .toEqual(['rsPhases', 'rsRating', 'rsVsEma'])
+    for (const id of withheld) expect(ids).not.toContain(id)
   })
 
   it('the tab shows Moving averages, Volume, then one section per definition, then the carved-out ones', () => {
@@ -76,11 +88,14 @@ describe('the rail — the hand-written registry lists nothing the engine owns',
     // ⭐ 2026-09-28 — 'Moving averages' is gone: the averages are engine rows now,
     // grouped under the definition's own short name ('MA'), and the ADOPTED ones
     // keep the overlay rows' place at the top (`listAllIndicators`), above Volume.
+    // ⭐ RS split F1 (2026-11-10): one section per OFFERED definition — a server-gated
+    // one has no section until the live server lists it.
     expect(groups).toEqual([
       'MA', 'Volume',
-      ...engineRegistry.listDefinitions().map((d) => d.meta.shortName).filter((n) => n !== 'MA'),
+      ...offeredDefinitions().map((d) => d.meta.shortName).filter((n) => n !== 'MA'),
       ...CARVED_OUT_ROWS.map((r) => r.shortName),
     ])
+    expect(groups).not.toContain('UCT RS Rating')
     // ⛔ AND THE CARVED-OUT ROW IS STILL THERE. A section list derived from
     // definitions ALONE would drop `volumeProfile` — the user-facing regression
     // B3 Task 11 refused when it was asked to delete VWAP's row.
@@ -134,7 +149,12 @@ describe('the VWAP row is DERIVED from the definition, not written here', () => 
       .toEqual({ key: 'n', label: 'N', type: 'number', min: 1, max: 4, step: 1 })
     // A type with no control renders NOTHING rather than rendering wrong — a
     // control that writes nowhere is the defect this whole task is retiring.
-    expect(fieldFromInput({ key: 's', label: 'S', type: 'string' })).toBe(null)
+    expect(fieldFromInput({ key: 'x', label: 'X', type: 'no-such-type' })).toBe(null)
+    // ⭐ UCT RS Phase 3 (unit 3-02): `string` came off that list when it acquired a
+    // real control, the text box, carrying only the text keys the input declares.
+    expect(fieldFromInput({ key: 's', label: 'S', type: 'string' })).toEqual({ key: 's', label: 'S', type: 'text' })
+    expect(fieldFromInput({ key: 's', label: 'S', type: 'string', pattern: '^[A-Z]+$', maxLength: 10, case: 'upper' }))
+      .toEqual({ key: 's', label: 'S', type: 'text', pattern: '^[A-Z]+$', maxLength: 10, case: 'upper' })
     // ⭐⭐ `source` CAME OFF THAT LIST WHEN IT ACQUIRED A REAL CONTROL (P2.1).
     // While no shipped definition declared one, `null` was the honest answer;
     // `dataSeries` declares one and is member-facing, so "renders nothing" would

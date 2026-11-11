@@ -191,6 +191,10 @@ _LEAF_TYPES = frozenset({
     # Wave 11 lane 11D: the trade-plan canvas (tradeCanvasNode.js) -- a block
     # atom that reads as its searchText (`_ATOM_TEXT`).
     "tradeCanvas",
+    # Connector fidelity (2026-11): an import's "couldn't copy" marker
+    # (importNoticeNode.js) -- a block atom that reads as nothing: its sentence
+    # is derived from attrs, not the member's words.
+    "importNotice",
 })
 
 # Leaves that sit INSIDE a textblock. textBetween only ever emits a separator

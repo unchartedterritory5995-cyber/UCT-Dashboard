@@ -13,6 +13,16 @@
 // fields the main thread rebuilds (`runtimeAsync.js`).
 import { computeRuntimeColumns, RUNTIME_PANE_TIME_BUDGET_MS } from './runtimeColumns.js'
 import { RUNTIME_OBJECTS_KEY, runtimeWarmupOf } from './runtimeObjects.js'
+// ⭐⭐ W9-T11 — the run's `strategy` record crosses beside the columns, like the drawings.
+import { runtimeStrategyOf } from './strategyRecord.js'
+// ⭐⭐ W9-T11 (T1 review N1a) — THE WORKER IS ITS OWN MODULE GRAPH: the member door's
+// registration (`memberPaneDefinition.js`) never runs here, so without this the worker's
+// front end would read the registry's default (off) while the main thread's probe read the
+// flag. The SAME reader is registered (`strategyBrokerGate.js`, default off, `=== '1'`); this
+// file is browser transport, outside the server compute closure (`pine_runtime_closure.mjs`).
+import { strategyBrokerEnabled } from '../strategyBrokerGate.js'
+import { registerStrategyBrokerGate } from '../strategyBrokerGateRegistry.js'
+registerStrategyBrokerGate(strategyBrokerEnabled)
 
 // ⭐ P3 WS-H (S8) — how long the run took, IN the worker (a stop's beacon reports
 // it; the main thread's own clock would also count the queue and the bundle load).
@@ -28,7 +38,7 @@ self.onmessage = (event) => {
     // payload, a WITHHELD one included (its sentence is the member's), and the warm-up
     // the run withheld off the listing, which the host object gate reads.
     self.postMessage({ id, ok: true, columns, objects: columns[RUNTIME_OBJECTS_KEY] || null,
-      warmup: runtimeWarmupOf(columns) })
+      warmup: runtimeWarmupOf(columns), strategy: runtimeStrategyOf(columns) })
   } catch (err) {
     self.postMessage({
       id,
@@ -37,6 +47,7 @@ self.onmessage = (event) => {
         name: (err && err.name) || 'Error',
         message: String((err && err.message) || err),
         guard: (err && err.guard) || null,
+        limit: (err && typeof err.limit === 'string') ? err.limit : null,
         bar: err && Number.isInteger(err.bar) ? err.bar : null,
         ms: Math.max(0, Math.round(clock() - startedAt)),
       },

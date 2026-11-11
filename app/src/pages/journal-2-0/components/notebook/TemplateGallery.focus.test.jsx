@@ -1,3 +1,4 @@
+// S7 fix round 1 (audit 2026-11-05): an outline card's "Use template" COPIES (no note), so it says so: "Add to my templates". One word, one outcome.
 // Lane FIN-A11Y (review R4: M-4 and the gallery items in M-16). In the community gallery
 // three actions swapped a control for another one and dropped focus (Unpublish to its
 // confirm row, "Keep it" back again, closing the Report form), the admin's Feature button
@@ -110,7 +111,7 @@ describe('M-16 -- results go into a status region that was already there', () =>
     expect(region).not.toBeNull()
     expect(region).toHaveAttribute('role', 'status')
     expect(region).toHaveTextContent('')
-    await user.click(screen.getByRole('button', { name: 'Use template Breakout checklist' }))
+    await user.click(screen.getByRole('button', { name: 'Add Breakout checklist to my templates' }))
     await waitFor(() => expect(region.textContent.length).toBeGreaterThan(0))
     expect(document.querySelector('[data-gallery-message]')).toBe(region)
   })

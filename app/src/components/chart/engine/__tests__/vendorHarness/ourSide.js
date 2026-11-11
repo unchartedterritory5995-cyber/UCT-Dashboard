@@ -35,9 +35,10 @@ import { objectReaderFor } from '../../objectColumns'
 import { evaluateObjects } from '../../objectRuntime'
 import { toRenderState } from '../../objectRenderState'
 // ⭐ RT5 — a runtime document's own drawings.
-import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf } from '../../runtime/runtimeObjects'
+import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf, RUNTIME_WARMUP_KEY } from '../../runtime/runtimeObjects'
 import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
-import { maxLookback } from '../../ast/interpret'
+import { maxLookback, CHART_CLOCK_WHOLE } from '../../ast/interpret'
+import { setRuntimeDoorClock } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
 import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
@@ -45,6 +46,7 @@ import SYMBOL_SCOPE from '../../ast/symbolScope.json'
 import { createFakeChart } from '../fakeChart'
 import { normalizeColor } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { validateCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
+import { fullBarsFor } from '../../../../../utils/barsBackfill'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -312,7 +314,8 @@ function warmCandidateRowsOf(file) {
   return warmCandidateRows.get(file)
 }
 
-/** The prehistory a capture's paints are replayed over, or why there is none.
+/** The prehistory a capture's paints, plots and objects are replayed over (DIV-1:
+ *  plots and objects too), or why there is none.
  *  @returns {{kind: 'warm'|'cold'|'bar0', rows: any[]|null, file: string|null,
  *             bars: number, refused: string[], reason: string}} */
 export function warmBarsSupply(capture) {
@@ -365,6 +368,67 @@ export function warmBarsSupply(capture) {
     reason: `${pick.rows.length} bars of prehistory from ${pick.file}`
       + `${pick.listing ? ' (which starts at the listing: historyFromListing on)' : ' (not from the listing: historyFromListing off)'}`
       + `, every overlapping window bar equal on ${OHLCV_FIELDS.join('/')}` }
+}
+
+/** ⭐ DIV-1 — a column map computed over [prehistory + window], as the WINDOW's:
+ *  every column sliced past the `pre` prehistory bars, every non-enumerable payload
+ *  the readers walk (`columnErrors`, other-symbol / lower-timeframe / chart-clock
+ *  reports, the runtime's drawings) carried verbatim — the shape
+ *  `calcBarsWindow.widenToChart` uses in the other direction. The runtime's withheld
+ *  warm-up (`runtimeWarmupOf`) is the one payload counted in bars, so it is moved
+ *  into the window's indices (never below 0, and never dropped: a curtain that
+ *  existed still withholds the run's drawings, as on the chart). */
+export function columnsInWindow(cols, pre) {
+  if (!cols || typeof cols !== 'object' || !(pre > 0)) return cols
+  const out = {}
+  for (const [k, col] of Object.entries(cols)) {
+    out[k] = col && typeof col.slice === 'function' ? col.slice(pre) : col
+  }
+  for (const key of Object.getOwnPropertyNames(cols)) {
+    if (Object.hasOwn(out, key)) continue
+    let value = cols[key]
+    if (key === RUNTIME_WARMUP_KEY && value && Number.isInteger(value.withheldBars)) {
+      value = { ...value, withheldBars: Math.max(0, value.withheldBars - pre) }
+    }
+    Object.defineProperty(out, key, { value, enumerable: false, configurable: true })
+  }
+  return out
+}
+
+/** ⭐⭐ DIV-1 — does the PLOT / OBJECT lane replay over the proved prehistory, and why
+ *  not when it does not. ONE decision, pure, so every rule is railed on its own.
+ *
+ *  Replays only what a member's chart computes:
+ *   · a proved supplier (`warmBarsSupply` 'warm') — never invented history;
+ *   · a DAILY chart — an intraday chart first-paints a shallow window and deepens only
+ *     on a pan, so it never computes from the supplier's first bar;
+ *   · a script reading no other symbol's / lower timeframe's bars — their prehistory is
+ *     not supplied;
+ *   · ⭐ r1 (review N2) — at most the depth the product computes: the standalone daily
+ *     chart loads `fullBarsFor('D')` bars (the product's own constant, read here, never
+ *     restated), so a supplier whose prehistory + window exceeds it would grade a series
+ *     no member's chart computes. Then the replay is cold, and graded as before.
+ *  ⚠️ What a replayed MATCH speaks for (review N3): the STANDALONE daily chart. A grid
+ *  cell first-paints shallow (`backgroundWarm={false}`), and W / M stay cold here.
+ *  @returns {{replay: boolean, kind: 'replayed'|'cold'|'bar0', why: string}} */
+export function replayDecisionOf({ supplyKind, supplyBars = 0, supplyReason = '', file = null,
+  windowBars = 0, tf, readsOtherSymbol = false, readsLowerTf = false } = {}) {
+  if (supplyKind !== 'warm') return { replay: false, kind: supplyKind === 'bar0' ? 'bar0' : 'cold', why: supplyReason }
+  if (tf !== 'D') {
+    return { replay: false, kind: 'cold',
+      why: `a proved supplier exists (${file}) but a ${tf} chart first-paints a shallow window and deepens only on a pan, so it does not compute from the supplier's first bar (not a daily chart), cold replay` }
+  }
+  if (readsOtherSymbol || readsLowerTf) {
+    return { replay: false, kind: 'cold',
+      why: `a proved supplier exists (${file}) but the script also reads ${readsOtherSymbol ? 'another symbol' : 'a lower timeframe'} whose prehistory is not supplied, cold replay` }
+  }
+  const depth = fullBarsFor('D')
+  if (supplyBars + windowBars > depth) {
+    return { replay: false, kind: 'cold',
+      why: `a proved supplier exists (${file}) but its ${supplyBars} bars of prehistory + the ${windowBars}-bar window exceed the ${depth} bars a member's daily chart computes (fullBarsFor('D')), cold replay` }
+  }
+  return { replay: true, kind: 'replayed',
+    why: `${supplyReason}; graded as the STANDALONE daily chart computes it (${supplyBars + windowBars} of at most ${depth} bars; a grid cell first-paints shallow, and W / M stay cold)` }
 }
 
 /** The id every harness run installs under. Satisfies `defSchema.ID_RE` (it is
@@ -488,7 +552,11 @@ function withOpacity(hex, opacity) {
  *  than reported "withheld"; every other record is the translation's, verbatim. */
 function runtimeAwarePaints(built, def) {
   const host = ((built.translation && built.translation.presentation) || {}).paints || []
-  if (built.lane !== 'runtime') return host
+  // ⭐ DIV-4 — a HOST document draws a `barcolor` the host withheld for its colour
+  // when it reads that colour from the per-bar run (`compute.runtimeColours`,
+  // `memberPaneDefinition::runtimeReadPaints`): graded as drawn, the same rule.
+  const readsRunColours = !!(def && def.compute && def.compute.runtimeColours)
+  if (built.lane !== 'runtime' && !readsRunColours) return host
   const drawn = new Set((def.paints || []).map((p) => `${p.kind}@${p.line}`))
   return host.map((p) => {
     if (!p || !drawn.has(`${p.kind}@${p.line}`)) return p
@@ -795,13 +863,63 @@ export function enterMemberDoor(source) {
   return { built, def: installed[0], stage: null, refusal: null }
 }
 
+/** ⭐⭐ THE PARITY CLOCK: one that never moves. A grade is a question about VALUES, so
+ *  the runtime pane's wall-clock stop (`RUNTIME_PANE_TIME_BUDGET_MS`) must not answer it:
+ *  on a busy box delta-rsi's cold run passed 1,000 ms and graded INCONCLUSIVE ("no
+ *  column") while its values MATCH. Installed for the length of one grade and restored in
+ *  the `finally`; the instruction budgets (`limits.js`) still stop a runaway, and the
+ *  member door's budget is railed on its own (`runtimeDoorBudget.rail.test.js`). */
+const PARITY_CLOCK = () => 0
+
 /**
  * Run the member door on the capture's bars.
  *
  * @returns {{ok: boolean, refusal: string|null, plots: object[], objects: object,
  *            ctx: object, notes: string[]}}
  */
+/** Does this column hold no value on any bar (a by-name withholding that reached
+ *  every bar)? A missing column answers no: there is nothing to grade either way. */
+export function withholdsEveryBar(column) {
+  if (!column || typeof column.length !== 'number' || !column.length) return false
+  for (let i = 0; i < column.length; i++) if (column[i] === column[i]) return false
+  return true
+}
+
+/** ⭐ 2026-11-09 (triage lane WN; review N2) — WHICH PLOTS OUR SIDE WITHHELD BY
+ *  NAME ON EVERY BAR: `Map<plotKey, code>` from the door's chart-clock report.
+ *  ⛔ The COLUMN decides, for every code, whole-series ones included: a plot whose
+ *  column holds no value on any bar is withheld (graded INCONCLUSIVE, with the
+ *  code); a code named on a plot that still draws a value is graded on those
+ *  values and SAID (`notes`), so a mislabelled served plot cannot hide as
+ *  INCONCLUSIVE. Each code's note is pushed here too. */
+export function withheldPlotsOf(clockReport, cols, notes) {
+  const out = new Map()
+  if (!clockReport) return out
+  for (const r of clockReport.withheld) {
+    const what = r.code.startsWith('bar-index:') ? '`bar_index`'
+      : r.code.startsWith('running-total:') ? 'a running total'
+        : r.code.startsWith('var-origin:') ? '`var`' : 'time(<timeframe>)'
+    notes.push(`${what} withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
+    const whole = CHART_CLOCK_WHOLE.includes(r.code)
+    for (const key of r.plots) {
+      if (out.has(key)) continue
+      if (withholdsEveryBar(cols[key])) out.set(key, r.code)
+      else if (whole) notes.push(`${key}: named ${r.code} (withheld on every bar) but its column holds values — graded on them`)
+    }
+  }
+  return out
+}
+
 export function runOurSide(capture) {
+  setRuntimeDoorClock(PARITY_CLOCK)
+  try {
+    return runOurSideOnTheParityClock(capture)
+  } finally {
+    setRuntimeDoorClock(null)
+  }
+}
+
+function runOurSideOnTheParityClock(capture) {
   const notes = []
   const source = capture && capture.source && capture.source.text
   const door = enterMemberDoor(source)
@@ -845,26 +963,69 @@ export function runOurSide(capture) {
     const lower = lowerTfSupply(def, capture)
     if (lower.lowerTf) ctx.lowerTf = lower.lowerTf
     notes.push(...lower.notes)
-    const cols = registry.computeFor(def, bars, undefined, ctx)
+    // ⭐⭐ DIV-1 (2026-11-09) — THE PLOT AND OBJECT LANES GRADE WITH THE HISTORY
+    // TRADINGVIEW HAD. RC1 (below) already replayed the PAINTS over [prehistory +
+    // window]; the plot and object lanes still started cold at the capture's first
+    // bar, while TradingView computed every one of these captures with the symbol's
+    // history back to the listing in front of it (DIVERGE triage 2026-11-08: 24 SPY
+    // 1D captures diverging on a converging prefix). Gated on what the PRODUCT does,
+    // measured before this was written: a standalone daily chart first-paints
+    // `fullBarsFor('D')` = 12,500 bars (`StockChart._deepFirstPaint`), the server's
+    // deep branch serves SPY from its 1993-01-29 listing (8,502 sessions; the 6,677
+    // before the SPY windows are the supplier's own sessions, closes equal at the
+    // median), the binder computes over every loaded bar, and `historyFromListing`
+    // is stated from the listing date. So this makes the harness measure what a
+    // member's chart computes; it is not a tolerance.
+    // ⛔ ONE SUPPLIER, THE PROVED ONE (`warmBarsSupply`), and the listing flag is the
+    // SUPPLIER's. `barIndexFromFirstBar` is NOT stated on the replay: no member
+    // surface states it (`nativeRegistry.barIndexAbsoluteFor`); on a listing series
+    // `interpret` derives `bar_index` from the listing itself, exactly as on the chart.
+    // ⛔ NEVER INVENTED HISTORY: a capture that also reads another symbol's or a lower
+    // timeframe's bars stays cold — those series' prehistory is not supplied, and
+    // replaying ours against their window-only bars is a series no chart computes.
+    // ⛔ DAILY ONLY — the gate measured a DAILY chart. An intraday chart first-paints
+    // `firstPaintBarsFor(tf)` (under 1,200 bars) and deepens only when the member pans
+    // (`barsBackfill.shouldBackfill`), so its computation does NOT start at the
+    // supplier's first bar: replaying intraday would grade a series the chart does not
+    // compute. (The paint lane's RC1 replay is its own rule and is unchanged.)
+    // ⭐ r1 (review N2) — and never deeper than the product's own daily depth
+    // (`replayDecisionOf`, which holds every rule above as one pure decision).
+    const replaySupply = warmBarsSupply(capture)
+    const decision = replayDecisionOf({
+      supplyKind: replaySupply.kind, supplyBars: replaySupply.bars, supplyReason: replaySupply.reason,
+      file: replaySupply.file, windowBars: bars.length, tf,
+      readsOtherSymbol: !!supply.secondary, readsLowerTf: !!lower.lowerTf,
+    })
+    const replay = decision.replay
+    const replayPre = replay ? replaySupply.bars : 0
+    const calcBars = replay
+      ? toProductBars({ ...capture, bars: { ...capture.bars, rows: replaySupply.rows.concat(capture.bars.rows) } })
+      : bars
+    const calcCtx = replay ? { ...ctx, historyFromListing: replaySupply.historyFromListing === true } : ctx
+    notes.push(`plots/objects: ${decision.kind}: ${decision.why}`)
+    const calcCols = registry.computeFor(def, calcBars, undefined, calcCtx)
+    const cols = replay ? columnsInWindow(calcCols, replayPre) : calcCols
     // ⭐ B1 — each carried paint's colour on every bar, through the binder's own
     // `paintColoursFor` (the function the chart draws with), keyed as the binder keys.
     // ⭐⭐ RC1 — over [prehistory + window] when a proved supplier exists
-    // (`warmBarsSupply`), then SLICED to the window. Paint lane only: the plot lane
-    // carries its own warm-up model (`compare.mjs` `warmupBars`) and its pinned
-    // verdicts are another lane's.
+    // (`warmBarsSupply`), then SLICED to the window. (DIV-1: the plot and object
+    // lanes now take the same supplier, above; the paint lane's own rules — warm
+    // even where DIV-1 stays cold — are unchanged.)
     // (asked whenever the script records a paint at all, so a grade whose paints the
     // door folded to `na` still says which history it stands on)
     const recordsPaints = (def.paints || []).length > 0 || runtimeAwarePaints(built, def).length > 0
-    const paintSupply = recordsPaints ? warmBarsSupply(capture) : null
+    const paintSupply = recordsPaints ? replaySupply : null
     if (paintSupply) notes.push(`paints: ${paintSupply.kind}: ${paintSupply.reason}`)
     const warm = !!(paintSupply && paintSupply.kind === 'warm' && (def.paints || []).length > 0)
     const pre = warm ? paintSupply.bars : 0
-    const paintBars = warm
-      ? toProductBars({ ...capture, bars: { ...capture.bars, rows: paintSupply.rows.concat(capture.bars.rows) } })
+    const paintBars = warm ? (replay ? calcBars
+      : toProductBars({ ...capture, bars: { ...capture.bars, rows: paintSupply.rows.concat(capture.bars.rows) } }))
       : bars
     // ⭐ the warm replay's own context: the listing flag comes from the SUPPLIER
     const paintCtx = warm ? { ...ctx, historyFromListing: paintSupply.historyFromListing === true } : ctx
-    const paintColsRaw = warm ? registry.computeFor(def, paintBars, undefined, paintCtx) : cols
+    // (with DIV-1 replaying, the paint pass is the SAME computation — same bars, same
+    // context — so it is read off `calcCols` rather than run twice)
+    const paintColsRaw = warm ? (replay ? calcCols : registry.computeFor(def, paintBars, undefined, paintCtx)) : cols
     const paintCols = new Map(Object.keys(paintColsRaw || {}).map((k) => [bindingKey('harness', k), paintColsRaw[k]]))
     const paints = (def.paints || []).map((p) => {
       const all = paintColoursFor(p, 'harness', paintCols, paintBars.length)
@@ -887,21 +1048,30 @@ export function runOurSide(capture) {
     // NO served value: it is graded "not compared — withheld by name", never as a
     // value that differs. ⚰️ Graded as a column of `na` it read DIVERGE, the
     // verdict a WRONG value gets, which is the one thing a withholding is not.
-    // ⛔ Only `bar-index:window`: the C36 whole-series codes keep their grading
-    // (changing another lane's verdict is not this one's to do).
-    const clockReport = registry.chartClockReport(cols)
-    const withheldWhole = new Map()
-    if (clockReport) {
-      for (const r of clockReport.withheld) {
-        const what = r.code.startsWith('bar-index:') ? '`bar_index`' : 'time(<timeframe>)'
-        notes.push(`${what} withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
-        if (r.code === 'bar-index:window') for (const key of r.plots) withheldWhole.set(key, r.code)
-      }
-    }
-
+    // ⭐⭐ 2026-11-09 (`fix/pine-cumulative-off-listing`, triage lane WN) — EVERY
+    // whole-series code, not only `bar-index:window`. ⚰️ The C36 codes
+    // (`time-anchor:not-daily`, `time-own:chart-unwitnessed`, …) were left out "to
+    // keep another lane's verdict", and their all-`na` columns graded DIVERGE: 13
+    // captures over vw-time-tf / vw-bar-counters / vw-bar-origin read as WRONG
+    // values where the door had withheld them by name. A per-bar code
+    // (`time-anchor:period-open-missing`, `bar-index:early-bars`, …) withholds some
+    // bars; a plot it names whose column holds NO value on any bar is withheld
+    // whole just the same, and graded the same way. A plot with values keeps its
+    // comparison: the bars the door drew are still judged.
+    const withheldWhole = withheldPlotsOf(registry.chartClockReport(cols), cols, notes)
     let colours
+    // ⭐ DIV-1 — the plot colours the binder draws over the SAME replayed bars the
+    // values were computed on, each sliced to the window.
+    let calcColours = null
     try {
-      colours = drawnColours(def, bars, ctx)
+      if (replay) {
+        calcColours = drawnColours(def, calcBars, calcCtx)
+        colours = { ...calcColours,
+          byKey: new Map([...calcColours.byKey].map(([k, c]) => [k, Array.isArray(c) ? c.slice(replayPre) : c])),
+          paints: null }
+      } else {
+        colours = drawnColours(def, bars, ctx)
+      }
     } catch (err) {
       colours = { ok: false, reason: `binder threw: ${String((err && err.message) || err)}`, byKey: new Map() }
     }
@@ -912,7 +1082,8 @@ export function runOurSide(capture) {
     let drawnPaints = colours && colours.paints ? colours.paints : null
     if (warm) {
       try {
-        const w = drawnColours(def, paintBars, paintCtx)
+        // (the DIV-1 pass above IS this pass when it replayed: same bars, same context)
+        const w = replay && calcColours ? calcColours : drawnColours(def, paintBars, paintCtx)
         const keep = new Set(bars.map((b) => String(b.t)))
         drawnPaints = w && w.paints ? {
           backgrounds: w.paints.backgrounds.map((b) => ({ ...b, colors: Array.isArray(b.colors) ? b.colors.slice(pre) : b.colors })),
@@ -942,7 +1113,11 @@ export function runOurSide(capture) {
         ? (rowByOutput.get(index) || null)
         : (o && o.ast ? rowByAst.get(o.ast) : null)
       const heldBy = row ? withheldWhole.get(row.key) : undefined
-      const col = row && !heldBy ? cols[row.key] : undefined
+      // ⚠️ `bar-index:window` keeps the shape C45 pinned (no column at all); every
+      // other by-name withholding keeps its all-`na` column for the rails that read
+      // it, and carries `withheldBy` — which `compare.mjs` grades exactly as it grades
+      // a missing column: INCONCLUSIVE, with the reason.
+      const col = row && heldBy !== 'bar-index:window' ? cols[row.key] : undefined
       let missingReason = null
       if (heldBy) {
         missingReason = `withheld on this chart on every bar, by name (${heldBy}) — nothing is drawn for it`
@@ -951,16 +1126,26 @@ export function runOurSide(capture) {
           ? `the translator refused this plot (${(o.refusal && (o.refusal.guard || o.refusal.message)) || 'refusal'})`
           : 'the member pane did not carry this output (hidden helper or beyond its row ceiling)'
       } else if (!col) {
+        // ⭐ HONESTY-SWEEP r3 — say WHY, when the door recorded it. A runtime run stopped by
+        // its wall-clock budget (`runtime:time-budget`, 1,000 ms) read here as a bare "no
+        // column", so a measure-pair could not tell a load-sensitive stop from a lane that
+        // dropped its columns (delta-rsi RDDT, MATCH -> INCONCLUSIVE, 2026-11-08).
+        const why = registry.columnErrors(cols)[row.key]
         missingReason = `computeFor returned no column for ${row.key}`
+          + (why && why.guard ? ` (${why.guard})` : '')
       }
       plots.push({
         title: o ? o.title : null,
         formula: o ? o.formula : null,
         key: row ? row.key : null,
+        withheldBy: heldBy || null,
         hidden: !!(o && o.hidden),
         column: col || null,
         missingReason,
         lookback: curtain ? curtain.withheldBars : (o && o.ast ? lookbackOf(o.ast) : null),
+        // ⭐ DIV-1 — the bars of proved prehistory this plot was computed over before
+        // the window (`compare.mjs` reads it into the warm-up region), or null (cold).
+        historyReplayed: replay ? { bars: replayPre, file: replaySupply.file } : null,
         // ⭐ F2 — the colour rule's own reach (`compare.mjs::colourWarmupOf`).
         colorLookback: colourRuleLookback(o),
         colors: row && colours.byKey.has(row.key) ? colours.byKey.get(row.key) : null,
@@ -981,7 +1166,9 @@ export function runOurSide(capture) {
     const objectsWithheld = registry.runtimeObjectsWithheld(def, cols)
     const objects = objectsWithheld
       ? { drawsObjects: true, ok: false, withheld: objectsWithheld.guard, reason: `withheld by name (${objectsWithheld.guard}) — ${objectsWithheld.message}` }
-      : objectsOf(def, bars, ctx, cols, built)
+      // ⭐ DIV-1 — the LIVE set at the last bar of the replayed series: the window's
+      // last bar, after every bar TradingView ran before it
+      : objectsOf(def, calcBars, calcCtx, calcCols, built)
     for (const r of (objects && objects.chartClock) || []) {
       const what = r.code.startsWith('bar-index:') ? '`bar_index`' : 'time(<timeframe>)'
       notes.push(`${what} withheld (${r.code}) in the object lane — ${r.reason}`)
@@ -1009,6 +1196,11 @@ export function runOurSide(capture) {
         replayed: warm,
         historyFromListing: warm ? paintCtx.historyFromListing : ctx.historyFromListing,
         refused: paintSupply.refused, reason: paintSupply.reason } : null,
+      // ⭐ DIV-1 — which bars the PLOT and OBJECT lanes were computed over.
+      historyReplay: { kind: decision.kind, file: replay ? replaySupply.file : null, bars: replayPre,
+        historyFromListing: calcCtx.historyFromListing === true, reason: decision.why,
+        // ⚠️ review N3 — what a replayed MATCH speaks for
+        speaksFor: replay ? 'the standalone daily chart (not a grid cell, which first-paints shallow; W / M stay cold)' : null },
       translationPaints: runtimeAwarePaints(built, def),
       drawnPaints,
     }

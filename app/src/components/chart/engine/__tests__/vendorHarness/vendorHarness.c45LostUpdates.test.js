@@ -433,11 +433,18 @@ describe('C45 — across the committed corpus', () => {
     // (atr-support-and-resistance is not in this list: its lost moves NAME their
     // lists — `activeBox = array.get(upBox, i)` in a loop dropped whole — and are
     // withheld by handle, above.)
+    // ⭐ CHAINED ELEMENTS (2026-11-08, `fix/pine-chained-removal`): a setter on
+    // `kz._box.get(0)` / `idx.get(i)` — a user type's field, which the object
+    // program holds no register for — fell through every reader with NO count.
+    // It is now named with its family (`box.set_right`, `refuseChainedElement`)
+    // and so withheld here: ict-killzones 3 → 173 (its object program and the
+    // table its capture matches are unchanged, C11b), and bull-vs-bear joins.
     expect(named).toEqual([
+      'bull-vs-bear-market-intraday-sessions-kioseff-trading: 2 (not attached)',
       'correlation-matrix: 55 (not attached)',
       'fx-market-sessions: 12 (not attached)',
       'ict-institutional-order-flow-fadi: 28 (not attached)',
-      'ict-killzones-pivots-tfo: 3',
+      'ict-killzones-pivots-tfo: 173',
       'market-structure-break-order-block: 4 (not attached)',
       'previous-day-high-and-low-separators-dailyweekly: 3 (not attached)',
       'sector-rotation: 6',

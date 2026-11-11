@@ -65,9 +65,45 @@
   box-shadow:
     0 24px 70px var(--menu-shadow, rgba(0, 0, 0, 0.7)),
     0 0 0 1px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    inset 0 1px 0 rgb(var(--csm-ink, 255 255 255) / 0.03);
   overflow: hidden;
   animation: pop 140ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+/* ── App theme = Light: Chart Settings follows the page (decision B2, 2026-11-07) ──
+   Every popup menu wears the one dark --menu-* palette in every theme (tokens.css), and
+   this dialog did too. B2 makes Chart Settings the exception: it is a full window that
+   opens over the page, and in the light theme it reads as part of that page. The chart
+   CANVAS it edits keeps its own theme. The small menus it opens (the colour picker, the
+   chart-themes gallery, the ticker search) stay on the shared dark menu palette.
+
+   The dialog portals to <body>, so the page tokens are the real ones here, and every
+   value below is a page token: a catalog light theme carries its own. `!important`
+   because ChartPane hands the dialog the dark palette as an INLINE style (`themeVars`),
+   which a class cannot out-rank otherwise. `--csm-ink` is the colour of the dialog's own
+   faint washes (selected row, hovers, hairlines): white on the dark panel, black here.
+   Tiers measured against --bg-elevated and --bg-surface in every light theme, rail
+   `pages/charts/lightChrome.b2.test.js`: text >= 4.5:1 at every tier, accent too. */
+:global([data-theme='light']) .panel,
+:global([data-theme='light']) .fieldMenu {
+  --menu-bg: var(--bg-elevated) !important;
+  --menu-bg-top: var(--bg-surface) !important;
+  --menu-input-bg: var(--bg-surface) !important;
+  --menu-border: var(--border-accent) !important;
+  --menu-divider: var(--border) !important;
+  --menu-text: var(--text-bright) !important;
+  --menu-text-dim: color-mix(in srgb, var(--text-muted) 55%, var(--text)) !important;
+  --menu-text-faint: var(--text-muted) !important;
+  --menu-accent: var(--ut-gold) !important;
+  --menu-accent-bg: color-mix(in srgb, var(--ut-gold) 12%, transparent) !important;
+  --menu-hover: var(--bg-hover) !important;
+  --menu-shadow: rgba(0, 0, 0, 0.18) !important;
+  --csm-ink: 0 0 0;
+}
+/* The dark panel's 1px black ring and its 0.7 drop read as a heavy outline on white; the
+   page's own modal shadow is what every light dialog uses. */
+:global([data-theme='light']) .panel {
+  box-shadow: var(--shadow-modal), 0 0 0 1px rgb(0 0 0 / 0.06);
 }
 
 /* ⚰️⚰️ `.panelWide` STOOD HERE AND IS RETIRED, WITH THE ARGUMENT THAT MADE IT.
@@ -115,7 +151,8 @@
   border: 1px solid var(--menu-border, #2c2c30);
   color: var(--menu-text-dim, #8a8a8f);
   font-family: inherit;
-  font-size: 10.5px;
+  /* a11y 2026-11-08: no shared text under 11 px (was 10.5). */
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.3px;
   padding: 5px 10px;
@@ -159,7 +196,8 @@
   border: 1px solid var(--menu-border, #2c2c30);
   color: var(--menu-text-dim, #8a8a8f);
   font-family: inherit;
-  font-size: 10.5px;
+  /* a11y 2026-11-08: no shared text under 11 px (was 10.5). */
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.3px;
   padding: 5px 10px;
@@ -462,10 +500,22 @@
   height: 15px;
   border-radius: 50%;
   background: var(--menu-text-dim, #9a9a9a);
-  transition: transform 160ms cubic-bezier(0.3, 1.4, 0.5, 1), background 140ms;
+  transition: transform 160ms cubic-bezier(0.3, 1.4, 0.5, 1), background 140ms, box-shadow 140ms;
 }
-.toggleOn { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.22)); border-color: var(--menu-accent, #dcbb5e); }
-.toggleOn .toggleKnob { transform: translateX(17px); background: var(--menu-accent, #e2c98a); }
+/* ⭐ THE MUTED GOLD TRACK (owner-delegated decision B5, 2026-11-07). On is a
+   `--ut-gold-dim` fill and a bright knob with a `--ut-gold` edge; off stays the
+   neutral track above. Never a full-gold track (gold is rationed to one look-here
+   mark per surface) and never green (green means money going up). The edge is an
+   INSET ring so the knob keeps its 15 px box and its travel. The same look is
+   written in `IndicatorSettingsDialog.module.css` (.toggle) and the phone sheet's
+   `MobileCharts.module.css` (.switch): three stylesheets, one switch. The tint
+   is LAYERED over the neutral track, so ON can never read darker than OFF. */
+.toggleOn { background: linear-gradient(var(--ut-gold-dim), var(--ut-gold-dim)), var(--menu-input-bg, #161618); }
+.toggleOn .toggleKnob {
+  transform: translateX(17px);
+  background: var(--menu-text, #ededed);
+  box-shadow: inset 0 0 0 1.5px var(--ut-gold);
+}
 /* A field the current surface doesn't honor (indicatorRegistry `disabled: reason`)
    — matches .indNum:disabled / .indSelect:disabled so inert reads the same
    everywhere in this tab. The reason rides the row's title. */
@@ -499,6 +549,8 @@
   background-position: right 9px center;
   transition: border-color 120ms;
 }
+/* B2: on the light page the dialog is light, so the native option list follows it. */
+:global([data-theme='light']) .sizeSelect { color-scheme: light; }
 .sizeSelect:hover { border-color: var(--menu-border, #3a3a3c); }
 .sizeSelect:focus { outline: none; border-color: var(--menu-accent, #dcbb5e); }
 
@@ -1047,9 +1099,9 @@
   box-sizing: border-box;
   margin-top: 12px;
   padding: 9px 12px;
-  border: 1px solid rgba(220, 187, 94, 0.38);
+  border: 1px solid color-mix(in srgb, var(--menu-accent, #dcbb5e) 38%, transparent);
   border-radius: 7px;
-  background: rgba(220, 187, 94, 0.05);
+  background: color-mix(in srgb, var(--menu-accent, #dcbb5e) 5%, transparent);
   font-family: inherit;
   font-size: 12px;
   font-weight: 600;
@@ -1082,7 +1134,10 @@
 .insLeftTitle {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: 9.5px;
+  /* 9.5 → 11 px (owner-delegated decision B11, 2026-11-07): the plan's floor for
+     inspector section and group labels. The column's own name rises with the
+     group and section labels so it never reads smaller than what it heads. */
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -1173,10 +1228,10 @@
 .insGroup + .insGroup {
   margin-top: 16px;
   padding-top: 11px;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-top: 1px solid rgb(var(--csm-ink, 255 255 255) / 0.04);
 }
 .insGroupHead {
-  font-size: 9.5px;
+  font-size: 11px;   /* B11 (2026-11-07): 9.5 → 11, the label floor */
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -1276,10 +1331,10 @@
      supposed to ADD UP: a tonal step you notice without looking at it, a gold
      edge you find instantly, and a label a shade brighter. Any one of them alone
      would be too quiet; all three at full strength is the card. */
-  background: rgba(255, 255, 255, 0.045);
+  background: rgb(var(--csm-ink, 255 255 255) / 0.045);
   border-left-color: var(--menu-accent, #dcbb5e);
 }
-.insRowSel:hover { background: rgba(255, 255, 255, 0.062); }
+.insRowSel:hover { background: rgb(var(--csm-ink, 255 255 255) / 0.062); }
 /* ⛔ 600, NOT 700, AND THE INK DOES THE REST. A weight jump big enough to see on
    its own re-flows the row's optical width and makes the list jitter as the
    selection moves; the brightness carries it. */
@@ -1620,7 +1675,9 @@
    by the amount of air between them and by the weight of their labels. */
 .insSection + .insSection { margin-top: 18px; }
 .insSectionLabel {
-  font-size: 9.5px;
+  /* B11 (owner-delegated, 2026-11-07): 9.5 → 11 px, the plan's floor. CORE and
+     APPEARANCE were the smallest words on the inspector while naming its parts. */
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -1669,9 +1726,15 @@
      `Display` — the words a member reads to find the control they want — into the
      same grey as `CORE`. SECONDARY keeps the hierarchy and gets the labels back. */
   color: var(--menu-text-dim, #b3b3b9);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* ⚰️ IT ELLIPSIZED: `nowrap` + `overflow: hidden` + `text-overflow: ellipsis`,
+     so `High before price` read `High before p…` and `Short-history dots` lost its
+     noun (UCT RS Phase 2a visual A6: "no ellipsis anywhere"). A label that fits
+     the 92px column still sits on one line; one that does not WRAPS to a second,
+     and the row grows. A label is how a member finds the control, so it is never
+     cut. */
+  white-space: normal;
+  overflow-wrap: break-word;
+  line-height: 1.3;
 }
 .insFieldCtl {
   flex: 1 1 auto;
@@ -1746,6 +1809,124 @@
   flex: 0 1 auto;
 }
 .insFieldCtl > div { min-width: 0; width: 100%; }
+
+/* ── UCT RS PHASE 2a VISUAL (A6): PRESET ROW, INPUT GROUPS, INERT CELLS ───────
+   The Inspector reaches the settings dialog's parity for a definition that
+   declares presets, groups or `activeWhen`. Nothing here applies to a definition
+   that declares none of them: the classes only render for those. `--menu-*`
+   inks only, the family the rest of this panel paints. */
+
+/* Preset: the select, then "Reset to preset", wrapping under it in a narrow
+   Inspector rather than pushing the row past the panel. */
+.insPresetCtl { flex-wrap: wrap; row-gap: 4px; }
+.insField[data-measure='wide'] > .insPresetCtl > select { flex: 1 1 150px; max-width: 210px; }
+.insPresetReset {
+  flex: none;
+  height: 24px;
+  padding: 0 9px;
+  background: transparent;
+  border: 1px solid var(--menu-border, #2c2c30);
+  border-radius: 6px;
+  color: var(--menu-text-dim, #b3b3b9);
+  font: inherit;
+  font-size: 11.5px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 110ms, border-color 110ms;
+}
+.insPresetReset:hover:not(:disabled) { color: var(--menu-text, #ededed); border-color: var(--menu-text-faint, #93939a); }
+.insPresetReset:focus-visible { outline: none; border-color: var(--menu-accent, #dcbb5e); color: var(--menu-text, #ededed); }
+.insPresetReset:disabled { opacity: 0.45; cursor: default; }
+/* The preset's origin, under the row in the faint ink, aligned with the controls. */
+.insPresetOrigin {
+  margin: 1px 0 6px 104px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--menu-text-faint, #93939a);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A group head: a disclosure button in the section-label voice, one step quieter
+   than CORE (lighter weight, the faint ink), 28px tall, chevron on the right. Open
+   reads one ink brighter, never gold. */
+.insGroup { display: flex; flex-direction: column; }
+.insGroup + .insGroup, .insField + .insGroup { margin-top: 2px; }
+.insGroupHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 2px 0 0;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--menu-divider, #202022);
+  color: var(--menu-text-faint, #93939a);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+  transition: color 110ms;
+}
+.insGroupHead:hover { color: var(--menu-text-dim, #b3b3b9); }
+.insGroupHead[aria-expanded='true'] { color: var(--menu-text-dim, #b3b3b9); }
+.insGroupHead:focus-visible { outline: 1px solid var(--menu-accent, #dcbb5e); outline-offset: -1px; }
+.insGroupHeadText { white-space: nowrap; }
+.insGroupHeadIcon { display: flex; align-items: center; color: var(--menu-text-faint, #93939a); }
+.insGroupBody { display: flex; flex-direction: column; padding-bottom: 4px; }
+.insGroupBody > .insField + .insField { margin-top: 1px; }
+
+/* An inactive colour cell (`activeWhen` false): the swatch has no disabled state
+   of its own, so the cell takes no pointer and wears the off tier. */
+.insCtlOff { display: inline-flex; opacity: 0.6; pointer-events: none; }
+
+/* ⭐ UCT RS PHASE 3, UNIT 3-02b — THE TEXT BOX (a `string` input, `InspectorTextBox`).
+   The cell is a COLUMN — the box, then the miss line under it — at the `wide`
+   width (`min(210px, 100%)`, a maximum, not a fixed width) and `min-width: 0`, so
+   a narrow Inspector shrinks the box rather than pushing the row past the panel;
+   the 92/84px label column is not touched, so the label stays readable. The box
+   wears the same 24px geometry and inks as the panel's selects and number boxes.
+   A miss reads in the warning colour on the BORDER only; the words under it stay
+   in the quiet tier, like the dialog's `.textMiss`. */
+.insTextCell {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex: 0 1 auto;
+  width: min(210px, 100%);
+  min-width: 0;
+  gap: 2px;
+}
+.insFieldCtl .insText {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 24px;
+  font-family: inherit;
+  font-size: 11.5px;
+  padding: 0 8px;
+  border-radius: 5px;
+  background: var(--menu-input-bg, #08080a);
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
+  color: var(--menu-text, #ededed);
+  transition: border-color 110ms, background 110ms;
+}
+.insFieldCtl .insText::placeholder { color: var(--menu-text-faint, #6b6b6b); }
+.insFieldCtl .insText:hover:not(:disabled) { border-color: rgb(var(--csm-ink, 255 255 255) / 0.16); }
+.insFieldCtl .insText:focus-visible { outline: none; border-color: var(--menu-accent, #dcbb5e); }
+.insFieldCtl .insText[aria-invalid='true'] { border-color: var(--color-danger, #df4646); }
+.insFieldCtl .insText:disabled { opacity: 0.55; cursor: not-allowed; }
+.insTextMiss {
+  font-size: 10.5px;
+  line-height: 1.3;
+  color: var(--menu-text-faint, #6b6b6b);
+  white-space: normal;
+  overflow-wrap: break-word;
+}
 
 /* ⭐ A NUMBER IS THREE CHARACTERS WIDE, AND 100px IS ROOM FOR FIVE. Wide enough
    for `-100`, `9999` and a caret; narrow enough that `200` does not look lost. */
@@ -1860,7 +2041,7 @@
 }
 .insSegBtn:hover:not(:disabled):not(.insSegBtnOn) {
   color: var(--menu-text, #ededed);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgb(var(--csm-ink, 255 255 255) / 0.05);
 }
 /* ⭐ RESTRAINED GOLD. The same three signals the selected ROW uses — a wash, a
    1px accent edge and brighter ink — at the same strength, so nothing on this
@@ -1929,7 +2110,7 @@
 }
 .insFieldCtl > select:hover:not(:disabled),
 .insFieldCtl .indSelect:hover:not(:disabled),
-.insFieldCtl .indNum:hover:not(:disabled) { border-color: rgba(255, 255, 255, 0.16); }
+.insFieldCtl .indNum:hover:not(:disabled) { border-color: rgb(var(--csm-ink, 255 255 255) / 0.16); }
 .insFieldCtl > select:focus-visible,
 .insFieldCtl .indSelect:focus-visible,
 .insFieldCtl .indNum:focus-visible {
@@ -1945,7 +2126,7 @@
   width: 18px;
   height: 18px;
   border-radius: 4px;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 0 0 1px rgb(var(--csm-ink, 255 255 255) / 0.14);
 }
 
 /* ── ACTIONS ──────────────────────────────────────────────────────────────── */
@@ -2027,7 +2208,7 @@
 .insAddBtn {
   margin-top: 4px;
   background: transparent;
-  border: 1px solid rgba(220, 187, 94, 0.4);
+  border: 1px solid color-mix(in srgb, var(--menu-accent, #dcbb5e) 40%, transparent);
   border-radius: 6px;
   padding: 5px 11px;
   font-family: inherit;
@@ -2076,7 +2257,7 @@
   padding: 5px 11px;
   border: 1px solid var(--menu-border, #33333a);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgb(var(--csm-ink, 255 255 255) / 0.03);
   font-family: inherit;
   font-size: 11.5px;
   color: var(--menu-text, #ededed);
@@ -2084,7 +2265,7 @@
   transition: background 120ms, border-color 120ms;
 }
 .insStartGhost:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: rgb(var(--csm-ink, 255 255 255) / 0.07);
   border-color: var(--menu-border, #45454c);
 }
 .insStartGhost:focus-visible {
@@ -2138,7 +2319,7 @@
   padding: 4px 10px;
   border: 1px solid var(--menu-border, #33333a);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgb(var(--csm-ink, 255 255 255) / 0.03);
   font-family: inherit;
   font-size: 11px;
   font-weight: 600;
@@ -2149,7 +2330,7 @@
 }
 .insNewFormula:hover {
   background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12));
-  border-color: rgba(220, 187, 94, 0.5);
+  border-color: color-mix(in srgb, var(--menu-accent, #dcbb5e) 50%, transparent);
   color: var(--menu-accent, #e7cf8f);
 }
 .insNewFormula:focus-visible {
@@ -2230,7 +2411,7 @@
 .insTab:hover:not(.insTabOn) {
   color: var(--menu-text, #ededed);
   border-color: var(--menu-border, #3a3a3c);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgb(var(--csm-ink, 255 255 255) / 0.04);
 }
 .insTabOn,
 .insTabOn:hover {
@@ -2292,8 +2473,8 @@
    the rule stays and only its volume changes. */
 .insAdd .indSearch:focus,
 .insAdd .indSearch:focus-visible {
-  border-color: rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.04);
+  border-color: rgb(var(--csm-ink, 255 255 255) / 0.28);
+  background: rgb(var(--csm-ink, 255 255 255) / 0.04);
   box-shadow: none;
 }
 .insAddBody {
@@ -2463,9 +2644,9 @@
 }
 .insArrGroup + .insArrGroup {
   margin-top: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgb(var(--csm-ink, 255 255 255) / 0.05);
 }
-.insArrGroup:hover { background: rgba(255, 255, 255, 0.04); }
+.insArrGroup:hover { background: rgb(var(--csm-ink, 255 255 255) / 0.04); }
 .insArrGroup:active { cursor: grabbing; }
 .insArrGroup:not([draggable]) { cursor: default; }
 .insDragging { opacity: 0.45; }
@@ -2592,6 +2773,7 @@
     margin-right: 0;
   }
   .insFieldLabel { flex: 0 0 84px; }
+  .insPresetOrigin { margin-left: 96px; }
   .insEmpty { max-width: none; }
   .insArrBtn { width: 28px; height: 28px; }
 }
@@ -2616,6 +2798,9 @@
    query at both 390px and 820px, which is the relationship it exists to enforce. */
 @media (max-width: 1024px) and (pointer: coarse) {
   .insRow { min-height: var(--tap-min, 44px); padding-top: 8px; padding-bottom: 8px; }
+  /* A6 — the group heads and the preset reset take a finger too. */
+  .insGroupHead { min-height: var(--tap-min, 44px); }
+  .insPresetReset { min-height: var(--tap-min, 44px); }
 }
 
 
@@ -3318,7 +3503,9 @@
   font-size: 11px;
   padding: 2px 7px;
   border-radius: 4px;
-  border: 1px solid var(--uct-border, rgba(255, 255, 255, 0.14));
+  /* --uct-border is defined nowhere, so its fallback IS the value: the ink wash, so it reads on
+     the light dialog too (B2). */
+  border: 1px solid var(--uct-border, rgb(var(--csm-ink, 255 255 255) / 0.14));
   background: transparent;
   color: var(--uct-text-muted, inherit);
   cursor: pointer;

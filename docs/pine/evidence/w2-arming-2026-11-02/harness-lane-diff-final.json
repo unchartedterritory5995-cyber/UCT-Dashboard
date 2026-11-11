@@ -1,0 +1,1743 @@
+{
+ "generatedBy": "vendorHarness.corpus.test.js run twice on tree c78d553af2 (final job, scratch runs/w2/final-harness-prod and final-harness-on), VENDOR_HARNESS_RUNTIME_ON=0 and =1; this file keeps verdicts and lane evidence only (the full verdicts.json files are 2.3 MB each and are not committed)",
+ "totals": {
+  "production": {
+   "INCONCLUSIVE": 140,
+   "DIVERGE": 103,
+   "MATCH": 93
+  },
+  "runtimeOn": {
+   "MATCH": 111,
+   "INCONCLUSIVE": 118,
+   "DIVERGE": 107
+  }
+ },
+ "laneEvidence": {
+  "production": {
+   "requested": "production",
+   "objectsOnlyPane": true,
+   "gateOpen": false,
+   "declined": 0,
+   "gated": 0,
+   "runtimeDrawn": 0,
+   "hostRefused": 112,
+   "reachedRuntime": 0,
+   "declines": {}
+  },
+  "runtimeOn": {
+   "requested": "runtime-on",
+   "objectsOnlyPane": true,
+   "gateOpen": true,
+   "declined": 57,
+   "gated": 0,
+   "runtimeDrawn": 55,
+   "hostRefused": 112,
+   "reachedRuntime": 112,
+   "declines": {
+    "pine:function": 14,
+    "pine:builtin": 13,
+    "lower-tf:store-unmeasured": 5,
+    "runtime:library": 5,
+    "runtime:conditional-history": 3,
+    "runtime:request": 3,
+    "lower-tf:unwitnessed": 2,
+    "pine:arity": 2,
+    "pine:collection": 2,
+    "pine:colour-value": 2,
+    "runtime:loop": 2,
+    "pine:drawing": 1,
+    "runtime:call-undeclared-builtin-state": 1,
+    "runtime:colour": 1,
+    "runtime:history-expression": 1
+   }
+  }
+ },
+ "comparedWithBase": {
+  "base": "6272ed7fa3",
+  "captures": 336,
+  "verdictPairsIdentical": true,
+  "laneEvidenceIdentical": true
+ },
+ "all": [
+  {
+   "file": "adx-and-di-for-v4-rddt-1d-2026-09-27.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "adx-and-di-for-v4-spy-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "all-chart-patterns-theeccentrictrader-spy-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "artemis-oscillator-pro-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "artemis-oscillator-pro-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "atr-bands-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "atr-bands-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "atr-stepped-pdf-ma-loxx-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "atr-support-and-resistance-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "atr-support-and-resistance-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "atr-trailing-stop-by-ceyhun-rddt-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "atr-trailing-stop-by-ceyhun-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "atr-trailing-stoploss-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "atr-trailing-stoploss-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "auto-trendline-dojiemoji-rddt-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "auto-trendline-dojiemoji-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "average-day-range-adr-pivots-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "average-day-range-adr-pivots-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "black-scholes-option-pricing-model-w-greeks-loxx-spy-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "btc-charlie-trader-xo-macro-trend-scanner-rddt-1d-2026-09-30.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "btc-charlie-trader-xo-macro-trend-scanner-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "candlestick-patterns-identified-update-1-17-26-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "candlestick-patterns-identified-update-1-17-26-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "cc-yata-rddt-1d-2026-09-27.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "cdc-btc-rainbow-road-spy-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "contraction-box-doji-lines-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "contraction-box-doji-lines-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "cumulative-volume-delta-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "cumulative-volume-delta-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "delta-rsi-oscillator-strategy-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "donchian-channels-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "donchian-channels-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "dual-view-htf-candlestick-patterns-theultimator5-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "dual-view-htf-candlestick-patterns-theultimator5-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "elliott-wave-3-finder-v2-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "elliott-wave-3-finder-v2-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "ema-ribbon-trend-filter-strixedge-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "ema-ribbon-trend-filter-strixedge-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "engulfingcandle-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "engulfingcandle-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "extrapolated-pivot-connector-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "extrapolated-pivot-connector-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "fib-retracement-extrafibs-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "fib-retracement-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "fib-retracement-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "fibonacci-dolphintradebot-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "fibonacci-dolphintradebot-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "fibonacci-pivot-points-cc-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "fibonacci-pivot-points-cc-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "fvg-trend-rddt-1d-2026-09-27.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "h3-alma-v4-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "h3-alma-v4-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "h3-vwap-source-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "h3-vwap-source-spy-5-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "heat-map-seasons-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "heat-map-seasons-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "high-low-open-mid-ranges-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "high-low-open-mid-ranges-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "htf-candle-footprint-cartel-console-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "htf-candle-footprint-cartel-console-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "htf-liquidity-dashboard-tfo-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "htf-liquidity-dashboard-tfo-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "ict-ipda-look-back-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "ict-ipda-look-back-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "ict-killzones-pivots-tfo-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "ict-killzones-pivots-tfo-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "implied-volatility-suite-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "implied-volatility-suite-spy-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "institutional-smc-order-flow-matrix-pro-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "institutional-smc-order-flow-matrix-pro-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "k-clustering-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "k-clustering-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "kalman-price-filter-backquant-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "keltner-center-of-gravity-channel-rddt-1d-2026-09-30.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "keltner-center-of-gravity-channel-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "keltner-channels-bands-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "keltner-channels-bands-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "linear-regression-channel-tradingfinder-existing-trend-lines-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "linear-regression-channel-tradingfinder-existing-trend-lines-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "liquidation-levels-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "liquidation-levels-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "liquidity-engulfing-candles-upslidedown-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "liquidity-engulfing-candles-upslidedown-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "liquidity-heatmap-nephew-sam-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "liquidity-heatmap-nephew-sam-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "liquidity-pools-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "liquidity-pools-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "macd-shortlong-strategy-for-tradingview-input-optimizer-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "macd-shortlong-strategy-for-tradingview-input-optimizer-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "madrid-moving-average-ribbon-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "madrid-moving-average-ribbon-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "makuchaku039s-trade-tools-fair-value-gaps-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "makuchaku039s-trade-tools-fair-value-gaps-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "market-structure-by-leviathan-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "market-structure-by-leviathan-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "mcclellan-indicators-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "mcclellan-indicators-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "momentum-volatility-scanner-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "momentum-volatility-scanner-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "multi-timeframe-supply-demand-zones-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "multi-timeframe-supply-demand-zones-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "multicator-table-rddt-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "multicator-table-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "nadaraya-watson-rational-quadratic-kernel-non-repainting-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "opening-range-initial-balance-opening-price-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "opening-range-initial-balance-opening-price-spy-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "optimized-keltner-channels-sltp-strategy-for-btc-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "options-max-pain-calculator-backquant-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "options-max-pain-calculator-backquant-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "pa-zigzag-fibonacci-fan-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "pa-zigzag-fibonacci-fan-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "parabolic-sar-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "pivot-point-supertrend-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "pivot-point-supertrend-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "pmax-explorer-rddt-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "pmax-explorer-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "poor-man039s-volume-profile-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "poor-man039s-volume-profile-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "position-size-calc-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "position-size-calc-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "position-size-calculator-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "position-size-calculator-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "price-action-as-in-book-fibonacci-supportresistant-trendline-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "price-action-as-in-book-fibonacci-supportresistant-trendline-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "pro-trading-art-double-top-bottom-with-alert-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "pro-trading-art-double-top-bottom-with-alert-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "probe-default-colour-v3-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "probe-default-colour-v4-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "probe-default-colour-v6-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "probe-sparse-rows-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "qqe-signals-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "qqe-signals-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "r1-strategy-draws-indicator-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "r1-strategy-draws-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "renko-candles-overlay-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "renko-candles-overlay-spy-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "request-realtime-alignment-spy-5-2026-10-01.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "request-realtime-alignment-spy-5-b-2026-10-01.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "reverse-stochastic-momentum-index-on-chart-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "reverse-stochastic-momentum-index-on-chart-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "rolling-vwap-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "rolling-vwap-spy-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "rsi-horizontal-resistance-levels-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "rsi-horizontal-resistance-levels-spy-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "rsi-swing-indicator-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "rsi-swing-indicator-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "rt1-na-test-v4-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "rt1-na-test-v5-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "rt1-na-test-v6-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "rt3-na-logic-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "rt3-na-logic-v4-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "rvol-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "rvol-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "sector-rotation-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "sector-rotation-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "smt-divergence-ict-01-tradingfinder-smart-money-technique-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "smt-divergence-ict-01-tradingfinder-smart-money-technique-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "sonarlab-order-blocks-aapl-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "sonarlab-order-blocks-brk-a-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "sonarlab-order-blocks-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "sonarlab-order-blocks-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "supertrend-kivancozbilgic-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "supertrend-strategy-rddt-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "supertrend-strategy-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "support-and-resistance-multi-time-frame-rddt-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "support-and-resistance-multi-time-frame-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "support-and-resistance-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "support-and-resistance-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "swing-highlow-zigzag-chartprime-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "swing-highlow-zigzag-chartprime-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "syminfo-roster-aapl-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "syminfo-roster-bitstamp-btcusd-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "syminfo-roster-brk-b-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "syminfo-roster-f-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "syminfo-roster-spy-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "tradingview-alerts-to-mt4-mt5-strategy-example-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "tradingview-alerts-to-mt4-mt5-strategy-example-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "trend-duration-forecast-chartprime-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "trend-duration-forecast-chartprime-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "trend-lines-supports-and-resistances-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "trend-lines-supports-and-resistances-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "trend-targets-algoalpha-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "trend-targets-algoalpha-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "trendlines-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "trendlines-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "twin-range-filter-rddt-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "twin-range-filter-spy-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "ultimate-pivot-points-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "ultimate-pivot-points-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "vdubus-pattern-gen-v2-restored-refined-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "vdubus-pattern-gen-v2-restored-refined-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vold-market-breadth-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vold-market-breadth-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "volume-profile-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "volume-profile-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vw-arm-history-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-arm-history-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-array-na-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-bar-counters-rddt-15-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-bar-counters-rddt-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-bar-counters-rddt-240-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-bar-counters-rddt-5-2026-09-30.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vw-bar-counters-rddt-60-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-bar-counters-spy-1-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vw-bar-counters-spy-30-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vw-bar-origin-rddt-5-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vw-bar-origin-rddt-60-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vw-bar-origin-spy-1d-300-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vw-bar-origin-spy-1m-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vw-bar-origin-spy-1w-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vw-bgcolor-barcolor-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vw-bgcolor-v4-default-spy-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "vw-bool-cast-spy-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "vw-bool-cast-spy-60-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "vw-bool-cast-v4-spy-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "vw-bool-cast-v4-spy-60-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "vw-call-site-history-rddt-1d-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-call-site-history-spy-1d-2026-10-01.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vw-clock-close-tfchange-spy-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "vw-clock-close-tfchange-spy-1w-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-clock-vwap-spy-5-ext-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-colour-components-spy-1d-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-cond-window-extremes-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-cond-window-extremes-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-deadband-ticks-aapl-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-deadband-ticks-brk-a-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vw-deadband-ticks-spy-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-default-param-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-fn-series-history-rddt-1d-2026-09-30.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "vw-forin-collections-2-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-forin-collections-rddt-1d-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-getter-history-2-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-getter-history-spy-1d-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-gradient-edges-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-gradient-spy-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-h4-loops-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "vw-h4-loops-spy-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "vw-input-tf-text-v5-spy-1d-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-input-tf-text-v6-spy-1d-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-int-array-avg-neg-spy-1d-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-int-array-avg-spy-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-int-div-assign-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-library-import-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-loop-in-block-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-lower-tf-1-30-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-lower-tf-1-30-spy-1m-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-lower-tf-cava-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-lower-tf-rddt-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-lower-tf-spy-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-lower-tf-spy-1m-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-lower-tf-spy-1w-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-mbb-auto-spy-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-mintick-arkk-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-mintick-bac-pl-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-mintick-dfliw-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-mintick-grrrw-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-mintick-imo-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-mintick-qqq-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-mintick-xlk-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-mintick-yhnau-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-ne-na-spy-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-object-gc-a-spy-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "vw-object-gc-a-spy-1w-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vw-object-gc-b-spy-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "vw-object-gc-b-spy-1w-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vw-object-gc-c-spy-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "vw-object-gc-c-spy-1w-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vw-object-gc-d-spy-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-object-gc-d-spy-1w-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-offset-na-spy-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-once-ta-helper-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "vw-once-ta-helper-spy-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "vw-other-symbol-rddt-1d-2026-09-30.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vw-ratchet-stops-rddt-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vw-ratchet-stops-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vw-request-htf-alignment-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-request-htf-alignment-spy-5-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-request-htf-alignment-spy-60-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-rt5-arm-draw-block-history-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-rt6-runtime-colour-rddt-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vw-rt6-runtime-colour-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "vw-runtime-error-spy-1d-2026-09-30.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "vw-ternary-draw-helper-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "vw-tf-period-spy-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-tf-period-spy-1m-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-tf-period-spy-1w-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-theme-colours-spy-1d-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-close-tf-bitstamp-btcusd-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-close-tf-eurusd-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-close-tf-fx-eurusd-1d-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-close-tf-spy-15-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-close-tf-spy-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-close-tf-spy-1d-full-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-close-tf-spy-1d-full-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-close-tf-spy-1m-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-close-tf-spy-1m-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-close-tf-spy-1w-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-close-tf-spy-1w-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-session-spy-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-session-spy-60-ext-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-session-spy-60-rth-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-tf-bitstamp-btcusd-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-tf-eurusd-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-tf-fx-eurusd-1d-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-tf-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-tf-spy-1-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-tf-spy-15-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-tf-spy-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-tf-spy-1d-full-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-tf-spy-1d-full-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-tf-spy-1m-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-tf-spy-1m-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-tf-spy-1w-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-tf-spy-1w-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-tf-spy-240-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-tf-spy-30-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-tf-spy-5-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-tf-spy-5-ext-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-time-tf-spy-60-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-type-word-names-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "vw-var-seed-spy-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "w4-cross-round-spy-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE"
+  },
+  {
+   "file": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "wyckoff-accumulation-distribution-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH"
+  },
+  {
+   "file": "zero-lag-ma-trend-levels-chartprime-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE"
+  },
+  {
+   "file": "zero-lag-ma-trend-levels-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH"
+  }
+ ]
+}

@@ -1,3 +1,4 @@
+// S7 fix round 1 (audit 2026-11-05): an outline card's "Use template" COPIES (no note), so it says so: "Add to my templates". One word, one outcome.
 // Wave 12 (lane 12A) — the community template gallery, end to end in the client:
 // the door (gated), browse + filters, preview, Use template (a COPY, then the member's
 // own create door), report, publish (Share from Your templates), Your submissions with
@@ -113,13 +114,13 @@ function renderPicker(props = {}) {
 }
 
 const gateOn = () => latchNotebookFlags({ notebook_template_gallery_enabled: true })
-const door = () => screen.getByRole('button', { name: /Browse the community gallery/ })
+const door = () => screen.getByRole('button', { name: /Browse the Template library/ })
 const sentTo = (path, method) => calls.filter((c) => c.path === path && c.method === method)
 
 async function openGallery(opts) {
   const ctx = renderPicker(opts)
   await ctx.user.click(door())
-  await screen.findByRole('heading', { name: 'Community gallery' })
+  await screen.findByRole('heading', { name: 'Template library · From members' })
   return ctx
 }
 
@@ -148,7 +149,7 @@ describe('the door', () => {
   it('opens the gallery with focus on its heading, and Back returns focus to the door', async () => {
     gateOn()
     const { user } = await openGallery()
-    expect(screen.getByRole('heading', { name: 'Community gallery' })).toHaveFocus()
+    expect(screen.getByRole('heading', { name: 'Template library · From members' })).toHaveFocus()
     await user.click(screen.getByRole('button', { name: 'Back to templates' }))
     await waitFor(() => expect(door()).toHaveFocus())
   })
@@ -161,11 +162,11 @@ describe('browse', () => {
     const picks = await screen.findByRole('region', { name: 'UCT picks' })
     expect(within(picks).getByRole('heading', { name: PICK.title })).toBeInTheDocument()
     for (const t of LISTED.filter((x) => x.featured)) expect(within(picks).getByRole('heading', { name: t.title })).toBeInTheDocument()
-    const community = screen.getByRole('region', { name: 'Community' })
+    const community = screen.getByRole('region', { name: 'From members' })
     expect(within(community).getByText(/by Alice Trader/)).toBeInTheDocument()
     expect(within(community).getByText(ALICE.description)).toBeInTheDocument()
     expect(within(community).queryByText(PICK.title)).not.toBeInTheDocument()   // a pick is not listed twice
-    await user.type(screen.getByRole('searchbox', { name: 'Search the community gallery' }), 'breakout')
+    await user.type(screen.getByRole('searchbox', { name: 'Search the Template library' }), 'breakout')
     await waitFor(() => expect(calls.some((c) => c.search.includes('q=breakout'))).toBe(true))
     const chips = within(screen.getByRole('group', { name: 'Filter by category' }))
     expect(chips.getAllByRole('button').map((b) => b.textContent)).toEqual(['All', ...GALLERY_CATEGORIES.map((c) => c.label)])
@@ -183,7 +184,7 @@ describe('browse', () => {
     // the preview is the body the server stored: its heading and its two lines
     expect(await within(sheet).findByText('Before the breakout')).toBeInTheDocument()
     expect(within(sheet).getByText('Is the base at least five weeks long?')).toBeInTheDocument()
-    await user.click(within(sheet).getByRole('button', { name: 'Use this template' }))
+    await user.click(within(sheet).getByRole('button', { name: 'Use' }))
     const used = contractBody('template-gallery.use')
     expect(used.properties).toEqual({ added: ['Setup'], existing: ['Thesis Status'], skipped: [] })
     expect(await screen.findByText(/Added “Breakout checklist” to Your templates\. New properties: Setup\./)).toBeInTheDocument()
@@ -198,7 +199,7 @@ describe('browse', () => {
     gateOn()
     server.useFails = true
     const { user } = await openGallery()
-    await user.click(await screen.findByRole('button', { name: 'Use template Breakout checklist' }))
+    await user.click(await screen.findByRole('button', { name: 'Add Breakout checklist to my templates' }))
     const sentence = contractBody('template-gallery.use.not-found').detail
     expect(await screen.findByRole('alert')).toHaveTextContent(sentence)
     expect(screen.queryByText(/Added “Breakout checklist”/)).not.toBeInTheDocument()
@@ -239,9 +240,9 @@ describe('publishing and your submissions', () => {
   it('Share on one of Your templates submits it for review and says what is left out', async () => {
     gateOn()
     const { user } = renderPicker()
-    await user.click(await screen.findByRole('button', { name: 'Share Swing plan to the community gallery' }))
+    await user.click(await screen.findByRole('button', { name: 'Share Swing plan to the Template library' }))
     // the share form loads when Share is pressed (it is out of the Notebook's first open)
-    const form = await screen.findByRole('form', { name: 'Share Swing plan to the community gallery' })
+    const form = await screen.findByRole('form', { name: 'Share Swing plan to the Template library' })
     expect(within(form).getByText(/Left out: links to your other notes, images and attachments/)).toBeInTheDocument()
     expect(within(form).getByLabelText('Title in the gallery')).toHaveValue('Swing plan')
     await user.selectOptions(within(form).getByLabelText('Category'), 'trade_plan')
@@ -302,11 +303,11 @@ describe('the style library switch (P3a), off', () => {
     latchNotebookFlags({ notebook_template_gallery_enabled: true, notebook_style_library_enabled: false })
     await openGallery()
     await screen.findByRole('region', { name: 'UCT picks' })
-    expect(screen.queryByRole('button', { name: 'Styles' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Templates' })).not.toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Filter by type' })).not.toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Filter by trading style' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Following' })).not.toBeInTheDocument()
-    expect(within(screen.getByRole('group', { name: 'Community gallery view' })).getAllByRole('button')
+    expect(within(screen.getByRole('group', { name: 'Template library view' })).getAllByRole('button')
       .map((b) => b.textContent)).toEqual(['Browse', 'Your submissions'])
     // the list asks exactly what it asked before the library existed
     const lists = calls.filter((c) => c.path === '/api/j2/template-gallery' && c.method === 'GET')
@@ -377,7 +378,7 @@ describe('Task 11.16 -- library cards (wave 11)', () => {
     latchNotebookFlags({ notebook_template_gallery_enabled: true, notebook_widgets_w11_enabled: w11 })
     const ctx = renderPicker()
     await ctx.user.click(door())
-    await screen.findByRole('heading', { name: 'Community gallery' })
+    await screen.findByRole('heading', { name: 'Template library · From members' })
     await screen.findByRole('heading', { name: ALICE.title })
     return ctx
   }
@@ -401,7 +402,7 @@ describe('Task 11.16 -- library cards (wave 11)', () => {
   it("a tool card's Use opens the adoption sheet with its kind, and no copy is made", async () => {
     const { user } = await openWith({ w11: true })
     const widget = galleryCard('Win rate widget')
-    expect(within(widget).queryByRole('button', { name: /Use template/ })).toBeNull()
+    expect(within(widget).queryByRole('button', { name: /to my templates/ })).toBeNull()
     expect(within(widget).queryByRole('button', { name: /^Preview/ })).toBeNull()
     await user.click(within(widget).getByRole('button', { name: 'Use Win rate widget' }))
     await waitFor(() => expect(openAdoptSheet).toHaveBeenCalledTimes(1))
@@ -411,7 +412,7 @@ describe('Task 11.16 -- library cards (wave 11)', () => {
     expect(openAdoptSheet.mock.calls[1][0]).toEqual({ galleryId: 'tool-t', kind: 'tracker' })
     expect(calls.some((c) => /\/use$/.test(c.path))).toBe(false)
     // An outline card keeps Preview and Use template.
-    expect(within(galleryCard(ALICE.title)).getByRole('button', { name: `Use template ${ALICE.title}` })).toBeInTheDocument()
+    expect(within(galleryCard(ALICE.title)).getByRole('button', { name: `Add ${ALICE.title} to my templates` })).toBeInTheDocument()
   })
 
   it('helpful_days_sentence_under_button (a tool card)', async () => {
@@ -445,7 +446,7 @@ describe('Task 11.16 -- library cards (wave 11)', () => {
     expect(alice.querySelector('[data-library-facts]')).toBeNull()
     expect(within(alice).getByText(ALICE.description)).toBeInTheDocument()
     expect(within(alice).getByRole('button', { name: `Preview ${ALICE.title}` })).toBeInTheDocument()
-    expect(within(galleryCard('Win rate widget')).getByRole('button', { name: 'Use template Win rate widget' })).toBeInTheDocument()
+    expect(within(galleryCard('Win rate widget')).getByRole('button', { name: 'Add Win rate widget to my templates' })).toBeInTheDocument()
     expect(within(galleryCard('Win rate widget')).queryByRole('button', { name: /^Helpful/ })).toBeNull()
     expect(document.querySelector('[data-template-library]')).toBeNull()
   })

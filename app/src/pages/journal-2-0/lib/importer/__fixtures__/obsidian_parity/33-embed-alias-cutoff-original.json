@@ -1,0 +1,36 @@
+{
+  "id": "33-embed-alias-cutoff-original",
+  "input_markdown": "# A file link's original cut off at its embed's brackets\n\ncut [[r.pdf|![[img2.png]]]] off\n\ncut [[s.pdf|![[img3.png]]]] again\n",
+  "self_path": "a.md",
+  "server": {
+    "callouts": [],
+    "files": [
+      {
+        "label": null,
+        "name": "r.pdf"
+      },
+      {
+        "label": null,
+        "name": "s.pdf"
+      }
+    ],
+    "highlights": [],
+    "images": [
+      "attachments/img2.png",
+      "attachments/img3.png"
+    ],
+    "links": [],
+    "notices": [],
+    "pending": [],
+    "task_checked": [],
+    "text": "A file link's original cut off at its embed's brackets cut  [file: r.pdf]  off cut  [file: s.pdf]  again"
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "a.md",
+    "attachments/r.pdf",
+    "attachments/img2.png",
+    "attachments/s.pdf",
+    "attachments/img3.png"
+  ]
+}

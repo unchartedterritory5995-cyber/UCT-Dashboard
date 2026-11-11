@@ -1,0 +1,54 @@
+// W6-T9 (2026-11-06) - probe W6-U1 for the capture lane. Queue: docs/pine/capture-queue-2026-11-06-w6.md
+// Chart: AMEX:SPY 1D, inputs at defaults (none), AFTER THE CLOSE.
+// Not compiled on TradingView yet: if a row does not compile, the error IS the reading (record it,
+// comment the row out, capture the rest). A runtime error is a reading too: record its text and bar.
+//
+//   U01-U02  two `method clr` overloads (array<string>, array<bool>): each on its own receiver (1, 2)
+//   U03      a user `method get(array<float> a, int i)` beside the built-in, on array<float>: whose answer (99 = user)
+//   U04      the same user `get` called on array<int>: compiles? whose answer?
+//   U05      a chain a.get(0).f over array<Foo>
+//   U06      Foo.copy aliasing: copy.f := 5 leaves the original's f (1) and shares its array (size 1)
+//   U07      a field read off an na record: the runtime error's text and bar (comment out after reading)
+//   U08      overloads clr(array<float>) and clr(array<string>) called on an array<int>: compiles? which one?
+//   U09      overloads m(float) and m(string) called on an int: compiles? which one (1 = float)?
+//@version=6
+indicator("vw-w6-receivers", overlay = false)
+type Foo
+    float f = 1
+    array<float> xs
+method clr(array<string> id) =>
+    1
+method clr(array<bool> id) =>
+    2
+method get(array<float> a, int i) =>
+    99.0
+method m(float x) =>
+    1
+method m(string x) =>
+    2
+method pick(array<float> id) =>
+    1
+method pick(array<string> id) =>
+    2
+s = array.new<string>()
+b = array.new<bool>()
+plot(s.clr(), "U01 clr on array<string>")
+plot(b.clr(), "U02 clr on array<bool>")
+af = array.from(1.0, 2.0)
+plot(af.get(0), "U03 user get vs built-in on array<float>")
+ai = array.from(1, 2)
+plot(ai.get(0), "U04 user get(array<float>) on array<int>")
+foos = array.new<Foo>()
+foos.push(Foo.new(close, array.new<float>()))
+plot(foos.get(0).f, "U05 chain a.get(0).f")
+o = Foo.new(1, array.new<float>())
+c = o.copy()
+c.f := 5
+c.xs.push(1)
+plot(o.f, "U06a original f after copy write")
+plot(o.xs.size(), "U06b original array size after copy push")
+Foo z = na
+plot(bar_index == last_bar_index ? z.f : 0, "U07 field read off na (runtime error text and bar)")
+plot(ai.pick(), "U08 pick on array<int>")
+int k = 3
+plot(k.m(), "U09 m on an int")

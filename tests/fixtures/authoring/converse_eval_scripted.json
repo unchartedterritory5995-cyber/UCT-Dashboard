@@ -1,0 +1,431 @@
+{
+  "contract": "uct.converse-eval.scripted/1",
+  "_": "OFFLINE ONLY. The scripted model's answers, one list per `<case id>#<turn>` (a second entry is the repair attempt's answer). Each is what a CORRECT model would emit, except the controls' deliberately UNSAFE answers (another symbol substituted, a screener-only text read), which the PRODUCT must refuse. `usage` = the token counts each scripted answer reports to the sandbox ledger; no money is spent.",
+  "usage": {
+    "input_tokens": 3000,
+    "output_tokens": 900
+  },
+  "turns": {
+    "ex1-ema-cross#0": [
+      {
+        "contract": "uct.authoring.patch/1",
+        "baseRevision": 0,
+        "ops": [
+          {
+            "op": "create",
+            "name": "EMA 9/20 cross",
+            "outputs": [
+              {
+                "key": "cross",
+                "tree": {
+                  "type": "call",
+                  "name": "crossOver",
+                  "args": [
+                    {
+                      "type": "call",
+                      "name": "ema",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 9
+                        }
+                      ]
+                    },
+                    {
+                      "type": "call",
+                      "name": "ema",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 20
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "op": "set_marker",
+            "output": "cross",
+            "shape": "arrowUp",
+            "position": "belowBar"
+          }
+        ],
+        "disposition": "change",
+        "reply": "Done."
+      }
+    ],
+    "ex1-ema-cross#1": [
+      {
+        "contract": "uct.authoring.patch/1",
+        "baseRevision": 0,
+        "ops": [
+          {
+            "op": "set_slot",
+            "slot": "cross#0.1",
+            "value": 10
+          },
+          {
+            "op": "set_slot",
+            "slot": "cross#1.1",
+            "value": 30
+          }
+        ],
+        "disposition": "change",
+        "reply": "Done."
+      }
+    ],
+    "ex2-rsi-average#0": [
+      {
+        "contract": "uct.authoring.patch/1",
+        "baseRevision": 0,
+        "ops": [
+          {
+            "op": "create",
+            "name": "RSI 28 with its average",
+            "outputs": [
+              {
+                "key": "rsi",
+                "tree": {
+                  "type": "call",
+                  "name": "rsi",
+                  "args": [
+                    {
+                      "type": "series",
+                      "name": "close"
+                    },
+                    {
+                      "type": "num",
+                      "value": 28
+                    }
+                  ]
+                }
+              },
+              {
+                "key": "avg",
+                "tree": {
+                  "type": "call",
+                  "name": "sma",
+                  "args": [
+                    {
+                      "type": "call",
+                      "name": "rsi",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 28
+                        }
+                      ]
+                    },
+                    {
+                      "type": "num",
+                      "value": 5
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "disposition": "change",
+        "reply": "Done."
+      }
+    ],
+    "ex2-rsi-average#1": [
+      {
+        "contract": "uct.authoring.patch/1",
+        "baseRevision": 0,
+        "ops": [
+          {
+            "op": "set_slot",
+            "slot": "avg#1",
+            "value": 9
+          }
+        ],
+        "disposition": "change",
+        "reply": "Done."
+      }
+    ],
+    "ex3-background#0": [
+      {
+        "contract": "uct.authoring.patch/1",
+        "baseRevision": 0,
+        "ops": [
+          {
+            "op": "create",
+            "name": "EMA 9 above EMA 20",
+            "outputs": [
+              {
+                "key": "above",
+                "tree": {
+                  "type": "op",
+                  "name": ">",
+                  "args": [
+                    {
+                      "type": "call",
+                      "name": "ema",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 9
+                        }
+                      ]
+                    },
+                    {
+                      "type": "call",
+                      "name": "ema",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 20
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "op": "set_paint",
+            "output": "above",
+            "channel": "bgcolor",
+            "color": "#22c55e"
+          }
+        ],
+        "disposition": "change",
+        "reply": "Done."
+      }
+    ],
+    "ex3-background#1": [
+      {
+        "contract": "uct.authoring.patch/1",
+        "baseRevision": 0,
+        "ops": [
+          {
+            "op": "set_paint",
+            "output": "above",
+            "channel": "bgcolor",
+            "color": "#3b82f6"
+          }
+        ],
+        "disposition": "change",
+        "reply": "Done."
+      }
+    ],
+    "ctl-other-symbol#0": [
+      {
+        "contract": "uct.authoring.patch/1",
+        "baseRevision": 0,
+        "ops": [
+          {
+            "op": "create",
+            "name": "Above the index",
+            "outputs": [
+              {
+                "key": "value",
+                "tree": {
+                  "type": "op",
+                  "name": ">",
+                  "args": [
+                    {
+                      "type": "series",
+                      "name": "close"
+                    },
+                    {
+                      "type": "sym",
+                      "value": "QQQ",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "disposition": "change",
+        "reply": "Done."
+      }
+    ],
+    "ctl-screener-text#0": [
+      {
+        "contract": "uct.authoring.patch/1",
+        "baseRevision": 0,
+        "ops": [
+          {
+            "op": "create",
+            "name": "Technology",
+            "outputs": [
+              {
+                "key": "value",
+                "tree": {
+                  "type": "textop",
+                  "name": "==",
+                  "args": [
+                    {
+                      "type": "symtext",
+                      "name": "sector"
+                    },
+                    {
+                      "type": "str",
+                      "value": "Technology"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "disposition": "change",
+        "reply": "Done."
+      }
+    ],
+    "ctl-ambiguous#0": [
+      {
+        "contract": "uct.authoring.patch/1",
+        "baseRevision": 0,
+        "ops": [
+          {
+            "op": "create",
+            "name": "RSI overbought",
+            "outputs": [
+              {
+                "key": "value",
+                "tree": {
+                  "type": "op",
+                  "name": ">",
+                  "args": [
+                    {
+                      "type": "call",
+                      "name": "rsi",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 14
+                        }
+                      ]
+                    },
+                    {
+                      "type": "num",
+                      "value": 70
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "disposition": "change",
+        "reply": "Done."
+      }
+    ],
+    "ctl-ambiguous#1": [
+      {
+        "contract": "uct.authoring.patch/1",
+        "baseRevision": 0,
+        "ops": [],
+        "questions": [
+          {
+            "id": "q1",
+            "text": "What should confirm it?",
+            "choices": [
+              "volume above its 50-bar average",
+              "volume above 1.5x its 50-bar average"
+            ]
+          }
+        ],
+        "disposition": "clarify",
+        "reply": ""
+      }
+    ],
+    "ctl-rename-nothing#0": [
+      {
+        "contract": "uct.authoring.patch/1",
+        "baseRevision": 0,
+        "ops": [
+          {
+            "op": "create",
+            "name": "RSI overbought",
+            "outputs": [
+              {
+                "key": "value",
+                "tree": {
+                  "type": "op",
+                  "name": ">",
+                  "args": [
+                    {
+                      "type": "call",
+                      "name": "rsi",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 14
+                        }
+                      ]
+                    },
+                    {
+                      "type": "num",
+                      "value": 70
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "disposition": "change",
+        "reply": "Done."
+      }
+    ],
+    "ctl-rename-nothing#1": [
+      {
+        "contract": "uct.authoring.patch/1",
+        "baseRevision": 0,
+        "ops": [],
+        "questions": [
+          {
+            "id": "q1",
+            "text": "What would you like to call it?"
+          }
+        ],
+        "disposition": "clarify",
+        "reply": ""
+      }
+    ]
+  }
+}

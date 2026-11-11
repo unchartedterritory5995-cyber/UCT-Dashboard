@@ -96,7 +96,7 @@ export default function ScreenMenu({ currentName, currentId, isEdited, count, co
 
   return (
     <span className={styles.menuWrap} ref={box} onBlur={onBlur}>
-      <button ref={btn} type="button" className={styles.screenBtn} aria-haspopup="dialog" aria-expanded={open}
+      <button ref={btn} type="button" className={styles.screenBtn} data-guide="screener.screens" aria-haspopup="dialog" aria-expanded={open}
         aria-label={landing ? `${label} Change screen` : countPending ? `${label}, updating. Change screen` : Number.isFinite(count) ? `${label}, ${count} matches. Change screen` : `${label}. Change screen`} onClick={() => { if (open) setOpen(false); else openMenu() }}>
         <UIcon name="screener" size={18} className={styles.screenIcon} />
         <span className={landing ? menuStyles.landing : undefined}>{label}</span>

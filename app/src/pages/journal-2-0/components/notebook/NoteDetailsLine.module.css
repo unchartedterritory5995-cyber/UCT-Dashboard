@@ -67,7 +67,7 @@
 .chevron {
   flex: 0 0 auto;
   transform: rotate(-90deg);
-  transition: transform 0.18s ease;
+  transition: transform var(--duration-fast) var(--ease-out);
 }
 .chevronOpen { transform: rotate(0deg); }
 @media (prefers-reduced-motion: reduce) {

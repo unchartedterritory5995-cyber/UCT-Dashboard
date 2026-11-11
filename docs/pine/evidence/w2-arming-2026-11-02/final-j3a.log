@@ -1,0 +1,15 @@
+# trimmed to the totals and the vitest summary (the per-capture table is 300+ KB; the verdicts are in harness-lane-diff-final.json)
+WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 112 · DIVERGE 103 · INCONCLUSIVE 121
+CHANGED BY PAINTS (4): supertrend-strategy-rddt-1d-2026-10-02 INCONCLUSIVE → DIVERGE; supertrend-strategy-spy-1d-2026-10-02 INCONCLUSIVE → DIVERGE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → DIVERGE; vw-deadband-ticks-brk-a-1d-2026-09-28 INCONCLUSIVE → DIVERGE
+
+NOT COMPARABLE (0):
+
+
+
+ ✓ src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js (11 tests) 108ms
+
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+   Start at  20:56:46
+   Duration  269.07s (transform 5.98s, setup 528ms, import 266.83s, tests 108ms, environment 1.41s)
+

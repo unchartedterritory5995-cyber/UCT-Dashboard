@@ -1,3 +1,4 @@
+// S7 fix round 2 (audit 2026-11-05, re-review R1-1): the copy these rails pin was renamed (style -> template).
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
 import { SWRConfig } from 'swr'
@@ -45,7 +46,7 @@ function renderSection(props = {}, { list = listBody, preview = previewBody } = 
 describe('New note: pick a kind', () => {
   it('lists every kind and one press makes a note of that kind', async () => {
     const { onCreate } = renderSection()
-    const group = await screen.findByRole('group', { name: 'Start from a kind of note' })
+    const group = await screen.findByRole('group', { name: 'Start from a template' })
     expect(within(group).getAllByRole('button', { name: /^New / }).length).toBe(listBody.kinds.length)
     fireEvent.click(within(group).getByRole('button', { name: 'New Trade plan' }))
     expect(onCreate).toHaveBeenCalledWith({ kindId: 'trade_plan' })
@@ -57,10 +58,10 @@ describe('New note: pick a kind', () => {
     expect(btn.textContent).toContain('Trade plan (starter)')
   })
 
-  it('Choose another style lists that kind’s styles, previews one with my data, and uses it', async () => {
+  it('Choose another template lists that kind’s styles, previews one with my data, and uses it', async () => {
     const { onCreate } = renderSection()
-    fireEvent.click(await screen.findByRole('button', { name: 'Choose another style for Trade plan' }))
-    const list = screen.getByRole('list', { name: 'Styles for Trade plan' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose another template for Trade plan' }))
+    const list = screen.getByRole('list', { name: 'Templates for Trade plan' })
     const mine = within(list).getAllByRole('listitem').find((li) => !/Built-in/.test(li.textContent))
     fireEvent.click(within(mine).getByRole('button', { name: /^Preview / }))
     expect(await screen.findByText(new RegExp(`Shown with ${previewBody.ticker}`))).toBeTruthy()
@@ -72,9 +73,9 @@ describe('New note: pick a kind', () => {
 
   it('"Use this style" inside the preview makes the note and closes the preview', async () => {
     const { onCreate } = renderSection()
-    fireEvent.click(await screen.findByRole('button', { name: 'Choose another style for Trade plan' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose another template for Trade plan' }))
     fireEvent.click(screen.getByRole('button', { name: 'Preview My plan' }))
-    const use = await screen.findByRole('button', { name: 'Use this style' })
+    const use = await screen.findByRole('button', { name: 'Use' })
     expect(screen.queryByRole('button', { name: 'Use this template' })).toBeNull()   // a style is not a template
     fireEvent.click(use)
     expect(onCreate).toHaveBeenCalledWith({ styleId: 's-mine' })
@@ -82,18 +83,18 @@ describe('New note: pick a kind', () => {
 
   it('a preview that fails says so and offers no Use', async () => {
     renderSection()
-    fireEvent.click(await screen.findByRole('button', { name: 'Choose another style for Trade plan' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose another template for Trade plan' }))
     globalThis.fetch.mockImplementation(async () => ({ ok: false, status: 500, json: async () => ({ detail: 'boom' }) }))
     fireEvent.click(screen.getByRole('button', { name: 'Preview My plan' }))
     expect((await screen.findByRole('alert')).textContent).toContain('boom')
-    expect(screen.getByRole('button', { name: 'Use this style' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Use' })).toBeDisabled()
     expect(screen.queryByRole('button', { name: 'Use this template' })).toBeNull()
   })
 
   // Final review M-2: lib/journalStyles sets the message to the bare status when a 5xx body is not JSON.
   it('a preview whose 5xx body is not JSON never shows a bare status code', async () => {
     renderSection()
-    fireEvent.click(await screen.findByRole('button', { name: 'Choose another style for Trade plan' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose another template for Trade plan' }))
     globalThis.fetch.mockImplementation(async () => ({ ok: false, status: 500, json: async () => { throw new SyntaxError('not json') } }))
     fireEvent.click(screen.getByRole('button', { name: 'Preview My plan' }))
     const alert = await screen.findByRole('alert')
@@ -108,7 +109,7 @@ describe('New note: pick a kind', () => {
     renderSection({}, { preview: { ...previewBody, bodyJson: { type: 'doc', content: [
       embed('news', { symbol: 'NVDA' }), embed('chart', {}), embed('zz_future'),
     ] } } })
-    fireEvent.click(await screen.findByRole('button', { name: 'Choose another style for Trade plan' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose another template for Trade plan' }))
     fireEvent.click(screen.getByRole('button', { name: 'Preview My plan' }))
     await screen.findByText(/Shown with NVDA/)
     const lines = [...document.querySelectorAll('[data-template-preview-body] em')].map((el) => el.textContent)
@@ -117,8 +118,8 @@ describe('New note: pick a kind', () => {
 
   it('a kind with no styles says so instead of opening an empty list', async () => {
     renderSection({}, { list: { ...listBody, kinds: [...listBody.kinds, { id: 'k_mine', name: 'My kind', icon: null }] } })
-    fireEvent.click(await screen.findByRole('button', { name: 'Choose another style for My kind' }))
-    expect(screen.getByText('No styles for this kind yet.')).toBeTruthy()
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose another template for My kind' }))
+    expect(screen.getByText('No templates for this note type yet.')).toBeTruthy()
   })
 
   it('two pickers on screen do not share a heading id', async () => {
@@ -126,7 +127,7 @@ describe('New note: pick a kind', () => {
     render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
       <KindSection onCreate={() => {}} /><KindSection onCreate={() => {}} />
     </SWRConfig>)
-    await screen.findAllByRole('group', { name: 'Start from a kind of note' })
+    await screen.findAllByRole('group', { name: 'Start from a template' })
     const ids = [...document.querySelectorAll('section[aria-labelledby]')].map((s) => s.getAttribute('aria-labelledby'))
     expect(ids).toHaveLength(2)
     expect(new Set(ids).size).toBe(2)
@@ -168,7 +169,7 @@ describe('New note: pick a kind', () => {
       { type: 'widgetEmbed', attrs: { widgetId: 'built_b', params: {} } },
     ] } }
     renderSection({}, { preview })
-    fireEvent.click(await screen.findByRole('button', { name: 'Choose another style for Trade plan' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose another template for Trade plan' }))
     fireEvent.click(screen.getByRole('button', { name: 'Preview My plan' }))
     const line = await screen.findByText('Widget: Equity curve')
     expect(line.tagName).toBe('EM')
@@ -189,7 +190,7 @@ describe('New note: pick a kind', () => {
     const list = { ...listBody, styles: listBody.styles.map((st) => (st.id === 's-mine'
       ? { ...st, blocks: [{ block: 'routine_1', enabled: true, settings: {}, displayName: 'Pre-market routine' }] } : st)) }
     renderSection({}, { list, preview })
-    fireEvent.click(await screen.findByRole('button', { name: 'Choose another style for Trade plan' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose another template for Trade plan' }))
     fireEvent.click(screen.getByRole('button', { name: 'Preview My plan' }))
     expect((await screen.findByText('Widget: Equity curve')).tagName).toBe('EM')
     expect(screen.getByText('Routine: Pre-market routine').tagName).toBe('EM')
@@ -208,7 +209,7 @@ describe('New note: pick a kind', () => {
     const list = { ...listBody, styles: listBody.styles.map((st) => (st.id === 's-mine'
       ? { ...st, slotNames: { built_a: 'Equity curve' } } : st)) }
     renderSection({}, { list, preview })
-    fireEvent.click(await screen.findByRole('button', { name: 'Choose another style for Trade plan' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose another template for Trade plan' }))
     fireEvent.click(screen.getByRole('button', { name: 'Preview My plan' }))
     expect((await screen.findByText('Widget: Equity curve')).tagName).toBe('EM')          // the style's, by block id
     expect(screen.getByText('Routine: Pre-market routine').tagName).toBe('EM')            // the preview's, by block id

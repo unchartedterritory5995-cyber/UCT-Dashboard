@@ -11,9 +11,8 @@ THE RULES (R-T2B-1..6, 10):
   flagged). One notice per (member, symbol, report date), however many sets hold the name.
 * WHEN: the run on trading day T offers every report whose REACTION SESSION is T or earlier, among the
   reports dated from the previous trading day through T (`reaction_session`, F9). 16:45 ET and 18:00 ET
-  mon-fri, plus a boot catch-up; a holiday is skipped INSIDE the run. The two switches
-  (NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED and the journal styles switch, which the card's create needs) are read
-  at every RUN, never at registration.
+  mon-fri, plus a boot catch-up; a holiday is skipped INSIDE the run. (Always on: its switch and the
+  journal styles switch were retired 2026-11-04.)
 * `<=` AND NOT `==` (F9): a report whose time flips from unknown to known between two days (unknown reads
   as after the close, so its session is the next day; known as before the open, its session is the report
   day) would otherwise be offered on neither. The claim table's primary key, (member, symbol, report date),
@@ -54,11 +53,9 @@ from typing import Any
 from urllib.parse import urlencode
 
 from api.services import auth_db, session_calendar
-from api.services.notebook_flags import flag_on
 from api.services.journal_two.reminder_block import add_trading_days
 from api.services.journal_two.timeutil import ET
 
-FLAG = "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED"
 FOLLOWUP_SOURCE = "notebook_earnings_followup"
 FIRST_PASS = (16, 45)
 SECOND_PASS = (18, 0)
@@ -99,11 +96,6 @@ _CLAIM = ("INSERT OR IGNORE INTO j2_earnings_followup_log"
           " WHERE user_id = ? AND session_day = ? AND status != 'capped') < ?")
 _CAPPED = ("INSERT OR IGNORE INTO j2_earnings_followup_log"
            " (user_id, symbol, report_date, session_day, created_at, status) VALUES (?, ?, ?, ?, ?, 'capped')")
-
-
-def enabled() -> bool:
-    """The gate, read per call (default OFF): the job, the card and the server prefill."""
-    return flag_on(FLAG, False)
 
 
 def _now() -> datetime:
@@ -446,10 +438,6 @@ def run_followups(now: datetime | None = None, *, pass_label: str = "manual", co
                               "candidates": 0, "delivered": 0, "already_sent": 0, "in_flight": 0, "capped": 0,
                               "failed": 0, "timing_unknown": 0, "partial": False, "warmed": 0,
                               "warm_skipped": 0, "refreshed": 0, "refresh_failed": 0, "refresh_skipped": 0}
-    from api.services.journal_two import journal_styles
-    if not (enabled() and journal_styles.enabled()):
-        result["skipped"] = "switched-off"
-        return result
     if not session_calendar.is_trading_day(day):
         result["skipped"] = "not-a-trading-day"
         return result
@@ -487,8 +475,6 @@ def catch_up_followups(now: datetime | None = None, conn=None, deliver=None) -> 
     """The boot catch-up: run the latest session day whose first pass has passed, unless a pass for that
     day completed (no failure, nothing in flight, every source clean)."""
     target = catch_up_target(now or _now())
-    if not enabled():
-        return {"ran": False, "reason": "disabled", "day": target.isoformat()}
     owned = conn is None
     conn = conn or auth_db.get_connection()
     try:

@@ -210,6 +210,7 @@ export default function ChartDateNav({ paneRef, themeVars = null }) {
         placeholder="M/D/YYYY"
         spellCheck={false}
         title="Go to a date — type and press Enter"
+        data-guide="chart.goToDate"
         onFocus={(e) => { setEditing(true); setDraft(fmtDate(meta?.rightMs)); requestAnimationFrame(() => e.target.select()) }}
         onChange={(e) => setDraft(maskMDY(e.target.value))}
         onBlur={() => setEditing(false)}

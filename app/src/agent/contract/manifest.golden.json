@@ -30,14 +30,19 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chart.setTimeframe",
    "domain": "chart",
    "target": "chart",
    "summary": "Change one chart's timeframe.",
-   "hints": "Codes: 1, 5, 15, 30, 60 are minutes; D daily, W weekly, M monthly.",
+   "hints": "1/5/15/30/60 min, D, W, M; next/previous: one rung.",
    "args": {
     "type": "object",
     "properties": {
@@ -51,7 +56,9 @@
        "60",
        "D",
        "W",
-       "M"
+       "M",
+       "next",
+       "previous"
       ]
      }
     },
@@ -63,7 +70,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chart.setSymbol",
@@ -86,7 +98,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chart.setSession",
@@ -113,7 +130,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chart.setScale",
@@ -141,7 +163,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chart.applyTheme",
@@ -221,7 +248,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chart.setBackground",
@@ -244,7 +276,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chart.setCandleColors",
@@ -277,7 +314,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "volume.setState",
@@ -305,14 +347,19 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chart.setSetting",
    "domain": "chart",
    "target": "chart",
-   "summary": "Change one chart display setting from UCT's approved list (grid and its color, crosshair and its color, scale text size/color, legend, watermark and its size/weight/lines, labels, event markers, swing labels and their options, prev-day lines and their style/width/color, countdown, title, color mode, thin bars, inverted scale).",
-   "hints": "value = true/false for on/off settings (crosshair.mode and header.legendMode also take true/false); a hex color (#2962ff) for color settings. Allowed values — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high.width, prevDayLevels.low.width, prevDayLevels.close.width: 1|2|3|4; crosshair.style, prevDayLevels.high.style, prevDayLevels.low.style, prevDayLevels.close.style: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800. Only these settings: for any other chart setting (watermark opacity, volume style…) do NOT plan an op — say it is not Agent-enabled yet and where it lives in Chart Settings.",
+   "summary": "Change one chart display setting from UCT's approved list (grid, crosshair, scale text, legend, watermark, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane look, Heikin Ashi, Chart IQ, position calculator, Info row / Bar info fields).",
+   "hints": "value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); a hex color (#2962ff) for colors; a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; bgMode: solid|gradient; volume.barStyle: columns|histogram; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. header.fields|barInfo: +/-field (\"+Market Cap\"). Anything else: no op — say where it lives in Chart Settings.",
    "args": {
     "type": "object",
     "properties": {
@@ -374,7 +421,36 @@
        "markers.desk",
        "prevDayLevels.high.enabled",
        "prevDayLevels.low.enabled",
-       "prevDayLevels.close.enabled"
+       "prevDayLevels.close.enabled",
+       "bgMode",
+       "bgGradient.top",
+       "bgGradient.bottom",
+       "volume.upColor",
+       "volume.downColor",
+       "volume.hvcEnabled",
+       "volume.separatePane",
+       "volume.paneHeightPct",
+       "volume.labelVisible",
+       "volume.labelColor",
+       "volume.maPeriod",
+       "volume.maColor",
+       "volume.maLineWidth",
+       "volume.maLineStyle",
+       "volume.barStyle",
+       "watermark.opacity",
+       "watermark.x",
+       "watermark.y",
+       "markers.ipo",
+       "markers.ipoColor",
+       "darkPool.enabled",
+       "darkPool.barColor",
+       "darkPool.labelColor",
+       "heikinAshi",
+       "showChartIq",
+       "positionCalc.accountSize",
+       "positionCalc.riskPct",
+       "header.fields",
+       "header.barInfo"
       ]
      },
      "value": {
@@ -394,7 +470,23 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": {
+    "setting": [
+     "key",
+     "id",
+     "name",
+     "option",
+     "settingId",
+     "setting_id",
+     "path",
+     "property"
+    ]
+   },
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": "args {\"setting\": <one id from the list>, \"value\": …} — \"turn the gradient off\" = {\"setting\":\"bgMode\",\"value\":\"solid\"}, \"gradient on\" = {\"setting\":\"bgMode\",\"value\":\"gradient\"}, \"hide the grid\" = {\"setting\":\"grid.visible\",\"value\":false}. Never invent a setting id (no \"bgGradient.enabled\", no \"background.gradient\"): an on/off wish for a setting not listed is unsupported."
   },
   {
    "name": "chart.applyTemplate",
@@ -417,7 +509,12 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chart.resetDefaults",
@@ -434,7 +531,12 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chart.goToDate",
@@ -457,7 +559,68 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chart.replay",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Replay Mode (Tools → Replay): hide every bar after a date on the linked charts, as if it were that day — or exit replay (date null). A view only: nothing is saved; Undo clears it (or restores the previous cutoff).",
+   "hints": "date = YYYY-MM-DD (or the member's date word: \"last friday\", \"oct 15\") for the cutoff; null = exit replay. \"As of <date>\" / \"replay from <date>\" / \"go back to <date> and hide what came after\" = this; \"scroll to <date>\" with every bar kept = chart.goToDate.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "date": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "date"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": {
+    "date": [
+     "cutoff",
+     "to",
+     "until",
+     "day",
+     "at",
+     "as_of",
+     "asOf",
+     "replay_date",
+     "replayDate"
+    ]
+   },
+   "coerce": {
+    "date": {
+     "exit": null,
+     "off": null,
+     "stop": null,
+     "end": null,
+     "false": null,
+     "clear": null,
+     "exit replay": null,
+     "none": null,
+     "nothing": null,
+     "nil": null
+    }
+   },
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": "{\"date\":\"YYYY-MM-DD\"} to replay from a date; {\"date\":null} to EXIT replay (\"exit replay\", \"leave replay\", \"replay off\", \"show every bar again\") — the JSON null, never the word \"null\" and never an \"exit\" or \"enabled\" key."
   },
   {
    "name": "chart.compare",
@@ -494,7 +657,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chart.addCustomTimeframe",
@@ -532,7 +700,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "widget.add",
@@ -581,7 +754,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "widget.addCharts",
@@ -671,7 +849,91 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": {
+    "symbols": [
+     "tickers",
+     "symbol",
+     "ticker",
+     "stocks",
+     "list"
+    ],
+    "symbols.from": [
+     "symbols.list",
+     "symbols.watchlist",
+     "symbols.source",
+     "symbols.ref",
+     "symbols.screen",
+     "symbols.of",
+     "from",
+     "source",
+     "watchlist"
+    ],
+    "symbols.top": [
+     "symbols.count",
+     "symbols.n",
+     "symbols.limit",
+     "symbols.first",
+     "symbols.take",
+     "top",
+     "count",
+     "limit"
+    ],
+    "timeframe": [
+     "tf",
+     "interval",
+     "period",
+     "time_frame",
+     "timeFrame"
+    ],
+    "chart_type": [
+     "type",
+     "chartType",
+     "style",
+     "chart_style"
+    ]
+   },
+   "coerce": {
+    "timeframe": {
+     "daily": "D",
+     "day": "D",
+     "1d": "D",
+     "d1": "D",
+     "1day": "D",
+     "weekly": "W",
+     "week": "W",
+     "1w": "W",
+     "monthly": "M",
+     "month": "M",
+     "1mo": "M",
+     "hourly": "60",
+     "hour": "60",
+     "1h": "60",
+     "60m": "60",
+     "60min": "60",
+     "1hr": "60",
+     "5min": "5",
+     "15min": "15",
+     "30min": "30",
+     "1min": "1",
+     "default": null,
+     "": null
+    },
+    "chart_type": {
+     "candle": "candles",
+     "candlestick": "candles",
+     "candlesticks": "candles",
+     "hollow candles": "hollow",
+     "bar": "bars",
+     "ohlc": "bars",
+     "line chart": "line",
+     "default": null,
+     "": null
+    }
+   },
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": "{\"symbols\":[\"NVDA\"],\"timeframe\":\"D\",\"chart_type\":null,\"exact\":null} or {\"symbols\":{\"from\":\"<watchlist ref or screen as>\",\"top\":2},\"timeframe\":null,\"chart_type\":null,\"exact\":null}; timeframe 1|5|15|30|60|D|W|M (D daily, W weekly, M monthly, 60 hourly). No other keys: indicators, a row or a position cannot be set here — plan the charts alone and say in `reply` that indicators can be added next. ⛔ With NO chart in <workspace_context>, \"add / open / show a <timeframe> chart of <symbol>\" is THIS op on the workspace entry — never chart.setSymbol / chart.setTimeframe on a chart that does not exist."
   },
   {
    "name": "layout.current",
@@ -688,7 +950,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "layout.list",
@@ -705,7 +972,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "layout.open",
@@ -728,7 +1000,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "layout.saveAs",
@@ -751,7 +1028,12 @@
    "risk": "confirm",
    "reversible": false,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "layout.saveCurrent",
@@ -768,14 +1050,19 @@
    "risk": "local",
    "reversible": false,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "layout.rename",
    "domain": "layout",
    "target": "layouts",
    "summary": "Rename one of the member's OWN layouts (not prebuilt or built-in ones).",
-   "hints": "target = the ref of the layouts entry; layout = the id of the layout to rename (the open one if they say \"this layout\"); name = the new name exactly as given.",
+   "hints": "target = the ref of the layouts entry; layout = the id of the layout to rename (the open one if they say \"this layout\"); name = the new name exactly as given. \"rename <X> to <Y>\" where X is a layout name = this op, never chart.renameTab (a chart widget's TAB, only when they say \"tab\"). A protected layout is refused by UCT itself: plan the op, never say you can't rename.",
    "args": {
     "type": "object",
     "properties": {
@@ -795,7 +1082,28 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": {
+    "layout": [
+     "id",
+     "layout_id",
+     "layoutId",
+     "from",
+     "old_name",
+     "oldName",
+     "current"
+    ],
+    "name": [
+     "to",
+     "new_name",
+     "newName",
+     "new"
+    ]
+   },
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": "{\"layout\":\"<id from layouts>\",\"name\":\"<new name>\"}"
   },
   {
    "name": "layout.create",
@@ -818,7 +1126,12 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "layout.delete",
@@ -841,7 +1154,12 @@
    "risk": "confirm",
    "reversible": false,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "layout.duplicate",
@@ -871,7 +1189,12 @@
    "risk": "confirm",
    "reversible": false,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "watchlist.list",
@@ -888,14 +1211,19 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "watchlist.show",
    "domain": "watchlist",
    "target": "watchlist",
    "summary": "Say which symbols are in one of the member's watchlists. UCT answers from the real list — use this (disposition apply) for \"what's in <list>?\".",
-   "hints": "target = the ref of that watchlist. as: name this list's STOCKS (e.g. \"list1\") when a later op in the same request uses them (e.g. widget.addCharts symbols {from:\"list1\", top:N}); else null.",
+   "hints": "target = the ref of that watchlist. \"my watchlist\" = the list a widget shows (shownInWidget); \"the one I just made\" = the list marked recent. as: name this list's STOCKS (e.g. \"list1\") when a later op in the same request uses them (e.g. widget.addCharts symbols {from:\"list1\", top:N}); else null.",
    "args": {
     "type": "object",
     "properties": {
@@ -914,14 +1242,19 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "watchlist.add",
    "domain": "watchlist",
    "target": "watchlist",
    "summary": "Add tickers to one of the member's saved watchlists (the list itself, not a widget). Symbols already in the list are skipped.",
-   "hints": "target = the ref of the watchlist (or the \"as\" name of a list created earlier in this request); symbols = the tickers, uppercase, OR {from, top} to add a SCREEN's stocks: from = the \"as\" of a screener op earlier in this request (or \"lastScreen\" for the last screen run here), top = how many of its results, in its order (null = ALL of them — the default when they say \"all\" or give no number; at most 1000). Never type tickers you have not been given. If they say \"my watchlist\" and it is not clear which list, clarify with the real list names. One op per list.",
+   "hints": "target = the ref of the watchlist (or the \"as\" name of a list created earlier in this request); \"my watchlist\" = the list a widget shows (shownInWidget); \"the one I just made\" = the list marked recent. symbols = the tickers, uppercase, OR {from, top} to add a SCREEN's stocks: from = the \"as\" of a screener op earlier in this request (or \"lastScreen\" for the last screen run here), top = how many of its results, in its order (null = ALL of them — the default when they say \"all\" or give no number; at most 1000). Never type tickers you have not been given. If they say \"my watchlist\" and it is not clear which list, clarify with the real list names. One op per list.",
    "args": {
     "type": "object",
     "properties": {
@@ -963,14 +1296,19 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "watchlist.remove",
    "domain": "watchlist",
    "target": "watchlist",
-   "summary": "Remove specific tickers from one of the member's saved watchlists. Never clears a whole list.",
-   "hints": "target = the ref of the watchlist; symbols = exactly the tickers to remove.",
+   "summary": "Remove specific tickers from one of the member's saved watchlists, one or several at once. Undo puts them back with their notes and order.",
+   "hints": "target = the ref of the watchlist; \"my watchlist\" = the list a widget shows (shownInWidget); \"the one I just made\" = the list marked recent. symbols = exactly the tickers to remove (\"the top three\" = the first rows of the listViews entry showing it, or of its symbols when no widget shows it). For \"everything except these\" use watchlist.keepOnly.",
    "args": {
     "type": "object",
     "properties": {
@@ -989,7 +1327,43 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "watchlist.keepOnly",
+   "domain": "watchlist",
+   "target": "watchlist",
+   "summary": "Remove everything from one of the member's saved watchlists EXCEPT the tickers named (\"keep only these\", \"everything except these\"). One change, always shown as a proposal naming what goes; Undo puts them back with their notes and order.",
+   "hints": "target = the ref of the watchlist; \"my watchlist\" = the list a widget shows (shownInWidget); \"the one I just made\" = the list marked recent. symbols = the tickers to KEEP (\"keep the top three\" = the first rows of the listViews entry showing it, or of its symbols). Every one must be in the list: a name that is not stops the whole change.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbols": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "symbols"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "watchlist.clear",
@@ -1006,7 +1380,12 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "watchlist.delete",
@@ -1023,7 +1402,12 @@
    "risk": "confirm",
    "reversible": false,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "watchlist.create",
@@ -1053,7 +1437,12 @@
    "risk": "confirm",
    "reversible": false,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "watchlist.rename",
@@ -1076,14 +1465,19 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "watchlist.reorder",
    "domain": "watchlist",
    "target": "watchlist",
-   "summary": "Reorder one of the member's saved watchlists: sort it alphabetically (A–Z or Z–A) and/or move some tickers to the top, in the order given. Nothing is added or removed. Undo puts the old order back.",
-   "hints": "target = the ref of the watchlist; sort = az | za | null (keep the order); top = tickers to put first, in this order ([] for none). \"Sort my Momentum list\" = az. Sorting by price, change or other data is not available.",
+   "summary": "Reorder one of the member's saved watchlists (the saved order, permanently): sort it alphabetically (A–Z or Z–A) and/or move some tickers to the top, in the order given. Nothing is added or removed. Undo puts the old order back.",
+   "hints": "target = the ref of the watchlist; sort = az | za | null (keep the order); top = tickers to put first, in this order ([] for none). \"Sort my Momentum list\" = az. This rewrites the saved order. To order what a widget shows by price, change or other data, use watchlist.sortColumn.",
    "args": {
     "type": "object",
     "properties": {
@@ -1114,7 +1508,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "watchlist.setNote",
@@ -1141,68 +1540,317 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "watchlist.sortColumn",
+   "domain": "watchlist",
+   "target": "listView",
+   "summary": "Sort what a Watchlist or Scanner widget shows by one of its columns (price, % change, RVOL, market cap…), the header click. It changes the view, not the saved order. column null = back to the saved order. Undo puts the old sort back.",
+   "hints": "target = the ref of the listViews entry: the one marked active for \"this list\", the one named as the list they name (\"my Momentum list\"; for \"the one I just made\", the watchlists entry marked recent), the only entry for \"my watchlist\"; several could be meant → clarify by name or position. No entry means no such widget is on this board: say so, offer watchlist.open. column = the column as they said it; direction = asc | desc | null (null = the header's own first click: Symbol A to Z, others high to low; \"biggest / top / highest\" = desc, \"lowest / smallest\" = asc). A column not showing is added. Columns: Price, Volume, % Change, Company Name, RVOL, IPO Date, Market Cap, Next Earnings, UCT Rating, $ Change, % from Open, % from High, % from Low, DCR, Dollar Volume, Sector, Industry, Theme, 5-Day, 30-Day, 60-Day, 90-Day, Attention, ATR %, ATR from 50SMA. For a permanent A to Z of the saved list use watchlist.reorder.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "column": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "direction": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "asc",
+       "desc",
+       null
+      ]
+     }
+    },
+    "required": [
+     "column",
+     "direction"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": {
+    "direction": {
+     "ascending": "asc",
+     "descending": "desc",
+     "up": "asc",
+     "down": "desc",
+     "low to high": "asc",
+     "high to low": "desc",
+     "a to z": "asc",
+     "z to a": "desc"
+    }
+   },
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": "{\"column\":\"RVOL\",\"direction\":\"desc\"}"
+  },
+  {
+   "name": "watchlist.setColumns",
+   "domain": "watchlist",
+   "target": "listView",
+   "summary": "Add or hide columns on a Watchlist or Scanner widget, or reset them to the defaults (the right-click column menu). Undo puts the old columns back.",
+   "hints": "target = the ref of the listViews entry: the one marked active for \"this list\", the one named as the list they name (\"my Momentum list\"; for \"the one I just made\", the watchlists entry marked recent), the only entry for \"my watchlist\"; several could be meant → clarify by name or position. No entry means no such widget is on this board: say so, offer watchlist.open. add / hide = columns as they said them ([] for none); reset = true only for \"reset my columns\" (the defaults, then add / hide). Symbol and the flag star can't be hidden. Columns: Price, Volume, % Change, Company Name, RVOL, IPO Date, Market Cap, Next Earnings, UCT Rating, $ Change, % from Open, % from High, % from Low, DCR, Dollar Volume, Sector, Industry, Theme, 5-Day, 30-Day, 60-Day, 90-Day, Attention, ATR %, ATR from 50SMA. Nothing else exists: a column not listed is refused, never swapped for a near one.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "add": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "hide": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "reset": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "add",
+     "hide",
+     "reset"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": "{\"add\":[\"RVOL\"],\"hide\":[\"Volume\"],\"reset\":false}"
+  },
+  {
+   "name": "watchlist.step",
+   "domain": "watchlist",
+   "target": "listView",
+   "summary": "Move to the next or previous ticker in a Watchlist or Scanner widget, in the order it shows them (the arrow keys; the linked chart follows). Also first / last. Undo goes back to the ticker before.",
+   "hints": "target = the ref of the listViews entry: the one marked active for \"this list\", the one named as the list they name (\"my Momentum list\"; for \"the one I just made\", the watchlists entry marked recent), the only entry for \"my watchlist\"; several could be meant → clarify by name or position. No entry means no such widget is on this board: say so, offer watchlist.open. direction = next | previous | first | last; by = how many rows (null = 1): \"next ticker\" = next, \"skip two\" = next by 3. It wraps at the ends, as the arrow keys do. Never compute the ticker yourself.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "direction": {
+      "type": "string",
+      "enum": [
+       "next",
+       "previous",
+       "first",
+       "last"
+      ]
+     },
+     "by": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "direction",
+     "by"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": {
+    "direction": {
+     "down": "next",
+     "forward": "next",
+     "prev": "previous",
+     "up": "previous",
+     "back": "previous",
+     "top": "first",
+     "bottom": "last"
+    }
+   },
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "watchlist.readView",
+   "domain": "watchlist",
+   "target": "listView",
+   "summary": "Say what a Watchlist or Scanner widget shows right now: its tickers in on-screen order (its column sort applied), its sort and columns. Use it for \"what's at the top of this list\". Its rows are in the listViews context too, so \"remove the top three\" can name them directly.",
+   "hints": "target = the ref of the listViews entry: the one marked active for \"this list\", the one named as the list they name (\"my Momentum list\"; for \"the one I just made\", the watchlists entry marked recent), the only entry for \"my watchlist\"; several could be meant → clarify by name or position. No entry means no such widget is on this board: say so, offer watchlist.open. as: name these STOCKS (e.g. \"view1\") when a later op in the same request uses them, e.g. watchlist.add symbols {from:\"view1\", top:3}; else null. It never reports prices.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "as": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "as"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "watchlist.setFlag",
+   "domain": "watchlist",
+   "target": "flaggedList",
+   "summary": "Flag or unflag tickers: the star on a row and Shift+F, one Flagged set across the whole app. Undo puts it back.",
+   "hints": "target = the ref of the flagged entry; symbols = the tickers, uppercase; flagged = true to flag, false to unflag. Never type tickers you have not been given: \"this one\" is the chart's symbol, \"the top three\" is the first rows of the listViews entry.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbols": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "flagged": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "symbols",
+     "flagged"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "screener.run",
    "domain": "screener",
    "target": "screener",
    "summary": "Run a stock screen on UCT's Screener and show the real matches (count + top rows). Changes nothing in UCT. Use this for \"show me / find stocks with …\".",
-   "hints": "target = the screener entry ref. filters: each {field: a key from screener `fields` (never invented), op, value, max, values}. Numbers: op gt|gte|lt|lte|eq|between, value, max (between only, else null), values null; % fields take 5 for 5%, $ fields take dollars (10M = 10000000). yes/no: op eq, value 1|0. (list) fields: op in|not_in, values = the member's own words ([\"software\"]) — UCT matches the real values; value/max null. \"(latest session)\" fields = the last completed trading day: use them for a daily dollar volume (\"trades over $10M a day\"), never a 30-day average or share volume. A measure not in `fields`: say the Screener doesn't have it, never substitute. sort_field/sort_dir or null. mode refine = change the LAST screen, else new. show: rows (null = 10, max 25). as: name the RESULT (screen1) when a later op uses its stocks ({from:\"screen1\", top:null} = all); else null. within: a watchlist ref only if they name that list (\"in Momentum\"); else null (the whole market).",
+   "hints": "target = the screener entry ref. Comparisons, OR/NOT, rank: `compose`. filters: each {field: a key from `fields` (never invented), op, value, max, values}. Numbers: op gt|gte|lt|lte|eq|between, value, max (between only, else null), values null; % fields take 5 for 5%, $ fields take dollars (10M = 10000000). yes/no: op eq, value 1|0. (list) fields: op in|not_in, values = the member's own words ([\"software\"]) — UCT matches real values; value/max null. \"(latest session)\" fields only when a session is named (\"today\", \"yesterday\"); \"$10M a day\" / \"per day\" if none named = the 30-day average, not share volume. A measure not in `fields`: say so, never substitute. sort_field/sort_dir or null. mode refine = change the LAST screen, else new. show: rows (null = 10, max 25). as: name the RESULT (screen1) when a later op uses its stocks ({from:\"screen1\", top:null} = all); else null. within: a watchlist ref only if they name that list (\"in Momentum\"); else null (whole market).",
    "args": {
     "type": "object",
     "properties": {
      "filters": {
       "type": "array",
       "items": {
-       "type": "object",
-       "properties": {
-        "field": {
-         "type": "string"
-        },
-        "op": {
-         "type": "string",
-         "enum": [
-          "gt",
-          "gte",
-          "lt",
-          "lte",
-          "eq",
-          "between",
-          "in",
-          "not_in"
-         ]
-        },
-        "value": {
-         "type": [
-          "number",
-          "null"
-         ]
-        },
-        "max": {
-         "type": [
-          "number",
-          "null"
-         ]
-        },
-        "values": {
-         "type": [
-          "array",
-          "null"
+       "anyOf": [
+        {
+         "type": "object",
+         "properties": {
+          "field": {
+           "type": "string"
+          },
+          "op": {
+           "type": "string",
+           "enum": [
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "eq",
+            "between",
+            "in",
+            "not_in",
+            "contains"
+           ]
+          },
+          "value": {
+           "type": [
+            "number",
+            "null"
+           ]
+          },
+          "max": {
+           "type": [
+            "number",
+            "null"
+           ]
+          },
+          "values": {
+           "type": [
+            "array",
+            "null"
+           ],
+           "items": {
+            "type": "string"
+           }
+          }
+         },
+         "required": [
+          "field",
+          "op",
+          "value",
+          "max",
+          "values"
          ],
-         "items": {
-          "type": "string"
-         }
+         "additionalProperties": false
+        },
+        {
+         "type": "object",
+         "properties": {
+          "field": {
+           "type": "string"
+          },
+          "op": {
+           "type": "string",
+           "enum": [
+            "gt_col",
+            "gte_col",
+            "lt_col",
+            "lte_col"
+           ]
+          },
+          "other": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "field",
+          "op",
+          "other"
+         ],
+         "additionalProperties": false
         }
-       },
-       "required": [
-        "field",
-        "op",
-        "value",
-        "max",
-        "values"
-       ],
-       "additionalProperties": false
+       ]
       }
      },
      "sort_field": {
@@ -1246,6 +1894,18 @@
        "string",
        "null"
       ]
+     },
+     "logic": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "rank": {
+      "type": [
+       "string",
+       "null"
+      ]
      }
     },
     "required": [
@@ -1255,14 +1915,91 @@
      "mode",
      "show",
      "as",
-     "within"
+     "within",
+     "logic",
+     "rank"
     ],
     "additionalProperties": false
    },
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": {
+    "sort_field": [
+     "sort.field",
+     "sort.key",
+     "sort.by",
+     "sort_by",
+     "sortBy",
+     "sort_key",
+     "sortKey",
+     "order_by",
+     "orderBy",
+     "sort_on"
+    ],
+    "sort_dir": [
+     "sort.dir",
+     "sort.direction",
+     "sort.order",
+     "sort_direction",
+     "sortDir",
+     "sortDirection",
+     "direction",
+     "order",
+     "sort_order",
+     "sortOrder"
+    ],
+    "show": [
+     "limit",
+     "top",
+     "rows",
+     "count",
+     "page_size",
+     "pageSize"
+    ],
+    "filters": [
+     "conditions",
+     "criteria"
+    ]
+   },
+   "coerce": {
+    "sort_dir": {
+     "descending": "desc",
+     "ascending": "asc",
+     "descend": "desc",
+     "ascend": "asc",
+     "highest": "desc",
+     "lowest": "asc",
+     "high to low": "desc",
+     "low to high": "asc",
+     "highest first": "desc",
+     "lowest first": "asc",
+     "down": "desc",
+     "up": "asc"
+    },
+    "mode": {
+     "refinement": "refine",
+     "refined": "refine",
+     "update": "refine",
+     "modify": "refine",
+     "narrow": "refine",
+     "fresh": "new",
+     "create": "new",
+     "run": "new"
+    }
+   },
+   "defaults": {
+    "filters": []
+   },
+   "defaultsWhen": {
+    "filters": {
+     "mode": [
+      "refine"
+     ]
+    }
+   },
+   "shape": "a refinement that only changes the ORDER (\"sort them by 3-month performance\") is {\"filters\":[],\"sort_field\":\"chg_pct_3m\",\"sort_dir\":\"desc\",\"mode\":\"refine\",\"show\":null,\"as\":null,\"within\":null,\"logic\":null,\"rank\":null} — filters is ALWAYS present ([] when nothing is added), sort_field is a key from `fields`, sort_dir is exactly \"asc\" or \"desc\" (never \"descending\"), and there is no nested \"sort\" object."
   },
   {
    "name": "screener.runSaved",
@@ -1299,7 +2036,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "screener.state",
@@ -1316,7 +2058,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "screener.listSaved",
@@ -1333,7 +2080,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "alert.list",
@@ -1379,14 +2131,19 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "alert.create",
    "domain": "alert",
    "target": "alertLibrary",
    "summary": "Create ONE price alert in UCT's Alerts: it goes off ONCE when the stock is at or above (direction above) or at or below (direction below) a price level, checked while the market is open. Only price levels — no percent-move, indicator, volume or time alerts; alerts cannot be paused, edited or made repeating.",
-   "hints": "target = the ref of the alertLibrary entry; symbol = the ticker, uppercase; price = the level as a number; direction = above (\"crosses above\", \"breaks above\", \"rises to\", \"gets to … from below\") or below (\"drops below\", \"falls to\", \"breaks down under\"). If they give a level WITHOUT saying above or below (e.g. \"an alert on NVDA at 200\", \"when it hits 200\"), clarify with choices above / below — never guess. One op per alert, at most 5 in one request. An earlier alert at that level that already went off does NOT stop a new one — create it. Creating is always shown to the member as a proposal first, so plan it (disposition propose) — even inside a question (\"why is TSLA moving? and set an alert above 300\": propose the alert AND ask research for the question). For an alert on an indicator (RSI, MACD, a moving average…) or a percent move, use disposition unsupported: those are not price-level alerts.",
+   "hints": "target = the ref of the alertLibrary entry; symbol = the ticker, uppercase; price = the level as a number; direction = above (\"crosses above\", \"breaks above\", \"rises to\", \"gets to … from below\") or below (\"drops below\", \"falls to\", \"breaks down under\"). If they give a level WITHOUT saying above or below (e.g. \"an alert on NVDA at 200\", \"when it hits 200\"), clarify with choices above / below — never guess. One op per alert, at most 5 in one request. An earlier alert at that level that already went off does NOT stop a new one — create it. Creating is always shown to the member as a proposal first, so plan it (disposition propose) — even inside a question (\"why is TSLA moving? and set an alert above 300\": propose the alert AND ask research for the question). An alert on an indicator (RSI, MACD, a moving-average cross…) is indicatorAlert.create, not this. For a percent move, use disposition unsupported.",
    "args": {
     "type": "object",
     "properties": {
@@ -1414,7 +2171,12 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "alert.delete",
@@ -1431,7 +2193,189 @@
    "risk": "confirm",
    "reversible": false,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "indicatorAlert.list",
+   "domain": "indicatorAlert",
+   "target": "indicatorAlertLibrary",
+   "summary": "Show the member's indicator alerts from UCT's real list: symbol, indicator, condition, timeframe, whether each is active or paused, and why one can't fire. Use this (disposition apply) for \"show my indicator alerts\", \"why hasn't my RSI alert fired\".",
+   "hints": "target = the ref of the indicatorAlertLibrary entry. symbol: one ticker, or null. status: active | paused | attention (alerts that can't fire) | null (all).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbol": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "status": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "active",
+       "paused",
+       "attention",
+       null
+      ]
+     }
+    },
+    "required": [
+     "symbol",
+     "status"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "indicatorAlert.create",
+   "domain": "indicatorAlert",
+   "target": "indicatorAlertLibrary",
+   "summary": "Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD crossing a level, price touching a band, the 9 EMA crossing the 20 EMA, the member's own yes/no signal turning on), as the Indicator Alerts popover does. It watches that chart's symbol with the instance's own settings, on the chart's timeframe or another native one. Undo deletes it.",
+   "hints": "target = the ref of the indicatorAlertLibrary entry; instance = the id of the indicator from that chart's indicators entry (never a name); chart = the ref of the chart it is on; plot = null, or for several lines the address the catalog names (macd.signal) — not sure which line: ask. condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower (\"crosses above 70\" = cross_above; \"is over 70\" = above); threshold = the level, else null. MA cross: instance = the 9, crossWith = the 20 (ids), cross_above|cross_below, threshold null; crossWith = null otherwise. The member's own yes/no signal: trigger = becomes_true (\"turns on\") | becomes_false (\"turns off\") | is_true, condition and threshold null; trigger = null otherwise. timeframe = null for the chart's own, or 1 | 5 | 15 | 30 | 60 | D | W | M (\"alert on the weekly RSI\" = W). A PRICE level (\"when NVDA hits 150\") is alert.create. Always proposed (disposition propose). Not on any chart: say to add it first.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "instance": {
+      "type": "string"
+     },
+     "plot": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "condition": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "threshold": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "crossWith": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "chart": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "trigger": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "becomes_true",
+       "becomes_false",
+       "is_true",
+       null
+      ]
+     },
+     "timeframe": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "instance",
+     "plot",
+     "condition",
+     "threshold",
+     "crossWith",
+     "chart",
+     "trigger",
+     "timeframe"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "indicatorAlert.toggle",
+   "domain": "indicatorAlert",
+   "target": "indicatorAlert",
+   "summary": "Pause or resume ONE indicator alert (the ON / OFF switch on its row in the chart's Indicator Alerts popover). Undo switches it back.",
+   "hints": "target = the ref of that alert in the indicatorAlerts list; active = false to pause, true to resume. One op per alert.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "active": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "active"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "indicatorAlert.delete",
+   "domain": "indicatorAlert",
+   "target": "indicatorAlert",
+   "summary": "Delete one of the member's indicator alerts (permanent — UCT cannot restore a deleted alert).",
+   "hints": "target = the ref of that alert in the indicatorAlerts list. One op per alert. Always shown as a proposal first; if two alerts could be the one they mean, clarify with the real alerts as choices — never pick one. To stop one without deleting it, indicatorAlert.toggle.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "stock.profile",
@@ -1454,7 +2398,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "stock.earnings",
@@ -1477,13 +2426,18 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "stock.compare",
    "domain": "stock",
    "target": "market",
-   "summary": "Compare the fundamentals of TWO stocks side by side from UCT's Research data (market cap, P/E, revenue, growth, margins, beta, next earnings, UCT composite rating). Use this (disposition apply, research null) for \"compare NVDA and AMD\".",
+   "summary": "Compare the fundamentals of TWO stocks side by side from UCT's Research data (market cap, P/E, revenue, growth, margins, beta, next earnings). Use this (disposition apply, research null) for \"compare NVDA and AMD\".",
    "hints": "target = the ref of the stockData entry; symbols = exactly two tickers, uppercase. For three or more, clarify which two.",
    "args": {
     "type": "object",
@@ -1503,7 +2457,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "breadth.show",
@@ -1634,7 +2593,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "breadth.history",
@@ -1744,7 +2708,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "settings.show",
@@ -1761,7 +2730,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "settings.setAppTheme",
@@ -1807,7 +2781,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "settings.setDefaultTimeframe",
@@ -1837,7 +2816,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "settings.setAlertSound",
@@ -1883,7 +2867,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "app.open",
@@ -1953,7 +2942,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "news.latest",
@@ -1983,7 +2977,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "news.catalysts",
@@ -2006,7 +3005,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "settings.setWatchlistDigest",
@@ -2034,7 +3038,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "screener.saveAs",
@@ -2057,7 +3066,12 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "screener.duplicateSaved",
@@ -2087,7 +3101,12 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "screener.renameSaved",
@@ -2114,7 +3133,12 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "screener.deleteSaved",
@@ -2137,7 +3161,12 @@
    "risk": "confirm",
    "reversible": false,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "widget.remove",
@@ -2160,7 +3189,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "widget.move",
@@ -2205,7 +3239,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "widget.arrange",
@@ -2244,14 +3283,19 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chartGrid.set",
    "domain": "chartGrid",
    "target": "board",
-   "summary": "Show these tickers as that many charts, in equal cells: the charts already on the board are reused (top-left first), any still needed are ADDED, and the charts' area is re-tiled as an even grid. Other widgets stay where they are; nothing is removed. One change, one Undo.",
-   "hints": "Use for \"create/open/show N charts for A, B, C…\", \"put SPY, QQQ, NVDA and TSLA in a 2x2 grid\", \"show NVDA and AMD side by side\" — whenever the member names the tickers for several charts. target = the ref of the board entry. symbols = the tickers in the member's order, uppercase. timeframe = the one timeframe they gave for all of them (1|5|15|30|60 minutes, D, W, M), else null. layout = \"columns\" for side by side, \"rows\" for stacked, \"grid\" for a grid, else null. new_charts = true only when they ask for NEW charts (\"in new charts\", \"add four new charts\") — the charts already there then keep their tickers; else null. watchlist = true when they also ask for a watchlist beside the charts (\"…, and a watchlist\") and the board has no Watchlist widget: a column on the right is cleared of charts and a Watchlist widget is added there; else null. replace = true only when the member chose to replace the current board with this workspace; else null. Never widget.add + chart.setSymbol for this.",
+   "summary": "Show these tickers as that many charts, in equal cells: the charts already on the board are reused (top-left first), any still needed are ADDED, and the charts' area is re-tiled as an even grid. Other widgets stay; nothing is removed unless replace is set. One change, one Undo.",
+   "hints": "Use for \"create/open/show N charts for A, B, C…\", \"put SPY, QQQ, NVDA and TSLA in a 2x2 grid\", \"show NVDA and AMD side by side\" — whenever the member names the tickers for several charts. target = the ref of the board entry. symbols = the tickers in the member's order, uppercase. timeframe = the one timeframe they gave for all of them (1|5|15|30|60 minutes, D, W, M), else null. layout = \"columns\" for side by side, \"rows\" for stacked, \"grid\" for a grid, else null. new_charts = true only when they ask for NEW charts (\"in new charts\", \"add four new charts\") — the charts already there then keep their tickers; else null. watchlist = true when they also ask for a watchlist beside the charts (\"…, and a watchlist\") and the board has none: a Watchlist widget is added in a cleared right column; else null. replace = true only when they chose to replace the board with this workspace, \"charts\" to replace only their charts, else null. Never widget.add + chart.setSymbol for this.",
    "args": {
     "type": "object",
     "properties": {
@@ -2305,7 +3349,14 @@
      "replace": {
       "type": [
        "boolean",
+       "string",
        "null"
+      ],
+      "enum": [
+       true,
+       false,
+       "charts",
+       null
       ]
      }
     },
@@ -2322,7 +3373,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "board.duplicateChart",
@@ -2345,7 +3401,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "widget.setLink",
@@ -2383,7 +3444,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "widget.showList",
@@ -2410,7 +3476,121 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "widget.setOption",
+   "domain": "widget",
+   "target": "board",
+   "summary": "Change ONE control of a widget on the board, exactly as the widget's own control does: a view, a filter, a period, the day shown, the open theme, a universe, an axis, a reading shown or hidden. Undo puts it back.",
+   "hints": "target = the board entry; widget = the widget id; key and value from the widgetControls section, by type (never invented): “ask widget.readOptions” = the widget's own list right now, and a name is enough. (+/-) takes \"+member\" or \"-member\". `set` is how a widget is set now. No entry for its type: use widget.readOptions, which lists them.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "key": {
+      "type": "string"
+     },
+     "value": {
+      "type": [
+       "string",
+       "number",
+       "boolean"
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "key",
+     "value"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "widget.readOptions",
+   "domain": "widget",
+   "target": "board",
+   "summary": "Say how a widget on the board is set right now: each control's value and its choices (the themes it can open, a map's axes, a Scanner's criteria…).",
+   "hints": "target = the board entry; widget = the widget id.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "widget"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "widget.sendToJournal",
+   "domain": "widget",
+   "target": "board",
+   "summary": "Send a frozen capture of what a widget on the board shows now to the member's Journal, exactly as the widget's Send to Journal door does: a chart, scan, list, breadth, a calendar day, themes… One op per widget. There is no Undo.",
+   "hints": "target = the board entry; widget = the widget id; where = note (their current note, else the inbox: the default), newNote or inbox.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "where": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "note",
+       "newNote",
+       "inbox",
+       null
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "where"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "watchlist.open",
@@ -2433,7 +3613,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "widget.showScan",
@@ -2468,7 +3653,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chart.applyThemeAll",
@@ -2548,7 +3738,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "widget.resize",
@@ -2585,7 +3780,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "board.swap",
@@ -2612,7 +3812,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "widget.selectTab",
@@ -2639,7 +3844,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "widget.renameTab",
@@ -2673,7 +3883,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "widget.closeTab",
@@ -2700,7 +3915,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "widget.addTab",
@@ -2746,14 +3966,19 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chart.addTab",
    "domain": "chart",
    "target": "board",
    "summary": "Add a new chart TAB to a chart widget (the tab strip's \"+\"), on the same link colour as the tab showing now, and switch to it.",
-   "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab).",
+   "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab). Only when the member asks for a TAB: several CHARTS (\"on four charts\", \"N charts for …\") are chartGrid.set or widget.addCharts, never tabs of one chart.",
    "args": {
     "type": "object",
     "properties": {
@@ -2794,7 +4019,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chart.selectTab",
@@ -2821,7 +4051,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chart.closeTab",
@@ -2848,7 +4083,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chart.renameTab",
@@ -2879,7 +4119,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": "only for a chart widget's TAB the member names as a tab (\"rename the tab\"). \"rename <a layout name> to …\" is layout.rename."
   },
   {
    "name": "chart.linkTab",
@@ -2920,7 +4165,458 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.addTrendline",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Draw a TRENDLINE between two points (date + price each) on a chart's symbol — the toolbar's own trendline tool. Every chart on that symbol shows it; Undo removes it.",
+   "hints": "target = the drawings entry for the chart's symbol; from / to = {date, price}: the two anchors in time order (\"from the Oct 15 low at 180 to last Friday at 195\"). A point the member describes without a date AND a price (\"the recent low\") has no anchor — clarify, never guess. a date is YYYY-MM-DD or the member's words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented; color = a colour name or #hex, null = the member's drawing default; style = solid | dashed | dotted, null = solid.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "from": {
+      "type": "object",
+      "properties": {
+       "date": {
+        "type": "string"
+       },
+       "price": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "date",
+       "price"
+      ],
+      "additionalProperties": false
+     },
+     "to": {
+      "type": "object",
+      "properties": {
+       "date": {
+        "type": "string"
+       },
+       "price": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "date",
+       "price"
+      ],
+      "additionalProperties": false
+     },
+     "color": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "style": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "solid",
+       "dashed",
+       "dotted",
+       null
+      ]
+     }
+    },
+    "required": [
+     "from",
+     "to",
+     "color",
+     "style"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.addRay",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Draw a RAY from one point (date + price) through a second, extended to the right — the toolbar's own ray tool. Every chart on that symbol shows it; Undo removes it.",
+   "hints": "target = the drawings entry for the chart's symbol; from = the start {date, price}; to = a second point it passes through {date, price}, after the first. a date is YYYY-MM-DD or the member's words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented; color = a colour name or #hex, null = the member's drawing default; style = solid | dashed | dotted, null = solid.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "from": {
+      "type": "object",
+      "properties": {
+       "date": {
+        "type": "string"
+       },
+       "price": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "date",
+       "price"
+      ],
+      "additionalProperties": false
+     },
+     "to": {
+      "type": "object",
+      "properties": {
+       "date": {
+        "type": "string"
+       },
+       "price": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "date",
+       "price"
+      ],
+      "additionalProperties": false
+     },
+     "color": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "style": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "solid",
+       "dashed",
+       "dotted",
+       null
+      ]
+     }
+    },
+    "required": [
+     "from",
+     "to",
+     "color",
+     "style"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.addRectangle",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Draw a RECTANGLE between two opposite corners (date + price each) on a chart's symbol — the toolbar's own rectangle. Undo removes it.",
+   "hints": "target = the drawings entry for the chart's symbol; from / to = {date, price}: opposite corners (\"a box from Oct 1 at 170 to Oct 20 at 185\"). a date is YYYY-MM-DD or the member's words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented; color = a colour name or #hex, null = the member's drawing default; style = solid | dashed | dotted, null = solid.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "from": {
+      "type": "object",
+      "properties": {
+       "date": {
+        "type": "string"
+       },
+       "price": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "date",
+       "price"
+      ],
+      "additionalProperties": false
+     },
+     "to": {
+      "type": "object",
+      "properties": {
+       "date": {
+        "type": "string"
+       },
+       "price": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "date",
+       "price"
+      ],
+      "additionalProperties": false
+     },
+     "color": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "style": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "solid",
+       "dashed",
+       "dotted",
+       null
+      ]
+     }
+    },
+    "required": [
+     "from",
+     "to",
+     "color",
+     "style"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.addFib",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Draw a FIBONACCI RETRACEMENT between two points (date + price each) on a chart's symbol — the toolbar's own tool with its standard levels. Undo removes it.",
+   "hints": "target = the drawings entry for the chart's symbol; from = the swing start {date, price} (the low for an up move); to = the swing end {date, price}. \"Fib from the Oct 7 low at 150 to the Oct 28 high at 190\". a date is YYYY-MM-DD or the member's words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented; color = a colour name or #hex, null = the member's drawing default; style = solid | dashed | dotted, null = solid.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "from": {
+      "type": "object",
+      "properties": {
+       "date": {
+        "type": "string"
+       },
+       "price": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "date",
+       "price"
+      ],
+      "additionalProperties": false
+     },
+     "to": {
+      "type": "object",
+      "properties": {
+       "date": {
+        "type": "string"
+       },
+       "price": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "date",
+       "price"
+      ],
+      "additionalProperties": false
+     },
+     "color": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "style": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "solid",
+       "dashed",
+       "dotted",
+       null
+      ]
+     }
+    },
+    "required": [
+     "from",
+     "to",
+     "color",
+     "style"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.addHorizontalRay",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Draw a HORIZONTAL RAY from a date at a price, extending to the right — the toolbar's own horizontal ray (a level that starts on a day, e.g. a breakout level from its breakout date). Undo removes it.",
+   "hints": "target = the drawings entry for the chart's symbol; date = where the ray starts; price = its level; a date is YYYY-MM-DD or the member's words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented; color / style as for other drawings (null = defaults). A level with no start date is drawing.addLevel.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "date": {
+      "type": "string"
+     },
+     "price": {
+      "type": "number"
+     },
+     "color": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "style": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "solid",
+       "dashed",
+       "dotted",
+       null
+      ]
+     }
+    },
+    "required": [
+     "date",
+     "price",
+     "color",
+     "style"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.addText",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Place a TEXT NOTE on a chart's symbol at a date and price — the toolbar's own text tool, with the member's exact words. Undo removes it.",
+   "hints": "target = the drawings entry for the chart's symbol; text = the note exactly as the member said it (never reworded, up to 200 characters); date / price = where it sits; a date is YYYY-MM-DD or the member's words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented; color = a colour name or #hex, null = the member's default.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string"
+     },
+     "date": {
+      "type": "string"
+     },
+     "price": {
+      "type": "number"
+     },
+     "color": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "text",
+     "date",
+     "price",
+     "color"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.addAvwap",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Draw an ANCHORED VWAP on a chart's symbol starting from a date — the toolbar's own anchored VWAP (volume-weighted average price from that session forward). Undo removes it.",
+   "hints": "target = the drawings entry for the chart's symbol; date = the anchor session (a trading day: an earnings day, a low, \"last friday\"); price = the price on that day the member named, or the price they are looking at there (the anchor's level — the VWAP itself is computed from the bars); a date is YYYY-MM-DD or the member's words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented; color null = the member's default.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "date": {
+      "type": "string"
+     },
+     "price": {
+      "type": "number"
+     },
+     "color": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "date",
+     "price",
+     "color"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "drawing.list",
@@ -2937,13 +4633,18 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "drawing.addLevel",
    "domain": "drawing",
    "target": "drawing",
-   "summary": "Draw a HORIZONTAL LINE at a price on a chart's symbol — the price axis's own \"Draw horizontal line at $X\". Every chart on that symbol shows it; Undo removes it. Only horizontal levels: trendlines, rectangles, Fibonacci and text are not available.",
+   "summary": "Draw a HORIZONTAL LINE at a price on a chart's symbol — the price axis's own \"Draw horizontal line at $X\". Every chart on that symbol shows it; Undo removes it. A level that starts on a date is drawing.addHorizontalRay; every other tool has its own capability or drawing.add.",
    "hints": "target = the drawings entry for the chart's symbol; price = the level (a number, as the member said it — never invented); color = a colour name or #hex, null = the member's drawing default; style = solid | dashed | dotted, null = solid. One op per level. A level the member describes without a number (\"the recent high\", \"support\") has no price — clarify, never guess.",
    "args": {
     "type": "object",
@@ -2980,7 +4681,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "drawing.style",
@@ -3037,7 +4743,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "drawing.remove",
@@ -3060,7 +4771,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "drawing.setVisible",
@@ -3087,7 +4803,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "drawing.lock",
@@ -3114,7 +4835,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "drawing.setLevel",
@@ -3141,7 +4867,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "drawing.setAllVisible",
@@ -3164,7 +4895,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "drawing.clear",
@@ -3181,7 +4917,378 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.add",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Draw any other toolbar tool from dates and prices: extended line, vertical line, circle, arrow, Fibonacci extension, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time or Price Move. Every chart on that symbol shows it; Undo removes it.",
+   "hints": "target = the drawings entry for the chart's symbol; points = [{date, price}, …] in the tool's order: extended: first point, second point; vertical: the date (price null); circle: one corner, opposite corner; arrow: tail, tip; fibext: move start, move end; pitchfork: pivot, left shoulder, right shoulder; channel: base start, base end, a point on the parallel line; cup: left rim, bottom, right rim; measure: start, end; priceRange: start, end; dateRange: start, end; advance: setup candle, candle where the move tops. a date is YYYY-MM-DD or the member's words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented; a point with no number (\"the low\") has no anchor — clarify, never guess. color / style null = defaults.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "tool": {
+      "type": "string",
+      "enum": [
+       "extended",
+       "vertical",
+       "circle",
+       "arrow",
+       "fibext",
+       "pitchfork",
+       "channel",
+       "cup",
+       "measure",
+       "priceRange",
+       "dateRange",
+       "advance"
+      ]
+     },
+     "points": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "date": {
+         "type": "string"
+        },
+        "price": {
+         "type": [
+          "number",
+          "null"
+         ]
+        }
+       },
+       "required": [
+        "date",
+        "price"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "color": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "style": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "solid",
+       "dashed",
+       "dotted",
+       null
+      ]
+     }
+    },
+    "required": [
+     "tool",
+     "points",
+     "color",
+     "style"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.setAnchors",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Move the anchors of ONE drawing (what dragging its points does): any tool, any point, a new date and/or price. \"Flatten that line\" sets every point to the first point's price. Refused for a locked drawing. A drawing with an alert is shown first (its alert follows). Undo puts it back.",
+   "hints": "target = the drawings entry; drawing = its id (the recent one for \"it\"); points = [{point, date, price}]: point 1 = the first of that drawing's `anchors`, date / price null = keep it. \"Move the second point to Nov 1 at 210\" = one item; a whole drawing up $5 = one item per point, from its anchors. a date is YYYY-MM-DD or the member's words (today, yesterday, last friday, oct 15, 10/15); price = the number the member said — never invented.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "drawing": {
+      "type": "string"
+     },
+     "points": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "point": {
+         "type": "integer"
+        },
+        "date": {
+         "type": [
+          "string",
+          "null"
+         ]
+        },
+        "price": {
+         "type": [
+          "number",
+          "null"
+         ]
+        }
+       },
+       "required": [
+        "point",
+        "date",
+        "price"
+       ],
+       "additionalProperties": false
+      }
+     }
+    },
+    "required": [
+     "drawing",
+     "points"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.setProps",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Change settings on ONE drawing, as its right-click menu does: fill, price label, percent label, arrow size, Measure label fields and position, a note's words, font, size, bold, italic, background, border. Each tool has only its own settings; one it lacks is refused and its real ones named. Colour, width and line style are drawing.style. Undo puts them back.",
+   "hints": "target = the drawings entry; drawing = its id; set = [{prop, value, opacity}]. prop by tool: rectangle fillColor, showPercentChange; horizontal line / ray showPriceLabel; arrow arrowSize (small | medium | large); Measure / Price Range showDollar, showPercent, showBars, showTime, labelPos (top | center | bottom); Bars & Time showBars, showTime, labelPos; Price Move showDollar, showPercent; note text, fontFamily, fontSize (8-64), bold, italic, bgEnabled, bgColor, borderEnabled, borderColor. value = true / false for a switch, a colour, null = back to default. opacity = 0-100 for a colour, null = default.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "drawing": {
+      "type": "string"
+     },
+     "set": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "prop": {
+         "type": "string",
+         "enum": [
+          "showPriceLabel",
+          "fontFamily",
+          "fontSize",
+          "bold",
+          "italic",
+          "bgEnabled",
+          "bgColor",
+          "borderEnabled",
+          "borderColor",
+          "text",
+          "fillColor",
+          "showPercentChange",
+          "arrowSize",
+          "showDollar",
+          "showPercent",
+          "showBars",
+          "showTime",
+          "labelPos"
+         ]
+        },
+        "value": {
+         "type": [
+          "string",
+          "number",
+          "boolean",
+          "null"
+         ]
+        },
+        "opacity": {
+         "type": [
+          "number",
+          "null"
+         ]
+        }
+       },
+       "required": [
+        "prop",
+        "value",
+        "opacity"
+       ],
+       "additionalProperties": false
+      }
+     }
+    },
+    "required": [
+     "drawing",
+     "set"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.setFibLevels",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Edit a Fibonacci retracement or extension's Levels… menu: show or hide a level, colour a level, turn the fill between two neighbouring levels on or off and colour it, or reset them all to defaults. The anchors and any level alerts are not touched. Undo puts them back.",
+   "hints": "target = the drawings entry; drawing = the Fibonacci's id. levels = [{level, visible, color}], level as the member says it (0.786 or 78.6), visible false = \"remove the 78.6\"; null = leave. bands = [{from, to, enabled, color, opacity}] between two neighbouring levels, color null = its default, opacity = 0-100 or null. reset = true for \"reset the fib levels\" (levels and bands then both []). Levels are the tool's own table: there are no custom levels.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "drawing": {
+      "type": "string"
+     },
+     "levels": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "level": {
+         "type": "number"
+        },
+        "visible": {
+         "type": [
+          "boolean",
+          "null"
+         ]
+        },
+        "color": {
+         "type": [
+          "string",
+          "null"
+         ]
+        }
+       },
+       "required": [
+        "level",
+        "visible",
+        "color"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "bands": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "from": {
+         "type": "number"
+        },
+        "to": {
+         "type": "number"
+        },
+        "enabled": {
+         "type": "boolean"
+        },
+        "color": {
+         "type": [
+          "string",
+          "null"
+         ]
+        },
+        "opacity": {
+         "type": [
+          "number",
+          "null"
+         ]
+        }
+       },
+       "required": [
+        "from",
+        "to",
+        "enabled",
+        "color",
+        "opacity"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "reset": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "drawing",
+     "levels",
+     "bands",
+     "reset"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.setAlert",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Set an alert that FOLLOWS a drawing (the drawing menu's \"Set alert…\"): a trendline, ray, extended line, horizontal line or ray, or one Fibonacci level. A sloped line's level moves with time; moving the drawing moves the alert. Always shown first; Undo removes the alert unless it already went off.",
+   "hints": "target = the drawings entry; drawing = its id; direction = above (\"breaks above\", \"gets above\") or below (\"breaks below\", \"loses\"). If they do not say which side, clarify — never guess. level = the Fibonacci level (0.618 or 61.8), else null. Plan it, disposition propose. For a price with no drawing use alert.create.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "drawing": {
+      "type": "string"
+     },
+     "direction": {
+      "type": "string",
+      "enum": [
+       "above",
+       "below"
+      ]
+     },
+     "level": {
+      "type": [
+       "number",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "drawing",
+     "direction",
+     "level"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "indicator.list",
@@ -3212,7 +5319,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "indicator.openCreate",
@@ -3245,7 +5357,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "indicator.add",
@@ -3295,7 +5412,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "indicator.remove",
@@ -3318,7 +5440,12 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "indicator.update",
@@ -3365,7 +5492,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "indicator.show",
@@ -3388,7 +5520,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "indicator.hide",
@@ -3411,7 +5548,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "indicator.draft",
@@ -3448,7 +5590,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "indicator.previewDraft",
@@ -3471,7 +5618,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "indicator.saveDraft",
@@ -3504,7 +5656,12 @@
    "risk": "confirm",
    "reversible": false,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "indicator.undoDraft",
@@ -3521,7 +5678,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "indicator.discardDraft",
@@ -3538,7 +5700,12 @@
    "risk": "confirm",
    "reversible": false,
    "undo": "none",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chartSetup.copyLook",
@@ -3561,7 +5728,12 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chartSetup.removeTimeframe",
@@ -3584,7 +5756,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chartSetup.favoriteTimeframe",
@@ -3611,7 +5788,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chartSetup.compareDisplay",
@@ -3663,7 +5845,118 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartSetup.setRange",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Show ONE chart over a set date range: the range bar's buttons (3M, 6M, YTD, 1Y, 5Y, Origin; Origin = from the first bar). A view change: every bar stays on the chart, nothing is drawn or removed, and the chart keeps this window on the next ticker until it is panned or reset. Undo puts the previous view back.",
+   "hints": "range = one of 3M, 6M, YTD, 1Y, 5Y, Origin. \"One year\" = 1Y, \"year to date\" = YTD, \"five years\" = 5Y, \"since IPO\" = Origin. Other spans have no button: use chart.goToDate, or say which ranges exist.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "range": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "range"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartSetup.resetView",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Reset ONE chart's view (right-click → Reset view): the default window with the newest bar in place, and the price scale back on auto. A view change: settings, drawings and indicators are untouched. No Undo.",
+   "hints": "target = the chart. For a chart's SETTINGS use chart.resetDefaults.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartSetup.setIndicatorsHidden",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Hide or bring back EVERYTHING drawn over the candles on ONE chart at once (Alt+Shift+I): every indicator, every moving average and Volume. Temporary: a reload brings them back, nothing is removed or saved. To hide just the moving averages use chartSetup.setMovingAverages; for one indicator, indicator.hide.",
+   "hints": "hidden = true to hide them all, false to bring them back.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "hidden": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "hidden"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartSetup.setMovingAverages",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Hide or show EVERY moving average on ONE chart at once (Ctrl+M). They stay on the chart, hidden, and this is saved. Other indicators are untouched. Undo puts each one back as it was.",
+   "hints": "visible = false to hide them all, true to show them all.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "visible": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "visible"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chartSetup.saveTemplate",
@@ -3690,7 +5983,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "chartSetup.deleteTemplate",
@@ -3713,14 +6011,19 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "indicatorStyle.set",
    "domain": "indicatorStyle",
    "target": "indicatorEdits",
-   "summary": "Change how ONE indicator on ONE chart looks — its colour (or a histogram's up / down colours), line width, line style or plot style — exactly what its settings / Inspector offer. One change per op; Undo puts it back.",
-   "hints": "target = the ref of that chart's indicatorEdits entry; instance = the indicator's id from that chart's indicators list (or \"#20\" for the one of length 20, \"#20:ema\"). property = color | upColor | downColor | lineWidth (1–4, or \"thicker\" / \"thinner\") | lineStyle (solid | dashed | dotted) | plotStyle (line, histogram, area… as offered) | overlap. value = the member's value (a colour name or #hex for colours). output = which line or colour when the indicator has several (its label), else null. \"Make the 9 green and the 20 red and dashed\" = three ops.",
+   "summary": "Change how ONE indicator on ONE chart looks — its colour (or a histogram's up / down colours), line width, line style, plot style, dot size (on an indicator that draws dots), or which chart timeframes it shows on — exactly what its settings / Inspector offer. One change per op; Undo puts it back.",
+   "hints": "target = the ref of that chart's indicatorEdits entry; instance = the indicator's id from that chart's indicators list (or \"#20\" for the one of length 20, \"#20:ema\"). property = color | upColor | downColor | lineWidth (1–4, or \"thicker\" / \"thinner\") | lineStyle (solid | dashed | dotted) | plotStyle (line, histogram, area… as offered) | overlap | showOn (which chart timeframes it draws on: value = \"daily\", \"weekly\", \"daily and weekly\", \"intraday\", \"daily and above\" or \"all\" — \"only show it on the daily\" = showOn daily) | dotSize (small | medium | large — \"medium\" is the default; only an indicator that draws dots, e.g. \"make the RS dots large\" = dotSize large). value = the member's value (a colour name or #hex for colours). output = which line, colour or dot output when the indicator has several (its label), else null. \"Make the 9 green and the 20 red and dashed\" = three ops.",
    "args": {
     "type": "object",
     "properties": {
@@ -3736,7 +6039,9 @@
        "lineWidth",
        "lineStyle",
        "plotStyle",
-       "overlap"
+       "overlap",
+       "showOn",
+       "dotSize"
       ]
      },
      "value": {
@@ -3764,7 +6069,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "indicatorStyle.placeIn",
@@ -3791,7 +6101,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "pane.move",
@@ -3833,7 +6148,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "pane.resize",
@@ -3863,7 +6183,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "indicatorCopy.duplicate",
@@ -3886,7 +6211,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "indicatorCopy.copyTo",
@@ -3916,7 +6246,122 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "indicatorTemplate.list",
+   "domain": "indicatorTemplate",
+   "target": "indicatorTemplates",
+   "summary": "List the member's saved INDICATOR templates and the indicators in each, from the real list. Use this (disposition apply) for \"what indicator templates do I have\".",
+   "hints": "target = the ref of the indicatorTemplateLibrary entry.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "indicatorTemplate.apply",
+   "domain": "indicatorTemplate",
+   "target": "indicatorEdits",
+   "summary": "Add the indicators of ONE saved INDICATOR template to ONE chart, each exactly as saved. Nothing on the chart is removed; one already there is skipped and said. Undo removes what was added. A CHART template (look and settings) is chart.applyTemplate instead.",
+   "hints": "target = the chart's indicatorEdits entry. template = a name from indicatorTemplateLibrary, exactly. Several charts = one op per chart; if it isn't clear which charts, ask. A name in both that entry and chartTemplates: ask which they mean.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "template": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "template"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "indicatorTemplate.save",
+   "domain": "indicatorTemplate",
+   "target": "indicatorTemplates",
+   "summary": "Save the indicators on ONE chart as a named INDICATOR template (settings, colours, panes; no alerts). A template with that name is replaced only after the member approves it. Undo puts the list back. A chart's whole look is chartSetup.saveTemplate instead.",
+   "hints": "target = the ref of the indicatorTemplateLibrary entry; chart = the ref of the chart to save from; name = exactly as the member said it (at most 40 characters). It saves every indicator on that chart.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "chart": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "chart"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "indicatorTemplate.delete",
+   "domain": "indicatorTemplate",
+   "target": "indicatorTemplates",
+   "summary": "Delete one of the member's saved INDICATOR templates. Indicators already on charts stay. Shown first; Undo puts it back. A chart template is chartSetup.deleteTemplate instead.",
+   "hints": "target = the ref of the indicatorTemplateLibrary entry; name = a name from that entry, exactly.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "definition.search",
@@ -3951,7 +6396,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "definition.describe",
@@ -3974,7 +6424,12 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "definition.duplicate",
@@ -3997,7 +6452,12 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "definition.delete",
@@ -4020,7 +6480,12 @@
    "risk": "confirm",
    "reversible": true,
    "undo": "exact",
-   "query": false
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "agent.capabilities",
@@ -4051,8 +6516,11 @@
        "watchlists",
        "alerts",
        "stockInfo",
+       "calendar",
+       "journal",
        "appSettings",
        "guide",
+       "undo",
        "similarity",
        "overview",
        "other"
@@ -4067,7 +6535,87 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "agent.undo",
+   "domain": "agent",
+   "target": "about",
+   "summary": "Undo YOUR OWN most recent change(s) in this conversation — exactly what the Undo on that change’s receipt does. UCT refuses it itself when that change can’t be undone (changed since, another board, a protected layout, a permanent action).",
+   "hints": "target = the ref of the agent entry. scope: \"last\" = the newest change (undo that / undo the last change / revert it); \"all\" = every change of the previous request (undo all of that). about = what the member says the change was (\"undo the timeframe change\" → timeframe), else null. In a request that makes a change AND undoes it (\"switch to weekly, then undo that\"), put the change first and agent.undo LAST. Never tell the member you cannot undo, or to use another Undo: plan this, and UCT reports what it actually undid.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "scope": {
+      "type": "string",
+      "enum": [
+       "last",
+       "all"
+      ]
+     },
+     "about": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "indicator",
+       "chart",
+       "widget",
+       "drawing",
+       "layout",
+       "colour",
+       "style",
+       "timeframe",
+       "symbol",
+       "pane",
+       "theme",
+       "resize",
+       "size",
+       "move",
+       "rename",
+       "link",
+       null
+      ]
+     }
+    },
+    "required": [
+     "scope",
+     "about"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": {
+    "scope": {
+     "latest": "last",
+     "newest": "last",
+     "previous": "last",
+     "one": "last",
+     "everything": "all",
+     "turn": "all"
+    },
+    "about": {
+     "color": "colour",
+     "time frame": "timeframe",
+     "ticker": "symbol",
+     "interval": "timeframe"
+    }
+   },
+   "defaults": {
+    "scope": "last"
+   },
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "guide.explain",
@@ -4090,20 +6638,65 @@
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "guide.show",
    "domain": "guide",
    "target": "guide",
-   "summary": "SHOW the member where a Charts control is: highlight the real control on their board with a short step-by-step card (Next / Back / Exit). Changes nothing — use it for \"where do I…\", \"show me how to…\", \"how do I…\" questions, never to do the thing.",
-   "hints": "target = the guide entry. feature = one of: canvas (chart background, grid, crosshair and watermark); link (linking charts and widgets); symbol (changing a chart’s symbol); timeframe (changing the timeframe); indicators (adding and configuring an indicator); charts (creating and arranging several charts); watchlists (using watchlists); layouts (saving and switching layouts); hideDrawings (hiding and showing drawings); drawing (basic drawing tools); settings (finding chart settings). A request to DO it (\"change my chart to weekly\") is a command, not this.",
+   "summary": "SHOW the member where a control is (on Charts, the Screener, Breadth, the Calendar or the Journal): highlight the real control on their screen with a short step-by-step card (Next / Back / Exit). Changes nothing — use it for \"where do I…\", \"show me how to…\", \"how do I…\" questions, never to do the thing.",
+   "hints": "target = the guide entry. feature = the walkthrough that teaches it: an id from the enum, each named for what it teaches (indicators, indicatorColor, drawing, multiChart, widgetResize, layoutSave, alertPrice, chartSetting…), and control for any other named control (a widget's button, a list's or a drawing's menu row: detail = the member's words); 7 ids belong to other pages and work only there. detail = the member's own words for which one (\"the RSI\", \"a rectangle\", \"2x2\") or for the chart they named (\"the NVDA chart\", \"the left chart\"), when they named one. A request to DO it (\"change my chart to weekly\") is a command, not this.",
    "args": {
     "type": "object",
     "properties": {
      "feature": {
       "type": "string",
       "enum": [
+       "control",
+       "builderAction",
+       "gridAction",
+       "drawingEdit",
+       "indicatorManage",
+       "layoutAction",
+       "tabAction",
+       "watchlistAction",
+       "alertAction",
+       "widgetAction",
+       "dockAction",
+       "panelAction",
+       "compareAction",
+       "chartMenu",
+       "chartView",
+       "legendChip",
+       "indicatorColor",
+       "indicatorEdit",
+       "alertIndicator",
+       "alertPrice",
+       "multiChart",
+       "widgetResize",
+       "widgetMove",
+       "widgetHeader",
+       "widgetSettings",
+       "widgetAdd",
+       "widgetMerge",
+       "compare",
+       "replay",
+       "periodSort",
+       "goToDate",
+       "chartTab",
+       "chartThemes",
+       "chartTemplate",
+       "chartType",
+       "timeframeCustom",
+       "watchlistAddSymbol",
+       "chartSetting",
+       "layoutSave",
+       "watchlistCreate",
        "canvas",
        "link",
        "symbol",
@@ -4114,19 +6707,69 @@
        "layouts",
        "hideDrawings",
        "drawing",
-       "settings"
+       "settings",
+       "screenerScreens",
+       "screenerColumns",
+       "screenerFilters",
+       "breadthViews",
+       "breadthTable",
+       "calendarNextReport",
+       "journalNewNote"
+      ]
+     },
+     "detail": {
+      "type": [
+       "string",
+       "null"
       ]
      }
     },
     "required": [
-     "feature"
+     "feature",
+     "detail"
     ],
     "additionalProperties": false
    },
    "risk": "local",
    "reversible": true,
    "undo": "none",
-   "query": true
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "calendar.day",
+   "domain": "calendar",
+   "target": "calendar",
+   "summary": "List the earnings reports on ONE day (tickers by session: before the open / after the close), or the whole week when no day is given — from the week the Calendar page has loaded. Use it for \"what reports on Thursday?\", \"who reports today?\", \"what's on this week?\".",
+   "hints": "target = the ref of the calendar entry; date = YYYY-MM-DD, or null for every day of the week on the page. Tickers only — no estimates.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "date": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "date"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   }
  ]
 }

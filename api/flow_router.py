@@ -87,6 +87,11 @@ import sqlite3
 # ~19.5k rows of [ticker, asset_type] is ~600 KB of JSON; 8 MB is generous
 # headroom without being an unbounded write into a single-process pod.
 _MAX_REPLICA_PUSH_BYTES = int(os.environ.get("OPTIONSFLOW_ETF_MAX_PUSH_BYTES", str(8 * 1024 * 1024)))
+# Its own bound, not a shared one: the routing classification carries BOTH classes
+# (~27.5k pairs, ~0.5 MB) where the TOP-10 replica carries only ETF/INDEX, and tying
+# them together would mean one tuning decision silently resized the other's door.
+_MAX_TICKER_TYPES_PUSH_BYTES = int(os.environ.get("TICKER_TYPES_MAX_PUSH_BYTES",
+                                                  str(8 * 1024 * 1024)))
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 log = logging.getLogger(__name__)
@@ -2536,6 +2541,141 @@ def etf_replica_status():
     """
     from api.services import optionsflow_etf_replica as _rep
     return JSONResponse(_rep.status())
+
+
+@flow_router.post("/ticker-types/install")
+async def ticker_types_install(request: Request, _auth: dict = Depends(require_flow_admin)):
+    """Receive web's canonical ROUTING classification. Internal, not member-facing.
+
+    ⛔⛔ THIS ONE **IS** THE ROUTING TABLE — the difference from
+    `/etf-replica/install` directly above, which says in its own docstring that
+    `ticker_types` is untouched. `ticker_types` drives
+    `massive_processor.is_index_source()` and therefore whether a live OPRA trade is
+    stored with source='stocks' or 'indexes'. Bundling the two was explicitly refused
+    as a separate owner decision; this is that decision, taken 2026-11-08, as a
+    SEPARATE endpoint with SEPARATE flags so a fault here cannot break the TOP-10
+    replica path that has been healthy since 2026-09-07.
+
+    AUTH FIRST, BEFORE THE BODY IS READ — `require_flow_admin` is a dependency, so an
+    unauthenticated caller is rejected before any parsing or installing. The bearer
+    comparison is constant-time (flow_admin_auth).
+
+    The caller's `generation` is NOT trusted: the receiver recomputes the digest from
+    the rows it actually got, refuses a snapshot older than the installed one, and
+    refuses one that shrinks the classification past the guard. Response is small and
+    operational — never the dataset echoed back.
+    """
+    from api import ticker_types_replica as _ttr
+    if not _ttr.receive_enabled():
+        return JSONResponse({"status": "rejected", "reason": "receive disabled"},
+                            status_code=503)
+    # Bound the body BEFORE reading it into memory: this pod is a single process that
+    # has OOM'd before, and an unbounded POST is a trivial way to hurt it.
+    try:
+        declared = int(request.headers.get("content-length") or 0)
+    except ValueError:
+        declared = 0
+    if declared and declared > _MAX_TICKER_TYPES_PUSH_BYTES:
+        return JSONResponse({"status": "rejected", "reason": "body too large"},
+                            status_code=413)
+    raw = await request.body()
+    if len(raw) > _MAX_TICKER_TYPES_PUSH_BYTES:
+        return JSONResponse({"status": "rejected", "reason": "body too large"},
+                            status_code=413)
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        # Never log the body — it is large and this path is authenticated.
+        return JSONResponse({"status": "rejected", "reason": "invalid json"},
+                            status_code=400)
+    out = _ttr.install_pushed_classification(payload)
+    code = 200 if out.get("status") in ("accepted", "already-current") else 400
+    return JSONResponse(out, status_code=code)
+
+
+@flow_router.get("/ticker-types-status")
+def ticker_types_status():
+    """Is this pod's ROUTING classification current, and how old is it?
+
+    ⚰️ EXISTS BECAUSE THE FREEZE WAS INVISIBLE, TWICE. `/etf-replica-status` was added
+    after a 55-day replica freeze (found 2026-09-07) that nothing reported. The
+    `ticker_types` half was left out of that fix and then froze from 2026-07-14 until a
+    manual sync on 2026-11-08 — ~117 days, ~1,300 names classification-blind, surfaced
+    only as an odd under-post. A test can prove the install logic; only telemetry
+    catches the next freeze. Watch `age_seconds`.
+    """
+    from api import ticker_types_replica as _ttr
+    return JSONResponse(_ttr.status())
+
+
+@flow_router.post("/schwab-token/install")
+async def schwab_token_install(request: Request,
+                               _auth: dict = Depends(require_flow_admin)):
+    """Receive the Schwab ACCESS token replicated from web.
+
+    ⚰️ EXISTS BECAUSE THE RE-AUTH ONLY EVER REACHED ONE POD. Schwab's OAuth callback can
+    only land on web and `/data` is a PER-SERVICE volume, so a login wrote web's copy and
+    nothing else. Measured 2026-11-09: web 0.0 days old, this pod **113.4 days** old and
+    failing `invalid_grant` on every cycle while the Massive OI fallback quietly covered
+    for it. `/data` survives deploys — the missing piece was never persistence, it was
+    propagation.
+
+    ⛔⛔ THIS INSTALLS A 30-MINUTE BEARER CREDENTIAL, NOT A GRANT. The refresh token is
+    stripped unconditionally by `install_pushed_token`, so this pod cannot refresh and
+    therefore cannot invalidate web's grant. See that module's docstring — it is the rail,
+    not an oversight.
+
+    AUTH FIRST, BEFORE THE BODY IS READ — `require_flow_admin` is a dependency, so an
+    unauthenticated caller is rejected before any parsing. The bearer comparison is
+    constant-time (flow_admin_auth).
+
+    The sender is authenticated but NOT trusted on content: the receiver refuses a replay
+    of an older document, one already expired on arrival, and one whose `saved_at` is in
+    the future. Response is small and operational — never the credential echoed back.
+    """
+    from api import schwab_token_replica as _str
+    if not _str.receive_enabled():
+        return JSONResponse({"status": "rejected", "reason": "receive disabled"},
+                            status_code=503)
+    # Bound the body BEFORE reading it. A token document is a few hundred bytes; this pod
+    # is a single process that has OOM'd before.
+    try:
+        declared = int(request.headers.get("content-length") or 0)
+    except ValueError:
+        declared = 0
+    if declared and declared > _str._MAX_PUSH_BYTES:
+        return JSONResponse({"status": "rejected", "reason": "body too large"},
+                            status_code=413)
+    raw = await request.body()
+    if len(raw) > _str._MAX_PUSH_BYTES:
+        return JSONResponse({"status": "rejected", "reason": "body too large"},
+                            status_code=413)
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        # ⛔ NEVER log the body — it carries a live access token and this repo is public.
+        return JSONResponse({"status": "rejected", "reason": "invalid json"},
+                            status_code=400)
+    out = _str.install_pushed_token(payload)
+    code = 200 if out.get("status") in ("accepted", "already-current") else 400
+    return JSONResponse(out, status_code=code)
+
+
+@flow_router.get("/schwab-token-status")
+def schwab_token_status(_auth: dict = Depends(require_flow_admin)):
+    """Does this pod hold a usable Schwab access token, and how old is it?
+
+    ⚰️ EXISTS BECAUSE THE 113-DAY FREEZE WAS INVISIBLE. flow-worker ran on a dead grant
+    for ~4 months and the only tell in the log was `[oi-snapshot] Massive fallback: N of M
+    Schwab misses resolved`, which reads like normal operation. Watch `age_seconds` and
+    `expired`. The sender reads this before every push, so a current pod transfers nothing.
+
+    ⛔ ADMIN-GATED, unlike `/ticker-types-status`. That one reports a dataset generation;
+    this one reports the state of a credential, and `holds_refresh_token` in particular is
+    a fact about this pod's blast radius that no member should be able to read.
+    """
+    from api import schwab_token_replica as _str
+    return JSONResponse(_str.status())
 
 
 # ── Prepare the first paint BEFORE a member asks for it ────────────────────

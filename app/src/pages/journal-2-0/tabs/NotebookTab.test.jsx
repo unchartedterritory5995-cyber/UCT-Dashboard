@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react'
-import { MemoryRouter, useNavigate } from 'react-router-dom'
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 // 13Q-Q1check: a spy over the REAL `mutate`, not a replacement for it -- other
 // hooks in this tree (useJ2SavedViews, useJ2PropertyDefs) use real `useSWR`,
 // and the "primes the cache" test below needs the real cache to assert against.
@@ -9,6 +9,13 @@ vi.mock('swr', async (importOriginal) => {
   const actual = await importOriginal()
   return { ...actual, mutate: (...args) => { swrMutateSpy(...args); return actual.mutate(...args) } }
 })
+
+// Audit 2026-11-05, spec S2 (B1): the app focus (charts Group A) a test can set. Null by default,
+// so every other test runs with nothing charted.
+const appFocus = vi.hoisted(() => ({ symbol: null }))
+vi.mock('../../../hooks/useAppFocus', () => ({
+  default: () => ({ symbol: appFocus.symbol, setSymbol: () => {} }),
+}))
 
 // Heavy children + data hook are stubbed — these tests are about the tab's own
 // template-picker wiring (toolbar sheet, empty state, deep link), not the note
@@ -124,6 +131,9 @@ vi.mock('../lib/templatesLoader', async (importOriginal) => {
 })
 
 import NotebookTab from './NotebookTab'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { chooseView, currentView, offersSaveView, pressToolbar, toolbarOffers, viewOption } from './__tests__/toolbarDoors'
 import * as settleModule from '../lib/offline/settleNoteWrite'
 import { getTemplate } from '../lib/notebookTemplates'
 import { loadTemplates } from '../lib/templatesLoader'
@@ -154,6 +164,11 @@ beforeEach(() => {
     // exercise — never record it as "the" POST under test.
     if (String(url) === '/api/j2/telemetry') {
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) })
+    }
+    // S5 (B3): a template create also records the Get started step (a preference write) --
+    // a side channel too, never "the" POST under test.
+    if (String(url).startsWith('/api/auth/preferences')) {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, prefs: {} }) })
     }
     if (opts?.method === 'POST') {
       lastPostBody = JSON.parse(opts.body)
@@ -216,7 +231,7 @@ describe('NotebookTab — template picker', () => {
 
   it('the Templates button opens the sheet picker (second picker instance)', async () => {
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    pressToolbar('Templates')
     await waitFor(() => expect(screen.getAllByRole('button', { name: /Tilt Log/ }).length).toBeGreaterThanOrEqual(2))
   })
 
@@ -244,7 +259,7 @@ describe('NotebookTab — template picker', () => {
 
   it('the primary "+ New note" button still creates a blank note', async () => {
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: '+ New note' }))
+    fireEvent.click(screen.getByRole('button', { name: '+ New' }))
     await waitFor(() => expect(lastPostBody).not.toBeNull())
     expect(lastPostBody.title).toBe('')
     expect(lastPostBody.bodyJson).toBeUndefined()
@@ -271,7 +286,7 @@ describe('NotebookTab — template picker', () => {
       failPost()
       vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
       renderTab()
-      fireEvent.click(screen.getByRole('button', { name: '+ New note' }))
+      fireEvent.click(screen.getByRole('button', { name: '+ New' }))
       expect((await screen.findByRole('alert')).textContent)
         .toBe("You're offline. A new note needs a connection; nothing was saved.")
     })
@@ -280,7 +295,7 @@ describe('NotebookTab — template picker', () => {
       failPost()
       vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
       renderTab()
-      fireEvent.click(screen.getByRole('button', { name: '+ New note' }))
+      fireEvent.click(screen.getByRole('button', { name: '+ New' }))
       expect((await screen.findByRole('alert')).textContent).toBe("Couldn't create that note. Nothing was saved.")
     })
 
@@ -295,14 +310,14 @@ describe('NotebookTab — template picker', () => {
       })
       vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
       renderTab()
-      fireEvent.click(screen.getByRole('button', { name: '+ New note' }))
+      fireEvent.click(screen.getByRole('button', { name: '+ New' }))
       expect((await screen.findByRole('alert')).textContent).toBe("Couldn't create that note. Nothing was saved.")
     })
   })
 
   it('13Q-2: the primary "+ New note" button opens with focus in the BODY, not the title', async () => {
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: '+ New note' }))
+    fireEvent.click(screen.getByRole('button', { name: '+ New' }))
     const editor = await screen.findByTestId('note-editor')
     expect(editor).toHaveAttribute('data-open-focus', 'body')
   })
@@ -429,6 +444,35 @@ describe('NotebookTab — template picker', () => {
     expect(lastPostBody.tags).toBeUndefined()
   })
 
+  // ⛔ Audit 2026-11-05, spec S2 (B1): a blank note was stamped with the last-charted symbol
+  // (CDNA for the test account), which then autofilled sector, industry and theme and dressed
+  // the note as a thesis. The ticker comes from the door that made the note, never app focus.
+  describe('S2 (B1): no silent ticker stamp', () => {
+    afterEach(() => { appFocus.symbol = null })
+
+    it('a blank note made while CDNA is charted carries no ticker', async () => {
+      appFocus.symbol = 'CDNA'
+      renderTab('/journal/notebook?new=blank')
+      await waitFor(() => expect(lastPostBody).not.toBeNull())
+      expect(lastPostBody.ticker ?? null).toBeNull()
+      expect(JSON.stringify(lastPostBody)).not.toContain('CDNA')
+    })
+
+    it('an explicit ticker from the door still seeds, whatever is charted', async () => {
+      appFocus.symbol = 'CDNA'
+      renderTab('/journal/notebook?new=blank&ticker=nvda')
+      await waitFor(() => expect(lastPostBody).not.toBeNull())
+      expect(lastPostBody.ticker).toBe('NVDA')
+    })
+
+    it('a template with no ticker while CDNA is charted carries no ticker', async () => {
+      appFocus.symbol = 'CDNA'
+      renderTab('/journal/notebook?new=thesis')
+      await waitFor(() => expect(lastPostBody).not.toBeNull())
+      expect(lastPostBody.ticker ?? null).toBeNull()
+    })
+  })
+
   it('Wave B: ?new=blank&ticker=NVDA seeds the ticker on the blank note', async () => {
     renderTab('/journal/notebook?new=blank&ticker=nvda')
     await waitFor(() => expect(lastPostBody).not.toBeNull())
@@ -447,7 +491,7 @@ describe('NotebookTab — template picker', () => {
   // the freshest possible copy.
   it('13Q-Q1check: "+ New note" primes the note\'s SWR cache before opening it', async () => {
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: '+ New note' }))
+    fireEvent.click(screen.getByRole('button', { name: '+ New' }))
     await screen.findByTestId('note-editor')
     expect(swrMutateSpy).toHaveBeenCalledWith('/api/j2/notes/new1', { note: { id: 'new1' } }, false)
   })
@@ -491,19 +535,17 @@ describe('NotebookTab — import', () => {
     renderTab()
     expect(screen.queryByTestId('import-wizard')).not.toBeInTheDocument()
     // On <=640px the toolbar row stacks above the (scrollable) list, so the
-    // empty state needs its OWN Import CTA in view — not just the header's.
+    // empty state needs its OWN Import CTA in view — not just the header's
+    // (S11: the header's is a row of its "+ New" ▾ menu now).
+    expect(toolbarOffers('Import')).toBe(true)
     const importButtons = screen.getAllByRole('button', { name: /import/i })
-    expect(importButtons.length).toBeGreaterThanOrEqual(2)
-    // DOM order: header toolbar renders before the empty-state pitch, so the
-    // empty-state button is the last match.
     fireEvent.click(importButtons[importButtons.length - 1])
     expect(await screen.findByTestId('import-wizard')).toBeInTheDocument()
   })
 
   it('the header Import button also opens the wizard', async () => {
     renderTab()
-    const importButtons = screen.getAllByRole('button', { name: /import/i })
-    fireEvent.click(importButtons[0])
+    pressToolbar('Import')
     expect(await screen.findByTestId('import-wizard')).toBeInTheDocument()
   })
 
@@ -519,6 +561,32 @@ describe('NotebookTab — import', () => {
     fireEvent.click(await screen.findByText('fire onImported'))
     expect(mockRefresh).toHaveBeenCalled()
   })
+
+  // Fix round 1 (review minor 13): the import door reaches the ONE note-views helper -- the folder
+  // counts, folder rows, Recents and the Tasks view are asked again, never only this tab's lists.
+  // Fix round 2 (review minor 13): the create door every New-note path ends in (landCreatedNote)
+  // reaches the helper too -- the list said "3 of 3" beside a sidebar 5 before it did.
+  it('a new note (landCreatedNote) revalidates every note view (the S6 helper)', async () => {
+    renderTab()
+    swrMutateSpy.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: '+ New' }))
+    await waitFor(() => expect(lastPostBody).not.toBeNull())
+    await waitFor(() => {
+      const predicates = swrMutateSpy.mock.calls.map(([k]) => k).filter((k) => typeof k === 'function')
+      expect(predicates.some((p) => p('/api/j2/notes/folder-counts') && p('/api/j2/notes/tasks?status=open')
+        && !p('/api/j2/notes/new1'))).toBe(true)
+    })
+  })
+
+  it('a completed import revalidates every note view (the S6 helper)', async () => {
+    renderTab()
+    fireEvent.click(screen.getAllByRole('button', { name: /import/i })[0])
+    swrMutateSpy.mockClear()
+    fireEvent.click(await screen.findByText('fire onImported'))
+    const predicates = swrMutateSpy.mock.calls.map(([k]) => k).filter((k) => typeof k === 'function')
+    expect(predicates.some((p) => p('/api/j2/notes/folder-counts') && p('/api/j2/notes/tasks?status=open')
+      && !p('/api/j2/notes/n1'))).toBe(true)
+  })
 })
 
 describe('NotebookTab — export', () => {
@@ -533,7 +601,7 @@ describe('NotebookTab — export', () => {
   it('the toolbar Export button opens the real export dialog', async () => {
     renderTab()
     expect(screen.queryByText('Export your notebook')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+    pressToolbar('Export')
     expect(await screen.findByText('Export your notebook')).toBeInTheDocument()
     // The dialog's own primary action is present too — proof this is the
     // real ExportDialog mounted and rendering its idle step, not a stub.
@@ -824,68 +892,56 @@ describe('⛔ restoring from trash lands the note revision', () => {
  * Graph fresh. Competitive audit finding UX #18, 2026-09-22.
  */
 describe('⛔ Graph mode never offers a "Save this view" trap', () => {
-  it('the Save-view button is absent in Graph mode', () => {
+  it('the Save-view row is absent in Graph mode', () => {
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'Graph view' }))
-    expect(screen.queryByRole('button', { name: 'Save view' })).toBeNull()
+    chooseView('Graph')
+    expect(offersSaveView()).toBe(false)
   })
 
-  it('⛔ CONTROL — the same button IS present in List mode', () => {
+  it('⛔ CONTROL — the same row IS present in List mode', () => {
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: 'List view' }))
-    expect(screen.getByRole('button', { name: 'Save view' })).toBeInTheDocument()
+    chooseView('List')
+    expect(offersSaveView()).toBe(true)
   })
 })
 
 /**
- * ⛔⛔ FX2 (wave 10, proof-walk item 2): the seven view-mode buttons already
- * carried `aria-pressed`, but sat in a bare `<div>` -- so an assistive-tech
- * user heard seven identical "pressed"/"not pressed" toggle buttons with no
- * signal they were one related set, and the proof walk's own dead-click
- * instrument (`CONTROLS_JS` in `tools/notebook_proof_walk.py`) credits a
- * re-click as a deliberate no-op only when `aria-pressed="true"` sits inside
- * a `[role=group]`/`[role=radiogroup]`/`[role=tablist]`/`[role=toolbar]`
- * ancestor -- without one, 12 re-clicks (the seven view tabs among them) read
- * as unexplained DEAD clicks instead of "already the active view".
+ * ⛔⛔ FX2 (wave 10, proof-walk item 2), carried into S11 (audit 2026-11-05): the seven view toggles became
+ * ONE labelled View menu. The related-set signal FX2 added (a labelled group around aria-pressed toggles)
+ * is now the menu's own: each mode is a `menuitemradio` with `aria-checked`, inside `role=menu` named
+ * "View". The proof walk's dead-click instrument (`CONTROLS_JS` in `tools/notebook_proof_walk.py`) credits
+ * a checked `menuitemradio` as the current one, beside `radio`, so a re-pick is a deliberate no-op.
  */
-describe('⛔⛔ FX2 — the view-mode buttons expose a labelled group (proof-walk item 2)', () => {
-  it('the seven view buttons sit inside one labelled role=group', () => {
+describe('⛔⛔ FX2 — the view modes are one labelled set (proof-walk item 2)', () => {
+  it('the seven modes sit inside one labelled role=menu, as menuitemradio', () => {
     renderTab()
-    const group = screen.getByRole('group', { name: 'View' })
-    for (const label of ['List view', 'Table view', 'Board view', 'Calendar view', 'Timeline view', 'Graph view', 'Tasks view']) {
-      expect(within(group).getByRole('button', { name: label })).toBeInTheDocument()
+    viewOption('List')
+    const menu = screen.getByRole('menu', { name: 'View' })
+    for (const label of ['List', 'Table', 'Board', 'Calendar', 'Graph', 'Timeline', 'Tasks']) {
+      expect(within(menu).getByRole('menuitemradio', { name: label })).toBeInTheDocument()
     }
   })
 
-  it('the active view keeps aria-pressed="true", now INSIDE the group CONTROLS_JS looks for', () => {
+  it('exactly the active mode is aria-checked="true", and it moves', () => {
     renderTab()
-    const group = screen.getByRole('group', { name: 'View' })
-    expect(within(group).getByRole('button', { name: 'List view' })).toHaveAttribute('aria-pressed', 'true')
-    fireEvent.click(within(group).getByRole('button', { name: 'Table view' }))
-    expect(within(group).getByRole('button', { name: 'Table view' })).toHaveAttribute('aria-pressed', 'true')
-    expect(within(group).getByRole('button', { name: 'List view' })).toHaveAttribute('aria-pressed', 'false')
+    expect(viewOption('List')).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(viewOption('Table'))
+    expect(viewOption('Table')).toHaveAttribute('aria-checked', 'true')
+    expect(viewOption('List')).toHaveAttribute('aria-checked', 'false')
   })
 
-  it('⛔ CONTROL — the same predicate CONTROLS_JS applies: aria-pressed alone, with no group ancestor, is not enough', () => {
-    // Mirrors CONTROLS_JS's own `current` clause without importing the walk
-    // (a Python file): `aria-pressed==="true"` AND `el.closest('[role=group],
-    // [role=radiogroup],[role=tablist],[role=toolbar]')`.
-    renderTab()
-    const btn = screen.getByRole('button', { name: 'List view' })
-    expect(btn.getAttribute('aria-pressed')).toBe('true')
-    expect(btn.closest('[role=group],[role=radiogroup],[role=tablist],[role=toolbar]')).not.toBeNull()
-    const orphan = document.createElement('button')
-    orphan.setAttribute('aria-pressed', 'true')
-    document.body.appendChild(orphan)
-    expect(orphan.closest('[role=group],[role=radiogroup],[role=tablist],[role=toolbar]')).toBeNull()
-    orphan.remove()
+  it('⛔ CONTROL — CONTROLS_JS credits a checked menuitemradio, never an unchecked one', () => {
+    const src = readFileSync(join(process.cwd(), '..', 'tools', 'notebook_proof_walk.py'), 'utf8')
+    expect(src).toMatch(/role'\) === 'menuitemradio'\) && el\.getAttribute\('aria-checked'\) === 'true'/)
   })
 
-  it('Save view stays a SIBLING of the group, not swallowed into it (Save view is an action, not a view toggle)', () => {
+  it('Save view is a plain menuitem, set apart from the modes (an action, not a view)', () => {
     renderTab()
-    const group = screen.getByRole('group', { name: 'View' })
-    expect(within(group).queryByRole('button', { name: 'Save view' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Save view' })).toBeInTheDocument()
+    viewOption('List')
+    const menu = screen.getByRole('menu', { name: 'View' })
+    expect(within(menu).queryByRole('menuitemradio', { name: 'Save view' })).toBeNull()
+    expect(within(menu).getByRole('menuitem', { name: 'Save view' })).toBeInTheDocument()
+    expect(within(menu).getByRole('separator')).toBeInTheDocument()
   })
 })
 
@@ -975,7 +1031,7 @@ describe('lane KEYS3 (Q2): the templates door, and a ticker template starts in T
 
   it('CONTROL: without the door the sheet stays closed', async () => {
     renderTab('/journal/notebook?view=all')
-    await screen.findByRole('button', { name: 'Templates' })
+    await screen.findByRole('button', { name: 'More ways to start a note' })
     expect(screen.queryByRole('dialog', { name: 'New note' })).toBeNull()
   })
 
@@ -1037,7 +1093,7 @@ describe('lane KEYS3 (Q11): "#notes" lands keyboard focus on the notes list\'s h
 
   it('CONTROL: without the door nothing takes focus', async () => {
     renderTab('/journal/notebook?view=all')
-    await screen.findByRole('button', { name: 'Templates' })
+    await screen.findByRole('button', { name: 'More ways to start a note' })
     await new Promise((r) => setTimeout(r, 60))
     expect(document.activeElement).toBe(document.body)
   })
@@ -1156,5 +1212,23 @@ describe('NotebookTab — P0.13 search in place', () => {
     act(() => lastSidebarProps().onSearchModeChange(true))
     expect(lastSidebarProps().searchRequest).toBe(request)
     expect(lastSidebarProps().searchSeed).toBe('nvda')
+  })
+})
+
+// Tier 1b fix round 1 (review Important 2): the view lives in the address (S11), and a SAVED view pins its own mode.
+// Picking one while the address said `?view=board` left `?view=board` behind, so a reload (or the shared link) opened
+// the board and dropped the saved view. Choosing a saved view takes the mode out of the address.
+describe('a saved view takes a stale ?view= mode out of the address (Important 2)', () => {
+  function Where() {
+    const loc = useLocation()
+    return <output data-testid="where">{loc.search}</output>
+  }
+  it('from ?view=board, picking a list-type saved view leaves no ?view=board', async () => {
+    render(<MemoryRouter initialEntries={['/journal/notebook?view=board']}><NotebookTab /><Where /></MemoryRouter>)
+    expect(screen.getByTestId('where').textContent).toContain('view=board')
+    fireEvent.click(screen.getByText('select view v1'))
+    await waitFor(() => expect(screen.getByTestId('where').textContent).not.toContain('view=board'))
+    expect(currentView()).toBe('List')
+    expect(screen.getByRole('button', { name: 'Clear filter' })).toBeInTheDocument()   // the saved view is still on
   })
 })

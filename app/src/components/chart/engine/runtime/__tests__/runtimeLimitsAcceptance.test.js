@@ -84,6 +84,6 @@ describe('⭐ all 24 execution limits stop a real script by name', () => {
     let err = null
     try { computeRuntimeColumns({ id: 'p', compute: { fn: 'p', source: huge, outputs: { v: 0 } } }, BARS, { tf: 'D' }) } catch (e) { err = e }
     expect(err && err.guard).toBe(RUNTIME_LIMIT_GUARD)
-    expect(err.message).toMatch(/PROGRAM_SIZE/)
+    expect(err.message).toMatch(/byte limit a script drawn bar by bar is read under/)
   })
 })

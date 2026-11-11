@@ -160,7 +160,7 @@ describe('chart.setSetting — one capability over the product descriptor table'
     expect(p.ok).toBe(true)
   })
   it('KNOWING ≠ DOING: a known-but-not-eligible setting is not even an option', () => {
-    expect(shapeError('chart.setSetting', { setting: 'watermark.opacity', value: 0.5 }, CTX)).toMatch(/isn't an option/)
+    expect(shapeError('chart.setSetting', { setting: 'theme', value: 'light' }, CTX)).toMatch(/isn't an option/)          // W1-B: watermark.opacity is eligible now
     expect(shapeError('chart.setSetting', { setting: 'indicatorInstances', value: 'x' }, CTX)).toMatch(/isn't an option/)
   })
   it('fast path: "turn off the grid", "crosshair off", "hide the watermark", "show swing labels" — and "hide volume" stays Volume', () => {
@@ -175,14 +175,15 @@ describe('chart.setSetting — one capability over the product descriptor table'
 describe('capability questions — deterministic, truthful, never future-as-present', () => {
   const ask = (q) => fastParse(q)?.ops?.[0] || null
   const answer = (q) => answerFor(ask(q).args.topic)
-  it('Overnight Batch 8: drawings are PARTLY available — levels yes, trendlines not yet (said, planned 8b), never claimed', () => {
-    // "Can you draw…" may now be a request the Agent can do (a level), so it is no longer swallowed here.
+  it('Overnight Batch 8 → W1-B: drawings are PARTLY available — levels and the time-anchored tools yes (from dates and prices), the rest of the toolbar said, nothing planned-as-present', () => {
+    // "Can you draw…" may now be a request the Agent can do (a level, a trendline), so it is no longer swallowed here.
     expect(fastDiscovery('Can you draw trendlines for me?')).toBe(null)
     const a = answerFor('drawings')
     expect(a.status).toBe('partial')
     expect(a.text).toMatch(/^Partly\. .*horizontal line at a price/)
-    expect(a.text).toMatch(/trendlines, rectangles, Fibonacci and text need anchors in time/)
-    expect(a.text).toMatch(/Planned for UCT Agent \(Batch 8b, not available yet\)/)
+    expect(a.text).toMatch(/any tool on the drawing toolbar from the dates and prices you give me/)
+    expect(a.text).toMatch(/channels, pitchforks, arrows, Fibonacci extensions and Measure/)
+    expect(a.text).not.toMatch(/Planned for UCT Agent/)
   })
   it('Batch 5: "Can you resize my chart widgets?" is now something the Agent DOES — a polite command, not a question', () => {
     expect(fastDiscovery('Can you resize my chart widgets?')).toBe(null)

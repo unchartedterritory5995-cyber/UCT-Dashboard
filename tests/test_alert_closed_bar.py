@@ -459,6 +459,14 @@ def test_every_address_series_ends_where_the_value_function_says_it_does(
             assert got == want, (address, params, got, want)
             checked += 1
     assert checked == 2 * (len(ev.INDICATOR_FUNCS) + len(ev.EVENT_FUNCS)) == 60
+    # 2026-11-06 (RS 2b-05) — the RS partition is NOT in the loop above, and
+    # that is the honest shape, not an omission: its value function answers
+    # None WITHOUT a timeframe and a symbol (by construction), so the equality
+    # would hold as `None == None` — vacuously — on every RS address. RS is
+    # measured on the CALENDAR probe through `ias._probe_column` (the closed
+    # lane's call shape) in `test_the_rs_partition_is_measured_on_the_calendar_
+    # probe_not_the_forming_shape`, where the column really carries numbers.
+    assert not (set(ev.RS_ADDRESSES) & (set(ev.INDICATOR_FUNCS) | set(ev.EVENT_FUNCS)))
 
 
 def test_the_anti_fork_rail_is_not_vacuous(wick):
@@ -467,6 +475,26 @@ def test_the_anti_fork_rail_is_not_vacuous(wick):
     valued = [a for a in list(ev.INDICATOR_FUNCS) + list(ev.EVENT_FUNCS)
               if ev._last_non_none(alert_series.series_for(a, wick, {})) is not None]
     assert len(valued) == len(ev.INDICATOR_FUNCS) + len(ev.EVENT_FUNCS)
+    # 2026-11-06 (RS 2b-05): the RS partition cannot be valued this way (see the
+    # rail above); its non-vacuity is the calendar-probe test that follows.
+
+
+def test_the_rs_partition_is_measured_on_the_calendar_probe_not_the_forming_shape(spy_daily):
+    """2026-11-06 (RS 2b-05). An RS column answers None to the forming shape
+    (`fn(bars, params)`, `series_for`, `value_function`) BY CONSTRUCTION — no
+    timeframe, no symbol, no benchmark. So the two rails above cannot measure
+    it, and a `None == None` pass would be the vacuous rail they exist to
+    refuse. The closed lane's call shape is `ias._probe_column` on the
+    CALENDAR encoding (D / W only — the instant encoding is refused by type)."""
+    from api.services import indicator_alert_service as ias
+    assert ias._is_calendar_encoded(spy_daily)
+    assert len(ev.RS_ADDRESSES) == 16  # 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-10 (RS split, S2): +4 split
+    for address in ev.RS_ADDRESSES:
+        assert ev.value_function(address)(spy_daily, {}) is None, address
+        assert ev._last_non_none(alert_series.series_for(address, spy_daily, {})) is None, address
+        column = ias._probe_column(alert_series.series_function(address), spy_daily, {})
+        assert len(column) == len(spy_daily), address
+        assert ev._last_non_none(column) is not None, f"{address} is blank on the calendar probe"
 
 
 def test_the_series_table_covers_every_address_and_nothing_else():
@@ -486,7 +514,7 @@ def test_the_series_table_covers_every_address_and_nothing_else():
     side that is still hand-written.
     """
     assert set(alert_series.SERIES_FUNCS) == set(ev.all_addresses())
-    assert len(alert_series.SERIES_FUNCS) == 31  # 28 levels + 2 events + close
+    assert len(alert_series.SERIES_FUNCS) == 48  # 2026-11-10 (RS split, S2): 44 -> 48, +rs_phases.flipBlue/flipRed +rs_vs_ema.crossUp/crossDown; 2026-11-07 (RS 2b-06): +1 rs_line.rating; 28 levels + 2 events + close + ma_cross + 11 rs_line.* (2026-11-06, RS 2b-05)
 
 
 def test_series_for_asserts_its_length_rather_than_trusting_it(wick):
@@ -881,7 +909,7 @@ def test_the_measured_closed_lane_dead_set_is_exactly_chikou_today():
     # the non-vacuity floor: the measurement EXCLUDED things, it did not pass
     # everything through.
     assert ias.closed_lane_pad("rsi", instant, {}) == 0
-    assert len(ev.all_addresses()) == 31
+    assert len(ev.all_addresses()) == 48  # 2026-11-10 (RS split, S2): 44 -> 48, +rs_phases.flipBlue/flipRed +rs_vs_ema.crossUp/crossDown; 2026-11-07 (RS 2b-06): +1 rs_line.rating; 2026-11-04: +1 `ma_cross`; 2026-11-06 (RS 2b-05): +11 `rs_line.*`
 
 def test_the_docstring_cannot_contradict_the_constant():
     """⛔⛔ PROSE ABOUT A SAFETY SWITCH, RAILED AGAINST THE SWITCH ITSELF.

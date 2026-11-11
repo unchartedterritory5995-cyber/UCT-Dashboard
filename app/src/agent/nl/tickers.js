@@ -21,6 +21,20 @@ export const PRONOUNS = new Set([
   'mine', 'here', 'there', 'same', 'everything', 'something', 'anything', 'stuff', 'em', 'him', 'her', 'us',
 ])
 
+// Period, session and study shorthand the member uses for a chart or a measure: "show YTD", "add a TTM chart". Typed in any
+// case these are words, never tickers — the CAPITALS that mark a ticker elsewhere mark nothing here, because this is how
+// the words are normally written. ⛔ ONLY a word no symbol carries belongs here: agentReservedWords.test.js holds this set
+// against UCT's own symbol lists (checked against /api/ticker-search too, 2026-11-05). A word that IS a real symbol (MTD,
+// LTM, MAX) stays a ticker in capitals — see AMBIGUOUS_LOWER in lexicon.js for its lowercase spelling.
+export const RESERVED_WORDS = new Set(['ytd', 'qtd', 'wtd', 'ttm', 'ntm', 'today', 'month', 'quarter', 'hod', 'lod', 'ath', 'atl',
+  'yoy', 'qoq', 'macd', 'vwap', 'avwap', 'ohlc', 'hlc'])
+
+/** Is `token` (as the member typed it) a reserved word rather than a ticker? "$YTD" is explicitly a ticker. */
+export function isReservedWord(token) {
+  const t = String(token || '').trim()
+  return !!t && !t.startsWith('$') && RESERVED_WORDS.has(t.toLowerCase())
+}
+
 /** Is `token` (as the member typed it) a pronoun rather than a ticker? */
 export function isPronounToken(token, raw = token) {
   const t = String(token || '').trim()

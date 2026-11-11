@@ -1,0 +1,119 @@
+/* THE STUDY KIT, VERSION 2 (2026-11-08). The owner's principles (docs/study/OWNER_PRINCIPLES.md) hold every Study screen
+   to one standard, so the controls he has ranked Weak or Cut in every round (Start, Check, Next: "horrible and low
+   quality visual"; the answer tiles: "much cooler and better graphics, by a lot! I want a really cool production") are
+   ONE design here, used by every drill, challenge, start and end screen:
+     .pbtn   a struck-gold ingot: a lit top face, a thick extruded base it sinks into when pressed, an engraved label,
+             a light that runs across it now and then, a dark medallion for the arrow; good / bad / ghost / dark variants
+     .tile   an answer as a physical card: black glass with a hairline, a 3D key cap, a lift on hover, a running gold
+             border when picked, a green or red glow and a medallion after the verdict
+   Motion stands down under prefers-reduced-motion. */
+
+@property --kit2-a { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+
+/* ── the button ──────────────────────────────────────────────────────────────────────────────────────────── */
+.pbtn {
+  --face: linear-gradient(180deg, #fff4c8 0%, #f2d47d 20%, #dcb555 55%, #b98e2d 100%);
+  --base: #6e5216; --base2: #3a2b0a; --ink: #1d1505; --glow: rgba(220, 187, 94, .3); --cap: #1a1406; --capInk: #f3d98e;
+  position: relative; isolation: isolate; display: inline-flex; align-items: center; justify-content: center; gap: 16px;
+  height: 64px; padding: 0 12px 0 30px; border: 0; border-radius: 18px; cursor: pointer; overflow: hidden;
+  font: 900 17px/1 var(--font-sans, 'Instrument Sans', system-ui, sans-serif) !important; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink) !important; background: var(--face); text-shadow: 0 1px 0 rgba(255, 248, 220, .55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8), inset 0 -3px 0 rgba(0, 0, 0, .18), 0 6px 0 var(--base), 0 8px 0 var(--base2), 0 18px 34px var(--glow), 0 0 0 1px rgba(40, 28, 6, .85);
+  transform: translateY(0); transition: transform .12s ease, box-shadow .12s ease, filter .2s ease;
+}
+.pbtn::before { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, .7) 49%, transparent 60%) no-repeat; background-size: 260% 100%; background-position: 160% 0;
+  animation: kit2Sheen 4.2s ease-in-out 1.4s infinite; }
+.pbtn::after { content: ''; position: absolute; left: 12px; right: 12px; top: 3px; height: 44%; border-radius: 14px 14px 50% 50% / 14px 14px 100% 100%; pointer-events: none;
+  background: linear-gradient(rgba(255, 255, 255, .42), rgba(255, 255, 255, 0)); }
+.pbtn:hover:not(:disabled) { filter: brightness(1.05) saturate(1.05); }
+.pbtn:active:not(:disabled) { transform: translateY(7px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), inset 0 -2px 0 rgba(0, 0, 0, .2), 0 0 0 var(--base), 0 1px 0 var(--base2), 0 6px 14px var(--glow), 0 0 0 1px rgba(40, 28, 6, .85); }
+.pbtn:focus-visible { outline: 3px solid rgba(233, 205, 119, .6); outline-offset: 4px; }
+.pbtn .label { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.pbtn .label small { font-size: 11px; letter-spacing: .1em; opacity: .7; text-transform: none; font-weight: 700; }
+.pbtn .cap { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 13px; flex: none;
+  background: var(--cap); color: var(--capInk); box-shadow: inset 0 1px 0 rgba(255, 236, 180, .18), 0 1px 0 rgba(255, 255, 255, .45); text-shadow: none; }
+.pbtn .icon { display: inline-flex; margin-left: -10px; }
+.pbtn.noCap { padding: 0 34px; }
+.pbtn.xl { height: 70px; font-size: 19px !important; border-radius: 20px; padding-left: 34px; }
+.pbtn.xl .cap { width: 46px; height: 46px; }
+.pbtn.wide { width: 100%; }
+.pbtn.wide:not(.noCap) { padding-left: 76px; }   /* the label centred, the arrow at the right edge */
+.pbtn.wide:not(.noCap) .label { flex: 1; align-items: center; }
+.pbtn.good { --face: linear-gradient(180deg, #d7ffe6 0%, #6fe0a1 22%, #32b56c 58%, #1f8a4d 100%); --base: #135c33; --base2: #0a3a1f; --ink: #04170b; --glow: rgba(47, 175, 104, .32); --cap: #052012; --capInk: #9ff0c3; text-shadow: 0 1px 0 rgba(220, 255, 235, .5); }
+.pbtn.bad { --face: linear-gradient(180deg, #ffd9d9 0%, #f58a8a 22%, #df4b4b 58%, #b23434 100%); --base: #6e1a1d; --base2: #420c0f; --ink: #2a0507; --glow: rgba(223, 70, 70, .3); --cap: #2a0507; --capInk: #ffb0b0; text-shadow: 0 1px 0 rgba(255, 225, 225, .5); }
+.pbtn.dark { --face: linear-gradient(180deg, #2b2c32 0%, #1b1c20 60%, #141518 100%); --base: #08080a; --base2: #000; --ink: #f3d98e; --glow: rgba(0, 0, 0, .4); --cap: #f0d27a; --capInk: #1a1406;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, .6); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), inset 0 0 0 1px rgba(220, 187, 94, .45), 0 6px 0 var(--base), 0 8px 0 var(--base2), 0 18px 34px var(--glow); }
+.pbtn.dark::after { background: linear-gradient(rgba(255, 255, 255, .08), rgba(255, 255, 255, 0)); }
+.pbtn.ghost { height: 56px; padding: 0 24px; background: transparent; color: #d9d4c8 !important; text-shadow: none; letter-spacing: .1em; font-size: 14px !important;
+  box-shadow: inset 0 0 0 1px #3a3c43; }
+.pbtn.ghost::before, .pbtn.ghost::after { display: none; }
+.pbtn.ghost:hover:not(:disabled) { box-shadow: inset 0 0 0 1px #5a5c64; color: #f8f7f3 !important; }
+.pbtn.ghost:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 0 0 1px #5a5c64; }
+.pbtn:disabled { cursor: default; --face: linear-gradient(180deg, #2a2b30, #1f2024); --base: #121316; --base2: #0a0a0c; --ink: #6b675f; --glow: transparent; --cap: #17181b; --capInk: #55524b; text-shadow: none; }
+.pbtn:disabled::before { animation: none; display: none; }
+.pbtn:disabled::after { opacity: .15; }
+.pbtn.busy::before { animation: kit2Sweep 1s linear infinite; background-size: 200% 100%; }
+@keyframes kit2Sheen { 0%, 62% { background-position: 160% 0; } 100% { background-position: -60% 0; } }
+@keyframes kit2Sweep { from { background-position: 160% 0; } to { background-position: -60% 0; } }
+
+/* ── the answer tile ─────────────────────────────────────────────────────────────────────────────────────── */
+.tile { position: relative; isolation: isolate; display: flex; align-items: center; gap: 16px; width: 100%; min-height: 72px; padding: 0 20px; border-radius: 18px;
+  text-align: left; cursor: pointer; color: #f8f7f3; font: inherit;
+  background: radial-gradient(120% 140% at 0% 0%, #23242a 0%, #17181c 45%, #121316 100%);
+  border: 1px solid #30323a;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 5px 0 #09090b, 0 12px 24px rgba(0, 0, 0, .38);
+  transform: translateY(0); transition: transform .14s ease, box-shadow .14s ease, border-color .2s, background .25s, opacity .25s, filter .25s; }
+.tile::before { content: ''; position: absolute; inset: -1px; z-index: -1; border-radius: inherit; padding: 2px; pointer-events: none; opacity: 0; transition: opacity .2s;
+  background: conic-gradient(from var(--kit2-a), #7c6220, #fbefc4 20%, #dcbb5e 35%, #7c6220 55%, #f6e3a6 75%, #7c6220);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: kit2Spin 3.2s linear infinite; }
+.tile::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, .09) 50%, transparent 65%); background-size: 250% 100%; background-position: 150% 0; }
+.tile:hover:not(:disabled) { transform: translateY(-2px); border-color: #4c4f58; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .09), 0 7px 0 #09090b, 0 16px 30px rgba(0, 0, 0, .45); }
+.tile:hover:not(:disabled)::after { opacity: 1; animation: kit2Sheen 1.2s ease forwards; }
+.tile:active:not(:disabled) { transform: translateY(5px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 0 0 #09090b, 0 4px 10px rgba(0, 0, 0, .3); }
+.tile:disabled { cursor: default; }
+.tile:focus-visible { outline: 3px solid rgba(233, 205, 119, .55); outline-offset: 3px; }
+.key { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 38px; height: 38px; border-radius: 11px; font-size: 15px; font-weight: 900; color: #cfc9bd;
+  background: linear-gradient(180deg, #2e3036, #1b1c20); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), inset 0 -2px 0 rgba(0, 0, 0, .35), 0 3px 0 #0a0a0c; transition: background .2s, color .2s, box-shadow .2s, transform .3s; }
+.tileLabel { flex: 1; min-width: 0; font-size: 19px; font-weight: 800; letter-spacing: -.005em; line-height: 1.2; }
+.tileEnd { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; flex: none; opacity: 0; transform: scale(.4); transition: opacity .2s, transform .35s cubic-bezier(.2, .9, .2, 1.4); }
+/* picked: the running gold border, the gold key, a warm face */
+.tile.sel { border-color: transparent; background: radial-gradient(120% 140% at 0% 0%, #352b10 0%, #1f190b 50%, #15120a 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 236, 180, .14), 0 5px 0 #3a2b0a, 0 0 30px rgba(220, 187, 94, .22), 0 12px 24px rgba(0, 0, 0, .38); }
+.tile.sel::before { opacity: 1; }
+.tile.sel .tileEnd { opacity: 1; transform: scale(1); color: #f3d98e; }
+.tile.sel .key { color: #1a1406; background: linear-gradient(180deg, #fff1bf, #dcbb5e 60%, #b8922f); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), 0 3px 0 #6e5216, 0 0 14px rgba(233, 205, 119, .5); }
+/* the verdict */
+.tile.right { border-color: rgba(79, 211, 139, .75); background: radial-gradient(120% 140% at 0% 0%, #164a2c 0%, #0f2e1c 50%, #0b2014 100%);
+  box-shadow: inset 0 1px 0 rgba(180, 255, 210, .14), 0 5px 0 #0a3a1f, 0 0 34px rgba(47, 175, 104, .35); }
+.tile.right .key { color: #04170b; background: linear-gradient(180deg, #b6f7d1, #3cc77b 60%, #1f8a4d); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), 0 3px 0 #0a3a1f; transform: rotate(-6deg) scale(1.05); }
+.tile.right .tileEnd { opacity: 1; transform: scale(1); color: #9ff0c3; }
+.tile.wrong { border-color: rgba(240, 122, 122, .75); background: radial-gradient(120% 140% at 0% 0%, #4a1619 0%, #2c0d0f 50%, #1e090b 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 200, 200, .12), 0 5px 0 #420c0f, 0 0 30px rgba(223, 70, 70, .3); animation: kit2Shake .42s ease both; }
+.tile.wrong .key { color: #2a0507; background: linear-gradient(180deg, #ffc9c9, #e15656 60%, #b23434); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), 0 3px 0 #420c0f; }
+.tile.wrong .tileEnd { opacity: 1; transform: scale(1); color: #ffb0b0; }
+.tile.quiet { opacity: .38; filter: saturate(.4); }
+.tile.deal { animation: kit2Deal .45s cubic-bezier(.2, .9, .2, 1.08) backwards; animation-delay: calc(var(--i, 0) * 60ms); }
+
+@keyframes kit2Spin { to { --kit2-a: 360deg; } }
+@keyframes kit2Shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
+@keyframes kit2Deal { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 640px) {
+  .pbtn { height: 58px; font-size: 15px !important; padding-left: 22px; letter-spacing: .12em; } .pbtn.xl { height: 62px; font-size: 16px !important; } .pbtn .cap { width: 38px; height: 38px; }
+  .tile { min-height: 62px; padding: 0 16px; gap: 12px; } .tileLabel { font-size: 17px; } .key { width: 34px; height: 34px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pbtn::before, .tile::before, .tile.wrong, .tile.deal { animation: none !important; }
+  .pbtn, .tile { transition: none; }
+}
+/* a long answer (three lines on a phone) gets room above and below instead of touching the tile's edge */
+.tile.tile { padding-top: 12px; padding-bottom: 12px; }
+/* a tile wrapped in a list item (ChoiceList's radiogroup, two to a row from 641 px) fills its grid row, so a long
+   answer that wraps to three lines never leaves its neighbour shorter (real-screen check 2026-11-08, 1440x900: 117 px
+   beside 72 px). Tiles laid straight into a grid (AnswerLooks, ReplayPause) already stretch; a one-column list item
+   has no set height, so 100% resolves to auto there. */
+li > .tile { height: 100%; }

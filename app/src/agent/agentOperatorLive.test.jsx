@@ -221,9 +221,11 @@ describe('L3 · destructive / permanent changes still need approval', () => {
     const guarded = caps.filter(c => c.risk === 'confirm' || c.reversible === false).map(c => c.name).sort()
     // ⛔ changing this list changes what UCT asks before doing — review it with the owner (and the server mirror)
     expect(guarded).toEqual(['alert.create', 'alert.delete', 'chart.applyTemplate', 'chart.resetDefaults', 'chartSetup.copyLook', 'chartSetup.deleteTemplate',
-      'definition.delete', 'definition.duplicate', 'drawing.clear', 'indicator.discardDraft', 'indicator.remove', 'indicator.saveDraft', 'layout.create',
+      'definition.delete', 'definition.duplicate', 'drawing.clear', 'drawing.setAlert', 'indicator.discardDraft', 'indicator.remove', 'indicator.saveDraft',
+      // W1-B B-03 (owner's Wave 1 directive: create = risk 'confirm'; delete is a hard delete in the product)
+      'indicatorAlert.create', 'indicatorAlert.delete', 'indicatorTemplate.delete', 'layout.create',
       'layout.delete', 'layout.duplicate', 'layout.rename', 'layout.saveAs', 'layout.saveCurrent', 'screener.deleteSaved', 'screener.duplicateSaved',
-      'screener.renameSaved', 'screener.saveAs', 'watchlist.clear', 'watchlist.create', 'watchlist.delete', 'watchlist.rename'])
+      'screener.renameSaved', 'screener.saveAs', 'watchlist.clear', 'watchlist.create', 'watchlist.delete', 'watchlist.keepOnly', 'watchlist.rename', 'widget.sendToJournal'])
     // the new grid is an ordinary, reversible workspace change (exact Undo)
     expect(getCapability('chartGrid.set')).toMatchObject({ target: 'board' })
     expect(getCapability('chartGrid.set').risk ?? 'local').toBe('local')
@@ -282,7 +284,9 @@ describe('receiptView', () => {
     expect(receiptView(['Added EMA 20 on Left chart (NVDA)'])).toEqual({ summary: 'Added EMA 20 on Left chart (NVDA)', details: '' })
     expect(receiptView(['Added EMA 9/20 % Diff on Chart (QQQ)', 'Saved to your indicators — EMA 9/20 % Diff — …'])).toEqual({
       summary: 'Done — created your “EMA 9/20 % Diff” indicator and added it to Chart (QQQ).', details: 'Added EMA 9/20 % Diff on Chart (QQQ) · Saved to your indicators — EMA 9/20 % Diff — …' })
-    expect(receiptView(['Switched timeframe to Weekly', 'Changed symbol to SPY', 'Changed symbol to QQQ']).summary).toBe('Done — switched timeframe to Weekly (and 2 more changes).')
+    // W2: a few changes are each said (none hidden behind a count); more than four point at Details, which list them all
+    expect(receiptView(['Switched timeframe to Weekly', 'Changed symbol to SPY', 'Changed symbol to QQQ']).summary).toBe('Done — switched timeframe to Weekly; changed symbol to SPY; changed symbol to QQQ.')
+    expect(receiptView(['Switched timeframe to Weekly', 'a', 'b', 'c', 'd']).summary).toBe('Done — switched timeframe to Weekly (and 4 more changes — see Details).')
     expect(receiptView(['Undid: x · y'], { isUndo: true })).toEqual({ summary: 'Undid: x · y', details: '' })
   })
 })

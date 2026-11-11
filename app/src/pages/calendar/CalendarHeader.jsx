@@ -17,6 +17,7 @@ import styles from './Calendar.module.css'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Checkbox from '../../components/ui/Checkbox'
+import { AgentDockButton } from '../../agent/AgentProvider'
 
 const AUDIENCE = [
   ['mine', 'My Stocks', 'star-fill'], ['watchlist', 'Watchlist'], ['positions', 'Positions'],
@@ -158,7 +159,7 @@ function CalendarSearch({ onJump, onDidJump, quickQ, setQuickQ }) {
   }
 
   return (
-    <span className={styles.searchWrap} ref={boxRef}>
+    <span className={styles.searchWrap} ref={boxRef} data-guide="calendar.search">
       <UIcon name="search" size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
       <Input
         ref={inputRef}
@@ -696,6 +697,7 @@ export default function CalendarHeader({
                   onClick={() => setView(key)}>{lbl}</span>
           ))}
         </span>
+        <AgentDockButton />
         {view === 'month' && (
           <span className={styles.monthNavHeader}>
             <button className={styles.monthNavBtn} onClick={prevMonth} aria-label="Previous month">‹</button>

@@ -12,6 +12,10 @@ import { whatsNewTours } from './journal-2-0/components/notebook/onboarding/tour
 import { WHATS_NEW_COPY } from './journal-2-0/components/notebook/onboarding/tourOfferCopy'
 import FeatureStatusStrip from '../components/featureStatus/FeatureStatusStrip'
 import { SkipLinkPortal } from '../components/skipLinks'
+import { tourProgress, TOUR_PROGRESS } from './journal-2-0/components/notebook/onboarding/tourProgress'
+import {
+  ANSWER_PREFIX, HELP_SEARCH_ID, NEW_TICKET_HREF, QUICK_ANSWERS_ID, WALKTHROUGHS_ID,
+} from '../components/helpAnchors'
 import styles from './Support.module.css'
 
 const CATEGORIES = [
@@ -333,7 +337,8 @@ function PublishSentence() {
  *  Replaying the base tour reuses `startState('notebook-basics')`, which resolves
  *  to the SAME `TOUR_START_STATE` the existing "Take the tour" link already uses
  *  (tourRegistry.js) -- zero behaviour change for the one tour that ships today. */
-export const WALKTHROUGHS_ID = 'walkthroughs'
+// The anchor is components/helpAnchors.js's (one authority: the Help menu and the Learn menu link to it too).
+export { WALKTHROUGHS_ID }
 
 function WalkthroughsSection() {
   // W14-C1 ruling: this section is wave 14's (W14-0); with the wave-14 switch off Help renders
@@ -346,6 +351,9 @@ function WalkthroughsSection() {
   // mouse member sees nothing new (docs/notebook/wave14-keys.md).
   const location = useLocation()
   const headingRef = useRef(null)
+  // S14 (audit 2026-11-05, detail #68): "Replay" was on every tour, never-taken ones included. A tour the member
+  // has not taken says Start; one they have says Replay (tourProgress.js, the existing tour-seen state).
+  const { prefs } = usePreferences()
   const shown = live.length > 0
   useEffect(() => {
     if (shown && location.hash === `#${WALKTHROUGHS_ID}`) headingRef.current?.focus()
@@ -368,15 +376,18 @@ function WalkthroughsSection() {
         Walkthroughs
       </div>
       <ul className={styles.walkthroughList}>
-        {live.map((t) => (
-          <li key={t.id} className={styles.walkthroughRow}>
-            <span>{t.title}</span>
-            <Link to={startPath(t)} state={startState(t)} className={styles.walkthroughReplay}
-              aria-label={`Replay the ${t.title} tour`}>
-              Replay
-            </Link>
-          </li>
-        ))}
+        {live.map((t) => {
+          const verb = tourProgress(t.id, prefs) === TOUR_PROGRESS.new ? 'Start' : 'Replay'
+          return (
+            <li key={t.id} className={styles.walkthroughRow}>
+              <span>{t.title}</span>
+              <Link to={startPath(t)} state={startState(t)} className={styles.walkthroughReplay}
+                aria-label={`${verb} the ${t.title} tour`} data-walkthrough-verb={verb}>
+                {verb}
+              </Link>
+            </li>
+          )
+        })}
       </ul>
     </div>
   )
@@ -550,7 +561,7 @@ export const FAQS = [
     q: 'How do I link notes together?',
     keywords: 'link links linking backlinks unlinked mentions graph wiki brackets mention at date connect related',
     a: <>Type <code>[[</code> in a note and pick another note to link to it. Each note lists the
-      notes that link to it under <strong>Backlinks</strong>, and <strong>Unlinked mentions</strong>
+      notes that link to it under <strong>Backlinks</strong>, and <strong>Unlinked mentions</strong>{' '}
       shows notes that name it without linking to it yet. Type <code>@</code> and a day —
       <code> @today</code>, <code>@tomorrow</code>, <code>@monday</code> — to put a date in a note.
       The <strong>Graph view</strong> draws every link between your notes, and its list view gives
@@ -593,7 +604,7 @@ export const FAQS = [
     keywords: 'capture clip clipper web browser save page article selection share sheet phone android',
     a: <>On a computer, connect browser capture in <Link to="/settings?section=connections">Settings →
       Connections</Link>, then save a page or a selection straight into your Notebook. On an Android
-      phone, add the site to your home screen; it then appears in your phone's <strong>Share</strong>
+      phone, add the site to your home screen; it then appears in your phone's <strong>Share</strong>{' '}
       menu, and whatever you share lands in the Notebook.</>,
   },
   {
@@ -814,7 +825,7 @@ function orderFaqsByContext(faqs, sourceTopic) {
 // As the user types a ticket subject, surface the top 3 matching articles so
 // they can self-serve before submitting. Case-insensitive token AND: every
 // term the user typed must appear in the question OR the keywords string.
-function searchFaqs(query, faqs) {
+function searchFaqs(query, faqs, limit = 3) {
   const q = query.trim().toLowerCase()
   if (q.length < 3) return []
   const terms = q.split(/\s+/).filter(t => t.length >= 2)
@@ -825,7 +836,7 @@ function searchFaqs(query, faqs) {
     return { faq: f, score: hits }
   }).filter(r => r.score === terms.length)
   scored.sort((a, b) => b.score - a.score)
-  return scored.slice(0, 3).map(r => r.faq)
+  return scored.slice(0, limit).map(r => r.faq)
 }
 
 // ── Diagnostic capture ────────────────────────────────────────────────────
@@ -948,25 +959,77 @@ function VoteRow({ faqId, votes, onVote }) {
   )
 }
 
+/** S14 (audit 2026-11-05): the answer a Help address asks for -- `#answer-<faq id>` -- or null. */
+export function answerFromHash(hash, faqs) {
+  const h = String(hash || '')
+  if (!h.startsWith(`#${ANSWER_PREFIX}`)) return null
+  const id = decodeURIComponent(h.slice(1 + ANSWER_PREFIX.length))
+  return faqs.some((f) => f.id === id) ? id : null
+}
+
+/** Quick answers, with the Help menu's two landings (S14, audit 2026-11-05):
+ *   * `#quick-answers` focuses the heading; `#help-search` focuses the search box, which filters the answers with the
+ *     same matcher the new-ticket suggestions use (`searchFaqs`);
+ *   * `#answer-<id>` -- every in-feature "?" (HelpAnswerLink.jsx) -- opens THAT answer and focuses its question.
+ *  Every answer carries its own id, so a link to one is a link to its place on the page. */
 function QuickAnswers({ faqs, votes, onVote }) {
-  const [open, setOpen] = useState(null)
+  const location = useLocation()
+  const [openId, setOpenId] = useState(() => answerFromHash(location.hash, faqs))
+  const [query, setQuery] = useState('')
+  const headingRef = useRef(null)
+  const searchRef = useRef(null)
+  const questionRefs = useRef(new Map())
+  useEffect(() => {
+    const asked = answerFromHash(location.hash, faqs)
+    if (asked) {
+      setOpenId(asked)
+      setQuery('')
+      requestAnimationFrame(() => {
+        const q = questionRefs.current.get(asked)
+        q?.focus()
+        q?.scrollIntoView?.({ block: 'start' })
+      })
+    } else if (location.hash === `#${HELP_SEARCH_ID}`) searchRef.current?.focus()
+    else if (location.hash === `#${QUICK_ANSWERS_ID}`) headingRef.current?.focus()
+  }, [location.hash, location.key]) // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = query.trim().length >= 3 ? searchFaqs(query, faqs, Infinity) : faqs
   return (
     <div className={styles.faqWrap}>
-      <div className={styles.faqTitle}>
+      <div ref={headingRef} id={QUICK_ANSWERS_ID} tabIndex={-1} role="heading" aria-level={2} className={styles.faqTitle}>
         <UIcon name="sparkle" size={13} />
         Quick answers
       </div>
-      {faqs.map((f, i) => (
-        <div key={f.id} className={styles.faqItem}>
+      <div className={styles.searchWrap}>
+        <UIcon name="search" size={12} className={styles.searchIcon} />
+        <input
+          ref={searchRef}
+          id={HELP_SEARCH_ID}
+          className={styles.searchInput}
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search help..."
+          aria-label="Search help"
+        />
+      </div>
+      <p role="status" className={styles.helpSearchStatus}>
+        {/* Review Important 3: the sentence that says "open a ticket" is the door to one. */}
+        {query.trim().length >= 3 && shown.length === 0
+          ? <>No answer matches that. Try other words, or <Link to={NEW_TICKET_HREF}>open a ticket</Link>.</>
+          : ''}
+      </p>
+      {shown.map((f) => (
+        <div key={f.id} id={`${ANSWER_PREFIX}${f.id}`} className={styles.faqItem}>
           <button
+            ref={(el) => { if (el) questionRefs.current.set(f.id, el); else questionRefs.current.delete(f.id) }}
             className={styles.faqQ}
-            onClick={() => setOpen(open === i ? null : i)}
-            aria-expanded={open === i}
+            onClick={() => setOpenId(openId === f.id ? null : f.id)}
+            aria-expanded={openId === f.id}
           >
-            <UIcon name={open === i ? 'chevronDown' : 'chevronRight'} size={11} />
+            <UIcon name={openId === f.id ? 'chevronDown' : 'chevronRight'} size={11} />
             {f.q}
           </button>
-          {open === i && (
+          {openId === f.id && (
             <div className={styles.faqA}>
               {f.a}
               <VoteRow faqId={f.id} votes={votes} onVote={onVote} />

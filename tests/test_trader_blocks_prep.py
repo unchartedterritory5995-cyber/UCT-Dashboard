@@ -6,7 +6,8 @@ Pre-flight corrections carried here (R-PF-B5, R-PF-N10..N14):
   * B5: quotes come from the cache-only `_cached_quote` (over `_quotes` + `_index_field`), never
     `price_stamp_quote` (it calls the vendor); the regime from the held gate `_regime_field`.
   * N11: "my names" are the member's own (positions, watchlists, flagged), never the UCT 20.
-  * N12: levels never freeze sample (example) cards; the gate is `setups_board.enabled()`.
+  * N12: levels never freeze sample (example) cards (the board is always on since its flag was
+    retired, 2026-11-04).
   * N13: the headline is the narrative's first sentence, never the "TODAY'S FOCUS" heading.
   * N14: PREP_PARTS / PREP_BLOCK are railed against the client registry's prep ids.
 """
@@ -58,7 +59,7 @@ def _held(monkeypatch, payload):
 
 @pytest.fixture
 def cold(monkeypatch):
-    """Nothing held anywhere: no rundown, no breadth, no earnings cache, no names, levels off."""
+    """Nothing held anywhere: no rundown, no breadth, no earnings cache, no names."""
     from api.services import engine
     from api.services.cache import cache
     from api.services.journal_two import regime, trader_blocks as tb
@@ -67,7 +68,6 @@ def cold(monkeypatch):
     _held(monkeypatch, None)
     monkeypatch.setattr(cache, "get", lambda key, *a, **k: None)
     monkeypatch.setattr(tb, "_my_names", lambda uid: set())
-    monkeypatch.delenv("NOTEBOOK_SETUPS_BOARD_ENABLED", raising=False)
 
 
 # ── each part names its gap ───────────────────────────────────────────────────────────────
@@ -82,7 +82,7 @@ def test_each_part_labels_its_gap(cold):
     movers = tb.prep_part("u1", "movers", now=NOW)
     assert movers["missing"] == "no_names" and movers["items"] == [] and movers["unquoted"] == 0
     levels = tb.prep_part("u1", "levels", now=NOW)
-    assert levels["needs"] == "the active setups board" and "cards" not in levels
+    assert levels["missing"] == "no_setups" and levels["cards"] == [] and "needs" not in levels
     for got, part in ((wire, "wire"), (earn, "earnings"), (movers, "movers"), (levels, "levels")):
         assert got["part"] == part and got["capturedAt"] == "2026-10-13T14:30:00Z"
 
@@ -290,7 +290,6 @@ def _card(sym, example=False):
 
 def test_levels_are_the_members_cards_with_cache_only_prices(monkeypatch, db_path):
     from api.services.journal_two import setups_board, trader_blocks as tb
-    monkeypatch.setenv(setups_board.FLAG, "1")
     seen: dict = {}
 
     def build_cards(conn, user_id, *, today=None, prices=None, read_plan=None, cap=setups_board.SCAN_CAP):
@@ -308,7 +307,6 @@ def test_levels_are_the_members_cards_with_cache_only_prices(monkeypatch, db_pat
 
 def test_levels_cap_at_one_board_page(monkeypatch, db_path):
     from api.services.journal_two import setups_board, trader_blocks as tb
-    monkeypatch.setenv(setups_board.FLAG, "1")
     cards = [_card(f"S{i:02d}") for i in range(setups_board.PAGE_SIZE + 5)]
     monkeypatch.setattr(setups_board, "build_cards", lambda conn, uid, **k: {"cards": cards, "count": len(cards)})
     got = tb.prep_part("u1", "levels", now=NOW)
@@ -317,19 +315,10 @@ def test_levels_cap_at_one_board_page(monkeypatch, db_path):
 
 def test_levels_with_no_setups_say_so(monkeypatch, db_path):
     from api.services.journal_two import setups_board, trader_blocks as tb
-    monkeypatch.setenv(setups_board.FLAG, "1")
     monkeypatch.setattr(setups_board, "build_cards",
                         lambda conn, uid, **k: {"cards": [_card("SAMPLE", example=True)], "count": 0})
     got = tb.prep_part("u1", "levels", now=NOW)
     assert got["cards"] == [] and got["missing"] == "no_setups" and got["detail"]
-
-
-def test_levels_gate_is_the_boards_own(monkeypatch):
-    """N12: the gate is setups_board.enabled(), never a restated flag literal."""
-    from api.services.journal_two import setups_board, trader_blocks as tb
-    monkeypatch.setattr(setups_board, "enabled", lambda: False)
-    monkeypatch.setenv(setups_board.FLAG, "1")
-    assert tb.prep_part("u1", "levels", now=NOW)["needs"] == "the active setups board"
 
 
 # ── N10: a raising read never fails a Daily prep create ───────────────────────────────────
@@ -415,7 +404,6 @@ def test_a_cold_prep_reaches_no_vendor(doors, monkeypatch, db_path):
     from api.services.journal_two import setups_board, trader_blocks as tb
     monkeypatch.setattr(cache, "get", lambda key, *a, **k: None)
     monkeypatch.setattr(tb, "_my_names", lambda uid: {"NVDA", "AMD"})
-    monkeypatch.setenv(setups_board.FLAG, "1")
     got = {p: tb.prep_part("u1", p, now=NOW) for p in tb.PREP_PARTS}
     assert doors == []
     assert got["movers"]["missing"] == "no_quotes" and got["movers"]["unquoted"] == 2
@@ -438,9 +426,7 @@ def test_route_answers_each_part_and_404s_an_unknown_one(cold, monkeypatch, db_p
     app = FastAPI()
     app.include_router(r.router)
     url = "/api/j2/trader-blocks/prep/{}"
-    monkeypatch.delenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", raising=False)
-    assert TestClient(app).get(url.format("wire")).status_code == 404
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
+    assert TestClient(app).get(url.format("wire")).status_code == 401
     app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": "u1", "role": "member", "plan": "free"}
     assert TestClient(app).get(url.format("wire")).status_code == 402
     app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": "u1", "role": "member", "plan": "pro"}
@@ -455,7 +441,6 @@ def test_route_answers_a_raising_read_as_its_gap(cold, monkeypatch, db_path):
     from api.routers import notebook_journal_styles as r
     from api.services.journal_two import trader_blocks as tb
     monkeypatch.setattr(tb, "_prep_wire", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("x")))
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
     app = FastAPI()
     app.include_router(r.router)
     app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": "u1", "role": "member", "plan": "pro"}

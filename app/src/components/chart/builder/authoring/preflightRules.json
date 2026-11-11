@@ -230,7 +230,7 @@
     "unsupported:other-timeframe:ladder": "This asks for the {wanted} timeframe, which UCT can't calculate an indicator on. Higher timeframes it can use: 5, 15, 30 and 60 minutes, daily, weekly and monthly."
   },
   "chartFunctionWords": {
-    "description": "BATCH 2 - the chart conversation door's member words for the formula functions (callExpansions.js / call_expansions.py). Read by api/services/definition_conversation.py (CHART_LEXICON): each phrase becomes an ordinary planner TERM naming that function, its bucket replacing whatever the shared concept vocabulary holds for the same words - so 'momentum', which the vocabulary refuses for SCREENS (no published threshold), no longer excises a chart clause. The shared vocabulary and the screener's planner are unchanged.",
+    "description": "BATCH 2 - the chart conversation door's member words for the formula functions (callExpansions.js / call_expansions.py), and (2026-11-01) the conventional full names of functions closedTable.json declares, which the planner's Title-Case rule otherwise refused with no model call ('show the Relative Strength Index'). A word names exactly one declared function or expansion (tests/test_call_expansions_parity.py); a multi-line study names its first line, as Keltner does. Read by api/services/definition_conversation.py (CHART_LEXICON): each phrase becomes an ordinary planner TERM naming that function, its bucket replacing whatever the shared concept vocabulary holds for the same words - so 'momentum', which the vocabulary refuses for SCREENS (no published threshold), no longer excises a chart clause. The shared vocabulary and the screener's planner are unchanged.",
     "words": [
       ["momentum", "mom"],
       ["linear regression", "linreg"], ["linreg", "linreg"],
@@ -239,7 +239,28 @@
       ["vwma", "vwma"], ["volume weighted moving average", "vwma"],
       ["keltner channel", "kcUpper"], ["keltner channels", "kcUpper"], ["keltner", "kcUpper"],
       ["supertrend", "supertrend"], ["super trend", "supertrend"],
-      ["parabolic sar", "sar"], ["parabolic stop and reverse", "sar"], ["psar", "sar"]
+      ["parabolic sar", "sar"], ["parabolic stop and reverse", "sar"], ["psar", "sar"],
+      ["relative strength index", "rsi"],
+      ["average true range", "atr"],
+      ["commodity channel index", "cci"],
+      ["money flow index", "mfi"],
+      ["simple moving average", "sma"], ["exponential moving average", "ema"],
+      ["weighted moving average", "wma"], ["hull moving average", "hma"],
+      ["wilder moving average", "rma"], ["smoothed moving average", "rma"],
+      ["arnaud legoux moving average", "alma"],
+      ["moving average convergence divergence", "macd"],
+      ["stochastic oscillator", "stoch"],
+      ["average directional index", "adx"], ["average directional movement index", "adx"],
+      ["williams percent r", "williamsR"],
+      ["standard deviation", "stdev"],
+      ["donchian channel", "donchianUpper"], ["donchian channels", "donchianUpper"],
+      ["ichimoku cloud", "ichimokuSpanA"], ["ichimoku", "ichimokuSpanA"],
+      ["bollinger band width", "bbw"], ["bollinger bandwidth", "bbw"],
+      ["volume weighted average price", "vwap"],
+      ["anchored vwap", "avwap"], ["anchored volume weighted average price", "avwap"],
+      ["percent rank", "percentrank"], ["rank correlation index", "rci"],
+      ["balance of power", "bop"],
+      ["bollinger band", "bbUpper"], ["bollinger bands", "bbUpper"], ["bollinger", "bbUpper"]
     ]
   },
   "questionShape": {

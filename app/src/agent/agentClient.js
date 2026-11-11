@@ -40,7 +40,39 @@ export function turnReply(res) {
   return ok ? res : { ok: false, status: res.status, malformed: true, error: FAILED }
 }
 
-export const agentTurn = async (body) => turnReply(await post('/api/agent/turn', body))
+// ⛔ ADR-005 L5: an object marked `isolated: true` (an MD-1 envelope of a model-isolated kind, L2) never
+// leaves the browser in a model request — removed at any depth from the request's model-bound parts, and
+// the removal is counted (never its content). L6 strips again on the server: neither layer trusts the other.
+const MODEL_BOUND = ['context', 'pending', 'reference', 'repair', 'history', 'memory']
+let isolationDropped = 0
+export const isolationDrops = () => isolationDropped
+const DROP = Symbol('isolated')
+function stripIsolated(v) {
+  if (Array.isArray(v)) return v.map(stripIsolated).filter(x => x !== DROP)
+  if (v && typeof v === 'object') {
+    if (v.isolated === true) { isolationDropped += 1; return DROP }
+    const out = {}
+    for (const [k, x] of Object.entries(v)) { const y = stripIsolated(x); if (y !== DROP) out[k] = y }
+    return out
+  }
+  return v
+}
+export function modelSafeBody(body) {
+  if (!body || typeof body !== 'object') return body
+  const before = isolationDropped
+  const out = { ...body }
+  for (const k of MODEL_BOUND) {
+    if (!(k in out)) continue
+    const y = stripIsolated(out[k])
+    if (y === DROP) delete out[k]
+    else out[k] = y
+  }
+  if (isolationDropped > before) {
+    try { console.warn(`[uct-agent] removed ${isolationDropped - before} isolated value(s) from a model request (ADR-005 L5)`) } catch { /* ignore */ }
+  }
+  return out
+}
+export const agentTurn = async (body) => turnReply(await post('/api/agent/turn', modelSafeBody(body)))
 
 /**
  * The same turn as `agentTurn`, over POST /api/agent/turn/stream (text/event-stream). `onEvent` gets
@@ -55,30 +87,68 @@ export function streamingEnabled() {
 }
 // Whether THIS server streams turns (GET /api/agent/config, read once when the Agent opens). Until it
 // has answered yes, every turn is asked the old way — a server with streaming off sees no change at all.
-let serverStream = { on: false, nl1: false, inflight: null, at: 0 }
+let serverStream = { on: false, nl1: false, data: false, scan: false, kinds: null, news: false, planner: 'v1', coach: false, routingV2: false, failed: false, inflight: null, at: 0 }
 const CONFIG_TTL_MS = 5 * 60 * 1000
 export function loadAgentConfig() {
   if (serverStream.inflight) return serverStream.inflight
   if (serverStream.at && Date.now() - serverStream.at < CONFIG_TTL_MS) return Promise.resolve(serverStream.on)
   serverStream.inflight = fetch('/api/agent/config', { credentials: 'include', cache: 'no-store' })
     .then(r => (r.ok ? r.json() : null))
-    .then((c) => { serverStream.on = !!(c && c.stream === true); serverStream.nl1 = !!(c && c.nl1 === true); serverStream.at = Date.now(); return serverStream.on })
-    .catch(() => serverStream.on)
+    .then((c) => {
+      serverStream.on = !!(c && c.stream === true); serverStream.nl1 = !!(c && c.nl1 === true)
+      serverStream.data = !!(c && c.data === true); serverStream.scan = !!(c && c.scan === true)
+      serverStream.kinds = serverStream.data && Array.isArray(c.data_kinds) ? c.data_kinds.filter(k => typeof k === 'string') : null
+      serverStream.news = !!(c && c.news === true); serverStream.failed = false
+      serverStream.planner = c && c.planner === 'v2' ? 'v2' : 'v1'
+      serverStream.coach = !!(c && c.coach === true)          // Wave 3 (UCT_AGENT_COACH): false unless the server says true
+      serverStream.routingV2 = !!(c && c.routing_v2 === true)  // NLM-1 (UCT_AGENT_ROUTING_V2): false unless the server says true
+      serverStream.at = Date.now(); return serverStream.on
+    })
+    .catch(() => { serverStream.failed = true; return serverStream.on })
     .finally(() => { serverStream.inflight = null })
   return serverStream.inflight
 }
 export const serverStreams = () => serverStream.on && streamingEnabled()
 // NL-1: whether THIS server serves it (UCT_AGENT_NL1). False until the config has answered yes, and on any error.
 export const serverServesNl1 = () => serverStream.nl1 === true
-export const _resetAgentConfig = () => { serverStream = { on: false, nl1: false, inflight: null, at: 0 } }
+// PROGRAM MD-1 / SC-1: whether THIS server serves the data gateway (UCT_AGENT_DATA) and its scan kinds (UCT_AGENT_SCAN).
+// False until the config has answered yes, and on any error — so nothing reads the gateway while it is dark.
+export const serverServesData = () => serverStream.data === true
+export const serverServesScan = () => serverStream.data === true && serverStream.scan === true
+// #621: the kinds THIS server activates (UCT_AGENT_DATA_KINDS -> config `data_kinds`), or null while the gateway is
+// dark, the list is missing, or the config has not answered. A capability reads a kind only when it is listed here.
+export const serverDataKinds = () => (serverStream.data === true && Array.isArray(serverStream.kinds) ? [...serverStream.kinds] : null)
+// News -> Agent (UCT_AGENT_NEWS): true / false once the config has answered (false on any error, or an Agent this
+// server does not serve), null while it has not.
+export const serverNewsState = () => (serverStream.at ? serverStream.news === true : (serverStream.failed ? false : null))
+export const _resetAgentConfig = () => { serverStream = { on: false, nl1: false, data: false, scan: false, kinds: null, news: false, planner: 'v1', coach: false, routingV2: false, failed: false, inflight: null, at: 0 } }
+// Wave 3 COACH (UCT_AGENT_COACH -> config `coach`): false until the config has answered true, and on any error.
+export const serverServesCoach = () => serverStream.coach === true
+// NLM-1 D1 (UCT_AGENT_ROUTING_V2 -> config `routing_v2`): false until the config has answered true, and on any error.
+export const serverRoutingV2 = () => serverStream.routingV2 === true
+// PLANNER v2 (Wave 1 A-05, UCT_AGENT_PLANNER=v2 → config `planner`): 'v1' until the config has answered 'v2', and on any error.
+export const serverPlanner = () => (serverStream.planner === 'v2' ? 'v2' : 'v1')
+// One MD-1 gateway read (POST /api/agent/data) -> { ok, data: DataEnvelope } | { ok: false, error }.
+// Only app/src/agent/data/client.js calls this.
+export const agentDataRead = (body) => post('/api/agent/data', body)
 export async function agentTurnStream(body, onEvent = () => {}) {
   if (!streamingEnabled()) return agentTurn(body)
+  return streamTurn('/api/agent/turn/stream', body, onEvent)
+}
+// PLANNER v2 (STEP-1): the same event stream, ALWAYS streamed (the step events are the turn; the kill switch
+// above is for v1's early reply text). `onEvent` gets {t:'step', …} and {t:'paused', …}; the result is the
+// final event's JSON (its envelope is an `answer` with no ops — nothing executes from it).
+export const agentTurnV2 = (body, onEvent = () => {}) => streamTurn('/api/agent/turn/stream', body, onEvent)
+export const agentResumeV2 = (body, onEvent = () => {}) => streamTurn('/api/agent/turn/resume', body, onEvent)
+export const agentStepResult = (body) => post('/api/agent/turn/step', body)
+
+async function streamTurn(url, body, onEvent) {
   let r
   try {
-    r = await fetch('/api/agent/turn/stream', {
+    r = await fetch(url, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-      body: JSON.stringify(body),
+      body: JSON.stringify(modelSafeBody(body)),
     })
   } catch {
     return { ok: false, error: 'Could not reach UCT. Check your connection.' }
@@ -151,6 +221,14 @@ const convUrl = (id) => `/api/agent/conversations/${encodeURIComponent(id)}`
 export const renameConversation = (id, title) => send(convUrl(id), 'PATCH', { title })
 export const pinConversation = (id, pinned) => send(convUrl(id), 'PATCH', { pinned })
 export const deleteConversation = (id) => send(convUrl(id), 'DELETE')
+// W1-C C-01 (builder-c): per-conversation STATE the server keeps beyond the session (today: `lastScreen`, the
+// screener's last spec + result ids). useAgent notes the open conversation here so a capability can read / write
+// its own state without holding the hook; null while no chat is open (a brand-new chat gets its id on its first turn).
+let activeConversation = null
+export const noteConversation = (id) => { activeConversation = typeof id === 'string' && id ? id : null }
+export const activeConversationId = () => activeConversation
+export const agentConversationState = (id, key) => send(`${convUrl(id)}/state/${encodeURIComponent(key)}`, 'GET')
+export const agentConversationStateSet = (id, key, value) => send(`${convUrl(id)}/state/${encodeURIComponent(key)}`, 'PUT', { value })
 export async function searchHistory(q) {
   const r = await send(`/api/agent/search?q=${encodeURIComponent(q)}`, 'GET')
   return r.ok ? (r.data?.results || []) : []

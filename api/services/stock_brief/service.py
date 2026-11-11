@@ -20,6 +20,7 @@ No per-view LLM call — the profile is generated on a background thread the fir
 time a ticker is viewed (generate-once + daily cap), exactly like News & Catalysts.
 """
 from __future__ import annotations
+from api.services import llm_models
 
 import json
 import logging
@@ -28,13 +29,14 @@ import threading
 import time
 from datetime import datetime, timezone
 
+from api.services import daily_counters
 from api.services.cache import cache
 from api.services.cache_policy import set_by_completeness
 from api.services.stock_brief import store
 
 _logger = logging.getLogger(__name__)
 
-_MODEL = os.environ.get("STOCK_BRIEF_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
+_MODEL = os.environ.get("STOCK_BRIEF_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", llm_models.SONNET)
 # 15 min, matching _EARN_TTL. Was 120s, which sat UNDER the bars layer's own
 # 300s daily TTL (`bars_fetch._CACHE_TTL['D']`) — so a recompute reliably
 # outlived the cache it read from, and every third view or so paid the full
@@ -53,7 +55,8 @@ _RETRY_AFTER = int(os.environ.get("STOCK_BRIEF_RETRY_AFTER", "3600") or 3600)   
 # quarter aligns to the earnings cadence; event-based invalidation (regenerate on a
 # new earnings print) is a clean future upgrade layered on the same store.
 _REFRESH_AFTER = int(os.environ.get("STOCK_BRIEF_REFRESH_AFTER", str(90 * 86400)))        # re-gen the profile every ~90 days (quarterly)
-_DAILY_CAP = int(os.environ.get("STOCK_BRIEF_DAILY_CAP", "300") or 300)      # generations/day (per process)
+_DAILY_CAP = int(os.environ.get("STOCK_BRIEF_DAILY_CAP", "300") or 300)      # generations/UTC day, across deploys
+_CAP_SCOPE = "stock_brief_generation"                                        # its daily_counters scope
 
 # Single-process generate-once dedupe + daily cap (matches the one-uvicorn web pod
 # assumption — see CLAUDE.md single-process invariants; mirrors news_catalysts).
@@ -216,6 +219,9 @@ def _meta(sym: str) -> dict:
 # ── Profile (company description + YTD thematic narrative) ────────────────────
 
 def _cost_ok() -> bool:
+    """Admit one generation against the day's cap. The count is durable, because a
+    module counter reset on every deploy and a day with four deploys allowed four
+    caps. The module counter stays as the bound when `daily_counters` fails open."""
     global _gen_day, _gen_count
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     with _gen_lock:
@@ -224,7 +230,9 @@ def _cost_ok() -> bool:
         if _DAILY_CAP > 0 and _gen_count >= _DAILY_CAP:
             return False
         _gen_count += 1
-        return True
+    cap = _DAILY_CAP if _DAILY_CAP > 0 else None
+    charge = daily_counters.Charge(_CAP_SCOPE, daily_counters.GLOBAL, 1, cap)
+    return daily_counters.take(today, [charge]) is None
 
 
 def _generate_and_store(sym: str) -> None:

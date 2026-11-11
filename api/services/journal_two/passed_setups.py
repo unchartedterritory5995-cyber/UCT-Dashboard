@@ -46,11 +46,8 @@ import uuid
 from typing import Any, Iterable
 
 from api.services.journal_two import sample_marker
-from api.services.notebook_flags import flag_on
 
 _log = logging.getLogger(__name__)
-
-FLAG = "NOTEBOOK_PASSED_SETUPS_ENABLED"
 
 #: The horizons, in sessions after the reference close.
 HORIZONS = (1, 5, 10, 20)
@@ -119,11 +116,6 @@ class PassedSetupError(ValueError):
     def __init__(self, message: str, status: int = 400):
         super().__init__(message)
         self.status = status
-
-
-def enabled() -> bool:
-    """The gate, read PER CALL through the one Notebook flag parse."""
-    return flag_on(FLAG, False)
 
 
 def ensure_schema(conn: sqlite3.Connection) -> None:
@@ -836,10 +828,8 @@ def list_items(user_id: str, *, conn: sqlite3.Connection | None = None) -> dict[
 
 
 def nightly_job() -> None:
-    """The nightly refresh: every member who has a passed-setups row. A no-op while the gate is
-    off; never raises (a scheduler job that raises is logged and forgotten)."""
-    if not enabled():
-        return
+    """The nightly refresh: every member who has a passed-setups row. Never raises (a scheduler
+    job that raises is logged and forgotten)."""
     try:
         conn = _conn()
     except Exception as e:  # noqa: BLE001

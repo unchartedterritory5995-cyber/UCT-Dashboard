@@ -33,9 +33,11 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import copy
 import importlib
 import json
 import threading
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from cryptography.fernet import Fernet
@@ -281,6 +283,46 @@ async def test_corrupt_base64_data_uri_is_a_named_failure_not_a_crash(source, pr
     assert all(n.get("type") != "image" for n in _body(note)["content"])
 
 
+@pytest.mark.parametrize("uri", ["data:image/png;base64,!!!not-valid-base64!!!===", "data:image/png;base64"])
+async def test_a_malformed_data_uri_is_a_final_unsupported_notice(source, provider, uri):
+    """Task 9 fix round 1 (minor b): a data URI that cannot decode will never decode -- a
+    FINAL `unsupported` notice, never a retried `fetch_failed`."""
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    rn = _rn("p1", "Bad Inline Image", media=[
+        {"ref": "md-img-1.png", "kind": "image", "name": "md-img-1.png", "data_uri": uri}])
+    rn.doc["content"].append({"type": "image", "attrs": {"src": "import-ref://md-img-1.png"}})
+    provider.notes_by_id = {"p1": rn}
+    await engine.sync_source(source["id"], full=True)
+    body = _body(notes_svc.list_notes("u1")[0])
+    notice = next(n for n in body["content"] if n.get("type") == "importNotice")
+    assert (notice["attrs"]["reason"], notice["attrs"]["attempts"]) == ("unsupported", 0)
+    conn = auth_db.get_connection()
+    try:
+        pending = conn.execute("SELECT import_media_pending FROM j2_notes WHERE user_id='u1'").fetchone()[0]
+    finally:
+        conn.close()
+    assert pending == 0
+
+
+def test_an_oversized_data_uri_is_refused_before_decoding(monkeypatch):
+    """Task 9 fix round 1 (minor a): a data URI longer than the largest source the policy
+    would keep (base64 of 25 MB, plus slack) is `too_large` -- never decoded."""
+    from api.services.journal_two import media_policy
+    monkeypatch.setattr(media_policy, "MEDIA_SOURCE_MAX_BYTES", 300)
+    limit = engine.data_uri_max_chars()
+    assert limit == 300 * 4 // 3 + engine.DATA_URI_SLACK_CHARS
+    decoded = []
+    monkeypatch.setattr(engine.base64, "b64decode", lambda *a, **k: decoded.append(1) or b"")
+    with pytest.raises(errors.NoteConnTooLarge):
+        engine._decode_data_uri("data:image/png;base64," + "A" * limit)
+    assert decoded == []
+    reason = engine._notice_for_exception(
+        errors.NoteConnTooLarge("x", reason="big"), ref="r", name="a.png", source_url=None, attempts=1)
+    assert reason["attrs"]["reason"] == "too_large"
+    engine._decode_data_uri("data:image/png;base64," + "A" * (limit - len("data:image/png;base64,")))
+    assert decoded == [1]                                     # at the limit: decoded
+
+
 # ---------------------------------------------------------------------------
 # 2. Re-sync (identical content) -> all-skipped
 # ---------------------------------------------------------------------------
@@ -375,6 +417,28 @@ async def test_local_edit_conflict_creates_sibling_and_preserves_both_versions(s
     assert sibling["bodyPlain"].strip() == "remote v2"
     assert "sync-conflict" in sibling["tags"]
     assert sibling["folderId"] == original_folder_id  # same folder as the original
+
+
+async def test_pre_confirm_conflict_tag_keeps_the_members_edit_time(source, provider):
+    """Task 15 D1, site 1 (`_import_remote_notes`' conflict_tag_updates loop): tagging the
+    member-edited ORIGINAL `sync-conflict` is engine bookkeeping, not an edit. Its
+    `updated_at` must stay the member's own edit time byte for byte, or the note jumps to
+    the top of "recently edited" at every sync that finds a conflict."""
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Trading Journal", text="remote v1")}
+    await engine.sync_source(source["id"], full=True)
+    original = notes_svc.list_notes("u1")[0]
+    edited = notes_svc.update_note("u1", original["id"], {"title": "My local rewrite"})
+
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-10T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Trading Journal", text="remote v2",
+                                      updated_at="2026-08-10T00:00:00+00:00")}
+    result = await engine.sync_source(source["id"], full=True, manual=True)
+    assert result["conflicts"] == 1
+
+    kept = notes_svc.get_note("u1", original["id"])
+    assert "sync-conflict" in kept["tags"]
+    assert kept["updatedAt"] == edited["updatedAt"]
 
 
 async def test_conflict_resync_updates_the_sibling_not_the_original(source, provider):
@@ -505,8 +569,197 @@ async def test_conflicted_note_with_remote_change_after_an_unchanged_pass_still_
 
 
 # ---------------------------------------------------------------------------
+# Plan A Task 1: "did the remote change" is keyed on the remote's REVISION
+# (`j2_notes.import_remote_rev`), never on our conversion. A converter fix
+# changes `_import_payload_hash` for every note on the next full pass; that
+# must not read as a remote edit on a member-edited note.
+# ---------------------------------------------------------------------------
+
+async def test_converter_change_never_manufactures_a_conflict_copy(source, provider):
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Page")}
+    await engine.sync_source(source["id"], full=True)
+    n = notes_svc.list_notes("u1")[0]
+    notes_svc.update_note("u1", n["id"], {"title": "Mine"})
+    # same remote revision, different conversion (a converter fix shipped)
+    provider.notes_by_id = {"p1": _rn("p1", "Page", text="Page, converted better")}
+    r = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r["conflicts"] == 0
+    assert [x["title"] for x in notes_svc.list_notes("u1")] == ["Mine"]
+    # the member's note is untouched: its body is still the original conversion
+    assert "converted better" not in notes_svc.get_note("u1", n["id"])["bodyPlain"]
+
+
+async def test_converter_change_updates_an_unedited_note_in_place(source, provider):
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Page")}
+    await engine.sync_source(source["id"], full=True)
+    provider.notes_by_id = {"p1": _rn("p1", "Page", text="Page, converted better")}
+    r = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r["conflicts"] == 0
+    all_notes = notes_svc.list_notes("u1")
+    assert len(all_notes) == 1
+    assert r["updated"] == 1 and "converted better" in all_notes[0]["bodyPlain"]
+
+
+async def test_remote_revision_change_on_edited_note_still_conflicts(source, provider):
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Page")}
+    await engine.sync_source(source["id"], full=True)
+    n = notes_svc.list_notes("u1")[0]
+    notes_svc.update_note("u1", n["id"], {"title": "Mine"})
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-02T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Page", text="remote v2",
+                                       updated_at="2026-08-02T00:00:00+00:00")}
+    r = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r["conflicts"] == 1
+    assert sorted(x["title"] for x in notes_svc.list_notes("u1")) == ["Mine", "Page (synced copy)"]
+
+
+async def test_legacy_row_without_remote_rev_uses_imported_at_fallback(source, provider):
+    from datetime import datetime, timedelta, timezone
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Page")}
+    await engine.sync_source(source["id"], full=True)
+    n = notes_svc.list_notes("u1")[0]
+    conn = auth_db.get_connection()
+    try:
+        # the rail is only meaningful if the import actually recorded a revision
+        assert conn.execute("SELECT import_remote_rev FROM j2_notes WHERE id = ?",
+                            (n["id"],)).fetchone()[0] == "2026-08-01T00:00:00+00:00"
+        conn.execute("UPDATE j2_notes SET import_remote_rev = NULL WHERE id = ?", (n["id"],))
+        conn.commit()
+    finally:
+        conn.close()
+    notes_svc.update_note("u1", n["id"], {"title": "Mine"})
+
+    # converter change, SAME remote updated_at (older than imported_at) -> no copy
+    provider.notes_by_id = {"p1": _rn("p1", "Page", text="Page, converted better")}
+    r1 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r1["conflicts"] == 0
+    assert [x["title"] for x in notes_svc.list_notes("u1")] == ["Mine"]
+
+    # a remote edit made AFTER the import -> a genuine conflict
+    later = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+    provider.refs = [RemoteRef(remote_id="p1", updated_at=later)]
+    provider.notes_by_id = {"p1": _rn("p1", "Page", text="remote v2", updated_at=later)}
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r2["conflicts"] == 1
+    assert sorted(x["title"] for x in notes_svc.list_notes("u1")) == ["Mine", "Page (synced copy)"]
+
+
+async def _legacy_conflicted_row_with_deleted_sibling(source, provider):
+    """A note that conflicted BEFORE Task 1 deployed: member-edited, remote
+    revision later than its (stale) imported_at, "(synced copy)" deleted by
+    the member, and `import_remote_rev` NULL (the pre-deploy baseline write
+    never recorded one). Returns (note id, the remote revision)."""
+    from datetime import datetime, timedelta, timezone
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Page")}
+    await engine.sync_source(source["id"], full=True)
+    n = notes_svc.list_notes("u1")[0]
+    notes_svc.update_note("u1", n["id"], {"title": "Mine"})
+    later = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+    provider.refs = [RemoteRef(remote_id="p1", updated_at=later)]
+    provider.notes_by_id = {"p1": _rn("p1", "Page", text="remote v2", updated_at=later)}
+    r = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r["conflicts"] == 1
+    sibling = next(x for x in notes_svc.list_notes("u1") if x["id"] != n["id"])
+    assert notes_svc.delete_note("u1", sibling["id"]) is True
+    conn = auth_db.get_connection()
+    try:
+        conn.execute("UPDATE j2_notes SET import_remote_rev = NULL WHERE id = ?", (n["id"],))
+        conn.commit()
+    finally:
+        conn.close()
+    return n["id"], later
+
+
+def _remote_rev_of(note_id):
+    conn = auth_db.get_connection()
+    try:
+        return conn.execute("SELECT import_remote_rev, updated_at FROM j2_notes WHERE id = ?",
+                            (note_id,)).fetchone()
+    finally:
+        conn.close()
+
+
+async def test_unchanged_pass_backfills_a_legacy_conflicted_rows_revision(source, provider):
+    """Fix round 1, finding 1: an unchanged pass (equal hash) records the
+    remote revision on a legacy row, timestamp-neutrally, so a LATER
+    converter change can no longer resurrect the deleted sibling."""
+    note_id, later = await _legacy_conflicted_row_with_deleted_sibling(source, provider)
+    before = _remote_rev_of(note_id)
+    assert before["import_remote_rev"] is None
+
+    # (i) unchanged pass: same revision, same conversion
+    provider.notes_by_id = {"p1": _rn("p1", "Page", text="remote v2", updated_at=later)}
+    r1 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r1["conflicts"] == 0
+    after = _remote_rev_of(note_id)
+    assert after["import_remote_rev"] == later
+    assert after["updated_at"] == before["updated_at"]  # timestamp-neutral
+
+    # (ii) converter change, same revision: no copy, no conflict
+    provider.notes_by_id = {"p1": _rn("p1", "Page", text="remote v2, converted better",
+                                       updated_at=later)}
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r2["conflicts"] == 0
+    assert [x["title"] for x in notes_svc.list_notes("u1")] == ["Mine"]
+
+
+async def test_legacy_conflicted_row_converter_change_without_prior_pass_is_no_worse(
+    source, provider,
+):
+    """Fix round 1, finding 1, the residual case: a converter change reaching
+    a legacy conflicted row BEFORE any unchanged pass. Pre-Task-1 the hash
+    rule called this a conflict and tried to re-confirm the deleted sibling
+    (a trashed sibling keeps its import_key, so that surfaces as a stored
+    failure, not a visible note); it still does (no worse), and the baseline
+    write now records the revision, so it happens at most ONCE -- the next
+    converter change is quiet."""
+    note_id, later = await _legacy_conflicted_row_with_deleted_sibling(source, provider)
+    provider.notes_by_id = {"p1": _rn("p1", "Page", text="remote v2, converted better",
+                                       updated_at=later)}
+    r1 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r1["conflicts"] == 1  # same as the pre-Task-1 hash rule
+    assert _remote_rev_of(note_id)["import_remote_rev"] == later
+    # The trashed sibling keeps its import_key, so the re-confirm hits the
+    # unique index and is reported as a failure rather than reappearing --
+    # exactly what the pre-Task-1 hash rule did on this pass.
+    assert any("p1#remote" in f for f in r1["failures"])
+    titles_after_first = sorted(x["title"] for x in notes_svc.list_notes("u1"))
+    assert titles_after_first == ["Mine"]
+
+    provider.notes_by_id = {"p1": _rn("p1", "Page", text="remote v2, converted twice",
+                                       updated_at=later)}
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r2["conflicts"] == 0
+    assert r2["failures"] == []
+    assert sorted(x["title"] for x in notes_svc.list_notes("u1")) == titles_after_first
+
+
+# ---------------------------------------------------------------------------
 # 5. Delete detection: 2-strikes + refuse guard
 # ---------------------------------------------------------------------------
+
+
+def _a_night_later(source_id):
+    """Backdate the source's previous full pass by a day, so the next
+    back-to-back full pass on the real clock is shaped like the NEXT nightly
+    pass. Every full pass, scheduler included, leaves at least
+    MEMBER_FULL_PASS_MIN_INTERVAL_S between strike 1 and strike 2; these
+    tests model nightly passes, which are a day apart."""
+    conn = auth_db.get_connection()
+    try:
+        conn.execute(
+            "UPDATE j2_note_sources SET last_full_sync_at = ? WHERE id = ?",
+            ((datetime.now(timezone.utc) - timedelta(days=1)).isoformat(), source_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
 
 async def test_delete_detection_needs_two_consecutive_full_misses(source, provider):
     provider.refs = [
@@ -522,6 +775,7 @@ async def test_delete_detection_needs_two_consecutive_full_misses(source, provid
 
     # Full sync #2: "c" is missing -> first miss, NOT deleted yet.
     provider.refs = provider.refs[:2]  # only a, b
+    _a_night_later(source["id"])
     r2 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r2["status"] == "ok"
     idx_rows = {r["remote_id"]: r for r in _remote_index_rows(source["id"])}
@@ -530,6 +784,7 @@ async def test_delete_detection_needs_two_consecutive_full_misses(source, provid
     assert "source-deleted" not in c_note["tags"]
 
     # Full sync #3: "c" STILL missing -> second consecutive miss -> tagged + severed.
+    _a_night_later(source["id"])
     r3 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r3["status"] == "ok"
     idx_rows = {r["remote_id"]: r for r in _remote_index_rows(source["id"])}
@@ -573,10 +828,12 @@ async def test_a_sever_is_persisted_to_the_sync_log_row_the_card_reads(source, p
     assert _newest_log_source_deleted() == 0
 
     provider.refs = provider.refs[:2]              # "c" goes missing
+    _a_night_later(source["id"])
     r2 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r2["sourceDeleted"] == 0                # first miss: no sever yet
     assert _newest_log_source_deleted() == 0
 
+    _a_night_later(source["id"])
     r3 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r3["sourceDeleted"] == 1                # second miss: severed
     # ⛔ THE POINT: the same 1 must be readable from the log row, because that
@@ -874,16 +1131,19 @@ async def test_body_write_race_reroutes_resolved_content_to_a_sibling_preserving
     provider.notes_by_id = {"p1": rn2, "p2": _rn("p2", "Target Note")}
 
     real_rewrite_body = engine.rewrite_body
-    fired = {"done": False}
+    fired = {"done": False, "edited_at": None}
 
-    def racing_rewrite_body(doc, media_urls, id_by_key, *, strip_unresolved_links=True):
+    def racing_rewrite_body(doc, media_urls, id_by_key, *, strip_unresolved_links=True,
+                            notices=None, resolved=None):
         if not fired["done"]:
             fired["done"] = True
             # Simulates a user's OWN edit landing in the window between this
             # note's import_confirm (already run) and this resolve step.
-            notes_svc.update_note("u1", original_id, {"title": "user's own concurrent edit"})
+            edited = notes_svc.update_note("u1", original_id, {"title": "user's own concurrent edit"})
+            fired["edited_at"] = edited["updatedAt"]
         return real_rewrite_body(
-            doc, media_urls, id_by_key, strip_unresolved_links=strip_unresolved_links)
+            doc, media_urls, id_by_key, strip_unresolved_links=strip_unresolved_links,
+            notices=notices, resolved=resolved)
 
     monkeypatch.setattr(engine, "rewrite_body", racing_rewrite_body)
 
@@ -894,6 +1154,9 @@ async def test_body_write_race_reroutes_resolved_content_to_a_sibling_preserving
     kept_original = notes_svc.get_note("u1", original_id)
     assert kept_original["title"] == "user's own concurrent edit"  # never clobbered
     assert "sync-conflict" in kept_original["tags"]
+    # Task 15 D1, site 2 (`_reroute_resolved_body_to_sibling`): the tag write is engine
+    # bookkeeping; the member's edit time survives it byte for byte.
+    assert kept_original["updatedAt"] == fired["edited_at"]
     # the LOSING (resolved) write never applied -> the placeholder confirm
     # already wrote is still there, untouched by the race.
     assert "import-link://" in json.dumps(_body(kept_original))
@@ -1071,11 +1334,71 @@ async def test_a_failing_sync_still_marks_the_source_broken_no_regression(source
 # place so self-heal can retry after a fix.
 
 
-async def test_oversized_resolved_body_fails_validation_and_leaves_placeholder_in_place(
+async def test_a_note_whose_projection_fails_is_a_named_failure_and_the_pass_continues(
+    source, provider, monkeypatch,
+):
+    """Plan A Task 2 fix round 1, M1 + M2. `_apply_resolved_body` now rebuilds the
+    note's sidecars; when that raises for ONE note, its body write is rolled back
+    (placeholder kept, updated_at unmoved) and the media pass records a per-note
+    failure and carries on with the next note instead of stopping the source."""
+    provider.refs = [RemoteRef(remote_id="bad", updated_at="2026-08-01T00:00:00+00:00"),
+                     RemoteRef(remote_id="good", updated_at="2026-08-01T00:00:01+00:00")]
+    bad = _rn("bad", "Bad Note", media=[{"ref": "img-b", "kind": "image", "name": "b.png"}])
+    bad.doc["content"].append({"type": "image", "attrs": {"src": "import-ref://img-b"}})
+    good = _rn("good", "Good Note", media=[{"ref": "img-g", "kind": "image", "name": "g.png"}])
+    good.doc["content"].append({"type": "image", "attrs": {"src": "import-ref://img-g"}})
+    provider.media_by_ref = {"img-b": (PNG_BYTES, "image/png"), "img-g": (PNG_BYTES, "image/png")}
+    provider.notes_by_id = {"bad": bad, "good": good}
+
+    real_sync = notes_svc._sync_note_sidecars
+    seen_baselines: dict[str, str] = {}
+    real_bulk = engine._bulk_note_updated_at
+
+    def recording_bulk(conn, ids):
+        out = real_bulk(conn, ids)
+        seen_baselines.update(out)
+        return out
+
+    def flaky_sync(conn, user_id, note_id, body_json, body_plain):
+        blob = json.dumps(body_json)
+        # Only the ENGINE's resolved write for the bad note fails; confirm's own
+        # sidecar rebuild (placeholder still present) goes through untouched.
+        if "Bad Note" in blob and "import-ref://" not in blob:
+            raise RuntimeError("projection failed")
+        return real_sync(conn, user_id, note_id, body_json, body_plain)
+
+    monkeypatch.setattr(engine, "_bulk_note_updated_at", recording_bulk)
+    monkeypatch.setattr(notes_svc, "_sync_note_sidecars", flaky_sync)
+
+    result = await engine.sync_source(source["id"], full=True)
+
+    assert result["status"] == "ok"
+    assert result["created"] == 2
+    assert any("resolved body write failed" in f and "projection failed" in f
+               for f in result["failures"]), result["failures"]
+    by_title = {n["title"]: n for n in notes_svc.list_notes("u1")}
+    bad_note, good_note = by_title["Bad Note"], by_title["Good Note"]
+    assert "import-ref://img-b" in json.dumps(_body(bad_note))       # body write rolled back
+    assert "import-ref://" not in json.dumps(_body(good_note))        # the next note still resolved
+    conn = auth_db.get_connection()
+    try:
+        upd = conn.execute("SELECT updated_at FROM j2_notes WHERE id = ?",
+                           (bad_note["id"],)).fetchone()[0]
+    finally:
+        conn.close()
+    assert upd == seen_baselines[bad_note["id"]]                       # updated_at never moved
+
+
+async def test_oversized_resolved_body_fails_validation_and_terminates(
     source, provider, monkeypatch,
 ):
     """Exercises the PER-BATCH (media) pass's validation call — the note has
-    media so `_confirm_and_resolve_batch` actually reaches `rewrite_body`."""
+    media so `_confirm_and_resolve_batch` actually reaches `rewrite_body`.
+
+    Plan A Task 8 (Task 6 review d): it used to leave the placeholder in place, pending,
+    so every later pass re-fetched the media with no attempt counted. When even the
+    final-notice body cannot be stored (this fake makes EVERY rewrite huge), the
+    placeholders are removed, the note stops pending, and the loss is a named failure."""
     provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
     rn = _rn("p1", "Oversize Target", media=[{"ref": "img-1", "kind": "image", "name": "x.png"}])
     rn.doc["content"].append({"type": "image", "attrs": {"src": "import-ref://img-1"}})
@@ -1090,7 +1413,8 @@ async def test_oversized_resolved_body_fails_validation_and_leaves_placeholder_i
         "content": [{"type": "paragraph", "content": [{"type": "text", "text": "x" * 2_000_000}]}],
     }
 
-    def fake_rewrite_body(doc, media_urls, id_by_key, *, strip_unresolved_links=True):
+    def fake_rewrite_body(doc, media_urls, id_by_key, *, strip_unresolved_links=True,
+                          notices=None, resolved=None):
         return huge_doc, []
 
     monkeypatch.setattr(engine, "rewrite_body", fake_rewrite_body)
@@ -1102,9 +1426,14 @@ async def test_oversized_resolved_body_fails_validation_and_leaves_placeholder_i
     assert any("validation" in f.lower() for f in result["failures"])
 
     note = notes_svc.list_notes("u1")[0]
-    # the placeholder body import_confirm wrote is still there, untouched.
-    assert "import-ref://img-1" in json.dumps(_body(note))
+    assert "import-ref://img-1" not in json.dumps(_body(note))
     assert json.dumps(_body(note)) != json.dumps(huge_doc)
+    assert _row("u1", "fake:fake-graph/p1")["import_media_pending"] == 0
+    assert _last_failures(source["id"]) == [{
+        "noteTitle": "Oversize Target", "name": "x.png",
+        "reason": "x.png can't be shown here"}]
+    await engine.sync_source(source["id"], full=True, manual=True)
+    assert provider.fetch_media_calls == ["img-1"]                      # never fetched again
 
 
 async def test_oversized_resolved_link_body_fails_validation_in_the_final_pass(
@@ -1133,16 +1462,23 @@ async def test_oversized_resolved_link_body_fails_validation_in_the_final_pass(
         "content": [{"type": "paragraph", "content": [{"type": "text", "text": "x" * 2_000_000}]}],
     }
 
-    def fake_rewrite_body(doc, media_urls, id_by_key, *, strip_unresolved_links=True):
+    def fake_rewrite_body(doc, media_urls, id_by_key, *, strip_unresolved_links=True,
+                          notices=None, resolved=None):
         return huge_doc, []
 
     monkeypatch.setattr(engine, "rewrite_body", fake_rewrite_body)
+    # Plan A Task 4: the link heal pass runs after the final pass and is a THIRD
+    # rewrite site; without the same fake it would (correctly) heal the real link and
+    # hide what this test pins. With it, its own validation backstop is exercised too.
+    from api.services.journal_two.note_connectors import link_keys
+    monkeypatch.setattr(link_keys, "rewrite_body", fake_rewrite_body)
 
     result = await engine.sync_source(source["id"], full=True)
 
     assert result["status"] == "ok"
     assert result["created"] == 2
     assert any("validation" in f.lower() for f in result["failures"])
+    assert any(f.startswith("link heal: write failed") for f in result["failures"])
 
     source_note = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Oversize Link Source")
     assert "import-link://" in json.dumps(_body(source_note))
@@ -1522,6 +1858,7 @@ async def test_list_deleted_blast_radius_over_cap_refuses_and_falls_back_to_miss
 
     provider.list_deleted = _list_deleted
 
+    _a_night_later(source["id"])
     result = await engine.sync_source(source["id"], full=True, manual=True)
     assert result["status"] == "warning"
     assert result["sourceDeleted"] == 0  # nothing severed THIS pass
@@ -1582,6 +1919,7 @@ async def test_unrelated_two_strike_severs_still_apply_alongside_a_refused_expli
     # its miss_streak to 1, not yet severed) -- everything else present.
     provider.refs = refs[:-1]
     provider.notes_by_id = {r.remote_id: provider.notes_by_id[r.remote_id] for r in refs[:-1]}
+    _a_night_later(source["id"])
     r2 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r2["sourceDeleted"] == 0
 
@@ -1599,6 +1937,7 @@ async def test_unrelated_two_strike_severs_still_apply_alongside_a_refused_expli
 
     provider.list_deleted = _list_deleted
 
+    _a_night_later(source["id"])
     r3 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r3["status"] == "warning"
     assert r3["sourceDeleted"] == 1  # the genuine 2-strike sever still counted
@@ -1648,7 +1987,9 @@ async def test_severed_note_is_untagged_when_the_remote_id_reappears(source, pro
         RemoteRef(remote_id="p3", updated_at="2026-08-01T00:00:00+00:00"),
     ]
     provider.notes_by_id = {"p2": provider.notes_by_id["p2"], "p3": provider.notes_by_id["p3"]}
+    _a_night_later(source["id"])
     await engine.sync_source(source["id"], full=True, manual=True)
+    _a_night_later(source["id"])
     r2 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r2["sourceDeleted"] == 1
     tagged = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Comeback Kid")
@@ -1721,7 +2062,9 @@ async def test_severed_note_reappearing_does_not_create_a_conflict_duplicate(sou
         RemoteRef(remote_id="p3", updated_at="2026-08-01T00:00:00+00:00"),
     ]
     provider.notes_by_id = {"p2": provider.notes_by_id["p2"], "p3": provider.notes_by_id["p3"]}
+    _a_night_later(source["id"])
     await engine.sync_source(source["id"], full=True, manual=True)
+    _a_night_later(source["id"])
     r2 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r2["sourceDeleted"] == 1
 
@@ -1772,7 +2115,9 @@ async def test_a_genuine_user_edit_during_the_severed_window_still_conflicts_on_
         RemoteRef(remote_id="p3", updated_at="2026-08-01T00:00:00+00:00"),
     ]
     provider.notes_by_id = {"p2": provider.notes_by_id["p2"], "p3": provider.notes_by_id["p3"]}
+    _a_night_later(source["id"])
     await engine.sync_source(source["id"], full=True, manual=True)
+    _a_night_later(source["id"])
     r2 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r2["sourceDeleted"] == 1
 
@@ -1985,3 +2330,1350 @@ async def test_a_real_oversized_note_is_isolated_and_holds_the_cursor_back(sourc
         "content is a no-op (no new hash, no new timestamp), so nothing "
         "would ever ask for p2 again"
     )
+
+
+async def test_a_member_edit_survives_a_resync_of_a_note_with_an_unresolvable_link(source, provider):
+    """A synced note keeps `import_media_pending` set while one of its links
+    can never resolve (Notion: a mention of a page not shared with the
+    integration, a database, a trashed page). `import_confirm` deliberately
+    re-writes a pending note even when its hash is unchanged (audit B5, the
+    media-retry path) -- so a note the MEMBER edited, whose remote side did
+    not change, used to be handed to that write and lost the member's edit
+    on every later sync, with conflicts == 0 and no copy kept."""
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+
+    def remote():
+        rn = _rn("p1", "Page One", links=["fake:fake-graph/UNSHARED"])
+        rn.doc["content"].append({"type": "paragraph", "content": [{
+            "type": "text", "text": "see other page",
+            "marks": [{"type": "link", "attrs": {"href": "import-link://fake:fake-graph/UNSHARED"}}]}]})
+        return rn
+
+    provider.notes_by_id = {"p1": remote()}
+    await engine.sync_source(source["id"], full=True)
+    note = notes_svc.list_notes("u1")[0]
+
+    notes_svc.update_note("u1", note["id"], {
+        "title": "My edited title",
+        "bodyJson": {"type": "doc", "content": [{"type": "paragraph", "content": [
+            {"type": "text", "text": "MEMBER WROTE THIS"}]}]},
+    })
+
+    for _ in range(2):  # the defect repeated on every pass
+        provider.notes_by_id = {"p1": remote()}  # remote UNCHANGED
+        result = await engine.sync_source(source["id"], full=True, manual=True)
+        kept = notes_svc.get_note("u1", note["id"])
+        assert kept["title"] == "My edited title"
+        assert "MEMBER WROTE THIS" in kept["bodyPlain"]
+        assert result["updated"] == 0
+        assert result["conflicts"] == 0
+        assert len(notes_svc.list_notes("u1")) == 1
+
+
+# ── Plan D task 2: a member caller never waits through the busy ladder ───────
+
+async def test_a_member_sync_on_a_busy_source_returns_busy_without_sleeping(
+    source, provider, monkeypatch,
+):
+    slept = []
+
+    async def fake_sleep(s):
+        slept.append(s)
+
+    monkeypatch.setattr(engine.asyncio, "sleep", fake_sleep)
+    assert engine._try_acquire_source(source["id"])
+    try:
+        r = await engine.sync_source(source["id"], member=True)
+    finally:
+        engine._release_source(source["id"])
+    assert r == {"status": "busy", "sourceId": source["id"]}
+    assert slept == []  # the ladder was not walked
+    assert provider.list_changed_calls == []
+
+
+async def test_a_scheduler_sync_on_a_busy_source_still_walks_the_ladder(
+    source, provider, monkeypatch,
+):
+    slept = []
+
+    async def fake_sleep(s):
+        slept.append(s)
+
+    monkeypatch.setattr(engine.asyncio, "sleep", fake_sleep)
+    assert engine._try_acquire_source(source["id"])
+    try:
+        r = await engine.sync_source(source["id"])
+    finally:
+        engine._release_source(source["id"])
+    assert r == {"status": "busy", "sourceId": source["id"]}
+    assert len(slept) == len(engine._LOCKED_RETRY_DELAYS)
+    assert provider.list_changed_calls == []
+
+
+async def test_a_member_sync_skips_the_cooldown(source, provider):
+    first = await engine.sync_source(source["id"], manual=True)
+    assert first.get("status") != "busy"
+    again = await engine.sync_source(source["id"], member=True)
+    assert again.get("status") not in ("cooldown", "busy")
+
+
+def test_is_source_busy_reflects_the_inflight_set(source):
+    assert engine.is_source_busy(source["id"]) is False
+    assert engine._try_acquire_source(source["id"])
+    try:
+        assert engine.is_source_busy(source["id"]) is True
+    finally:
+        engine._release_source(source["id"])
+    assert engine.is_source_busy(source["id"]) is False
+
+
+
+# ── Plan D task 3: Sync now removal check ────────────────────────────────────
+#
+# A member's "Sync now" with full=True runs a rate-limited removal check: a
+# complete listing feeds the SAME 2-strike delete detection the nightly pass
+# uses. The rate limit (MEMBER_FULL_PASS_MIN_INTERVAL_S from
+# last_full_sync_at) is also what keeps two member presses inside ten minutes
+# from counting as two strikes. The clock is moved with engine._utcnow.
+
+T0 = datetime(2026, 11, 1, 15, 0, tzinfo=timezone.utc)
+
+
+def _at(monkeypatch, dt):
+    monkeypatch.setattr(engine, "_utcnow", lambda: dt)
+
+
+def _refs(*ids, updated_at="2026-08-01T00:00:00+00:00"):
+    return [RemoteRef(remote_id=i, updated_at=updated_at) for i in ids]
+
+
+def _note_by_title(title):
+    return next(n for n in notes_svc.list_notes("u1") if n["title"] == title)
+
+
+def _set_last_full(source_id, value):
+    conn = auth_db.get_connection()
+    try:
+        conn.execute(
+            "UPDATE j2_note_sources SET last_full_sync_at = ? WHERE id = ?", (value, source_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _seed_abcde(provider):
+    provider.refs = _refs("a", "b", "c", "d", "e")
+    provider.notes_by_id = {i: _rn(i, i.upper()) for i in "abcde"}
+
+
+async def _strike_one_on_e(source, provider, monkeypatch):
+    """Scheduler seed at T0, then "e" disappears and a member presses at
+    T0+11m: strike 1, pending 1."""
+    _seed_abcde(provider)
+    _at(monkeypatch, T0)
+    await engine.sync_source(source["id"], full=True)
+    provider.refs = _refs("a", "b", "c", "d")
+    _at(monkeypatch, T0 + timedelta(minutes=11))
+    r = await engine.sync_source(source["id"], full=True, member=True)
+    assert r["removalCheck"]["ran"] is True
+    assert r["removalCheck"]["pending"] == 1
+    return r
+
+
+async def test_explicit_trash_severs_on_one_member_press(source, provider, monkeypatch):
+    _seed_abcde(provider)
+    _at(monkeypatch, T0)
+    await engine.sync_source(source["id"], full=True)            # scheduler seed
+    provider.refs = _refs("a", "b", "c", "d")
+
+    async def trash(c):
+        return _refs("e")
+
+    provider.list_deleted = trash
+    _at(monkeypatch, T0 + timedelta(minutes=11))
+    r = await engine.sync_source(source["id"], full=True, member=True)
+    assert r["removalCheck"] == {"ran": True, "reason": None, "pending": 0, "severed": 1,
+                                 "nextAllowedAt": (T0 + timedelta(minutes=21)).isoformat()}
+    assert "source-deleted" in _note_by_title("E")["tags"]
+
+
+async def test_an_enumeration_miss_is_strike_one_and_reported_pending(source, provider, monkeypatch):
+    r = await _strike_one_on_e(source, provider, monkeypatch)
+    assert r["removalCheck"] == {"ran": True, "reason": None, "pending": 1, "severed": 0,
+                                 "nextAllowedAt": (T0 + timedelta(minutes=21)).isoformat()}
+    assert r["sourceDeleted"] == 0
+    assert "source-deleted" not in _note_by_title("E")["tags"]
+    idx = {row["remote_id"]: row for row in _remote_index_rows(source["id"])}
+    assert idx["e"]["miss_streak"] == 1
+
+
+async def test_a_second_press_inside_ten_minutes_is_not_a_strike(source, provider, monkeypatch):
+    await _strike_one_on_e(source, provider, monkeypatch)
+    stored_cursor = engine.connections.get_source_by_id(source["id"])["cursor"]
+    calls_before = len(provider.list_changed_calls)
+
+    _at(monkeypatch, T0 + timedelta(minutes=16))
+    r = await engine.sync_source(source["id"], full=True, member=True)
+    assert r["removalCheck"]["ran"] is False and r["removalCheck"]["reason"] == "rate_limited"
+    assert r["removalCheck"]["nextAllowedAt"] == (T0 + timedelta(minutes=21)).isoformat()
+    assert r["removalCheck"]["pending"] == 1 and "source-deleted" not in _note_by_title("E")["tags"]
+    assert r["removalCheck"]["severed"] == 0
+    assert provider.list_changed_calls[-1] == stored_cursor     # downgraded to incremental, one call only
+    assert len(provider.list_changed_calls) == calls_before + 1
+    # the rate-limited press did not move the stamp
+    assert engine.connections.get_source_by_id(source["id"])["lastFullSyncAt"] == (
+        T0 + timedelta(minutes=11)).isoformat()
+    idx = {row["remote_id"]: row for row in _remote_index_rows(source["id"])}
+    assert idx["e"]["miss_streak"] == 1
+
+
+async def test_a_second_press_after_ten_minutes_confirms_the_removal(source, provider, monkeypatch):
+    await _strike_one_on_e(source, provider, monkeypatch)
+    _at(monkeypatch, T0 + timedelta(minutes=22))
+    r = await engine.sync_source(source["id"], full=True, member=True)
+    assert r["removalCheck"]["ran"] is True and r["removalCheck"]["reason"] is None
+    assert r["removalCheck"]["severed"] == 1 and r["removalCheck"]["pending"] == 0
+    assert "source-deleted" in _note_by_title("E")["tags"]
+    assert "e" not in {row["remote_id"] for row in _remote_index_rows(source["id"])}
+
+
+async def test_a_nightly_pass_two_minutes_after_a_member_strike_is_not_strike_two(
+    source, provider, monkeypatch,
+):
+    """The strike gap holds for EVERY pass: a scheduler full pass less than
+    MEMBER_FULL_PASS_MIN_INTERVAL_S after the member's strike 1 does not
+    count an enumeration miss, but still stamps last_full_sync_at."""
+    await _strike_one_on_e(source, provider, monkeypatch)                 # strike 1 at T0+11m
+    _at(monkeypatch, T0 + timedelta(minutes=13))
+    r = await engine.sync_source(source["id"], full=True, manual=True)   # scheduler shape
+    assert r["sourceDeleted"] == 0
+    assert "removalCheck" not in r
+    e = _note_by_title("E")
+    assert "source-deleted" not in e["tags"]
+    assert notes_svc.get_note("u1", e["id"]) is not None
+    idx = {row["remote_id"]: row for row in _remote_index_rows(source["id"])}
+    assert idx["e"]["miss_streak"] == 1
+    assert engine.connections.get_source_by_id(source["id"])["lastFullSyncAt"] == (
+        T0 + timedelta(minutes=13)).isoformat()
+
+
+async def test_a_nightly_pass_eleven_minutes_after_a_member_strike_confirms(
+    source, provider, monkeypatch,
+):
+    await _strike_one_on_e(source, provider, monkeypatch)                 # strike 1 at T0+11m
+    _at(monkeypatch, T0 + timedelta(minutes=22))
+    r = await engine.sync_source(source["id"], full=True, manual=True)   # scheduler shape
+    assert r["sourceDeleted"] == 1
+    assert "removalCheck" not in r
+    e = _note_by_title("E")
+    assert "source-deleted" in e["tags"]
+    assert notes_svc.get_note("u1", e["id"]) is not None                 # never erased
+    assert "e" not in {row["remote_id"] for row in _remote_index_rows(source["id"])}
+    assert engine.connections.get_source_by_id(source["id"])["lastFullSyncAt"] == (
+        T0 + timedelta(minutes=22)).isoformat()
+
+
+async def test_an_explicit_trash_ref_inside_the_strike_gap_still_severs(
+    source, provider, monkeypatch,
+):
+    await _strike_one_on_e(source, provider, monkeypatch)                 # strike 1 on "e" at T0+11m
+    provider.refs = _refs("a", "b", "c")                                  # "d" now gone too
+
+    async def trash(c):
+        return _refs("d")
+
+    provider.list_deleted = trash
+    _at(monkeypatch, T0 + timedelta(minutes=13))
+    r = await engine.sync_source(source["id"], full=True, manual=True)   # scheduler shape
+    assert r["sourceDeleted"] == 1                                        # "d" only
+    assert "source-deleted" in _note_by_title("D")["tags"]
+    assert "source-deleted" not in _note_by_title("E")["tags"]
+    idx = {row["remote_id"]: row for row in _remote_index_rows(source["id"])}
+    assert "d" not in idx
+    assert idx["e"]["miss_streak"] == 1
+
+
+async def test_search_index_lag_never_severs_a_page_that_comes_back(source, provider, monkeypatch):
+    async def lagging_trash(c):
+        return []                     # Notion-shaped: the trash index has not caught up
+
+    provider.list_deleted = lagging_trash
+    r1 = await _strike_one_on_e(source, provider, monkeypatch)
+    assert r1["removalCheck"]["pending"] == 1
+
+    _at(monkeypatch, T0 + timedelta(minutes=12))
+    r2 = await engine.sync_source(source["id"], full=True, member=True)
+    assert r2["removalCheck"]["reason"] == "rate_limited"
+
+    provider.refs = _refs("a", "b", "c", "d", "e")           # "e" is back in the listing
+    _at(monkeypatch, T0 + timedelta(minutes=23))
+    r3 = await engine.sync_source(source["id"], full=True, member=True)
+    assert r3["removalCheck"]["ran"] is True and r3["removalCheck"]["pending"] == 0
+    assert r3["removalCheck"]["severed"] == 0
+    assert "source-deleted" not in _note_by_title("E")["tags"]
+    idx = {row["remote_id"]: row for row in _remote_index_rows(source["id"])}
+    assert _remote_index_rows(source["id"])  # e row present with miss_streak 0
+    assert idx["e"]["miss_streak"] == 0
+
+
+async def test_a_page_present_only_in_the_delta_listing_is_present(source, provider, monkeypatch):
+    """The union rule: a page in EITHER listing is present. Here the full
+    listing (cursor=None) lags and omits "e", but the delta listing carries it
+    (it was just edited) -- "e" must not take a strike."""
+    _seed_abcde(provider)
+    _at(monkeypatch, T0)
+    await engine.sync_source(source["id"], full=True)
+    provider.refs = _refs("a", "b", "c", "d") + _refs("e", updated_at="2026-08-09T00:00:00+00:00")
+    provider.notes_by_id["e"] = _rn("e", "E", text="edited", updated_at="2026-08-09T00:00:00+00:00")
+    orig = provider.list_changed
+
+    async def lagging_full_listing(creds, cursor=None):
+        got = await orig(creds, cursor=cursor)
+        return [r for r in got if r.remote_id != "e"] if cursor is None else got
+
+    provider.list_changed = lagging_full_listing
+    _at(monkeypatch, T0 + timedelta(minutes=11))
+    r = await engine.sync_source(source["id"], full=True, member=True)
+    assert r["removalCheck"]["ran"] is True and r["removalCheck"]["pending"] == 0
+    idx = {row["remote_id"]: row for row in _remote_index_rows(source["id"])}
+    assert idx["e"]["miss_streak"] == 0
+
+
+async def test_removal_check_lists_fully_first_and_fetches_only_the_delta(source, provider, monkeypatch):
+    provider.refs = _refs("a", "b")
+    provider.notes_by_id = {"a": _rn("a", "A"), "b": _rn("b", "B")}
+    _at(monkeypatch, T0)
+    await engine.sync_source(source["id"], full=True)
+    stored_cursor = engine.connections.get_source_by_id(source["id"])["cursor"]
+
+    provider.refs = _refs("a", "b") + _refs("c", updated_at="2026-08-05T00:00:00+00:00")
+    provider.notes_by_id["c"] = _rn("c", "C", updated_at="2026-08-05T00:00:00+00:00")
+    provider.fetch_many_calls = []
+    _at(monkeypatch, T0 + timedelta(minutes=11))
+    r = await engine.sync_source(source["id"], full=True, member=True)
+    assert provider.list_changed_calls[-2:] == [None, stored_cursor]
+    assert {x for call in provider.fetch_many_calls for x in call} == {"c"}
+    assert r["created"] == 1
+    assert {row["remote_id"] for row in _remote_index_rows(source["id"])} == {"a", "b", "c"}
+    # the cursor advances exactly as an incremental pass would
+    assert engine.connections.get_source_by_id(source["id"])["cursor"] == "2026-08-05T00:00:00+00:00"
+
+
+async def test_the_under_half_guard_still_refuses_a_member_press(source, provider, monkeypatch):
+    provider.refs = _refs("0", "1", "2", "3")
+    provider.notes_by_id = {str(i): _rn(str(i), f"N{i}") for i in range(4)}
+    _at(monkeypatch, T0)
+    await engine.sync_source(source["id"], full=True)
+    before = {row["remote_id"]: row["miss_streak"] for row in _remote_index_rows(source["id"])}
+
+    provider.refs = _refs("0")
+    _at(monkeypatch, T0 + timedelta(minutes=11))
+    r = await engine.sync_source(source["id"], full=True, member=True)
+    assert r["removalCheck"]["ran"] is True
+    assert r["removalCheck"]["reason"] == "refused"
+    assert r["removalCheck"]["pending"] == 0 and r["removalCheck"]["severed"] == 0
+    assert r["status"] == "warning" and r["deleteDetectionWarning"]
+    after = {row["remote_id"]: row["miss_streak"] for row in _remote_index_rows(source["id"])}
+    assert after == before
+    # a refused check is still a check for the rate limit
+    assert engine.connections.get_source_by_id(source["id"])["lastFullSyncAt"] == (
+        T0 + timedelta(minutes=11)).isoformat()
+    assert r["removalCheck"]["nextAllowedAt"] == (T0 + timedelta(minutes=21)).isoformat()
+
+
+async def test_a_failed_enumeration_degrades_to_an_incremental_pass(source, provider, monkeypatch):
+    provider.refs = _refs("a")
+    provider.notes_by_id = {"a": _rn("a", "A")}
+    _at(monkeypatch, T0)
+    await engine.sync_source(source["id"], full=True)
+
+    provider.refs = _refs("a") + _refs("b", updated_at="2026-08-05T00:00:00+00:00")
+    provider.notes_by_id["b"] = _rn("b", "B", updated_at="2026-08-05T00:00:00+00:00")
+    orig = provider.list_changed
+
+    async def full_listing_down(creds, cursor=None):
+        if cursor is None:
+            provider.list_changed_calls.append(None)
+            raise RuntimeError("enumeration down")
+        return await orig(creds, cursor=cursor)
+
+    provider.list_changed = full_listing_down
+    _at(monkeypatch, T0 + timedelta(minutes=11))
+    r = await engine.sync_source(source["id"], full=True, member=True)
+    assert r["status"] == "ok"
+    assert r["removalCheck"]["ran"] is False
+    assert r["removalCheck"]["reason"] == "enumeration_failed"
+    assert r["removalCheck"]["severed"] == 0 and r["removalCheck"]["pending"] == 0
+    assert r["removalCheck"]["nextAllowedAt"] is None    # T0+10m is already past: allowed now
+    assert any("enumeration down" in f for f in r["failures"])
+    assert r["created"] == 1 and _note_by_title("B")         # delta still imported
+    assert engine.connections.get_source_by_id(source["id"])["lastFullSyncAt"] == T0.isoformat()
+
+
+async def test_removal_check_on_an_empty_index_is_a_quiet_no_op(source, provider, monkeypatch):
+    provider.refs = _refs("a")
+    provider.notes_by_id = {"a": _rn("a", "A")}
+    _at(monkeypatch, T0)
+    r = await engine.sync_source(source["id"], full=True, member=True)   # first-ever call
+    assert r["status"] == "ok"
+    assert r["deleteDetectionWarning"] is None
+    assert r["removalCheck"] == {"ran": True, "reason": None, "pending": 0, "severed": 0,
+                                 "nextAllowedAt": (T0 + timedelta(minutes=10)).isoformat()}
+
+
+async def test_removal_check_on_an_empty_remote_and_empty_index_is_quiet(source, provider, monkeypatch):
+    _at(monkeypatch, T0)
+    r = await engine.sync_source(source["id"], full=True, member=True)
+    assert r["status"] == "ok" and r["deleteDetectionWarning"] is None
+    assert r["removalCheck"]["ran"] is True and r["removalCheck"]["reason"] is None
+    assert r["removalCheck"]["pending"] == 0
+
+
+async def test_an_unreadable_or_future_last_full_stamp_never_locks_the_member_out(
+    source, provider, monkeypatch,
+):
+    provider.refs = _refs("a")
+    provider.notes_by_id = {"a": _rn("a", "A")}
+    _at(monkeypatch, T0)
+    for stamp in ("garbage", (T0 + timedelta(hours=2)).isoformat(), "2026-11-01T14:49:00"):
+        _set_last_full(source["id"], stamp)
+        r = await engine.sync_source(source["id"], full=True, member=True)
+        assert r["removalCheck"]["ran"] is True, stamp
+        assert r["removalCheck"]["reason"] is None, stamp
+        assert engine.connections.get_source_by_id(source["id"])["lastFullSyncAt"] == T0.isoformat()
+    # ...but a stamp within the 60 s skew allowance still counts as a recent pass
+    _set_last_full(source["id"], (T0 + timedelta(seconds=30)).isoformat())
+    r = await engine.sync_source(source["id"], full=True, member=True)
+    assert r["removalCheck"]["reason"] == "rate_limited"
+
+
+async def test_a_pending_note_that_reappears_incrementally_heals_and_leaves_the_count(
+    source, provider, monkeypatch, db,
+):
+    await _strike_one_on_e(source, provider, monkeypatch)
+    assert db.pending_removal_counts("u1", [source["id"]]) == {source["id"]: 1}
+
+    provider.refs = _refs("a", "b", "c", "d") + _refs("e", updated_at="2026-08-09T00:00:00+00:00")
+    provider.notes_by_id["e"] = _rn("e", "E", text="edited", updated_at="2026-08-09T00:00:00+00:00")
+    _at(monkeypatch, T0 + timedelta(minutes=12))
+    r = await engine.sync_source(source["id"], manual=True)          # plain incremental
+    assert "removalCheck" not in r
+    assert db.pending_removal_counts("u1", [source["id"]]) == {}
+    assert "source-deleted" not in _note_by_title("E")["tags"]
+    idx = {row["remote_id"]: row for row in _remote_index_rows(source["id"])}
+    assert idx["e"]["miss_streak"] == 0
+
+
+async def test_every_full_pass_stamps_last_full_sync_at(source, provider, monkeypatch):
+    provider.refs = _refs("a")
+    provider.notes_by_id = {"a": _rn("a", "A")}
+    _at(monkeypatch, T0)
+    await engine.sync_source(source["id"], full=True)
+    assert engine.connections.get_source_by_id(source["id"])["lastFullSyncAt"] == T0.isoformat()
+    # an incremental pass (scheduler or member) never stamps it
+    _at(monkeypatch, T0 + timedelta(minutes=30))
+    await engine.sync_source(source["id"], manual=True)
+    await engine.sync_source(source["id"], member=True)
+    assert engine.connections.get_source_by_id(source["id"])["lastFullSyncAt"] == T0.isoformat()
+
+
+async def test_a_member_incremental_press_carries_no_removal_check(source, provider, monkeypatch):
+    _at(monkeypatch, T0)
+    r = await engine.sync_source(source["id"], member=True)
+    assert "removalCheck" not in r
+
+
+# ── Plan A Task 4: pending means "something can still resolve"; links heal later ──
+#
+# `import_media_pending` answers MEDIA only now (`import-ref://`); a link that cannot
+# resolve yet is `import_links_pending`, and it is the heal pass (link_keys.py), not a
+# re-import, that finishes it when the target arrives. Every heal write goes through
+# `engine._apply_resolved_body`: timestamp-neutral, optimistic-locked, projected.
+
+def _row(user_id, import_key):
+    conn = auth_db.get_connection()
+    try:
+        return dict(conn.execute(
+            "SELECT * FROM j2_notes WHERE user_id = ? AND import_key = ?", (user_id, import_key),
+        ).fetchone())
+    finally:
+        conn.close()
+
+
+def _link_para(key, text="see other page"):
+    return {"type": "paragraph", "content": [{
+        "type": "text", "text": text,
+        "marks": [{"type": "link", "attrs": {"href": f"import-link://{key}"}}]}]}
+
+
+def _links_of(note_id):
+    conn = auth_db.get_connection()
+    try:
+        return [r["target_note_id"] for r in conn.execute(
+            "SELECT target_note_id FROM j2_note_links WHERE note_id = ? ORDER BY position", (note_id,))]
+    finally:
+        conn.close()
+
+
+async def test_unresolvable_link_does_not_reimport_or_redownload(source, provider):
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+
+    def remote():
+        rn = _rn("p1", "Page One", links=["fake:fake-graph/UNSHARED"],
+                 media=[{"ref": "img-1", "kind": "image", "name": "chart.png"}])
+        rn.doc["content"].append(_link_para("fake:fake-graph/UNSHARED"))
+        rn.doc["content"].append({"type": "image", "attrs": {"src": "import-ref://img-1"}})
+        return rn
+
+    provider.notes_by_id = {"p1": remote()}
+    provider.media_by_ref["img-1"] = (PNG_BYTES, "image/png")
+    r1 = await engine.sync_source(source["id"], full=True)
+    assert r1["created"] == 1
+    calls = len(provider.fetch_media_calls)
+
+    provider.notes_by_id = {"p1": remote()}  # remote UNCHANGED
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert (r2["updated"], r2["skipped"]) == (0, 1)
+    assert len(provider.fetch_media_calls) == calls
+    row = _row("u1", "fake:fake-graph/p1")
+    assert (row["import_media_pending"], row["import_links_pending"]) == (0, 1)
+
+
+async def test_link_heals_when_its_target_arrives_later_without_reimport(source, provider):
+    p1_ref = RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")
+    provider.refs = [p1_ref]
+    p1 = _rn("p1", "Page One", links=["fake:fake-graph/p2"])
+    p1.doc["content"].append(_link_para("fake:fake-graph/p2", "Setup Library"))
+    provider.notes_by_id = {"p1": p1}
+    await engine.sync_source(source["id"], full=True)
+    p1_row = _row("u1", "fake:fake-graph/p1")
+    p1_id = p1_row["id"]
+    assert p1_row["import_links_pending"] == 1
+    before_updated_at = notes_svc.get_note("u1", p1_id)["updatedAt"]
+
+    # sync 2 (incremental): only p2 is new; p1 is never re-fetched or re-confirmed
+    provider.refs = [p1_ref, RemoteRef(remote_id="p2", updated_at="2026-08-02T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": p1, "p2": _rn("p2", "Setup Library",
+                                                  updated_at="2026-08-02T00:00:00+00:00")}
+    fetched_before = len(provider.fetch_calls) + sum(len(c) for c in provider.fetch_many_calls)
+    r2 = await engine.sync_source(source["id"], manual=True)
+    assert (r2["created"], r2["updated"]) == (1, 0)
+    fetched = provider.fetch_calls + [i for c in provider.fetch_many_calls for i in c]
+    assert fetched[fetched_before:] == ["p2"]
+
+    p2_id = _row("u1", "fake:fake-graph/p2")["id"]
+    assert "/journal?j2tab=notebook&note=" + p2_id in json.dumps(notes_svc.get_note("u1", p1_id)["bodyJson"])
+    assert _row("u1", "fake:fake-graph/p1")["import_links_pending"] == 0
+    assert notes_svc.get_note("u1", p1_id)["updatedAt"] == before_updated_at
+    # controller ruling 4: the healed link reached the projection (backlinks / graph)
+    assert _links_of(p1_id) == [p2_id]
+
+
+async def test_heal_never_touches_a_member_edited_note(source, provider):
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    p1 = _rn("p1", "Page One", links=["fake:fake-graph/p2"])
+    p1.doc["content"].append(_link_para("fake:fake-graph/p2"))
+    provider.notes_by_id = {"p1": p1}
+    await engine.sync_source(source["id"], full=True)
+    p1_id = _row("u1", "fake:fake-graph/p1")["id"]
+
+    # the member edits the note but keeps the (still unresolved) link
+    edited = {"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": "MEMBER WROTE THIS"}]},
+        _link_para("fake:fake-graph/p2")]}
+    notes_svc.update_note("u1", p1_id, {"bodyJson": edited})
+    member_body = notes_svc.get_note("u1", p1_id)["bodyJson"]
+    member_updated_at = notes_svc.get_note("u1", p1_id)["updatedAt"]
+
+    provider.refs.append(RemoteRef(remote_id="p2", updated_at="2026-08-02T00:00:00+00:00"))
+    provider.notes_by_id["p2"] = _rn("p2", "Target", updated_at="2026-08-02T00:00:00+00:00")
+    await engine.sync_source(source["id"], manual=True)
+
+    kept = notes_svc.get_note("u1", p1_id)
+    assert kept["bodyJson"] == member_body
+    assert kept["updatedAt"] == member_updated_at
+
+
+# ---------------------------------------------------------------------------
+# Plan A Task 6 (spec I-7): failed media is visible and retried, bounded
+# ---------------------------------------------------------------------------
+
+_IMG = "https://cdn.example.com/a.png"
+_IMG_KEY = "fake:fake-graph/p1"
+
+
+def _image_note(provider, *refs, failing=None):
+    """One remote page, "Chart page", carrying an image placeholder per ref. Every ref in
+    `failing` (default: all) raises from `fetch_media`."""
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    refs = refs or (_IMG,)
+    rn = _rn("p1", "Chart page", media=[
+        {"ref": r, "kind": "image", "name": r.rsplit("/", 1)[-1]} for r in refs])
+    for r in refs:
+        rn.doc["content"].append({"type": "image", "attrs": {"src": f"import-ref://{r}"}})
+    provider.notes_by_id = {"p1": rn}
+    provider.raise_on_fetch_media_for = set(refs if failing is None else failing)
+    return rn
+
+
+def _nodes_of(body, node_type):
+    out, stack = [], [body]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            if node.get("type") == node_type:
+                out.append(node)
+            stack.extend(node.get("content") or [])
+    return out
+
+
+def _only(body, node_type):
+    found = _nodes_of(body, node_type)
+    assert len(found) == 1, (node_type, body)
+    return found[0]
+
+
+def _last_failures(source_id):
+    raw = _log_rows(source_id)[-1]["failures_json"]
+    return None if raw is None else json.loads(raw)
+
+
+async def test_failed_image_leaves_a_visible_notice_and_stays_pending(source, provider):
+    _image_note(provider)
+    r1 = await engine.sync_source(source["id"], full=True)
+
+    assert r1["status"] == "ok" and r1["created"] == 1 and r1["mediaUploaded"] == 0
+    body = _body(notes_svc.list_notes("u1")[0])
+    assert _nodes_of(body, "image") == []
+    notice = _only(body, "importNotice")
+    assert notice["attrs"] == {"reason": "fetch_failed", "name": "a.png",
+                               "sourceUrl": _IMG, "ref": _IMG, "attempts": 1}
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 1
+    assert _last_failures(source["id"]) == [
+        {"noteTitle": "Chart page", "reason": "Couldn't copy a.png — retrying on the next sync",
+         "name": "a.png"}]
+    # the `_do_sync` result's own `failures` list is unchanged in shape: plain strings
+    assert any(_IMG in f for f in r1["failures"])
+    assert all(isinstance(f, str) for f in r1["failures"])
+
+
+async def test_clean_pass_writes_null_failures_json(source, provider):
+    _image_note(provider, failing=())
+    provider.media_by_ref[_IMG] = (PNG_BYTES, "image/png")
+    r1 = await engine.sync_source(source["id"], full=True)
+    assert r1["mediaUploaded"] == 1
+    assert _log_rows(source["id"])[-1]["failures_json"] is None
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
+
+
+async def test_retry_replaces_the_notice_with_the_image(source, provider):
+    _image_note(provider)
+    await engine.sync_source(source["id"], full=True)
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 1
+
+    provider.raise_on_fetch_media_for = set()
+    provider.media_by_ref[_IMG] = (PNG_BYTES, "image/png")
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+
+    assert r2["mediaUploaded"] == 1
+    body = _body(notes_svc.list_notes("u1")[0])
+    assert _nodes_of(body, "importNotice") == []
+    assert _only(body, "image")["attrs"]["src"].startswith("/api/j2/notes/attachments/u1/")
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
+    assert provider.fetch_media_calls == [_IMG, _IMG]
+    assert _last_failures(source["id"]) is None
+
+
+async def test_retry_stops_after_max_attempts_with_a_final_notice(source, provider):
+    from api.services.journal_two.import_notice import MEDIA_RETRY_MAX_ATTEMPTS
+    _image_note(provider)
+    for n in range(1, MEDIA_RETRY_MAX_ATTEMPTS + 1):
+        await engine.sync_source(source["id"], full=True, manual=True)
+        notice = _only(_body(notes_svc.list_notes("u1")[0]), "importNotice")
+        assert notice["attrs"]["attempts"] == n
+    assert len(provider.fetch_media_calls) == MEDIA_RETRY_MAX_ATTEMPTS
+    # final: no longer pending, and the sentence no longer promises a retry
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
+    assert _last_failures(source["id"]) == [
+        {"noteTitle": "Chart page", "reason": "Couldn't copy a.png", "name": "a.png"}]
+
+    r4 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert len(provider.fetch_media_calls) == MEDIA_RETRY_MAX_ATTEMPTS  # never fetched again
+    assert r4["skipped"] == 1
+    assert _only(_body(notes_svc.list_notes("u1")[0]), "importNotice")["attrs"]["attempts"] == 3
+    assert _last_failures(source["id"]) is None  # nothing was written this pass
+
+
+async def test_a_maxed_ref_is_not_fetched_while_a_sibling_ref_keeps_the_note_pending(
+        source, provider):
+    a, b = _IMG, "https://cdn.example.com/b.png"
+    _image_note(provider, a)                                            # a:1
+    await engine.sync_source(source["id"], full=True)
+    # The remote page gains b (a real change, so the whole note re-imports). Plan A Task 8
+    # fix round 1 (I4): a ref that already RESOLVED is never fetched again on a retry, so
+    # the sibling that keeps the note pending has to be one that is still failing.
+    _image_note(provider, a, b)
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-02T00:00:00+00:00")]
+    provider.notes_by_id["p1"].updated_at = "2026-08-02T00:00:00+00:00"
+    for _ in range(2):
+        await engine.sync_source(source["id"], full=True, manual=True)  # a:2,3  b:1,2
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 1             # b still retryable
+    assert provider.fetch_media_calls.count(a) == 3
+
+    await engine.sync_source(source["id"], full=True, manual=True)
+    assert provider.fetch_media_calls.count(a) == 3                     # a is done trying
+    by_ref = {n["attrs"]["ref"]: n["attrs"] for n in
+              _nodes_of(_body(notes_svc.list_notes("u1")[0]), "importNotice")}
+    assert by_ref[a]["reason"] == "fetch_failed" and by_ref[a]["attempts"] == 3
+    assert by_ref[b]["attempts"] == 3
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
+
+
+async def test_retry_bookkeeping_never_moves_updated_at(source, provider):
+    _image_note(provider)
+    await engine.sync_source(source["id"], full=True)
+    note_id = _row("u1", _IMG_KEY)["id"]
+    first = notes_svc.get_note("u1", note_id)["updatedAt"]
+    for _ in range(2):
+        await engine.sync_source(source["id"], full=True, manual=True)
+        assert notes_svc.get_note("u1", note_id)["updatedAt"] == first
+    # and the retries never read as a member edit: no conflict copy, no conflict count
+    assert len(notes_svc.list_notes("u1")) == 1
+    assert _log_rows(source["id"])[-1]["conflicts"] == 0
+
+
+async def test_edited_note_with_failed_media_is_left_alone(source, provider):
+    _image_note(provider)
+    await engine.sync_source(source["id"], full=True)
+    note_id = _row("u1", _IMG_KEY)["id"]
+    notes_svc.update_note("u1", note_id, {"title": "Chart page (mine)"})
+    member = notes_svc.get_note("u1", note_id)
+
+    provider.raise_on_fetch_media_for = set()
+    provider.media_by_ref[_IMG] = (PNG_BYTES, "image/png")
+    await engine.sync_source(source["id"], full=True, manual=True)
+
+    kept = notes_svc.get_note("u1", note_id)
+    assert kept["bodyJson"] == member["bodyJson"]   # the notice stays; no retry write
+    assert kept["updatedAt"] == member["updatedAt"]
+    assert kept["title"] == "Chart page (mine)"
+    assert provider.fetch_media_calls == [_IMG]
+
+
+async def test_storage_limit_waits_without_re_importing_every_pass(source, provider, monkeypatch):
+    from api.services.journal_two.notes_quota import NoteQuotaExceeded
+
+    def full(_n):
+        raise NoteQuotaExceeded("over the notebook storage limit")
+
+    monkeypatch.setattr(notes_svc, "assert_import_headroom", full)
+    _image_note(provider, failing=())
+    provider.media_by_ref[_IMG] = (PNG_BYTES, "image/png")
+    await engine.sync_source(source["id"], full=True)
+
+    notice = _only(_body(notes_svc.list_notes("u1")[0]), "importNotice")
+    assert notice["attrs"]["reason"] == "storage_limit"
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 2
+    assert _last_failures(source["id"]) == [{
+        "noteTitle": "Chart page", "name": "a.png",
+        "reason": "Not copied: storage limit. a.png will be copied once space frees up"}]
+
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r2["skipped"] == 1 and r2["updated"] == 0     # waiting is not a re-import
+    assert provider.fetch_media_calls == [_IMG]
+
+
+def test_notice_for_exception_maps_each_failure_to_its_reason():
+    from api.services.journal_two.notes_quota import NoteQuotaExceeded
+
+    def reason(exc):
+        n = engine._notice_for_exception(exc, ref="r", name="a.png", source_url=None, attempts=1)
+        assert n["type"] == "importNotice" and n["attrs"]["ref"] == "r"
+        return n["attrs"]["reason"]
+
+    assert reason(errors.NoteConnTransient("503")) == "fetch_failed"
+    assert reason(RuntimeError("boom")) == "fetch_failed"
+    # Plan A Task 8: the TYPE decides, never the words.
+    assert reason(errors.NoteConnUnsafeAddress("x", reason="anything at all")) == "unsafe"
+    assert reason(errors.NoteConnUnsupported(
+        "x", reason="Media reference points at a private/internal network address")) == "unsupported"
+    assert reason(errors.NoteConnTooLarge("x", reason="too big")) == "too_large"
+    assert reason(media_policy.MediaRejected("storage_limit", "s")) == "storage_limit"
+    assert reason(errors.NoteConnUnsupported("x", reason="encoding not read")) == "unsupported"
+    assert reason(notes_svc.NoteValidationError("Only PNG/JPG/GIF/WebP images allowed")) == "unsupported"
+    try:
+        raise notes_svc.NoteValidationError("full") from NoteQuotaExceeded("full")
+    except notes_svc.NoteValidationError as e:
+        assert reason(e) == "storage_limit"
+
+
+async def test_a_placeholder_with_no_media_entry_still_leaves_a_notice(source, provider):
+    """No silent drop: a placeholder the provider never listed in `media` cannot be fetched,
+    so it becomes a final notice instead of vanishing."""
+    rn = _image_note(provider, failing=())
+    provider.media_by_ref[_IMG] = (PNG_BYTES, "image/png")
+    rn.doc["content"].append({"type": "image", "attrs": {"src": "import-ref://orphan.png"}})
+    await engine.sync_source(source["id"], full=True)
+    body = _body(notes_svc.list_notes("u1")[0])
+    assert len(_nodes_of(body, "image")) == 1
+    notice = _only(body, "importNotice")
+    assert notice["attrs"]["ref"] == "orphan.png"
+    assert notice["attrs"]["reason"] == "unsupported"
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Plan A Task 8: every stored file goes through the ONE media policy
+# ---------------------------------------------------------------------------
+
+from api.services.journal_two import media_policy  # noqa: E402
+
+_IMGS = tuple(f"https://cdn.example.com/{c}.png" for c in "abc")
+
+
+def _distinct_png(i: int) -> bytes:
+    """A PNG unlike any other `i`: identical bytes in one note are ONE content-addressed file
+    and count once against the cap, so a cap test needs distinct images."""
+    import io
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new("RGB", (1, 1), (i * 40 % 256, 7, 9)).save(buf, "PNG")
+    return buf.getvalue()
+
+
+_IMG_BYTES = {ref: _distinct_png(i) for i, ref in enumerate(_IMGS)}
+_CAP_FOR_TWO = len(_IMG_BYTES[_IMGS[0]]) + len(_IMG_BYTES[_IMGS[1]])
+
+
+def _media_cap(monkeypatch, nbytes):
+    monkeypatch.setattr(media_policy, "MEMBER_IMPORT_MEDIA_CAP_BYTES", nbytes)
+
+
+async def test_cap_reached_mid_note_imports_the_note_and_marks_the_rest(source, provider, monkeypatch):
+    media_policy._USAGE_MEMO.clear()
+    _media_cap(monkeypatch, _CAP_FOR_TWO)
+    _image_note(provider, *_IMGS, failing=())
+    for ref in _IMGS:
+        provider.media_by_ref[ref] = (_IMG_BYTES[ref], "image/png")
+
+    result = await engine.sync_source(source["id"], full=True)
+
+    assert result["status"] == "ok" and result["created"] == 1          # the note still imports
+    body = _body(notes_svc.list_notes("u1")[0])
+    assert len(_nodes_of(body, "image")) == 2
+    notice = _only(body, "importNotice")
+    assert (notice["attrs"]["reason"], notice["attrs"]["ref"]) == ("storage_limit", _IMGS[2])
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 2
+    assert _last_failures(source["id"]) == [{
+        "noteTitle": "Chart page", "name": "c.png",
+        "reason": "Not copied: storage limit. c.png will be copied once space frees up"}]
+
+
+async def test_storage_wait_retries_once_space_frees(source, provider, monkeypatch):
+    media_policy._USAGE_MEMO.clear()
+    _media_cap(monkeypatch, _CAP_FOR_TWO)
+    _image_note(provider, *_IMGS, failing=())
+    for ref in _IMGS:
+        provider.media_by_ref[ref] = (_IMG_BYTES[ref], "image/png")
+    await engine.sync_source(source["id"], full=True)
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 2
+    note_id = _row("u1", _IMG_KEY)["id"]
+    stamped = notes_svc.get_note("u1", note_id)["updatedAt"]
+
+    # still full: waiting is not a re-import, and nothing is fetched again
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r2["skipped"] == 1 and r2["updated"] == 0
+    assert len(provider.fetch_media_calls) == 3
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 2
+
+    # space frees (room for a whole item) -> the waiting note comes back on the next pass
+    _media_cap(monkeypatch, 100 * 1024 * 1024)
+    stored_srcs = [n["attrs"]["src"] for n in _nodes_of(_body(notes_svc.get_note("u1", note_id)), "image")]
+    await engine.sync_source(source["id"], full=True, manual=True)
+    # fix round 1 (I4): ONLY the missing item is fetched; the two already stored are reused
+    assert provider.fetch_media_calls == [*_IMGS, _IMGS[2]]
+    body = _body(notes_svc.get_note("u1", note_id))
+    assert len(_nodes_of(body, "image")) == 3
+    assert set(stored_srcs) < {n["attrs"]["src"] for n in _nodes_of(body, "image")}
+    assert _nodes_of(body, "importNotice") == []
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
+    assert notes_svc.get_note("u1", note_id)["updatedAt"] == stamped     # timestamp-neutral
+
+
+async def test_a_storage_wait_comes_back_only_once_a_whole_item_fits(source, provider, monkeypatch):
+    """Final review M (promoted): a member a few bytes under the cap is not "space freed".
+    Flipping them every pass re-downloaded every waiting note every night, forever, only to
+    hit the cap again. A wait comes back once there is room for the largest item a sync can
+    copy (`MEDIA_SOURCE_MAX_BYTES`)."""
+    media_policy._USAGE_MEMO.clear()
+    _media_cap(monkeypatch, _CAP_FOR_TWO)
+    _image_note(provider, *_IMGS, failing=())
+    for ref in _IMGS:
+        provider.media_by_ref[ref] = (_IMG_BYTES[ref], "image/png")
+    await engine.sync_source(source["id"], full=True)
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 2
+    used = media_policy.member_media_bytes("u1")
+
+    _media_cap(monkeypatch, used + media_policy.MEDIA_SOURCE_MAX_BYTES - 1)    # under, not enough
+    r = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r["skipped"] == 1 and len(provider.fetch_media_calls) == 3          # no re-download
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 2
+
+    _media_cap(monkeypatch, used + media_policy.MEDIA_SOURCE_MAX_BYTES)        # a whole item fits
+    await engine.sync_source(source["id"], full=True, manual=True)
+    assert provider.fetch_media_calls == [*_IMGS, _IMGS[2]]
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
+
+
+async def test_a_retry_never_stores_an_already_resolved_file_twice(source, provider, monkeypatch, tmp_path):
+    """I4: a file chip that resolved stays; its uuid-named file is not written again (an
+    orphan the cap would count) when a sibling's storage wait retries."""
+    media_policy._USAGE_MEMO.clear()
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    rn = _rn("p1", "Chart page", media=[
+        {"ref": "f.csv", "kind": "file", "name": "f.csv"},
+        {"ref": _IMG, "kind": "image", "name": "a.png"}])
+    rn.doc["content"] += [{"type": "attachmentChip", "attrs": {"href": "import-ref://f.csv", "name": "f.csv"}},
+                          {"type": "image", "attrs": {"src": f"import-ref://{_IMG}"}}]
+    provider.notes_by_id = {"p1": rn}
+    provider.media_by_ref.update({"f.csv": (b"a,b,c", "text/csv"), _IMG: (PNG_BYTES, "image/png")})
+    _media_cap(monkeypatch, 5)
+    await engine.sync_source(source["id"], full=True)
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 2
+    _media_cap(monkeypatch, 100 * 1024 * 1024)       # room for a whole item: the wait comes back
+    await engine.sync_source(source["id"], full=True, manual=True)
+    files = [p for p in (tmp_path / "att").rglob("*") if p.is_file()]
+    assert sorted(p.suffix for p in files) == [".csv", ".png"]          # one each, no orphan
+    assert provider.fetch_media_calls == ["f.csv", _IMG, _IMG]
+
+
+async def test_a_connector_file_chip_is_never_decoded(source, provider):
+    """I5: an item the provider lists as a file keeps the bytes, even a corrupt image."""
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    broken = b"\x89PNG\r\n\x1a\n" + b"corrupt" * 10
+    rn = _rn("p1", "Chart page", media=[{"ref": "b.png", "kind": "file", "name": "b.png"}])
+    rn.doc["content"].append({"type": "attachmentChip", "attrs": {"href": "import-ref://b.png", "name": "b.png"}})
+    provider.notes_by_id = {"p1": rn}
+    provider.media_by_ref["b.png"] = (broken, "image/png")
+    await engine.sync_source(source["id"], full=True)
+    body = _body(notes_svc.list_notes("u1")[0])
+    assert _nodes_of(body, "importNotice") == []
+    assert _only(body, "attachmentChip")["attrs"]["size"] == len(broken)
+
+
+async def test_the_policy_work_runs_off_the_event_loop(source, provider, monkeypatch):
+    """I2: a manual "Sync now" runs on the uvicorn loop; the decode/store must not."""
+    import threading
+    loop_thread = threading.get_ident()
+    seen = []
+    real = media_policy.store_media
+
+    def spy(*a, **k):
+        seen.append(threading.get_ident())
+        return real(*a, **k)
+
+    monkeypatch.setattr(media_policy, "store_media", spy)
+    _image_note(provider, failing=())
+    provider.media_by_ref[_IMG] = (PNG_BYTES, "image/png")
+    await engine.sync_source(source["id"], full=True)
+    assert seen and all(t != loop_thread for t in seen)
+
+
+async def test_the_link_heal_runs_off_the_event_loop_on_its_own_connection(source, provider, monkeypatch):
+    """Final review I2: a manual "Sync now" runs `_import_remote_notes` on the uvicorn loop;
+    the heal sweep parses and rewrites up to 500 bodies, so it runs in a worker thread, with
+    its own connection (a sqlite connection never crosses threads)."""
+    loop_thread = threading.get_ident()
+    seen = []
+
+    def spy(user_id, **kwargs):
+        seen.append((threading.get_ident(), user_id, kwargs))
+        return {"healed": 0, "checked": 0, "unresolved": [], "failures": ["named heal failure"]}
+
+    monkeypatch.setattr(engine, "heal_pending_links", spy)
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Page")}
+    r = await engine.sync_source(source["id"], full=True, manual=True)
+    assert len(seen) == 1
+    thread, user_id, kwargs = seen[0]
+    assert thread != loop_thread and user_id == "u1"
+    assert "conn" not in kwargs
+    assert "named heal failure" in r["failures"]          # its failures still reach the pass
+
+
+def test_the_storage_wait_flip_is_member_scoped_and_timestamp_neutral(db):
+    conn = auth_db.get_connection()
+    try:
+        for nid, uid in (("n1", "u1"), ("n2", "u2")):
+            conn.execute(
+                "INSERT INTO j2_notes (id, user_id, title, body_json, created_at, updated_at, "
+                "import_media_pending) VALUES (?, ?, 't', '{}', '2026-01-01', '2026-01-01', 2)",
+                (nid, uid))
+        conn.commit()
+        assert engine._flip_storage_waits(conn, "u1") == 1
+        rows = {r["id"]: (r["import_media_pending"], r["updated_at"]) for r in
+                conn.execute("SELECT id, import_media_pending, updated_at FROM j2_notes")}
+    finally:
+        conn.close()
+    assert rows == {"n1": (1, "2026-01-01"), "n2": (2, "2026-01-01")}
+
+
+async def test_an_image_over_the_size_limit_reads_too_large(source, provider, monkeypatch):
+    """Task 6 review (b): an oversize image is the policy's `too_large`, never `unsupported`."""
+    monkeypatch.setattr(media_policy, "MEDIA_SOURCE_MAX_BYTES", len(PNG_BYTES) - 1)
+    _image_note(provider, failing=())
+    provider.media_by_ref[_IMG] = (PNG_BYTES, "image/png")
+    await engine.sync_source(source["id"], full=True)
+    notice = _only(_body(notes_svc.list_notes("u1")[0]), "importNotice")
+    assert notice["attrs"]["reason"] == "too_large" and notice["attrs"]["attempts"] == 0
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
+
+
+async def test_a_download_refused_for_its_size_reads_too_large(source, provider, monkeypatch):
+    _image_note(provider, failing=())
+
+    async def too_big(_creds, ref):
+        raise errors.NoteConnTooLarge("x", reason="Media reference is larger than the allowed size limit")
+
+    monkeypatch.setattr(provider, "fetch_media", too_big)
+    await engine.sync_source(source["id"], full=True)
+    assert _only(_body(notes_svc.list_notes("u1")[0]), "importNotice")["attrs"]["reason"] == "too_large"
+
+
+async def test_bomb_and_disguised_html_from_a_connector_are_notices_never_stored(source, provider, tmp_path):
+    _image_note(provider, *_IMGS[:2], failing=())
+    provider.media_by_ref[_IMGS[0]] = (b"<!DOCTYPE html><html><script>x()</script></html>", "image/png")
+    from api.services.journal_two.test_media_policy import _bomb_tiff
+    provider.media_by_ref[_IMGS[1]] = (_bomb_tiff(), "image/tiff")
+    result = await engine.sync_source(source["id"], full=True)
+    assert result["status"] == "ok"
+    notices = {n["attrs"]["ref"]: n["attrs"]["reason"] for n in
+               _nodes_of(_body(notes_svc.list_notes("u1")[0]), "importNotice")}
+    assert notices == {_IMGS[0]: "unsupported", _IMGS[1]: "too_large"}
+    stored = [p for p in (tmp_path / "att").rglob("*") if p.is_file()] if (tmp_path / "att").exists() else []
+    assert stored == []
+
+
+async def test_a_placeholder_chip_keeps_chip_intent_for_an_image_and_svg_is_never_inline(source, provider):
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg"></svg>'
+    rn = _rn("p1", "Chart page", media=[
+        {"ref": "s.svg", "kind": "image", "name": "logo.svg"},
+        {"ref": "p.png", "kind": "file", "name": "shot.png"}])
+    rn.doc["content"] += [{"type": "image", "attrs": {"src": "import-ref://s.svg"}},
+                          {"type": "attachmentChip", "attrs": {"href": "import-ref://p.png", "name": "shot.png"}}]
+    provider.notes_by_id = {"p1": rn}
+    provider.media_by_ref.update({"s.svg": (svg, "image/svg+xml"), "p.png": (PNG_BYTES, "image/png")})
+    await engine.sync_source(source["id"], full=True)
+    body = _body(notes_svc.list_notes("u1")[0])
+    assert _nodes_of(body, "image") == []
+    chips = {c["attrs"]["name"]: c["attrs"] for c in _nodes_of(body, "attachmentChip")}
+    assert chips["logo.svg"]["href"].endswith(".svg") and "/file/" in chips["logo.svg"]["href"]
+    assert chips["shot.png"]["href"].endswith(".png") and "/file/" in chips["shot.png"]["href"]
+    assert chips["shot.png"]["size"] == len(PNG_BYTES)
+
+
+async def test_unsafe_is_the_guards_type_never_the_wording(source, provider, monkeypatch):
+    """Task 6 review (c)+(e): a provider's own 'private page' refusal reads unsupported; only the
+    SSRF guard's TYPE reads unsafe."""
+    _image_note(provider, *_IMGS[:2], failing=())
+
+    async def refuse(_creds, ref):
+        if ref == _IMGS[0]:
+            raise errors.NoteConnUnsupported("x", reason="This is a private page you cannot share")
+        raise errors.NoteConnUnsafeAddress("x", reason="Media reference was refused")
+
+    monkeypatch.setattr(provider, "fetch_media", refuse)
+    await engine.sync_source(source["id"], full=True)
+    reasons = {n["attrs"]["ref"]: n["attrs"]["reason"] for n in
+               _nodes_of(_body(notes_svc.list_notes("u1")[0]), "importNotice")}
+    assert reasons == {_IMGS[0]: "unsupported", _IMGS[1]: "unsafe"}
+
+
+@pytest.mark.parametrize("url", [
+    "http://cdn.example.com/a.png", "https:///nohost.png", "https://10.0.0.7/a.png",
+    "https://169.254.169.254/latest/meta-data", "https://[::1]/a.png",
+])
+async def test_the_ssrf_guard_raises_the_unsafe_type(url):
+    from api.services.journal_two.note_connectors.providers.base import assert_public_https
+    with pytest.raises(errors.NoteConnUnsafeAddress):
+        await assert_public_https(url)
+    assert not hasattr(engine, "_UNSAFE_REASON_WORDS")      # the word list is gone
+
+
+async def test_a_resolved_body_that_fails_validation_terminates_under_the_bound(
+        source, provider, monkeypatch):
+    """Task 6 review (d): a resolved body the validator refuses used to leave the placeholder
+    pending, re-fetching its media on every pass with no attempt counted. It now lands each
+    item's final notice (a named failure), and the next pass fetches nothing."""
+    _image_note(provider, failing=())
+    provider.media_by_ref[_IMG] = (PNG_BYTES, "image/png")
+    real = notes_svc._validate_body_json
+
+    def refuse_resolved_media(raw):
+        if "/api/j2/notes/attachments/" in json.dumps(raw):
+            raise notes_svc.NoteValidationError("This note is too long to save as one page.")
+        return real(raw)
+
+    monkeypatch.setattr(notes_svc, "_validate_body_json", refuse_resolved_media)
+    result = await engine.sync_source(source["id"], full=True)
+    assert result["status"] == "ok"
+    assert any("validation" in f.lower() for f in result["failures"])
+    notice = _only(_body(notes_svc.list_notes("u1")[0]), "importNotice")
+    assert (notice["attrs"]["reason"], notice["attrs"]["ref"]) == ("unsupported", _IMG)
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 0
+    assert _last_failures(source["id"]) == [{
+        "noteTitle": "Chart page", "name": "a.png", "reason": "a.png can't be shown here"}]
+
+    await engine.sync_source(source["id"], full=True, manual=True)
+    assert provider.fetch_media_calls == [_IMG]                         # bounded: no refetch
+
+
+# ---------------------------------------------------------------------------
+# Plan A Task 9 (I-5, I-6): hotlinks are copied in; `data:` images decode; redirects followed
+# ---------------------------------------------------------------------------
+
+import httpx  # noqa: E402
+
+from api.services.journal_two.note_connectors.providers import base as base_module  # noqa: E402
+
+_HOT = "http://cdn.example.com/a.png"
+
+
+@pytest.fixture
+def web(provider, monkeypatch):
+    """The fake provider's `fetch_media` is the real shared hotlink path (`fetch_content_url`)
+    over a mock transport: what `web.routes[url]` answers, hop by hop. No live DNS, no network."""
+    async def _public(host):
+        return ["142.250.0.1"]
+
+    monkeypatch.setattr(base_module, "_resolve_host", _public)
+    state = {"routes": {}, "calls": []}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        # An http hop is sent to the checked IP with the original Host (fix round 1, I1).
+        url = f"{request.url.scheme}://{request.headers['host']}{request.url.raw_path.decode()}"
+        state["calls"].append(url)
+        answer = state["routes"].get(url)
+        if answer is None:
+            raise AssertionError(f"unexpected request to {request.url}")
+        return answer()
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+
+    async def fetch_media(_creds, ref):
+        provider.fetch_media_calls.append(ref)
+        return await base_module.fetch_content_url(client, ref, what="Fake media")
+
+    monkeypatch.setattr(provider, "fetch_media", fetch_media)
+    return state
+
+
+def _hot_note(provider, ref=_HOT):
+    """An mddoc-shaped entry: no `source_url` -- the ref is the original address."""
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    rn = _rn("p1", "Chart page", media=[{"ref": ref, "kind": "image", "name": "a.png"}])
+    rn.doc["content"].append({"type": "image", "attrs": {"src": f"import-ref://{ref}"}})
+    provider.notes_by_id = {"p1": rn}
+
+
+async def test_http_hotlink_is_downloaded_and_rehosted(source, provider, web):
+    _hot_note(provider)
+    web["routes"][_HOT] = lambda: httpx.Response(200, content=PNG_BYTES, headers={"content-type": "image/png"})
+    result = await engine.sync_source(source["id"], full=True)
+    assert result["mediaUploaded"] == 1
+    body = _body(notes_svc.list_notes("u1")[0])
+    (img,) = _nodes_of(body, "image")
+    assert img["attrs"]["src"].startswith("/api/j2/notes/attachments/u1/")
+    assert _HOT not in json.dumps(body)                         # never kept as a hotlink
+    assert _nodes_of(body, "importNotice") == []
+
+
+async def test_redirect_followed_to_the_real_image(source, provider, web):
+    _hot_note(provider)
+    web["routes"][_HOT] = lambda: httpx.Response(302, headers={"location": "https://cdn2.example.com/real.png"})
+    web["routes"]["https://cdn2.example.com/real.png"] = lambda: httpx.Response(
+        200, content=PNG_BYTES, headers={"content-type": "image/png"})
+    result = await engine.sync_source(source["id"], full=True)
+    assert result["mediaUploaded"] == 1
+    assert web["calls"] == [_HOT, "https://cdn2.example.com/real.png"]
+    (img,) = _nodes_of(_body(notes_svc.list_notes("u1")[0]), "image")
+    assert img["attrs"]["src"].startswith("/api/j2/notes/attachments/u1/")
+
+
+async def test_redirect_to_private_address_is_unsafe_notice(source, provider, web):
+    """A public URL that 302s to the cloud metadata address: a named `unsafe` notice where the
+    image was -- never a 500, never a stored page, and the metadata address is never asked."""
+    _hot_note(provider)
+    web["routes"][_HOT] = lambda: httpx.Response(302, headers={"location": "http://169.254.169.254/latest/meta-data/"})
+    result = await engine.sync_source(source["id"], full=True)
+    assert result["status"] == "ok" and result["created"] == 1 and result["mediaUploaded"] == 0
+    assert web["calls"] == [_HOT]
+    body = _body(notes_svc.list_notes("u1")[0])
+    assert _nodes_of(body, "image") == []
+    notice = _only(body, "importNotice")
+    assert notice["attrs"] == {"reason": "unsafe", "name": "a.png", "sourceUrl": _HOT, "ref": _HOT,
+                               "attempts": 0}
+    assert _row("u1", _IMG_KEY)["import_media_pending"] == 0     # final: never retried
+    root = notes_svc._ATTACHMENT_ROOT                            # nothing stored at all
+    assert not root.exists() or not any(p.is_file() for p in root.rglob("*"))
+
+
+async def test_failed_hotlink_notice_links_to_the_original(source, provider, web):
+    _hot_note(provider)
+    web["routes"][_HOT] = lambda: httpx.Response(404, content=b"gone")
+    await engine.sync_source(source["id"], full=True)
+    notice = _only(_body(notes_svc.list_notes("u1")[0]), "importNotice")
+    assert notice["attrs"]["reason"] == "fetch_failed"
+    assert notice["attrs"]["sourceUrl"] == _HOT
+
+
+async def test_percent_encoded_svg_data_uri_is_decoded_and_kept(source, provider):
+    """I-6 through the engine: an SVG data URI (percent-encoded) is decoded and stored -- as a
+    file, since an SVG is never inline (the media policy) -- never dropped."""
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    uri = "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E"
+    rn = _rn("p1", "Logo", media=[
+        {"ref": "md-img-1.svg", "kind": "image", "name": "md-img-1.svg", "data_uri": uri}])
+    rn.doc["content"].append({"type": "image", "attrs": {"src": "import-ref://md-img-1.svg"}})
+    provider.notes_by_id = {"p1": rn}
+    result = await engine.sync_source(source["id"], full=True)
+    assert result["mediaUploaded"] == 1
+    assert provider.fetch_media_calls == []
+    body = _body(notes_svc.list_notes("u1")[0])
+    assert _nodes_of(body, "importNotice") == []
+    (chip,) = _nodes_of(body, "attachmentChip")
+    assert chip["attrs"]["href"].endswith(".svg")
+
+
+# ---------------------------------------------------------------------------
+# Plan A Task 10 (L-3, L-4): every provider doc is finalized -- bare URLs become
+# links, every href goes through the one scheme policy -- before it is hashed.
+# ---------------------------------------------------------------------------
+
+def _link_marks(doc) -> list[tuple[str, str]]:
+    out = []
+
+    def walk(node):
+        if isinstance(node, dict):
+            for m in node.get("marks") or []:
+                if m.get("type") == "link":
+                    out.append((node.get("text"), m["attrs"]["href"]))
+            for c in node.get("content") or []:
+                walk(c)
+    walk(doc)
+    return out
+
+
+async def test_every_provider_doc_is_finalized_before_hashing(source, provider):
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    rn = _rn("p1", "Links", text="see www.tradingview.com/x. and NVDA.US")
+    rn.doc["content"].append({"type": "paragraph", "content": [
+        {"type": "text", "text": "bad", "marks": [{"type": "link", "attrs": {"href": "javascript:alert(1)"}}]},
+        {"type": "text", "text": " https://in.code/x", "marks": [{"type": "code"}]},
+    ]})
+    provider.notes_by_id = {"p1": rn}
+    original = copy.deepcopy(rn.doc)
+
+    await engine.sync_source(source["id"], full=True)
+
+    (note,) = notes_svc.list_notes("u1")
+    assert _link_marks(_body(note)) == [("www.tradingview.com/x", "https://www.tradingview.com/x")]
+    assert rn.doc == original  # the provider's own object is never mutated
+    # the hash was taken over the FINALIZED body: an unchanged re-push is a no-op
+    result = await engine.sync_source(source["id"], full=True, manual=True)
+    assert result["updated"] == 0 and result["created"] == 0
+
+
+async def test_a_notion_deep_link_resolves_to_the_imported_note(source, provider):
+    pid = "0123456789abcdef0123456789abcdef"
+    provider.refs = [
+        RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p2", updated_at="2026-08-01T00:00:01+00:00"),
+    ]
+    rn = _rn("p1", "Deep")
+    rn.doc["content"].append({"type": "paragraph", "content": [
+        {"type": "text", "text": "Target", "marks": [{"type": "link", "attrs": {"href": f"notion://www.notion.so/T-{pid}"}}]},
+    ]})
+    provider.notes_by_id = {"p1": rn, "p2": _rn("p2", "Target", updated_at="2026-08-01T00:00:01+00:00")}
+    # the fake provider's import key is not a notion key, so map the derived key onto p2's
+    real_import_key = provider.import_key
+    provider.import_key = lambda s, r: "notion:01234567-89ab-cdef-0123-456789abcdef" if r == "p2" else real_import_key(s, r)
+
+    await engine.sync_source(source["id"], full=True)
+
+    target_id = next(n["id"] for n in notes_svc.list_notes("u1") if n["title"] == "Target")
+    deep = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Deep")
+    assert _link_marks(_body(deep)) == [("Target", f"/journal?j2tab=notebook&note={target_id}")]
+
+
+async def test_a_notice_the_provider_placed_is_listed_in_failures_json_once(source, provider):
+    """Plan A Task 12 fix round 1: a notice the CONVERTER put in the note (a truncated
+    database, a file with no address) is a failure the member can read in the log, like the
+    engine's own media notices -- listed when the note is written, not again when it is
+    skipped unchanged, and it never marks the note pending."""
+    from api.services.journal_two import import_notice
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    rn = _rn("p1", "DB page")
+    rn.doc["content"].append(import_notice.notice_node(
+        "truncated", name="the first 100 rows of Trades", source_url=None, ref=None, attempts=0))
+    provider.notes_by_id = {"p1": rn}
+
+    await engine.sync_source(source["id"], full=True)
+    assert _last_failures(source["id"]) == [
+        {"noteTitle": "DB page", "reason": "Only the first 100 rows of Trades came over",
+         "name": "the first 100 rows of Trades"}]
+    assert _row("u1", "fake:fake-graph/p1")["import_media_pending"] == 0
+
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert (r2["updated"], r2["skipped"]) == (0, 1), r2
+    assert _last_failures(source["id"]) is None
+
+
+async def test_a_notion_media_block_that_failed_transiently_becomes_the_engines_retryable_notice(
+        source, provider, monkeypatch):
+    """Plan A Task 12 fix round 2 (ruling): the REAL Notion provider converts a page whose
+    image download answers 503. The image stays a placeholder with a byte-less media entry, and
+    the engine -- asking the provider's `fetch_media` -- writes the counted `fetch_failed`
+    notice WITH its ref: retried (the note stays pending) and listed in `failures_json`."""
+    import httpx
+    from api.services.journal_two.note_connectors.providers import base as base_module
+    from api.services.journal_two.note_connectors.providers.notion import NotionProvider
+    from api.services.journal_two.broker.rate_limit import AsyncRateLimiter
+
+    async def _public(_host):
+        return ["142.250.0.1"]
+    monkeypatch.setattr(base_module, "_resolve_host", _public)
+    s3 = "https://s3.notion-static.com/internal/chart.png?X-Amz-Signature=abc"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host != "api.notion.com":
+            return httpx.Response(503)
+        if request.url.path == "/v1/pages/p1":
+            return httpx.Response(200, json={"id": "p1", "properties": {
+                "title": {"type": "title", "title": [{"plain_text": "Chart page"}]}}})
+        if request.url.path == "/v1/blocks/p1/children":
+            return httpx.Response(200, json={"has_more": False, "results": [{
+                "object": "block", "id": "img-1", "type": "image", "has_children": False,
+                "image": {"type": "file", "file": {"url": s3}, "caption": []}}]})
+        return httpx.Response(500)
+
+    notion = NotionProvider(client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+                            rate_limiter=AsyncRateLimiter(1000.0))
+    ref = RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")
+    rn = await notion.fetch({"accessToken": "t"}, ref)
+    assert rn.media == [{"ref": "notion:img-1", "kind": "image", "name": "chart.png"}]
+    provider.refs = [ref]
+    provider.notes_by_id = {"p1": rn}
+    monkeypatch.setattr(provider, "fetch_media", notion.fetch_media)
+
+    await engine.sync_source(source["id"], full=True)
+    body = _body(notes_svc.list_notes("u1")[0])
+    assert _nodes_of(body, "image") == []
+    assert _only(body, "importNotice")["attrs"] == {
+        "reason": "fetch_failed", "name": "chart.png", "sourceUrl": None, "ref": "notion:img-1", "attempts": 1}
+    assert _row("u1", "fake:fake-graph/p1")["import_media_pending"] == 1, "retried on the next sync"
+    assert _last_failures(source["id"]) == [
+        {"noteTitle": "Chart page", "reason": "Couldn't copy chart.png — retrying on the next sync",
+         "name": "chart.png"}]

@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import useNoteProperties from '../../hooks/useNoteProperties'
 import LoadFailed from '../LoadFailed'
 import useJ2PropertyDefs from '../../hooks/useJ2PropertyDefs'
 import UIcon from '../../../../components/ui/UIcon'
 import RelationPropertyValue from './RelationPropertyValue'
 import ComputedValue from './ComputedValue'
-import FormulaEditor from './FormulaEditor'
+import lazyChunk from '../../lib/lazyChunk'
 import RollupEditor, { rollupReady } from './RollupEditor'
 import useSWR from 'swr'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
@@ -17,8 +17,14 @@ import {
   autofillCandidates, requestAutofill,
 } from '../../lib/propertyAutofill'
 import styles from './PropertiesSection.module.css'
+
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import Input from '../../../../components/ui/Input'
+
+// S13 (audit 2026-11-05): the formula editor (the trader formulas and the raw "Write your own" box) shows only when a
+// member writes or edits a formula, so it loads then, never with the note (perf-budgets.md, `lazyDialog` pattern: a
+// `lazyChunk` in a `null` Suspense). Rail: PropertiesSection.formulaLazy.test.js.
+const FormulaEditor = lazyChunk(() => import('./FormulaEditor'))
 
 const savedViewsFetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -482,8 +488,8 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
                   <div className={styles.computedEditor}
                     onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setEditing(null); focusAfterRef.current = { prop: p.id } } }}>
                     {p.type === 'formula' ? (
-                      <FormulaEditor value={editing.text} onChange={(text) => setEditing({ ...editing, text, error: null })}
-                        defs={propertyDefs} previewProps={valuesById} selfId={p.id} onCreateMissing={createMissing} />
+                      <Suspense fallback={null}><FormulaEditor value={editing.text} onChange={(text) => setEditing({ ...editing, text, error: null })}
+                        defs={propertyDefs} previewProps={valuesById} selfId={p.id} onCreateMissing={createMissing} /></Suspense>
                     ) : (
                       <RollupEditor value={editing.config} onChange={(config) => setEditing({ ...editing, config, error: null })}
                         defs={propertyDefs} savedViews={savedViews} selfId={p.id} />
@@ -577,9 +583,9 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
                   ))}
                 </select>
                 {isFormula && (
-                  <FormulaEditor value={newFormula} onChange={setNewFormula} defs={propertyDefs}
+                  <Suspense fallback={null}><FormulaEditor value={newFormula} onChange={setNewFormula} defs={propertyDefs}
                     previewProps={valuesById} onCreateMissing={createMissing}
-                    onStarter={(st) => { if (!newPropName.trim()) setNewPropName(st.name) }} />
+                    onStarter={(st) => { if (!newPropName.trim()) setNewPropName(st.name) }} /></Suspense>
                 )}
                 {isRollup && (
                   <RollupEditor value={newRollup} onChange={setNewRollup} defs={propertyDefs} savedViews={savedViews} />

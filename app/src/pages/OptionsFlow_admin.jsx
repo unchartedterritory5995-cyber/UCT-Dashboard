@@ -3831,14 +3831,8 @@ export default function OptionsFlowDashboard() {
   const wlRef = useRef(null);
   const screenshotWatchlist = async () => {
     if (!wlRef.current) return;
-    let h2c = window.html2canvas;
-    if (!h2c) {
-      const s = document.createElement("script");
-      s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-      document.head.appendChild(s);
-      await new Promise(r => { s.onload = r; s.onerror = () => r(); });
-      h2c = window.html2canvas;
-    }
+    let h2c;
+    try { ({ default: h2c } = await import("html2canvas")); } catch (e) { h2c = null; }
     if (!h2c) { alert("Could not load screenshot library"); return; }
     const canvas = await h2c(wlRef.current, { backgroundColor:P.bg, scale:2, useCORS:true });
     try {
@@ -5352,7 +5346,8 @@ export default function OptionsFlowDashboard() {
     // Fetch AI narrative
     setNarrativeLoading(true);
     try {
-      const resp = await fetch(API_BASE+"/api/schwab/market-narrative");
+      // Bounded, as in OptionsFlow.jsx: the loading dot pulses while this is pending.
+      const resp = await fetch(API_BASE+"/api/schwab/market-narrative", { signal: AbortSignal.timeout(15000) });
       if (resp.ok) {
         const data = await resp.json();
         setMarketNarrative(data.narrative || null);

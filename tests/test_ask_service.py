@@ -135,6 +135,21 @@ class TestCoverageNoticeOnlyWhenItMatters:
             "documents_not_searchable": 1}})
         assert "1 attached document couldn't" in msg
 
+    # Audit 2026-11-05, spec S4: say what it was, and why.
+    def test_one_image_with_no_text_says_image(self):
+        msg = asvc.coverage_notice(asvc.NOTEBOOK, {"coverage": {
+            "documents_not_searchable": 1,
+            "documents_not_searchable_detail": {"image": {"no_text": 1}}}})
+        assert msg == "1 attached image has no readable text, so I couldn't search it."
+
+    def test_documents_and_images_are_named_apart(self):
+        msg = asvc.coverage_notice(asvc.NOTEBOOK, {"coverage": {
+            "documents_not_searchable": 4,
+            "documents_not_searchable_detail": {
+                "image": {"no_text": 1}, "document": {"processing_failed": 2, "pending": 1}}}})
+        assert msg == ("1 attached image and 2 attached documents have no readable text, so I couldn't "
+                       "search them. 1 attached document is still being read, so I couldn't search it yet.")
+
     @pytest.mark.parametrize("status,fragment", [
         ("pending", "still being processed"),
         ("no_text", "No readable text"),

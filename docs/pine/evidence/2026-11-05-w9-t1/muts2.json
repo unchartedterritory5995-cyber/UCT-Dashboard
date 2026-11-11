@@ -1,0 +1,5 @@
+[
+ ["control-noop", "src/components/chart/engine/ast/pineRuntimeFrontend.js", "let strategyBrokerGateReader = () => false", "let  strategyBrokerGateReader = () => false"],
+ ["drop-gate", "src/components/chart/engine/ast/pineRuntimeFrontend.js", "let strategyBrokerGateReader = () => false", "let strategyBrokerGateReader = () => true"],
+ ["gate-read-in-closure", "src/components/chart/engine/ast/pineRuntimeFrontend.js", "const strategyBrokerEnabled = () => strategyBrokerGateReader() === true", "import { strategyBrokerEnabled as _x } from '../strategyBrokerGate.js'\nconst strategyBrokerEnabled = () => _x()"]
+]

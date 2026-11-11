@@ -28,7 +28,7 @@
  */
 import { useLayoutEffect, useSyncExternalStore } from 'react'
 import { Extension } from '@tiptap/core'
-import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { NodeSelection, Plugin, PluginKey, Selection } from '@tiptap/pm/state'
 import { SCHEMA_REFUSAL_DETAIL } from './notebookSchema'
 
 /**
@@ -230,6 +230,55 @@ export function replacesWholeDocument(tr) {
     return Boolean(before && step?.slice && step.from === 0 && step.to === before.content.size)
   })
 }
+
+/** The first text position in `state`'s document when a NodeSelection sits there uninvited, else
+ *  null. Only ever answers for a NodeSelection: a text selection is left exactly as it is. */
+function releasedFromAtom(state) {
+  if (!(state.selection instanceof NodeSelection)) return null
+  return Selection.findFrom(state.doc.resolve(0), 1, true)
+}
+
+/**
+ * ⛔ AN OPENED NOTE MUST NOT SIT ON A NODE SELECTION NOBODY MADE.
+ *
+ * ProseMirror's default selection is `Selection.atStart`, and a document whose first node is a
+ * block atom (an imported tweet card, a horizontal rule) gets a NodeSelection ON that atom. That
+ * is harmless until the member's first keystroke beats the `selectionchange` that would have
+ * read their click: ProseMirror's `keypress` handler inserts over any non-text selection, so
+ * the atom is replaced by one typed character and the next autosave writes the loss.
+ *
+ * Measured with the page's own transactions (tools/tweet_import_smoke.py --caret-repro): 3 of 20
+ * imported notes lost their first card and 1 of 20 notes opening with a rule lost the rule;
+ * paragraph-first notes, 0 of 20, because their default selection is already a text one.
+ * No whole-document swap happened in any of those rounds: `node:0` is the selection the editor is
+ * BORN with, so this holds for the first open, not only after a swap.
+ *
+ * So the default is put right where it is made: at creation, and on any transaction that replaces
+ * the whole document (a server body or restore would rebuild the same default). A NodeSelection a
+ * member makes (a click on a card) goes through neither door and stays. A document with no text
+ * position has nothing to move to, and the selection is left alone.
+ */
+export const NoImplicitAtomSelection = Extension.create({
+  name: 'noImplicitAtomSelection',
+
+  onCreate() {
+    const { editor } = this
+    if (editor.isDestroyed) return
+    const to = releasedFromAtom(editor.state)
+    if (to) editor.view.dispatch(editor.state.tr.setSelection(to).setMeta('addToHistory', false))
+  },
+
+  addProseMirrorPlugins() {
+    return [new Plugin({
+      key: new PluginKey('noImplicitAtomSelection'),
+      appendTransaction: (transactions, _oldState, newState) => {
+        if (!transactions.some(replacesWholeDocument)) return null
+        const to = releasedFromAtom(newState)
+        return to ? newState.tr.setSelection(to).setMeta('addToHistory', false) : null
+      },
+    })]
+  },
+})
 
 /**
  * ⭐⭐ REVIEW I-1 — HAS EVERY DOC CHANGE IN THIS EDITOR GONE INTO HISTORY?

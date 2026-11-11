@@ -20,38 +20,67 @@
   list-style: none;
 }
 
+/* the workbench's answer cards: a numbered key chip, a thick bottom edge, gold when picked, green / red after the verdict */
 .choice {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: 14px;
   width: 100%;
-  min-height: 52px;
+  min-height: 64px;
   min-width: var(--tap-min);
-  padding: 0 var(--space-md);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--bg-elevated);
-  color: var(--text);
+  padding: 16px 18px;
+  border: 1px solid #2e2a1e;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #1b1a16, #121212);
+  color: var(--text-bright);
   font: inherit;
-  font-size: var(--text-lg);
-  line-height: var(--lh-snug);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: .005em;
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .04) inset, 0 8px 22px rgba(0, 0, 0, .45);
+  transition: transform .1s, border-color .15s, background .15s, box-shadow .15s;
 }
-.choice:hover { background: var(--bg-hover); }
+.choice::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 241, 194, .05) 50%, transparent 70%);
+  opacity: 0;
+  transition: opacity .2s;
+}
+.choice:hover:not(:disabled) { border-color: #7a5f1c; background: linear-gradient(180deg, #211e14, #141414); transform: translateY(-1px); box-shadow: 0 1px 0 rgba(255, 255, 255, .05) inset, 0 12px 28px rgba(0, 0, 0, .5), 0 0 18px rgba(220, 187, 94, .14); }
+.choice:hover:not(:disabled)::after { opacity: 1; }
+.choice[aria-checked="true"] { border-color: var(--ut-gold); background: linear-gradient(180deg, #2a2410, #161410); box-shadow: 0 0 0 1px var(--ut-gold) inset, 0 0 26px rgba(220, 187, 94, .28), 0 12px 28px rgba(0, 0, 0, .5); }
+.choice[aria-checked="true"] .choiceKey { background: linear-gradient(180deg, #fff1c2, #d9b84a 60%, #a8842c); color: #15120a; border-color: transparent; }
+.choice:hover:not(:disabled) { transform: translateY(-2px); border-color: #3a3a3a; }
+.choice:active:not(:disabled) { border-bottom-width: 1px; transform: translateY(3px); }
 .choice:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
 .choice[aria-checked="true"] {
   border-color: var(--ut-gold);
-  background: var(--ut-gold-dim);
-  color: var(--text-bright);
+  background: #1a1708;
+  color: var(--ut-gold-bright);
+  box-shadow: 0 0 0 1px var(--ut-gold) inset;
 }
-.choice:disabled { cursor: default; opacity: 0.85; }
+.choice[aria-checked="true"] .choiceKey { border-color: var(--ut-gold); color: var(--ut-gold-bright); }
+.choice:disabled { cursor: default; }
+.choiceRight.choiceRight, .choiceRight.choiceRight[aria-checked="true"] { border-color: #2faf68; background: #0f2a18; color: #8fe3b1; box-shadow: none; }
+.choiceWrong.choiceWrong, .choiceWrong.choiceWrong[aria-checked="true"] { border-color: #df4646; background: #2a1113; color: #ff9d9d; box-shadow: none; }
 .choiceKey {
   flex: 0 0 auto;
-  width: 20px;
+  width: 26px;
+  height: 26px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #333;
+  border-radius: 7px;
   color: var(--text-muted);
-  font-size: var(--text-sm);
+  font-size: 12px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 .choiceLabel { flex: 1 1 auto; }
@@ -196,27 +225,39 @@
   border: 1px solid var(--border);
 }
 
-/* Tap-the-chart HUD chip (D10): bottom-centre of the chart box. */
+/* Tap-the-chart HUD chip (D10). It used to sit at the BOTTOM centre of the chart box, which is where the time axis
+   prints its dates: the pill covered them (real-screen review 2026-11-08, "Tap the RS new high" on the RS drafts).
+   It now sits at the TOP of the plot, centred between the box's left edge and the price scale, and wraps instead of
+   running under the scale on a phone. The top is also clear of the RS pane, which is what an RS tap item points at.
+   pointer-events stay off, so a tap through the pill still lands on the chart. The plate is a dark literal, so its ink
+   and rim are literals too (a self-contained pair that reads on any chart canvas): the --text-bright token here went
+   dark-on-dark on the light theme.
+   Kit v2 (real-screen check, 1440x900): the desktop chart now prints its OHLC legend from 35 px below the box top, so
+   the pill is a compact 26 px strip in the band above it (5 px + 26 px = 31 px) instead of covering the legend's
+   values. The phone hides that legend, so there the pill may wrap to a second line. */
 .hud {
   position: absolute;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 5px;
+  left: 12px;
+  right: 72px;
   z-index: 6;
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  max-width: calc(100% - 32px);
-  padding: 8px 14px;
-  border: 1px solid var(--ut-gold-glow);
+  display: block;
+  width: max-content;
+  max-width: calc(100% - 12px - 72px);
+  margin: 0 auto;
+  padding: 3px 12px;
+  border: 1px solid rgba(220, 187, 94, 0.35);
   border-radius: var(--radius-pill);
   background: rgba(26, 28, 23, 0.94);
-  color: var(--text-bright);
-  font-size: var(--text-base);
-  white-space: nowrap;
+  color: #f8f7f3;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+  white-space: normal;
   pointer-events: none;
 }
-.hudDone { border-color: var(--ut-gold); }
+.hudDone { border-color: #dcbb5e; }
 
 .srOnly {
   position: absolute;
@@ -320,3 +361,28 @@
 .walkNext:hover { background: var(--bg-hover); }
 .walkNext:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
 .walkNext:disabled { opacity: 0.45; cursor: default; }
+
+/* the workbench lays four cards out two by two on a wide screen */
+@media (min-width: 641px) { .choices { display: grid; grid-template-columns: 1fr 1fr; } }
+
+/* round 17: the number key as a gold-rimmed tile; the right / wrong card glows its colour */
+.choiceKey.choiceKey { width: 32px; height: 32px; border-radius: 9px; border: 1px solid #7a5f1c; background: #15120a; color: var(--ut-gold-bright); font-size: 14px; font-weight: 900; display: grid; place-items: center; flex: none; box-shadow: 0 0 0 1px rgba(255, 241, 194, .08) inset; }
+.choiceRight.choiceRight { border-color: #2faf68; background: linear-gradient(180deg, #112a1b, #0f1a13); box-shadow: 0 0 0 1px #2faf68 inset, 0 0 28px rgba(47, 175, 104, .35); }
+.choiceRight.choiceRight .choiceKey { background: linear-gradient(180deg, #bff3d3, #2faf68 60%, #1d7a45); color: #06130b; border-color: transparent; }
+.choiceWrong.choiceWrong { border-color: #df4646; background: linear-gradient(180deg, #2a1113, #1a0f10); box-shadow: 0 0 0 1px #df4646 inset, 0 0 28px rgba(223, 70, 70, .35); }
+.choiceWrong.choiceWrong .choiceKey { background: linear-gradient(180deg, #ffb3b3, #df4646 60%, #9a2e2e); color: #1a0606; border-color: transparent; }
+.choices > li, .choicesGrid > li { animation: choiceIn .34s both; }
+.choices > li:nth-child(2), .choicesGrid > li:nth-child(2) { animation-delay: 60ms; }
+.choices > li:nth-child(3), .choicesGrid > li:nth-child(3) { animation-delay: 120ms; }
+.choices > li:nth-child(4), .choicesGrid > li:nth-child(4) { animation-delay: 180ms; }
+.choices > li:nth-child(5), .choicesGrid > li:nth-child(5) { animation-delay: 240ms; }
+@keyframes choiceIn { from { transform: translateY(10px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+@media (prefers-reduced-motion: reduce) { .choices > li, .choicesGrid > li { animation: none; } .choice:hover:not(:disabled) { transform: none; } }
+
+/* round 17b: bigger cards, a gold coin for the key, a gold fill when picked */
+.choice.choice { min-height: 74px; padding: 18px 22px; font-size: 20px; font-weight: 700; gap: 16px; border-radius: 18px; }
+.choice .choiceKey.choiceKey { width: 40px; height: 40px; border-radius: 50%; font-size: 15px; background: linear-gradient(180deg, #fff1c2, #d9b84a 55%, #a8842c); color: #15120a; border-color: transparent; box-shadow: 0 2px 0 rgba(0, 0, 0, .35), 0 0 14px rgba(220, 187, 94, .3); }
+.choice.choice[aria-checked="true"] { background: linear-gradient(180deg, #3a3014, #1c1810); color: #fff6dc; transform: translateY(-1px) scale(1.01); }
+.choice.choice:hover:not(:disabled) { transform: translateY(-2px); }
+.choiceLabel.choiceLabel { flex: 1 1 auto; min-width: 0; }
+@media (max-width: 640px) { .choice.choice { min-height: 66px; padding: 15px 18px; font-size: 18px; } .choice .choiceKey.choiceKey { width: 36px; height: 36px; } }

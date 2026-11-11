@@ -1,0 +1,1578 @@
+{
+ "C1-001": {
+  "feature": "symbol",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-002": {
+  "feature": "symbol",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-004": {
+  "feature": "symbol",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-005": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-006": {
+  "feature": "timeframe",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-007": {
+  "feature": "timeframe",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-008": {
+  "feature": "timeframeCustom",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-009": {
+  "feature": "panelAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-010": {
+  "feature": "panelAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-011": {
+  "feature": "timeframe",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-013": {
+  "feature": "chartType",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-017": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-018": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-019": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-020": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-022": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-023": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-024": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-025": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-027": {
+  "feature": "chartMenu",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-028": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-029": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-030": {
+  "feature": "goToDate",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-031": {
+  "feature": "goToDate",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-033": {
+  "feature": "goToDate",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-034": {
+  "feature": "compare",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-035": {
+  "feature": "compareAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-036": {
+  "feature": "compareAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-037": {
+  "feature": "compareAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-038": {
+  "feature": "compareAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-039": {
+  "feature": "compareAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-040": {
+  "feature": "compareAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-041": {
+  "feature": "compareAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-042": {
+  "feature": "replay",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-043": {
+  "feature": "replay",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-045": {
+  "feature": "panelAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-047": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-048": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-049": {
+  "feature": "control",
+  "title": "The chart’s background",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (was the matrix’s chartSetting: the solid colour is the Background control on the Canvas tab, which the settings table does not carry)"
+ },
+ "C1-050": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-051": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-052": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-054": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-055": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-056": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-057": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-059": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-062": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-063": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-064": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-066": {
+  "feature": "panelAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-068": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-069": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-070": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-071": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-072": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-073": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-074": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-075": {
+  "feature": "chartSetting",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-076": {
+  "feature": "panelAction",
+  "title": "Restoring a chart’s defaults",
+  "from": "cov-4 row reviewed by hand 2026-11-09 (was the matrix’s chartSetting: the Restore defaults button is its own control)"
+ },
+ "C1-079": {
+  "feature": "chartThemes",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-080": {
+  "feature": "panelAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-081": {
+  "feature": "panelAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-082": {
+  "feature": "chartTemplate",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-083": {
+  "feature": "chartTemplate",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-084": {
+  "feature": "chartTemplate",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-086": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-087": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-088": {
+  "feature": "chartMenu",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-089": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-090": {
+  "feature": "chartMenu",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-091": {
+  "feature": "chartMenu",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-093": {
+  "feature": "indicatorManage",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-094": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-097": {
+  "feature": "legendChip",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-098": {
+  "feature": "legendChip",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-099": {
+  "feature": "legendChip",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-100": {
+  "feature": "legendChip",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-101": {
+  "feature": "legendChip",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-102": {
+  "feature": "legendChip",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-103": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-104": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-105": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-106": {
+  "feature": "drawing",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-107": {
+  "feature": "drawing",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-109": {
+  "feature": "drawing",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-110": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-114": {
+  "feature": "chartMenu",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-115": {
+  "feature": "drawingEdit",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-116": {
+  "feature": "drawingEdit",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-119": {
+  "feature": "alertAction",
+  "title": "Pausing an indicator alert",
+  "from": "cov-2 row reviewed by hand 2026-11-09 (was the matrix’s alertIndicator: the form, not the alert’s own control)"
+ },
+ "C1-120": {
+  "feature": "alertAction",
+  "title": "Deleting an indicator alert",
+  "from": "cov-2 row reviewed by hand 2026-11-09 (was the matrix’s alertIndicator: the form, not the alert’s own control)"
+ },
+ "C1-121": {
+  "feature": "drawingEdit",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-123": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-125": {
+  "feature": "chartMenu",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-126": {
+  "feature": "hideDrawings",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-127": {
+  "feature": "settings",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-128": {
+  "feature": "drawing",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-130": {
+  "feature": "drawing",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-131": {
+  "feature": "drawing",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-132": {
+  "feature": "drawing",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-133": {
+  "feature": "drawing",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-134": {
+  "feature": "drawing",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-135": {
+  "feature": "drawing",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-136": {
+  "feature": "drawing",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-137": {
+  "feature": "drawing",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-138": {
+  "feature": "drawing",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-139": {
+  "feature": "drawing",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-140": {
+  "feature": "drawing",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-141": {
+  "feature": "drawing",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-142": {
+  "feature": "drawing",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-143": {
+  "feature": "drawing",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-144": {
+  "feature": "drawing",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-145": {
+  "feature": "drawingEdit",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-146": {
+  "feature": "drawingEdit",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-147": {
+  "feature": "drawingEdit",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-148": {
+  "feature": "drawingEdit",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-151": {
+  "feature": "drawingEdit",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-155": {
+  "feature": "drawingEdit",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-158": {
+  "feature": "drawingEdit",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-159": {
+  "feature": "drawingEdit",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-162": {
+  "feature": "drawingEdit",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-171": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-172": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-001": {
+  "feature": "indicators",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-002": {
+  "feature": "indicators",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-003": {
+  "feature": "indicators",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-004": {
+  "feature": "indicators",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-005": {
+  "feature": "indicators",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-006": {
+  "feature": "indicatorManage",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-007": {
+  "feature": "indicatorManage",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-008": {
+  "feature": "indicatorManage",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-012": {
+  "feature": "indicators",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-014": {
+  "feature": "legendChip",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-015": {
+  "feature": "indicatorManage",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-016": {
+  "feature": "legendChip",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-018": {
+  "feature": "legendChip",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-019": {
+  "feature": "legendChip",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-020": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-021": {
+  "feature": "indicatorEdit",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-022": {
+  "feature": "indicatorManage",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-023": {
+  "feature": "legendChip",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-024": {
+  "feature": "indicatorEdit",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-025": {
+  "feature": "indicatorEdit",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-026": {
+  "feature": "indicatorEdit",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-029": {
+  "feature": "indicatorEdit",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-030": {
+  "feature": "indicatorColor",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-031": {
+  "feature": "indicatorColor",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-032": {
+  "feature": "indicatorEdit",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-033": {
+  "feature": "indicatorEdit",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-034": {
+  "feature": "indicatorManage",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-036": {
+  "feature": "indicatorEdit",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-037": {
+  "feature": "legendChip",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-038": {
+  "feature": "indicatorManage",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-039": {
+  "feature": "chartView",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-041": {
+  "feature": "legendChip",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-042": {
+  "feature": "legendChip",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-043": {
+  "feature": "legendChip",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-044": {
+  "feature": "legendChip",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-048": {
+  "feature": "indicatorManage",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-056": {
+  "feature": "indicatorManage",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-057": {
+  "feature": "indicatorManage",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-059": {
+  "feature": "builderAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-061": {
+  "feature": "builderAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-062": {
+  "feature": "builderAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-064": {
+  "feature": "builderAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-066": {
+  "feature": "builderAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-069": {
+  "feature": "builderAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-070": {
+  "feature": "builderAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-071": {
+  "feature": "builderAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-072": {
+  "feature": "builderAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-073": {
+  "feature": "builderAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-076": {
+  "feature": "builderAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-082": {
+  "feature": "builderAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-083": {
+  "feature": "builderAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-088": {
+  "feature": "alertIndicator",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-089": {
+  "feature": "alertIndicator",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-090": {
+  "feature": "alertAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-091": {
+  "feature": "alertAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-092": {
+  "feature": "alertAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-093": {
+  "feature": "alertAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-096": {
+  "feature": "alertIndicator",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-097": {
+  "feature": "alertAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-098": {
+  "feature": "alertAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-099": {
+  "feature": "alertAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C2-100": {
+  "feature": "alertAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-001": {
+  "feature": "widgetAdd",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-002": {
+  "feature": "widgetMove",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-003": {
+  "feature": "widgetResize",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-004": {
+  "feature": "widgetHeader",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-005": {
+  "feature": "widgetMerge",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-006": {
+  "feature": "link",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-008": {
+  "feature": "widgetHeader",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-012": {
+  "feature": "widgetHeader",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-013": {
+  "feature": "layouts",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-016": {
+  "feature": "widgetHeader",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-017": {
+  "feature": "tabAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-019": {
+  "feature": "tabAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-020": {
+  "feature": "chartTab",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-021": {
+  "feature": "tabAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-024": {
+  "feature": "tabAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-025": {
+  "feature": "layouts",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-026": {
+  "feature": "layoutAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-027": {
+  "feature": "layoutAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-028": {
+  "feature": "layouts",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-029": {
+  "feature": "layouts",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-030": {
+  "feature": "layoutSave",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-031": {
+  "feature": "layoutSave",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-033": {
+  "feature": "layoutAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-041": {
+  "feature": "layoutAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-042": {
+  "feature": "multiChart",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-043": {
+  "feature": "multiChart",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-044": {
+  "feature": "gridAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-045": {
+  "feature": "gridAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-046": {
+  "feature": "gridAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-047": {
+  "feature": "gridAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-048": {
+  "feature": "gridAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-049": {
+  "feature": "gridAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-050": {
+  "feature": "gridAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-051": {
+  "feature": "gridAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-052": {
+  "feature": "gridAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-053": {
+  "feature": "gridAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-054": {
+  "feature": "gridAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-055": {
+  "feature": "gridAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-056": {
+  "feature": "gridAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-057": {
+  "feature": "gridAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-058": {
+  "feature": "gridAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-059": {
+  "feature": "gridAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-060": {
+  "feature": "gridAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-061": {
+  "feature": "gridAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-062": {
+  "feature": "gridAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-063": {
+  "feature": "watchlistAction",
+  "title": "Opening one of your lists",
+  "from": "cov-1 row reviewed by hand 2026-11-08 (was the matrix's watchlists: Using watchlists, which rings no list)"
+ },
+ "C3-064": {
+  "feature": "watchlistAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-065": {
+  "feature": "watchlistAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-068": {
+  "feature": "watchlistAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-069": {
+  "feature": "watchlistAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-070": {
+  "feature": "watchlistCreate",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-076": {
+  "feature": "watchlistAddSymbol",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-077": {
+  "feature": "watchlistAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-078": {
+  "feature": "watchlistAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-079": {
+  "feature": "watchlistAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-082": {
+  "feature": "watchlistAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-083": {
+  "feature": "watchlistAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-088": {
+  "feature": "watchlistAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-098": {
+  "feature": "watchlistAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-099": {
+  "feature": "watchlistAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-100": {
+  "feature": "watchlistAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-101": {
+  "feature": "watchlistAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-103": {
+  "feature": "widgetSettings",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-107": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-110": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-111": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-113": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-114": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-120": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-121": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-124": {
+  "feature": "widgetSettings",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-127": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-128": {
+  "feature": "alertPrice",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-129": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-130": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-131": {
+  "feature": "widgetSettings",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-133": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-134": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-136": {
+  "feature": "widgetSettings",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-138": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-139": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-145": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-148": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-149": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-150": {
+  "feature": "dockAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-151": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-155": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-157": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-158": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-160": {
+  "feature": "widgetSettings",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-161": {
+  "feature": "widgetSettings",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-162": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-164": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-165": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-166": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-167": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-168": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-169": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-170": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-171": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-172": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-173": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-174": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-178": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-179": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-180": {
+  "feature": "widgetSettings",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-181": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-187": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-188": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-190": {
+  "feature": "widgetSettings",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-191": {
+  "feature": "widgetSettings",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-192": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-193": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-196": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-201": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-202": {
+  "feature": "widgetAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-205": {
+  "feature": "periodSort",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-209": {
+  "feature": "replay",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-210": {
+  "feature": "panelAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-212": {
+  "feature": "replay",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-216": {
+  "feature": "dockAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-217": {
+  "feature": "dockAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C3-219": {
+  "feature": "dockAction",
+  "from": "2026-11-05 matrix Guide feature"
+ },
+ "C1-058": {
+  "feature": "control",
+  "title": "Aligning the watermark",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C1-060": {
+  "feature": "control",
+  "title": "Moving the watermark",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C1-061": {
+  "feature": "control",
+  "title": "Centring the watermark",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C1-065": {
+  "feature": "control",
+  "title": "The legend’s bar values",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C1-111": {
+  "feature": "control",
+  "title": "Sharing: Download PNG",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C1-112": {
+  "feature": "control",
+  "title": "Sharing: Copy to Clipboard",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C1-113": {
+  "feature": "control",
+  "title": "Sharing: Copy Share URL",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C1-149": {
+  "feature": "control",
+  "title": "A drawing’s Fill",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C1-152": {
+  "feature": "control",
+  "title": "A drawing’s Reset levels",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C1-153": {
+  "feature": "control",
+  "title": "A drawing’s Show bars",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C1-156": {
+  "feature": "control",
+  "title": "A drawing’s Make horizontal",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C1-163": {
+  "feature": "control",
+  "title": "The drawing magnet",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C1-164": {
+  "feature": "control",
+  "title": "Repeat drawing",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C1-165": {
+  "feature": "control",
+  "title": "Choosing your drawing tools",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C1-167": {
+  "feature": "control",
+  "title": "Drawing boards: a board",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C1-168": {
+  "feature": "control",
+  "title": "Drawing boards: New board",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C1-169": {
+  "feature": "control",
+  "title": "Drawing boards: Rename",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C1-170": {
+  "feature": "control",
+  "title": "Drawing boards: Delete",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-018": {
+  "feature": "control",
+  "title": "Renaming a widget tab",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-022": {
+  "feature": "control",
+  "title": "Renaming a chart tab",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-023": {
+  "feature": "control",
+  "title": "A chart tab’s link colour",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-035": {
+  "feature": "control",
+  "title": "Deleting a layout",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-037": {
+  "feature": "control",
+  "title": "Putting a layout on the bar",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-067": {
+  "feature": "control",
+  "title": "Going back to the list picker",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-075": {
+  "feature": "control",
+  "title": "Deleting a watchlist",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-112": {
+  "feature": "control",
+  "title": "Refreshing a scan",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-122": {
+  "feature": "control",
+  "title": "Deleting a Volume Surge list",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-123": {
+  "feature": "control",
+  "title": "Adding a ticker to a Volume Surge list",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-132": {
+  "feature": "control",
+  "title": "Sending Alerts to the Journal",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-137": {
+  "feature": "control",
+  "title": "Sending News & Catalysts to the Journal",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-141": {
+  "feature": "control",
+  "title": "Saving a headline",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-144": {
+  "feature": "control",
+  "title": "A headline’s actions: list",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-146": {
+  "feature": "control",
+  "title": "Back to the live feed",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-147": {
+  "feature": "control",
+  "title": "A headline’s actions: notebook",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-156": {
+  "feature": "control",
+  "title": "Sending UCT Terminal to the Journal",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-163": {
+  "feature": "control",
+  "title": "Sending Breadth to the Journal",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-177": {
+  "feature": "control",
+  "title": "Sending Theme Tracker to the Journal",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-183": {
+  "feature": "control",
+  "title": "Hiding an index",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-184": {
+  "feature": "control",
+  "title": "Sending Indexes to the Journal",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-198": {
+  "feature": "control",
+  "title": "Saving an answer",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-199": {
+  "feature": "control",
+  "title": "Copying an answer",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-200": {
+  "feature": "control",
+  "title": "Sending AI Search to the Journal",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C3-203": {
+  "feature": "control",
+  "title": "Editing a note",
+  "from": "catalog control reviewed by hand 2026-11-07"
+ },
+ "C1-124": {
+  "feature": "indicatorEdit",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C2-010": {
+  "feature": "chartView",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C2-055": {
+  "feature": "indicatorManage",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C3-034": {
+  "feature": "layoutAction",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C3-039": {
+  "feature": "layoutAction",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C3-040": {
+  "feature": "layoutAction",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C3-086": {
+  "feature": "control",
+  "title": "Resizing a list’s column",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C3-087": {
+  "feature": "control",
+  "title": "Resetting a list’s columns",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C3-109": {
+  "feature": "control",
+  "title": "Searching the scans",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C3-108": {
+  "feature": "control",
+  "title": "Back to the list of scans",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C1-166": {
+  "feature": "control",
+  "title": "Nudging a drawing from the keyboard",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C3-125": {
+  "feature": "control",
+  "title": "Logos on Volume Surge",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C3-135": {
+  "feature": "control",
+  "title": "A headline on the chart",
+  "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C1-067": {
+  "feature": "chartSetting",
+  "title": "Changing Header colors",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Changing Header colors rings Chart Settings → Header → Title color, the row’s own control)"
+ },
+ "C1-173": {
+  "feature": "multiChart",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: the example (“2x2 grid”) reaches Setting up a chart grid, the grid layout the row cycles)"
+ },
+ "C2-011": {
+  "feature": "indicators",
+  "title": "Adding MA",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: the example reaches Adding MA, which turns the moving average on in the indicator list)"
+ },
+ "C2-017": {
+  "feature": "legendChip",
+  "title": "Removing an indicator",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Removing an indicator ends on the chip menu’s Remove, the same control for an unavailable one)"
+ },
+ "C3-007": {
+  "feature": "link",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Linking charts and widgets ends on the widget’s link-colour control, which sets a panel’s colour group)"
+ },
+ "C3-009": {
+  "feature": "widgetResize",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Resizing a chart or widget ends on the widget’s resize handle)"
+ },
+ "C3-011": {
+  "feature": "widgetMove",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Moving a chart or widget ends on the header bar you drag into another widget’s tabs)"
+ },
+ "C3-015": {
+  "feature": "widgetHeader",
+  "title": "Widget controls: Close",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Widget controls: Close ends on the widget’s own Close)"
+ },
+ "C3-175": {
+  "feature": "widgetAction",
+  "title": "Theme presets",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Theme presets ends on the Themes widget’s sets control, where a set is edited)"
+ },
+ "C1-078": {
+  "feature": "chartView",
+  "title": "Light or dark chart",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Shift+T on the chart switches the light and dark palette)"
+ },
+ "C1-150": {
+  "feature": "control",
+  "title": "A drawing’s Bold",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: the example reaches Bold, one of the Text Note’s own text-style rows)"
+ },
+ "C1-154": {
+  "feature": "control",
+  "title": "A drawing’s Show price label",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Show price label on a horizontal line’s menu)"
+ },
+ "C1-157": {
+  "feature": "control",
+  "title": "A drawing’s Duplicate",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Duplicate on a drawing’s menu)"
+ }
+}

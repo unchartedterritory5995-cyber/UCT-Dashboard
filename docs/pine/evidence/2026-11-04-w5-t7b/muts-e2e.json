@@ -1,0 +1,32 @@
+[
+ [
+  "control:noop-comment",
+  "services/pine_runtime/protocol.mjs",
+  "/** The closed key sets of one result as the RUNNER",
+  "/** (control) The closed key sets of one result as the RUNNER"
+ ],
+ [
+  "seal:digest-neutral-identity",
+  "services/pine_runtime/protocol.mjs",
+  "columnDigest({ engine: identity,",
+  "columnDigest({ engine: { ...identity, bundle_sha256: '0'.repeat(64) },"
+ ],
+ [
+  "seal:digest-no-columns",
+  "services/pine_runtime/protocol.mjs",
+  "columns: decoded, refusals,",
+  "columns: {}, refusals,"
+ ],
+ [
+  "server:seal-bypassed",
+  "services/pine_runtime/server.mjs",
+  "results: sealed.results })",
+  "results })"
+ ],
+ [
+  "job:warmup-always-zero",
+  "services/pine_runtime/job.mjs",
+  "withheldBars: warm === null ? 0 : warm.withheldBars",
+  "withheldBars: 0"
+ ]
+]

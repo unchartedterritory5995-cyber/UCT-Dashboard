@@ -29,6 +29,7 @@
 // `dropped` — removing the column is the member's explicit change.
 
 import { FILL_STAMP_FIELD, fillStampSurvivesEdit } from '../engine/memberDocumentMigration'
+import { NEW_LINE_FLAG } from '../engine/lineIdentity'
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 const clone = (v) => (v === undefined ? v : JSON.parse(JSON.stringify(v)))
@@ -127,6 +128,11 @@ export function preservePresentation(next, prior, { ownedPaints = new Set() } = 
     if (!isObj(q) || q.style === 'hlines') continue
     for (const [field, value] of Object.entries(q)) {
       if (NEVER_CARRIED.has(field)) continue
+      // ⭐ LINE IDENTITY — the prior copy's "pending" mark is this tab's knowledge about
+      // the store, never the member's edit; and a line the member ADDED under a stored
+      // key (`newLine`) is a different line, so the stored `uid` is not its to wear.
+      if (field === NEW_LINE_FLAG) continue
+      if (field === 'uid' && p[NEW_LINE_FLAG] === true) continue
       if (PRIOR_WINS.has(field)) {
         if (JSON.stringify(p[field]) !== JSON.stringify(value)) {
           p[field] = clone(value)

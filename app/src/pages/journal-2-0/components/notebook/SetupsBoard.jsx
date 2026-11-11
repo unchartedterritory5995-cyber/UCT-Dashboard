@@ -12,6 +12,7 @@ import { makeGridWarmer } from '../../../charts/grid/gridWarm'
 import { GRID_MAX_CELLS } from '../../../charts/grid/gridLayouts'
 import { prefetchListAllTimeframes } from '../../../../utils/prefetchBars'
 import BoardCard from './BoardCard'
+import FirstPlanAsk, { FIRST_PLAN } from './FirstPlanAsk'
 import SimilarNames, { TEMPLATES_URL, fetchJson, findSimilarEnabled } from './SimilarNames'
 import styles from './SetupsBoard.module.css'
 
@@ -71,6 +72,16 @@ export function emptyBoardText({ planDrawing = null, chartPlanOn, examples = fal
     : `${lead} A setup comes from a chart whose lines are marked as the entry and the stop, and marking lines is not switched on for your account.`
 }
 
+/** Whether a member can draw a plan here: the board's own answer, else the tab's latched chart-plan flag. */
+function planCanBeDrawn(planDrawing) {
+  if (planDrawing && typeof planDrawing.available === 'boolean') return planDrawing.available
+  return chartPlanEnabled()
+}
+
+// S17 (audit 2026-11-05, M7): the empty board ASKS -- "Draw your first plan". Its own small file since S15, so the
+// Today home's setups card asks the same thing without fetching the board's charts.
+export { FIRST_PLAN }
+
 function Board({ onFindSimilar }) {
   const { data, error, isLoading, mutate } = useSWR(BOARD_URL, fetchJson,
     { revalidateOnFocus: false, shouldRetryOnError: false })
@@ -98,14 +109,15 @@ function Board({ onFindSimilar }) {
   return (
     <section className={styles.board} aria-labelledby="board-title" data-setups-board="">
       <div className={styles.header}>
-        <h2 id="board-title" className={styles.title}>Active setups</h2>
+        <h2 id="board-title" className={styles.title}>Setups</h2>
         <span className={styles.scope}>
           Open plans with levels drawn on a chart, closest to the entry first.
         </span>
       </div>
       {error && <LoadFailed compact what="your setups" error={error} onRetry={() => mutate()} />}
       {!error && isLoading && <p className={styles.quiet} role="status">Reading your plans…</p>}
-      {!error && data && !hasOwn && (
+      {!error && data && !hasOwn && !hasExamples && planCanBeDrawn(data?.planDrawing) && <FirstPlanAsk />}
+      {!error && data && !hasOwn && (hasExamples || !planCanBeDrawn(data?.planDrawing)) && (
         <p className={styles.quiet}>{emptyBoardText({ planDrawing: data?.planDrawing, chartPlanOn: chartPlanEnabled(), examples: hasExamples })}</p>
       )}
       {!error && data?.capped && (

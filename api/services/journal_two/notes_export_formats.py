@@ -665,7 +665,7 @@ _MAX_IMAGE_EMU = 6 * _EMU_PER_INCH   # six inches: the text width of a Letter pa
 _CONVERT_DPI = 192
 _CONVERT_MAX_WIDTH_PX = _MAX_IMAGE_EMU * _CONVERT_DPI // _EMU_PER_INCH   # 1152
 _CONVERT_PIXEL_BUDGET = 16_000_000
-_INVALID_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]")
+_INVALID_XML = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\U0000FFFE\U0000FFFF]")
 _CHECK = {True: "☑ ", False: "☐ "}   # content, not UI: the task's state as text
 
 
@@ -910,7 +910,9 @@ class _Walker:
                     bundled = None
             if not bundled and href:
                 self.dx.unbundled_files.append(name)
-            return _run(name, "<w:i/>" + extra_props)
+            # D2 item 6: the chip's label (the member's link text) is what it shows; the
+            # list of files the document could not hold names the file itself.
+            return _run(_nx.chip_label(attrs) or name, "<w:i/>" + extra_props)
         if t in ("image", "resizableImage"):
             img = self.dx.image(attrs.get("src"))
             alt = str(attrs.get("alt") or "")
@@ -1038,6 +1040,17 @@ class _Walker:
             if isinstance(desc, str) and desc.strip():
                 out.append(self.para(_run(" ".join(desc.split())), self._ppr(ctx, "Quote")))
             return out
+        if t == "importNotice":
+            # Connector fidelity (2026-11): the sentence the editor shows, as a quote, and a
+            # link to the original only for an http(s) address -- the Markdown writer's line.
+            ni = _nx._import_notice
+            line = _run(ni.notice_text(attrs))
+            src = ni.safe_source_url(attrs.get("sourceUrl"))
+            rid = self.dx.hyperlink_id(src) if src else None
+            if rid:
+                line += _run(" ") + (f'<w:hyperlink r:id="{rid}">'
+                                     f'{_run(ni.OPEN_ORIGINAL, _HYPERLINK_STYLE)}</w:hyperlink>')
+            return [self.para(line, self._ppr(ctx, "Quote"))]
         if t == "webEmbed":
             url = attrs.get("url") if isinstance(attrs.get("url"), str) else ""
             if not _nx._WEB_LINK.match(url):

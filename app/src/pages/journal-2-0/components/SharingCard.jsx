@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import TileCard from '../../../components/TileCard'
 import { notebookFlag } from '../lib/offline/notebookFlags'
 import { noteShareEndpoint, SHARE_LINKS_ENDPOINT } from '../lib/noteShareLink'
-import { PUBLISH_ENDPOINT } from '../lib/notePublishLink'
+import { PUBLISH_ENDPOINT, publishUndoneMs } from '../lib/notePublishLink'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../lib/notebookTelemetry'
 import styles from './SharingCard.module.css'
 
 /**
@@ -113,6 +114,8 @@ function SharingList({ shareOn, publishOn }) {
     try {
       await requestJson(`${PUBLISH_ENDPOINT}/${encodeURIComponent(p.slug)}`, { method: 'DELETE' })
       setPubs((prev) => prev.filter((x) => x.slug !== p.slug))
+      const undoneMs = publishUndoneMs(p)
+      if (undoneMs != null) trackNotebookEvent(NOTEBOOK_EVENTS.TRUST_INCIDENT, { kind: 'publish_undone', ms: undoneMs })
       focusListRef.current = true
       setStatus(`"${p.name}" unpublished. The page no longer works.`)
     } catch (e) {
@@ -151,6 +154,10 @@ function SharingList({ shareOn, publishOn }) {
                 <span className={styles.name}>{s.title || 'Untitled'}</span>
                 <span className={styles.meta}>
                   {`Share link · created ${day(s.createdAt)} · ${s.expiresAt ? `expires ${day(s.expiresAt)}` : 'never expires'} · ${STATE_TEXT[s.state] || s.state}`}
+                </span>
+                {/* Tier 3a fix round 1 (review minor 11): which live links show account figures, at a glance. */}
+                <span className={styles.meta} data-share-pnl={s.hidePnl === true ? 'hidden' : 'shown'}>
+                  {s.hidePnl === true ? 'P&L widgets and images hidden' : 'P&L widgets and images shown'}
                 </span>
               </div>
               <div className={styles.actions}>

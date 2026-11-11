@@ -30,7 +30,6 @@ def db_path(monkeypatch):
 
 @pytest.fixture
 def client(db_path, monkeypatch):
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
     from api.routers import journal_two
     app = FastAPI()
     app.include_router(journal_two.router)
@@ -52,10 +51,9 @@ def test_a_plain_create_is_unchanged(client):
     assert (n["styleId"], n["styleVersion"], n["kindId"]) == (None, None, None)
 
 
-def test_a_plain_create_never_reads_the_switch(client, monkeypatch):
-    """Spec P1.7c: only the styleId/kindId branch reads the switch. With the gate OFF and a free
-    plan, a create without them still makes a note, and a null styleId/kindId is a plain create."""
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "0")
+def test_a_plain_create_never_reads_the_plan(client, monkeypatch):
+    """Spec P1.7c: only the styleId/kindId branch reads the plan. With a free plan, a create without
+    them still makes a note, and a null styleId/kindId is a plain create."""
     _as(client, plan="free")
     assert client.post("/api/j2/notes", json={"title": "plain"}).status_code == 200
     r = client.post("/api/j2/notes", json={"title": "plain", "styleId": None, "kindId": None})
@@ -135,16 +133,10 @@ def test_kind_without_any_style_makes_a_note_with_only_the_kind(client):
     assert n["propertiesJson"] == {"builtin:note_kind": k["id"]}
 
 
-def test_gate_off_and_free_plan_refuse_a_styled_create(client, monkeypatch):
+def test_a_free_plan_is_refused_a_styled_create(client, monkeypatch):
     _as(client, plan="free")
     r = client.post("/api/j2/notes", json={"kindId": "thesis"})
     assert r.status_code == 402 and r.json()["detail"] == "Journal styles require a paid plan"
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "0")
-    _as(client)
-    r = client.post("/api/j2/notes", json={"kindId": "thesis"})
-    assert (r.status_code, r.json()) == (404, {"detail": "Not found"})
-    _as(client, plan="free")                       # the gate answers before the plan is read
-    assert client.post("/api/j2/notes", json={"styleId": "builtin:thesis"}).status_code == 404
 
 
 def test_the_plan_is_read_when_the_session_carries_none(client, monkeypatch):

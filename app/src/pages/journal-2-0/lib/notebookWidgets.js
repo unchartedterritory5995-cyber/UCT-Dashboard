@@ -5,9 +5,10 @@
 // rendered from those params by its embed (components/notebook/widgets/*Embed.jsx).
 //
 // ⛔ KEEP THIS FILE LIGHT. WidgetEmbedView imports it, and WidgetEmbedView is on the Notebook's
-// first open. It imports widgetEmbedCore (already there) and nothing else. The fetch and the refresh
+// first open. It imports widgetEmbedCore (already there) and cotMarkets.js (one regex, no imports), nothing else. The fetch and the refresh
 // merge live in notebookWidgetsFetch.js, which only lazy code imports (Task 16D: first-open bytes).
 import { buildWidgetEmbedAttrs } from './widgetEmbedCore'
+import { COT_MARKET_RE } from './cotMarkets'
 
 /** All twenty-three kinds, in menu order. `group` is when a member reaches for it: before the open,
  *  planning a trade, or reviewing. `account` kinds read the member's own account and stay off
@@ -96,6 +97,15 @@ export const CAPTURE_KINDS = Object.freeze([
   { id: 'scanner', title: 'Scan results', held: 1, description: 'Your first scan as on Charts, frozen', keywords: ['scanner'] },
   { id: 'watchlist', title: 'Watchlist snapshot', description: 'Your first list as on Charts, frozen' },
   { id: 'themes', title: 'Theme rankings', description: "Today's top 40 themes, top theme first", keywords: ['themes'] },
+  // S13.6 remainder (audit 2026-11-05, "Hidden gems"): the COT and Model Book cards used to come in only from their
+  // own pages. Each runs its page's OWN builder (captures/cotCapture.js, captures/modelbookCapture.js) over the reads
+  // that page makes. `symbolRe`: a CFTC code is not an equity ticker (J6, SR3); `ask` is the bare row's prompt;
+  // `picker: 'cot'` lets the Insert panel list the COT tab's markets. The Screener stays on its own page (report).
+  { id: 'cot', title: 'COT positioning', cmd: 'cot', symbolRe: COT_MARKET_RE, picker: 'cot',
+    ask: 'Type a market — e.g. /cot ES', description: "A futures market's latest COT report week, frozen",
+    keywords: ['cot', 'futures', 'positioning', 'commitments'] },
+  { id: 'modelbook', title: 'Model Book', cmd: 'modelbook', description: "A stock's Model Book entry, its latest year",
+    keywords: ['model book', 'modelbook', 'best stocks'] },
 ].map((k) => ({ wave: 4, group: 'more', ...k,
   // Review m-2: a capture that fails says it failed; only the module not loading rejects (the menu's lost chunk).
   capture: (p) => slashCaptures().then((m) => m[k.id](p).catch(() => ({ ok: false, reason: 'failed' }))) })))

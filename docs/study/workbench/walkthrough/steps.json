@@ -1,0 +1,65 @@
+[
+  {
+    "id": "landing",
+    "title": "1 · The Study landing",
+    "url": "http://127.0.0.1:8077/desk?section=courses",
+    "what": "Where a member starts: Desk → Courses. The 'Your trail is a chart' block, the eight Method stations, the Foundations row.",
+    "judge": "Does it make you want to start? Is it obvious what to tap first? Does the trail-as-a-chart idea land, or is it decoration?"
+  },
+  {
+    "id": "drill-question",
+    "title": "2 · A drill question",
+    "url": "http://127.0.0.1:8077/desk?section=courses&study=today",
+    "what": "Today's set, 10 questions. Answer three or four so you see different kinds: a chart question, a wording question, a sizing question.",
+    "judge": "The wording. The chart. The choices. Is this a question you would ask a student, in your words? Too easy, too hard, pointless?"
+  },
+  {
+    "id": "reveal",
+    "title": "3 · The answer card",
+    "url": "http://127.0.0.1:8077/desk?section=courses&study=today",
+    "what": "After Check: Correct/Wrong, ticker and date, the lesson paragraph, the 'Why' fold, 'Review this one'.",
+    "judge": "Does the card TEACH, or just mark you? Is the lesson in your voice? Right length? Is the chart annotated enough to see the point?"
+  },
+  {
+    "id": "endcard",
+    "title": "4 · The end card",
+    "url": "http://127.0.0.1:8077/desk?section=courses&study=today",
+    "what": "Keep answering to the end of the 10. The end card: score, XP, streak, what to do next.",
+    "judge": "Does finishing feel like anything? Would you come back tomorrow because of this screen?"
+  },
+  {
+    "id": "practise",
+    "title": "5 · The Practise sheet",
+    "url": "http://127.0.0.1:8077/desk?section=courses&study=practise",
+    "what": "The sheet with three doors: review my misses, refresh a stale skill, keep going on the trail.",
+    "judge": "Are these the three things a member wants? Names clear? Anything missing (a timed sprint, a chart-only mode, a pick-a-setup mode)?"
+  },
+  {
+    "id": "unit",
+    "title": "6 · A station and its units",
+    "url": "http://127.0.0.1:8077/desk?section=courses",
+    "what": "On the landing tap the 'Setup' station, then a unit on its trail. This is the Duolingo-style path: units in a row, levels inside.",
+    "judge": "Is the path readable? Do you understand where you are and what comes next? Is 'unit' even the right size of thing?"
+  },
+  {
+    "id": "foundations",
+    "title": "7 · Foundations (empty today)",
+    "url": "http://127.0.0.1:8077/desk?section=courses",
+    "what": "Scroll to the Foundations row: Market basics, Chart reading, Candlesticks... all 'coming soon' except the 600 candle charts behind Candlesticks.",
+    "judge": "This is the beginner course. What should the FIRST lesson a brand-new member plays look like? Say it in a sentence or two."
+  },
+  {
+    "id": "review-screen",
+    "title": "8 · Your review screen",
+    "url": "http://127.0.0.1:8077/admin/pattern-review?mode=study",
+    "what": "The admin screen where you grade items one by one (Type / Skill / Lane filters, N for next, approve / needs fix / reject).",
+    "judge": "Is this how you want to review? Four at a time on the phone was tiring. What would make reviewing fast and even fun?"
+  },
+  {
+    "id": "overall",
+    "title": "9 · The whole thing",
+    "url": "http://127.0.0.1:8077/desk?section=courses",
+    "what": "Everything you just saw, as one product.",
+    "judge": "You said 2 out of 100. Describe the 100: what a member does in their first five minutes, and what they feel when they close it."
+  }
+]

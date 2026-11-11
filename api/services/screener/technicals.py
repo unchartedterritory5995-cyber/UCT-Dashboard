@@ -529,6 +529,18 @@ _WINDOW_BARS = {
     "chg_pct_ytd": 252, "chg_pct_1y": 253,
     "rsi14": 10 ** 9, "pct_vs_ema20": 10 ** 9,
     "dist_ath_pct": 10 ** 9, "new_ath": 10 ** 9,
+    # scan primitives (see `scan_primitives`). The EMAs and the runs read the whole series.
+    "pct_vs_ema9": 10 ** 9, "pct_vs_ema10": 10 ** 9,
+    "run_close_ema20": 10 ** 9, "run_close_sma50": 10 ** 9, "run_close_sma200": 10 ** 9,
+    "run_ema9_ema20": 10 ** 9, "run_sma20_sma50": 10 ** 9, "run_sma50_sma200": 10 ** 9,
+    "sma20_rising": 40, "sma50_rising": 70, "sma200_rising": 220,
+    "avg_volume_10d": 10, "avg_volume_50d": 50, "vol_trend_pct": 20, "min_volume_3d_prior": 4,
+    # live-tier bases (see `scan_primitives`): each READS the bars from its base to the newest.
+    "live_base_close_1w": 5, "live_base_close_1m": 21, "live_base_close_1y": 252,
+    "live_base_min_volume_3d": 3,
+    "vol_up_run": 10 ** 9, "vol_down_run": 10 ** 9,
+    "new_high_lookback": 253, "new_low_lookback": 253, "breakout_20d_age": 83,
+    "high_52w_age": 252, "low_52w_age": 252,
 }
 
 #: Facts about ONE bar. They cannot span a seam, so they are never withheld —
@@ -549,6 +561,150 @@ def seam_withheld_columns(bars) -> set:
     return {c for c, w in _WINDOW_BARS.items() if w > since}
 
 
+#: The columns `scan_primitives` writes.
+SCAN_PRIMITIVE_COLUMNS = (
+    "pct_vs_ema9", "pct_vs_ema10", "run_close_ema20", "run_close_sma50", "run_close_sma200",
+    "run_ema9_ema20", "run_sma20_sma50", "run_sma50_sma200", "sma20_rising", "sma50_rising", "sma200_rising",
+    "avg_volume_10d", "avg_volume_50d", "vol_trend_pct", "vol_up_run", "vol_down_run",
+    "min_volume_3d_prior",
+    "new_high_lookback", "new_low_lookback", "breakout_20d_age", "high_52w_age", "low_52w_age",
+)
+#: Also written by `scan_primitives`, but NOT filters: the session-shifted levels `live_tier` restates
+#: the 5-day/1-month/1-year change and MINV3.1 from during the next session (see the comment there).
+LIVE_BASE_COLUMNS = ("live_base_close_1w", "live_base_close_1m", "live_base_close_1y", "live_base_min_volume_3d")
+#: The longest "N-day high" `new_high_lookback` can state: a trading year.
+LOOKBACK_CAP = 252
+#: `breakout_20d_age` looks this many sessions back (a quarter) and is blank past it.
+BREAKOUT_AGE_WINDOW = 63
+#: A moving average "rises" when it stands above its own value this many sessions ago.
+RISING_SPAN = 20
+
+
+def _signed_run(fast, slow):
+    """Consecutive sessions, ending at the newest, that ``fast`` sat strictly on one side of ``slow``.
+
+    Positive means above and negative means below, so ``1`` is the session it crossed up and ``-1`` the session it
+    crossed down. ``0`` means the two are equal on the newest session. ``None`` when either side is undefined there.
+    Both inputs are aligned with a ``None`` pad; the count stops where either runs out, so it never exceeds the
+    bars handed in.
+    """
+    if not fast or fast[-1] is None or slow[-1] is None:
+        return None
+    if fast[-1] == slow[-1]:
+        return 0
+    above = fast[-1] > slow[-1]
+    run = 0
+    for f, s in zip(reversed(fast), reversed(slow)):
+        if f is None or s is None or f == s or (f > s) != above:
+            break
+        run += 1
+    return run if above else -run
+
+
+def _volume_run(vols, rising):
+    """Consecutive session-over-session rises (or falls) in volume, ending at the newest session.
+
+    ``0`` when the newest session did not rise (or fall). ``None`` when the newest two sessions do not both hold a
+    volume. A session with no volume ends the run: an absence is never read as a change."""
+    if len(vols) < 2 or vols[-1] is None or vols[-2] is None:
+        return None
+    run = 0
+    for i in range(len(vols) - 1, 0, -1):
+        a, b = vols[i - 1], vols[i]
+        if a is None or b is None or not (b > a if rising else b < a):
+            break
+        run += 1
+    return run
+
+
+def _mean_volume(vols, n):
+    """The mean of the last ``n`` sessions' volume, or ``None`` when any of them is absent (never counted as 0)."""
+    w = vols[-n:]
+    if len(w) < n or any(v is None for v in w):
+        return None
+    return sum(w) / n
+
+
+def _age_of(values, target):
+    """Sessions since the newest entry of ``values`` equal to ``target`` (0 is the newest)."""
+    for age, v in enumerate(reversed(values)):
+        if v == target:
+            return age
+    return None
+
+
+def scan_primitives(bars, closes, ipo_date=None) -> dict:
+    """Composable scan conditions. Every value at a session reads only that session and older ones: no look-ahead.
+    Same stored bars, same moving averages as the chart (`indicator_compute`), never a second implementation.
+    The definitions are the catalog's (`filters.py`). A value that cannot be computed is ``None``, which matches no
+    threshold."""
+    from api.services import indicator_compute as ic
+    out = {}
+    price = closes[-1]
+    e9, e10, e20 = ic.compute_ema(closes, 9), ic.compute_ema(closes, 10), ic.compute_ema(closes, 20)
+    s20, s50, s200 = ic.compute_sma(closes, 20), ic.compute_sma(closes, 50), ic.compute_sma(closes, 200)
+    out["pct_vs_ema9"] = _pct(price, e9[-1]) if e9[-1] else None
+    out["pct_vs_ema10"] = _pct(price, e10[-1]) if e10[-1] else None
+    out["run_close_ema20"] = _signed_run(closes, e20)
+    out["run_close_sma50"] = _signed_run(closes, s50)
+    out["run_close_sma200"] = _signed_run(closes, s200)
+    out["run_ema9_ema20"] = _signed_run(e9, e20)
+    out["run_sma20_sma50"] = _signed_run(s20, s50)
+    out["run_sma50_sma200"] = _signed_run(s50, s200)
+    for name, s in (("sma20_rising", s20), ("sma50_rising", s50), ("sma200_rising", s200)):
+        then = s[-1 - RISING_SPAN] if len(s) > RISING_SPAN else None
+        out[name] = (s[-1] > then) if (s[-1] is not None and then is not None) else None
+
+    vols = [_volume(b) for b in bars]
+    a5, a10, a20, a50 = (_mean_volume(vols, n) for n in (5, 10, 20, 50))
+    out["avg_volume_10d"] = round(a10, 2) if a10 is not None else None
+    out["avg_volume_50d"] = round(a50, 2) if a50 is not None else None
+    out["vol_trend_pct"] = round((a5 / a20 - 1) * 100, 2) if (a5 is not None and a20) else None
+    out["vol_up_run"] = _volume_run(vols, True)
+    out["vol_down_run"] = _volume_run(vols, False)
+    # TC2000's `MINV3.1`: the lowest volume of the three sessions BEFORE the newest one (the
+    # newest is left out, so a heavy day today cannot lift it). Blank when any of the three has
+    # no volume: an absent session is never read as zero, which would fail every floor.
+    prior3 = vols[-4:-1]
+    out["min_volume_3d_prior"] = (min(prior3) if len(prior3) == 3 and all(v is not None for v in prior3)
+                                  else None)
+
+    # LIVE-TIER BASES. Not filters: the levels `live_tier` needs to restate four columns DURING the next
+    # session, when today's developing bar is "bar 0" and every lookback shifts one session later than it
+    # did at this build. Recovering them from the stored columns would give the wrong day:
+    #   chg_pct_1w at 03:00 is close / close 5 sessions back; at 10:42 tomorrow TC2000's c/c5 is the live
+    #   price / the close 4 sessions before the newest completed one, which is `closes[-5]` here.
+    # Same for 1m (`closes[-22]` -> `closes[-21]`) and 1y (`closes[-253]` -> `closes[-252]`), and for MINV3.1:
+    # tomorrow "the 3 sessions ending 1 bar ago" are the 3 newest COMPLETED sessions, `vols[-3:]`.
+    for name, back in (("live_base_close_1w", 5), ("live_base_close_1m", 21), ("live_base_close_1y", 252)):
+        base = closes[-back] if len(closes) >= back else None
+        out[name] = base if (base is not None and base > 0) else None
+    last3 = vols[-3:]
+    out["live_base_min_volume_3d"] = (min(last3) if len(last3) == 3 and all(v is not None for v in last3)
+                                      else None)
+
+    out["new_high_lookback"] = out["new_low_lookback"] = None
+    if len(bars) >= 2:
+        prior = bars[-LOOKBACK_CAP - 1:-1][::-1]
+        out["new_high_lookback"] = next((n for n, b in enumerate(prior) if b["h"] >= price), len(prior))
+        out["new_low_lookback"] = next((n for n, b in enumerate(prior) if b["l"] <= price), len(prior))
+    out["breakout_20d_age"] = None
+    for age in range(BREAKOUT_AGE_WINDOW):
+        i = len(bars) - 1 - age
+        if i < 20:
+            break
+        if bars[i]["c"] > max(b["h"] for b in bars[i - 20:i]):
+            out["breakout_20d_age"] = age
+            break
+    out["high_52w_age"] = out["low_52w_age"] = None
+    if _window_full(bars, "high_52w_age", ipo_date, listing_exempt=True):
+        yr = bars[-252:]
+        highs, lows = [b["h"] for b in yr], [b["l"] for b in yr]
+        out["high_52w_age"] = _age_of(highs, max(highs))
+        out["low_52w_age"] = _age_of(lows, min(lows))
+    return out
+
+
 def compute_technicals(bars: list[dict], ipo_date=None) -> dict:
     """The bar-derived columns. ``ipo_date`` (the row's listing date, or None)
     is consulted ONLY for the 52-week exception — see ``holds_whole_life``."""
@@ -558,7 +714,8 @@ def compute_technicals(bars: list[dict], ipo_date=None) -> dict:
         "vol_ratio", "gap_pct", "dist_52w_high_pct", "dist_52w_low_pct", "price",
         "chg_pct_1y", "chg_pct_ytd", "chg_from_open_pct", "adr_pct_1w",
         "dist_20d_high_pct", "dist_20d_low_pct", "pole_pct", "atr_ext_sma50",
-        "prev_day_open", "prev_day_high", "prev_day_low", "prev_day_close", "dollar_vol_1d")}
+        "prev_day_open", "prev_day_high", "prev_day_low", "prev_day_close", "dollar_vol_1d",
+        *SCAN_PRIMITIVE_COLUMNS, *LIVE_BASE_COLUMNS)}
     out["ma_stack"] = None
     out["above_50sma"] = None
     out["new_52w_high"] = False
@@ -743,4 +900,5 @@ def compute_technicals(bars: list[dict], ipo_date=None) -> dict:
         p = bars[-2]
         out["prev_day_open"], out["prev_day_high"] = p["o"], p["h"]
         out["prev_day_low"], out["prev_day_close"] = p["l"], p["c"]
+    out.update(scan_primitives(bars, closes, ipo_date))
     return out

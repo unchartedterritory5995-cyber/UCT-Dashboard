@@ -1274,6 +1274,74 @@
         ],
         "note": "web, 06:00 ET daily; registered beside the 03:00 nightly and self-gates on SCREENER_SNAPSHOT_ENABLED (default on). No flag state is asserted here."
       }
+    },
+    {
+      "guard": "api/main.py::_alert_if_rs_history_short::<computed>::warning",
+      "in_population": true,
+      "audit_rows": [],
+      "what_the_guard_decides": "Whether a nightly UCT RS rating-history run that fell short (more than 20% of targets unrated, nothing rated, or the job crashed) raises an operator warning under rs_history_short:{session}, while a full receipt raises nothing. Added 2026-11-06 with the rs_history_nightly job (UCT Relative Strength Phase 2a, unit 2a-04); the job is dark behind RS_HISTORY_ENABLED, read per call.",
+      "predicate": {
+        "file": "api/main.py",
+        "scope": "_alert_if_rs_history_short",
+        "pinned": "if not why:",
+        "mutation": "if why:"
+      },
+      "observed_by": [
+        "tests/test_screener_schedule.py::test_on_it_calls_nightly_job_ONCE_with_defaults_and_alerts_ONCE_on_a_30pct_shortfall",
+        "tests/test_screener_schedule.py::test_a_full_receipt_raises_no_alert",
+        "tests/test_screener_schedule.py::test_the_job_never_raises_and_a_crash_still_alerts_under_todays_key"
+      ],
+      "proof": {
+        "commit": "1f6811b1f",
+        "quote": "mutating `if not why:` -> `if why:` in _alert_if_rs_history_short turns 3 tests red"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/main.py",
+            "call": "add_job",
+            "job_id": "rs_history_nightly"
+          },
+          {
+            "file": "api/main.py",
+            "call": "register_screener_jobs"
+          }
+        ],
+        "note": "web, the 04:15 ET rs_history_nightly cron registered unconditionally in register_screener_jobs; the job function returns before any work unless RS_HISTORY_ENABLED is literally 1 (per call). No flag state is asserted here."
+      }
+    },
+    {
+      "guard": "api/services/journal_two/tweet_capture_sync.py::_alert_owner::<computed>::critical",
+      "in_population": true,
+      "audit_rows": [],
+      "what_the_guard_decides": "Whether a Notebook tweet sweep or confirm pass that looks like an X outage or a bulk miss pages the operator at `critical` instead of marking or removing saved posts. Added with Import a tweet; both jobs are dark behind NOTEBOOK_TWEET_IMPORT_ENABLED, read per run.",
+      "predicate": {
+        "file": "api/services/journal_two/tweet_capture_sync.py",
+        "scope": "_alert_owner",
+        "pinned": "chart_health_alerts.emit(ALERT_KEY, \"critical\", message,",
+        "mutation": "chart_health_alerts.emit(ALERT_KEY, \"warning\", message,"
+      },
+      "observed_by": [
+        "tests/test_notebook_tweet_capture_sync.py::test_bulk_miss_removes_nothing_and_alerts",
+        "tests/test_notebook_tweet_capture_sync.py::test_nothing_resolving_in_sweep_is_an_outage",
+        "tests/test_notebook_tweet_capture_sync.py::test_nothing_resolving_in_confirm_removes_nothing"
+      ],
+      "proof": {
+        "commit": "da76976dbb",
+        "quote": "turned 3 tests red in tests/test_notebook_tweet_capture_sync.py (test_bulk_miss_removes_nothing_and_alerts, test_nothing_resolving_in_sweep_is_an_outage, test_nothing_resolving_in_confirm_removes_nothing; 34 passed)"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/main.py",
+            "call": "add_job",
+            "job_id": "notebook_tweet_capture_sweep"
+          }
+        ],
+        "note": "web, the 03:10 ET sweep; the 03:25 ET job `notebook_tweet_capture_confirm` reaches the same guard through run_confirm. Both functions return before any work unless the import flag is on (per run). No flag state is asserted here."
+      }
     }
   ],
   "declared_unobserved": []

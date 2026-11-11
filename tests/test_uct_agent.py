@@ -66,6 +66,7 @@ def _no_cost(monkeypatch):
 
 # ── the contract: built from the MANIFEST, never from a list in this module ──
 
+@pytest.mark.usefixtures("routed_schema")
 def test_the_schema_is_built_from_the_manifest_and_is_closed():
     caps = turn.validate_manifest(CAPS)
     sch = turn.envelope_schema(caps)
@@ -101,6 +102,7 @@ def test_the_server_names_no_capability_of_its_own():
     assert "widget.addCharts" in named   # the rail really reads the prompt
 
 
+@pytest.mark.usefixtures("routed_schema")
 def test_EXTENSIBILITY_a_new_capability_joins_through_the_manifest_alone():
     """A future feature registers `example.setSomething` in the browser; the
     server offers it to the model with NO change to this module."""
@@ -377,7 +379,7 @@ def test_research_has_a_hard_ceiling_of_one(monkeypatch):
 
 
 def test_history_alternates_and_carries_what_uct_actually_did():
-    rows = [{"role": "member", "text": "bars"}, {"role": "outcome", "text": "Changed chart to Bars", "data": {"kind": "applied"}},
+    rows = [{"role": "member", "text": "bars"}, {"role": "outcome", "text": "Changed chart to Bars", "data": {"kind": "applied", "actions": ["chart.style"]}},
             {"role": "member", "text": "why?"}, {"role": "agent", "text": "Because."}]
     msgs = turn.history_messages(rows)
     assert [m["role"] for m in msgs] == ["user", "assistant", "user", "assistant"]
@@ -478,7 +480,7 @@ def test_a_store_failure_is_a_sentence_and_gives_the_charge_back(make_client, mo
 
 def test_a_proposal_in_history_never_reads_as_executed():
     rows = [{"role": "member", "text": "make it cleaner"},
-            {"role": "outcome", "text": "Proposed: Hid Volume", "data": {"kind": "proposed"}},
+            {"role": "outcome", "text": "Proposed: Hid Volume", "data": {"kind": "proposed", "actions": ["indicator.hide"]}},
             {"role": "member", "text": "why?"}, {"role": "agent", "text": "Less clutter."}]
     msgs = turn.history_messages(rows)
     assert "executed" not in msgs[1]["content"].replace("NOT executed", "")
@@ -531,12 +533,14 @@ def _many_caps(n):
     return out
 
 
+@pytest.mark.usefixtures("routed_schema")
 def test_up_to_the_budget_the_schema_stays_strict_per_action():
     caps = turn.validate_manifest(_many_caps(turn.STRICT_OP_VARIANTS_MAX))
     assert not turn.compact_ops(caps)
     assert "anyOf" in turn.envelope_schema(caps)["properties"]["ops"]["items"]
 
 
+@pytest.mark.usefixtures("routed_schema")
 def test_past_the_budget_the_op_shape_is_compact_and_still_closed():
     caps = turn.validate_manifest(_many_caps(turn.STRICT_OP_VARIANTS_MAX + 3))
     items = turn.envelope_schema(caps)["properties"]["ops"]["items"]
@@ -657,6 +661,7 @@ def _refusing_then(*resps, message="Error code: 400 - The compiled grammar is to
     return caller
 
 
+@pytest.mark.usefixtures("routed_schema")
 def test_a_schema_refusal_is_retried_once_compact_and_args_are_still_checked_strictly():
     few = _many_caps(3)                                   # small → embedded first
     assert not turn.compact_ops(turn.validate_manifest(few))
@@ -689,6 +694,7 @@ def test_an_already_compact_request_is_never_retried():
     assert len(c.calls) == 1
 
 
+@pytest.mark.usefixtures("routed_schema")
 def test_a_second_refusal_after_the_fallback_is_not_retried_again():
     calls = []
 

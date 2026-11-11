@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { obsidianAdapter } from './adapters/obsidian'
+import { htmlToNote } from './convert'
+import { extractPlainText } from '../tiptap'
+import { parseImport } from './postParse'
+import { rewriteBody, storeMediaItem } from './commit'
+import { importNoticeText } from '../importNoticeText'
 
 const vf = (path, text) => ({ path, size: text.length, lastModified: null,
                               bytes: async () => new TextEncoder().encode(text) })
@@ -24,14 +29,15 @@ describe('obsidian adapter', () => {
     expect(a.html).toContain('Ghost Note')
   })
 
-  it('turns image embeds into media refs and callouts into blockquotes', async () => {
+  it('turns image embeds into media refs and callouts into callout asides', async () => {
     const { docs } = await obsidianAdapter.parse([
       vf('V/n.md', '![[chart.png]]\n\n> [!warning] Risk\n> tight stop'),
       vf('V/files/chart.png', '')])
     const d = docs[0]
     expect(d.media[0].ref).toBe('V/files/chart.png')
     expect(d.html).toContain('import-ref://V/files/chart.png')
-    expect(d.html).toMatch(/<blockquote>.*Risk.*tight stop/s)
+    // D2 item 1: the callout node's own HTML, never a blockquote.
+    expect(d.html).toMatch(/<aside data-variant="warning"><p><strong>Risk<\/strong><\/p>.*tight stop.*<\/aside>/s)
   })
 
   it('skips the .obsidian config dir', async () => {
@@ -152,12 +158,50 @@ describe('obsidian adapter — inline code spans protect wiki-syntax too', () =>
 })
 
 describe('obsidian adapter — unresolvable embed fallback', () => {
-  it('renders an unresolvable embed target as plain text, not an <img> or media entry', async () => {
-    const { docs } = await obsidianAdapter.parse([vf('n.md', 'before ![[missing.png]] after')])
+  // Live audit 2026-11-03, F3: a missing FILE embed is the live lane's visible notice, "<name>
+  // wasn't found in the vault." (the plugin sends it as a `missing` ref, the server writes
+  // reason `not-found`). ⚰️ It was plain text, "ov-gone.png", with no notice and nothing in
+  // the wizard's Needs attention. A missing NOTE embed keeps D2 item 8's reading: its name.
+  const notesOf = async (body) => {
+    const { docs } = await obsidianAdapter.parse([vf('n.md', body)])
     const d = docs[0]
-    expect(d.media).toHaveLength(0)
-    expect(d.html).not.toContain('<img')
-    expect(d.html).toContain('missing.png')
+    const results = {}
+    for (const item of d.media) results[item.ref] = await storeMediaItem('n1', d.importKey, item)
+    const { body: out, notices, droppedMedia } = rewriteBody(htmlToNote(d.html).bodyJson, { mediaResults: results })
+    return { d, out, notices, droppedMedia }
+  }
+
+  it("a missing file embed is a not-found notice with the live lane's words, never a vault path", async () => {
+    const { d, out, notices, droppedMedia } = await notesOf('before ![[ov-gone.png]] after')
+    expect(d.media).toEqual([{ ref: 'obsidian-missing:ov-gone.png', kind: 'image', name: 'ov-gone.png',
+      failed: { reason: 'not_found', sourceUrl: null } }])
+    expect(out.content.map((n) => n.type)).toEqual(['paragraph', 'importNotice', 'paragraph'])
+    const [notice] = out.content.filter((n) => n.type === 'importNotice')
+    expect(importNoticeText(notice.attrs)).toBe("ov-gone.png wasn't found in the vault.")
+    // The server lane's notice for the same embed (`not-found`) reads the same sentence.
+    expect(importNoticeText({ reason: 'not-found', name: 'ov-gone.png', attempts: 0 }))
+      .toBe(importNoticeText(notice.attrs))
+    expect(notices.map((n) => [n.reason, n.name])).toEqual([['not_found', 'ov-gone.png']])
+    expect(droppedMedia).toEqual(['obsidian-missing:ov-gone.png'])
+    expect(extractPlainText(out)).not.toContain('ov-gone.png')
+  })
+
+  it('names the file the member wrote: a #-name in full, an anchor, a width and a folder off', async () => {
+    for (const [body, name] of [['![[my chart #1 (v2).png]]', 'my chart #1 (v2).png'],
+      ['![[x.png#anchor]]', 'x.png'], ['![[gone.png|300]]', 'gone.png'], ['![[att/deck.pdf]]', 'deck.pdf']]) {
+      const { notices } = await notesOf(body)
+      expect(notices.map((n) => [n.reason, n.name]), body).toEqual([['not_found', name]])
+    }
+  })
+
+  it("a missing NOTE embed keeps D2 item 8: the note's name as text, no notice, no media", async () => {
+    for (const [body, text] of [['![[Some Note]]', 'Some Note'], ['![[Ghost#Risk]]', 'Ghost'],
+      ['![[Ghost.md]]', 'Ghost'], ['![[Dr.Smith]]', 'Dr.Smith']]) {
+      const { d, out, notices } = await notesOf(body)
+      expect(d.media, body).toEqual([])
+      expect(notices, body).toEqual([])
+      expect(extractPlainText(out), body).toBe(text)
+    }
   })
 })
 
@@ -172,10 +216,210 @@ describe('obsidian adapter — link anchors (#Heading / #^block) resolve to the 
     expect(a.links).toHaveLength(2)
     expect(a.links.every((l) => l.targetKey === 'obsidian:Vault/Note.md')).toBe(true)
     expect(a.html).toContain('data-import-link="obsidian:Vault/Note.md"')
-    // ...and the written display text (including the anchor) is preserved,
-    // not silently dropped, since only the RESOLUTION step ignores it.
-    expect(a.html).toContain('Note#Heading')
-    expect(a.html).toContain('Note#^abc123')
+    // ...and the anchor stays in the display text as Obsidian shows it (D2 item 8, Plan B
+    // Task 8, the server's `_wikilink_display`): a heading as `Note > Heading`, a block as
+    // the note's name, its id not at all (it used to read `Note#Heading` / `Note#^abc123`).
+    const { bodyJson } = htmlToNote(a.html)
+    expect(extractPlainText(bodyJson)).toBe('see Note > Heading and Note')
+    expect(a.html).toContain('>Note &gt; Heading</a>')
+    expect(a.html).toContain('>Note</a>')
+    expect(a.html).not.toContain('abc123')
+  })
+})
+
+// Plan B Task 8 (I-9, O-5, O-8, O-11, `obsidian://`): links and media resolve the way
+// Obsidian (and the server's Obsidian connector) resolves them. Through `parseImport`, the
+// wizard's own call, so the post-parse pass sees what the adapter wrote.
+describe('obsidian adapter — Obsidian resolution (Plan B Task 8)', () => {
+  const docOf = async (files, path) => {
+    const { docs } = await parseImport(obsidianAdapter, files, {})
+    return docs.find((d) => d.importKey === `obsidian:${path}`)
+  }
+
+  it('resolves a relative markdown link to the note', async () => {
+    const d = await docOf([
+      vf('V/.obsidian/app.json', '{}'),
+      vf('V/Notes/Src.md', '[a](../Notes/Other.md) [b](Other%20note.md) [c](<Other note.md#H>) [d](Archive/Deep.md) [e](Ghost.md)'),
+      vf('V/Notes/Other.md', ''), vf('V/Notes/Other note.md', ''), vf('V/Archive/Deep.md', ''),
+    ], 'V/Notes/Src.md')
+    expect(d.html).toContain('<a data-import-link="obsidian:V/Notes/Other.md">a</a>')
+    expect(d.html).toContain('<a data-import-link="obsidian:V/Notes/Other note.md">b</a>')
+    expect(d.html).toContain('<a data-import-link="obsidian:V/Notes/Other note.md">c</a>')
+    expect(d.html).toContain('<a data-import-link="obsidian:V/Archive/Deep.md">d</a>')
+    // A miss is never a link: the post-parse pass makes it its text.
+    expect(d.html).not.toContain('Ghost.md')
+    expect(d.html).toContain('e')
+    expect(d.links.map((l) => l.targetKey)).toEqual(expect.arrayContaining([
+      'obsidian:V/Notes/Other.md', 'obsidian:V/Notes/Other note.md', 'obsidian:V/Archive/Deep.md']))
+  })
+
+  it('makes a relative link to a non-note vault file an attachment chip', async () => {
+    const d = await docOf([
+      vf('V/n.md', '[the deck](files/deck.pdf)'), vf('V/files/deck.pdf', 'x'),
+      vf('V/sub/m.md', '[deck](files/deck.pdf)'),
+    ], 'V/sub/m.md')
+    expect(d.html).toContain('data-type="attachmentChip"')
+    expect(d.html).toContain('href="import-ref://V/files/deck.pdf"')
+    expect(d.media.map((m) => m.ref)).toContain('V/files/deck.pdf')
+  })
+
+  // Post-merge fix 3: a relative link the vault rules resolve (`resolveVaultAnchors`) is the
+  // same chip the beside-the-note path makes (`resolveRelativeMedia`): the member's link
+  // text, as rendered, is its label (D2 item 6), and none when it is just the name.
+  it('a vault-resolved link to a file keeps its rendered link text as the chip label', async () => {
+    const d = await docOf([
+      vf('V/.obsidian/app.json', '{}'),
+      vf('V/sub/m.md', '[**the** deck](files/deck.pdf) and [deck.pdf](files/deck.pdf)'),
+      vf('V/files/deck.pdf', 'x'),
+    ], 'V/sub/m.md')
+    const chips = [...d.html.matchAll(/<a [^>]*data-type="attachmentChip"[^>]*>/g)].map((m) => m[0])
+    expect(chips).toHaveLength(2)
+    expect(chips[0]).toContain('data-label="the deck"')
+    expect(chips[1]).not.toContain('data-label')
+    const { bodyJson } = htmlToNote(d.html)
+    const labels = []
+    const walk = (n) => { if (n.type === 'attachmentChip') labels.push(n.attrs.label ?? null); (n.content || []).forEach(walk) }
+    walk(bodyJson)
+    expect(labels).toEqual(['the deck', null])
+  })
+
+  it('resolves a wikilink with an escaped pipe in a table', async () => {
+    const d = await docOf([
+      vf('a.md', '| col |\n| --- |\n| [[Other note\\|alias]] |\n'), vf('Other note.md', ''),
+    ], 'a.md')
+    expect(d.html).toMatch(/<td><a data-import-link="obsidian:Other note.md">alias<\/a><\/td>/)
+    expect(d.links).toEqual([{ targetKey: 'obsidian:Other note.md' }])
+  })
+
+  it('never shows the table escape in the name of an unresolved embed', async () => {
+    // Live audit F3: a missing file embed is a not-found notice; its NAME is what reads.
+    const d = await docOf([vf('a.md', '| col |\n| --- |\n| ![[missing.png\\|100]] |\n')], 'a.md')
+    expect(d.media.map((m) => [m.name, m.failed?.reason])).toEqual([['missing.png', 'not_found']])
+    expect(d.html).not.toContain('\\|')
+  })
+
+  it('makes ![[Other note]] a note link, not a file chip', async () => {
+    const d = await docOf([vf('a.md', '![[Other note]] ![[Other note.md#Risk]]'), vf('Other note.md', '')], 'a.md')
+    expect(d.html).not.toContain('attachmentChip')
+    expect(d.html).toContain('<a data-import-link="obsidian:Other note.md">Other note</a>')
+    expect(d.html).not.toContain('Risk')
+    expect(d.media).toEqual([])
+    expect(d.links[0]).toEqual({ targetKey: 'obsidian:Other note.md' })
+  })
+
+  it('resolves a vault-root image path from a subfolder note', async () => {
+    const d = await docOf([
+      vf('V/.obsidian/app.json', '{}'),
+      vf('V/Sub/n.md', '![x](attachments/x.png) ![y](y%20pic.png)'),
+      vf('V/attachments/x.png', 'x'), vf('V/elsewhere/y pic.png', 'y'),
+    ], 'V/Sub/n.md')
+    expect(d.html).toContain('src="import-ref://V/attachments/x.png"')
+    expect(d.html).toContain('src="import-ref://V/elsewhere/y pic.png"')
+    expect(d.media.map((m) => m.ref).sort()).toEqual(['V/attachments/x.png', 'V/elsewhere/y pic.png'])
+  })
+
+  it('resolves an obsidian://open link to the note', async () => {
+    const d = await docOf([
+      vf('Trading/a.md', '[the plan](obsidian://open?vault=Trading&file=Plans%2FPlan) and [gone](obsidian://open?vault=Trading&file=Ghost)'),
+      vf('Trading/Plans/Plan.md', ''),
+    ], 'Trading/a.md')
+    expect(d.html).toContain('<a data-import-link="obsidian:Trading/Plans/Plan.md">the plan</a>')
+    expect(d.html).not.toContain('obsidian://')
+    expect(d.html).toContain('gone')
+  })
+
+  // Plan B final review, fix 2: with no `.obsidian/` folder, `vault=` must name the drop's
+  // top folder (exact, case-sensitive); otherwise a by-name lookup across the whole drop
+  // opened another vault's note.
+  it('no vault root: a vault= matching the drop top folder links', async () => {
+    const d = await docOf([
+      vf('Personal/a.md', '[p](obsidian://open?vault=Personal&file=Plan)'),
+      vf('Personal/Plan.md', ''),
+    ], 'Personal/a.md')
+    expect(d.html).toContain('<a data-import-link="obsidian:Personal/Plan.md">p</a>')
+  })
+
+  it('no vault root: a vault= naming another vault is text, never a by-name hit', async () => {
+    const d = await docOf([
+      vf('Work/a.md', '[p](obsidian://open?vault=Personal&file=Plan) [q](obsidian://open?vault=work&file=Plan)'),
+      vf('Work/Plan.md', ''),
+    ], 'Work/a.md')
+    expect(d.html).not.toContain('data-import-link')
+    expect(d.html).not.toContain('obsidian://')
+    expect(d.html).toContain('p')
+    expect(d.html).toContain('q')
+    expect(d.links).toEqual([])
+  })
+
+  it('no vault root and files under several top folders: a vault= link is text', async () => {
+    const d = await docOf([
+      vf('a.md', '[p](obsidian://open?vault=Personal&file=Plan)'),
+      vf('Personal/Plan.md', ''),
+    ], 'a.md')
+    expect(d.html).not.toContain('data-import-link')
+    expect(d.links).toEqual([])
+  })
+
+  it('no vault root: a link with no vault= resolves by name as before', async () => {
+    const d = await docOf([
+      vf('a.md', '[p](obsidian://open?file=Plan)'),
+      vf('Other/Plan.md', ''),
+    ], 'a.md')
+    expect(d.html).toContain('<a data-import-link="obsidian:Other/Plan.md">p</a>')
+  })
+
+  it('leaves an obsidian:// link into ANOTHER named vault as text', async () => {
+    const d = await docOf([
+      vf('Trading/.obsidian/app.json', '{}'),
+      vf('Trading/a.md', '[mine](obsidian://open?vault=trading&file=Plan) [theirs](obsidian://open?vault=Other&file=Plan)'),
+      vf('Trading/Plan.md', ''),
+    ], 'Trading/a.md')
+    expect(d.html).toContain('<a data-import-link="obsidian:Trading/Plan.md">mine</a>')
+    expect(d.html).not.toMatch(/<a[^>]*>theirs/)
+  })
+
+  it('makes a wikilink to a non-note file a chip, never a dead note link', async () => {
+    const d = await docOf([
+      vf('a.md', 'See [[deck.pdf]] and [[chart.png|the chart]].'),
+      vf('files/deck.pdf', 'x'), vf('chart.png', 'x'),
+    ], 'a.md')
+    expect(d.html).not.toContain('data-import-link')
+    expect(d.links).toEqual([])
+    expect(d.html).toContain('href="import-ref://files/deck.pdf"')
+    // Merge with D2 item 6: ONE chip writer. The chip shows the file's name and keeps the
+    // alias as its `label` (the server's `attachmentChip.label`), never the alias as the
+    // chip's own text, which the editor's chip does not read.
+    expect(d.html).toMatch(/data-name="chart\.png" data-label="the chart" href="import-ref:\/\/chart\.png">chart\.png<\/a>/)
+    expect(d.media.map((m) => [m.ref, m.kind]).sort()).toEqual([['chart.png', 'file'], ['files/deck.pdf', 'file']])
+  })
+
+  it('links each vault\'s notes inside that vault in a two-vault drop, and still links loose notes', async () => {
+    const files = [
+      vf('Obsidian/Work/.obsidian/app.json', '{}'), vf('Obsidian/Personal/.obsidian/app.json', '{}'),
+      // Each vault's own copy sits DEEPER than the other vault's, so a whole-drop lookup
+      // (shortest path wins) would cross vaults: only a per-vault index gets both right.
+      vf('Obsidian/Work/a.md', '[[Plan]] ![[c.png]]'), vf('Obsidian/Work/Plan.md', ''), vf('Obsidian/Work/img/c.png', 'w'),
+      vf('Obsidian/Personal/b.md', '[[Plan]] ![[c.png]]'), vf('Obsidian/Personal/Deep/Plan.md', ''), vf('Obsidian/Personal/c.png', 'p'),
+      vf('Obsidian/Loose/loose.md', 'see [[Plan]] and [[Ideas]]'), vf('Obsidian/Ideas.md', ''),
+    ]
+    const a = await docOf(files, 'Obsidian/Work/a.md')
+    const b = await docOf(files, 'Obsidian/Personal/b.md')
+    const loose = await docOf(files, 'Obsidian/Loose/loose.md')
+    expect(a.html).toContain('data-import-link="obsidian:Obsidian/Work/Plan.md"')
+    expect(a.html).toContain('src="import-ref://Obsidian/Work/img/c.png"')
+    expect(b.html).toContain('data-import-link="obsidian:Obsidian/Personal/Deep/Plan.md"')
+    expect(b.html).toContain('src="import-ref://Obsidian/Personal/c.png"')
+    // A note in no vault resolves against the whole drop: into a vault, and beside itself.
+    expect(loose.html).toContain('data-import-link="obsidian:Obsidian/Work/Plan.md"')
+    expect(loose.html).toContain('data-import-link="obsidian:Obsidian/Ideas.md"')
+  })
+
+  it('prefers the note in the linking note\'s own folder over the first one seen', async () => {
+    const d = await docOf([
+      vf('A/Deep/Plan.md', ''), vf('B/Plan.md', ''), vf('Notes/Sub/Plan.md', ''),
+      vf('Notes/Sub/Src.md', 'Follow [[Plan]].'),
+    ], 'Notes/Sub/Src.md')
+    expect(d.html).toContain('data-import-link="obsidian:Notes/Sub/Plan.md"')
   })
 })
 
@@ -202,4 +446,877 @@ describe('obsidian adapter — mixed-platform drop (audit B4)', () => {
     ])
     expect(warnings).toEqual([])
   })
+})
+// ---------------------------------------------------------------------------
+// D1: a dot in a note's NAME is not an extension. `[[Dr.Smith]]` names
+// `Dr.Smith.md` (Obsidian's rule, mirrored from providers/obsidian.py
+// `_note_file_of`); only a known attachment extension makes it a file.
+// ---------------------------------------------------------------------------
+
+describe('obsidian adapter — wikilinks to notes with a dot in the name', () => {
+  const linkOf = (html) => [...html.matchAll(/data-import-link="([^"]+)">([^<]*)</g)].map((m) => [m[1], m[2]])
+
+  it('resolves [[Dr.Smith]] and [[v1.2 notes]] to their notes', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', '[[Dr.Smith]] and [[v1.2 notes]] and [[Dr.Smith.md]]'),
+      vf('V/People/Dr.Smith.md', 'x'), vf('V/v1.2 notes.md', 'y')])
+    const src = docs.find((d) => d.importKey === 'obsidian:V/src.md')
+    expect(linkOf(src.html)).toEqual([
+      ['obsidian:V/People/Dr.Smith.md', 'Dr.Smith'],
+      ['obsidian:V/v1.2 notes.md', 'v1.2 notes'],
+      ['obsidian:V/People/Dr.Smith.md', 'Dr.Smith.md'],
+    ])
+  })
+
+  it('resolves [[Q3.Review|alias]] and keeps the alias text', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', '[[Q3.Review|the review]]'), vf('V/Reviews/Q3.Review.md', 'x')])
+    const src = docs.find((d) => d.importKey === 'obsidian:V/src.md')
+    expect(linkOf(src.html)).toEqual([['obsidian:V/Reviews/Q3.Review.md', 'the review']])
+  })
+
+  it('resolves [[Dr.Smith#Intro]] and [[Dr.Smith#^abc]] to the note', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', '[[Dr.Smith#Intro]] [[Dr.Smith#^abc]]'), vf('V/Dr.Smith.md', 'x')])
+    const src = docs.find((d) => d.importKey === 'obsidian:V/src.md')
+    expect(linkOf(src.html).map(([k]) => k)).toEqual(['obsidian:V/Dr.Smith.md', 'obsidian:V/Dr.Smith.md'])
+  })
+
+  it('prefers the note over a file sharing its dotted stem, bare and path-qualified', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', '[[Dr.Smith]] [[People/Dr.Smith]]'),
+      vf('V/People/Dr.Smith.csv', 'a,b'), vf('V/People/Dr.Smith.md', 'x')])
+    const src = docs.find((d) => d.importKey === 'obsidian:V/src.md')
+    expect(linkOf(src.html).map(([k]) => k)).toEqual(['obsidian:V/People/Dr.Smith.md', 'obsidian:V/People/Dr.Smith.md'])
+  })
+
+  it('resolves the exact note first even when the target ends in an attachment extension', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', '[[report.pdf]] [[Files/report.pdf]] [[Brief.txt|the brief]]'),
+      vf('V/Files/report.pdf', '%PDF'), vf('V/Files/report.pdf.md', 'x'), vf('V/Brief.txt.md', 'y')])
+    const src = docs.find((d) => d.importKey === 'obsidian:V/src.md')
+    expect(linkOf(src.html)).toEqual([
+      ['obsidian:V/Files/report.pdf.md', 'report.pdf'],
+      ['obsidian:V/Files/report.pdf.md', 'Files/report.pdf'],
+      ['obsidian:V/Brief.txt.md', 'the brief'],
+    ])
+  })
+
+  it('resolves [[report.pdf]] to the file when no report.pdf.md exists', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', '[[report.pdf]] [[Files/report.pdf]]'), vf('V/Files/report.pdf', '%PDF')])
+    const src = docs.find((d) => d.importKey === 'obsidian:V/src.md')
+    // D2 fix round 1, I3: a wikilink to a file is its chip, never a note link.
+    expect(linkOf(src.html)).toEqual([])
+    expect([...src.html.matchAll(/data-type="attachmentChip" data-import-ref="([^"]+)"/g)].map((m) => m[1]))
+      .toEqual(['V/Files/report.pdf', 'V/Files/report.pdf'])
+  })
+
+  it('never strips an unknown dot suffix to open another note or file', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', '[[Dr.Smith]] [[People/Dr.Smith]] [[report.pdf]] [[chart]]'),
+      vf('V/People/Dr.md', 'x'), vf('V/report.png', ''), vf('V/Files/chart.png', '')])
+    const src = docs.find((d) => d.importKey === 'obsidian:V/src.md')
+    // Plan C Task 4 fix round 1: no stem match, dot or not (`[[chart]]` names `chart.md`).
+    expect(linkOf(src.html).map(([k]) => k)).toEqual([])
+  })
+
+  it('leaves [[Dr.Smith]] as text when no such note exists', async () => {
+    const { docs } = await obsidianAdapter.parse([vf('V/src.md', 'see [[Dr.Smith]]')])
+    expect(linkOf(docs[0].html)).toEqual([])
+    expect(docs[0].html).toContain('see Dr.Smith')
+  })
+})
+// ---------------------------------------------------------------------------
+// D1 fix round 2: the same rule as providers/obsidian.py::_resolve_in, case for
+// case (the server twins are in test_obsidian_provider.py, and the parity
+// fixture 15-dotted-names pins both runtimes on one input).
+// ---------------------------------------------------------------------------
+
+describe('obsidian adapter — D1 fix round 2', () => {
+  const resolveIn = async (target, files, src = 'src.md') => {
+    const { docs } = await obsidianAdapter.parse([
+      ...files.map((f) => vf(`V/${f}`, 'x')), vf(`V/${src}`, `[[${target}]]`)])
+    const d = docs.find((x) => x.importKey === `obsidian:V/${src}`)
+    // A note target is a link; a FILE target is a chip (D2 fix round 1, I3): read both.
+    const m = d.html.match(/(?:data-import-link="obsidian:|data-type="attachmentChip" data-import-ref=")V\/([^"]+)"/)
+    return m ? m[1] : null
+  }
+
+  it('never reaches a file by its stem from a dotted target (I1)', async () => {
+    expect(await resolveIn('Dr.Smith', ['People/Dr.Smith.csv'])).toBeNull()
+    expect(await resolveIn('Dr.Smith', ['People/Dr.Smith.csv', 'People/Dr.md'])).toBeNull()
+    expect(await resolveIn('People/Dr.Smith', ['People/Dr.Smith.csv'])).toBeNull()
+    expect(await resolveIn('Q3.Review', ['Q3.Review.xlsx', 'Reviews/Q3.md'])).toBeNull()
+    expect(await resolveIn('report.pdf', ['report.pdf.png'])).toBeNull()
+    expect(await resolveIn('archive.tar', ['archive.tar.gz'])).toBeNull()
+    expect(await resolveIn('v1.2 notes', ['v1.2 notes.pdf'])).toBeNull()
+    expect(await resolveIn('Plan.md', ['Notes/Plan.md.bak'])).toBeNull()
+    // Plan C Task 4 fix round 1: a dot-less name has no stem match either.
+    expect(await resolveIn('chart', ['img/chart.png'])).toBeNull()
+    expect(await resolveIn('img/chart', ['img/chart.png'])).toBeNull()
+    expect(await resolveIn('v1.2/chart', ['v1.2/chart.png'])).toBeNull()
+    expect(await resolveIn('chart', ['img/chart.png', 'Notes/chart.md'])).toBe('Notes/chart.md')
+    expect(await resolveIn('img/chart', ['img/chart.png', 'img/chart.md'])).toBe('img/chart.md')
+  })
+
+  it('opens a file whose full name holds a # before splitting an anchor (Plan C Task 4)', async () => {
+    const name = 'attachments/my chart #1 (v2).png'
+    expect(await resolveIn('my chart #1 (v2).png', [name])).toBe(name)
+    expect(await resolveIn('attachments/my chart #1 (v2).png', [name])).toBe(name)
+    expect(await resolveIn('MY CHART #1 (V2).PNG', [name])).toBe(name)
+    expect(await resolveIn('Other note#Risk', ['Other note.md'])).toBe('Other note.md')
+    expect(await resolveIn('Other note#^abc123', ['Other note.md'])).toBe('Other note.md')
+    expect(await resolveIn('my chart #1 (v2).png', ['my chart.md'])).toBe('my chart.md')
+    const { docs } = await obsidianAdapter.parse([
+      vf(`V/${name}`, ''), vf('V/src.md', '![[my chart #1 (v2).png]]')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    expect(d.media.map((m) => m.ref)).toEqual([`V/${name}`])
+    expect(d.html).toContain('<img')
+  })
+
+  it('takes only the exact note, never a note file with a second extension (I2)', async () => {
+    for (const order of [['Notes/Plan.md.bak', 'Notes/Plan.md'], ['Notes/Plan.md', 'Notes/Plan.md.bak']]) {
+      expect(await resolveIn('Notes/Plan', order)).toBe('Notes/Plan.md')
+      expect(await resolveIn('Plan', order)).toBe('Notes/Plan.md')
+    }
+    expect(await resolveIn('Notes/Plan', ['Notes/Plan.md.bak'])).toBeNull()
+    expect(await resolveIn('Files/report.pdf', ['Files/report.pdf.md.zip', 'Files/report.pdf.md'])).toBe('Files/report.pdf.md')
+  })
+
+  it('breaks same-name ties the same way whatever the listing order (M1)', async () => {
+    const paths = ['Z/Setup.md', 'B/Setup.md', 'A/Deep/Setup.md']
+    expect(await resolveIn('Setup', paths)).toBe('B/Setup.md')
+    expect(await resolveIn('Setup', [...paths].reverse())).toBe('B/Setup.md')
+    expect(await resolveIn('Setup', paths, 'Z/src.md')).toBe('Z/Setup.md')
+    expect(await resolveIn('Setup', paths, 'A/Deep/src.md')).toBe('A/Deep/Setup.md')
+    expect(await resolveIn('Dr.Smith', ['A/B/Dr.Smith.md', 'Dr.Smith.md'])).toBe('Dr.Smith.md')
+    expect(await resolveIn('report.pdf', ['Y/report.pdf', 'X/report.pdf'])).toBe('X/report.pdf')
+  })
+
+  it('makes a note embed a link to the note, never an attachment chip (M4)', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', '![[report.pdf]]\n\n![[Drawing.excalidraw]]'),
+      vf('V/Files/report.pdf', '%PDF'), vf('V/Files/report.pdf.md', 'x'), vf('V/Drawing.excalidraw.md', 'y')])
+    const src = docs.find((d) => d.importKey === 'obsidian:V/src.md')
+    expect(src.media).toEqual([])
+    expect(src.html).not.toContain('attachmentChip')
+    expect([...src.html.matchAll(/data-import-link="([^"]+)">([^<]*)</g)].map((m) => [m[1], m[2]])).toEqual([
+      ['obsidian:V/Files/report.pdf.md', 'report.pdf'],
+      ['obsidian:V/Drawing.excalidraw.md', 'Drawing.excalidraw'],
+    ])
+  })
+
+  it('leaves an unresolved dotted name as plain text, never a web link', async () => {
+    const { docs } = await obsidianAdapter.parse([vf('V/src.md', 'see [[Ghost.Name]] and ![[Missing.Name]]')])
+    expect(docs[0].html).not.toContain('href')
+    expect(docs[0].html).toContain('Ghost.Name')
+  })
+})
+// ---------------------------------------------------------------------------
+// D1 fix round 3: markup the wikilink pass writes survives the callout and
+// highlight passes after it (N1: no visible `&#46;`; N2: a link inside a
+// highlight or callout title keeps both). Parity fixture
+// 16-links-in-highlights-and-callouts pins the server lane on the same input.
+// ---------------------------------------------------------------------------
+
+describe('obsidian adapter — D1 fix round 3', () => {
+  const stored = async (body, files = []) => {
+    const { docs } = await obsidianAdapter.parse([
+      ...files.map((f) => vf(`V/${f}`, 'x')), vf('V/src.md', body)])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    const { bodyJson } = htmlToNote(d.html)
+    return { html: d.html, doc: bodyJson, text: extractPlainText(bodyJson) }
+  }
+  const marksOf = (node, out = []) => {
+    if (node && node.type === 'text') out.push([node.text, (node.marks || []).map((m) => m.type).sort().join('+'),
+      (node.marks || []).find((m) => m.type === 'link')?.attrs?.href || null])
+    for (const c of node?.content || []) marksOf(c, out)
+    return out
+  }
+  const noPlaceholder = (s) => expect(/[\uE000-\uF8FF\uFDD0-\uFDEF]/.test(s)).toBe(false)
+
+  it('keeps an unresolved dotted name plain "Ghost.Name" inside a highlight (N1)', async () => {
+    const r = await stored('a ==[[Ghost.Name]]== b')
+    expect(r.text).toBe('a Ghost.Name b')
+    expect(r.html).not.toContain('&amp;#46;')
+    expect(r.html).not.toContain('href')
+    expect(marksOf(r.doc)).toEqual([['a ', '', null], ['Ghost.Name', 'highlight', null], [' b', '', null]])
+    noPlaceholder(r.html)
+    noPlaceholder(JSON.stringify(r.doc))
+  })
+
+  it('keeps an unresolved dotted name plain "Ghost.Name" in a callout title (N1)', async () => {
+    const r = await stored('> [!note] [[Ghost.Name]]\n> body')
+    expect(r.text).toBe('Ghost.Name body')
+    expect(r.html).not.toContain('&amp;#46;')
+    expect(r.html).not.toContain('href')
+    noPlaceholder(r.html)
+    noPlaceholder(JSON.stringify(r.doc))
+  })
+
+  it('keeps a link AND its highlight for ==[[Plan]]== (N2)', async () => {
+    const r = await stored('a ==[[Plan]]== b', ['Plan.md'])
+    expect(r.text).toBe('a Plan b')
+    expect(marksOf(r.doc).find(([t]) => t === 'Plan')?.[1]).toBe('highlight+link')
+    expect(r.html).toContain('data-import-link="obsidian:V/Plan.md"')
+    noPlaceholder(r.html)
+  })
+
+  it('keeps a link inside a callout title, never escaped markup (N2)', async () => {
+    const r = await stored('> [!note] See [[Plan]]\n> body', ['Plan.md'])
+    expect(r.text).toBe('See Plan body')
+    expect(r.html).not.toContain('&lt;a')
+    expect(marksOf(r.doc).find(([t]) => t === 'Plan')?.[1]).toBe('bold+link')
+    noPlaceholder(r.html)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// D1 fix round 4 (re-review P1): the member's own text can never collide with
+// the importer's held-markup placeholders. Every row keeps the member's
+// characters byte-exact, with only `[[...]]` replaced, and adds no link. Parity
+// fixture 17-member-placeholder-characters pins the server lane on the same
+// characters.
+// ---------------------------------------------------------------------------
+
+describe('obsidian adapter — D1 fix round 4: member text vs held-markup placeholders', () => {
+  const O = '\uE000'
+  const C = '\uE001'
+  const D = (n) => String.fromCharCode(0xe010 + n)
+  const F = '\uFDD0'
+  const textOf = async (body) => {
+    const { docs, warnings } = await obsidianAdapter.parse([
+      vf('V/src.md', body), vf('V/Plan.md', 'p'), vf('V/Other.md', 'o'), vf('V/img.png', 'i')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    expect(d, `not imported: ${warnings.join('; ')}`).toBeTruthy()
+    const { bodyJson } = htmlToNote(d.html)
+    const links = [...d.html.matchAll(/data-import-link="obsidian:V\/([^"]+)"/g)].length
+    return { text: extractPlainText(bodyJson).replace(/\s+/g, ' ').trim(), links, html: d.html, doc: bodyJson,
+      media: d.media.map((m) => m.ref) }
+  }
+  const RUN = F.repeat(40000)
+  const eleven = '[[Plan]] '.repeat(10) + '[[Other]] '
+  const ROWS = [
+    // [name, body, expected stored text, expected link count]
+    ['valid index, before a link', `x ${O}${D(0)}${C} y [[Plan]]`, `x ${O}${D(0)}${C} y Plan`, 1],
+    ['valid index, after a link', `[[Plan]] then ${O}${D(0)}${C}`, `Plan then ${O}${D(0)}${C}`, 1],
+    ['index 1 with two links', `${O}${D(1)}${C} [[Plan]] [[Other]]`, `${O}${D(1)}${C} Plan Other`, 2],
+    ['index "00"', `${O}${D(0)}${D(0)}${C} [[Plan]]`, `${O}${D(0)}${D(0)}${C} Plan`, 1],
+    ['index past 10, 11 links', `${eleven}${O}${D(1)}${D(0)}${C}`,
+      `${'Plan '.repeat(10)}Other ${O}${D(1)}${D(0)}${C}`, 11],
+    ['inside a highlight', `a ==${O}${D(0)}${C} [[Plan]]== b`, `a ${O}${D(0)}${C} Plan b`, 1],
+    ['inside a callout title', `> [!note] ${O}${D(0)}${C} [[Plan]]\n> body`, `${O}${D(0)}${C} Plan body`, 1],
+    ['next to an unresolved dotted name', `${O}${D(0)}${C} and [[Ghost.Name]]`, `${O}${D(0)}${C} and Ghost.Name`, 0],
+    ['Nerd Font / Powerline / Font Awesome glyphs',
+      '\uE0A0 branch \uF015 home \uE5FA [[Plan]] ' + O + C, '\uE0A0 branch \uF015 home \uE5FA Plan ' + O + C, 1],
+    ['glyphs in a highlight', '==\uF015 [[Plan]] \uE0A0==', '\uF015 Plan \uE0A0', 1],
+    ['glyphs in a callout title', '> [!tip] \uF015 [[Plan]] \uE0A0\n> b', '\uF015 Plan \uE0A0 b', 1],
+    ['Pomicons run', `${O}${C}\uE002\uE003\uE00A [[Plan]]`, `${O}${C}\uE002\uE003\uE00A Plan`, 1],
+    ['lone E000 / E001 around a link', `${O}[[Plan]]${C}`, `${O}Plan${C}`, 1],
+    ['adjacent E000 E010 before a link', `${O}${D(0)}[[Plan]]`, `${O}${D(0)}Plan`, 1],
+    ['inside a code span', `\`${O}${D(0)}${C}\` [[Plan]]`, `${O}${D(0)}${C} Plan`, 1],
+    // The importer's own sentinel, U+FDD0, in the member's text.
+    ['U+FDD0 run with an index', `${F}${D(0)}${C} [[Plan]]`, `${F}${D(0)}${C} Plan`, 1],
+    ['double U+FDD0 run', `${F}${F}${D(0)}${C} [[Plan]] ${F}`, `${F}${F}${D(0)}${C} Plan ${F}`, 1],
+    ['U+FDD0 touching a link', `x${F}[[Plan]]${F}${F}y`, `x${F}Plan${F}${F}y`, 1],
+    ['mixed E000 and U+FDD0 runs', `${O}${D(0)}${C}${F}${D(1)}${C} [[Plan]] [[Other]]`,
+      `${O}${D(0)}${C}${F}${D(1)}${C} Plan Other`, 2],
+    // Fix round 5, M-a: a run past V8's regex size limit (32,767) still imports.
+    ['40,000-long U+FDD0 run, no links', `a ${RUN} b`, `a ${RUN} b`, 0],
+    ['40,000-long U+FDD0 run with links', `${RUN}${D(0)}${C} [[Plan]]${RUN}[[Other]] ${RUN}`,
+      `${RUN}${D(0)}${C} Plan${RUN}Other ${RUN}`, 2],
+    // Fix round 5, M-b: a held piece holding an earlier placeholder.
+    ['note embed nested in a wikilink', '[[![[Plan]]]] after', 'Plan after', 1],
+    // D2 fix round 1 (e): the embed, then the link to Other (it used to swallow it).
+    ['note embed nested in an alias', '[[Other|![[Plan]]]] after', 'PlanOther after', 2],
+  ]
+
+  for (const [name, body, expected, links] of ROWS) {
+    it(`keeps the member's characters byte-exact: ${name}`, async () => {
+      const r = await textOf(body)
+      expect(r.text).toBe(expected)
+      expect(r.links).toBe(links)
+    })
+  }
+
+  // No row, and no nested piece, may leave a placeholder character behind: the
+  // output holds no more U+FDD0 / U+E000-U+E019 / U+E001 than the input did.
+  const NESTED_IMAGE = '[[![[img.png]]]] after'
+  const count = (s, re) => (s.match(re) || []).length
+  for (const [name, body] of [...ROWS, ['image embed nested in a wikilink', NESTED_IMAGE]]) {
+    it(`adds no placeholder character to the output: ${name}`, async () => {
+      const r = await textOf(body)
+      const doc = JSON.stringify(r.doc)
+      for (const re of [/\uFDD0/g, /[\uE000-\uE019]/g]) {
+        expect(count(r.html, re)).toBeLessThanOrEqual(count(body, re))
+        expect(count(doc, re)).toBeLessThanOrEqual(count(body, re))
+      }
+    })
+  }
+
+  it('keeps the image of [[![[img.png]]]] and lists it in media (M-b)', async () => {
+    const r = await textOf(NESTED_IMAGE)
+    expect(r.html).toContain('<img src="import-ref://V/img.png">')
+    expect(r.media).toContain('V/img.png')
+    expect(r.text).toBe('after')
+    expect(JSON.stringify(r.doc)).toContain('import-ref://V/img.png')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// D2 item 4: a held piece the note never shows lists nothing. In
+// `[[![[img.png]]|al.ias]]` the alias is what shows, so the image is not
+// displayed, and a media entry for it would upload a file nothing references
+// (ruling: do not list it). The same for a note embed's link. The server lane
+// does the same (`test_an_embed_nested_in_a_wikilink_with_an_alias_...`).
+// ---------------------------------------------------------------------------
+
+describe('obsidian adapter — D2 item 4: an unshown embed lists no media and no link', () => {
+  const parseOne = async (body) => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', body), vf('V/Plan.md', 'p'), vf('V/Other.md', 'o'), vf('V/img.png', 'i'),
+      vf('V/q.pdf', 'q')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    const { bodyJson } = htmlToNote(d.html)
+    return { d, text: extractPlainText(bodyJson).replace(/\s+/g, ' ').trim() }
+  }
+
+  it('shows the alias of [[![[img.png]]|al.ias]] and lists no media for the image', async () => {
+    const { d, text } = await parseOne('[[![[img.png]]|al.ias]] after')
+    expect(text).toBe('al.ias after')
+    expect(d.html).not.toContain('<img')
+    expect(d.media).toEqual([])
+    expect(d.links).toEqual([])
+  })
+
+  it('lists no file for [[![[q.pdf]]|the file]] and no link for [[![[Plan]]|the plan]]', async () => {
+    const pdf = await parseOne('[[![[q.pdf]]|the file]] after')
+    expect(pdf.text).toBe('the file after')
+    expect(pdf.d.media).toEqual([])
+    const note = await parseOne('[[![[Plan]]|the plan]] after')
+    expect(note.text).toBe('the plan after')
+    expect(note.d.links).toEqual([])
+  })
+
+  it('still lists what IS shown: a nested embed with no alias, and an embed in an alias', async () => {
+    const img = await parseOne('[[![[img.png]]]] and ![[img.png]] and [[![[q.pdf]]]]')
+    expect(img.d.media.map((m) => m.ref)).toEqual(['V/img.png', 'V/q.pdf'])
+    const both = await parseOne('[[Other|![[Plan]]]] after')
+    expect(both.d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md', 'obsidian:V/Other.md'])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// D2 item 8: a wikilink's display text is the server lane's
+// (`providers/obsidian.py::_wikilink_display`), as Obsidian shows it: a heading
+// link reads `Note > Heading`, a block link reads `Note`, a link to this note's
+// own heading reads `Heading`. A missing FILE whose name holds `#` keeps its
+// name. An unresolved note embed reads as the note's name, as the server's
+// pending link does. Parity fixtures 11 and 21 pin both lanes.
+// ---------------------------------------------------------------------------
+
+describe('obsidian adapter — D2 item 8: heading-link display text', () => {
+  const textOf = async (body) => {
+    const { docs } = await obsidianAdapter.parse([vf('V/src.md', body), vf('V/Other note.md', 'o')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    return extractPlainText(htmlToNote(d.html).bodyJson)
+  }
+  const ROWS = [
+    ['[[Ghost#Risk]]', 'Ghost > Risk'],
+    ['[[Ghost#^abc]]', 'Ghost'],
+    ['[[#Risk]]', 'Risk'],
+    ['[[#^abc]]', '#^abc'],
+    ['[[Ghost# Risk ]]', 'Ghost > Risk'],
+    ['[[Ghost#]]', 'Ghost'],
+    ['[[Ghost#Risk#Sub]]', 'Ghost > Risk#Sub'],
+    ['[[Other note#Risk]]', 'Other note > Risk'],
+    ['[[Other note#^abc]]', 'Other note'],
+    ['[[Other note#Risk|the risk]]', 'the risk'],
+    ['[[report #2.pdf]]', 'report #2.pdf'],
+    ['[[q3 #4.xlsx|the sheet]]', 'the sheet'],
+    ['![[Ghost#Risk]]', 'Ghost'],
+    ['![[Ghost.md]]', 'Ghost'],
+    // A missing FILE embed (`![[missing.png]]`, `![[my chart #1 (v2).png]]`) is a not-found
+    // notice now (live audit F3): the unresolvable embed fallback block pins it.
+  ]
+  for (const [body, expected] of ROWS) {
+    it(`${body} reads "${expected}"`, async () => {
+      expect(await textOf(body)).toBe(expected)
+    })
+  }
+
+  it('keeps the link of a resolved heading link under its new text', async () => {
+    const { docs } = await obsidianAdapter.parse([vf('V/src.md', '[[Other note#Risk]]'), vf('V/Other note.md', 'o')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    expect(d.html).toContain('<a data-import-link="obsidian:V/Other note.md">Other note &gt; Risk</a>')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// D2 item 1: an Obsidian callout is the editor's callout node on the client too,
+// the server lane's shape (`providers/obsidian.py::_callouts_in_doc`): `variant`
+// from the callout type, the title (or the type, capitalised) as a bold first
+// paragraph, then the body. The fold marker (`+`/`-`) is dropped, as the server
+// drops it. Parity fixtures 12, 16 and 17 pin both lanes.
+// ---------------------------------------------------------------------------
+
+describe('obsidian adapter — D2 item 1: callouts are callout nodes', () => {
+  const docOf = async (body) => {
+    const { docs } = await obsidianAdapter.parse([vf('V/src.md', body), vf('V/Plan.md', 'p')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    return htmlToNote(d.html).bodyJson
+  }
+  const runs = (para) => (para.content || []).map((r) => [r.text, (r.marks || []).map((m) => m.type).sort().join('+')])
+
+  it('makes a titled callout a callout node with its variant, a bold title and the body', async () => {
+    const doc = await docOf('> [!warning] Size\n> Keep it small.')
+    expect(doc.content).toHaveLength(1)
+    const callout = doc.content[0]
+    expect(callout.type).toBe('callout')
+    expect(callout.attrs.variant).toBe('warning')
+    expect(callout.content.map((b) => b.type)).toEqual(['paragraph', 'paragraph'])
+    expect(runs(callout.content[0])).toEqual([['Size', 'bold']])
+    expect(runs(callout.content[1])).toEqual([['Keep it small.', '']])
+  })
+
+  it('titles an untitled callout with its type, never with the next line', async () => {
+    const callout = (await docOf('> [!tip]\n> Wait for the pivot.')).content[0]
+    expect(callout.type).toBe('callout')
+    expect(callout.attrs.variant).toBe('success')
+    expect(runs(callout.content[0])).toEqual([['Tip', 'bold']])
+    expect(runs(callout.content[1])).toEqual([['Wait for the pivot.', '']])
+  })
+
+  it('maps types to the five variants, unknown ones to note, and drops the fold marker', async () => {
+    for (const [type, variant] of [['note', 'note'], ['info', 'info'], ['caution', 'warning'],
+      ['bug', 'danger'], ['important', 'warning'], ['FAILURE', 'danger'], ['quote', 'note']]) {
+      const callout = (await docOf(`> [!${type}]- Folded\n> body`)).content[0]
+      expect(callout.type, type).toBe('callout')
+      expect(callout.attrs.variant, type).toBe(variant)
+      expect(runs(callout.content[0]), type).toEqual([['Folded', 'bold']])
+    }
+    const open = (await docOf('> [!note]+ Open\n> body')).content[0]
+    expect(runs(open.content[0])).toEqual([['Open', 'bold']])
+  })
+
+  it('keeps a link in the title a bold link, and a one-line callout is its title only', async () => {
+    const callout = (await docOf('> [!note] See [[Plan]]')).content[0]
+    expect(callout.type).toBe('callout')
+    expect(callout.content).toHaveLength(1)
+    expect(runs(callout.content[0])).toEqual([['See ', 'bold'], ['Plan', 'bold+link']])
+  })
+
+  it('leaves a plain blockquote, a marker that does not open its quote, and code alone', async () => {
+    const plain = await docOf('> just a quote')
+    expect(plain.content[0].type).toBe('blockquote')
+    const late = await docOf('> first line\n> [!note] not a marker here')
+    expect(late.content[0].type).toBe('blockquote')
+    const fenced = await docOf('```\n> [!note] Title\n> body\n```')
+    expect(fenced.content[0].type).toBe('codeBlock')
+    expect(fenced.content[0].content[0].text.trimEnd()).toBe('> [!note] Title\n> body')
+  })
+
+  it('reads a CRLF note the same way and nests a callout inside a quote', async () => {
+    const crlf = (await docOf('> [!warning] Size\r\n> Keep it small.')).content[0]
+    expect(crlf.type).toBe('callout')
+    expect(runs(crlf.content[0])).toEqual([['Size', 'bold']])
+    const nested = (await docOf('> outer\n>\n> > [!danger] Inner\n> > body')).content[0]
+    expect(nested.type).toBe('blockquote')
+    const inner = nested.content[1]
+    expect(inner.type).toBe('callout')
+    expect(inner.attrs.variant).toBe('danger')
+  })
+
+  it('renders in the editor as the callout node, with its style', async () => {
+    const { Editor } = await import('@tiptap/core')
+    const { buildExtensions } = await import('../tiptap')
+    const doc = await docOf('> [!warning] Size\n> Keep it small.')
+    const editor = new Editor({ extensions: buildExtensions(), content: doc })
+    try {
+      const html = editor.getHTML()
+      expect(html).toContain('data-type="callout"')
+      expect(html).toContain('data-variant="warning"')
+      expect(editor.state.doc.firstChild.type.name).toBe('callout')
+    } finally {
+      editor.destroy()
+    }
+  })
+})
+
+// D2 item 5 (shared parse, `convert.js::htmlToNote`): through this importer.
+describe('obsidian adapter — D2 item 5: no empty paragraph, no lost space', () => {
+  const shape = (n) => (n.type === 'text' ? JSON.stringify(n.text)
+    : n.type + (n.content ? `(${n.content.map(shape).join(', ')})` : ''))
+  it('a markdown image alone on its line, and text before a file chip', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/a.md', 'Top\n\n![](att/a.png)\n\nRead [the report](att/q.pdf) before the open.'),
+      vf('V/att/a.png', 'i'), vf('V/att/q.pdf', 'q')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/a.md')
+    expect(shape(htmlToNote(d.html).bodyJson)).toBe(
+      'doc(paragraph("Top"), image, paragraph("Read "), attachmentChip, paragraph(" before the open."))')
+  })
+})
+
+// D2 item 6: a markdown link to a file keeps the member's text as the chip's label.
+describe('obsidian adapter — D2 item 6: a file link keeps its text as the chip label', () => {
+  it('[the report](att/q3%20report.pdf) is a chip named q3 report.pdf that shows "the report"', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/a.md', 'Read [the report](att/q3%20report.pdf) and [q3 report.pdf](att/q3%20report.pdf).'),
+      vf('V/att/q3 report.pdf', 'q')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/a.md')
+    const chips = htmlToNote(d.html).bodyJson.content.filter((n) => n.type === 'attachmentChip')
+    expect(chips.map((c) => [c.attrs.name, c.attrs.label])).toEqual([
+      ['q3 report.pdf', 'the report'], ['q3 report.pdf', null]])
+    expect(d.media.map((m) => m.ref)).toEqual(['V/att/q3 report.pdf'])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// D2 fix round 1, I3: a wikilink (not an embed) that resolves to a FILE is the
+// attachment chip, as the server lane makes it (the plugin sends it as a
+// non-embed ref, `providers/obsidian.py::_ref_markdown`). It used to be a link
+// to a note key no note has, which commit stripped: the file never uploaded and
+// nothing said so. The alias is the chip's label, as rendered text.
+// ---------------------------------------------------------------------------
+
+describe('obsidian adapter — D2 fix round 1, I3: a wikilink to a file is a chip', () => {
+  const parseOne = async (body) => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', body), vf('V/Plan.md', 'p'), vf('V/att/q.pdf', 'q'), vf('V/att/chart.png', 'c')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    const bodyJson = htmlToNote(d.html).bodyJson
+    const chips = []
+    const walk = (n) => { if (n.type === 'attachmentChip') chips.push(n.attrs); (n.content || []).forEach(walk) }
+    walk(bodyJson)
+    return { d, chips, text: extractPlainText(bodyJson) }
+  }
+
+  it('[[q.pdf]] and [[q.pdf|the **deck**]] are chips of one listed file, the alias its label', async () => {
+    const { d, chips } = await parseOne('see [[q.pdf]] and [[q.pdf|the **deck**]] and [[q.pdf|q.pdf]] now')
+    expect(d.html).not.toContain('data-import-link')
+    expect(chips.map((c) => [c.name, c.label, c.href])).toEqual([
+      ['q.pdf', null, 'import-ref://V/att/q.pdf'],
+      ['q.pdf', 'the deck', 'import-ref://V/att/q.pdf'],
+      ['q.pdf', null, 'import-ref://V/att/q.pdf']])
+    expect(d.media.map((m) => [m.ref, m.kind])).toEqual([['V/att/q.pdf', 'file']])
+    expect(d.links).toEqual([])
+  })
+
+  it('[[chart.png]] linked, not embedded, is a file chip too; [[Plan]] stays a note link', async () => {
+    const { d, chips } = await parseOne('[[chart.png]] and [[Plan]]')
+    expect(chips.map((c) => c.name)).toEqual(['chart.png'])
+    expect(d.media.map((m) => [m.ref, m.kind])).toEqual([['V/att/chart.png', 'file']])
+    expect(d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md'])
+  })
+})
+
+// D2 fix round 1 (e): an embed in alias position, `[[Plan|![[img.png]]]]`, is the
+// embed and then the link to Plan, both kept, with the text around them, the same
+// as the server lane. ⚰️ The image landed inside the link and the link was lost.
+describe('obsidian adapter — D2 fix round 1 (e): an embed as a wikilink alias', () => {
+  const shape = (n) => (n.type === 'text'
+    ? JSON.stringify(n.text) + ((n.marks || []).some((m) => m.type === 'link') ? '[link]' : '')
+    : n.type + (n.content ? `(${n.content.map(shape).join(', ')})` : ''))
+  const parseOne = async (body) => {
+    const { docs } = await obsidianAdapter.parse([vf('V/src.md', body), vf('V/Plan.md', 'p'), vf('V/img.png', 'i')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    return { d, doc: htmlToNote(d.html).bodyJson }
+  }
+  it('keeps the image, the link to Plan and the spaces', async () => {
+    const { d, doc } = await parseOne('x [[Plan|![[img.png]]]] y')
+    expect(shape(doc)).toBe('doc(paragraph("x "), image, paragraph("Plan"[link], " y"))')
+    expect(d.media.map((m) => m.ref)).toEqual(['V/img.png'])
+    expect(d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md'])
+  })
+  it('a missing note still reads as Obsidian names it, after the image', async () => {
+    const { d, doc } = await parseOne('[[Ghost#Risk|![[img.png]]]]')
+    expect(shape(doc)).toBe('doc(image, paragraph("Ghost > Risk"))')
+    expect(d.links).toEqual([])
+  })
+})
+
+// Plugin issue #3: a markdown image as the WHOLE alias, `[[q.pdf|![](img.png)]]`, is the
+// image and then the link as `[[q.pdf]]` reads (a chip for a file, a link for a note), as
+// the server's `_ALIAS_EMBED_RE` reads it. The parity rail cannot see image-before-chip
+// order (its images and files are separate lists), so these pin it in the HTML and the doc.
+// ⚰️ WIKILINK_RE's alias stopped at the image's `]`: the link was raw `[[q.pdf| ]]` text.
+describe('obsidian adapter — issue #3: a markdown image as a wikilink alias', () => {
+  const shape = (n) => (n.type === 'text'
+    ? JSON.stringify(n.text) + ((n.marks || []).some((m) => m.type === 'link') ? '[link]' : '')
+      + ((n.marks || []).some((m) => m.type === 'code') ? '[code]' : '')
+    : n.type + (n.content ? `(${n.content.map(shape).join(', ')})` : ''))
+  const parseOne = async (body) => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', body), vf('V/Plan.md', 'p'), vf('V/img.png', 'i'), vf('V/q.pdf', 'q')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    return { d, doc: htmlToNote(d.html).bodyJson }
+  }
+  const before = (html, first, second) => {
+    const a = html.indexOf(first)
+    const b = html.indexOf(second)
+    expect(a, first).toBeGreaterThanOrEqual(0)
+    expect(b, second).toBeGreaterThanOrEqual(0)
+    expect(a).toBeLessThan(b)
+  }
+
+  it('a file target: the image, then the chip', async () => {
+    const { d, doc } = await parseOne('x [[q.pdf|![](img.png)]] y')
+    before(d.html, '<img', 'data-type="attachmentChip"')
+    expect(shape(doc)).toBe('doc(paragraph("x "), image, attachmentChip, paragraph(" y"))')
+    // listed in the order the passes made them (the chip's held piece first), not shown
+    expect(d.media.map((m) => [m.ref, m.kind]).sort()).toEqual([['V/img.png', 'image'], ['V/q.pdf', 'file']])
+  })
+
+  it('a note target: the image, then the link', async () => {
+    const { d, doc } = await parseOne('x [[Plan|![](img.png)]] y')
+    before(d.html, '<img', 'data-import-link="obsidian:V/Plan.md"')
+    expect(shape(doc)).toBe('doc(paragraph("x "), image, paragraph("Plan"[link], " y"))')
+    expect(d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md'])
+  })
+
+  it('inside a code span it stays code: no image, no link', async () => {
+    const { d, doc } = await parseOne('x `[[Plan|![](img.png)]]` y')
+    expect(shape(doc)).toBe('doc(paragraph("x ", "[[Plan|![](img.png)]]"[code], " y"))')
+    expect(d.media).toEqual([])
+    expect(d.links).toEqual([])
+  })
+})
+
+// D2 fix round 1 (M1): a member's noncharacter is never the shared parse's marker. Raw, it
+// is kept; written as an entity, markdown-it itself reads it as U+FFFD.
+describe('obsidian adapter — D2 fix round 1: a member noncharacter survives', () => {
+  it('keeps it beside an image split', async () => {
+    const nc = String.fromCharCode(0xfdd0)
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/a.md', `keep ${nc}\n\n&#xFDD0;\n\nRead ![[img.png]]`), vf('V/img.png', 'i')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/a.md')
+    expect(htmlToNote(d.html).bodyPlain).toBe(`keep ${nc} ${String.fromCharCode(0xfffd)} Read `)
+  })
+})
+
+// D2 fix round 3, N-I2: the wiki passes see the whole note with code spans protected
+// (the server's rule, `providers/obsidian.py::_clear_of_code`): a wikilink or embed may
+// CONTAIN whole code spans, never start, end or sit inside one. It used to split on code
+// first, so `[[q.pdf|the `q3` deck]]` was cut at its code span: raw brackets, no chip,
+// and the file never uploaded.
+describe('obsidian adapter — D2 fix round 3, N-I2: a wikilink alias holding a code span', () => {
+  const parseOne = async (body) => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', body), vf('V/q.pdf', 'q'), vf('V/Plan.md', 'p'), vf('V/img.png', 'i')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    const bodyJson = htmlToNote(d.html).bodyJson
+    const chips = []
+    const walk = (n) => { if (n.type === 'attachmentChip') chips.push(n.attrs); (n.content || []).forEach(walk) }
+    walk(bodyJson)
+    return { d, chips, text: extractPlainText(bodyJson) }
+  }
+
+  it('[[q.pdf|the `q3` deck]] is a chip labelled "the q3 deck", the file listed', async () => {
+    const { d, chips, text } = await parseOne('see [[q.pdf|the `q3` deck]] end')
+    expect(chips.map((c) => [c.name, c.label])).toEqual([['q.pdf', 'the q3 deck']])
+    expect(d.media.map((m) => m.ref)).toEqual(['V/q.pdf'])
+    expect(text).not.toContain('[[')
+  })
+
+  it('a note link keeps its code span in the link text', async () => {
+    const { d, text } = await parseOne('see [[Plan|the `x` plan]] end')
+    expect(d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md'])
+    expect(text).toBe('see the x plan end')
+  })
+
+  it('a wikilink or embed inside code, or cut by a code span, stays as written', async () => {
+    const { d, chips, text } = await parseOne('`[[q.pdf]]` and `![[img.png]]` and [[q.pdf `x]] y` z')
+    expect(chips).toEqual([])
+    expect(d.media).toEqual([])
+    expect(d.links).toEqual([])
+    expect(text).toBe('[[q.pdf]] and ![[img.png]] and [[q.pdf x]] y z')
+  })
+})
+
+// D2 fix round 3, M-new-1: a `~~~` fence is code to the wiki passes too, as a ``` fence
+// is (the server's `_FENCE_SRC`): an embed in it stays literal code and lists nothing.
+describe('obsidian adapter — D2 fix round 3: a ~~~ fence is code', () => {
+  it('keeps ![[img.png]] in a ~~~ fence as code and does not list the image', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', 'before\n\n~~~\n![[img.png]] [[Plan]]\n~~~\n\nafter ![[img.png]]'),
+      vf('V/img.png', 'i'), vf('V/Plan.md', 'p')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    const doc = htmlToNote(d.html).bodyJson
+    const code = doc.content.find((n) => n.type === 'codeBlock')
+    expect(code.content[0].text.trimEnd()).toBe('![[img.png]] [[Plan]]')
+    expect(d.links).toEqual([])
+    expect(d.media.map((m) => m.ref)).toEqual(['V/img.png'])   // the one outside the fence
+    expect(doc.content.filter((n) => n.type === 'image')).toHaveLength(1)
+  })
+})
+
+// D2 fix round 5, M-r4-1: a wikilink or embed target or alias may not hold a blank line (a
+// newline, optional whitespace, a newline) or a fence, as on the server (`_WIKI_STOP`).
+// Obsidian does not link across a paragraph break. ⚰️ The client made TWO links, one each
+// side of the break (or of the fenced block); the server leaked its internal import key.
+// Both lanes now leave such text exactly as written.
+describe('obsidian adapter — D2 fix round 5: a wikilink never spans a blank line or a fence', () => {
+  const parseOne = async (body) => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('V/src.md', body), vf('V/Plan.md', 'p'), vf('V/chart.png', 'i')])
+    const d = docs.find((x) => x.importKey === 'obsidian:V/src.md')
+    const bodyJson = htmlToNote(d.html).bodyJson
+    const marks = []
+    const walk = (n) => {
+      for (const m of n.marks || []) if (m.type === 'link') marks.push(m.attrs.href)
+      ;(n.content || []).forEach(walk)
+    }
+    walk(bodyJson)
+    return { d, bodyJson, marks, text: extractPlainText(bodyJson) }
+  }
+
+  for (const [body, text] of [
+    ['see [[Plan|first\n\nsecond]] end', 'see [[Plan|first second]] end'],
+    ['see [[Plan|first\n \t\nsecond]] end', 'see [[Plan|first second]] end'],
+    ['see [[Plan|first\r\n\r\nsecond]] end', 'see [[Plan|first second]] end'],
+    ['see [[Pl\n\nan]] end', 'see [[Pl an]] end'],
+    ['x ![[chart.png|a\n\nb]] y', 'x ![[chart.png|a b]] y'],
+    ['x ![[chart\n\n.png]] y', 'x ![[chart .png]] y'],
+  ]) {
+    it(`leaves ${JSON.stringify(body)} as written`, async () => {
+      const { d, bodyJson, marks, text: got } = await parseOne(body)
+      expect(marks).toEqual([])
+      expect(d.links).toEqual([])
+      expect(d.media).toEqual([])
+      expect(bodyJson.content.filter((n) => n.type === 'image')).toEqual([])
+      expect(got).toBe(text)
+    })
+  }
+
+  for (const fence of ['```', '~~~']) {
+    it(`leaves a wikilink across a ${fence} fence as written`, async () => {
+      const { d, bodyJson, marks, text } = await parseOne(`[[Plan|a\n${fence}\ncode\n${fence}\nb]]`)
+      expect(marks).toEqual([])
+      expect(d.links).toEqual([])
+      expect(bodyJson.content.map((n) => n.type)).toEqual(['paragraph', 'codeBlock', 'paragraph'])
+      expect(text.replace(/\n/g, '')).toBe('[[Plan|a code b]]')
+    })
+  }
+
+  // Follow-up: inside a blockquote or callout a line holding only `>` is a paragraph break,
+  // and a fence is a fence LINE (newline, up to 3 spaces, optional `>`, then ``` or ~~~).
+  for (const body of ['> see [[Plan|a\n>\n> b]] end', '> see [[Plan|a\n> \t\n> b]] end',
+    '> see [[Plan|a\r\n>\r\n> b]] end', '> > see [[Plan|a\n> >\n> > b]] end',
+    '> [!tip] See [[Plan|a\n>\n> b]] end',
+    '> [[Plan|a\n> ```\n> code\n> ```\n> b]]', '[[Plan|a\n   ~~~\ncode\n   ~~~\nb]]']) {
+    it(`leaves ${JSON.stringify(body)} as written (quote break or fence line)`, async () => {
+      const { d, marks, text } = await parseOne(body)
+      expect(marks).toEqual([])
+      expect(d.links).toEqual([])
+      expect(text).toContain('[[Plan|a')
+      expect(text).toContain('b]]')
+    })
+  }
+
+  for (const body of ['> see [[Plan|a\n> b]] end', 'see [[Plan|a ```x``` b]] end',
+    'see [[Plan|a ~~~x~~~ b]] end', 'see [[Plan|a\n    ```x``` b]] end']) {
+    it(`keeps ${JSON.stringify(body)} as the one link`, async () => {
+      const { d, marks, text } = await parseOne(body)
+      expect(d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md'])
+      expect(marks.length).toBeGreaterThan(0)
+      expect(new Set(marks).size).toBe(1)
+      expect(text).not.toContain('[[')
+    })
+  }
+
+  it('an alias that runs onto the next quoted line reads without the `>` prefix', async () => {
+    // As the server's markdown link does: the quote prefix is block syntax, not link text.
+    for (const [body, want] of [['> see [[Plan|a\n> b]] end', 'see a b end'],
+      ['> > see [[Plan|a\n> > b]] end', 'see a b end']]) {
+      const { text } = await parseOne(body)
+      expect(text.replace(/\s+/g, ' ')).toBe(want)
+    }
+  })
+
+  // D2 fix round 5 (final), ruling A: nor across a newline whose next line starts a block
+  // (heading, list item, thematic break, HTML block, fence, or a DEEPER quote). Same cases
+  // as the server's BLOCK_START_AS_WRITTEN / BLOCK_START_ONE_LINK.
+  for (const body of ['see [[Plan|a\n> b]] end', 'see [[Plan|a\n# b]] end', 'see [[Plan|a\n### b]] end',
+    'see [[Plan|a\n- b]] end', 'see [[Plan|a\n* b]] end', 'see [[Plan|a\n+ b]] end',
+    'see [[Plan|a\n1. b]] end', 'see [[Plan|a\n12) b]] end', 'see [[Plan|a\n---\nb]] end',
+    'see [[Plan|a\n* * *\nb]] end', 'see [[Plan|a\n___\nb]] end', '- see [[Plan|a\n- b]] end',
+    '> see [[Plan|a\n> > b]] end', '> see [[Plan|a\n> # b]] end', 'see [[Plan|a\n   - b]] end',
+    'x ![[Plan|a\n# b]] y', 'see [[Plan|a\n<div>b]] end']) {
+    it(`leaves ${JSON.stringify(body)} as written (block start)`, async () => {
+      const { d, marks, text } = await parseOne(body)
+      expect(marks).toEqual([])
+      expect(d.links).toEqual([])
+      expect(text).not.toContain('import-link')
+      if (!body.includes('<div>')) {
+        expect(text).toContain('[[Plan|a')
+        expect(text).toContain('b]]')
+      }
+    })
+  }
+  for (const body of ['> see [[Plan|a\n> b]] end', '> see [[Plan|a\nb]] end', '> > see [[Plan|a\n> b]] end',
+    '- see [[Plan|a\n  b]] end', 'see [[Plan|a\nb # c]] end', 'see [[Plan|a\n-b]] end',
+    'see [[Plan|a\n1.5 b]] end', 'see [[Plan|a\n#b]] end']) {
+    it(`keeps ${JSON.stringify(body)} as the one link (no block start)`, async () => {
+      const { d, marks, text } = await parseOne(body)
+      expect(d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md'])
+      expect(new Set(marks).size).toBe(1)
+      expect(text).not.toContain('[[')
+    })
+  }
+
+  // D2 fix round 5 (final), ruling B: the safety net. Shapes no stop names (an empty
+  // heading or list item, a table) still cut the held link; it no longer comes back as ONE
+  // link with its whole text, so that match is left as written and every other link in
+  // the note stays, as on the server.
+  for (const shape of ['#', '-', '| x |\n| --- |']) {
+    it(`leaves a link cut by ${JSON.stringify(shape)} as written, and keeps the others`, async () => {
+      const body = `see [[Plan]] ok\n\nsee [[Plan|a\n${shape}\nb]] end\n\nand [[Plan|c\nd]] too`
+      const { d, bodyJson, text } = await parseOne(body)
+      const runs = []
+      const walk = (n) => {
+        if (n.marks?.some((m) => m.type === 'link')) runs.push(n.text)
+        ;(n.content || []).forEach(walk)
+      }
+      walk(bodyJson)
+      expect(runs.map((t) => t.replace(/\s+/g, ' '))).toEqual(['Plan', 'c d'])
+      expect(d.links).toHaveLength(2)
+      expect(text).toContain('[[Plan|a')
+      expect(text).toContain('b]]')
+      expect(d.html).not.toContain('data-uct-obsidian-net')
+    })
+  }
+
+  it('a single newline inside an alias is still the one link', async () => {
+    const { d, marks } = await parseOne('see [[Plan|first\nsecond]] end')
+    expect(d.links.map((l) => l.targetKey)).toEqual(['obsidian:V/Plan.md'])
+    expect(new Set(marks).size).toBe(1)
+  })
+})
+
+// D2 fix round 3 (perf): a wikilink or embed target never runs across `[[`, as on the
+// server, so a long line of `[` (or of `![[`) is linear: each try stops at the next `[[`.
+// ⚰️ 80 KB of `[` cost ~2 s in WIKILINK_RE alone, quadratically more as it grew.
+describe('obsidian adapter — D2 fix round 3: a long run of brackets is linear', () => {
+  for (const [name, body] of [['brackets', '['.repeat(80000)], ['embed openers', '![['.repeat(54000)],
+    ['brackets then close', `${'['.repeat(80000)}]]`],
+    // D2 fix round 5: the blank-line stop scans a whitespace run, so runs of them are timed too.
+    ['an alias of one whitespace run', `[[Plan|\n${' '.repeat(80000)}`],
+    ['an alias of newline-space pairs', `[[Plan|${'\n '.repeat(40000)}`],
+    ['an embed of newline-space-tab runs', `![[${'\n \t'.repeat(27000)}`],
+    // Follow-up: the quote-prefix run of the blank-line and fence-line stops.
+    ['an alias of one quote-prefix run', `[[Plan|\n${'> '.repeat(40000)}`],
+    ['an alias of near-fence quoted lines', `[[Plan|${'\n   > >``'.repeat(10000)}`],
+    // D2 fix round 5 (final), ruling A: the block-start stops and the deeper-quote check.
+    ['an alias of one dash run', `[[Plan|\n${'-'.repeat(80000)}`],
+    ['an alias of one digit run', `[[Plan|\n${'9'.repeat(80000)}`],
+    ['long quoted lines of multi-line links',
+      `${'> '.repeat(50)}x ${`[[Plan|b\n${'> '.repeat(51)}c]] `.repeat(2000)}`]]) {
+    it(`parses 80-160 KB of ${name} in well under a second`, async () => {
+      const started = performance.now()
+      const { docs } = await obsidianAdapter.parse([vf('V/a.md', body), vf('V/Plan.md', 'p')])
+      expect(docs).toHaveLength(2)
+      expect(performance.now() - started).toBeLessThan(1000)
+    })
+  }
 })

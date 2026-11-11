@@ -1,0 +1,98 @@
+{
+  "doc": {
+    "content": [
+      {
+        "content": [
+          {
+            "text": "A hotlink:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "src": "import-ref://https://e.example.com/pics/x.png"
+        },
+        "type": "image"
+      },
+      {
+        "content": [
+          {
+            "text": "An unsafe image:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "attempts": 0,
+          "name": null,
+          "reason": "unsafe",
+          "ref": null,
+          "sourceUrl": null
+        },
+        "type": "importNotice"
+      },
+      {
+        "content": [
+          {
+            "text": "A data image:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "src": "import-ref://md-img-1.png"
+        },
+        "type": "image"
+      },
+      {
+        "content": [
+          {
+            "text": "A relative image, no clip source:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "attempts": 0,
+          "name": "/local/x.png",
+          "reason": "unresolvable_src",
+          "ref": null,
+          "sourceUrl": null
+        },
+        "type": "importNotice"
+      },
+      {
+        "content": [
+          {
+            "text": "end",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "links": [],
+  "media": [
+    {
+      "kind": "image",
+      "name": "x.png",
+      "ref": "https://e.example.com/pics/x.png"
+    },
+    {
+      "data_uri": "data:image/png;base64,iVBORw0KGgo=",
+      "kind": "image",
+      "name": "md-img-1.png",
+      "ref": "md-img-1.png"
+    }
+  ]
+}

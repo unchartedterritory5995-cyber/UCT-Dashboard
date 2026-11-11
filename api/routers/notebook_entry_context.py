@@ -18,8 +18,6 @@
 The service is `api/services/journal_two/entry_context.py`, the ONE authority; 13E-2 (the card
 and the prompt), 13F and 13I-2 build on it (contract: `docs/notebook/wave13-13e1.md`).
 
-  * THE GATE IS A ROUTER DEPENDENCY: `NOTEBOOK_ENTRY_CONTEXT_ENABLED` off answers the one 404
-    for every route before the session, the plan or a parameter is read.
   * PAID: the context carries the Screener's RS rank, the scanner's lists and the technical
     fingerprint, all paid surfaces; a free door here would make their gates decorative.
   * MEMBER-SCOPED: every read and write is `WHERE user_id = <the session member>`; another
@@ -58,17 +56,9 @@ MAX_BODY_BYTES = 8 * 1024
 TOO_LARGE_SENTENCE = "Request too large"
 
 
-def _require_enabled() -> None:
-    """Router-level, so it runs BEFORE any route's own dependencies: an off gate reads no
-    session, checks no plan, parses no parameter, and answers the one not-found."""
-    if not ectx.enabled():
-        raise public.not_found()
-
-
 router = APIRouter(
     prefix="/api/j2/entry-context",
     tags=["journal-2-0", "notebook-entry-context"],
-    dependencies=[Depends(_require_enabled)],
 )
 
 

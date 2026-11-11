@@ -101,6 +101,14 @@ describe('SharingCard — the list', () => {
     expect(within(rows[3]).getByRole('button', { name: 'Update the published folder "Weekly plans"' })).toBeInTheDocument()
   })
 
+  it('Tier 3a fix round 1 (minor 11): each share link says whether it hides P&L widgets and images', async () => {
+    S.shares = [{ ...SHARE, hidePnl: true }, { ...EXPIRED_SHARE, hidePnl: false }]
+    const list = await open()
+    const rows = within(list).getAllByRole('listitem')
+    expect(rows[0]).toHaveTextContent('P&L widgets and images hidden')
+    expect(rows[1]).toHaveTextContent('P&L widgets and images shown')
+  })
+
   it('the empty state says there is nothing to revoke', async () => {
     S.shares = []
     S.pubs = []

@@ -1,5 +1,5 @@
 import { Node, mergeAttributes } from '@tiptap/core'
-import { NodeSelection, TextSelection, Selection } from '@tiptap/pm/state'
+import { NodeSelection, TextSelection, Selection, Plugin, PluginKey } from '@tiptap/pm/state'
 import { ReactNodeViewRenderer } from '@tiptap/react'
 import WidgetEmbedView from '../components/notebook/WidgetEmbedView'
 import { buildWidgetEmbedAttrs } from './widgetEmbedCore'
@@ -79,6 +79,10 @@ export function widgetEmbedStopEvent({ event }) {
   // Default's own passthrough: an input-like element always owns its events,
   // except the drag/drop family (a draggable row dragged FROM a button, say).
   if (isInput && event.type !== 'drop' && !isDragEvent) return true
+  // Tier 4 fix round 1 (review 4): the phone chart's full-screen link owns every event inside it. ProseMirror's
+  // click-to-select would otherwise make a NodeSelection and focus the editor (raising the iOS keyboard) on the
+  // way out of the note.
+  if (!isDragEvent && target?.closest?.('[data-phone-chart-open]')) return true
   // The fix: WHILE THE MEMBER IS DRAWING, never let a mousedown on the chart's
   // own surface reach ProseMirror's click-to-select handling (its mouseup
   // refocuses the editor, which the embed reads as "done drawing").
@@ -101,6 +105,77 @@ export function widgetEmbedStopEvent({ event }) {
   }
   return true
 }
+
+/** Audit 2026-11-05, spec S3 (B7): the event a selected CHART receives when the member types over
+ *  it -- `detail.text` is what they typed, upper-cased. WidgetEmbedView opens the chart's ticker
+ *  search with it. Dispatched on the chart's own element and bubbles. */
+export const CHART_EMBED_TYPE_EVENT = 'uct:chart-embed-type'
+
+/** The selected node, when the selection is a NodeSelection on a CHART embed; else null. */
+function selectedChart(state) {
+  const sel = state.selection
+  if (!(sel instanceof NodeSelection)) return null
+  const n = sel.node
+  return n?.type?.name === 'widgetEmbed' && n.attrs?.widgetId === 'chart' ? sel : null
+}
+
+function askChartToSearch(view, sel, text) {
+  const outer = view.nodeDOM(sel.from)
+  const target = outer?.querySelector?.('[data-widget-embed-view]') || outer || view.dom
+  target.dispatchEvent(new CustomEvent(CHART_EMBED_TYPE_EVENT, {
+    bubbles: true, detail: { text: String(text || '').toUpperCase() },
+  }))
+}
+
+// ⛔⛔ Audit 2026-11-05, spec S3 (B7): A TYPED KEY NEVER REPLACES A SELECTED CHART. Click a chart and
+// type "AMD": ProseMirror's default for text over a NodeSelection is to REPLACE the node, so the
+// chart (with its plan, drawings and archive) became the letters. A printable key -- one character,
+// no Ctrl/Cmd/Alt -- over a selected chart is taken here and handed to the chart's ticker search
+// (the Charts page's type-to-search idiom). `handleTextInput` covers what never arrives as a
+// keydown (IME, a phone keyboard). Delete and Backspace are not printable: they still remove the
+// chart, and Undo restores it, exactly as before.
+const chartTypeToSearchKey = new PluginKey('chartTypeToSearch')
+export const chartTypeToSearchPlugin = () => new Plugin({
+  key: chartTypeToSearchKey,
+  props: {
+    handleKeyDown(view, event) {
+      // ⛔ Fix round 1 (review finding 4): Esc on a selected chart is "back to writing" -- the caret
+      // lands just after the chart (a paragraph is made when the chart is the last block). An
+      // insert selects the new chart, so without this the member's next sentence went to its
+      // ticker search with no shown way out.
+      if (event.key === 'Escape' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        const chart = selectedChart(view.state)
+        if (!chart || !view.editable) return false
+        const tr = view.state.tr
+        const after = Selection.findFrom(tr.doc.resolve(chart.to), 1, true)
+        if (after) {
+          tr.setSelection(after)
+        } else {
+          const para = view.state.schema.nodes.paragraph?.createAndFill()
+          if (!para) return false
+          tr.insert(chart.to, para)
+          tr.setSelection(TextSelection.create(tr.doc, chart.to + 1))
+        }
+        view.dispatch(tr.scrollIntoView())
+        event.preventDefault()
+        return true
+      }
+      if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return false
+      if (typeof event.key !== 'string' || event.key.length !== 1 || event.key === ' ') return false
+      const sel = selectedChart(view.state)
+      if (!sel || !view.editable) return false
+      event.preventDefault()
+      askChartToSearch(view, sel, event.key)
+      return true
+    },
+    handleTextInput(view, from, to, text) {
+      const sel = selectedChart(view.state)
+      if (!sel || !view.editable || sel.from !== from || sel.to !== to) return false
+      askChartToSearch(view, sel, text.trim().slice(0, 1))
+      return true
+    },
+  },
+})
 
 export const WidgetEmbed = Node.create({
   name: 'widgetEmbed',
@@ -149,7 +224,7 @@ export const WidgetEmbed = Node.create({
       // `{ v, setupTag, fingerprint, planBlock }` — shape and builders in
       // lib/chartPlan.js. Plan ROLES are not here: they ride the drawings in
       // `annotations` (a role on a horizontal line), which plan_extract reads.
-      // Registered unconditionally (the gate NOTEBOOK_CHART_PLAN_ENABLED only
+      // Registered unconditionally (the chart-plan key, CHART_PLAN_FLAG, only
       // hides the doors), so a gate-off tab still declares 4 and never saves a
       // note without it. Removing this line drops the declaration to 3 and the
       // server then refuses this bundle's writes to every note that carries `ta`
@@ -172,6 +247,10 @@ export const WidgetEmbed = Node.create({
 
   addNodeView() {
     return ReactNodeViewRenderer(WidgetEmbedView, { stopEvent: widgetEmbedStopEvent })
+  },
+
+  addProseMirrorPlugins() {
+    return [chartTypeToSearchPlugin()]
   },
 
   addCommands() {

@@ -7,9 +7,8 @@
  * guessing further — the real endpoints/shapes:
  *
  *   GET    /api/j2/notes/connectors/status                — {enabled, providers: {name: {configured, connectKind, connected, status, accountLabel, sources[]}}}
- *   POST   /api/j2/notes/connectors/{provider}/connect     — token payload (roam/craft) OR {consent:true} to start OAuth (notion/dropbox) -> {redirectUrl}
+ *   POST   /api/j2/notes/connectors/{provider}/connect     — token payload (roam/craft) OR {consent:true} to start OAuth (notion/evernote) -> {redirectUrl}
  *   GET    /api/j2/notes/connectors/{provider}/callback    — OAuth return (backend-owned; the browser never calls this directly)
- *   GET    /api/j2/notes/connectors/{provider}/folders?path= — folder picker for the two folder-scoped providers (dropbox, onedrive); {folders: [...]} where each entry is Dropbox's {path_lower, name} OR OneDrive's {id, name} (raw, provider-shaped — normalizeFolders below is what makes the two agree); 404 for any other provider
  *   POST   /api/j2/notes/connectors/{provider}/sources     — {remoteId, displayName?, destFolderId?} -> {source}; 409 if not connected yet
  *   POST   /api/j2/notes/connectors/sources/{id}/sync      — manual sync, background=1 supported
  *   PUT    /api/j2/notes/connectors/sources/{id}           — sync_enabled / dest folder
@@ -19,25 +18,22 @@
  * #2). `normalizeStatus(raw)` is the single translation layer between
  * whatever `GET /status` returns and the stable shape every consumer
  * component reads: `providers[key] = { configured, connected, connectKind,
- * accountLabel, status, sources: [...] }` — always present for all six
- * registered providers (roam, craft, notion, dropbox, onenote, onedrive;
- * see `registry.py::_REGISTRY`).
+ * accountLabel, status, sources: [...] }` — always present for every
+ * provider in `NOTE_CONNECTOR_PROVIDERS` below (mirrors
+ * `registry.py::_REGISTRY`; Dropbox, OneNote and OneDrive were archived on
+ * 2026-11-04).
  *
  * ⚠️ **`connected` is CONNECTOR-level, read directly off the router — it is
  * NOT `sources.length > 0`** (Task 12b correction; the router literally
  * computes `"connected": connector is not None`, independent of source
- * count). This is load-bearing: Dropbox's OAuth callback deliberately creates
- * the connector WITHOUT a source (`remote_id = None` — "Dropbox needs a
- * FOLDER before a source can exist"), so `connected:true, sources:[]` is a
- * real, intended state — the "choose a folder" state the UI must surface. A
- * re-derivation from `sources.length` (Task 12's original guess, before the
- * router existed to read) makes that state UNREACHABLE. Roam/Craft/Notion
- * create connector+source atomically, so for them `connected` and
- * `sources.length>0` happen to coincide — that coincidence is exactly what
- * hid the bug until Dropbox's router landed.
+ * count). A connector with no source was a real state for the folder-picker
+ * providers (Dropbox, OneDrive; archived 2026-11-04), so
+ * `connected:true, sources:[]` stays representable here rather than being
+ * re-derived away.
  */
 import { useCallback } from 'react'
 import useSWR from 'swr'
+import { readSuccessBody } from '../../../lib/responseBody'
 
 // Provider roster (spec §1/§7, widened to the Microsoft Graph wave in
 // Task 7, then to Obsidian's push transport in the 2026-09-02 plan's Task 5).
@@ -54,21 +50,27 @@ export const NOTE_CONNECTOR_PROVIDERS = [
   { key: 'roam', label: 'Roam Research', tokenKind: 'token' },
   { key: 'craft', label: 'Craft', tokenKind: 'token' },
   { key: 'notion', label: 'Notion', tokenKind: 'oauth' },
-  { key: 'dropbox', label: 'Dropbox', tokenKind: 'oauth' },
-  { key: 'onenote', label: 'OneNote', tokenKind: 'oauth' },
-  { key: 'onedrive', label: 'OneDrive', tokenKind: 'oauth' },
-  { key: 'obsidian', label: 'Obsidian', tokenKind: 'device' },
+  // `authoritativeListing`: the provider's listing is its own complete walk, so a note missing
+  // from it was REMOVED there (the backend's `NoteProvider.enumeration_is_authoritative`; pinned
+  // against it by api/services/journal_two/test_note_connectors_authoritative_parity.py). The
+  // note view's "removed from" notice reads it; every other provider "no longer lists" the note.
+  { key: 'obsidian', label: 'Obsidian', tokenKind: 'device', authoritativeListing: true },
+  // Plan E Task 10. `beta` shows a "Beta" pill on the Settings tile (Evernote's own connection is beta).
+  { key: 'evernote', label: 'Evernote', tokenKind: 'oauth', beta: true },
 ]
 
-// Providers whose sync unit is a PICKED FOLDER, not a whole account —
-// mirrors the backend's `_FOLDER_PICKER_PROVIDERS` frozenset
-// (`api/routers/note_sync.py`) exactly. A provider in this set can land
-// `connected: true, sources: []` (needs a folder before it's usable) and
-// gets the "Choose folder" CTA + `DropboxFolderPicker`. OneNote is
-// deliberately NOT in this set — it's whole-account (Notion's shape, one
-// implicit source auto-created on connect), so a sourceless-connected
-// OneNote tile means something actually failed, never "needs a folder."
-export const FOLDER_PICKER_PROVIDERS = new Set(['dropbox', 'onedrive'])
+// Providers the server gates PER MEMBER (`registry.provider_allowed_for`; only Evernote). `/status`
+// lists them to every member, with `configured: false` while the flag is off or the member is not
+// allowed -- deliberately the same answer as "not set up", so a member cannot tell the modes apart.
+// So a gated provider shows NO tile at all (not "Coming soon") until the server says configured.
+// EXCEPT while the member is already connected (coordinator ruling): a connection must never be
+// invisible or unremovable, so the tile stays, in its sync-off state (Disconnect and the log are
+// ungated on the server; Sync now and pause are not). Every surface asks `isProviderShown`.
+export const MEMBER_GATED_PROVIDERS = new Set(['evernote'])
+
+export function isProviderShown(key, info) {
+  return !MEMBER_GATED_PROVIDERS.has(key) || !!(info && (info.configured || info.connected))
+}
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -110,7 +112,7 @@ function normalizeCounts(raw) {
   }
 }
 
-function normalizeSource(raw) {
+export function normalizeSource(raw) {
   if (!raw) return null
   return {
     id: raw.id,
@@ -123,8 +125,75 @@ function normalizeSource(raw) {
     lastSyncStatus: pick(raw, 'lastSyncStatus', 'last_sync_status', null),
     lastSyncError: pick(raw, 'lastSyncError', 'last_sync_error', null),
     warmingUntil: pick(raw, 'warmingUntil', 'warming_until', null),
+    // Evernote rate-limit fix round 1 (I3): a pass for this source is running now on the server
+    // (a background Sync now, a follow-up pass).
+    syncing: !!pick(raw, 'syncing', 'syncing', false),
+    // D4-2: a pass for this source waits for one of the server's shared pass slots (not running
+    // yet). The server sends `syncing: false` while it does.
+    queued: !!pick(raw, 'queued', 'queued', false),
+    pendingRemoval: pick(raw, 'pendingRemoval', 'pending_removal', 0) || 0,
+    lastFailureCount: pick(raw, 'lastFailureCount', 'last_failure_count', 0) || 0,
+    // The newest sync's failure details could not be read (the server sends a
+    // null count with this flag): unknown, never "nothing failed".
+    lastFailuresUnreadable: !!pick(raw, 'lastFailuresUnreadable', 'last_failures_unreadable', false),
+    // Obsidian only (the server sends these on `/status`). `null` means the
+    // server predates the field, so the card shows no update hint.
+    pluginVersion: pick(raw, 'pluginVersion', 'plugin_version', null),
+    pluginSupportsAttachments: pick(raw, 'pluginSupportsAttachments', 'plugin_supports_attachments', null),
     counts: normalizeCounts(raw.counts),
   }
+}
+
+// The server's exact sentence for a second Sync now while one is running (HTTP 409).
+export const BUSY_DETAIL =
+  'A sync is already running for this source. Its results will appear here when it finishes.'
+
+const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
+
+// Sync result -> { status, removalCheck }. `removalCheck` is null when the
+// pass did not ask for one (older server / non-full pass); otherwise it is a
+// STATED outcome (ran, or why not) -- never dropped when `ran` is false.
+export function normalizeSyncResult(raw) {
+  const r = raw && typeof raw === 'object' ? raw : {}
+  const rc = r.removalCheck !== undefined ? r.removalCheck : r.removal_check
+  let removalCheck = null
+  if (rc && typeof rc === 'object') {
+    removalCheck = {
+      ran: !!rc.ran,
+      reason: rc.reason == null ? null : rc.reason,
+      nextAllowedAt: pick(rc, 'nextAllowedAt', 'next_allowed_at', null) ?? null,
+      pending: num(rc.pending),
+      severed: num(rc.severed),
+    }
+  }
+  return { status: typeof r.status === 'string' ? r.status : 'unknown', removalCheck }
+}
+
+function normalizeFailure(f) {
+  const x = f && typeof f === 'object' ? f : {}
+  return {
+    noteTitle: pick(x, 'noteTitle', 'note_title', ''),
+    reason: pick(x, 'reason', 'reason', ''),
+    name: pick(x, 'name', 'name', ''),
+  }
+}
+
+// Recent-sync log rows. A malformed stored failures blob arrives as
+// `failuresUnreadable: true` and is kept -- never read as "no failures".
+export function normalizeLogRows(raw) {
+  const rows = raw && Array.isArray(raw.rows) ? raw.rows : []
+  return rows.filter((r) => r && typeof r === 'object').map((r) => ({
+    id: r.id,
+    at: pick(r, 'at', 'at', null),
+    status: pick(r, 'status', 'status', null),
+    created: num(pick(r, 'created', 'created', 0)),
+    updated: num(pick(r, 'updated', 'updated', 0)),
+    skipped: num(pick(r, 'skipped', 'skipped', 0)),
+    conflicts: num(pick(r, 'conflicts', 'conflicts', 0)),
+    sourceDeleted: num(pick(r, 'sourceDeleted', 'source_deleted', 0)),
+    failures: Array.isArray(r.failures) ? r.failures.map(normalizeFailure) : [],
+    failuresUnreadable: !!pick(r, 'failuresUnreadable', 'failures_unreadable', false),
+  }))
 }
 
 function normalizeProvider(raw) {
@@ -133,8 +202,8 @@ function normalizeProvider(raw) {
     configured: !!pick(raw, 'configured', 'is_configured', false),
     // Read directly off the connector-existence flag the router computes —
     // NEVER re-derived from sources.length (see the module docstring; this
-    // is the Task 12b correction that makes the Dropbox sourceless-connected
-    // state representable at all).
+    // is the Task 12b correction that keeps a sourceless-connected state
+    // representable at all).
     connected: !!pick(raw, 'connected', 'connected', false),
     connectKind: pick(raw, 'connectKind', 'connect_kind', null),
     accountLabel: pick(raw, 'accountLabel', 'account_label', null),
@@ -170,78 +239,42 @@ export function normalizeStatus(raw) {
     providers[p.key] = normalizeProvider(rawProviders[p.key])
   }
   const enabled = !!pick(raw, 'enabled', 'enabled', true)
-  return { providers, enabled }
+  // Final review I3: whether the Obsidian attachment layer is on for THIS member (the
+  // server's master switch). Only an explicit `true` turns it on: absent (an older server,
+  // or still loading) keeps the text-only consent copy, never a promise of images.
+  const obsidianAttachments = pick(raw, 'obsidianAttachments', 'obsidian_attachments', false) === true
+  return { providers, enabled, obsidianAttachments }
 }
 
-// ── Folder picker (Task 12b, widened to OneDrive in Task 7) ──────────────
-//
-// Fix-round CRITICAL: `GET /{provider}/folders` is NOT one shape across the
-// two folder-scoped providers — Dropbox's `list_folders` returns
-// `{path_lower, name}`, OneDrive's returns `{id, name}` (Graph addresses
-// everything by opaque item id, never a path). The OLD `normalizeFolder`
-// only ever read `pathLower`/`path_lower`, so every OneDrive folder
-// normalized to `pathLower: ''` — every row collapsed to the SAME (empty)
-// key, drilling into any of them re-listed the root forever, and picking one
-// POSTed `remoteId: ''` to `POST /{provider}/sources`, which the backend
-// rejects with a 400 ("remoteId is required"). The OneDrive folder picker
-// could not create a source at all.
-//
-// The provider-neutral contract every consumer reads instead:
-// `{name, remoteId, drillPath}` — `remoteId` is what `POST
-// /{provider}/sources` creates a source with; `drillPath` is what `GET
-// /{provider}/folders?path=` expects when drilling INTO this folder.
-// Dropbox: both = `path_lower`. OneDrive: both = the drive-item id. (The two
-// happen to always be equal per provider today — kept as two named fields,
-// not one, so a future provider whose "id to create a source with" and "id
-// to drill with" genuinely differ doesn't need this contract reshaped again.)
-
-function normalizeFolder(raw) {
-  if (!raw) return null
-  // Dropbox carries `path_lower`; OneDrive carries `id` and has no
-  // `path_lower` field at all — `pick()`'s own fallback would silently
-  // resolve to `''` for OneDrive if only the first pair were checked, which
-  // is the exact bug this fixes, so `id` is a SEPARATE, explicit fallback
-  // rather than a fourth alias on the same `pick()` call.
-  const pathLower = pick(raw, 'pathLower', 'path_lower', null)
-  const value = pathLower != null ? pathLower : pick(raw, 'id', 'id', '')
-  return {
-    name: raw.name || '',
-    remoteId: value,
-    drillPath: value,
+// Evernote rate-limit fix round 1 (I3): while any source is syncing or still importing, the
+// page re-reads /status every 10 s, so a background Sync now and the follow-up passes show their
+// progress line without a reload. A settled page (or one still loading) never polls.
+export function connectorsRefreshInterval(raw) {
+  const providers = (raw && raw.providers) || {}
+  for (const key of Object.keys(providers)) {
+    const sources = (providers[key] && providers[key].sources) || []
+    for (const s of sources) {
+      if (!s) continue
+      if (s.syncing === true || s.queued === true
+        || pick(s, 'lastSyncStatus', 'last_sync_status', null) === 'importing') return 10000
+    }
   }
+  return 0
 }
 
-/** Translate `GET /{provider}/folders` -> `{folders}` into a stable
- * `{name, remoteId, drillPath}` list — see the provider-neutral contract
- * note above `normalizeFolder`. */
-export function normalizeFolders(raw) {
-  const list = (raw && raw.folders) || []
-  return list.map(normalizeFolder).filter(Boolean)
+// The /status SWR options, exported so the poll's wiring has a rail of its own.
+export const STATUS_SWR_OPTIONS = {
+  revalidateOnFocus: false, shouldRetryOnError: false, refreshInterval: connectorsRefreshInterval,
 }
-
-// Per-provider sentinel for "sync the whole account" (the folder-picker's
-// root-level pick, not a drilled-into subfolder). Dropbox's OWN API treats
-// `""` and `"/"` as equivalent references to the account root
-// (`_dropbox_api_path` on the backend normalizes both), and `"/"` — unlike
-// `""` — survives every truthiness check both here and in
-// `DropboxProvider._resolve_folder_path`, so it is safe to use end-to-end
-// with ZERO backend changes. OneDrive has NO entry here (fix-round decision,
-// documented on `DropboxFolderPicker.jsx`'s root-pick button): OneDrive's
-// whole-drive delta is Graph's `/me/drive/root/delta` endpoint, a DIFFERENT
-// shape than the folder-scoped `/me/drive/items/{id}/delta` this provider
-// implements today — wiring that safely is real provider work, out of scope
-// for this fix, so the UI requires drilling to a real folder for OneDrive
-// instead of accepting an unverified sentinel.
-export const FOLDER_PICKER_ROOT_REMOTE_ID = { dropbox: '/' }
 
 export default function useNoteConnectors() {
   const { data, error, isLoading, mutate } = useSWR(
     '/api/j2/notes/connectors/status',
     fetcher,
-    { revalidateOnFocus: false, shouldRetryOnError: false }
+    STATUS_SWR_OPTIONS
   )
 
-  const { providers, enabled } = normalizeStatus(data)
+  const { providers, enabled, obsidianAttachments } = normalizeStatus(data)
 
   // Token providers (roam/craft): payload carries the pasted credentials.
   // Callers (ConnectTokenModal) only invoke this after their own consent
@@ -264,7 +297,7 @@ export default function useNoteConnectors() {
     [mutate]
   )
 
-  // OAuth providers (notion/dropbox): POST {consent:true} -> {redirectUrl},
+  // OAuth providers (notion/evernote): POST {consent:true} -> {redirectUrl},
   // hand off. `consent: true` is unconditional here BY DESIGN — every caller
   // (ConnectedAppsCard, ConnectTilesCompact) only reaches this function from
   // inside ConnectConsentPanel's onConfirm, which is disabled until the
@@ -305,20 +338,37 @@ export default function useNoteConnectors() {
     }
   }, [])
 
+  // Always a FULL pass (`full=1`): that is what runs the rate-limited
+  // removal check. A busy source answers 409 with BUSY_DETAIL (err.status /
+  // err.detail via readError).
   const syncSource = useCallback(
     async (sourceId, { background = false } = {}) => {
-      const qs = background ? '?background=1' : ''
+      const qs = background ? '?full=1&background=1' : '?full=1'
       const r = await fetch(`/api/j2/notes/connectors/sources/${sourceId}/sync${qs}`, {
         method: 'POST',
         credentials: 'include',
       })
       if (!r.ok) throw await readError(r, 'Sync failed — try again shortly.')
-      const body = await r.json().catch(() => ({}))
+      const read = await readSuccessBody(r)
       await mutate()
-      return body
+      if (!read.ok) return { status: 'unknown', removalCheck: null }
+      return normalizeSyncResult(read.body)
     },
     [mutate]
   )
+
+  // GET .../sources/{id}/log?limit= -> LogRow[]. Never resolves [] for a
+  // failure: a non-ok response or unreadable body throws.
+  const getSourceLog = useCallback(async (sourceId, { limit = 5 } = {}) => {
+    const r = await fetch(
+      `/api/j2/notes/connectors/sources/${sourceId}/log?limit=${encodeURIComponent(limit)}`,
+      { credentials: 'include' }
+    )
+    if (!r.ok) throw await readError(r, 'Could not load recent syncs.')
+    const read = await readSuccessBody(r)
+    if (!read.ok) throw new Error('Could not read recent syncs.')
+    return normalizeLogRows(read.body)
+  }, [])
 
   const updateSource = useCallback(
     async (sourceId, patch) => {
@@ -346,39 +396,6 @@ export default function useNoteConnectors() {
     [mutate]
   )
 
-  // GET /{provider}/folders?path= — scoped to FOLDER_PICKER_PROVIDERS (the
-  // router 404s any other provider); `path` omitted/'' lists the account
-  // root. Returns the normalized `{name, remoteId, drillPath}[]` list, never
-  // raw provider-shaped keys.
-  const listFolders = useCallback(async (provider, path = '') => {
-    const qs = path ? `?path=${encodeURIComponent(path)}` : ''
-    const r = await fetch(`/api/j2/notes/connectors/${provider}/folders${qs}`, {
-      credentials: 'include',
-    })
-    if (!r.ok) throw await readError(r, 'Could not load folders.')
-    const body = await r.json().catch(() => ({}))
-    return normalizeFolders(body)
-  }, [])
-
-  // POST /{provider}/sources — creates an additional/first source under an
-  // already-connected provider (409 if the connector doesn't exist yet).
-  // Used by DropboxFolderPicker to turn a picked folder into a real source.
-  const addSource = useCallback(
-    async (provider, payload) => {
-      const r = await fetch(`/api/j2/notes/connectors/${provider}/sources`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload || {}),
-      })
-      if (!r.ok) throw await readError(r, 'Could not connect that folder.')
-      const body = await r.json().catch(() => ({}))
-      await mutate()
-      return body
-    },
-    [mutate]
-  )
-
   // useCallback so identity is stable across renders — ConnectedAppsCard's
   // OAuth-return self-heal effect depends on [refresh]; without this it was
   // a fresh function every render, re-running the effect every render and
@@ -388,6 +405,7 @@ export default function useNoteConnectors() {
   return {
     providers,
     enabled,
+    obsidianAttachments,
     isLoading,
     error,
     refresh,
@@ -396,9 +414,8 @@ export default function useNoteConnectors() {
     startOAuth,
     mintConnectCode,
     syncSource,
+    getSourceLog,
     updateSource,
     disconnect,
-    listFolders,
-    addSource,
   }
 }

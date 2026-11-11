@@ -1,0 +1,23 @@
+# S1 point-in-time search, tree 1eb44c42ef
+# 1. the lane directory app/src/components/chart/engine/runtime/ (tests excluded): eval( new Function Function( importScripts XMLHttpRequest WebSocket EventSource sendBeacon fetch( navigator. and a dynamic import(
+app/src/components/chart/engine/runtime/runtimeAsync.js:115:/** ??? `fetch` with `keepalive`, NOT `navigator.sendBeacon`: a sendBeacon of an
+app/src/components/chart/engine/runtime/runtimeAsync.js:124:    const sent = fetch(RUNTIME_STOP_BEACON_URL, {
+# 2. the whole engine directory app/src/components/chart/engine/ (tests excluded): eval( new Function and a call of the Function constructor (word boundary)
+app/src/components/chart/engine/ast/interpret.js:14:// IS `Function` in a browser and `Function('return this')()` is arbitrary code
+# 3. the two main-thread reads on the lane's path outside the runtime directory: fetch(
+app/src/lib/runtimePanePermission.js:86:    Promise.resolve(fetch(RUNTIME_PERMISSION_RECHECK_PATH, { credentials: 'include', cache: 'no-store' }))
+app/src/components/chart/engine/runtimeKill.js:61:    Promise.resolve(fetch(RUNTIME_KILL_PATH, { credentials: 'include', cache: 'no-store' }))
+# 4. the server modules api/services/runtime_definitions.py and api/routers/pine_runtime_telemetry.py: eval( exec( subprocess compile( __import__ importlib
+api/services/runtime_definitions.py:119:_ID_RE = re.compile(r"^u_[0-9a-f]{12}$")
+api/services/runtime_definitions.py:120:_HASH_RE = re.compile(r"^[0-9a-f]{12,64}$")
+api/services/runtime_definitions.py:121:_PLOT_KEY_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
+# 5. mentions of the lane's modules anywhere under api/ (*.py)
+api/routers/user_definitions.py:595:    runtime documents, for the member door's PREVIEW (`engine/runtimeKill.js`).
+api/services/runtime_definitions.py:50:``engine/runtime/runtimeRepaint.js``, over the same rule table, held to one
+api/services/runtime_definitions.py:277:    (`engine/runtimeKill.js::runtimeSourceHash`)."""
+api/services/runtime_repaint.py:3:??? THE MIRROR OF ``app/src/components/chart/engine/runtime/runtimeRepaint.js``,
+api/services/runtime_repaint.py:4:rule for rule, over the SAME table (``runtimeRepaint.json``, read off the app tree
+api/services/runtime_repaint.py:26:    / "app" / "src" / "components" / "chart" / "engine" / "runtime" / "runtimeRepaint.json"
+api/services/runtime_repaint.py:213:    """``runtimeRepaintOf`` in the JS module: ``{ok, mode, forward, reads}`` or
+# 6. api/ lines that run node as a subprocess
+# end

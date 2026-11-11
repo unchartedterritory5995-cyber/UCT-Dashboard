@@ -17,7 +17,7 @@ import json
 import math
 from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
 
-from api.services.ast_table import recurrences
+from api.services.ast_table import FUNCTIONS_SECTION, TABLE, recurrences
 
 #: The closed table's recurrences -- the same object ``ast_interpret.RECURRENCES``
 #: is built from (``barIndexShift.js`` reads it from ``parse.js`` the same way).
@@ -52,8 +52,64 @@ RECURRENCES: Mapping[str, Any] = recurrences()
 
 BAR_INDEX_LEAVES = ("barindex", "lastbarindex")
 
+#: 2026-11-09 -- ``barstate.isfirst``: true on the first bar of the symbol's
+#: history on TradingView, i.e. ``bar_index < 1``. Mirrors
+#: ``barIndexShift.js::FIRST_BAR_LEAVES``; read as that THRESHOLD, never as an index.
+FIRST_BAR_LEAVES = ("isfirst",)
+
+#: The ``series``-lookback entries that are an INDEX into the series, not a total.
+_SERIES_INDEX_CALLS = ("valuewhenOccurrence",)
+
+#: 2026-11-09 -- ``barIndexShift.js::RUNNING_TOTAL_CALLS``, read off the manifest the
+#: same way (``lookback: "series"``, less the index entries): today exactly ``cum``.
+#: That file owns the reasoning: off the listing a running total moves by the unseen
+#: bars' total -- ``k * D`` for a constant source, ``D * mu`` (an atom the same on
+#: every bar) for any other.
+RUNNING_TOTAL_CALLS = tuple(
+    name for name, spec in TABLE[FUNCTIONS_SECTION].items()
+    if isinstance(spec, Mapping) and spec.get("lookback") == "series" and name not in _SERIES_INDEX_CALLS)
+
 _BI_MONO_SEP = "\x02"
 _BI_INV_PREFIX = "1/"
+#: The key prefix of an atom the same on every bar (a running total's unseen mean).
+_BI_ORIGIN_ATOM = "\x03"
+#: ...and the mark after it: ``+`` when the source is provably never negative.
+_BI_ORIGIN_NONNEG = "+"
+_BI_ORIGIN_ANY = "?"
+
+
+def _bi_non_negative_source(node: Any, depth: int = 0) -> bool:
+    """``barIndexShift.js::nonNegativeSource`` -- the same closed set of shapes."""
+    if not isinstance(node, dict) or depth > 32:
+        return False
+    args = node.get("args") if isinstance(node.get("args"), list) else []
+    kind, name = node.get("type"), node.get("name")
+
+    def sub(x):
+        return _bi_non_negative_source(x, depth + 1)
+    if kind == "num":
+        v = node.get("value")
+        return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) and v >= 0
+    if kind == "series":
+        return name == "volume"
+    if kind == "offset":
+        return sub(args[0]) if args else False
+    if kind == "call":
+        if name == "abs":
+            return len(args) == 1
+        if name == "nz":
+            return bool(args) and sub(args[0]) and (len(args) < 2 or sub(args[1]))
+        if name == "max":
+            return len(args) == 2 and (sub(args[0]) or sub(args[1]))
+        if name == "min":
+            return len(args) == 2 and sub(args[0]) and sub(args[1])
+        return False
+    if kind == "op":
+        if name in ("+", "*"):
+            return len(args) == 2 and sub(args[0]) and sub(args[1])
+        if name == "?:":
+            return len(args) == 3 and sub(args[1]) and sub(args[2])
+    return False
 _BI_MAX_TERMS = 96
 _BI_MAX_DEPTH = 128
 _BI_EPS = 1e-12
@@ -80,6 +136,15 @@ class _BarIndexUnprovable(Exception):
 
 def reads_bar_index(tree: Any) -> bool:
     """Does this tree read a bar-index leaf at all? Iterative."""
+    return _reads_any(tree, lambda n: n.get("type") == "series" and n.get("name") in BAR_INDEX_LEAVES)
+
+
+def reads_running_total(tree: Any) -> bool:
+    """``barIndexShift.js::readsRunningTotal``."""
+    return _reads_any(tree, lambda n: n.get("type") == "call" and n.get("name") in RUNNING_TOTAL_CALLS)
+
+
+def _reads_any(tree: Any, hit: Callable[[dict], bool]) -> bool:
     stack = [tree]
     seen = set()
     while stack:
@@ -87,7 +152,7 @@ def reads_bar_index(tree: Any) -> bool:
         if not isinstance(node, dict) or id(node) in seen:
             continue
         seen.add(id(node))
-        if node.get("type") == "series" and node.get("name") in BAR_INDEX_LEAVES:
+        if hit(node):
             return True
         args = node.get("args")
         if isinstance(args, list):
@@ -252,14 +317,45 @@ class _BarIndexAlgebra:
             acc = t if acc is None else {"type": "op", "name": "*", "args": [acc, t]}
         return acc
 
+    @staticmethod
+    def _is_origin_atom(a: str) -> bool:
+        bare = a[len(_BI_INV_PREFIX):] if a.startswith(_BI_INV_PREFIX) else a
+        return bare.startswith(_BI_ORIGIN_ATOM)
+
     def linear(self, p: Dict[str, float], wrap: Callable[[Any], Any], on_constant: float) -> Dict[str, float]:
         out: Dict[str, float] = {}
         for k, c in p.items():
-            if k == "":
-                out = self.add(out, self.constant(c * on_constant))
+            # the ``mu`` factors are the same on every bar and pass through the operator
+            atoms = self._atoms_of(k)
+            moving = [a for a in atoms if not self._is_origin_atom(a)]
+            factor = {self._mono_key([a for a in atoms if self._is_origin_atom(a)]): c}
+            if not moving:
+                out = self.add(out, self.scale(factor, on_constant))
             else:
-                out = self.add(out, self.scale(self.atom(wrap(self._mono_tree(k))), c))
+                out = self.add(out, self.mul(factor, self.atom(wrap(self._mono_tree(self._mono_key(moving))))))
         return out
+
+    def origin_atom(self, tree: Any, non_negative: bool) -> Dict[str, float]:
+        """``mu`` -- a running total's unseen mean, named by its call."""
+        mark = _BI_ORIGIN_NONNEG if non_negative else _BI_ORIGIN_ANY
+        return {_BI_ORIGIN_ATOM + mark + self.key_of(tree): 1.0}
+
+    def gap_sign(self, g: Dict[str, float]) -> Optional[int]:
+        """``barIndexShift.js`` ``gapSign``: a constant's sign, or a single
+        never-negative ``mu`` term's; else ``None``."""
+        def sgn(c: float) -> int:
+            return (c > 0) - (c < 0)
+        if self.is_constant(g):
+            return sgn(self.constant_of(g))
+        if len(g) != 1:
+            return None
+        (k, c), = g.items()
+        if k.startswith(_BI_ORIGIN_ATOM + _BI_ORIGIN_NONNEG) and _BI_MONO_SEP not in k:
+            return sgn(c)
+        return None
+
+    def is_time_constant(self, a: Dict[str, float]) -> bool:
+        return all(all(self._is_origin_atom(x) for x in self._atoms_of(k)) for k in a)
 
 
 def _bi_json(value: Any) -> str:
@@ -278,10 +374,28 @@ def bar_index_class(tree: Any) -> str:
     return bar_index_verdict(tree)["cls"]
 
 
+def reads_first_bar(tree: Any) -> bool:
+    """Does this tree read ``isfirst`` (``barIndexShift.js::readsFirstBar``)? Iterative."""
+    stack = [tree]
+    seen = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if node.get("type") == "series" and node.get("name") in FIRST_BAR_LEAVES:
+            return True
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return False
+
+
 def bar_index_verdict(tree: Any) -> dict:
     """``barIndexShift.js::barIndexVerdict`` -- the class, and the threshold
-    comparisons it rests on: ``{"cls", "thresholds": [(node, sign)]}``."""
-    if not reads_bar_index(tree):
+    comparisons it rests on: ``{"cls", "thresholds": [(node, sign)]}``. An
+    ``isfirst`` leaf is listed as its own threshold (``bar_index < 1``)."""
+    if not reads_bar_index(tree) and not reads_first_bar(tree) and not reads_running_total(tree):
         return {"cls": "inv", "thresholds": []}
     thresholds: List[tuple] = []
     alg = _BarIndexAlgebra()
@@ -326,6 +440,9 @@ def bar_index_verdict(tree: Any) -> dict:
                 return self_["sym"]
             if node.get("name") in BAR_INDEX_LEAVES:
                 return lin(alg.atom(node), alg.constant(1))
+            if node.get("name") in FIRST_BAR_LEAVES:
+                if not any(t[0] is node for t in thresholds):
+                    thresholds.append((node, 1))
             return fixed(node)
         if kind == "offset":
             x = sub(args[0])
@@ -382,12 +499,13 @@ def bar_index_verdict(tree: Any) -> dict:
             if alg.equal(a["p1"], b["p1"]):
                 return fixed(node)
             gap = alg.add(a["p1"], b["p1"], -1)
-            if name in ("==", "!=") or not alg.is_constant(gap):
+            sign = alg.gap_sign(gap)
+            if name in ("==", "!=") or sign is None:
                 raise _BarIndexUnprovable()
             if self_ is not None and _bi_reads_binding(node, self_["name"]):
                 raise _BarIndexUnprovable()
             if not any(t[0] is node for t in thresholds):
-                thresholds.append((node, 1 if alg.constant_of(gap) > 0 else -1))
+                thresholds.append((node, sign))
             return fixed(node)
         if name in _BI_LOGICAL:
             for a in args:
@@ -490,7 +608,7 @@ def bar_index_verdict(tree: Any) -> dict:
             for a in args[1:]:
                 if not still(sub(a)):
                     raise _BarIndexUnprovable()
-            if not x.get("na") and not alg.is_constant(x["p1"]):
+            if not x.get("na") and not alg.is_time_constant(x["p1"]):
                 raise _BarIndexUnprovable()
             return fixed(node)
         if name in _BI_SHIFT_EQUIVARIANT_CALLS:
@@ -501,9 +619,23 @@ def bar_index_verdict(tree: Any) -> dict:
             x = sub(args[at])
             if x.get("na"):
                 return NA
-            if not alg.is_constant(x["p1"]):
+            if not alg.is_time_constant(x["p1"]):
                 raise _BarIndexUnprovable()
             return lin(alg.atom(node), x["p1"])
+        if name in RUNNING_TOTAL_CALLS:
+            # 2026-11-09 -- ``k * D`` for a constant source, ``D * mu`` for any other;
+            # a source that itself moves with D would add a D**2 term
+            for a in args[1:]:
+                if not still(sub(a)):
+                    raise _BarIndexUnprovable()
+            x = sub(args[0])
+            if x.get("na"):
+                return NA
+            if x["p1"]:
+                raise _BarIndexUnprovable()
+            moves = (alg.constant(alg.constant_of(x["p0"])) if alg.is_constant(x["p0"])
+                     else alg.origin_atom(node, _bi_non_negative_source(args[0])))
+            return lin(alg.atom(node), moves)
         if name in _BI_WHOLE_SHIFT_CALLS:
             x = sub(args[0])
             if x.get("na"):

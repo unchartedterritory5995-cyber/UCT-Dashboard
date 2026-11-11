@@ -1,0 +1,199 @@
+{
+  "kind": "news.company",
+  "declared_freshness": "periodic",
+  "category": "market",
+  "cases": {
+    "periodic": {
+      "contract": "MD-1.0",
+      "kind": "news.company",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "ok",
+      "freshness": "periodic",
+      "as_of": "2026-10-30T19:30:00Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-news",
+      "coverage": null,
+      "data": {
+        "symbol": "NVDA",
+        "items": [
+          {
+            "headline": "Fixture headline one",
+            "source_name": "fixture-wire",
+            "as_of": "2026-10-30T19:30:00Z"
+          },
+          {
+            "headline": "Fixture headline two",
+            "source_name": "fixture-wire",
+            "as_of": "2026-10-30T17:05:00Z"
+          }
+        ]
+      },
+      "notes": [],
+      "provider_calls": 0
+    },
+    "stale": {
+      "contract": "MD-1.0",
+      "kind": "news.company",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "ok",
+      "freshness": "periodic",
+      "as_of": "2026-10-28T20:00:00Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": true,
+      "source": "uct-news",
+      "coverage": null,
+      "data": {
+        "symbol": "NVDA",
+        "items": [
+          {
+            "headline": "Fixture headline one",
+            "source_name": "fixture-wire",
+            "as_of": "2026-10-28T20:00:00Z"
+          },
+          {
+            "headline": "Fixture headline two",
+            "source_name": "fixture-wire",
+            "as_of": "2026-10-28T20:00:00Z"
+          }
+        ]
+      },
+      "notes": [
+        "older than this kind's freshness budget; say how old"
+      ],
+      "provider_calls": 0
+    },
+    "market-closed": {
+      "contract": "MD-1.0",
+      "kind": "news.company",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "ok",
+      "freshness": "periodic",
+      "as_of": "2026-10-30T19:30:00Z",
+      "fetched_at": "2026-10-31T14:00:00Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-news",
+      "coverage": null,
+      "data": {
+        "symbol": "NVDA",
+        "items": [
+          {
+            "headline": "Fixture headline one",
+            "source_name": "fixture-wire",
+            "as_of": "2026-10-30T19:30:00Z"
+          },
+          {
+            "headline": "Fixture headline two",
+            "source_name": "fixture-wire",
+            "as_of": "2026-10-30T17:05:00Z"
+          }
+        ]
+      },
+      "notes": [
+        "market closed — last session's close"
+      ],
+      "provider_calls": 0
+    },
+    "unavailable": {
+      "contract": "MD-1.0",
+      "kind": "news.company",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "unavailable",
+      "freshness": "unavailable",
+      "as_of": null,
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-news",
+      "coverage": null,
+      "data": null,
+      "notes": [
+        "the data source could not answer"
+      ],
+      "provider_calls": 0
+    },
+    "refused": {
+      "contract": "MD-1.0",
+      "kind": "news.company",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "refused",
+      "freshness": "unavailable",
+      "as_of": null,
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-agent-gateway",
+      "coverage": null,
+      "data": null,
+      "notes": [
+        "this turn already made 8 data reads"
+      ],
+      "provider_calls": 0
+    },
+    "partial": {
+      "contract": "MD-1.0",
+      "kind": "news.company",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "partial",
+      "freshness": "periodic",
+      "as_of": "2026-10-30T19:30:00Z",
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-news",
+      "coverage": null,
+      "data": {
+        "symbol": "NVDA",
+        "items": [
+          {
+            "headline": "Fixture headline one",
+            "source_name": "fixture-wire",
+            "as_of": "2026-10-30T19:30:00Z"
+          }
+        ]
+      },
+      "notes": [
+        "one news feed did not answer; items may be incomplete"
+      ],
+      "provider_calls": 0
+    },
+    "no-source-time": {
+      "contract": "MD-1.0",
+      "kind": "news.company",
+      "params_echo": {
+        "symbol": "NVDA"
+      },
+      "status": "ok",
+      "freshness": "periodic",
+      "as_of": null,
+      "fetched_at": "2026-10-30T19:59:45Z",
+      "delay_s": null,
+      "stale": false,
+      "source": "uct-news",
+      "coverage": null,
+      "data": {
+        "symbol": "NVDA",
+        "items": []
+      },
+      "notes": [
+        "no items in the window, so there is no source time"
+      ],
+      "provider_calls": 0
+    }
+  }
+}

@@ -23,45 +23,30 @@
  * Clicking a
  * configured, not-yet-connected tile opens the same connect flow as the
  * Settings card: token modal for roam/craft, or (fix-round 1, finding #1) a
- * `ConnectConsentPanel` for notion/dropbox — OAuth never fires straight off
+ * `ConnectConsentPanel` for notion/evernote — OAuth never fires straight off
  * the tile click, same consent gate as the Settings card.
  *
- * Folder-picker sourceless-connected (Task 12b, widened to OneDrive in
- * Task 7): the OAuth return always lands on `/settings` (the router
- * hardcodes its redirect there), so THIS surface never auto-opens the
- * folder picker on return — but a user can still land here later with
- * Dropbox/OneDrive connected-but-no-folder (they connected via Settings,
- * closed the picker without picking, then opened the wizard). Showing a
- * healthy "connected" tile in that state would be the exact "built,
- * tested, green, connected to nothing" class of bug this codebase has hit
- * before — so this tile reads the SAME `needsFolder` signal (now the
- * shared `FOLDER_PICKER_PROVIDERS` allow-set, not a dropbox-only literal)
- * as the Settings card and opens the SAME `DropboxFolderPicker` rather
- * than a misleading connected pill. OneNote is whole-account (Notion's
- * shape) and is never in `FOLDER_PICKER_PROVIDERS` — it can't reach this
- * state.
+ * The folder-picker tile state ("Choose a folder for ...") left with Dropbox
+ * and OneDrive when they were archived on 2026-11-04.
  */
 import { useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
-import useNoteConnectors, { FOLDER_PICKER_PROVIDERS, NOTE_CONNECTOR_PROVIDERS } from '../../hooks/useNoteConnectors'
+import useNoteConnectors, { NOTE_CONNECTOR_PROVIDERS } from '../../hooks/useNoteConnectors'
+import { PROVIDER_CONNECT_NOTES } from './evernoteCopy'
 import ConnectConsentPanel from './ConnectConsentPanel'
 import ConnectTokenModal from './ConnectTokenModal'
-import DropboxFolderPicker from './DropboxFolderPicker'
 import ObsidianConnectModal from './ObsidianConnectModal'
 import styles from './ConnectTilesCompact.module.css'
 
 export default function ConnectTilesCompact() {
   const {
-    providers, isLoading, connectToken, startOAuth, mintConnectCode, refresh, listFolders, addSource,
+    providers, obsidianAttachments, isLoading, connectToken, startOAuth, mintConnectCode, refresh,
   } = useNoteConnectors()
   const [tokenModalProvider, setTokenModalProvider] = useState(null)
   const [consentProvider, setConsentProvider] = useState(null)
   const [consentChecked, setConsentChecked] = useState(false)
   const [busyProvider, setBusyProvider] = useState(null)
   const [error, setError] = useState(null)
-  // Which FOLDER_PICKER_PROVIDERS key currently has its picker sheet open —
-  // null when closed (mirrors ConnectedAppsCard's identical state shape).
-  const [folderPickerProvider, setFolderPickerProvider] = useState(null)
   // Which device-kind provider (obsidian) currently has its connect-code
   // modal open — null when closed (mirrors ConnectedAppsCard's identical
   // state shape).
@@ -118,26 +103,16 @@ export default function ConnectTilesCompact() {
       <div className={styles.tiles}>
         {configured.map((p) => {
           const info = providers[p.key]
-          // FOLDER_PICKER_PROVIDERS (dropbox, onedrive) can be connected-
-          // with-zero-sources today (see the hook's module docstring) —
-          // scoped to that shared allow-set, the same way the Settings
-          // card scopes it.
-          const needsFolder = FOLDER_PICKER_PROVIDERS.has(p.key) && info.connected && info.sources.length === 0
-          const label = needsFolder
-            ? `Choose a folder for ${p.label}`
-            : info.connected
-              ? `${p.label} connected`
-              : `Connect ${p.label}`
+          const label = info.connected ? `${p.label} connected` : `Connect ${p.label}`
           return (
             <button
               key={p.key}
               type="button"
               className={styles.tile}
               data-connected={info.connected}
-              data-needs-folder={needsFolder}
               data-testid={`connect-tile-${p.key}`}
               disabled={busyProvider === p.key || (p.tokenKind === 'oauth' && consentProvider === p.key)}
-              onClick={() => (needsFolder ? setFolderPickerProvider(p.key) : openConnect(p))}
+              onClick={() => openConnect(p)}
             >
               <UIcon name="link" size={13} gold={false} />
               {label}
@@ -155,6 +130,7 @@ export default function ConnectTilesCompact() {
           busy={busyProvider === activeConsentProvider.key}
           onConfirm={() => confirmOAuthConnect(activeConsentProvider)}
           onCancel={cancelOAuthConsent}
+          notes={PROVIDER_CONNECT_NOTES[activeConsentProvider.key]}
         />
       )}
 
@@ -171,17 +147,8 @@ export default function ConnectTilesCompact() {
         open={!!deviceModalProvider}
         providerLabel={NOTE_CONNECTOR_PROVIDERS.find((p) => p.key === deviceModalProvider)?.label || 'Obsidian'}
         mintConnectCode={mintConnectCode}
+        attachments={obsidianAttachments}
         onClose={() => setDeviceModalProvider(null)}
-      />
-
-      <DropboxFolderPicker
-        open={!!folderPickerProvider}
-        provider={folderPickerProvider || 'dropbox'}
-        providerLabel={NOTE_CONNECTOR_PROVIDERS.find((p) => p.key === folderPickerProvider)?.label || 'Dropbox'}
-        listFolders={listFolders}
-        addSource={addSource}
-        onClose={() => setFolderPickerProvider(null)}
-        onPicked={() => {}}
       />
     </div>
   )

@@ -65,7 +65,7 @@
           "MATCH",
           []
         ],
-        "paints": "DIVERGE"
+        "paints": "MATCH"
       }
     },
     {
@@ -79,8 +79,8 @@
         "plots": [
           [
             "K00_bar_index_CONTROL",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — withheld on this chart on every bar,"
+            "MATCH",
+            1800
           ],
           [
             "C01_var_colour",
@@ -132,7 +132,7 @@
           "MATCH",
           []
         ],
-        "paints": "DIVERGE"
+        "paints": "MATCH"
       }
     },
     {

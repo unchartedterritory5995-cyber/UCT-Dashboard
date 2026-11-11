@@ -77,10 +77,28 @@ export function protectionRefusal(host, plan, ops = []) {
   const snap = host?.layouts?.snapshot?.()
   for (const o of ops) {
     if (!NAMES_A_LAYOUT.has(o?.action)) continue
-    const e = entryOf(snap, o?.args?.layout)
-    if (isProtected(e)) return `“${e.name}” is a protected layout — UCT Agent never renames or deletes it.`
+    // W1.1 R-03 (LT-9): a protected NAME the list does not hold (typed as the arg) is refused by that name too
+    const e = entryOf(snap, o?.args?.layout) || (o?.args?.layout != null ? { id: String(o.args.layout), name: String(o.args.layout) } : null)
+    if (isProtected(e)) return protectedNameRefusal(e.name)
   }
   return null
+}
+
+/** The one sentence for a rename / delete of a protected layout, by the name the member used or the list holds. */
+export function protectedNameRefusal(name) {
+  return `“${name}” is a protected layout — UCT Agent never renames or deletes it.`
+}
+
+// W1.1 R-03 (LT-9, live 2026-11-03): "rename Main Trading to x" reached the model (the layout was not in this account's
+// list, so no fast phrase resolved it) and came back as a chart-TAB rename with a false "I can't do it yet". A rename
+// phrase whose FROM name is protected — the guard's own names and the member's added ones, listed or not — is refused
+// by name before any path (0 model calls); every other rename phrase goes on exactly as before.
+const RENAME_PHRASE = /^(?:please )?rename (?:my |the )?(.+?)(?: layout)? to (.+?)[.!]?$/i
+export function protectedRenameRefusal(message) {
+  const m = RENAME_PHRASE.exec(String(message || '').trim())
+  if (!m) return null
+  const from = m[1].trim().replace(/^[“"'‘]|[”"'’]$/g, '').trim()
+  return from && isProtected({ id: from, name: from }) ? protectedNameRefusal(from) : null
 }
 
 /** For an Undo: refused while a protected layout is open and the undo touches its board. */

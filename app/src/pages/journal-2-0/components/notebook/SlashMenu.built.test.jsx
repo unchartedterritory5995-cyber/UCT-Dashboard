@@ -64,7 +64,7 @@ const loaded = async (q, ed = member()) => { builtItems(q, ed); await __builtLoa
 const titles = (items) => items.map((i) => i.title)
 const labelsOf = (items) => {
   const { container, unmount } = render(<SlashList items={items} command={() => {}} />)
-  const out = [...container.querySelectorAll('[aria-hidden="true"]')].map((n) => n.textContent)
+  const out = [...container.querySelectorAll('[data-slash-label]')].map((n) => n.textContent)
   unmount()
   return out
 }
@@ -85,6 +85,26 @@ afterEach(() => {
   cleanup()
 })
 
+// S8 (the audit's M3): a bare `/` now reads Basics, Live data, Trading, AI, Embeds. The snapshots below
+// keep the moment group each row carried, in the order it was captured; `inSections` re-orders them the
+// way M3 does, written out here from the spec rather than read from SlashMenu.jsx (a stable sort: within
+// a section the captured order stands). A wave that changes the list still reds against this.
+const LIVE_CAPTURES = new Set(['Chart', 'MTF stack', 'Before / after', 'Price', 'Analyst Consensus', 'Ticker card',
+  'Options flow on a ticker'])
+const S8_SECTIONS = ['basics', 'live', 'trading', 'ai', 'embeds']
+const s8Section = (row) => {
+  const [g, t] = row.split('|')
+  if (g === 'tools' || g === 'mine') return 'embeds'
+  if (g === 'open' || g === 'widgets') return 'live'
+  if (g === 'plan') return LIVE_CAPTURES.has(t) ? 'live' : 'trading'
+  if (g === 'review') return t === 'Transcript passage' ? 'embeds' : 'trading'
+  if (g === 'basics') return 'basics'
+  if (['Dictate', 'Writing help', 'Voice note'].includes(t)) return 'ai'
+  return ['UCT Terminal day', 'News and catalysts', 'Fundamentals', 'Breadth heatmap', 'My price alerts',
+    'Watchlist snapshot', 'Theme rankings', 'COT positioning', 'Model Book', 'Index levels', 'Scan results'].includes(t) ? 'live' : 'basics'
+}
+const inSections = (rows) => S8_SECTIONS.flatMap((s) => rows.filter((r) => s8Section(r) === s))
+
 // The bare / list as it was before Task 8.18, item for item (group|title), captured from the code at 35e5014fce.
 const BARE_ALL_OFF = [
   'plan|Chart', 'plan|MTF stack', 'plan|Before / after', 'plan|Price', 'plan|Analyst Consensus',
@@ -98,7 +118,7 @@ const BARE_ALL_BUT_8 = [
   'open|My watchlist today', 'open|My names reporting', 'open|Market on my names', 'open|Room buzz on my names',
   'open|My earnings reactions',
   'plan|Ticker card', 'plan|Options flow on a ticker', 'plan|Chart', 'plan|MTF stack', 'plan|Before / after',
-  'plan|Price', 'plan|Analyst Consensus', 'plan|Trade plan', 'plan|Journal style', 'plan|Pre-entry checklist',
+  'plan|Price', 'plan|Analyst Consensus', 'plan|Trade plan', 'plan|Template', 'plan|Pre-entry checklist',
   'plan|Price stamps', 'plan|Position sizing', 'plan|Position size calculator', 'plan|My rules',
   'plan|Morning wire and exposure',
   'plan|Earnings for my names', 'plan|My movers', 'plan|Key levels from my plans', 'plan|Post-trade review',
@@ -110,6 +130,8 @@ const BARE_ALL_BUT_8 = [
   'basics|Callout', 'basics|Toggle', 'basics|Image',
   'more|UCT Terminal day', 'more|News and catalysts', 'more|Fundamentals', 'more|Breadth heatmap',
   'more|My price alerts', 'more|Watchlist snapshot', 'more|Theme rankings',
+  // Tier 4 (S13.6 remainder): the COT and Model Book captures, reachable from a note.
+  'more|COT positioning', 'more|Model Book',
   'more|Heading 4', 'more|Heading 5', 'more|Heading 6', 'more|Code block', 'more|2 columns', 'more|3 columns',
   'more|Table of contents', 'more|Inline math', 'more|Math block', 'more|Emoji',
 ]
@@ -126,19 +148,20 @@ const asRows = (items) => items.map((i) => `${i.group}|${i.title}`)
 describe('the Mine group is dark while wave 8 is off', () => {
   it('mine_group_absent_when_w8_off_and_bare_list_unchanged', async () => {
     const net = installNet()
-    expect(asRows(await bareList())).toEqual(BARE_ALL_OFF)
+    expect(asRows(await bareList())).toEqual(inSections(BARE_ALL_OFF))
     __resetNotebookFlags()
     latchNotebookFlags(ALL_BUT_8)
     const items = await bareList()
-    expect(asRows(items)).toEqual(BARE_ALL_BUT_8)
-    expect(labelsOf(items)).not.toContain('Mine')
+    expect(asRows(items)).toEqual(inSections(BARE_ALL_BUT_8))
+    // S8: the moment labels gave way to M3's five sections; the group tag is what says the rows are there.
+    expect(items.some((i) => i.group === 'tools')).toBe(false)
     for (const q of ['build', 'widgets', 'tools', 'net', '']) expect(builtItems(q, member())).toEqual([])
     // Off, the menu never asks for the member's widgets.
     expect(net.calls.some((c) => c.url.startsWith('/api/j2/widget-definitions'))).toBe(false)
     // CONTROL: the same callback answers the Mine rows once wave 8 is on (so the off answer above is the gate's).
     __resetNotebookFlags()
     latchNotebookFlags({ ...ALL_BUT_8, ...W8 })
-    expect(labelsOf(await bareList())).toContain('Mine')
+    expect((await bareList()).some((i) => i.group === 'tools' && i.section === 'embeds')).toBe(true)
   })
 })
 
@@ -157,9 +180,11 @@ describe('the Mine group (wave 8 on)', () => {
     const items = await bareList()
     expect(items.filter((i) => i.group === 'tools').map((i) => i.title))
       .toEqual(['Build a widget', 'Net P&L by setup', 'Win rate by hour', 'Manage my tools'])   // archived left out
+    // S8: the Mine rows sit under Embeds, the last section, after Basics.
     const labels = labelsOf(items)
-    expect(labels).toContain('Mine')
-    expect(labels.indexOf('Mine')).toBeLessThan(labels.indexOf('Basics'))
+    expect(labels).toContain('Embeds')
+    expect(labels.indexOf('Embeds')).toBeGreaterThan(labels.indexOf('Basics'))
+    expect(items.filter((i) => i.group === 'tools').every((i) => i.section === 'embeds')).toBe(true)
     // Before the list has loaded, the two doors are there already (the list never holds the menu).
     __resetBuilt()
     expect(titles(builtItems('', member()))).toEqual(['Build a widget', 'Manage my tools'])

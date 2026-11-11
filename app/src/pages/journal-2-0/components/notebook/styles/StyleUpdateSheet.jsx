@@ -23,7 +23,7 @@ import styles from './StyleUpdateSheet.module.css'
 export const STALE_SENTENCE = 'This note changed since you opened it. Nothing was added.'
 export const LOCKED_SENTENCE = 'This note is locked. Unlock it to change its layout.'
 export const STILL_SAVING_SENTENCE = 'Some words are still saving. Try again in a moment.'
-const GONE_SENTENCE = "That style isn't available any more. Nothing was added."
+const GONE_SENTENCE = "That template isn't available any more. Nothing was added."
 const FAILED_SENTENCE = "Couldn't update this note. Nothing was added."
 const SKIP_WORDS = {
   'needs-ticker': 'this note has no ticker yet',
@@ -127,7 +127,7 @@ export default function StyleUpdateSheet({ open, onClose, noteId, styleId = null
                   ? `Update this note to ${plan.styleName} v${plan.toVersion}.`
                   : `Update this note from ${plan.styleName} v${plan.fromVersion} to v${plan.toVersion}.`}
             </p>
-            {plan.insertsOutline && <p className={styles.p}>This note is empty, so the style’s outline is added too.</p>}
+            {plan.insertsOutline && <p className={styles.p}>This note is empty, so the template’s outline is added too.</p>}
             {plan.add.length > 0 ? (
               <>
                 <p className={styles.h}>Will be added</p>
@@ -160,10 +160,10 @@ export default function StyleUpdateSheet({ open, onClose, noteId, styleId = null
 export function StyleChooser({ open, onClose, onPick }) {
   const { data, error, isLoading } = useJournalStyles()
   return (
-    <Sheet open={open} onClose={onClose} title="Choose a journal style" labelledByTitle variant="auto" maxWidth={520}>
+    <Sheet open={open} onClose={onClose} title="Choose a template" labelledByTitle variant="auto" maxWidth={520}>
       <div className={styles.wrap}>
-        {isLoading && <p className={styles.p} role="status">Loading your styles…</p>}
-        {!isLoading && (error || !data) && <p className={styles.p} role="alert">Couldn't load your journal styles.</p>}
+        {isLoading && <p className={styles.p} role="status">Loading your templates…</p>}
+        {!isLoading && (error || !data) && <p className={styles.p} role="alert">Couldn't load your templates.</p>}
         {data && data.kinds.map((k) => {
           const list = data.styles.filter((s) => s.kindId === k.id)
           if (!list.length) return null

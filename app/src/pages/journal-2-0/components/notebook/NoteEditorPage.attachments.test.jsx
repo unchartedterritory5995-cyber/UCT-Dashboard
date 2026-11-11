@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
@@ -101,6 +101,31 @@ describe('NoteEditorPage — Wave I live attachment authoring', () => {
     })
   })
 
+  it('tolerates the media policy\'s additive upload response fields (Plan A Task 8 [B A1])', async () => {
+    fetchMock.mockImplementation((url) => {
+      if (String(url).endsWith('/attachments')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            url: '/api/j2/notes/attachments/u1/n1/file/abc123.pdf', name: 'report.pdf', size: 4096,
+            kind: 'file', mime: 'application/pdf', width: null, height: null, original: null,
+          }),
+        })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    })
+    await renderEditor()
+    const input = screen.getByLabelText('Upload file attachment')
+    fireEvent.change(input, { target: { files: [new File(['%PDF-1.4'], 'report.pdf', { type: 'application/pdf' })] } })
+    await waitFor(() => {
+      const chip = document.querySelector('a[data-type="attachmentChip"]')
+      expect(chip).toBeTruthy()
+      expect(chip.getAttribute('data-name')).toBe('report.pdf')
+      expect(chip.getAttribute('data-size')).toBe('4096')
+      expect(chip.getAttribute('href')).toBe('/api/j2/notes/attachments/u1/n1/file/abc123.pdf')
+    })
+  })
+
   it('clicking a PDF AttachmentChip opens the preview Sheet, not a download (real-browser-found regression: renderHTML emits a native download= attribute that beats TipTap\'s own handleClickOn)', async () => {
     fetchMock.mockImplementation((url) => {
       if (String(url).endsWith('/attachments')) {
@@ -118,7 +143,8 @@ describe('NoteEditorPage — Wave I live attachment authoring', () => {
     expect(chip.closest('a').getAttribute('download')).toBe('report.pdf')  // confirms the exact hazard this test guards
 
     fireEvent.click(chip)
-    expect(screen.getByRole('dialog', { name: 'Preview of report.pdf' })).toBeInTheDocument()
+    // The preview is its own chunk (first-open bytes, perf-budgets.md 2026-11-10): it lands after the press.
+    expect(await screen.findByRole('dialog', { name: 'Preview of report.pdf' })).toBeInTheDocument()
   })
 
   it('clicking a non-PDF AttachmentChip does nothing special (no preview Sheet)', async () => {
@@ -136,6 +162,9 @@ describe('NoteEditorPage — Wave I live attachment authoring', () => {
     fireEvent.change(input, { target: { files: [new File(['a,b'], 'data.csv', { type: 'text/csv' })] } })
     const chip = await screen.findByText('data.csv')
     fireEvent.click(chip)
+    // Let a (wrongly) opened preview's lazy chunk land before asserting it is absent, or this passes vacuously.
+    const { sourceSheetLoaders } = await import('./NoteEditorPage')
+    await act(async () => { await sourceSheetLoaders.documentPreview(); await new Promise((r) => setTimeout(r, 20)) })
     expect(screen.queryByRole('dialog', { name: 'Preview of data.csv' })).not.toBeInTheDocument()
   })
 

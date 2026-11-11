@@ -94,8 +94,8 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Optional, Sequence
 
 from api.services import indicator_telemetry as telemetry
-from api.services import scan_definition, user_definitions
-from api.services.screener import list_universe, scan_evaluator, scan_store
+from api.services import runtime_definitions, scan_definition, user_definitions
+from api.services.screener import list_universe, scan_evaluator, scan_runtime, scan_store
 
 log = logging.getLogger(__name__)
 
@@ -357,6 +357,21 @@ def _load_definition(user_id: Any, def_id: str) -> dict:
         raise BadRequest(str(exc)) from exc
     if row is None:
         raise DefinitionNotFound(def_id)
+    # ⭐ SAVED-SCRIPT AUTO-UPGRADE — refused by today's script engine: not scannable, by name
+    # (the closed run-gate set has no `withheld`; `not-scannable` is the one that fits).
+    why = user_definitions.engine_withheld_reason(row)
+    if why:
+        raise RunRefused("gate:not-scannable", why)
+    # W5-T14: a stored runtime document runs on the server only when the lane
+    # admission says so; a refusal is `gate:not-scannable` with the guard's sentence.
+    if runtime_definitions.is_runtime(row.get("definition")):
+        try:
+            plot = scan_runtime.runtime_scan_spec(row["definition"])["plot"]
+        except scan_definition.ScanRefused as exc:
+            raise RunRefused("gate:not-scannable", str(exc)) from exc
+        refused = scan_runtime.runtime_admission(row, "on-demand", plot)
+        if refused is not None:
+            raise RunRefused("gate:not-scannable", refused[1])
     return row
 
 
@@ -491,7 +506,11 @@ def submit_run(user_id: Any, def_id: str, *,
         # ⭐ A GATE, NOT A HASH. The dict it returns carries `def_hash`, and it is
         # DISCARDED here: the run's hash is `evaluate_one`'s own, read off the
         # artifact when the worker hands it back. One object, one hash.
-        scan_definition.assert_scannable(definition)
+        if runtime_definitions.is_runtime(definition):
+            # scannability was asked once, in `_load_definition`
+            definition = scan_runtime.runtime_scan_doc(row)
+        else:
+            scan_definition.assert_scannable(definition)
     except scan_definition.ScanRefused as exc:
         raise RunRefused("gate:not-scannable", str(exc)) from exc
     try:

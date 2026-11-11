@@ -184,7 +184,127 @@ _KNOWN_EMPTY_IN_PROD = {
         " from implied move — `earnings_context._latest_grades` — so do not"
         " conflate the two when one of them fills."
     ),
+    # ── UCT Relative Strength rating family (Phase 2a, unit 2a-08) ──
+    # ⛔ EMPTY BY CONSTRUCTION, not by measurement: the seven read the
+    # `rs_rating_history` side table, and the job that writes it
+    # (`rs_history_nightly`, 04:15 ET, unit 2a-04) is DARK behind
+    # `RS_HISTORY_ENABLED` — the flag is unset in prod at 2026-11-06, so the
+    # table has no rows and `_read_rs_history_fields` maps nothing. The ten
+    # bar-derived RS columns are NOT here: `rs_columns.collect_one` runs inside
+    # the 03:00 build with no flag, so they fill on the first build after
+    # deploy. DELETE these seven entries the day the first clean 04:15 run
+    # lands (`GET /api/screener/snapshot-status` carries the `rs_history`
+    # block), and ship the held-back rating starters named in
+    # `saved_screens.py` beside `rs_starters()` the same day.
+    **{col: ("non-null on 0 prod rows by construction at 2026-11-06: the"
+             " `rs_history_nightly` job that writes `rs_rating_history` is dark"
+             " behind `RS_HISTORY_ENABLED`; `_read_rs_history_fields` maps nothing"
+             " until it runs. Delete after the first clean fill.")
+       for col in ("rs_rating_ibd", "rs_rating_chg_5", "rs_rating_chg_20",
+                   "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_9m",
+                   "rs_rating_12m")},
 }
+
+
+# ── UCT RELATIVE STRENGTH starters (Phase 2a, unit 2a-08) ───────────────────
+# ⛔ DERIVED FROM THE TWO WRITERS: the bar-derived set is `rs_columns.COLUMNS`
+# (fills on the first nightly build, no flag) and the rating set is
+# `snapshot_builder._RS_HISTORY_COLUMNS` (dark job). A starter may filter the
+# first set and must not filter the second until it fills — the rule the map
+# states as "no starter on a column until it fills in prod".
+
+def _rs_sets():
+    from api.services.screener import rs_columns, snapshot_builder
+    return frozenset(rs_columns.COLUMNS), frozenset(snapshot_builder._RS_HISTORY_COLUMNS)
+
+
+def _rs_starters(ss):
+    # 2026-11-07 (review finding #12, unit U6): the RS starters ship only while
+    # `registry_defs.RS_V2_ENABLED` is on (the `bars_rs` step's gate), so the
+    # rails below read them with the flag armed via `_rs_v2_on(monkeypatch)`;
+    # the dark half is railed in tests/test_rs_fix_u6_screener_surfaces.py.
+    return [s for s in ss.starters() if s.get("group") == ss.RS_STARTER_GROUP]
+
+
+def _rs_v2_on(monkeypatch):
+    from api.services.signature import registry_defs
+    monkeypatch.setattr(registry_defs, "RS_V2_ENABLED", True)
+
+
+def test_rs_starters_filter_ONLY_the_columns_that_fill_on_day_one(tmp_path, monkeypatch):
+    """⛔ THE SET IS NAMED BY THE WRITERS, and the ban list above names the
+    other half, so the standing empty-column rail bites on any rating starter
+    the day somebody adds one early."""
+    ss = _svc(tmp_path, monkeypatch)
+    _rs_v2_on(monkeypatch)   # 2026-11-07 (U6)
+    from api.services.screener import filters as scr_filters
+    bars, ratings = _rs_sets()
+    assert bars and ratings and not (bars & ratings)
+    # every rating column is banned — the rail above cannot be blind to one
+    assert ratings <= set(_KNOWN_EMPTY_IN_PROD), sorted(ratings - set(_KNOWN_EMPTY_IN_PROD))
+    assert not (bars & set(_KNOWN_EMPTY_IN_PROD)), "a bar-derived RS column is banned — it fills day one"
+    starters = _rs_starters(ss)
+    assert len(starters) >= 5, [s["id"] for s in starters]
+    touched = set()
+    for s in starters:
+        assert s["id"].startswith("starter_rs_"), s["id"]
+        assert s["spec"]["view"] == "relative_strength", s["id"]
+        for f in s["spec"]["filters"]:
+            col = scr_filters.FILTERS[f["key"]]["column"]
+            if col in bars | ratings:
+                assert col in bars, (s["id"], col, "filters a dark rating column")
+                touched.add(col)
+        sort = s["spec"]["sort"]["key"]
+        assert sort in bars or sort == "rs_rank", (s["id"], sort)
+        assert sort not in ratings, (s["id"], sort)
+    # the starters reach a real share of the family, not one column seven times
+    assert len(touched) >= 6, sorted(touched)
+
+
+def test_the_rs_starter_rules_are_the_ones_the_unit_was_built_to(tmp_path, monkeypatch):
+    """The four rules the unit names, pinned BY RULING: a flag at 1 is the
+    definition; 3+ of 20 and "within one month = 21 sessions, and above zero
+    now" are the thresholds shipped on 2026-11-06, editorial and awaiting the
+    owner's approval (map §5 q5) — move them deliberately, not by drift."""
+    ss = _svc(tmp_path, monkeypatch)
+    _rs_v2_on(monkeypatch)   # 2026-11-07 (U6)
+    by_id = {s["id"]: s for s in _rs_starters(ss)}
+
+    def clauses(sid):
+        return {(f["key"], f["op"], f.get("value", f.get("min")), f.get("max"))
+                for f in by_id[sid]["spec"]["filters"]
+                if f["key"] not in ("dollar_vol_30d", "price", "security_type")}
+
+    assert clauses("starter_rs_nh_before_price") == {("rs_nh_before_price", "eq", 1, None)}
+    assert clauses("starter_rs_nh_red_day") == {("rs_nh_red_day", "eq", 1, None)}
+    assert clauses("starter_rs_new_high") == {("rs_new_high", "eq", 1, None)}
+    assert clauses("starter_rs_green_on_red") == {("green_on_red_20", "gte", 3, None)}
+    assert clauses("starter_rs_mansfield_positive") == {
+        ("mansfield_cross_bars_ago", "lte", None, 21), ("mansfield", "gt", 0, None)}
+    assert clauses("starter_rs_cross_up_21ema") == {
+        ("rs_cross_up_bars_ago", "between", 0, 5), ("rs_line_above_ma", "eq", 1, None)}
+    assert clauses("starter_rs_leaders_equal_weight") == {
+        ("rs_rank", "gte", 80, None), ("rs_benchmark_agree", "eq", 1, None),
+        ("rs_line_above_ma", "eq", 1, None)}
+    # every RS starter carries the two published floors and the stocks-only clause
+    for s in by_id.values():
+        keys = {f["key"] for f in s["spec"]["filters"]}
+        assert {"dollar_vol_30d", "price", ss.STOCKS_ONLY["key"]} <= keys, s["id"]
+
+
+def test_rs_starters_say_what_they_select_and_never_say_weekly(tmp_path, monkeypatch):
+    """A screen whose name disagrees with its filters teaches the member the
+    wrong thing. Mansfield here is on 200 DAILY bars (`rs_columns`), so no name
+    or description may say "weekly"; every one names its own liquidity floor."""
+    ss = _svc(tmp_path, monkeypatch)
+    _rs_v2_on(monkeypatch)   # 2026-11-07 (U6)
+    for s in _rs_starters(ss):
+        text = f"{s['name']} {s['description']}".lower()
+        assert "weekly" not in text, s["id"]
+        assert "$10m" in text and "$5" in text, s["id"]
+        assert s["description"].rstrip()[-1] not in ".!", s["id"]   # the house style: no trailing stop, never an exclamation
+    mans = next(s for s in _rs_starters(ss) if s["id"] == "starter_rs_mansfield_positive")
+    assert "200-day" in mans["description"]
 
 
 def _starters_filtering_an_empty_column(starters, registry):

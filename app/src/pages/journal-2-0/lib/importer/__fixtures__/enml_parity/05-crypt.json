@@ -1,0 +1,33 @@
+{
+  "enml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>Account&nbsp;notes &amp; keys &mdash; private</div><en-crypt hint=\"the usual\" cipher=\"AES\" length=\"128\">U2FsdGVkX19vcGFxdWU=</en-crypt><div>after the secret</div></en-note>",
+  "id": "05-crypt",
+  "note": {
+    "created": "20260101T090000Z",
+    "guid": "11111111-0000-4000-8000-000000000005",
+    "notebook": "Trading",
+    "notes": {},
+    "resources": [],
+    "title": "Crypt note"
+  },
+  "server": {
+    "blocks": [
+      {
+        "text": "Account notes & keys — private",
+        "type": "paragraph"
+      },
+      {
+        "text": "[encrypted content — cannot be imported]",
+        "type": "paragraph"
+      },
+      {
+        "text": "after the secret",
+        "type": "paragraph"
+      }
+    ],
+    "chips": [],
+    "images": [],
+    "links": [],
+    "notices": [],
+    "task_checked": []
+  }
+}

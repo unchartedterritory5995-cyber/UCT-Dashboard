@@ -115,6 +115,25 @@ _CASES: dict[str, tuple[dict, dict]] = {
     "rsi_in_range": ({"rsi14": 55.0}, {"rsi14": 120.0}),
     "uct_composite_in_range": ({"uct_composite": 50}, {"uct_composite": 150}),
     "rs_rank_in_range": ({"rs_rank": 50}, {"rs_rank": -5}),
+    # UCT Relative Strength (Phase 2a, 2a-08) — the rating family's published
+    # scale and the three flag relations `relative_strength` builds by construction
+    "rs_rating_ibd_in_range": ({"rs_rating_ibd": 94}, {"rs_rating_ibd": 0}),
+    "rs_rating_1m_in_range": ({"rs_rating_1m": 50}, {"rs_rating_1m": 100}),
+    "rs_rating_3m_in_range": ({"rs_rating_3m": 1}, {"rs_rating_3m": 100}),
+    "rs_rating_6m_in_range": ({"rs_rating_6m": 50}, {"rs_rating_6m": 0}),
+    "rs_rating_9m_in_range": ({"rs_rating_9m": 50}, {"rs_rating_9m": 0}),
+    "rs_rating_12m_in_range": ({"rs_rating_12m": 99}, {"rs_rating_12m": -1}),
+    "rs_rating_chg_5_in_range": ({"rs_rating_chg_5": -6}, {"rs_rating_chg_5": 99}),
+    "rs_rating_chg_20_in_range": ({"rs_rating_chg_20": 98}, {"rs_rating_chg_20": -99}),
+    "rs_nh_before_price_implies_rs_new_high": (
+        {"rs_nh_before_price": 1, "rs_new_high": 1},
+        {"rs_nh_before_price": 1, "rs_new_high": 0}),
+    "rs_nh_red_day_implies_rs_new_high": (
+        {"rs_nh_red_day": 1, "rs_new_high": 1},
+        {"rs_nh_red_day": 1, "rs_new_high": 0}),
+    "rs_new_high_implies_age_zero": (
+        {"rs_new_high": 1, "rs_nh_bars_ago": 0},
+        {"rs_new_high": 1, "rs_nh_bars_ago": 3}),
 
     # size ───────────────────────────────────────────────────────────────
     "dollar_volume_is_price_times_volume": (

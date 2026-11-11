@@ -73,7 +73,7 @@ describe('indicatorStyle.set — colour, line width, line style, plot style (I-1
     expect(fastParse('make the 9 green')).toMatchObject({ kind: 'ops', ops: [{ action: 'indicatorStyle.set', args: { instance: '#9', property: 'color', value: 'green' } }] })
     const { res } = await run(b.host, [{ action: 'indicatorStyle.set', target: ixe('c1'), args: { instance: '#9', property: 'color', value: 'green', output: null } }])
     expect(inst(b, 'c1', 'ovl:0').inputs.color).toBe('#2faf68')
-    expect(res.lines[0]).toMatch(/Changed EMA 9's colour on Left chart \(QQQ\) to #2faf68/)
+    expect(res.lines[0]).toMatch(/Changed EMA 9's colour on Left chart \(QQQ\) to green/)
     expect((await undoEntry(b.host, res.undo)).ok).toBe(true)
     expect(inst(b, 'c1', 'ovl:0').inputs?.color ?? '#4ade80').toBe('#4ade80')
   })
@@ -296,7 +296,7 @@ describe('through the real panel — multi-chart indicator customisation and cop
     await say('make the 20 red and dashed on the left chart')
     await waitFor(() => expect(inst(b, 'c1', 'ovl:1').presentation?.lineStyle).toBe('dashed'))
     expect(inst(b, 'c1', 'ovl:1').inputs.color).toBe('#df4646')
-    expect(transcript()).toMatch(/Changed EMA 20's colour on Left chart \(QQQ\) to #df4646/)
+    expect(transcript()).toMatch(/Changed EMA 20's colour on Left chart \(QQQ\) to red/)
     expect(transcript()).toMatch(/line style on Left chart \(QQQ\) — solid → dashed/)
     expect(inst(b, 'c2', 'ovl:1').inputs?.color ?? '#f472b6').not.toBe('#df4646')            // the right chart untouched
   })
@@ -345,11 +345,12 @@ describe('through the real panel — multi-chart indicator customisation and cop
       expect(rows(b, c).find(r => r.defId === 'rsi').displayTarget, c).toBe('pane')
     }
     const t = transcript()
-    for (const line of [/Added EMA 9 to Left chart|Added EMA 9 on Left chart/, /Added EMA 20/, /Changed EMA 9's colour on Left chart \(QQQ\) to #2faf68/, /Moved RSI \(14\) in its own pane on Left chart/, /Copied .*on Right chart/, /Copied .*on Third chart/]) expect(t).toMatch(line)
-    // Undo walks the steps back, newest first: the third chart's copy goes first
+    for (const line of [/Added EMA 9 to Left chart|Added EMA 9 on Left chart/, /Added EMA 20/, /Changed EMA 9's colour on Left chart \(QQQ\) to green/, /Moved RSI \(14\) in its own pane on Left chart/, /Copied .*on Right chart/, /Copied .*on Third chart/]) expect(t).toMatch(line)
+    // OWNER RULING (W2, 11-04): a plain Undo takes back the WHOLE request, newest first (each step through its own Undo)
     await say('undo')
     await waitFor(() => expect(live('c3')).toEqual([]))
-    expect(live('c2')).toEqual(['EMA 20', 'EMA 9', 'RSI (14)'])
+    expect(live('c2')).toEqual([])
+    expect(transcript()).toMatch(/Took back all \d+ changes from that request/)
   }, 60000)
 
   it('E4 · "move rsi above price" (instant) on the chart with RSI', async () => {

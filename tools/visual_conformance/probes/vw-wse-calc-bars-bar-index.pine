@@ -1,0 +1,12 @@
+//@version=6
+indicator("UCTPROBE_VW_WSE_CALC_BARS_BAR_INDEX", overlay = false, calc_bars_count = 100)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme, capture queue row Q-WSE1
+// (docs/pine/capture-queue-2026-10-31-wse.md). NEVER COMPILED ON TRADINGVIEW.
+// The VALUE of `bar_index` on the first calculated bar of a `calc_bars_count = 100` window: 0, or
+// the bar's index in the loaded history (about 1,700 on a 1,800-bar chart)? A01 is the bar's open
+// time, so the first calculated bar can be placed on the chart.
+// CAPTURE: AMEX:SPY 1D (1,800 bars), inputs at defaults.
+
+plot(bar_index, "A00_bar_index")
+plot(time, "A01_time_CONTROL")

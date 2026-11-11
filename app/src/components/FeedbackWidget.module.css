@@ -53,6 +53,21 @@
   }
 }
 
+/* Decision B3 (2026-11-07): on the chart shell the "?" tucks away while a finger is
+   on the chart (html[data-chart-touching], set by hooks/useChartTouchTuck.js) and
+   comes back a short idle after it lifts — the same slide-and-fade as the
+   scroll tuck above. It stays put while its own menu is open. */
+@media (max-width: 1024px) {
+  :global(html[data-mobile-chart-shell][data-chart-touching]) .fab:not([aria-expanded='true']) {
+    transform: translateY(160%);
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+@media (max-width: 1024px) and (prefers-reduced-motion: reduce) {
+  :global(html[data-mobile-chart-shell][data-chart-touching]) .fab:not([aria-expanded='true']) { transform: none; }
+}
+
 /* Phase 10 — the clean phone canvas: portrait phone chart too — the "?" sat on
    the volume pane; it's on every other screen. (Same call as the orb.) */
 @media (pointer: coarse) and (max-width: 640px) {
@@ -64,4 +79,12 @@
    in portrait. */
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
   :global(html[data-mobile-chart-shell]) .fab { display: none !important; }
+}
+
+/* S12 + VIS-4 (audit 2026-11-05, M9): on a PHONE's Notebook the Help "?" gives way to the Notebook's one floating
+   "+" (NotebookPlusFab), whose sheet carries Help. Every other page keeps it. */
+@media (max-width: 640px) {
+  :global(html[data-notebook-route]) .fab {
+    display: none !important;
+  }
 }

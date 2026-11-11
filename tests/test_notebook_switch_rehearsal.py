@@ -305,21 +305,25 @@ def test_the_reason_rail_can_fail(t):
         "NOTEBOOK_WIDGETS_W1_ENABLED": w1.replace("test_gate_off_404", "test_no_such_test_here"),
         "NOTEBOOK_WIDGETS_W2_ENABLED": "armed on web: see tests/test_no_such_file.py (test_x)",
         "NOTEBOOK_WIDGETS_W3_ENABLED": "armed on web: tests/test_notebook_widgets_e2e.py (some prose, it says)",
-        "NOTEBOOK_WIDGETS_W11_ENABLED": "armed on web: flipped",
+        "NOTEBOOK_LAYOUT_SHARING_ENABLED": "armed on web: flipped",    # a gate the ledger records dark
         "NOTEBOOK_WIDGETS_W10_ENABLED": "dark: flipped",
         # the m-2 defect: a real test, in a file that names W4 elsewhere, whose own block never does
         "NOTEBOOK_WIDGETS_W4_ENABLED": f"armed on web: its off evidence is {sm} ('a wave turns on only its own kinds')",
         "NOTEBOOK_TA_FINGERPRINT_ENABLED": "armed on web: the API; no member surface until 13I-2",
         "NOTEBOOK_ASK_INSERT_ON": "payload only: no status word",
-        "NOTEBOOK_SEMANTIC_PROVIDER": "a MODE, live since NOTEBOOK_WIDGETS_W11_ENABLED armed",
+        "NOTEBOOK_SEMANTIC_PROVIDER": "a MODE, live since NOTEBOOK_LAYOUT_SHARING_ENABLED armed",
         "NOTEBOOK_CHART_PLAN_ENABLED": "live: a gate is never live",
     }
-    got = reason_problems(bad, ledger)
+    # No armed ledger row names a lane today (13I-2's gate, TA_FINGERPRINT, was retired 2026-11-04), so the
+    # stale-'until' control plants one armed row that does: the check is the rail's, the row is the control's.
+    planted = {**ledger, "NOTEBOOK_TA_FINGERPRINT_ENABLED": {"status": "armed", "where": ["web"],
+                                                             "note": "planted control: lane 13I-2 armed"}}
+    got = reason_problems(bad, planted)
     expect = {
         "NOTEBOOK_WIDGETS_W1_ENABLED": "test_no_such_test_here",
         "NOTEBOOK_WIDGETS_W2_ENABLED": "test_no_such_file.py, which does not exist",
         "NOTEBOOK_WIDGETS_W3_ENABLED": "not a test name list",
-        "NOTEBOOK_WIDGETS_W11_ENABLED": "the reason says armed",
+        "NOTEBOOK_LAYOUT_SHARING_ENABLED": "the reason says armed",
         "NOTEBOOK_WIDGETS_W10_ENABLED": "the reason says dark",
         "NOTEBOOK_WIDGETS_W4_ENABLED": "never names NOTEBOOK_WIDGETS_W4_ENABLED",
         "NOTEBOOK_TA_FINGERPRINT_ENABLED": "'until 13I-2'",
@@ -337,7 +341,9 @@ def test_the_reason_rail_can_fail(t):
         "NOTEBOOK_WIDGETS_W3_ENABLED":
             "armed on web: tests/test_notebook_widgets_e2e.py (test_wave2_routes_are_dark_without_their_flag)",
         "NOTEBOOK_WIDGETS_W2_ENABLED":
-            f"armed on web: {sm} ('bare_slash_groups_in_order: the menu shows the five moment labels in order')",
+            # S8 (4586c2e467) renamed the cited test when M3's five sections replaced the five moment labels; the
+            # citation follows it, so this replant still fails for its OWN reason (the test only turns W2 on).
+            f"armed on web: {sm} ('bare_slash_sections_in_order: the menu shows the five section labels in order')",
     }
     got = reason_problems(replant, ledger)
     assert any(g.startswith("NOTEBOOK_WIDGETS_W6_ENABLED:") and "never names" in g for g in got), got

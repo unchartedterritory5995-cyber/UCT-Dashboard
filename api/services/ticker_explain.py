@@ -2035,14 +2035,19 @@ def _call_model(sym: str, question: str, evidence: list[dict], model: str, extra
     user = _user_message(sym, question, evidence, history)
     if extra_note:
         user += "\n\n" + extra_note
-    resp = _get_client().with_options(timeout=45).messages.create(
-        model=model,
-        max_tokens=_MAX_TOKENS,
-        system=_SYSTEM_PROMPT,
-        output_config={"format": {"type": "json_schema", "schema": EXPLAIN_SCHEMA},
-                       "effort": _EFFORT},
-        messages=[{"role": "user", "content": user}],
-    )
+    charged = dict(model=model, max_tokens=_MAX_TOKENS, system=_SYSTEM_PROMPT,
+                   output_config={"format": {"type": "json_schema", "schema": EXPLAIN_SCHEMA}, "effort": _EFFORT},
+                   messages=[{"role": "user", "content": user}])
+    # ⛔ The keywords stay on the call: the door rails read the schema from them.
+    with guard.charge_if_failed(_COST_SURFACE, charged):
+        resp = _get_client().with_options(timeout=45).messages.create(
+            model=model,
+            max_tokens=_MAX_TOKENS,
+            system=_SYSTEM_PROMPT,
+            output_config={"format": {"type": "json_schema", "schema": EXPLAIN_SCHEMA},
+                           "effort": _EFFORT},
+            messages=[{"role": "user", "content": user}],
+        )
     try:
         guard.record_from_response(_COST_SURFACE, model, resp)
     except Exception:

@@ -539,7 +539,7 @@ REFUSALS: Mapping[str, str] = {
 #: the JS constant; this file carries the number and not a second copy of the
 #: argument.
 #:
-#: ⚠️ AND THIS LANE'S EXPOSURE DOES NOT MOVE. ``scan_evaluator._MAX_BARS`` caps a
+#: ⚠️ AND THIS LANE'S EXPOSURE DOES NOT MOVE. ``bars_window.HISTORY_WINDOW_BARS`` caps a
 #: sweep at 5,000 bars, so the most this walker can ever be asked for is
 #: ``5000 x 960`` (the grammar's own ``maxLookback``) = 4,800,000 steps -- below
 #: this ceiling either way. The note above says the low number existed to bound
@@ -783,6 +783,12 @@ def _rolling(series: Sequence[float], n: int,
             filled.append(carry)
         src = filled
     inner = NA_PROPAGATE if policy == NA_FFILL else policy
+    # ⭐ A SERIES WITH NO `na` HAS NOTHING TO SKIP, so NA_SKIP's window IS the plain slice: the same operands in the same
+    # order, gathered once instead of bar by bar. Same reduce, same arithmetic, the same bits. It is the common case: a
+    # nightly build re-sums three windows over 400 bars for every symbol, and the gathering cost more than the sums.
+    # (`len` first: a series shorter than the window has no bar to reach, so nothing may read it, a None included.)
+    if inner == NA_SKIP and len(series) >= n and all(map(math.isfinite, src)):
+        inner = NA_PROPAGATE
     for i in range(n - 1, len(series)):
         # ⛔ THE CURRENT BAR IS CHECKED AGAINST THE ORIGINAL SERIES, NOT THE
         # FILLED ONE -- ``wma`` fills what it LOOKS BACK at, never the bar it is
@@ -4444,6 +4450,11 @@ def interpret(ast: Any, bars: List[dict],
         indexed = bar_index_mask(ast, bars, inputs, budget, scalars, opts)
         if indexed is not None:
             column = [math.nan if indexed[i] else v for i, v in enumerate(column)]
+        # 2026-11-09 -- ...and its ``var`` half (``interpret.js::varOriginMask``): a running
+        # value that still carries what it held before the bounded window began.
+        varied = var_origin_mask(ast, bars, inputs, budget, scalars, opts)
+        if varied is not None:
+            column = [math.nan if varied[i] else v for i, v in enumerate(column)]
     # C30 / C36 -- the port of ``interpret.js::withPeriodAnchorWithheld``: a tree
     # that reads ``time("W"|"M"|"3M"|"12M")`` (or ``time(timeframe.period)`` /
     # ``time("60")``) is withheld on the bars ``period_anchor_mask`` names.
@@ -4636,7 +4647,8 @@ def _reads_recurrence_binding(tree: Any) -> bool:
 # C45 -- the bar-index shift analysis lives in its own module (it catches its own
 # "not provable"; this file may hold no ``try``). Re-exported: one authority, one name.
 from api.services.ast_bar_index_shift import (  # noqa: E402,F401
-    BAR_INDEX_LEAVES, reads_bar_index, bar_index_class, bar_index_verdict, threshold_unknown,
+    BAR_INDEX_LEAVES, FIRST_BAR_LEAVES, reads_bar_index, reads_first_bar, bar_index_class,
+    bar_index_verdict, threshold_unknown, RUNNING_TOTAL_CALLS, reads_running_total,
 )
 
 
@@ -4659,9 +4671,12 @@ def bar_index_mask(tree: Any, bars: List[dict],
         return None
     verdict = bar_index_verdict(tree)
     n = len(bars)
+    early = set()
 
     def whole() -> List[int]:
-        _name_chart_clock(opts, ["bar-index:window"])
+        # 2026-11-09 -- named by what the tree reads from before the window
+        _name_chart_clock(opts, (["bar-index:window"] if reads_bar_index(tree) else [])
+                          + (["running-total:window"] if reads_running_total(tree) else []))
         return [1] * n
     if verdict["cls"] == "dep" or (verdict["cls"] == "pos" and o.get("barIndexUse") != "position"):
         return whole()
@@ -4693,22 +4708,368 @@ def bar_index_mask(tree: Any, bars: List[dict],
     held = False
     root_reach = max_lookback(tree)
     inner = dict(o, chartClockSink=None)
+    codes = set()
     for (node, sign), nested, unbounded in found:
         if nested or _reads_recurrence_binding(node):
             return whole()
-        gap = _interpret_column({"type": "op", "name": "-", "args": [node["args"][0], node["args"][1]]},
+        # ``isfirst`` is the threshold ``bar_index < 1`` (``barIndexShift.js::FIRST_BAR_TEST``)
+        first = node.get("type") == "series" and node.get("name") in FIRST_BAR_LEAVES
+        cmp = ({"type": "op", "name": "<", "args": [{"type": "series", "name": "barindex"},
+                                                    {"type": "num", "value": 1}]} if first else node)
+        gap = _interpret_column({"type": "op", "name": "-", "args": [cmp["args"][0], cmp["args"][1]]},
                                 bars, inputs, budget, scalars, inner)
         reach = max(0, root_reach - max_lookback(node))
+        code = ("bar-index:first-bar" if first else
+                "running-total:early-bars" if reads_running_total(node) else "bar-index:early-bars")
         last = -math.inf
         for i in range(n):
-            if threshold_unknown(node["name"], sign, gap[i]):
+            if threshold_unknown(cmp["name"], sign, gap[i]):
                 last = last if (unbounded and last != -math.inf) else i
             if last != -math.inf and (unbounded or i - last <= reach):
                 mask[i] = 1
                 held = True
+                codes.add(code)
     if not held:
         return None
-    _name_chart_clock(opts, ["bar-index:early-bars"])
+    _name_chart_clock(opts, sorted(codes))
+    return mask
+
+
+# --------------------------------------------------------------------------- #
+# 2026-11-09 -- a ``var`` whose value began before the loaded bars
+# --------------------------------------------------------------------------- #
+#
+# The port of ``interpret.js::varOriginMask``; read its docstring for the rule
+# and the measurements (``vw-bar-origin-spy-1d-300-2026-10-02`` O07: TradingView
+# 8429.6 where the bounded window drew 20294.6). The two lanes are held equal by
+# ``tests/fixtures/ast/bar_index_shift_parity.json`` (its ``var-origin`` cases).
+
+#: How much of a seed may survive the bounded window and still be called
+#: forgotten: ``interpret.js::SEED_RESIDUAL_TOLERANCE`` (``pine.js`` admits a
+#: contraction on exactly this residual).
+SEED_RESIDUAL_TOLERANCE = 1e-6
+
+
+def _var_origin_holds(body: Any, bind: Any) -> bool:
+    """``interpret.js::bodyHoldsSeed`` -- can the running value reach the result
+    UNCHANGED, through a ``?:`` arm or ``nz`` / ``max`` / ``min``? Iterative."""
+    stack = [body]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        kind = node.get("type")
+        args = node.get("args") if isinstance(node.get("args"), list) else []
+        if kind == "series" and node.get("name") == bind:
+            return True
+        if (kind == "offset" and args and isinstance(args[0], dict)
+                and args[0].get("type") == "series" and args[0].get("name") == bind):
+            return True
+        if kind == "op" and node.get("name") == "?:" and len(args) == 3:
+            stack.extend(args[1:])
+        elif kind == "call" and node.get("name") in ("nz", "max", "min"):
+            stack.extend(args)
+    return False
+
+
+def _var_origin_seed_invariant(seed: Any, inputs: Optional[Mapping[str, Any]]) -> bool:
+    """``interpret.js::seedBarInvariant`` -- is the seed the same number on every
+    bar, by its SHAPE (numbers, text, inputs, per-symbol scalars, pure calls)?"""
+    functions = TABLE[FUNCTIONS_SECTION]
+    table_scalars = TABLE[SCALARS_SECTION]
+    given = inputs or {}
+    stack = [seed]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict):
+            return False
+        kind = node.get("type")
+        name = node.get("name")
+        args = node.get("args") if isinstance(node.get("args"), list) else []
+        if kind == "series":
+            if not (name in table_scalars or name in given):
+                return False
+            continue
+        if kind == "call":
+            spec = functions.get(name) if isinstance(name, str) else None
+            if (spec is None or spec.get("lookback") != 0 or name in RECURRENCES
+                    or name in MULTI_STATES or _is_stateful_call(node)):
+                return False
+        elif kind not in ("num", "str", "symtext", "textop", "op"):
+            return False
+        stack.extend(args)
+    return True
+
+
+def _var_origin_agree(a: float, b: float, dist: float) -> bool:
+    """Two runs of one recurrence from seeds ``dist`` apart agree within the
+    residual the bounded window is admitted on (``interpret.js::seedRunsAgree``)."""
+    if math.isnan(a) or math.isnan(b):
+        return math.isnan(a) and math.isnan(b)
+    return abs(a - b) <= SEED_RESIDUAL_TOLERANCE * dist
+
+
+def _var_origin_probe_seeds(real: List[float], body: Any = None, bind: Any = None) -> List[tuple]:
+    """``interpret.js::probeSeedsOf`` -- the seeds a window is probed from, each with
+    the distance its residual is graded against: ``[(seed, dist)]``. Values the
+    running value really takes (all of them up to four; else least and greatest
+    PLUS ``+-PREFIX_PROBE``, r1's far seeds for a state-gated hold)."""
+    vals = sorted({v for v in real if not math.isnan(v) and not math.isinf(v)})
+
+    def far(lo: float, hi: float) -> List[tuple]:
+        d = PREFIX_PROBE + abs(lo) + abs(hi)
+        return [(PREFIX_PROBE, d), (-PREFIX_PROBE, d)]
+    lo, hi = (vals[0], vals[-1]) if vals else (0.0, 0.0)
+    if not vals:
+        base = far(0.0, 0.0)
+    elif len(vals) == 1:
+        base = [(vals[0], 1), (vals[0] + 1, 1)]
+    elif len(vals) <= 4:
+        base = [(v, hi - lo) for v in vals]
+    else:
+        base = [(lo, hi - lo), (hi, hi - lo)] + far(lo, hi)
+    # r1 -- a state the update names (``interpret.js::probeSeedsOf``): a number the update
+    # WRITES (an arm of its ``?:`` chain) or compares the value ITSELF with, at most eight,
+    # when ``self`` decides a branch -- never every number in it (a SuperTrend's ATR factor)
+    if body is None or not _var_origin_self_decides_branch(body, bind):
+        return base
+    have = {b[0] for b in base}
+    named: List[float] = []
+    stateful = set(RECURRENCES) | set(MULTI_STATES)
+
+    def add(n: Any) -> None:
+        v = n.get("value") if isinstance(n, dict) else None
+        if (isinstance(n, dict) and n.get("type") == "num" and isinstance(v, (int, float))
+                and not isinstance(v, bool) and math.isfinite(v) and v not in have and len(named) < 8):
+            have.add(v)
+            named.append(v)
+
+    def is_state(n: Any) -> bool:
+        if not isinstance(n, dict):
+            return False
+        if n.get("type") == "series" and n.get("name") == bind:
+            return True
+        a = n.get("args")
+        return (n.get("type") == "call" and n.get("name") == "nz" and isinstance(a, list) and bool(a)
+                and isinstance(a[0], dict) and a[0].get("type") == "series" and a[0].get("name") == bind)
+    arms = [body]
+    while arms:
+        n = arms.pop()
+        if not isinstance(n, dict):
+            continue
+        a = n.get("args")
+        if n.get("type") == "op" and n.get("name") == "?:" and isinstance(a, list) and len(a) == 3:
+            arms.extend([a[1], a[2]])
+        else:
+            add(n)
+    stack = [body]
+    while stack:
+        n = stack.pop()
+        if not isinstance(n, dict):
+            continue
+        if n.get("type") == "call" and n.get("name") in stateful:
+            continue
+        a = n.get("args") if isinstance(n.get("args"), list) else []
+        if n.get("type") == "op" and n.get("name") in (">", "<", ">=", "<=", "==", "!=") and len(a) == 2:
+            if is_state(a[0]):
+                add(a[1])
+            if is_state(a[1]):
+                add(a[0])
+        stack.extend(a)
+    return base + [(p, max(1, hi - lo, abs(p - lo), abs(p - hi))) for p in named]
+
+
+def _var_origin_self_decides_branch(body: Any, bind: Any) -> bool:
+    """``interpret.js::selfDecidesBranch`` -- ``self`` read in the test of a ``?:``
+    or in a comparison (not ``na(self)`` alone; a nested recurrence not entered)."""
+    stateful = set(RECURRENCES) | set(MULTI_STATES)
+    comparisons = (">", "<", ">=", "<=", "==", "!=")
+
+    def reads_self(root: Any) -> bool:
+        st = [root]
+        while st:
+            n = st.pop()
+            if not isinstance(n, dict):
+                continue
+            if n.get("type") == "series" and n.get("name") == bind:
+                return True
+            if n.get("type") == "call" and (n.get("name") in stateful or n.get("name") == "na"):
+                continue
+            a = n.get("args")
+            if isinstance(a, list):
+                st.extend(a)
+        return False
+    stack = [body]
+    while stack:
+        n = stack.pop()
+        if not isinstance(n, dict):
+            continue
+        if n.get("type") == "call" and n.get("name") in stateful:
+            continue
+        args = n.get("args") if isinstance(n.get("args"), list) else []
+        if n.get("type") == "op" and n.get("name") == "?:" and len(args) == 3 and reads_self(args[0]):
+            return True
+        if n.get("type") == "op" and n.get("name") in comparisons and reads_self(n):
+            return True
+        stack.extend(args)
+    return False
+
+
+def _var_origin_pruned(body: Any, bars: List[dict], inputs, budget, scalars, opts) -> Any:
+    """``interpret.js::prunedUpdate`` -- the update as it runs on every bar of this
+    document: a ``?:`` whose test is bar-invariant (``_var_origin_seed_invariant``)
+    takes its one arm; a comparison with a literal ``na`` is false; an ``&&`` holding
+    a false is false. Only the SHAPE, for deciding the kind and its seeds."""
+    stateful = set(RECURRENCES) | set(MULTI_STATES)
+    comparisons = (">", "<", ">=", "<=", "==", "!=")
+
+    def na_node() -> dict:
+        return {"type": "op", "name": "/", "args": [{"type": "num", "value": 0}, {"type": "num", "value": 0}]}
+
+    def is_na(n: Any) -> bool:
+        a = n.get("args") if isinstance(n, dict) else None
+        return (isinstance(n, dict) and n.get("type") == "op" and n.get("name") == "/" and isinstance(a, list)
+                and len(a) == 2 and all(isinstance(x, dict) and x.get("type") == "num" and x.get("value") == 0 for x in a))
+
+    def is_num(n: Any) -> bool:
+        v = n.get("value") if isinstance(n, dict) else None
+        return (isinstance(n, dict) and n.get("type") == "num" and isinstance(v, (int, float))
+                and not isinstance(v, bool) and math.isfinite(v))
+
+    def value_of(t: Any) -> float:
+        if not bars:
+            return math.nan
+        col = _interpret_column(t, bars[:1], inputs, budget, scalars, dict(opts or {}, chartClockSink=None))
+        v = col[0] if col else math.nan
+        return v if isinstance(v, (int, float)) and v is not None else math.nan
+
+    def walk(n: Any, depth: int) -> Any:
+        if not isinstance(n, dict) or depth > 200:
+            return n
+        if n.get("type") == "call" and n.get("name") in stateful:
+            return n
+        a = n.get("args")
+        if not isinstance(a, list):
+            return n
+        args = [walk(x, depth + 1) for x in a]
+        kind, name = n.get("type"), n.get("name")
+        if kind == "op" and name == "?:" and len(args) == 3:
+            t = args[0]
+            v = t["value"] if is_num(t) else (value_of(t) if not is_na(t) and _var_origin_seed_invariant(t, inputs)
+                                              else math.nan)
+            if isinstance(v, (int, float)) and math.isfinite(v):
+                return args[1] if v != 0 else args[2]
+        if kind == "op" and name in comparisons and any(is_na(x) for x in args):
+            return {"type": "num", "value": 0}
+        if kind == "op" and name == "&&" and any(is_num(x) and x["value"] == 0 for x in args):
+            return {"type": "num", "value": 0}
+        # r3 (review VAR-OFF P4) -- ``||`` is not ``&&``: a bar-invariant TRUE operand makes it
+        # true; a FALSE one is dropped and the other side decides (``x || false`` is ``x``)
+        if kind == "op" and name == "||":
+            known = [x["value"] if is_num(x) else (value_of(x) if not is_na(x) and _var_origin_seed_invariant(x, inputs)
+                                                   else math.nan) for x in args]
+            if any(isinstance(v, (int, float)) and math.isfinite(v) and v != 0 for v in known):
+                return {"type": "num", "value": 1}
+            live = [x for x, v in zip(args, known) if not (isinstance(v, (int, float)) and math.isfinite(v) and v == 0)]
+            if not live:
+                return {"type": "num", "value": 0}
+            if len(live) == 1:
+                return live[0]
+            return dict(n, args=live)
+        if kind == "op" and name in ("+", "-", "*", "/") and any(is_na(x) for x in args):
+            return na_node()
+        return dict(n, args=args)
+    return walk(body, 0)
+
+
+def _var_origin_keeps_itself(body: Any, bind: Any, inputs) -> bool:
+    """``interpret.js::keepsItself`` -- ``self``, or ``nz(self, k)`` with ``k`` bar-invariant."""
+    if not isinstance(body, dict):
+        return False
+    if body.get("type") == "series" and body.get("name") == bind:
+        return True
+    a = body.get("args")
+    return (body.get("type") == "call" and body.get("name") == "nz" and isinstance(a, list) and bool(a)
+            and isinstance(a[0], dict) and a[0].get("type") == "series" and a[0].get("name") == bind
+            and (len(a) < 2 or _var_origin_seed_invariant(a[1], inputs)))
+
+
+def var_origin_mask(tree: Any, bars: List[dict],
+                    inputs: Optional[Mapping[str, Any]] = None,
+                    budget: Optional[Mapping[str, Any]] = None,
+                    scalars: Optional[Mapping[str, Any]] = None,
+                    opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+    """``interpret.js::varOriginMask`` -- off the listing, in a document whose
+    recurrences are Pine ``var`` state (``opts["varOriginAbsolute"] is True``), the
+    bars whose answer reads a running value that still carries what it held
+    before its bounded window began (1 = withheld), or ``None``. Named
+    ``var-origin:window`` when every bar is withheld, else ``var-origin:bars``."""
+    o = opts or {}
+    if o.get("varOriginAbsolute") is not True or o.get("historyFromListing") is True:
+        return None
+    n = len(bars)
+    found: List[tuple] = []
+    stack = [(tree, False)]
+    seen = set()
+    while stack:
+        node, under = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        args = node.get("args")
+        if node.get("type") == "call" and node.get("name") in RECURRENCES and isinstance(args, list):
+            rec = RECURRENCES[node["name"]]
+            seed_at, body_at, bind = rec.get("seed"), rec.get("body"), rec.get("binds")
+            if isinstance(seed_at, int) and isinstance(body_at, int) and max(seed_at, body_at) < len(args):
+                body = args[body_at]
+                if switched_seed_of(args[seed_at]):
+                    found.append((node, under, "switched", None))
+                else:
+                    shape = _var_origin_pruned(body, bars, inputs, budget, scalars, opts)
+                    if _var_origin_keeps_itself(shape, bind, inputs):
+                        if not _var_origin_seed_invariant(args[seed_at], inputs):
+                            found.append((node, under, "held", None))
+                    elif _var_origin_holds(shape, bind) or _var_origin_self_decides_branch(shape, bind):
+                        found.append((node, under, "probe", shape))
+        into = under or node.get("type") in ("tf", "tf_live", "sym", "ltf")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, into))
+    if not found:
+        return None
+    if any(under or kind == "held" for _node, under, kind, _shape in found):
+        _name_chart_clock(opts, ["var-origin:window"])
+        return [1] * n
+    inner = dict(o, chartClockSink=None)
+    root_reach = max_lookback(tree)
+    mask = [0] * n
+    held = False
+    for node, _under, kind, shape in found:
+        reach = max(0, root_reach - max_lookback(node))
+        if kind == "switched":
+            a = _interpret_column(node, bars, inputs, budget, scalars, dict(inner, prefixProbe=PREFIX_PROBE))
+            b = _interpret_column(node, bars, inputs, budget, scalars, dict(inner, prefixProbe=-PREFIX_PROBE))
+            unknown = [not (x == y or (math.isnan(x) and math.isnan(y))) for x, y in zip(a, b)]
+        else:
+            seed_at = RECURRENCES[node["name"]]["seed"]
+            real = _interpret_column(node, bars, inputs, budget, scalars, inner)
+            runs = []
+            rec = RECURRENCES[node["name"]]
+            for p, dist in _var_origin_probe_seeds(real, shape, rec.get("binds")):
+                args = list(node["args"])
+                args[seed_at] = {"type": "num", "value": p}
+                runs.append((_interpret_column(dict(node, args=args), bars, inputs, budget, scalars, inner), dist))
+            unknown = [any(not _var_origin_agree(real[i], r[i], d) for r, d in runs) for i in range(n)]
+        last = -math.inf
+        for i in range(n):
+            if unknown[i]:
+                last = i
+            if i - last <= reach:
+                mask[i] = 1
+                held = True
+    if not held:
+        return None
+    _name_chart_clock(opts, ["var-origin:window" if all(mask) else "var-origin:bars"])
     return mask
 
 
@@ -4767,6 +5128,10 @@ def lane_opts_for(definition: Any) -> dict:
     different ones. Empty for every document that is neither a Pine translation
     nor stamped with definition semantics 2 (P0G)."""
     out = {"barIndexAbsolute": True} if bar_index_absolute_for(definition) else {}
+    # 2026-11-09 -- a Pine document's `var` state began at the symbol's first bar
+    # (``interpret.js::varOriginMask``; the same declaration, ``meta.recurrenceOrigin``)
+    if bar_index_absolute_for(definition):
+        out["varOriginAbsolute"] = True
     out.update(semantics_opts_for(definition))
     return out
 
@@ -4800,6 +5165,7 @@ def whole_series_withheld(tree: Any, bars: Sequence[dict],
     rows = list(bars)
     _chart_clock_whole(tree, rows, inputs, budget, scalars, asked)
     bar_index_mask(tree, rows, inputs, budget, scalars, asked)
+    var_origin_mask(tree, rows, inputs, budget, scalars, asked)
     return tuple(code for code in CHART_CLOCK_WHOLE if code in sink)
 
 
@@ -4865,6 +5231,10 @@ CHART_CLOCK_WHOLE = (
     "bar-index:window",
     # 2026-10-31 -- a time-of-day read on an FX-shaped daily chart
     "time-clock:weekend-session",
+    # 2026-11-09 -- a running total off the listing (``bar_index_mask``)
+    "running-total:window",
+    # 2026-11-09 -- a `var` that began before the loaded bars (``var_origin_mask``)
+    "var-origin:window",
 )
 
 #: The clock leaves that read the TIME OF DAY rather than the date. Mirrors
@@ -4876,7 +5246,7 @@ SESSION_CLOCK_LEAVES = ("time", "hour", "minute", "timeclose", "dayopentime",
                         "lastbarhour", "lastbarminute")
 CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "time-anchor:period-open-missing", "time-anchor:utc-day-clock",
-    "bar-index:early-bars",
+    "bar-index:early-bars", "running-total:early-bars", "bar-index:first-bar", "var-origin:bars",
 )
 
 

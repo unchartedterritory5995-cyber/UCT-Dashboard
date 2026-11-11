@@ -26,6 +26,7 @@ import { WRITING_HELP_EVENT } from '../../lib/writingHelp'
 import { VOICE_NOTE_EVENT } from '../../lib/voiceNote'
 import { CANVAS_EVENT } from '../../lib/tradeCanvas'
 import { TRANSCRIPT_EVENT, transcriptCaptureEnabled } from '../../lib/researchCapture'
+import { TWEET_EVENT, tweetImportEnabled } from '../../lib/tweetImport'
 import { STYLE_EVENT, PLAN_EVENT, journalStylesEnabled } from '../../lib/journalStylesFlag'
 import { tier3Enabled } from '../../lib/tier3Flag'
 import { WIDGET_KINDS, CAPTURE_KINDS } from '../../lib/notebookWidgets'
@@ -53,16 +54,19 @@ const traderItem = (id, more) => ({
 export const ITEMS = [
   {
     title: 'Heading 1',
+    hint: '#',
     description: 'Big section heading',
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).setNode('heading', { level: 1 }).run(),
   },
   {
     title: 'Heading 2',
+    hint: '##',
     description: 'Medium section heading',
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).setNode('heading', { level: 2 }).run(),
   },
   {
     title: 'Heading 3',
+    hint: '###',
     description: 'Small section heading',
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).setNode('heading', { level: 3 }).run(),
   },
@@ -83,16 +87,19 @@ export const ITEMS = [
   },
   {
     title: 'Bullet list',
+    hint: '-',
     description: 'Unordered list',
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleBulletList().run(),
   },
   {
     title: 'Numbered list',
+    hint: '1.',
     description: 'Ordered list',
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleOrderedList().run(),
   },
   {
     title: 'Quote',
+    hint: '>',
     description: 'Italic indented block',
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleBlockquote().run(),
   },
@@ -103,6 +110,7 @@ export const ITEMS = [
   },
   {
     title: 'Divider',
+    hint: '---',
     description: 'Horizontal rule',
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).setHorizontalRule().run(),
   },
@@ -134,6 +142,7 @@ export const ITEMS = [
   },
   {
     title: 'Checklist',
+    hint: '[]',
     description: 'Task list. Type @tomorrow for a reminder',
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleTaskList().run(),
   },
@@ -293,11 +302,27 @@ export const ITEMS = [
     },
   },
   {
+    // Import a tweet: /tweet opens the sheet for this note and the cards land at the caret. Dark
+    // behind `notebook_tweet_import_enabled`, dispatched on this editor's own DOM root (I5); the
+    // sheet is TweetDoors' TweetInsertHost, mounted by the editor page.
+    title: 'Tweet',
+    description: 'Bring in a post from X, kept with its author, link and date',
+    keywords: ['tweet', 'twitter', 'x', 'post', 'import'],
+    available: () => tweetImportEnabled(),
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run()
+      editor.view.dom.dispatchEvent(new CustomEvent(TWEET_EVENT, { bubbles: true }))
+    },
+  },
+  {
     // Notebook P1: /style -- switch this note to one of the member's journal styles, previewed first
     // (adds missing blocks only, never removes or moves their text). Dark behind
     // notebook_journal_styles_enabled; dispatched on this editor's own DOM root, like /canvas.
-    title: 'Journal style',
-    description: 'Switch to a style',
+    // S7 (one vocabulary): the member sees "Template"; the object underneath is still a journal style, and
+    // `/style` still finds it (a keyword, never shown).
+    title: 'Template',
+    description: 'Switch this note to a template',
+    keywords: ['style', 'template', 'journal style'],
     available: journalStylesEnabled,
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run()
@@ -363,7 +388,7 @@ const BASICS = new Set([
   'Heading 1', 'Heading 2', 'Heading 3', 'Bullet list', 'Numbered list', 'Checklist', 'Due date', 'Reminder', 'Quote',
   'Divider', 'Table', 'Callout', 'Toggle', 'Image',
 ])
-const MOMENT_BLOCKS = { 'Trade-plan canvas': 'plan', 'Journal style': 'plan', 'Transcript passage': 'review' }
+const MOMENT_BLOCKS = { 'Trade-plan canvas': 'plan', Template: 'plan', 'Transcript passage': 'review' }
 
 /** Which group a block item belongs to. Trader blocks plan a trade; so do the chart and fact captures. */
 export function blockItemGroup(item) {
@@ -371,13 +396,81 @@ export function blockItemGroup(item) {
   return MOMENT_BLOCKS[item.title] || (BASICS.has(item.title) ? 'basics' : 'more')
 }
 
-/** The bare-`/` list in SLASH_GROUPS order, each item tagged with its group. In each group the
- *  captures come first, then the blocks. A capture without its own group (chart, price, plan...)
- *  plans a trade; a snapshot widget item carries its kind's group. */
+// S8 (the audit's M3): a bare `/` reads Basics, Live data, Trading, AI, Embeds -- the everyday blocks
+// first (they sat around item 45 of 80). The moment groups above stay the items' own tags (the widget
+// palette still groups by them); a SECTION is what the menu shows and orders by. Within a section the
+// moment order is kept, captures before blocks.
+export const SLASH_SECTIONS = [
+  { id: 'basics', label: 'Basics' },
+  { id: 'live', label: 'Live data' },
+  { id: 'trading', label: 'Trading' },
+  { id: 'ai', label: 'AI' },
+  { id: 'embeds', label: 'Embeds' },
+]
+const AI_BLOCKS = new Set(['Dictate', 'Writing help', 'Voice note'])
+
+/** Which section a tagged row sits in. `capture` is true for a capture row (a chart, a price, a widget). */
+export function slashSection(item, capture = false) {
+  const g = item.group
+  if (g === 'tools' || g === 'mine') return 'embeds'
+  if (capture) {
+    if (item.cmd === 'plan' || g === 'review') return 'trading'
+    return 'live'
+  }
+  if (g === 'basics') return 'basics'
+  if (g === 'plan') return 'trading'
+  if (g === 'review') return 'embeds'
+  return AI_BLOCKS.has(item.title) ? 'ai' : 'basics'
+}
+
+/** The bare-`/` list in SLASH_SECTIONS order, each item tagged with its moment group and its section. In
+ *  each section the moments keep SLASH_GROUPS order, and in each moment the captures come first, then the
+ *  blocks. A capture without its own group (chart, price, plan...) carries 'plan' as before. */
 export function groupedSlashItems(blocks, captures) {
-  const tagged = [...captures.map((it) => ({ ...it, group: it.group || 'plan' })),
-    ...blocks.map((it) => ({ ...it, group: blockItemGroup(it) }))]
-  return SLASH_GROUPS.flatMap((g) => tagged.filter((it) => it.group === g.id))
+  const tagged = [...captures.map((it) => {
+    const t = { ...it, group: it.group || 'plan' }
+    return { ...t, section: slashSection(t, true) }
+  }), ...blocks.map((it) => {
+    const t = { ...it, group: blockItemGroup(it) }
+    return { ...t, section: slashSection(t) }
+  })]
+  return SLASH_SECTIONS.flatMap((s) => SLASH_GROUPS.flatMap((g) => tagged.filter((it) => it.section === s.id && it.group === g.id)))
+}
+
+/** S8: a bare `/` shows ten rows, then "All N blocks…". The ten are a few from each section in menu order
+ *  (Basics leads with the four in M3), topped up from the rest when a section has fewer. */
+export const COMPACT_ROWS = 10
+const COMPACT_QUOTA = { basics: 4, live: 3, trading: 2, ai: 1, embeds: 0 }
+const FEATURED_BASICS = ['Heading 2', 'Checklist', 'Table', 'Image']
+export function compactSlashItems(items) {
+  if (items.length <= COMPACT_ROWS) return items
+  const picked = new Set()
+  const take = (it) => { if (picked.size < COMPACT_ROWS) picked.add(it) }
+  for (const t of FEATURED_BASICS) {
+    const hit = items.find((it) => it.section === 'basics' && it.title === t)
+    if (hit && [...picked].filter((x) => x.section === 'basics').length < COMPACT_QUOTA.basics) take(hit)
+  }
+  for (const s of SLASH_SECTIONS) {
+    const have = () => [...picked].filter((x) => x.section === s.id).length
+    for (const it of items) if (it.section === s.id && have() < COMPACT_QUOTA[s.id] && !picked.has(it)) take(it)
+  }
+  for (const it of items) if (!picked.has(it)) take(it)
+  return items.filter((it) => picked.has(it))
+}
+
+/** S8 / detail #26: where a thing the menu has no block for actually lives. */
+const ELSEWHERE = [
+  [/^(scanner|screener|scan|screen)s?$/, 'Screener results come in from the Screener page: Send to Notebook.'],
+  [/^cot$/, 'COT data comes in from the COT page: Send to Notebook.'],
+  [/^model ?book$/, 'Model Book entries come in from the Model Book page: Send to Notebook.'],
+]
+export function noMatchLines(query) {
+  const q = String(query || '').trim()
+  // Fix round 1 (review finding 8): only a WORD names a block. "/" before a digit or a space is ordinary writing
+  // ("1/2", "target / 200", "and/or" after a space), and one letter is a word still being typed.
+  if (!q || /\s/.test(q) || !/^[A-Za-z][A-Za-z]/.test(q)) return null
+  const where = ELSEWHERE.find(([re]) => re.test(q.toLowerCase()))
+  return { title: `No block called "${q}".`, where: where ? where[1] : null }
 }
 
 /** Does a block item answer the typed query (its title, or one of its keywords)? */
@@ -789,12 +882,12 @@ export function snapshotWidgetItems(query) {
     if (singleToken ? !cmd.startsWith(first) : first !== cmd) continue
     const rest = singleToken ? '' : raw.slice(first.length).trim()
     if (!rest) {
-      out.push({ ...item, cmd, description: `Type a symbol — e.g. /${cmd} NVDA`,
+      out.push({ ...item, cmd, description: kind.ask || `Type a symbol — e.g. /${cmd} NVDA`,
         command: ({ editor, range }) => { editor.chain().focus().deleteRange(range).insertContent(`/${cmd} `).run() } })
       continue
     }
     const sym = rest.replace(/^\$/, '')
-    if (!FACT_SYMBOL_RE.test(sym)) continue
+    if (!(kind.symbolRe || FACT_SYMBOL_RE).test(sym)) continue
     const symbol = sym.toUpperCase()
     out.push({ ...item, cmd, title: `${kind.title} — ${symbol}`, command: snapshotCommand(kind, { symbol }) })
   }
@@ -1126,17 +1219,40 @@ export const menuItems = (query, editor) => slashItems(query, editor,
 
 export const SlashList = forwardRef((props, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0)
-  const items = props.items
+  const [expanded, setExpanded] = useState(false)
+  const all = props.items
   const menuId = props.menuId || 'uct-slash-menu'
+  // S8: the Suggestion hands its query ('' for a bare `/`). A caller that renders the list directly (the rails)
+  // passes none and gets every row, as before.
+  const query = typeof props.query === 'string' ? props.query : null
+  const typed = query !== null && query.trim() !== ''
+  const compact = query !== null && !typed && !expanded && all.length > COMPACT_ROWS
+  const items = compact
+    ? [...compactSlashItems(all), { title: `All ${all.length} blocks…`, description: 'Show every block', expand: true }]
+    : all
+  const noMatch = !all.length && typed ? noMatchLines(query) : null
+  // The polite region is mounted EMPTY and filled AFTER the commit (review finding 8a): a session that STARTS on a
+  // no-match query (a paste) would otherwise create the region already holding its words, which is not announced.
+  const noMatchWords = noMatch ? `${noMatch.title} ${noMatch.where || ''}`.trim() : ''
+  const [said, setSaid] = useState('')
+  useEffect(() => { setSaid(noMatchWords) }, [noMatchWords])
 
-  useEffect(() => setSelectedIndex(0), [items])
+  useEffect(() => setSelectedIndex(0), [all])
+  // A new session (the renderer is reused) starts compact again.
+  useEffect(() => { if (query === '') setExpanded(false) }, [query === '']) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ARIA combobox wiring: the render() closure points the EDITOR's
   // aria-activedescendant at the active option (the editor is the focused
   // element — an activedescendant on the unfocused listbox itself is inert).
   useEffect(() => {
     props.onActiveChange?.(items.length ? `${menuId}-opt-${selectedIndex}` : null)
-  }, [selectedIndex, items, menuId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedIndex, items.length, all, menuId, compact]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // "All N blocks…" opens the full list in place, from its top.
+  const choose = (item) => {
+    if (item.expand) { setExpanded(true); setSelectedIndex(0); return }
+    props.command(item)
+  }
 
   useImperativeHandle(ref, () => ({
     onKeyDown: ({ event }) => {
@@ -1155,45 +1271,75 @@ export const SlashList = forwardRef((props, ref) => {
       }
       if (event.key === 'Enter') {
         const item = items[selectedIndex]
-        if (item) props.command(item)
+        if (item) choose(item)
         return true
       }
       return false
     },
   }))
 
-  if (!items.length) return null
+  // The no-match sentence is also said through a polite region, mounted empty with the list and filled after
+  // (a region that arrives already holding its text is not announced).
+  const status = <div className={styles.srOnly} role="status" aria-live="polite">{said}</div>
+
+  if (!items.length) {
+    if (!noMatch) return status
+    // S8 / detail #26: a query with no block says so, and where the thing lives when the menu knows; Esc closes
+    // the menu and keeps the typed text (the renderer's Escape). Every key still passes through to the editor.
+    return (
+      <>
+        {status}
+        <div className={`${styles.menu} ${styles.noMatch}`} aria-hidden="true" data-testid="slash-no-match">
+          <div className={styles.itemTitle}>{noMatch.title}</div>
+          {noMatch.where && <div className={styles.itemDesc}>{noMatch.where}</div>}
+          <div className={styles.footer}>Esc to keep typing</div>
+        </div>
+      </>
+    )
+  }
 
   return (
-    <div className={styles.menu} role="listbox" id={menuId} aria-label="Insert block">
-      {items.map((item, i) => {
-        // A group label is visual only (aria-hidden): the options keep their own names, and the
-        // listbox's children stay options for assistive tech.
-        const label = item.group && item.group !== items[i - 1]?.group
-          ? SLASH_GROUPS.find((g) => g.id === item.group)?.label : null
-        return [
-          label ? <div key={`g-${item.group}`} className={styles.groupLabel} aria-hidden="true">{label}</div> : null,
-          <button
-            key={`${i}:${item.title}`}
-            type="button"
-            role="option"
-            id={`${menuId}-opt-${i}`}
-            aria-selected={i === selectedIndex}
-            className={`${styles.item} ${i === selectedIndex ? styles.itemActive : ''}`}
-            onMouseDown={(e) => { e.preventDefault(); props.command(item) }}
-            onMouseEnter={() => setSelectedIndex(i)}
-          >
-            <div className={styles.itemTitle}>
-              {item.title}
-              {/* The W8.8 walk fix: whose widget this row inserts (an example or the member's own), in the option's
-                  own text, so it is part of its accessible name. */}
-              {item.mark && <>{' '}<span className={styles.itemMark}>{item.mark}</span></>}
-            </div>
-            <div className={styles.itemDesc}>{item.description}</div>
-          </button>,
-        ]
-      })}
-    </div>
+    <>
+      {status}
+      <div className={styles.menu} role="listbox" id={menuId} aria-label="Insert block">
+        {items.map((item, i) => {
+          // A section label is visual only (aria-hidden): the options keep their own names, and the
+          // listbox's children stay options for assistive tech. A grouped row carries its section; a typed
+          // row that keeps a moment group (a preset) shows that group's label, as before.
+          const key = (it) => (it?.section ? `s:${it.section}` : it?.group ? `g:${it.group}` : null)
+          const k = key(item)
+          const label = k && k !== key(items[i - 1])
+            ? (item.section ? SLASH_SECTIONS.find((s) => s.id === item.section)?.label : SLASH_GROUPS.find((g) => g.id === item.group)?.label)
+            : null
+          return [
+            label ? <div key={`g-${k}`} className={styles.groupLabel} aria-hidden="true" data-slash-label="">{label}</div> : null,
+            <button
+              key={`${i}:${item.title}`}
+              type="button"
+              role="option"
+              id={`${menuId}-opt-${i}`}
+              aria-selected={i === selectedIndex}
+              className={`${styles.item} ${i === selectedIndex ? styles.itemActive : ''} ${item.expand ? styles.allRow : ''}`}
+              onMouseDown={(e) => { e.preventDefault(); choose(item) }}
+              // B8: once the member has typed, the keyboard owns the highlight. A mouse resting over the menu
+              // (or a row sliding under it as the list narrows) must not move it off the top match, or Enter
+              // inserts the hovered row. A bare `/` still follows the mouse.
+              onMouseEnter={() => { if (!typed) setSelectedIndex(i) }}
+            >
+              <div className={styles.itemTitle}>
+                {item.title}
+                {/* The W8.8 walk fix: whose widget this row inserts (an example or the member's own), in the option's
+                    own text, so it is part of its accessible name. */}
+                {item.mark && <>{' '}<span className={styles.itemMark}>{item.mark}</span></>}
+              </div>
+              <div className={styles.itemDesc}>{item.description}</div>
+              {/* M3: the markdown shortcut that already makes this block, taught on the right (visual only). */}
+              {item.hint && <span className={styles.itemHint} aria-hidden="true">{item.hint}</span>}
+            </button>,
+          ]
+        })}
+      </div>
+    </>
   )
 })
 SlashList.displayName = 'SlashList'

@@ -317,6 +317,23 @@ describe('TodayNotePanel', () => {
     expect(openDailyNoteSpy.mock.calls[0][0]).toEqual({ templateId: 'tpl7' })
   })
 
+  // Fix round 1 (review finding 7): a NEW day's note lands in the Daily folder the server makes.
+  // Today navigates away, so the sentence is queued for the Notebook to say when it opens.
+  it('a NEW day’s note queues "Saved in your Daily folder." for the Notebook; an existing one does not', async () => {
+    sessionStorage.clear()
+    openDailyNoteSpy.mockResolvedValue({ note: { id: 'n42' }, created: true, templateMissing: false })
+    mount(<TodayNotePanel />)
+    fireEvent.click(screen.getByRole('button', { name: "Open today's note" }))
+    await waitFor(() => expect(navigateSpy).toHaveBeenCalledTimes(1))
+    const { takeQueuedNotebookNotice } = await import('../../../lib/dailyNote')
+    expect(takeQueuedNotebookNotice({ noteId: 'n42' })).toBe('Saved in your Daily folder.')
+    expect(takeQueuedNotebookNotice({ noteId: 'n42' })).toBeNull()   // said once
+    openDailyNoteSpy.mockResolvedValue({ note: { id: 'n42' }, created: false, templateMissing: false })
+    fireEvent.click(screen.getByRole('button', { name: "Open today's note" }))
+    await waitFor(() => expect(navigateSpy).toHaveBeenCalledTimes(2))
+    expect(takeQueuedNotebookNotice({ noteId: 'n42' })).toBeNull()
+  })
+
   it('a rejected call shows the failure sentence and goes nowhere', async () => {
     openDailyNoteSpy.mockRejectedValue(new Error('daily note request failed (500)'))
     mount(<TodayNotePanel />)

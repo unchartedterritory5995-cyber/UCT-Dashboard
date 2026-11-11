@@ -25,7 +25,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { translatePine } from './pine.js'
 import { interpret, barIndexMask, CHART_CLOCK_WITHHELD, CHART_CLOCK_WHOLE } from './interpret.js'
-import { barIndexClass, barIndexVerdict, thresholdUnknown, readsBarIndex, BAR_INDEX_LEAVES } from './barIndexShift.js'
+import { barIndexClass, barIndexVerdict, thresholdUnknown, readsBarIndex, readsRunningTotal, BAR_INDEX_LEAVES, RUNNING_TOTAL_CALLS } from './barIndexShift.js'
 
 const FIXTURE = '../tests/fixtures/ast/bar_index_shift_parity.json'
 const WRITE = process.env.BAR_INDEX_SHIFT_PARITY_WRITE === '1'
@@ -76,8 +76,44 @@ const PINE = {
   'index < 50': [['plot(bar_index < 50 ? close : open)'], 'inv', 1],
   '50 > index (the sides swapped)': [['plot(50 > bar_index ? close : open)'], 'inv', 1],
   'a threshold under a 10-bar window': [['plot(ta.sma(bar_index > 30 ? close : open, 10))'], 'inv', 1],
-  'a threshold under ta.cum': [['plot(ta.cum(bar_index > 10 ? 1 : 0))'], 'inv', 1],
   'a threshold guarding a var': [['var float v = na', 'if bar_index > 20 and close > open', '    v := close', 'plot(v)'], 'inv', 1],
+  // ── ⭐⭐ 2026-11-09 — a RUNNING TOTAL (`RUNNING_TOTAL_CALLS`): the unseen bars' total ──
+  // `ta.cum(1)` is `bar_index + 1`: an index, and a threshold over it is one
+  'ta.cum(1)': [['plot(ta.cum(1))'], 'pos', 0],
+  'ta.cum(1) < 16 (a warm-up guard)': [['plot(ta.cum(1) < 16 ? close : open)'], 'inv', 1],
+  'ta.cum(1) - bar_index': [['plot(ta.cum(1) - bar_index)'], 'inv', 0],
+  // any other source: the total moves by an unknown of its own, and only a
+  // comparison of the total with itself cancels it
+  'ta.cum(volume)': [['plot(ta.cum(volume))'], 'dep', 0],
+  'ta.cum(volume) - ta.cum(volume)[5]': [['plot(ta.cum(volume) - ta.cum(volume)[5])'], 'inv', 0],
+  'ta.obv': [['plot(ta.obv)'], 'dep', 0],
+  'ta.obv - ta.ema(ta.obv, 10)': [['plot(ta.obv - ta.ema(ta.obv, 10))'], 'inv', 0],
+  'ta.crossover(ta.obv, ta.sma(ta.obv, 20))': [['plot(ta.crossover(ta.obv, ta.sma(ta.obv, 20)) ? 1 : 0)'], 'inv', 0],
+  'ta.cum(close * volume) / ta.cum(volume)': [['plot(ta.cum(close * volume) / ta.cum(volume))'], 'dep', 0],
+  'ta.cum(close - open) > 0': [['plot(ta.cum(close - open) > 0 ? 1 : 0)'], 'dep', 0],
+  // ⛔ a PRICE is not never-negative (a spread or a futures contract trades below zero)
+  'ta.cum(close) > 100': [['plot(ta.cum(close) > 100 ? 1 : 0)'], 'dep', 0],
+  // ⛔ review R1 (2026-11-09) — a total whose SOURCE itself moves with the unseen bars
+  // (a total of a total, a total of the index) adds a D² term: no difference cancels it
+  'ta.cum(ta.cum(volume)) - ta.cum(ta.cum(volume))[1]': [['plot(ta.cum(ta.cum(volume)) - ta.cum(ta.cum(volume))[1])'], 'dep', 0],
+  'ta.change(ta.cum(bar_index))': [['plot(ta.change(ta.cum(bar_index)))'], 'dep', 0],
+  // ⛔ review R2 — `max` is never-negative only when ONE of its arguments is; two signed
+  // arguments make a signed total, and a test of it is not a threshold
+  'ta.cum(math.max(close - open, close - open - 1)) > 0': [['plot(ta.cum(math.max(close - open, close - open - 1)) > 0 ? 1 : 0)'], 'dep', 0],
+  'ta.cum(math.max(close - open, 0)) > 0': [['plot(ta.cum(math.max(close - open, 0)) > 0 ? close : open)'], 'inv', 1],
+  // a NEVER-NEGATIVE source only grows with the unseen bars: a test against a fixed
+  // number is a threshold (uncharted-volume-v2's `hasVolumeData = ta.cum(nz(v)) > 0`)
+  'ta.cum(volume) > 0': [['plot(ta.cum(volume) > 0 ? 1 : 0)'], 'inv', 1],
+  'has volume data (ta.cum(nz(volume)) > 0)': [['hasVolumeData = ta.cum(nz(volume)) > 0', 'plot(hasVolumeData ? volume : na)'], 'inv', 1],
+  'ta.cum(volume) > 5000 (a growing total crosses later here)': [['plot(ta.cum(volume) > 5000 ? close : open)'], 'inv', 1],
+  'ta.accdist': [['plot(ta.accdist)'], 'dep', 0],
+  'ta.pvt': [['plot(ta.pvt)'], 'dep', 0],
+  'ta.wad': [['plot(ta.wad)'], 'dep', 0],
+  'ta.nvi': [['plot(ta.nvi)'], 'dep', 0],
+  'ta.pvi': [['plot(ta.pvi)'], 'dep', 0],
+  // ⚰️ this was 'inv' with one threshold until 2026-11-09: the total under `ta.cum`
+  // misses every earlier bar where the test held, so the TOTAL depends on D too
+  'a threshold under ta.cum': [['plot(ta.cum(bar_index > 10 ? 1 : 0))'], 'dep', 0],
   // ── everything else depends on D in a way no bar can vouch for ────────────────
   'index % 3': [['plot(bar_index % 3)'], 'dep', 0],
   'index == 40': [['plot(bar_index == 40 ? 1 : 0)'], 'dep', 0],
@@ -89,18 +125,74 @@ const PINE = {
   'close[index % 4]': [['plot(close[bar_index % 4])'], 'dep', 0],
   'an index as a truth value': [['plot(bar_index ? 1 : 0)'], 'dep', 0],
 }
+/** ⭐⭐ 2026-11-09 — what else depends on where the series starts: `barstate.isfirst`
+ *  (the threshold `bar_index < 1`) and a `var` carried from the first bar
+ *  (`interpret.js::varOriginMask`). name → [lines of Pine, class, thresholds, inputs?] */
+export const ORIGIN = {
+  isfirst: [['plot(barstate.isfirst ? 1 : 0)'], 'inv', 1],
+  'barssince(isfirst)': [['plot(ta.barssince(barstate.isfirst))'], 'inv', 1],
+  'isfirst picks a source': [['plot(barstate.isfirst ? close : close[1])'], 'inv', 1],
+  'var first time': [['var int t0 = time', 'plot(t0 / 86400000)'], 'inv', 0],
+  'var first close, as a ratio': [['var float c0 = close', 'plot(close / c0)'], 'inv', 0],
+  'var seeded by an input': [['len = input.int(14)', 'var int k = len * 2', 'plot(close * 0 + k)'], 'inv', 0, { len: 14 }],
+  'var set on a rare bar': [['var float lv = 0.0', 'if close < 94', '    lv := low', 'plot(lv)'], 'inv', 0],
+  'var set on a rare bar, seeded na': [['var float lv = na', 'if close < 94', '    lv := low', 'plot(lv)'], 'inv', 0],
+  'var set on a frequent bar': [['var float lh = 0.0', 'if close > open', '    lh := high', 'plot(lh)'], 'inv', 0],
+  'an ema by hand': [['var float e = na', 'e := na(e[1]) ? close : 0.9 * e[1] + 0.1 * close', 'plot(e)'], 'inv', 0],
+  'a bar counter': [['var int n = 0', 'n += 1', 'plot(n)'], 'inv', 0],
+  'a run-length counter': [['var int r = 0', 'r := close > open ? r + 1 : 0', 'plot(r)'], 'inv', 0],
+  // a two-state machine (a SuperTrend direction): every window from either state meets a flip
+  'a direction that flips': [['var int dir = 1',
+    'dir := dir == 1 and close < open - 1 ? -1 : dir == -1 and close > open + 1 ? 1 : dir', 'plot(dir)'], 'inv', 0],
+  // ⭐ r1 — a three-state machine whose MIDDLE state absorbs, read only in a test (no `self`
+  // in any arm): probed from its least and greatest state alone it looks forgotten
+  'a latch read only in its test': [['var int r = 0',
+    'r := r == 1 ? 1 : close < 94 ? 1 : close > open ? 2 : 0', 'plot(r)'], 'inv', 0],
+  // ⭐ r1 — a two-state machine whose tests also compare PRICES with a number (a SuperTrend's
+  // factor): only the numbers compared with the value ITSELF are states, so 1.2 is no seed
+  'a direction with a threshold factor': [['var int dir = 1',
+    'dir := dir == 1 and open - close > 1.2 ? -1 : dir == -1 and close - open > 1.2 ? 1 : dir', 'plot(dir)'], 'inv', 0],
+  // ⭐ r2 (review VAR-OFF N-a) — an admitted contraction reached through a rare hold arm: from a FAR
+  // seed ~0.9^230 of 1e12 is left, under the residual of THAT seed's distance, not of the spread
+  'a contraction past a rare hold': [['var float e = na',
+    'e := na(e[1]) ? close : close - open > 1.45 ? e[1] : 0.9 * e[1] + 0.1 * close', 'plot(e)'], 'inv', 0],
+  // ⭐ r2 (review VAR-OFF N-b) — keltner's shape: the direction's levels are `na` under an input
+  // that is off, so it never flips and IS its seed; its dead arms are no states
+  'a direction whose levels an input turns off': [['jz = input.bool(false)', 'bz = input.bool(false)',
+    'lvl = jz or bz ? close[1] : na',
+    'var int t = 1', 't := t == 1 and close < lvl ? -1 : t == -1 and close > lvl ? 1 : t', 'plot(t + close * 0)'], 'inv', 0,
+  { jz: 0, bz: 0 }],
+  // ⭐ r1 — a state-gated hold: its TradingView state can lie outside every value this window takes
+  'a state-gated hold': [['var float s = close', 's := s > 115 ? s : low', 'plot(s)'], 'inv', 0],
+  // ⭐ r1 — a hold beside an admitted contraction: the seed survives ~0.94^125, above the residual
+  'a hold beside a contraction': [['var float e = na',
+    'e := na(e[1]) ? close : close > open ? e[1] : 0.94 * e[1] + 0.06 * close', 'plot(e)'], 'inv', 0],
+}
+const linesOf = (key) => (Object.prototype.hasOwnProperty.call(ORIGIN, key) ? ORIGIN[key] : PINE[key])[0]
+const inputsOf = (key) => (Object.prototype.hasOwnProperty.call(ORIGIN, key) && ORIGIN[key][3]) || {}
 const treeOf = (key) => {
-  const t = translatePine(`//@version=6\nindicator("p", max_bars_back = 50)\n${PINE[key][0].join('\n')}\n`, { strict: true })
+  const t = translatePine(`//@version=6\nindicator("p", max_bars_back = 50)\n${linesOf(key).join('\n')}\n`, { strict: true })
   if (!t.ok) throw new Error(`${key}: ${t.refusal && t.refusal.message}`)
-  return t.outputs[t.selected].ast
+  // `selected` is -1 for a lone `plot(ta.cum(1))`: the one output is still the tree
+  return t.outputs[t.selected >= 0 ? t.selected : 0].ast
 }
 
 const PINE_DOC = { tf: 'D', barIndexAbsolute: true }
+const VAR_DOC = { ...PINE_DOC, varOriginAbsolute: true }
 /** [name, tree key, opts] — the Pine document off the listing, on it, and a
  *  formula-language document (no claim about TradingView's index). */
 const CASES = [
   ...Object.keys(PINE).map((k) => [`${k} · off the listing`, k, PINE_DOC]),
-  ...['index', 'index % 3', 'index > 50', 'index * close', 'a threshold under ta.cum']
+  // ⭐⭐ 2026-11-09 — a Pine document states BOTH facts (`nativeRegistry.barIndexAbsoluteFor`,
+  // `varOriginAbsoluteFor`); the listing and the formula language are the controls.
+  ...Object.keys(ORIGIN).map((k) => [`${k} · var origin · off the listing`, k, VAR_DOC]),
+  ...['isfirst', 'var first time', 'var set on a rare bar', 'a bar counter']
+    .map((k) => [`${k} · var origin · from the listing`, k, { ...VAR_DOC, historyFromListing: true }]),
+  ...['var first time', 'var set on a rare bar', 'a bar counter']
+    .map((k) => [`${k} · var origin · the formula language's own accum`, k, { tf: 'D' }]),
+  ...['index', 'index % 3', 'index > 50', 'index * close', 'a threshold under ta.cum', 'ta.cum(1)',
+    'ta.cum(1) < 16 (a warm-up guard)', 'ta.cum(volume)', 'ta.obv', 'ta.accdist', 'ta.pvt', 'ta.wad', 'ta.nvi',
+    'ta.pvi', 'ta.cum(close * volume) / ta.cum(volume)', 'has volume data (ta.cum(nz(volume)) > 0)']
     .map((k) => [`${k} · from the listing`, k, { ...PINE_DOC, historyFromListing: true }]),
   ...['index', 'index % 3', 'index > 50'].map((k) => [`${k} · the formula language's own barindex`, k, { tf: 'D' }]),
   // the object lane's reading: an index is a POSITION there, and keeps its column
@@ -108,11 +200,37 @@ const CASES = [
     .map((k) => [`${k} · as a position`, k, { ...PINE_DOC, barIndexUse: 'position' }]),
 ]
 
-function evaluate(ast, opts) {
+function evaluate(ast, opts, inputs = {}) {
   const sink = new Map()
-  const col = Array.from(interpret(ast, BARS, {}, undefined, undefined, { ...(opts || {}), chartClockSink: sink }))
+  const col = Array.from(interpret(ast, BARS, inputs, undefined, undefined, { ...(opts || {}), chartClockSink: sink }))
     .map((x) => (Number.isNaN(x) ? null : x))
   return { expected: col, codes: [...sink.keys()].sort() }
+}
+
+/** ⭐⭐ r1 (review VAR-OFF) — THE REVIEWER'S ORACLE SHAPE, held by both lanes: 900 bars,
+ *  closes climbing to 200 by bar 100, then a 95–105 range. TradingView's state was
+ *  decided in the rally; the last 600 bars (off the listing) never see it. */
+const RALLY = Array.from({ length: 900 }, (_, i) => {
+  const c = i <= 100 ? 100 + i : 100 + 5 * Math.sin(i / 3)
+  const o = c - Math.cos(i * 1.7)
+  const d = new Date(Date.UTC(2020, 0, 6))
+  d.setUTCDate(d.getUTCDate() + i)
+  return { t: d.toISOString().slice(0, 10), o, h: Math.max(o, c) + 1, l: Math.min(o, c) - 1, c, v: 1000 }
+})
+const RALLY_FROM = 300
+const RALLY_TREES = {
+  'latch held in an arm': ['var int regime = 0', 'regime := regime == 2 ? regime : close > 180 ? 2 : 1', 'plot(regime)'],
+  'latch by if': ['var bool hit = false', 'if close > 180', '    hit := true', 'plot(hit ? 1 : 0)'],
+  'state-gated hold': ['var float s = close', 's := s > 150 ? s : low', 'plot(s)'],
+  'state-gated hold, seeded 0': ['var float s = 0.0', 's := s > 150 ? s : low', 'plot(s)'],
+  ratchet: ['var float lvl = close', 'lvl := high > lvl * 1.5 ? high : lvl > 150 ? lvl : low', 'plot(lvl)'],
+  'self only in a condition': ['var int regime = 0',
+    'regime := regime == 2 ? 2 : close > 180 ? 2 : close > 100 ? 1 : 0', 'plot(regime)'],
+}
+const rallyTree = (lines) => {
+  const t = translatePine(`//@version=6\nindicator("p", max_bars_back = 50)\n${lines.join('\n')}\n`, { strict: true })
+  if (!t.ok) throw new Error(t.refusal && t.refusal.message)
+  return t.outputs[t.selected].ast
 }
 
 if (WRITE) {
@@ -122,13 +240,26 @@ if (WRITE) {
       + 'that file and by tests/test_ast_bar_index_shift_parity.py. `cls` / `thresholds` are '
       + 'barIndexShift.js::barIndexVerdict; `expected` is the JS lane\'s own interpret output under `opts` '
       + '(null = withheld / not computable); `codes` are the withholding codes the mask named.',
-    pine: Object.fromEntries(Object.entries(PINE).map(([k, v]) => [k, v[0]])),
+    pine: Object.fromEntries([...Object.entries(PINE), ...Object.entries(ORIGIN)].map(([k, v]) => [k, v[0]])),
     bars: BARS,
     cases: CASES.map(([name, key, opts]) => {
       const ast = treeOf(key)
       const v = barIndexVerdict(ast)
-      return { name, pine: key, opts, ast, cls: v.cls, thresholds: v.thresholds.length, ...evaluate(ast, opts) }
+      // ⭐ 2026-11-09 — a `var` FROM THE LISTING is the listing pass (C12w), which only this lane
+      // runs: no server lane is ever handed bars it can prove start at the listing.
+      const jsOnly = opts.historyFromListing === true && name.includes(' · var origin · ')
+      return { name, pine: key, opts, inputs: inputsOf(key), ast, cls: v.cls, thresholds: v.thresholds.length,
+        ...(jsOnly ? { jsOnly: true } : {}), ...evaluate(ast, opts, inputsOf(key)) }
     }),
+    // ⭐ r1 — the off-listing window of RALLY (`bars.slice(from)`) under a Pine document;
+    // `expected` is this lane's answer there, which the Python lane must reproduce.
+    rally: { bars: RALLY, from: RALLY_FROM, opts: VAR_DOC, cases: Object.entries(RALLY_TREES).map(([name, lines]) => {
+      const ast = rallyTree(lines)
+      const sink = new Map()
+      const expected = Array.from(interpret(ast, RALLY.slice(RALLY_FROM), {}, undefined, undefined,
+        { ...VAR_DOC, chartClockSink: sink })).map((x) => (Number.isNaN(x) ? null : x))
+      return { name, pine: lines, ast, expected, codes: [...sink.keys()].sort() }
+    }) },
   }
   writeFileSync(FIXTURE, `${JSON.stringify(doc)}\n`)
 }
@@ -160,7 +291,10 @@ describe('C45 · the class of each tree — proved from the tree alone', () => {
     expect(counts.pos).toBeGreaterThanOrEqual(8)
     expect(counts.inv).toBeGreaterThanOrEqual(15)
     expect(counts.dep).toBeGreaterThanOrEqual(8)
-    for (const key of Object.keys(PINE)) expect(readsBarIndex(treeOf(key)), key).toBe(key !== 'no index at all')
+    for (const key of Object.keys(PINE)) {
+      const t = treeOf(key)
+      expect(readsBarIndex(t) || readsRunningTotal(t), key).toBe(key !== 'no index at all')
+    }
   })
 
   it('a threshold is unknown exactly where a larger D could change the answer', () => {
@@ -186,10 +320,32 @@ describe('C45 · the class of each tree — proved from the tree alone', () => {
     // withhold; 'pos' must move by exactly D on every bar; 'dep' must be NEITHER
     // for at least one D — some bar moves otherwise, or some bars move and others
     // do not (so a 'dep' is a real dependence, not a refusal to look).
+    // ⭐ 2026-11-09 — and every running total (`RUNNING_TOTAL_CALLS`) gains what the
+    // unseen bars add to it: `k · D` for a constant source `k` (D more bars of `k`),
+    // and for any other source an amount the bars would set — here a NEGATIVE
+    // multiple of D distinct per total, so neither sign nor ratio can be assumed.
+    // ⚠️ the sign is the BARS' to choose, read off the source's own column here (a
+    // source never negative on these bars gets a positive prehistory) — never the pass's.
+    const totalOffsets = new Map()
+    const totalOffset = (n, d) => {
+      const src = n.args[0]
+      if (src && src.type === 'num') return src.value * d
+      const k = JSON.stringify(n)
+      if (!totalOffsets.has(k)) {
+        const col = Array.from(interpret(src, BARS, {}, undefined, undefined, { tf: 'D' }))
+        const sign = col.every((x) => !Number.isFinite(x) || x >= 0) ? 1 : -1
+        totalOffsets.set(k, sign * (1.5 + totalOffsets.size))
+      }
+      return totalOffsets.get(k) * d
+    }
     const shifted = (n, d) => {
       if (!n || typeof n !== 'object') return n
       if (n.type === 'series' && BAR_INDEX_LEAVES.includes(n.name)) return { type: 'op', name: '+', args: [n, { type: 'num', value: d }] }
-      return Array.isArray(n.args) ? { ...n, args: n.args.map((a) => shifted(a, d)) } : n
+      const inner = Array.isArray(n.args) ? { ...n, args: n.args.map((a) => shifted(a, d)) } : n
+      if (n.type === 'call' && RUNNING_TOTAL_CALLS.includes(n.name)) {
+        return { type: 'op', name: '+', args: [inner, { type: 'num', value: totalOffset(n, d) }] }
+      }
+      return inner
     }
     const run = (ast) => Array.from(interpret(ast, BARS, {}, undefined, undefined, { tf: 'D' }))
     const same = (a, b) => (Number.isNaN(a) && Number.isNaN(b)) || Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(a), Math.abs(b))
@@ -197,7 +353,7 @@ describe('C45 · the class of each tree — proved from the tree alone', () => {
     let compared = 0
     for (const [key, [, cls]] of Object.entries(PINE)) {
       const ast = treeOf(key)
-      if (!readsBarIndex(ast)) continue
+      if (!readsBarIndex(ast) && !readsRunningTotal(ast)) continue
       const here = run(ast)
       const mask = barIndexMask(ast, BARS, {}, undefined, undefined, { ...PINE_DOC, barIndexUse: 'position' })
       let otherwise = false
@@ -224,6 +380,14 @@ describe('C45 · the class of each tree — proved from the tree alone', () => {
         }
         judged[cls] += 1
       }
+      // ⚠️ review R1 — `ta.change(ta.cum(bar_index))` IS `bar_index` (it moves by
+      // exactly D: a position). The pass cannot see through a total of a moving
+      // source and answers 'dep', the withholding side; as a plotted value a 'pos'
+      // is withheld too, so the member sees the same blank. Named here, not hidden.
+      if (cls === 'dep' && key === 'ta.change(ta.cum(bar_index))') {
+        expect(otherwise, `${key}: now moves otherwise — re-read the note above`).toBe(false)
+        continue
+      }
       if (cls === 'dep') expect(otherwise, `${key}: classified 'dep' and never moved otherwise`).toBe(true)
     }
     expect(judged.inv).toBeGreaterThanOrEqual(60)
@@ -238,7 +402,7 @@ describe('C45 · parity with the Python lane — one fixture, both lanes', () =>
     const v = barIndexVerdict(c.ast)
     expect(v.cls).toBe(c.cls)
     expect(v.thresholds.length).toBe(c.thresholds)
-    const got = evaluate(c.ast, c.opts)
+    const got = evaluate(c.ast, c.opts, c.inputs)
     expect(got.expected).toEqual(c.expected)
     expect(got.codes).toEqual(c.codes)
   })
@@ -247,6 +411,90 @@ describe('C45 · parity with the Python lane — one fixture, both lanes', () =>
     for (const code of ['bar-index:window', 'bar-index:early-bars']) expect(typeof CHART_CLOCK_WITHHELD[code]('D')).toBe('string')
     expect(CHART_CLOCK_WHOLE).toContain('bar-index:window')
     expect(CHART_CLOCK_WHOLE).not.toContain('bar-index:early-bars')
+  })
+})
+
+describe('⭐⭐ 2026-11-09 · a running total off the listing is withheld BY NAME; from the listing it is served', () => {
+  const codes = (name) => byName.get(name).codes
+  // every Pine builtin that reaches `cum` (`RUNNING_TOTAL_CALLS`)
+  const TOTALS = ['ta.cum(volume)', 'ta.obv', 'ta.accdist', 'ta.pvt', 'ta.wad', 'ta.nvi', 'ta.pvi',
+    'ta.cum(close * volume) / ta.cum(volume)']
+
+  it('the manifest is the authority: `cum` is the running total, `valuewhenOccurrence` is not', () => {
+    expect(RUNNING_TOTAL_CALLS).toEqual(['cum'])
+  })
+
+  it.each(TOTALS)('%s · off the listing: withheld on EVERY bar, named running-total:window', (k) => {
+    expect(nulls(`${k} · off the listing`)).toBe(N)
+    expect(codes(`${k} · off the listing`)).toEqual(['running-total:window'])
+  })
+
+  it.each(TOTALS)('%s · from the listing: served, names nothing', (k) => {
+    expect(codes(`${k} · from the listing`)).toEqual([])
+    expect(nulls(`${k} · from the listing`)).toBeLessThan(N)
+  })
+
+  it('ta.cum(1) IS bar_index + 1: withheld off the listing, served from it as 1, 2, 3 …', () => {
+    expect(nulls('ta.cum(1) · off the listing')).toBe(N)
+    expect(codes('ta.cum(1) · off the listing')).toEqual(['running-total:window'])
+    expect(col('ta.cum(1) · from the listing')).toEqual(BARS.map((_, i) => i + 1))
+    expect(codes('ta.cum(1) · from the listing')).toEqual([])
+  })
+
+  it('a warm-up guard over ta.cum(1) is withheld on the early bars only (the atr-trailing-stoploss shape)', () => {
+    const c = col('ta.cum(1) < 16 (a warm-up guard) · off the listing')
+    expect(c.slice(0, 15)).toEqual(new Array(15).fill(null))
+    expect(c.slice(15)).toEqual(BARS.slice(15).map((b) => b.o))
+    expect(codes('ta.cum(1) < 16 (a warm-up guard) · off the listing')).toEqual(['running-total:early-bars'])
+    expect(col('ta.cum(1) < 16 (a warm-up guard) · from the listing'))
+      .toEqual(BARS.map((b, i) => (i + 1 < 16 ? b.c : b.o)))
+  })
+
+  it('a total compared with ITSELF cancels the unseen bars and is served off the listing', () => {
+    for (const k of ['ta.cum(volume) - ta.cum(volume)[5]', 'ta.obv - ta.ema(ta.obv, 10)',
+      'ta.crossover(ta.obv, ta.sma(ta.obv, 20))', 'ta.cum(1) - bar_index']) {
+      expect(codes(`${k} · off the listing`), k).toEqual([])
+      expect(nulls(`${k} · off the listing`), k).toBeLessThan(25)
+    }
+    // the right number: five bars of volume
+    expect(col('ta.cum(volume) - ta.cum(volume)[5] · off the listing').slice(5))
+      .toEqual(BARS.slice(5).map((b, i) => BARS.slice(i + 1, i + 6).reduce((s, x) => s + x.v, 0)))
+    expect(col('ta.cum(1) - bar_index · off the listing')).toEqual(new Array(N).fill(1))
+  })
+
+  it('a never-negative total against a fixed number is withheld only where this chart has not yet crossed it', () => {
+    // every bar here has volume, so the total is past 0 from bar 0: nothing is withheld
+    expect(codes('has volume data (ta.cum(nz(volume)) > 0) · off the listing')).toEqual([])
+    expect(col('has volume data (ta.cum(nz(volume)) > 0) · off the listing')).toEqual(BARS.map((b) => b.v))
+    expect(col('has volume data (ta.cum(nz(volume)) > 0) · from the listing')).toEqual(BARS.map((b) => b.v))
+    // 5,000 is crossed on bar 4 here (1000 + 1001 + … ); TradingView's larger total is past it already
+    const c = col('ta.cum(volume) > 5000 (a growing total crosses later here) · off the listing')
+    expect(c.slice(0, 4)).toEqual([null, null, null, null])
+    expect(c.slice(4)).toEqual(BARS.slice(4).map((b) => b.c))
+    expect(codes('ta.cum(volume) > 5000 (a growing total crosses later here) · off the listing')).toEqual(['running-total:early-bars'])
+    // a total of a source that can be negative has no direction: withheld whole
+    expect(nulls('ta.cum(close - open) > 0 · off the listing')).toBe(N)
+    expect(codes('ta.cum(close - open) > 0 · off the listing')).toEqual(['running-total:window'])
+  })
+
+  it('⛔ review R1/R2 — a total of a moving source, and a total of a signed max, are withheld whole, by name', () => {
+    for (const k of ['ta.cum(ta.cum(volume)) - ta.cum(ta.cum(volume))[1]', 'ta.change(ta.cum(bar_index))',
+      'ta.cum(math.max(close - open, close - open - 1)) > 0']) {
+      expect(nulls(`${k} · off the listing`), k).toBe(N)
+      expect(codes(`${k} · off the listing`), k).toContain('running-total:window')
+    }
+    // the CONTROL: one never-negative argument is enough for max — a threshold, not a refusal
+    expect(codes('ta.cum(math.max(close - open, 0)) > 0 · off the listing')).not.toContain('running-total:window')
+  })
+
+  it('the sentences are plain English and the window code is withheld whole', () => {
+    for (const code of ['running-total:window', 'running-total:early-bars']) {
+      const s = CHART_CLOCK_WITHHELD[code]('D')
+      expect(s).toMatch(/ta\.cum/)
+      expect(s).toMatch(/bars reaching the listing/)
+    }
+    expect(CHART_CLOCK_WHOLE).toContain('running-total:window')
+    expect(CHART_CLOCK_WHOLE).not.toContain('running-total:early-bars')
   })
 })
 
@@ -292,8 +540,10 @@ describe('C45 · the fixture is not vacuous', () => {
     // bars 0..30 unknown, and the ten bars the window's declared reach carries them
     expect(w.slice(0, 41)).toEqual(new Array(41).fill(null))
     expect(w[41]).toBeCloseTo(BARS.slice(32, 42).reduce((s, b) => s + b.c, 0) / 10, 9)
+    // ⭐ 2026-11-09 — and the total itself misses the earlier bars where the test
+    // held, so it is withheld whole, named by both things it reads from before the window
     expect(nulls('a threshold under ta.cum · off the listing')).toBe(N)
-    expect(codes('a threshold under ta.cum · off the listing')).toEqual(['bar-index:early-bars'])
+    expect(codes('a threshold under ta.cum · off the listing')).toEqual(['bar-index:window', 'running-total:window'])
   })
 
   it('a `var` written under a threshold is known again one warm-up past it (the window forgets)', () => {

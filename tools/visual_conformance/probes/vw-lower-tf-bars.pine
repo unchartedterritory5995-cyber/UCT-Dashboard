@@ -1,0 +1,24 @@
+//@version=6
+indicator("UCTPROBE_VW_LOWER_TF_BARS", overlay = false)
+
+// --- 2026-11-07 C27 Q-L2 / Q-L3 - THE INTRADAY BARS THEMSELVES, NOTHING ELSE ---
+//
+// docs/pine/capture-queue-2026-09-30-lower-tf.md asks for bar-only captures:
+// the 15 / 60 / 240 (Q-L2) and 5 (Q-L3) minute bars the harness would hand a
+// lower-timeframe `request.security` row, "any trivial study". This is that
+// study: the chart's own OHLCV and bar open time, no request, no state, so the
+// capture is the vendor's bars and nothing of ours can colour them.
+//
+// CAPTURE: NYSE:RDDT 15, 60 and 240 (Q-L2), and NYSE:RDDT 5 (Q-L3), extended
+// hours OFF, as much history as loads (Q-L3 full history). Q-L3 is owed only
+// after liquidity-heatmap's `resolutionInMinutes` and `lookahead_on` walls clear
+// (the queue doc's own condition).
+// NEVER COMPILED ON TRADINGVIEW.
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(open,   "B01_open")
+plot(high,   "B02_high")
+plot(low,    "B03_low")
+plot(close,  "B04_close")
+plot(volume, "B05_volume")
+plot(time / 1000.0, "B06_time_secs")

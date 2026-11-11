@@ -225,3 +225,44 @@ async def test_enrichment_scan_never_sees_another_users_notes():
     data = r.json()
     assert data["scanned"] == 0
     assert data["candidates"] == []
+
+
+def _guard_note(key, text):
+    return {"importKey": key, "title": "Guarded", "tags": [], "folderPath": [],
+            "bodyJson": {"type": "doc", "content": [
+                {"type": "paragraph", "content": [{"type": "text", "text": text}]}]},
+            "updatedAt": "2024-01-01T12:00:00Z"}
+
+
+@pytest.mark.asyncio
+async def test_the_file_import_route_never_overwrites_an_edited_note_and_recovers_on_request():
+    """Plan B Task 10: the route always calls `import_confirm(..., guard_edits=True)`; a bad
+    `mode` is a 400."""
+    user = "guard_route_user"
+    made = notes_svc.import_confirm(user, {"source": "test", "notes": [
+        _guard_note("guard:1", "v1"), _guard_note("guard:2", "v1")]})
+    edited_id, other_id = (c["id"] for c in made["created"])
+    notes_svc.update_note(user, edited_id, {"title": "mine"})
+
+    app.dependency_overrides[get_current_user] = lambda: {"id": user}
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            r = await ac.post("/api/j2/notes/import/confirm", json={"source": "test", "notes": [
+                _guard_note("guard:1", "v2"), _guard_note("guard:2", "v2")]})
+            assert r.status_code == 200, r.text
+            data = r.json()
+            assert data["keptEdited"] == [{"importKey": "guard:1", "id": edited_id}]
+            assert [u["id"] for u in data["updated"]] == [other_id]
+            assert data["recovered"] == []
+
+            r = await ac.post("/api/j2/notes/import/confirm", json={"source": "test", "mode": "recover",
+                                                                    "notes": [_guard_note("guard:2", "v2")]})
+            assert r.status_code == 200, r.text
+            assert [x["id"] for x in r.json()["recovered"]] == [other_id]
+
+            r = await ac.post("/api/j2/notes/import/confirm", json={"source": "test", "mode": "overwrite",
+                                                                    "notes": [_guard_note("guard:2", "v2")]})
+            assert r.status_code == 400 and 'mode must be "recover"' in r.json()["detail"]
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+    assert notes_svc.get_note(user, edited_id)["title"] == "mine"

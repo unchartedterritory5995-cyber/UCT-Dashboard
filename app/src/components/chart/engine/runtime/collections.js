@@ -23,9 +23,12 @@
 // `array.from` is the one addition, because it makes a fixture readable in one
 // line; it appears in neither script.
 
+// ⭐ W6-T8 — `map.*` (`maps.js`), merged into this table below
+import { buildMapFns, isMap, MAP_WRITES } from './maps.js'
 import { RuntimeLimitError } from './limits.js'
 import { isDrawingHandle } from './handles.js'
 import { isUdtRecord } from './records.js'
+import { buildMatrixFns, isMatrix, MATRIX_WRITES } from './matrices.js'
 
 export class CollectionError extends Error {
   constructor(message) { super(message); this.name = 'CollectionError' }
@@ -65,6 +68,9 @@ export const kindOf = (v) => {
   if (t0 === 'number' || t0 === 'string') return t0
   if (Array.isArray(v)) return 'array'
   if (isDrawingHandle(v)) return 'drawing'
+  // ⭐ W6-T7 — a matrix is its own kind (`matrices.js`), so `matrix.rows` refuses an
+  // array BY NAME and `array.size` refuses a matrix.
+  if (isMatrix(v)) return 'matrix'
   // ⭐⭐ A RECORD ANSWERS ITS OWN TYPE NAME, which is the same argument as
   // `'drawing'` one type further out. No declared operand kind in any of the
   // four tables is ever a user type name, so every kind check refuses a record
@@ -73,6 +79,8 @@ export const kindOf = (v) => {
   // ⛔ `records.js` explains why this cannot widen by accident: the test is a
   // Symbol, not the shape of the object.
   if (isUdtRecord(v)) return v.type
+  // ⭐ W6-T8 — a map is its own kind, so `array.size(m)` refuses BY NAME
+  if (isMap(v)) return 'map'
   const t = typeof v
   return t === 'number' || t === 'string' ? t : 'other'
 }
@@ -247,7 +255,7 @@ const realsOf = (arr, what) => {
  *  (`objectColumns.js::runtimeColumnsForObjects`).
  *
  *  ⛔ WITHOUT a probe the refusal stands, word for word: the runtime pane and
- *  every other caller keep the unmeasured stop (`array.median` / `array.stdev`). ⛔ AN `na` ELEMENT is a different
+ *  every other caller keep the unmeasured stop (now only the object door's `MASTER_AT_DOOR`). ⛔ AN `na` ELEMENT is a different
  *  question (skip it, or poison the result?) and is never probed here. */
 const probedEmpty = (arr, what, budget) => {
   const u = budget && budget.unmeasured
@@ -399,6 +407,338 @@ const C11_MEMBERS = {
     },
   },
 }
+
+/** ⭐⭐ W19-R2 — `array.fill` AND `array.insert`, SERVED TO THE EXTENT THE MANUAL
+ *  TEXT SETTLES THEM, and every index the text does not settle a NAMED STOP.
+ *  (Hand-ported by W6-T5 from `794bfb02f3` on `pine/w19-r2-collections-drawings`;
+ *  that commit's front-end hunk is the gradient fill and is not part of this port.)
+ *
+ *  The authority is the Pine user manual, Arrays page (read 2026-10-04, cited in
+ *  `docs/pine/capture-queue-2026-11-06-w6.md`, rows Q-W19R2a/b), and the v6 reference
+ *  entry for `array.fill`, which says the same about the end index:
+ *   · `array.fill()` sets all elements, or the `index_from` to `index_to` range; the
+ *     manual's example `a.fill(close, 1, 3)` fills indices 1 and 2: `index_to` is
+ *     EXCLUSIVE.
+ *   · `array.insert()` puts a new element at `index` and moves the elements at or
+ *     after `index` up by one.
+ *
+ *  ⛔ WHAT THE TEXT DOES NOT SAY STOPS THE RUN BY NAME (Q-W19R2a, the probe
+ *  `vw-w19r2-collections.pine`): a NEGATIVE index (the reference lists negative
+ *  indices as valid for `insert` but not where `insert(a, -1, x)` lands — before
+ *  the last element, or after it), an `insert` AT `size` (no element is "at or after"
+ *  it: an append, or the out-of-range stop `get` gives?), a `fill` range past the
+ *  array or reversed, and a non-whole index. Measured over the 266 committed
+ *  scripts: `fill` is written at 32 sites in 8 scripts, `insert` at 102 in 7. */
+const W19_UNSETTLED = 'the manual text this engine holds does not settle that index, so the run '
+  + 'stops here rather than guessing where Pine writes (Q-W19R2a)'
+const W19R2_MEMBERS = {
+  'array.fill': {
+    args: ['array', 'any', 'number', 'number'], returns: 'void', minArgs: 2, maxArgs: 4,
+    fn: (a, budget) => {
+      const arr = guardSliceWrite(a[0], 'array.fill')
+      const n = arr.length
+      const from = a.length > 2 ? a[2] : 0
+      // `index_to` defaults to `na` — the end of the array.
+      const to = a.length > 3 && !(typeof a[3] === 'number' && Number.isNaN(a[3])) ? a[3] : n
+      if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to > n || from > to) {
+        throw new CollectionError(`array.fill: the range [${from}, ${to}) over an array of ${n} — ${W19_UNSETTLED}`)
+      }
+      budget.charge('ARRAY_OPERATIONS', Math.max(1, to - from))
+      for (let i = from; i < to; i += 1) arr[i] = a[1]
+    },
+  },
+  'array.insert': {
+    args: ['array', 'number', 'any'], returns: 'void',
+    fn: (a, budget) => {
+      const arr = guardSliceWrite(a[0], 'array.insert')
+      const i = a[1]
+      if (!Number.isInteger(i) || i < 0 || i >= arr.length) {
+        throw new CollectionError(`array.insert: index ${i} into an array of ${arr.length} — ${W19_UNSETTLED}`)
+      }
+      budget.charge('ARRAY_OPERATIONS', 1)
+      budget.peak('ARRAY_ELEMENTS', arr.length + 1)
+      arr.splice(i, 0, a[2])
+    },
+  },
+}
+
+/** ⭐⭐ W6-T8 — the `map.*` members (`maps.js`), in THIS table: one dispatch, one VM op,
+ *  one admitter. */
+const MAP_FNS = buildMapFns({ CollectionError })
+
+/** ⭐⭐ W6-T5 — THE REFERENCE-FORMULA MEMBERS. Each is served only to the extent the
+ *  Pine v6 reference entry states its rule (read 2026-11-06 through
+ *  `tools/pine_survey/pine_reference_extract.js`; each rail in
+ *  `runtime/__tests__/w6ArrayMembers.test.js` cites the sentence it rests on). What the
+ *  entry does NOT pin stops the run BY NAME (`unpinned`) and is a row in W6-A1
+ *  (`docs/pine/capture-queue-2026-11-06-w6.md`, probe `vw-w6-array-members.pine`):
+ *   · an `na` element in a statistic (`variance`, `stdev`, `covariance`, `median`,
+ *     `percentile_nearest_rank`), in `abs`, `every` or `some` — skip it, or poison
+ *     the result? (`range` is the exception: it is max − min, and `array.min` /
+ *     `array.max` skipping `na` is MEASURED, RT7 N01/N02);
+ *   · `array.sort` over an `na` element (where does it land?) or over text (codepoint
+ *     or locale order, and case?);
+ *   · `array.join` of numbers (how a float is formatted), and with no separator (the
+ *     entry names no default);
+ *   · an unbiased estimate over one element (n − 1 = 0), a covariance of two arrays of
+ *     different sizes, a percentile outside (0, 100], an `na` `biased`;
+ *   · `array.lastindexof` of `na` (only `indexof`'s answer is measured);
+ *   · `array.every` / `array.some` of an EMPTY array, and in a script older than v6;
+ *   · (review B1) `array.median` over an EVEN count, and `median` / `stdev` / `variance` over
+ *     an array the run cannot prove is float (`provablyFloat`).
+ *  ⛔ Kept out of the table altogether, so the front end refuses them `runtime:array`
+ *  at build: `percentile_linear_interpolation` (which interpolation), `standardize`
+ *  (biased or unbiased stdev), `percentrank` (`<` or `<=` in practice), `mode` (ties),
+ *  and the three binary searches (Q-W19R2b). */
+const W6A1 = 'the Pine v6 reference does not settle it, so the run stops here rather than '
+  + 'serving a guessed convention (W6-A1)'
+const unpinned = (what) => new CollectionError(`${what} — ${W6A1}`)
+
+/** Every element a real number: a string is not a number to reduce, and an `na` is
+ *  a W6-A1 question for every member that calls this. */
+const realsNoNa = (arr, what) => {
+  const xs = new Array(arr.length)
+  for (let i = 0; i < arr.length; i += 1) {
+    const v = arr[i]
+    if (typeof v !== 'number') {
+      throw new CollectionError(`${what} over a non-numeric element — this runtime reduces numbers only`)
+    }
+    if (Number.isNaN(v)) throw unpinned(`${what} over an \`na\` element`)
+    xs[i] = v
+  }
+  return xs
+}
+
+/** `biased` — optional, default `true` (the reference entry). An `na` flag is not a choice. */
+const biasedArg = (a, i, what) => {
+  if (a.length <= i) return true
+  if (Number.isNaN(a[i])) throw unpinned(`${what} with an \`na\` \`biased\``)
+  return a[i] !== 0
+}
+
+const meanOf = (xs) => xs.reduce((s, v) => s + v, 0) / xs.length
+
+/** The population form divides by n (`biased`, the entire population), the sample
+ *  form by n − 1 (unbiased, a sample). */
+const divisorOf = (n, biased, what) => {
+  if (biased) return n
+  if (n < 2) throw unpinned(`${what} with \`biased = false\` over ${n} element${n === 1 ? '' : 's'} (n − 1 = 0)`)
+  return n - 1
+}
+
+/** ⛔ W6-T5 r1 (review B1) — `median`, `stdev` and `variance` each have an `array<int>`
+ *  form that returns `series int`, and the reference does not say how the fraction becomes
+ *  an int (truncate? round?). A run's numbers carry no int/float tag, so the run serves
+ *  these three only over an array it can PROVE is float: one holding a fractional element
+ *  (an `array<int>` cannot). An array of whole numbers stops by name (W6-A1), even when it
+ *  was declared float — a refusal where a guess would be a silent wrong value. */
+const provablyFloat = (xs, what) => {
+  for (const v of xs) if (!Number.isInteger(v)) return xs
+  throw unpinned(`${what} over an array of whole numbers (an \`array<int>\` returns \`series int\`, and the `
+    + 'reference does not say how the fraction is turned into an int; this run cannot prove the array is float)')
+}
+
+const varianceOf = (arr, biased, what) => {
+  const xs = realsNoNa(arr, what)
+  if (!xs.length) return NaN // the entry: `na` for an empty array
+  provablyFloat(xs, what)
+  const m = meanOf(xs)
+  let ss = 0
+  for (const v of xs) ss += (v - m) * (v - m)
+  return ss / divisorOf(xs.length, biased, what)
+}
+
+const sortedAscending = (xs) => xs.slice().sort((x, y) => x - y)
+
+const ORDERS = new Set(['ascending', 'descending'])
+const orderArg = (a, i, what) => {
+  if (a.length <= i) return 'ascending' // the entry: `order.ascending` is the default
+  if (!ORDERS.has(a[i])) {
+    throw new CollectionError(`${what}: the order is \`order.ascending\` or \`order.descending\`, got ${a[i]}`)
+  }
+  return a[i]
+}
+
+/** v6's `every` / `some`: zero is false and every other number true (the entry's remark). */
+const truthsOf = (a, budget, what) => {
+  if (!(budget && budget.pineVersion >= 6)) throw unpinned(`${what} in a script older than v6 (it is a v6 member)`)
+  const arr = a[0]
+  if (!arr.length) throw unpinned(`${what} of an empty array`)
+  budget.charge('ARRAY_OPERATIONS', arr.length)
+  return realsNoNa(arr, what).map((v) => v !== 0)
+}
+
+/** ⭐⭐ THE OBJECT DOOR KEEPS MASTER'S ANSWER for the two members master already
+ *  compiled. `array.median` / `array.stdev` were C18 `unmeasuredReduction`s (an empty
+ *  array answers the caller's PROBE, elements stop by name), and the live C18 object
+ *  door builds them (k-clustering names both in branches its defaults never take). The
+ *  door's run is the ONE caller that owns `budget.unmeasured`
+ *  (`runtimeColumns.js::runtimeObjectValues`), so a run that carries one gets master's
+ *  answer word for word; the runtime pane gets the reference formula. Rail:
+ *  `objectDoorGate.test.js` (W6-T5). */
+const MASTER_AT_DOOR = {
+  'array.median': unmeasuredReduction('array.median'),
+  'array.stdev': unmeasuredReduction('array.stdev'),
+}
+const doorKeepsMaster = (budget) => !!(budget && budget.unmeasured)
+
+/** ⭐⭐ W6-T7 — the `matrix.*` members (`matrices.js`), in THIS table: one dispatch,
+ *  one VM op, one admitter. */
+const MATRIX_FNS = buildMatrixFns({ CollectionError, isUnfilled })
+
+const W6T5_MEMBERS = {
+  'array.reverse': {
+    args: ['array'], returns: 'void',
+    fn: (a, budget) => {
+      budget.charge('ARRAY_OPERATIONS', Math.max(1, a[0].length))
+      guardSliceWrite(a[0], 'array.reverse').reverse()
+    },
+  },
+  'array.lastindexof': {
+    args: ['array', 'any'], returns: 'number',
+    fn: (a, budget) => {
+      if (typeof a[1] === 'number' && Number.isNaN(a[1])) throw unpinned('array.lastindexof of `na`')
+      budget.charge('ARRAY_OPERATIONS', a[0].length)
+      return a[0].lastIndexOf(a[1])
+    },
+  },
+  'array.range': {
+    args: ['array'], returns: 'number',
+    fn: (a, budget) => {
+      budget.charge('ARRAY_OPERATIONS', a[0].length)
+      // max − min over the REAL elements: `array.min` / `array.max` skip `na` (RT7, measured),
+      // and zero real elements answer `na` (the entry: `na` for an empty array).
+      const xs = realsOf(a[0], 'array.range')
+      if (!xs.length) return NaN
+      let lo = Infinity
+      let hi = -Infinity
+      for (const v of xs) { if (v < lo) lo = v; if (v > hi) hi = v }
+      return hi - lo
+    },
+  },
+  'array.abs': {
+    args: ['array'], returns: 'array',
+    fn: (a, budget) => {
+      budget.charge('ARRAY_OPERATIONS', a[0].length)
+      budget.peak('ARRAY_ELEMENTS', a[0].length)
+      return realsNoNa(a[0], 'array.abs').map((v) => Math.abs(v))
+    },
+  },
+  'array.join': {
+    args: ['array', 'string'], returns: 'string', minArgs: 1, maxArgs: 2,
+    fn: (a, budget) => {
+      if (a.length < 2) throw unpinned('array.join with no separator (the entry names no default)')
+      budget.charge('ARRAY_OPERATIONS', a[0].length)
+      for (const v of a[0]) {
+        if (typeof v !== 'string') throw unpinned('array.join over a non-text element (how a number is formatted)')
+      }
+      return a[0].join(a[1])
+    },
+  },
+  'array.variance': {
+    args: ['array', 'number'], returns: 'number', minArgs: 1, maxArgs: 2,
+    fn: (a, budget) => {
+      budget.charge('ARRAY_OPERATIONS', a[0].length)
+      return varianceOf(a[0], biasedArg(a, 1, 'array.variance'), 'array.variance')
+    },
+  },
+  'array.stdev': {
+    args: ['array', 'number'], returns: 'number', minArgs: 1, maxArgs: 2,
+    fn: (a, budget) => {
+      if (doorKeepsMaster(budget)) return MASTER_AT_DOOR['array.stdev'].fn(a, budget)
+      budget.charge('ARRAY_OPERATIONS', a[0].length)
+      return Math.sqrt(varianceOf(a[0], biasedArg(a, 1, 'array.stdev'), 'array.stdev'))
+    },
+  },
+  'array.covariance': {
+    args: ['array', 'array', 'number'], returns: 'number', minArgs: 2, maxArgs: 3,
+    fn: (a, budget) => {
+      budget.charge('ARRAY_OPERATIONS', a[0].length + a[1].length)
+      const xs = realsNoNa(a[0], 'array.covariance')
+      const ys = realsNoNa(a[1], 'array.covariance')
+      if (!xs.length && !ys.length) return NaN // the entry: `na` if both arrays are empty
+      if (xs.length !== ys.length) {
+        throw unpinned(`array.covariance of arrays of ${xs.length} and ${ys.length} elements`)
+      }
+      const biased = biasedArg(a, 2, 'array.covariance')
+      const mx = meanOf(xs)
+      const my = meanOf(ys)
+      let s = 0
+      for (let i = 0; i < xs.length; i += 1) s += (xs[i] - mx) * (ys[i] - my)
+      return s / divisorOf(xs.length, biased, 'array.covariance')
+    },
+  },
+  'array.median': {
+    // ⛔ The arity master compiled (1-2) is kept so the object door builds what it built;
+    // on the pane a second argument is not the reference's `array.median(id)` and stops.
+    args: ['array', 'number'], returns: 'number', minArgs: 1, maxArgs: 2,
+    fn: (a, budget) => {
+      if (doorKeepsMaster(budget)) return MASTER_AT_DOOR['array.median'].fn(a, budget)
+      if (a.length > 1) throw new CollectionError('array.median takes one argument (`array.median(id)`)')
+      budget.charge('ARRAY_OPERATIONS', a[0].length)
+      const xs = sortedAscending(realsNoNa(a[0], 'array.median'))
+      const n = xs.length
+      if (!n) return NaN // the entry: `na` for an empty array
+      // ⛔ W6-T5 r1 (review B1) — the entry gives no even-count rule (the mean of the two
+      // middle values, or one of them?): an even count stops by name (W6-A1).
+      if (n % 2 === 0) throw unpinned(`array.median over an even count (${n}): the reference does not say which middle it takes`)
+      provablyFloat(xs, 'array.median')
+      return xs[(n - 1) / 2]
+    },
+  },
+  'array.percentile_nearest_rank': {
+    args: ['array', 'number'], returns: 'number',
+    fn: (a, budget) => {
+      budget.charge('ARRAY_OPERATIONS', a[0].length)
+      const xs = sortedAscending(realsNoNa(a[0], 'array.percentile_nearest_rank'))
+      const n = xs.length
+      if (!n) return NaN // the entry: `na` for an empty array
+      const p = a[1]
+      if (!Number.isFinite(p) || p <= 0 || p > 100) {
+        throw unpinned(`array.percentile_nearest_rank at ${p} (the nearest-rank method is defined for 0 < p ≤ 100)`)
+      }
+      // The nearest rank: the smallest value with at least p% of the values at or below
+      // it — the ceil(p·n/100)-th of the sorted values. `p * n / 100`, not `p / 100 * n`,
+      // so a whole rank stays whole (7 / 100 * 100 is 7.000000000000001, whose ceil is 8).
+      return xs[Math.ceil((p * n) / 100) - 1]
+    },
+  },
+  'array.sort': {
+    args: ['array', 'string'], returns: 'void', minArgs: 1, maxArgs: 2,
+    fn: (a, budget) => {
+      const arr = guardSliceWrite(a[0], 'array.sort')
+      const desc = orderArg(a, 1, 'array.sort') === 'descending'
+      for (const v of arr) {
+        if (typeof v === 'string') throw unpinned('array.sort over text (codepoint or locale order, and case)')
+      }
+      const xs = realsNoNa(arr, 'array.sort')
+      budget.charge('ARRAY_OPERATIONS', Math.max(1, arr.length))
+      xs.sort(desc ? (x, y) => y - x : (x, y) => x - y)
+      for (let i = 0; i < xs.length; i += 1) arr[i] = xs[i]
+    },
+  },
+  'array.every': {
+    args: ['array'], returns: 'number',
+    fn: (a, budget) => (truthsOf(a, budget, 'array.every').every(Boolean) ? 1 : 0),
+  },
+  'array.some': {
+    args: ['array'], returns: 'number',
+    fn: (a, budget) => (truthsOf(a, budget, 'array.some').some(Boolean) ? 1 : 0),
+  },
+}
+
+/** The members added after master c04bdbe2c1 that the C18 object door must not build:
+ *  `pineRuntimeFrontend.js::admitArrayCall` asks `objectDoorRefuses` for each.
+ *  `array.median` / `array.stdev` are not here — master built them, and the door keeps
+ *  master's answer at run time instead (`MASTER_AT_DOOR`). */
+export const DOOR_GATED_ARRAY = Object.freeze(new Set([
+  // ⭐ W6-T8 — every `map.*` member: master refused the whole family at the door
+  ...Object.keys(MAP_FNS),
+  ...Object.keys(W19R2_MEMBERS),
+  // ⭐ W6-T7 — every `matrix.*` member: master refused the whole family at the door
+  ...Object.keys(MATRIX_FNS),
+  ...Object.keys(W6T5_MEMBERS).filter((n) => !Object.prototype.hasOwnProperty.call(MASTER_AT_DOOR, n)),
+]))
 
 /** @type {Readonly<Record<string, ArrayFn>>} */
 const ARRAY_NEW = {
@@ -597,6 +937,8 @@ const ARRAY_FNS_RAW = Object.freeze({
     fn: (a, budget) => { budget.charge('ARRAY_OPERATIONS', 1); guardSliceWrite(a[0], 'array.clear').length = 0 },
   },
   ...C11_MEMBERS,
+  // ⭐⭐ W6-T8 — `map.*`, see `maps.js`
+  ...MAP_FNS,
   // ⭐⭐ C18 — see `SLICED`. `from` inclusive, `to` exclusive; Pine stops the
   // script on a bound outside the array, and so does this.
   'array.slice': {
@@ -616,8 +958,13 @@ const ARRAY_FNS_RAW = Object.freeze({
       return out
     },
   },
-  'array.median': unmeasuredReduction('array.median'),
-  'array.stdev': unmeasuredReduction('array.stdev'),
+  // ⭐⭐ W19-R2 (ported by W6-T5) and W6-T5 — see `W19R2_MEMBERS` / `W6T5_MEMBERS`.
+  // `array.median` / `array.stdev` left `unmeasuredReduction` here: the pane computes
+  // the reference formula, and the object door keeps master's answer (`MASTER_AT_DOOR`).
+  ...W19R2_MEMBERS,
+  ...W6T5_MEMBERS,
+  // ⭐⭐ W6-T7 — `matrix.*`, see `matrices.js`
+  ...MATRIX_FNS,
   // ⭐ C35 — not a collection member: a void call the VM dispatches through this
   // table like `array.push`, and the one entry whose only effect is to STOP the
   // run (`PineRuntimeError`). Kept here rather than in a second table so the
@@ -632,14 +979,20 @@ export const ARRAY_NAMES = Object.freeze(Object.keys(ARRAY_FNS_RAW))
 
 /** Does this call return a collection? The front end's route decision needs it
  *  for the same reason `producesText` exists: a value the columnar lane cannot
- *  hold must not be sent there. */
+ *  hold must not be sent there. ⭐ W6-T7 — an array or a matrix. */
 export const producesArray = (name) => (
-  Object.prototype.hasOwnProperty.call(ARRAY_FNS_RAW, name) && ARRAY_FNS_RAW[name].returns === 'array')
+  Object.prototype.hasOwnProperty.call(ARRAY_FNS_RAW, name)
+  && (ARRAY_FNS_RAW[name].returns === 'array' || ARRAY_FNS_RAW[name].returns === 'matrix'))
 
 /** Does this call return nothing? A void call is a STATEMENT, and using one as
  *  a value is refused rather than silently yielding `na`. */
 export const isVoid = (name) => (
   Object.prototype.hasOwnProperty.call(ARRAY_FNS_RAW, name) && ARRAY_FNS_RAW[name].returns === 'void')
+
+/** ⭐ W6-T8 — does this call return a MAP? A map is a collection the columnar lane cannot
+ *  hold, for the same reason as an array (`producesArray`). */
+export const producesMap = (name) => (
+  Object.prototype.hasOwnProperty.call(ARRAY_FNS_RAW, name) && ARRAY_FNS_RAW[name].returns === 'map')
 
 /** The declared operand kind for argument `i` — variadic entries repeat their
  *  single declared kind. */
@@ -653,14 +1006,49 @@ export { RuntimeLimitError }
  *  `push`, `unshift`, `size`, `copy`, `slice`, `concat`, `clear`) moves the marker
  *  as it is, untouched. */
 const READS_ALL = new Set(['array.indexof', 'array.includes', 'array.sort_indices', 'array.max', 'array.min',
-  'array.sum', 'array.avg', 'array.median', 'array.stdev'])
+  'array.sum', 'array.avg', 'array.median', 'array.stdev',
+  // ⭐ W6-T5 — every new member that compares, reduces or formats the elements
+  'array.lastindexof', 'array.range', 'array.abs', 'array.join', 'array.variance', 'array.covariance',
+  'array.percentile_nearest_rank', 'array.sort', 'array.every', 'array.some'])
 // ⭐ UIE PHASE 4 (M3) — only the members that READ are wrapped (profiled: wrapping every
 // member cost ~3% of a call-heavy script, `array.set` / `size` / `push` included)
 const HANDS_BACK = new Set(['array.get', 'array.first', 'array.last', 'array.pop', 'array.shift', 'array.remove'])
-export const ARRAY_FNS = Object.freeze(Object.fromEntries(Object.entries(ARRAY_FNS_RAW).map(([name, spec]) => {
+// ⭐ P3 WS-A — WHAT EACH MEMBER WRITES, declared once beside the table, so a
+// reader that asks "can this call move an array?" (the v6 `for` bound guard,
+// `pineRuntimeFrontend.js::forBoundMovedBy`) derives it here rather than keeping
+// a second list. `size`: the length can change; `elements`: values only;
+// `none`: reads. ⛔ A member added to the table without an entry here carries no
+// `writes`, which every reader treats as `size` (fail closed), and the rail
+// `p3WsaReviewFixes.test.js` (L1) goes red until it is classified.
+const ARRAY_WRITES = Object.freeze({
+  // ⭐ W6-T8
+  ...MAP_WRITES,
+  'array.push': 'size', 'array.pop': 'size', 'array.shift': 'size', 'array.unshift': 'size',
+  'array.remove': 'size', 'array.clear': 'size', 'array.concat': 'size',
+  'array.set': 'elements',
+  'array.new': 'none', 'array.new_float': 'none', 'array.new_int': 'none', 'array.new_bool': 'none',
+  'array.new_string': 'none', 'array.new_color': 'none', 'array.new_box': 'none', 'array.new_line': 'none',
+  'array.new_label': 'none', 'array.new_linefill': 'none', 'array.from': 'none', 'str.split': 'none',
+  'array.sort_indices': 'none', 'array.size': 'none', 'array.get': 'none', 'array.copy': 'none',
+  'array.first': 'none', 'array.last': 'none', 'array.indexof': 'none', 'array.includes': 'none',
+  'array.max': 'none', 'array.min': 'none', 'array.sum': 'none', 'array.avg': 'none',
+  'array.slice': 'none', 'array.median': 'none', 'array.stdev': 'none', 'runtime.error': 'none',
+  // ⭐ W19-R2 / W6-T5
+  'array.fill': 'elements', 'array.insert': 'size', 'array.reverse': 'elements', 'array.sort': 'elements',
+  'array.lastindexof': 'none', 'array.range': 'none', 'array.abs': 'none', 'array.join': 'none',
+  'array.variance': 'none', 'array.covariance': 'none', 'array.percentile_nearest_rank': 'none',
+  'array.every': 'none', 'array.some': 'none',
+  // ⭐ W6-T7
+  ...MATRIX_WRITES,
+})
+export const ARRAY_FNS = Object.freeze(Object.fromEntries(Object.entries(ARRAY_FNS_RAW).map(([name, spec0]) => {
+  const spec = ARRAY_WRITES[name] ? { ...spec0, writes: ARRAY_WRITES[name] } : spec0
   if (READS_ALL.has(name)) {
     return [name, { ...spec, fn: (a, budget, typeArg) => {
-      if (Array.isArray(a[0])) { const hit = a[0].find(isUnfilled); if (hit) readUnfilled(name, hit) }
+      // ⭐ W6-T5 — EVERY array argument (`array.covariance` reads two)
+      for (const x of a) {
+        if (Array.isArray(x)) { const hit = x.find(isUnfilled); if (hit) readUnfilled(name, hit) }
+      }
       return spec.fn(a, budget, typeArg)
     } }]
   }

@@ -444,6 +444,73 @@ _MEMBERS_WITH_WORK_SQL = (
     " ORDER BY COALESCE(m.last_at, '') ASC, w.user_id ASC")
 
 
+#: Fix round 1 (review finding 18): the waiting count is a status line, not a measurement -- one
+#: read per member a minute (the sweep runs every 15), and it stops counting at this many.
+PENDING_CACHE_TTL_S = 60
+#: Fix round 3 (re-review 2, R2-2): a 0 is kept only this long -- enough that an empty search does
+#: not re-count on every keystroke, short enough that a note written a moment later shows up.
+PENDING_ZERO_TTL_S = 10
+PENDING_COUNT_CAP = 1000
+_pending_cache: dict[str, tuple[float, int]] = {}
+
+
+def clear_pending_cache() -> None:
+    _pending_cache.clear()
+
+
+def pending_count_capped(n: int | None) -> bool:
+    """True when `n` hit PENDING_COUNT_CAP, so the panel says "1,000+", never an exact 1000 (N4)."""
+    return isinstance(n, int) and n >= PENDING_COUNT_CAP
+
+
+def pending_count(user_id: str, *, conn: sqlite3.Connection | None = None,
+                  provider: EmbeddingProvider | None = None) -> int | None:
+    """Audit 2026-11-05, spec S4 (B18): how many of the member's live notes the meaning search
+    cannot see YET -- no vectors, or vectors from an older revision or another provider (the same
+    `_revision_marker` test `index_member` uses to decide what to embed). The sweep runs every 15
+    minutes (`notebook_semantic_sweep` in api/main.py), so the search can say "{n} are waiting"
+    instead of returning nothing in silence. A read: nothing is embedded or sent.
+    ⛔ Dark: None, and no connection is opened."""
+    if not semantic_enabled():
+        return None
+    hit = _pending_cache.get(user_id)
+    if hit and PENDING_CACHE_TTL_S > 0:
+        ttl = PENDING_CACHE_TTL_S if hit[1] else PENDING_ZERO_TTL_S
+        if (_now() - hit[0]) < ttl:
+            return hit[1]
+    provider = provider or get_provider()
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        conn.row_factory = sqlite3.Row
+        ensure_semantic_schema(conn)
+        # Bounded: the inner query stops at PENDING_COUNT_CAP rows (the panel needs "some are
+        # waiting", not an exact census of a library mid-backfill).
+        # ⛔ Fix round 2 (re-review N4): a per-note EXISTENCE probe on the embeddings' primary key
+        # (user_id, note_id, block_id), so the LIMIT bounds the work itself. The first cut LEFT
+        # JOINed a GROUP BY over every embedding the member has, computed in full before any LIMIT.
+        # A note is waiting when no block carries its current revision marker (`_revision_marker`).
+        r = conn.execute(
+            "SELECT COUNT(*) FROM (SELECT 1 FROM j2_notes n"
+            " WHERE n.user_id = ? AND n.deleted_at IS NULL AND n.archived_at IS NULL"
+            " AND NOT EXISTS (SELECT 1 FROM j2_note_embeddings e"
+            "   WHERE e.user_id = n.user_id AND e.note_id = n.id"
+            "   AND e.updated_at = (n.updated_at || '|' || ?))"
+            " LIMIT ?)",
+            (user_id, provider.name, int(PENDING_COUNT_CAP))).fetchone()
+        n = int(r[0] or 0) if r else 0
+        # A 0 keeps only PENDING_ZERO_TTL_S (R2-2): a minute-long cached 0 would hide the line right
+        # after the member wrote a note -- the very moment B18 is about.
+        _pending_cache[user_id] = (_now(), n)
+        if len(_pending_cache) > 5000:            # bounded: drop the oldest half
+            for k, _ in sorted(_pending_cache.items(), key=lambda kv: kv[1][0])[:2500]:
+                _pending_cache.pop(k, None)
+        return n
+    finally:
+        if owned:
+            conn.close()
+
+
 def run_sweep(*, conn: sqlite3.Connection | None = None,
               provider: EmbeddingProvider | None = None,
               max_embeds: int = MAX_EMBEDS_PER_SWEEP) -> dict[str, Any]:

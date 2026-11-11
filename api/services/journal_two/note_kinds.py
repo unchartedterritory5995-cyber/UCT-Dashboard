@@ -279,13 +279,9 @@ def delete_kind(user_id: str, kind_id: str, conn: sqlite3.Connection | None = No
 
 def offered(defs: list[dict]) -> list[dict]:
     """Property definitions a door may OFFER or SUGGEST (autofill, AI organise; the client applies the
-    same rule to Add property and the board's group-by). While journal styles are off, Kind of note is
-    not offered through any door; an existing value still renders (spec P1.7c). The switch is read the
-    way journal_styles reads it, per call."""
-    from api.services.journal_two import journal_styles
-    if journal_styles.enabled():
-        return list(defs)
-    return [d for d in defs if d.get("id") != NOTE_KIND_PROPERTY]
+    same rule to Add property and the board's group-by). Every definition, Kind of note included:
+    journal styles are always on since their switch was retired (2026-11-04)."""
+    return list(defs)
 
 
 def kind_options(user_id: str, conn: sqlite3.Connection) -> list[dict]:

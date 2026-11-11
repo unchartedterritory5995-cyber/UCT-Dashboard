@@ -73,7 +73,7 @@ import styles from './NoteMenuActions.module.css'
  *   editor has. Optional: without it (unit tests, no editor) the template is
  *   saved as before.
  */
-// Notebook P1: "Save this note's setup as a style" -- offered only while journal styles are on. The first press
+// Notebook P1: "Save as template with blocks" -- offered only while journal styles are on. The first press
 // fetches the lazy door (button, form, sentence), which opens the form at once; nothing is fetched before.
 const SaveStyleDoor = lazyChunk(() => loadStyle('SaveStyleDoor'))
 const UNSENT_BEFORE_TEMPLATE = "Your latest edits haven't reached the server yet, so the template would miss them. Nothing was saved — try again in a moment."
@@ -179,7 +179,7 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
   const styleBtn = (p) => (
     <button type="button" className={styles.btn} aria-expanded={styleDoor} {...p}>
       <UIcon name="sliders" size={13} gold={false} />
-      Save this note&apos;s setup as a style
+      Save as template with blocks
     </button>
   )
 
@@ -236,7 +236,7 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
           <button type="button" className={styles.btn} onClick={() => { refocusRef.current = 'template'; setTemplateDraft(null) }}>Cancel</button>
         </form>
       )}
-      {/* Notebook P1 (spec P1.4): "Save this note's setup as a style". Dark behind journalStylesEnabled(); the
+      {/* Notebook P1 (spec P1.4): "Save as template with blocks". Dark behind journalStylesEnabled(); the
           whole door (button, form, sentence) is a lazy chunk. */}
       {journalStylesEnabled() && (styleDoor
         ? <Suspense fallback={styleBtn({ 'aria-busy': true, 'aria-disabled': true, autoFocus: true })}><SaveStyleDoor note={note} onBeforeSave={onBeforeTemplate} /></Suspense>

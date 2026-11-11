@@ -1,0 +1,1584 @@
+{
+ "version": 1,
+ "about": "NLM-1 D1 curated TRADER VOCABULARY for registry-derived routing (routingV2). Each term: a lower-case phrase matched on word boundaries (a trailing * matches any word ending; an inner * matches one word) -> the routing groups it points at (weight 0..1; 1 = the phrase on its own names that group). DATA, reviewed by hand: a term only ADDS candidate groups the model may SEE; every op is still re-validated against the full registry, the approval policy and the protected-layout checks. Every group named must exist in routing.js GROUPS (nlm1Vocabulary.test.js). `related`: the groups a follow-up to the last capability's group plausibly needs next (conversation context). `entities`: what an entity shape (capabilityIndex.entityTokens) adds to a group's vocabulary weight.",
+ "reviewed": {
+  "by": "nlm1 track B",
+  "date": "2026-11-04",
+  "status": "draft: needs owner / peer review before activation (D1.1 adds casual verb classes: switch / undo / alert / news / grid shorthand)"
+ },
+ "terms": {
+  "study": {
+   "indicators": 1
+  },
+  "studies": {
+   "indicators": 1
+  },
+  "indicator*": {
+   "indicators": 1
+  },
+  "ma": {
+   "indicators": 1
+  },
+  "mas": {
+   "indicators": 1
+  },
+  "moving average*": {
+   "indicators": 1
+  },
+  "ema*": {
+   "indicators": 1
+  },
+  "sma*": {
+   "indicators": 1
+  },
+  "wma": {
+   "indicators": 1
+  },
+  "hma": {
+   "indicators": 1
+  },
+  "vwma": {
+   "indicators": 1
+  },
+  "oscillator*": {
+   "indicators": 1
+  },
+  "momentum indicator*": {
+   "indicators": 1
+  },
+  "rsi": {
+   "indicators": 1
+  },
+  "macd": {
+   "indicators": 1
+  },
+  "stoch*": {
+   "indicators": 1
+  },
+  "bollinger*": {
+   "indicators": 1
+  },
+  "bands": {
+   "indicators": 0.7
+  },
+  "atr": {
+   "indicators": 0.8
+  },
+  "adr": {
+   "indicators": 0.6,
+   "guide": 0.4
+  },
+  "keltner": {
+   "indicators": 1
+  },
+  "ichimoku": {
+   "indicators": 1
+  },
+  "supertrend": {
+   "indicators": 1
+  },
+  "obv": {
+   "indicators": 1
+  },
+  "adx": {
+   "indicators": 1
+  },
+  "cci": {
+   "indicators": 1
+  },
+  "relative strength": {
+   "indicators": 0.6
+  },
+  "rs line": {
+   "indicators": 1
+  },
+  "cot": {
+   "indicators": 1
+  },
+  "squeeze": {
+   "indicators": 0.7
+  },
+  "length": {
+   "indicators": 0.6
+  },
+  "period": {
+   "indicators": 0.5
+  },
+  "lookback": {
+   "indicators": 0.7
+  },
+  "fast one": {
+   "indicatorSetup": 0.8,
+   "indicators": 0.5
+  },
+  "slow one": {
+   "indicatorSetup": 0.8,
+   "indicators": 0.5
+  },
+  "pane*": {
+   "indicatorSetup": 1
+  },
+  "subpane*": {
+   "indicatorSetup": 1
+  },
+  "own window": {
+   "indicatorSetup": 1
+  },
+  "separate window": {
+   "indicatorSetup": 1
+  },
+  "below price": {
+   "indicatorSetup": 0.8
+  },
+  "under price": {
+   "indicatorSetup": 0.8
+  },
+  "on price": {
+   "indicatorSetup": 0.6
+  },
+  "overlay it": {
+   "indicatorSetup": 0.7
+  },
+  "line width": {
+   "indicatorSetup": 0.8,
+   "drawings": 0.4
+  },
+  "thicker": {
+   "indicatorSetup": 0.7,
+   "drawings": 0.4
+  },
+  "thinner": {
+   "indicatorSetup": 0.7,
+   "drawings": 0.4
+  },
+  "dashed": {
+   "indicatorSetup": 0.6,
+   "drawings": 0.5
+  },
+  "dotted": {
+   "indicatorSetup": 0.6,
+   "drawings": 0.5
+  },
+  "histogram": {
+   "indicatorSetup": 0.7
+  },
+  "taller": {
+   "indicatorSetup": 0.8,
+   "workspace": 0.4
+  },
+  "shorter": {
+   "indicatorSetup": 0.5,
+   "workspace": 0.3
+  },
+  "squash*": {
+   "indicatorSetup": 0.7
+  },
+  "copy * indicators": {
+   "indicatorSetup": 1
+  },
+  "custom indicator*": {
+   "definitions": 0.6,
+   "indicators": 0.8
+  },
+  "my indicators": {
+   "definitions": 1
+  },
+  "my own indicator*": {
+   "definitions": 1
+  },
+  "build me": {
+   "indicators": 0.8
+  },
+  "formula": {
+   "indicators": 0.6
+  },
+  "level*": {
+   "drawings": 1
+  },
+  "line at": {
+   "drawings": 1
+  },
+  "horizontal*": {
+   "drawings": 1,
+   "drawingTools": 0.5
+  },
+  "hline*": {
+   "drawings": 1
+  },
+  "support": {
+   "drawings": 0.8
+  },
+  "resistance": {
+   "drawings": 0.8
+  },
+  "s/r": {
+   "drawings": 1
+  },
+  "pivot*": {
+   "drawings": 0.6
+  },
+  "drawing*": {
+   "drawings": 1
+  },
+  "annotation*": {
+   "drawings": 0.8,
+   "drawingTools": 0.6
+  },
+  "markup*": {
+   "drawings": 0.8
+  },
+  "doodle*": {
+   "drawings": 0.8
+  },
+  "trend line*": {
+   "drawingTools": 1
+  },
+  "trendline*": {
+   "drawingTools": 1
+  },
+  "ray": {
+   "drawingTools": 1
+  },
+  "box": {
+   "drawingTools": 0.8
+  },
+  "rectangle": {
+   "drawingTools": 1
+  },
+  "zone": {
+   "drawingTools": 0.6,
+   "drawings": 0.4
+  },
+  "fib*": {
+   "drawingTools": 1
+  },
+  "retracement": {
+   "drawingTools": 1
+  },
+  "avwap": {
+   "drawingTools": 1
+  },
+  "anchored": {
+   "drawingTools": 1
+  },
+  "vwap": {
+   "drawingTools": 0.6,
+   "indicators": 0.6
+  },
+  "note on": {
+   "drawingTools": 0.8
+  },
+  "label on": {
+   "drawingTools": 0.6
+  },
+  "ticker": {
+   "charts": 0.6
+  },
+  "symbol": {
+   "charts": 0.7
+  },
+  "flip to": {
+   "charts": 0.8
+  },
+  "pull up": {
+   "charts": 0.8
+  },
+  "bring up": {
+   "charts": 0.8
+  },
+  "swap to": {
+   "charts": 0.8
+  },
+  "look at": {
+   "charts": 0.5
+  },
+  "candle*": {
+   "charts": 1
+  },
+  "heikin*": {
+   "charts": 1
+  },
+  "ohlc": {
+   "charts": 1
+  },
+  "bar chart": {
+   "charts": 1
+  },
+  "line chart": {
+   "charts": 1
+  },
+  "area": {
+   "charts": 0.5
+  },
+  "hollow": {
+   "charts": 1
+  },
+  "daily": {
+   "charts": 1
+  },
+  "weekly": {
+   "charts": 1
+  },
+  "monthly": {
+   "charts": 1
+  },
+  "hourly": {
+   "charts": 1
+  },
+  "intraday": {
+   "charts": 1
+  },
+  "minute*": {
+   "charts": 0.9
+  },
+  "min": {
+   "charts": 0.8
+  },
+  "1d": {
+   "charts": 1
+  },
+  "1w": {
+   "charts": 1
+  },
+  "5m": {
+   "charts": 1
+  },
+  "15m": {
+   "charts": 1
+  },
+  "65m": {
+   "charts": 1
+  },
+  "1h": {
+   "charts": 1
+  },
+  "4h": {
+   "charts": 1
+  },
+  "time frame": {
+   "charts": 1
+  },
+  "timeframe": {
+   "charts": 1
+  },
+  "interval*": {
+   "charts": 0.9
+  },
+  "resolution": {
+   "charts": 0.8
+  },
+  "log": {
+   "charts": 1
+  },
+  "logarithmic": {
+   "charts": 1
+  },
+  "arithmetic": {
+   "charts": 1
+  },
+  "linear": {
+   "charts": 1
+  },
+  "percent scale": {
+   "charts": 1
+  },
+  "price axis": {
+   "charts": 0.8
+  },
+  "y axis": {
+   "charts": 0.8
+  },
+  "premarket": {
+   "charts": 1
+  },
+  "pre market": {
+   "charts": 1
+  },
+  "after hours": {
+   "charts": 1
+  },
+  "afterhours": {
+   "charts": 1
+  },
+  "extended hours": {
+   "charts": 1
+  },
+  "eth": {
+   "charts": 1
+  },
+  "rth": {
+   "charts": 1
+  },
+  "overnight": {
+   "charts": 0.7
+  },
+  "dark background": {
+   "charts": 0.8
+  },
+  "background": {
+   "charts": 1
+  },
+  "gridlines": {
+   "charts": 1
+  },
+  "crosshair": {
+   "charts": 1
+  },
+  "watermark": {
+   "charts": 1
+  },
+  "legend": {
+   "charts": 1
+  },
+  "up color": {
+   "charts": 1
+  },
+  "down color": {
+   "charts": 1
+  },
+  "wick*": {
+   "charts": 1
+  },
+  "volume": {
+   "charts": 1
+  },
+  "vol": {
+   "charts": 0.8
+  },
+  "volume bars": {
+   "charts": 1
+  },
+  "overlay*": {
+   "charts": 0.8
+  },
+  "compare": {
+   "charts": 0.9,
+   "data": 0.4
+  },
+  "vs": {
+   "charts": 0.7,
+   "data": 0.5
+  },
+  "relative to": {
+   "charts": 0.5
+  },
+  "jump to": {
+   "charts": 0.8
+  },
+  "jump back": {
+   "charts": 0.9
+  },
+  "scroll back": {
+   "charts": 0.9
+  },
+  "go back to": {
+   "charts": 0.6
+  },
+  "replay": {
+   "chartSetup": 1
+  },
+  "bar replay": {
+   "chartSetup": 1
+  },
+  "step through": {
+   "chartSetup": 1
+  },
+  "template*": {
+   "chartSetup": 1,
+   "charts": 0.6
+  },
+  "preset*": {
+   "chartSetup": 0.8,
+   "charts": 0.5
+  },
+  "same look": {
+   "chartSetup": 1
+  },
+  "match the": {
+   "chartSetup": 0.8
+  },
+  "star the": {
+   "chartSetup": 0.8
+  },
+  "favorite*": {
+   "chartSetup": 0.7
+  },
+  "favourite*": {
+   "chartSetup": 0.7
+  },
+  "setup here": {
+   "chartSetup": 1
+  },
+  "describe the setup": {
+   "chartSetup": 1
+  },
+  "grid": {
+   "chartGrid": 0.8,
+   "charts": 0.4
+  },
+  "2x2": {
+   "chartGrid": 1
+  },
+  "quad*": {
+   "chartGrid": 1
+  },
+  "tile*": {
+   "chartGrid": 1
+  },
+  "side by side": {
+   "chartGrid": 1,
+   "boardEdit": 0.4
+  },
+  "split screen": {
+   "chartGrid": 1
+  },
+  "multi chart": {
+   "chartGrid": 1
+  },
+  "multichart": {
+   "chartGrid": 1
+  },
+  "several charts": {
+   "chartGrid": 1
+  },
+  "each in its own chart": {
+   "chartGrid": 1
+  },
+  "one chart each": {
+   "chartGrid": 1
+  },
+  "swap": {
+   "boardEdit": 0.8
+  },
+  "trade places": {
+   "boardEdit": 1
+  },
+  "switch places": {
+   "boardEdit": 1
+  },
+  "clone": {
+   "boardEdit": 0.9
+  },
+  "duplicate": {
+   "boardEdit": 0.7,
+   "indicatorSetup": 0.4,
+   "layouts": 0.3
+  },
+  "copy of this chart": {
+   "boardEdit": 1
+  },
+  "widget*": {
+   "workspace": 1
+  },
+  "panel*": {
+   "workspace": 0.6
+  },
+  "module*": {
+   "workspace": 0.6
+  },
+  "board": {
+   "workspace": 0.8
+  },
+  "dashboard": {
+   "workspace": 0.5,
+   "settings": 0.4
+  },
+  "workspace": {
+   "workspace": 1
+  },
+  "bigger": {
+   "workspace": 0.8
+  },
+  "smaller": {
+   "workspace": 0.8
+  },
+  "wider": {
+   "workspace": 0.9
+  },
+  "narrower": {
+   "workspace": 0.9
+  },
+  "resize": {
+   "workspace": 1
+  },
+  "enlarge": {
+   "workspace": 0.9
+  },
+  "shrink": {
+   "workspace": 0.9
+  },
+  "rearrange": {
+   "workspace": 1
+  },
+  "tidy": {
+   "workspace": 0.8
+  },
+  "clean up": {
+   "workspace": 0.6
+  },
+  "link*": {
+   "workspace": 0.8
+  },
+  "unlink*": {
+   "workspace": 1
+  },
+  "news feed": {
+   "workspace": 0.8
+  },
+  "scanner widget": {
+   "workspace": 1
+  },
+  "theme tracker": {
+   "workspace": 0.8,
+   "boardEdit": 0.6
+  },
+  "heatmap": {
+   "workspace": 0.8
+  },
+  "tab*": {
+   "workspace": 0.6,
+   "charts": 0.6
+  },
+  "layout*": {
+   "layouts": 1
+  },
+  "board setup": {
+   "layouts": 0.6
+  },
+  "save this": {
+   "layouts": 0.7
+  },
+  "save the board": {
+   "layouts": 1
+  },
+  "workspace as": {
+   "layouts": 0.9
+  },
+  "watchlist*": {
+   "lists": 1
+  },
+  "watch list*": {
+   "lists": 1
+  },
+  "my list*": {
+   "lists": 1
+  },
+  "list": {
+   "lists": 0.6
+  },
+  "lists": {
+   "lists": 0.8
+  },
+  "add to my": {
+   "lists": 0.6
+  },
+  "sort my": {
+   "lists": 0.6
+  },
+  "alphabetical*": {
+   "lists": 1
+  },
+  "screen*": {
+   "screener": 1
+  },
+  "scan*": {
+   "screener": 1
+  },
+  "filter*": {
+   "screener": 0.8
+  },
+  "find me": {
+   "screener": 0.8
+  },
+  "find stocks": {
+   "screener": 1
+  },
+  "stocks that": {
+   "screener": 1
+  },
+  "stocks with": {
+   "screener": 1
+  },
+  "names that": {
+   "screener": 1
+  },
+  "names with": {
+   "screener": 0.9
+  },
+  "setups": {
+   "screener": 0.5,
+   "playbook": 0.5
+  },
+  "breakout*": {
+   "screener": 0.6,
+   "playbook": 0.4
+  },
+  "near highs": {
+   "screener": 0.8
+  },
+  "new highs": {
+   "screener": 0.6,
+   "breadth": 0.6
+  },
+  "market cap": {
+   "screener": 0.6,
+   "data": 0.5
+  },
+  "float": {
+   "screener": 0.5,
+   "data": 0.5
+  },
+  "liquid": {
+   "screener": 0.6
+  },
+  "top gainers": {
+   "screener": 0.8
+  },
+  "leaders": {
+   "screener": 0.6,
+   "data": 0.4
+  },
+  "alert*": {
+   "alerts": 1,
+   "indicatorAlerts": 0.5
+  },
+  "notify me": {
+   "alerts": 1
+  },
+  "ping me": {
+   "alerts": 1
+  },
+  "let me know when": {
+   "alerts": 1
+  },
+  "tell me when": {
+   "alerts": 1
+  },
+  "heads up when": {
+   "alerts": 1
+  },
+  "goes off": {
+   "alerts": 0.8
+  },
+  "triggered": {
+   "alerts": 0.8
+  },
+  "crosses above": {
+   "indicatorAlerts": 0.8,
+   "alerts": 0.5
+  },
+  "crosses below": {
+   "indicatorAlerts": 0.8,
+   "alerts": 0.5
+  },
+  "cross*": {
+   "indicatorAlerts": 0.6
+  },
+  "overbought": {
+   "indicatorAlerts": 0.9
+  },
+  "oversold": {
+   "indicatorAlerts": 0.9
+  },
+  "pause": {
+   "indicatorAlerts": 0.6
+  },
+  "resume": {
+   "indicatorAlerts": 0.6
+  },
+  "mute": {
+   "indicatorAlerts": 0.6,
+   "settings": 0.5
+  },
+  "earnings": {
+   "data": 1,
+   "calendar": 0.6
+  },
+  "reports": {
+   "data": 0.7,
+   "calendar": 0.7
+  },
+  "eps": {
+   "data": 1
+  },
+  "revenue": {
+   "data": 1
+  },
+  "sales": {
+   "data": 0.8
+  },
+  "guidance": {
+   "data": 0.8
+  },
+  "fundamental*": {
+   "data": 1
+  },
+  "valuation": {
+   "data": 1
+  },
+  "p/e": {
+   "data": 1
+  },
+  "pe ratio": {
+   "data": 1
+  },
+  "sector": {
+   "data": 0.8
+  },
+  "industry": {
+   "data": 0.8
+  },
+  "company": {
+   "data": 0.8
+  },
+  "news": {
+   "data": 1
+  },
+  "headline*": {
+   "data": 1
+  },
+  "catalyst*": {
+   "data": 1
+  },
+  "why is": {
+   "data": 0.8
+  },
+  "moving today": {
+   "data": 1
+  },
+  "up today": {
+   "data": 0.8
+  },
+  "down today": {
+   "data": 0.8
+  },
+  "price of": {
+   "data": 1
+  },
+  "trading at": {
+   "data": 1
+  },
+  "quote": {
+   "data": 1
+  },
+  "last price": {
+   "data": 1
+  },
+  "how much is": {
+   "data": 0.8
+  },
+  "closed at": {
+   "data": 1
+  },
+  "close yesterday": {
+   "data": 1
+  },
+  "all time high": {
+   "data": 0.8
+  },
+  "52 week": {
+   "data": 0.8
+  },
+  "drawdown": {
+   "data": 1
+  },
+  "pullback*": {
+   "data": 0.8
+  },
+  "range": {
+   "data": 0.5
+  },
+  "theme*": {
+   "data": 0.6,
+   "charts": 0.4
+  },
+  "groups leading": {
+   "data": 1
+  },
+  "research": {
+   "data": 1
+  },
+  "breadth": {
+   "breadth": 1
+  },
+  "advance decline": {
+   "breadth": 1
+  },
+  "advancers": {
+   "breadth": 1
+  },
+  "decliners": {
+   "breadth": 1
+  },
+  "a/d": {
+   "breadth": 1
+  },
+  "participation": {
+   "breadth": 1
+  },
+  "above the 50": {
+   "breadth": 0.7
+  },
+  "above their": {
+   "breadth": 0.7
+  },
+  "percent of stocks": {
+   "breadth": 1
+  },
+  "% of stocks": {
+   "breadth": 1
+  },
+  "how many stocks": {
+   "breadth": 0.8
+  },
+  "new lows": {
+   "breadth": 1
+  },
+  "stage 2": {
+   "breadth": 0.8
+  },
+  "stage 4": {
+   "breadth": 0.8
+  },
+  "market health": {
+   "breadth": 1
+  },
+  "internals": {
+   "breadth": 1
+  },
+  "the market": {
+   "breadth": 0.5
+  },
+  "dark mode": {
+   "settings": 1
+  },
+  "light mode": {
+   "settings": 1
+  },
+  "app theme": {
+   "settings": 1
+  },
+  "default timeframe": {
+   "settings": 1
+  },
+  "by default": {
+   "settings": 0.8
+  },
+  "new charts": {
+   "settings": 0.6
+  },
+  "sound": {
+   "settings": 1
+  },
+  "chime": {
+   "settings": 1
+  },
+  "ding": {
+   "settings": 1
+  },
+  "digest": {
+   "settings": 1
+  },
+  "email*": {
+   "settings": 1
+  },
+  "preferences": {
+   "settings": 1
+  },
+  "settings": {
+   "settings": 0.7,
+   "charts": 0.5
+  },
+  "go to the": {
+   "settings": 0.6
+  },
+  "take me to": {
+   "settings": 0.9,
+   "guide": 0.3
+  },
+  "open the": {
+   "settings": 0.4
+  },
+  "page": {
+   "settings": 0.8
+  },
+  "calendar": {
+   "calendar": 1
+  },
+  "who reports": {
+   "calendar": 1
+  },
+  "reporting this week": {
+   "calendar": 1
+  },
+  "earnings this week": {
+   "calendar": 1
+  },
+  "undo": {
+   "undo": 1
+  },
+  "back that out": {
+   "undo": 1
+  },
+  "back it out": {
+   "undo": 1
+  },
+  "walk that back": {
+   "undo": 1
+  },
+  "rescind": {
+   "undo": 1
+  },
+  "change it back": {
+   "undo": 1
+  },
+  "change that back": {
+   "undo": 1
+  },
+  "back out the last": {
+   "undo": 1
+  },
+  "back out that": {
+   "undo": 1
+  },
+  "back out your": {
+   "undo": 1
+  },
+  "back out my": {
+   "undo": 1
+  },
+  "walk back the last": {
+   "undo": 1
+  },
+  "walk it back": {
+   "undo": 1
+  },
+  "remove what you just": {
+   "undo": 1
+  },
+  "get rid of what you just": {
+   "undo": 1
+  },
+  "scratch that": {
+   "undo": 1
+  },
+  "roll back": {
+   "undo": 1
+  },
+  "rollback": {
+   "undo": 1
+  },
+  "how it was": {
+   "undo": 0.8
+  },
+  "what you just did": {
+   "undo": 0.8
+  },
+  "revert": {
+   "undo": 1
+  },
+  "put it back": {
+   "undo": 1
+  },
+  "take that back": {
+   "undo": 1
+  },
+  "go back": {
+   "undo": 0.5
+  },
+  "what is": {
+   "guide": 0.6
+  },
+  "what does": {
+   "guide": 0.5
+  },
+  "explain": {
+   "guide": 0.8
+  },
+  "meaning": {
+   "guide": 0.8
+  },
+  "where is": {
+   "guide": 1
+  },
+  "where do i": {
+   "guide": 1
+  },
+  "how do i": {
+   "guide": 0.9
+  },
+  "show me where": {
+   "guide": 1
+  },
+  "find the button": {
+   "guide": 1
+  },
+  "what can you": {
+   "agent": 1
+  },
+  "are you able": {
+   "agent": 1
+  },
+  "show me": {
+   "charts": 0.5
+  },
+  "let me see": {
+   "charts": 0.7
+  },
+  "lemme see": {
+   "charts": 0.7
+  },
+  "gimme": {
+   "charts": 0.6
+  },
+  "give me": {
+   "charts": 0.4
+  },
+  "switch": {
+   "charts": 0.7
+  },
+  "switch over": {
+   "charts": 0.8
+  },
+  "change to": {
+   "charts": 0.8
+  },
+  "change it to": {
+   "charts": 0.9
+  },
+  "throw up": {
+   "charts": 0.8
+  },
+  "put up": {
+   "charts": 0.8
+  },
+  "load up": {
+   "charts": 0.8
+  },
+  "load": {
+   "charts": 0.5
+  },
+  "open up": {
+   "charts": 0.6
+  },
+  "replace": {
+   "charts": 0.6
+  },
+  "instead of": {
+   "charts": 0.6
+  },
+  "flip": {
+   "charts": 0.7
+  },
+  "take a look at": {
+   "charts": 0.7
+  },
+  "check out": {
+   "charts": 0.6
+  },
+  "view": {
+   "charts": 0.4
+  },
+  "swap out": {
+   "charts": 0.7
+  },
+  "move to": {
+   "charts": 0.4
+  },
+  "go to": {
+   "charts": 0.4
+  },
+  "oops": {
+   "undo": 1
+  },
+  "whoops": {
+   "undo": 1
+  },
+  "my bad": {
+   "undo": 1
+  },
+  "mistake": {
+   "undo": 0.8
+  },
+  "wrong": {
+   "undo": 0.7
+  },
+  "back to before": {
+   "undo": 1
+  },
+  "before that": {
+   "undo": 0.6
+  },
+  "reverse": {
+   "undo": 0.8
+  },
+  "ctrl z": {
+   "undo": 1
+  },
+  "ctrl-z": {
+   "undo": 1
+  },
+  "cmd z": {
+   "undo": 1
+  },
+  "cmd-z": {
+   "undo": 1
+  },
+  "command z": {
+   "undo": 1
+  },
+  "control z": {
+   "undo": 1
+  },
+  "not what i wanted": {
+   "undo": 1
+  },
+  "not what i asked": {
+   "undo": 0.8
+  },
+  "never mind that": {
+   "undo": 0.6
+  },
+  "take it back": {
+   "undo": 1
+  },
+  "restore": {
+   "undo": 0.4,
+   "charts": 0.3
+  },
+  "the way it was": {
+   "undo": 1
+  },
+  "let me know": {
+   "alerts": 1
+  },
+  "heads up": {
+   "alerts": 1
+  },
+  "warn me": {
+   "alerts": 1
+  },
+  "alert me": {
+   "alerts": 1
+  },
+  "text me": {
+   "alerts": 0.9
+  },
+  "buzz me": {
+   "alerts": 0.9
+  },
+  "notify": {
+   "alerts": 1
+  },
+  "tell me if": {
+   "alerts": 1
+  },
+  "flag me": {
+   "alerts": 0.9
+  },
+  "breaks above": {
+   "alerts": 0.8
+  },
+  "breaks below": {
+   "alerts": 0.8
+  },
+  "drops below": {
+   "alerts": 0.8
+  },
+  "falls below": {
+   "alerts": 0.8
+  },
+  "goes above": {
+   "alerts": 0.8
+  },
+  "gets above": {
+   "alerts": 0.8
+  },
+  "trades above": {
+   "alerts": 0.8
+  },
+  "trades below": {
+   "alerts": 0.8
+  },
+  "crosses": {
+   "alerts": 0.6,
+   "indicatorAlerts": 0.5
+  },
+  "touches": {
+   "alerts": 0.6
+  },
+  "if it hits": {
+   "alerts": 0.9
+  },
+  "when it hits": {
+   "alerts": 0.9
+  },
+  "2 up": {
+   "chartGrid": 1
+  },
+  "3 up": {
+   "chartGrid": 1
+  },
+  "4 up": {
+   "chartGrid": 1
+  },
+  "6 up": {
+   "chartGrid": 1
+  },
+  "8 up": {
+   "chartGrid": 1
+  },
+  "two up": {
+   "chartGrid": 1
+  },
+  "three up": {
+   "chartGrid": 1
+  },
+  "four up": {
+   "chartGrid": 1
+  },
+  "six up": {
+   "chartGrid": 1
+  },
+  "eight up": {
+   "chartGrid": 1
+  },
+  "up with": {
+   "chartGrid": 0.5
+  },
+  "what people say": {
+   "data": 1
+  },
+  "what people are saying": {
+   "data": 1
+  },
+  "saying about": {
+   "data": 0.9
+  },
+  "chatter": {
+   "data": 0.9
+  },
+  "sentiment": {
+   "data": 0.8
+  },
+  "article*": {
+   "data": 0.9
+  },
+  "press release*": {
+   "data": 1
+  },
+  "read about": {
+   "data": 0.9
+  },
+  "stories": {
+   "data": 0.8
+  },
+  "coverage": {
+   "data": 0.6
+  },
+  "buzz": {
+   "data": 0.6
+  },
+  "wipe": {
+   "drawings": 0.9
+  },
+  "erase": {
+   "drawings": 0.9
+  },
+  "all my lines": {
+   "drawings": 1
+  },
+  "all the lines": {
+   "drawings": 1
+  },
+  "scribble*": {
+   "drawings": 0.9
+  },
+  "clean the chart": {
+   "drawings": 0.8
+  },
+  "clean up the chart": {
+   "drawings": 0.8
+  },
+  "read the chart": {
+   "chartSetup": 1
+  },
+  "what do you see": {
+   "chartSetup": 1
+  },
+  "analy*": {
+   "chartSetup": 0.7,
+   "data": 0.3
+  },
+  "technical picture": {
+   "chartSetup": 1
+  },
+  "how does the chart look": {
+   "chartSetup": 1
+  },
+  "how does it look": {
+   "chartSetup": 0.8
+  },
+  "chart look": {
+   "chartSetup": 0.6
+  },
+  "technicals": {
+   "chartSetup": 0.8
+  },
+  "boards": {
+   "layouts": 0.7
+  },
+  "my board": {
+   "layouts": 0.7
+  },
+  "switch boards": {
+   "layouts": 1
+  },
+  "saved setup": {
+   "layouts": 0.7
+  },
+  "load my": {
+   "layouts": 0.6
+  },
+  "movers": {
+   "screener": 0.9
+  },
+  "gappers": {
+   "screener": 1
+  },
+  "gapping": {
+   "screener": 0.8
+  },
+  "which names": {
+   "screener": 0.9
+  },
+  "what names": {
+   "screener": 0.9
+  },
+  "show me stocks": {
+   "screener": 1
+  },
+  "anything breaking out": {
+   "screener": 0.9
+  },
+  "momentum names": {
+   "screener": 1
+  },
+  "ideas": {
+   "screener": 0.6
+  },
+  "gainers": {
+   "screener": 1
+  },
+  "losers": {
+   "screener": 1
+  },
+  "runners": {
+   "screener": 0.9
+  },
+  "biggest movers": {
+   "screener": 1
+  },
+  "up the most": {
+   "screener": 1
+  },
+  "down the most": {
+   "screener": 1
+  },
+  "add a * panel": {
+   "workspace": 1
+  },
+  "add a * widget": {
+   "workspace": 1
+  },
+  "add the * panel": {
+   "workspace": 1
+  },
+  "add the * widget": {
+   "workspace": 1
+  },
+  "add a * module": {
+   "workspace": 0.9
+  },
+  "open a * panel": {
+   "workspace": 0.9
+  },
+  "* panel to": {
+   "workspace": 0.6
+  }
+ },
+ "related": {
+  "indicators": [
+   "indicatorSetup",
+   "indicatorAlerts"
+  ],
+  "indicatorSetup": [
+   "indicators"
+  ],
+  "indicatorAlerts": [
+   "indicators",
+   "alerts"
+  ],
+  "charts": [
+   "chartSetup",
+   "indicators"
+  ],
+  "chartSetup": [
+   "charts"
+  ],
+  "chartGrid": [
+   "charts",
+   "workspace",
+   "indicators"
+  ],
+  "workspace": [
+   "boardEdit",
+   "chartGrid",
+   "charts"
+  ],
+  "boardEdit": [
+   "workspace"
+  ],
+  "drawings": [
+   "drawingTools"
+  ],
+  "drawingTools": [
+   "drawings"
+  ],
+  "screener": [
+   "lists",
+   "workspace"
+  ],
+  "lists": [
+   "workspace",
+   "screener"
+  ],
+  "alerts": [
+   "indicatorAlerts"
+  ],
+  "layouts": [
+   "workspace"
+  ],
+  "data": [
+   "charts"
+  ],
+  "definitions": [
+   "indicators"
+  ]
+ },
+ "entities": {
+  "pctmove": {
+   "screener": 0.9
+  },
+  "tickerinfo": {
+   "data": 1
+  },
+  "periodchange": {
+   "data": 0.9
+  },
+  "tickercharts": {
+   "workspace": 1,
+   "chartGrid": 0.8
+  }
+ }
+}

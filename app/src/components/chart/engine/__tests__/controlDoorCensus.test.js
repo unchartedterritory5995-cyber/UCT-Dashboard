@@ -405,7 +405,13 @@ describe('the control-door census — how many doors, and whether an eighth exis
   // the real, imperfect backstop) sat here RED and was waved through by every
   // lane that hit it: nobody triages a red they believe they already understand.
   it('every whole-blob site the regex finds is in BULK_BLOB_SITES, named and reasoned', () => {
-    const bulk = filesMatching(/PRESETS\s*\[|CHART_DEFAULTS\s*\)\s*\)?/)
+    // ⛔ `\bPRESETS` (2026-11-08): without the word boundary the pattern matched ANY
+    // identifier ENDING in PRESETS — `agent/guide/slots.js` (6098400f83, 2026-11-05) indexes
+    // its own `GRID_PRESETS[...]`, a list of Multi-Chart grid LAYOUT phrases that never touches
+    // chart_settings, and it read as a whole-blob site. The subject is the chart-settings
+    // `PRESETS` table; `X.PRESETS[` still matches (`.` is a boundary). Every BULK_BLOB_SITES
+    // entry still matches, which the `stale` check below proves on every run.
+    const bulk = filesMatching(/\bPRESETS\s*\[|CHART_DEFAULTS\s*\)\s*\)?/)
 
     // ⛔ NON-VACUITY FIRST, AND THAT ORDER IS LOAD-BEARING (fix round 1 minor:
     // measured, this used to sit LAST — after `unlisted`/`stale` — so a
@@ -972,6 +978,11 @@ describe('the control-door census — how many doors, and whether an eighth exis
         // indicator, or unticking it again is an identity no-op — stuck); `exists` keeps
         // the old answer for listing (D3)
         'app/src/components/chart/indicatorRegistry.js',
+        // ⭐ RS 4-11 (8d4238578a, 2026-11-08) — a READER, not a door: isTouredFirstAdd asks
+        // whether a definition went `absent` -> present between two blobs (the first add
+        // that opens a `meta.tour`). It writes nothing; it is shared by the Library dialog
+        // and Chart Settings -> Indicators so the two add doors agree on what a first add is
+        'app/src/components/chart/legend/indicatorTour.js',
       ],
     }
     expect(Object.keys(A1).filter(n => typeof theWriter[n] !== 'function'),

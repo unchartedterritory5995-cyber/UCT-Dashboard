@@ -1,0 +1,12 @@
+//@version=5
+indicator("hp pivots", overlay=true)
+ph = ta.pivothigh(high, 5, 5)
+pl = ta.pivotlow(low, 5, 5)
+var float lastH = na
+var float lastL = na
+if not na(ph)
+    lastH := ph
+if not na(pl)
+    lastL := pl
+plot(lastH, "lastH")
+plot(lastL, "lastL")

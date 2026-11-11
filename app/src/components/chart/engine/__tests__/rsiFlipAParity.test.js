@@ -84,14 +84,15 @@ const LWC_LINE_DEFAULTS_RESTATED = {
   pointMarkersVisible: false, // lineStyleDefaults.pointMarkersVisible
   pointMarkersRadius: 3,  // no LWC default — inert while pointMarkersVisible is false
   lineVisible: true,     // lineStyleDefaults.lineVisible ("Last value horizontal" turns it off)
-  // seriesOptionsDefaults.priceFormat.precision. The legacy RSI block sets no
-  // `priceFormat` at all, so this IS a restatement: LWC's `merge` recurses into
-  // a nested plain object, leaving the series' own `minMove: 0.01` in place, and
-  // the resulting format is the one a fresh series already had. It is emitted on
+  // seriesOptionsDefaults.priceFormat.{precision, minMove}. The legacy RSI block
+  // sets no `priceFormat` at all, so this IS a restatement: 2 and 0.01 are the
+  // values a fresh series already has. `minMove` is stated since decision B1
+  // (2026-11-07) because LWC rounds to it, so it must follow `precision`
+  // (`10^-precision`); at 2 decimals that is LWC's own 0.01. It is emitted on
   // every pool key so that `plots[].precision` — validated by `defSchema` for any
   // plot and, until now, read only for histograms — actually reaches the series,
   // and so a pooled series cannot inherit the last tenant's decimals.
-  priceFormat: { type: 'price', precision: 2 },
+  priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
   // B3 carry #1. The second entry with no LWC default — the option is absent from
   // `LineSeries.defaultOptions` entirely and `_internal_autoscaleInfo` branches on
   // `!== undefined`. `AUTOSCALE_DEFAULT` is the IDENTITY provider (`base =>

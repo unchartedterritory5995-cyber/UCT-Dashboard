@@ -2,6 +2,9 @@
 
 Run with: python -m api.flow_worker_main  (Railway: FLOW_WORKER_ENABLED=1)
 
+Redeploy trigger 2026-11-08 (video + YouTube embeds): substack_article.py is statically reachable from this worker but off
+its watch list. The Substack poller runs on web, so this only keeps the rail honest.
+
 Redeploy trigger 2026-10-11: ships the flow_exposure_history.py empty-store fix (a
 stranded file; it rides along with this watched one).
 
@@ -245,6 +248,12 @@ import threading
 import time
 import logging
 from contextlib import asynccontextmanager
+
+
+# ⛔ SECURITY (2026-11-10): redact credential query params (Massive `apiKey=`) in
+# every log record -- this pod's httpx/Massive clients log URLs carrying the key.
+from api.services.log_redaction import install as _install_log_redaction
+_install_log_redaction()
 
 from fastapi import FastAPI
 import uvicorn
@@ -630,6 +639,54 @@ def _start_flow_schedulers():
             log.info("[startup] auto-push scanners registered (single=60s, accum=300s)")
         except Exception as e:  # noqa: BLE001
             log.warning("auto-push scanner scheduling failed: %s", e)
+
+        try:
+            # flow.db corruption canary (2026-11-09). flow.db corrupted TWICE
+            # that day and BOTH times the onset minute had rolled out of the
+            # logs before anyone looked, which is why the cause is still open.
+            # A cheap read-only probe on a schedule turns "we noticed hours
+            # later" into "here is the minute it happened, with context".
+            #
+            # ⛔⛔ TWO JOBS, AND THE SPLIT IS THE POINT. The fast tick is a BOUNDED
+            # WRITE-HEAD READ (max_id + the newest N rows by explicit id window).
+            # It must never run `quick_check`: measured 2026-11-09 on the live
+            # 10.7GB file, `quick_check(1)` alone ran past 600 s without finishing,
+            # because it verifies every page of every btree and the `(1)` bounds
+            # ERRORS REPORTED, not bytes read. At FLOW_CANARY_SEC=300 with
+            # coalesce=True that is not a 5-minute probe, it is a permanent 10.7GB
+            # read loop beside the OPRA write path — on the very volume that
+            # corrupted twice that day — and a tick that never finishes never logs
+            # the onset it exists to catch.
+            #
+            # The whole-file proof runs ONCE DAILY at a quiet hour instead, on the
+            # closed tape, where many minutes of scanning costs nothing.
+            from apscheduler.triggers.interval import IntervalTrigger as _IT
+            from apscheduler.triggers.cron import CronTrigger as _CT
+            from api import flow_integrity_canary as _canary
+            _canary_sec = int(os.environ.get("FLOW_CANARY_SEC", "300"))
+            if _canary_sec > 0:
+                sched.add_job(_canary.run_tick,
+                              trigger=_IT(seconds=_canary_sec),
+                              id="flow_integrity_canary", max_instances=1,
+                              coalesce=True, replace_existing=True)
+                n += 1
+                log.info("[startup] flow.db write-head canary registered (every %ds)", _canary_sec)
+            else:
+                log.info("[startup] flow.db write-head canary DISABLED (FLOW_CANARY_SEC=0)")
+
+            # 03:30 ET: tape closed, no gap to lose, and clear of the 05:30 syncs.
+            if os.environ.get("FLOW_CANARY_FULL_ENABLED", "1") == "1":
+                sched.add_job(_canary.run_full_tick,
+                              trigger=_CT(hour=3, minute=30,
+                                          timezone=ZoneInfo("America/New_York")),
+                              id="flow_integrity_canary_full", max_instances=1,
+                              coalesce=True, replace_existing=True)
+                n += 1
+                log.info("[startup] flow.db FULL quick_check registered (daily 03:30 ET)")
+            else:
+                log.info("[startup] flow.db FULL quick_check DISABLED")
+        except Exception as e:  # noqa: BLE001
+            log.warning("flow integrity canary scheduling failed: %s", e)
 
         try:
             # Daily OI snapshot (5:30 AM ET) — captures Schwab live OI for
@@ -1130,6 +1187,14 @@ def main():
     _start_recent_cache_warmer()  # keep /recent snapshot cache hot (cold-load fix)
     _start_rest_side_heal()  # recover sides for big blank whales via REST NBBO (dark)
     _sched = _start_flow_schedulers()  # noqa: F841 - held alive for process lifetime
+    # OBSERVE ONLY (2026-11-06): see api/services/mem_observe.py. Reads only; MEM_OBSERVE_ENABLED=0 stops it.
+    # It also logs per-file page-cache residency (MEM_OBSERVE_FILES=0 stops that part). mem_observe.py is NOT
+    # on flow-worker's watch list: a change there alone never redeploys this service; touch this file too.
+    try:
+        from api.services import mem_observe
+        mem_observe.start("flow-worker", mem_observe.FLOW_WORKER_TARGETS)
+    except Exception as e:  # noqa: BLE001 -- observation must never stop the flow-worker booting
+        log.warning("[memobs] not started: %s", type(e).__name__)
     app = _build_app()
     port = int(os.environ.get("PORT", "8080"))
     # timeout_graceful_shutdown=5 mirrors web/worker: reach lifespan.shutdown ->

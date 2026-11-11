@@ -43,6 +43,7 @@ from fastapi import APIRouter, Query, Request, HTTPException, Depends
 # already used by darkpool_router / dealer_positioning_router / flow_gap_autofill.
 from api.flow_admin_auth import require_flow_admin, require_flow_user
 from api.sqlite_one_step import fetch_rows_one_step
+from api.services.mem_observe import bump as _memobs_bump   # OBSERVE ONLY (2026-11-06): would-have counters
 from datetime import date, datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 import sqlite3
@@ -340,7 +341,68 @@ DEFAULT_THRESHOLDS = {
     # a fresh quote still reads ask-side, else relabel neutral. Closes the stale/
     # per-exchange NBBO inversions (COIN sold-put->Bear, META sold-call->Bull).
     "side_confirm_enabled": True,
-    "side_confirm_max_age_ms": 2000,    # consolidated quote must be this fresh
+    "side_confirm_max_age_ms": 2000,    # LIVE-path quote must be this fresh
+    # Confirm against the NBBO as it stood AT THE FILL (the quote just before the
+    # trade), not a live quote now (2026-11-03). A clean at-ask print on a thin,
+    # slow-quoting LEAP then still confirms, while an inside-the-spread fill does
+    # not (CBRS 2026-11-02: $32.20 inside $31.10/$32.30 => ambiguous => suppress).
+    "side_confirm_use_fill_nbbo": True,
+    # The pre-fill quote must be at most this fresh to be TRUSTED for a directional
+    # label. A stale book on a thin LEAP is unreliable for BOTH sides, so anything
+    # older abstains -> suppresses (DASH 2026-11-04: a 25s-stale 29.70/30.00 book
+    # confirmed a 29.50 below-bid print as "bear"; a 6.8s-stale 29.75/31.25 book hid
+    # a genuine 30.00 ask-lift). 2.5s keeps clean prints on slow-quoting names while
+    # dropping stale-book guesses. Was 30000 (too loose) until 2026-11-04.
+    "side_confirm_fill_lookback_ms": 2500,  # pre-fill quote must be this fresh to trust
+    "side_confirm_ask_tol": 0.005,      # fill within this of ask(bid) = clean at-ask
+    # When the side can't be confirmed: True = SUPPRESS the push entirely (only
+    # directional flow goes out — owner directive 2026-11-02); False = fall back
+    # to the old behavior of pushing a neutral "Large Ask Build (Unverified)".
+    "side_unconfirmed_suppress": True,
+    # ── Dark-pool-paired BLOCK = hedge, not a directional bet (2026-11-04) ──
+    # An options BLOCK (not a sweep) that prints alongside a large dark-pool
+    # equity block on the SAME underlying within the pairing window is a hedge
+    # package, not conviction (PINS 2026-11-04: 6000 ATM puts @ ask + a 246k-share
+    # dark-pool block, same second). One Massive REST equity-trades call at push
+    # time; fail-closed. Default: neutralize to a "Hedge Block" card (matches the
+    # heavy_block_premium precedent). block_darkpool_hedge_suppress=True drops it
+    # entirely instead. Only BLOCK candidates reach the call (sweeps/ML skip it).
+    "block_darkpool_hedge_enabled": True,
+    "block_dp_window_ms": 3000,        # dark-pool print within +/- this of the block fill
+    "block_dp_min_shares": 50000,      # a single dark-pool print this big = a real block
+    "block_darkpool_hedge_suppress": False,  # False = neutral Hedge card; True = suppress
+    # ── Aggregate fair-NBBO side gate (2026-11-05) — Alpha LEAPS / Ask Accum ──
+    # The single-print side_confirm is the wrong test for an AGGREGATE build: one
+    # representative fill can read at-ask by luck (a two-sided algo inflated into
+    # "100% ask Conviction A" — META 680C 2026-11-05 @ 51% ask) OR a hair inside
+    # the spread / on a slow-quoting LEAP the 2.5s fill-lookback can't confirm
+    # (PFE 28C 2026-11-05, 100% ask, pre-fill quote 35s stale -> wrongly dropped).
+    # So for these two tiers, classify the CONTRACT's whole session tape vs the
+    # NBBO-at-each-fill and require the dominant premium side >= aggregate_side_min
+    # AND matching the claimed direction; else neutralize. Fail-OPEN on a data gap
+    # (keep the label — never drop a real build over a quotes hiccup). Replaces
+    # side_confirm for alpha_leaps/ask_accum only; single-print tiers keep it.
+    "aggregate_side_enabled": True,
+    "aggregate_side_min": 0.67,                 # dominant premium fraction required
+    # ── Fair-NBBO ask aggregate (2026-11-09) — DARK by default ─────────────
+    # The Alpha LEAPS / Ask Accumulation aggregates are summed from the stored
+    # `Side`, which on a busy day is ~86% blank from Q-pool churn. The ledger
+    # admits blank-side SWEEPs but not blank-side BLOCKs, so a real build can
+    # grade at a fraction of its size: measured 2026-11-09, CRWD 280C 12/17/27
+    # summed to $5.57M of a true $13.31M (the missing $7.75M was blank blocks)
+    # and PANW 410C 12/17/27 to $6.87M of $10.29M. The tier then also fired on
+    # whichever SMALL print happened to carry an A side ($713K on CRWD).
+    # When enabled, a contract whose WHOLE-TAPE premium clears
+    # fair_ask_min_total_premium is re-measured against NBBO-at-fill via
+    # _session_fair_dominant (same method the push veto already trusts); if the
+    # tape is ask-dominant at >= aggregate_side_min, its fair ask premium
+    # replaces the stored-Side aggregate and any non-bid print on it becomes
+    # tier-eligible. Fail-OPEN: no tape/quotes = stored behaviour, unchanged.
+    # Costs REST calls, so it is candidate-gated in SQL and capped per scan.
+    "fair_ask_aggregate_enabled": False,        # ⚠️ DARK — arm after backtest
+    "fair_ask_min_total_premium": 3_000_000,    # contract must clear this on the WHOLE tape
+    "fair_ask_max_lookups": 12,                 # max REST-measured contracts per scan
+    "aggregate_side_unclean_suppress": False,   # False = neutral card; True = drop
     # ── Flow bar (2026-10-31) — card DISPLAY only ──────────────────────────
     # Render the directional one-sidedness as a colored ANSI bar (green bull /
     # red bear fill, amber opposing side) on CONFIRMED directional cards. False
@@ -422,6 +484,21 @@ DEFAULT_THRESHOLDS = {
     # neutral Size row instead — real size shouldn't vanish on an uncertain side
     # (UW's own doc: a fill at the bid is "not necessarily a sell"). 0 disables.
     "keep_sizeless_min_premium": 1000000,
+    # REST side-recovery (2026-11-04). A big print's Side is written BLANK at
+    # ingest and only filled in later by the worker's NBBO re-pass once the Q-pool
+    # re-covers the contract — which can lag the 10-min auto-push window. So a
+    # genuine directional print (MU 700C 11/4: a $73.7M ask SWEEP) sits side-less
+    # while it could still fire: it never counts in the net-flow split, and its
+    # real side ('A') lands only AFTER the window closed — the owner had to push it
+    # by hand. When a blank-Side print this big appears, resolve the side NOW from
+    # the CONSOLIDATED REST NBBO as it stood at the fill (the same source the
+    # side-confirm gate uses) instead of waiting for the re-pass, so it is
+    # directional in-window. Today's prints only; memoized. A fresh at/through ask
+    # -> 'A', at/through bid -> 'BB'; inside-the-spread / no fresh quote stays
+    # neutral (unchanged). 0 floor / enabled=false disables.
+    "rest_side_recover_enabled": True,
+    "rest_side_recover_min_premium": 1000000,  # only resolve a blank Side this big
+    "rest_side_recover_max_age_ms": 2500,      # pre-fill quote must be this fresh
     # Heavy-block hedge de-direction (2026-07-26). A single BLOCK of this premium
     # or larger is treated as a dark-pool hedge / structural print, not a
     # directional bet: its Bull/Bear is dropped so it surfaces as a neutral
@@ -1202,6 +1279,95 @@ def _build_session_long_ledger(rows) -> dict:
     return {rid: totals.get(key, 0.0) for rid, key in row_key.items()}
 
 
+# ── Corrupt-page resilience (2026-11-09 incident) ────────────────────────────
+# flow.db's TABLE b-tree can carry a corrupt page region. Observed 2026-11-09:
+# ~195 rows at id 47750390-47750585, written ~10:21 ET. SQLite then raises
+# "database disk image is malformed" on ANY scan whose b-tree traversal crosses
+# that region, which took down the curated feed, the Market Read, the
+# by-contract panel AND the whole Discord auto-push scheduler for 1h+ while
+# ingestion stayed perfectly healthy (massive_ws_worker kept writing).
+#
+# Neither obvious remedy works:
+#   • DELETE on the bad span fails — the delete must READ the page it chokes on.
+#   • Shrinking the scan LIMIT does not dodge it — the curated subset still
+#     reaches back past the span (LIMIT 20000 failed), and the ask ledger has
+#     no LIMIT at all.
+# What DOES work is an explicitly-bounded seek: `WHERE id >= ? AND id < ?` over
+# a range that excludes the bad window reads cleanly, because SQLite can descend
+# straight to those rowids instead of traversing across the damage.
+#
+# So: run each scan normally, and only if it reports a malformed image, re-run it
+# as bounded newest-first id windows, bisecting a failing window down to
+# _FLOW_SCAN_MIN_WINDOW so we drop only the genuinely unreadable ids. Losing a
+# few hundred prints beats losing every alert for the rest of the session. The
+# skipped spans are logged loudly so the real repair (rebuild flow.db off-hours)
+# still gets done.
+_FLOW_SCAN_WINDOW = int(os.environ.get("MASSIVE_FLOW_SCAN_WINDOW", "25000"))
+_FLOW_SCAN_MIN_WINDOW = int(os.environ.get("MASSIVE_FLOW_SCAN_MIN_WINDOW", "256"))
+
+
+def _is_malformed_db(e: Exception) -> bool:
+    """True for SQLite's corrupt-page error, which is what a damaged flow.db page
+    raises. Any OTHER DatabaseError (locked, I/O, schema) must still propagate —
+    silently windowing around those would hide real faults."""
+    return isinstance(e, sqlite3.DatabaseError) and "malformed" in str(e).lower()
+
+
+def _fetch_id_window(run, lo: int, hi: int, skipped: list):
+    """Fetch [lo, hi) via `run`, bisecting on corruption so only the unreadable
+    sub-span is dropped. Newer half first so DESC ordering survives."""
+    try:
+        return list(run(" AND id >= ? AND id < ?", (lo, hi)))
+    except sqlite3.DatabaseError as e:
+        if not _is_malformed_db(e):
+            raise
+        if hi - lo <= _FLOW_SCAN_MIN_WINDOW:
+            skipped.append((lo, hi))
+            return []
+        mid = (lo + hi) // 2
+        out = _fetch_id_window(run, mid, hi, skipped)
+        out.extend(_fetch_id_window(run, lo, mid, skipped))
+        return out
+
+
+def _resilient_fetch(conn, run, source_clause: str, today: str, sym_clause: str,
+                     sym_params, limit: int | None = None, label: str = "flow-scan"):
+    """Run `run(id_clause, id_params)` unbounded; on a corrupt-page error, retry
+    as bounded id windows and skip what stays unreadable. Returns the rows."""
+    try:
+        return list(run("", ()))
+    except sqlite3.DatabaseError as e:
+        if not _is_malformed_db(e):
+            raise
+        logging.getLogger(__name__).error(
+            "[massive] %s hit a corrupt flow.db page — retrying in bounded id windows", label)
+
+    # Index-only bounds (idx_flow_source_date_id covers source,CreatedDate,id), so
+    # this does not touch the damaged table pages.
+    try:
+        lo_id, hi_id = conn.execute(
+            f"SELECT MIN(id), MAX(id) FROM flow WHERE {source_clause} AND CreatedDate = ?{sym_clause}",
+            (today, *sym_params)).fetchone()
+    except sqlite3.DatabaseError:
+        lo_id, hi_id = None, None
+    if lo_id is None or hi_id is None:
+        return []
+
+    rows: list = []
+    skipped: list = []
+    hi = int(hi_id) + 1
+    lo_id = int(lo_id)
+    while hi > lo_id and (limit is None or len(rows) < limit):
+        lo = max(lo_id, hi - _FLOW_SCAN_WINDOW)
+        rows.extend(_fetch_id_window(run, lo, hi, skipped))
+        hi = lo
+    if skipped:
+        logging.getLogger(__name__).error(
+            "[massive] %s SKIPPED %d corrupt id span(s), ~%d ids: %s — rebuild flow.db off-hours",
+            label, len(skipped), sum(b - a for a, b in skipped), skipped[:5])
+    return rows[:limit] if limit else rows
+
+
 def _session_ledgers(conn, source_clause: str, today: str, sym_clause: str = "",
                      sym_params=()) -> tuple:
     """(thresholds, gross_before, ask_prem_ledger, ask_vol_ledger) for one day —
@@ -1225,14 +1391,19 @@ def _session_ledgers(conn, source_clause: str, today: str, sym_clause: str = "",
     ask_accum_on = th.get("ask_accum_enabled", True)
     if not (close_on or alpha_leaps_on or ask_accum_on):
         return th, {}, {}, {}
-    ledger_rows = conn.execute(f"""
-        SELECT id, Symbol, CallPut, Strike, ExpirationDate, Side, Volume, Premium, Type
-          FROM flow
-         WHERE {source_clause} AND CreatedDate = ?{sym_clause}
-           AND (Side IN ('A','AA','B','BB')
-                OR (COALESCE(Side,'') = ''
-                    AND (UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%')))
-    """, (today, *sym_params)).fetchall()
+    def _run_ledger(id_clause, id_params):
+        return conn.execute(f"""
+            SELECT id, Symbol, CallPut, Strike, ExpirationDate, Side, Volume, Premium, Type
+              FROM flow
+             WHERE {source_clause} AND CreatedDate = ?{sym_clause}
+               AND (Side IN ('A','AA','B','BB')
+                    OR (COALESCE(Side,'') = ''
+                        AND (UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%')))
+               {id_clause}
+        """, (today, *sym_params, *id_params)).fetchall()
+
+    ledger_rows = _resilient_fetch(conn, _run_ledger, source_clause, today,
+                                   sym_clause, sym_params, label="session-ledger")
     presume = bool(th.get("sweep_empty_side_as_ask", True))
     gross_before = _build_session_long_ledger(ledger_rows) if close_on else {}
     prem = (_build_session_ask_premium_ledger(ledger_rows, presume_sweep_ask=presume)
@@ -1423,7 +1594,8 @@ def _demote_contaminated_sell(a: dict, gross_ask_map: dict, thresholds: dict) ->
 
 
 def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None,
-                       agg_ask_premium: float = 0.0, agg_ask_volume: float = 0.0):
+                       agg_ask_premium: float = 0.0, agg_ask_volume: float = 0.0,
+                       fair_ask_dominant: bool = False):
     """Returns (alertName, tier_key, tier_priority), or None if the row
     is a WHITE color that didn't qualify for premium-override promotion.
 
@@ -1481,6 +1653,19 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
 
     is_leaps = dte >= 180
     side_is_ask = side in ("A", "AA")
+    # Fair-NBBO contract override (2026-11-09, DARK behind fair_ask_aggregate_enabled).
+    # The aggregate tiers grade a CONTRACT but gate on the PRINT's own side, so a
+    # build whose big prints came back blank from Q-pool churn fired on whichever
+    # small print happened to carry an A — CRWD 280C 12/17/27 surfaced as a $713K
+    # alert on a $13.31M position, and MRNA 370C 3/19/27 had NO A-sided print at
+    # all so no tier could ever fire. When the whole-tape NBBO measurement says
+    # this contract is an ask-dominant build, a BLANK print on it counts as part
+    # of that build.
+    # ⛔ A CONFIRMED bid print (B/BB) is never flipped — ask-dominance is a
+    # property of the contract, not evidence about a fill we actually sided, and
+    # flipping it would invent a buyer out of a measured seller.
+    if fair_ask_dominant and not side_is_ask and side not in ("B", "BB"):
+        side_is_ask = True
 
     # Direction-aware tier key: Bull → "bullish", Bear → "bearish".
     # Both share priority 3 in TIER_PRIORITY, just rendered in different
@@ -1816,7 +2001,8 @@ def _compute_conviction(premium: int, oi: int, volume: int,
 
 def _row_to_alert(row: dict, require_direction: bool = True,
                   agg_ask_premium: float = 0.0,
-                  agg_ask_volume: float = 0.0) -> dict | None:
+                  agg_ask_volume: float = 0.0,
+                  fair_ask_dominant: bool = False) -> dict | None:
     """Translate a FlowDB row to the alert shape LiveFlow.jsx expects.
     Returns None if the row should be skipped (e.g., unclassified side).
 
@@ -1827,6 +2013,7 @@ def _row_to_alert(row: dict, require_direction: bool = True,
     lottery, spread legs) is still dropped. Side accuracy itself is a separate,
     worker-side fix; here we just stop the broken sides from hiding real repeats.
     """
+    row = dict(row)   # local copy: REST side-recovery below may set row["Side"]
     cp_full = row["CallPut"]
     cp_short = "C" if cp_full == "CALL" else ("P" if cp_full == "PUT" else "")
     side = row["Side"] or ""
@@ -1835,6 +2022,31 @@ def _row_to_alert(row: dict, require_direction: bool = True,
     spot = _parse_float(row["Spot"])
     money_pct, money_label = _moneyness(strike, spot, cp_full)
     premium = _parse_int(row["Premium"])
+
+    # REST side-recovery (2026-11-04): a blank Side on a big print means the NBBO
+    # re-pass hasn't caught up (Q-pool churn). Resolve it from the consolidated
+    # REST NBBO-at-fill NOW so the print is directional IN the auto-push window and
+    # counts in the net-flow split, instead of waiting for the re-pass (which
+    # lagged past the window on MU 700C 11/4 — a $73.7M ask SWEEP that never
+    # auto-fired). Today's prints only (no REST storm when browsing history);
+    # memoized. Runs BEFORE _derive_direction so every downstream guard (deep-ITM,
+    # heavy-block) still applies to the recovered side.
+    if not (side or "").strip():
+        try:
+            _rs_thr = _load_thresholds()
+            _rs_on = _rs_thr.get("rest_side_recover_enabled", True)
+            _rs_floor = _rs_thr.get("rest_side_recover_min_premium", 1_000_000)
+        except Exception:
+            _rs_thr, _rs_on, _rs_floor = DEFAULT_THRESHOLDS, True, 1_000_000
+        _type_up_rs = (row.get("Type", "") or "").upper().strip().strip("/")
+        _aggr_rs = ("SWEEP" in _type_up_rs or "ISO" in _type_up_rs or "BLOCK" in _type_up_rs
+                    or _type_up_rs in ("BLK", "BL", "BT", "S", "SW", "IS"))
+        if (_rs_on and _aggr_rs and premium and _rs_floor and premium >= _rs_floor
+                and str(row.get("CreatedDate") or "") == _today_mdyyyy()):
+            _rs = _rest_side_recover(row, _rs_thr)
+            if _rs:
+                side = _rs
+                row["Side"] = _rs
 
     direction = _derive_direction(cp_full, side, row.get("Type", ""),
                                   vol=_parse_int(row.get("Volume")), oi=_parse_int(row.get("OI")))
@@ -2094,7 +2306,8 @@ def _row_to_alert(row: dict, require_direction: bool = True,
     else:
         result = _derive_alert_name(row, direction, money_pct=money_pct,
                                     agg_ask_premium=agg_ask_premium,
-                                    agg_ask_volume=agg_ask_volume)
+                                    agg_ask_volume=agg_ask_volume,
+                                    fair_ask_dominant=fair_ask_dominant)
     if result is None:
         return None  # WHITE row that didn't qualify for premium override
     alert_name, tier_key, tier_priority = result
@@ -2235,6 +2448,8 @@ def _cached_single_flight(cache_dict, key, lock, ttl, compute):
         return hit[1]
     if not lock.acquire(blocking=False):
         if hit is not None:
+            if now - hit[0] > 86400:                   # OBSERVE ONLY (mem_observe): a 24 h eviction would miss here
+                _memobs_bump("lm_single_flight_stale_over24h")
             return hit[1]                              # serve stale; another refreshes
         with lock:                                    # cold first-ever: compute once
             h2 = cache_dict.get(key)
@@ -2819,6 +3034,8 @@ def recent_massive_alerts(
         _fill_lock, _got = _acquire_or_steal_fill(ck)
         if _got:
             _spawn_recent_fill(ck, today, limit, min_grade, sort_by, tier, curated, _fill_lock)
+        if time.time() - hit[0] > 86400:               # OBSERVE ONLY (mem_observe): a 24 h eviction would miss here
+            _memobs_bump("lm_recent_today_stale_over24h")
         return hit[1]
     # TODAY, cold — kick a fill (lease-aware). NEVER blank the feed once a key has
     # filled once: serve last-good (marked warming) instead of an empty stub. This
@@ -2828,6 +3045,7 @@ def recent_massive_alerts(
         _spawn_recent_fill(ck, today, limit, min_grade, sort_by, tier, curated, _fill_lock)
     _lg = _recent_last_good.get(ck) if _RECENT_SELFHEAL else None
     if _lg is not None:
+        _memobs_bump("lm_recent_last_good_served")     # OBSERVE ONLY (mem_observe): how often the fallback is used
         _out = dict(_lg)
         _out["warming"] = True   # stale fallback served while the fresh fill runs
         return _out
@@ -2867,7 +3085,8 @@ def _incr_prepare(today: str):
             _alert_cache_day = today
 
 
-def _incr_classify(r, agg_ask_premium: float = 0.0, agg_ask_volume: float = 0.0):
+def _incr_classify(r, agg_ask_premium: float = 0.0, agg_ask_volume: float = 0.0,
+                   fair_ask_dominant: bool = False):
     """Cached _row_to_alert. Reuse the classification only when the row is
     byte-unchanged since last seen (hash of its column values); re-classify on any
     change. Returns a COPY so downstream mutation (net-flow demote, _hitCount) can't
@@ -2882,13 +3101,19 @@ def _incr_classify(r, agg_ask_premium: float = 0.0, agg_ask_volume: float = 0.0)
     was the live-feed blocker that kept the PPTA build off /live-massive even after
     the ledger fix (incremental_scan is ON in prod)."""
     rid = r["id"]
-    h = hash((tuple(r), round(agg_ask_premium, 2), round(agg_ask_volume, 2)))
+    # fair_ask_dominant is part of the fingerprint for the same reason the
+    # aggregates are: it accrues during the session (a contract becomes
+    # ask-dominant partway through), so a row cached as "not a build" before the
+    # tape tipped must reclassify once it has.
+    h = hash((tuple(r), round(agg_ask_premium, 2), round(agg_ask_volume, 2),
+              bool(fair_ask_dominant)))
     ent = _alert_cache.get(rid)
     if ent is not None and ent[0] == h:
         cached = ent[1]
         return dict(cached) if cached is not None else None
     fresh = _row_to_alert(dict(r), agg_ask_premium=agg_ask_premium,
-                          agg_ask_volume=agg_ask_volume)
+                          agg_ask_volume=agg_ask_volume,
+                          fair_ask_dominant=fair_ask_dominant)
     _alert_cache[rid] = (h, fresh)
     return dict(fresh) if fresh is not None else None
 
@@ -3008,18 +3233,26 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
             sym_clause = " AND Symbol IN (%s)" % ",".join("?" for _ in only_symbols)
             sym_params = [str(s).upper() for s in only_symbols]
         def _scan(src_clause):
-            return conn.execute(f"""
-                SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
-                       Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
-                       Color, Dte, ER, StockEtf, Sector, Uoa, Weekly, MktCap, OI
-                  FROM flow
-                 WHERE {src_clause}
-                   AND CreatedDate = ?{sym_clause}
-                   AND (Color IN ('MAGENTA', 'YELLOW')
-                        OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))
-                 ORDER BY id DESC
-                 LIMIT ?
-            """, (today, *sym_params, override_sql_floor, sql_limit)).fetchall()
+            # Corrupt-page resilient (2026-11-09): a damaged table page in flow.db
+            # used to raise "database disk image is malformed" here and take the
+            # ENTIRE curated feed + auto-push scheduler down for the session.
+            def _run(id_clause, id_params):
+                return conn.execute(f"""
+                    SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
+                           Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
+                           Color, Dte, ER, StockEtf, Sector, Uoa, Weekly, MktCap, OI
+                      FROM flow
+                     WHERE {src_clause}
+                       AND CreatedDate = ?{sym_clause}
+                       AND (Color IN ('MAGENTA', 'YELLOW')
+                            OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))
+                       {id_clause}
+                     ORDER BY id DESC
+                     LIMIT ?
+                """, (today, *sym_params, override_sql_floor, *id_params, sql_limit)).fetchall()
+
+            return _resilient_fetch(conn, _run, src_clause, today, sym_clause,
+                                    sym_params, limit=sql_limit, label="curated-scan")
 
         if etf_enabled and past_closed:
             # PAST date, market closed: one LIMIT PER SOURCE (2026-10-03). A heal
@@ -3043,6 +3276,13 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
         # projection; cache it (watermark) if it ever strains RTH.
         _close_th, _gross_before, _ask_prem_ledger, _ask_vol_ledger = _session_ledgers(
             conn, source_clause, today, sym_clause, sym_params)
+        # Fair-NBBO ask aggregate for the session's BIG contracts (2026-11-09).
+        # Resolved ONCE PER CONTRACT here, never per row: it makes REST calls, and
+        # _row_to_alert runs over up to 80k rows (a per-row call would re-create the
+        # ~70s classify pin that wedged the WS keepalive on 2026-08-05). Returns {}
+        # when the feature is dark, so the row loop below is unchanged by default.
+        _fair_ask_by_contract = _fair_ask_ledger(
+            conn, source_clause, today, _close_th, sym_clause, sym_params)
     finally:
         conn.close()
 
@@ -3069,9 +3309,18 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
             time.sleep(_FILL_YIELD_SEC)   # release GIL so the WS keepalive breathes
         _r_ap = _ask_prem_ledger.get(r["id"], 0.0)
         _r_av = _ask_vol_ledger.get(r["id"], 0.0)
-        a = (_incr_classify(r, agg_ask_premium=_r_ap, agg_ask_volume=_r_av)
+        # Fair-NBBO override: the tape says this contract is an ask-dominant build,
+        # so grade its REAL ask size instead of the blank-crippled stored-Side sum,
+        # and let this row qualify on the contract's side rather than its own.
+        _r_fair = _fair_ask_by_contract.get(
+            (r["Symbol"], r["CallPut"], r["Strike"], r["ExpirationDate"])) if _fair_ask_by_contract else None
+        if _r_fair and _r_fair > _r_ap:
+            _r_ap = _r_fair
+        a = (_incr_classify(r, agg_ask_premium=_r_ap, agg_ask_volume=_r_av,
+                            fair_ask_dominant=bool(_r_fair))
              if _incremental
-             else _row_to_alert(dict(r), agg_ask_premium=_r_ap, agg_ask_volume=_r_av))
+             else _row_to_alert(dict(r), agg_ask_premium=_r_ap, agg_ask_volume=_r_av,
+                                fair_ask_dominant=bool(_r_fair)))
         if a is None:
             skipped_unclassified += 1
             continue
@@ -6033,31 +6282,379 @@ def _massive_rest(path: str, params: dict, timeout: float = 4.0):
         return None
 
 
-def _consolidated_nbbo(occ: str):
-    """(bid, ask, quote_age_ms) for the current consolidated NBBO, or None."""
-    now_ns = int(time.time() * 1e9)
-    r = _massive_rest(f"/v3/quotes/{occ}", {"timestamp.lte": now_ns, "order": "desc", "limit": 1})
+def _nbbo_le(occ: str, ts_ns: int):
+    """Raw (bid, ask, quote_sip_ns) for the latest consolidated quote at/before
+    ts_ns, or None. Shared by the live and fill-time confirm paths."""
+    r = _massive_rest(f"/v3/quotes/{occ}", {"timestamp.lte": ts_ns, "order": "desc", "limit": 1})
     res = (r or {}).get("results") or []
     if not res:
         return None
     q = res[0]
-    return (q.get("bid_price"), q.get("ask_price"),
-            (now_ns - (q.get("sip_timestamp") or now_ns)) / 1e6)
+    return (q.get("bid_price"), q.get("ask_price"), q.get("sip_timestamp"))
+
+
+def _consolidated_nbbo(occ: str):
+    """(bid, ask, quote_age_ms) for the CURRENT consolidated NBBO (age vs now)."""
+    now_ns = int(time.time() * 1e9)
+    nb = _nbbo_le(occ, now_ns)
+    if not nb:
+        return None
+    bid, ask, qts = nb
+    return (bid, ask, (now_ns - (qts or now_ns)) / 1e6)
+
+
+def _nbbo_at(occ: str, ts_ns: int):
+    """(bid, ask, age_before_fill_ms) for the NBBO as it stood AT the fill — the
+    last consolidated quote at/before ts_ns. age = fill_ts - quote_ts."""
+    nb = _nbbo_le(occ, ts_ns)
+    if not nb:
+        return None
+    bid, ask, qts = nb
+    return (bid, ask, (ts_ns - (qts or ts_ns)) / 1e6)
+
+
+_RS_MEMO: dict = {}   # (occ, fill_epoch_sec) -> "A" | "BB" | None  (blank-Side REST recovery)
+
+
+def _rest_side_recover(row: dict, thr: dict):
+    """Resolve a BLANK Side from the CONSOLIDATED REST NBBO as it stood at the fill,
+    so a big directional print isn't held side-less while the worker's own NBBO
+    re-pass catches up (which can lag the auto-push window). Returns 'A' (clean
+    at/through ask), 'BB' (clean at/through bid), or None (no fresh quote / inside
+    the spread -> stays neutral). Memoized per (contract, fill-second); one Massive
+    REST quote call; fail-open to None on any gap."""
+    try:
+        sym = str(row.get("Symbol") or "").upper().strip()
+        exp = str(row.get("ExpirationDate") or "")
+        strike = _parse_strike(row.get("Strike"))
+        px = _parse_float(row.get("Price"))
+        cp_full = row.get("CallPut")
+        cp = "C" if cp_full == "CALL" else ("P" if cp_full == "PUT" else "")
+        if not (sym and exp and cp and strike > 0 and px and px > 0):
+            return None
+        em, ed, ey = exp.split("/")
+        occ = (f"O:{sym}{int(ey) % 100:02d}{int(em):02d}{int(ed):02d}"
+               f"{cp}{int(round(strike * 1000)):08d}")
+        ts = _ts_from_row(str(row.get("CreatedDate") or ""), str(row.get("CreatedTime") or ""))
+        if not ts:
+            return None
+    except (TypeError, ValueError, AttributeError):
+        return None
+    mkey = (occ, int(ts))
+    if mkey in _RS_MEMO:
+        return _RS_MEMO[mkey]
+    res = None
+    try:
+        nb = _nbbo_at(occ, int(ts * 1e9))
+        if nb:
+            bid, ask, age_ms = nb
+            max_age = float(thr.get("rest_side_recover_max_age_ms", 2500) or 0)
+            if age_ms is not None and (max_age <= 0 or age_ms <= max_age):
+                b = float(bid) if bid is not None else 0.0
+                a = float(ask) if ask is not None else 0.0
+                if a > 0 and b > 0 and a >= b:
+                    tol = float(thr.get("side_confirm_ask_tol", 0.005) or 0)
+                    if px >= a - tol:
+                        res = "A"
+                    elif px <= b + tol:
+                        res = "BB"
+    except (TypeError, ValueError):
+        res = None
+    if len(_RS_MEMO) > 100_000:
+        _RS_MEMO.clear()
+    _RS_MEMO[mkey] = res
+    return res
 
 
 def _side_confirms(a: dict, thr: dict) -> bool:
-    """True only if a FRESH consolidated NBBO still reads ask-side for the fill.
-    Abstains (False) on a missing / stale / unusable quote — the caller relabels."""
+    """True only if the NBBO confirms a CLEAN aggressive print in the claimed
+    direction. Default (side_confirm_use_fill_nbbo): classify the fill against the
+    consolidated NBBO as it stood AT THE FILL (the quote just before the trade),
+    not a live quote now — so a clean at-ask print on a thin, slow-quoting LEAP
+    still confirms, while an inside-the-spread fill does NOT (CBRS 2026-11-02:
+    $32.20 inside $31.10/$32.30). Clean = at or through the ask (ask-side, the push
+    population) / at or through the bid (bid-side), within side_confirm_ask_tol.
+    Abstains (False) on a missing / too-old / inside-the-spread quote — the caller
+    suppresses."""
     occ = _alert_occ(a)
     if not occ:
         return False
-    nb = _consolidated_nbbo(occ)
+    try:
+        fill = float(a.get("averageFillPrice"))
+    except (TypeError, ValueError):
+        return False
+    ts = a.get("timestamp") or a.get("last_ts")
+    if thr.get("side_confirm_use_fill_nbbo", True) and ts:
+        try:
+            nb = _nbbo_at(occ, int(float(ts) * 1e9))
+        except (TypeError, ValueError):
+            return False
+        max_age = float(thr.get("side_confirm_fill_lookback_ms", 30000) or 0)
+    else:
+        nb = _consolidated_nbbo(occ)
+        max_age = float(thr.get("side_confirm_max_age_ms", 2000) or 0)
     if not nb:
         return False
     bid, ask, age_ms = nb
-    if age_ms is None or age_ms > float(thr.get("side_confirm_max_age_ms", 2000) or 0):
+    if age_ms is None or age_ms > max_age:
         return False
-    return _classify_side_px(a.get("averageFillPrice"), bid, ask) in ("A", "AA")
+    try:
+        bid, ask = float(bid), float(ask)
+    except (TypeError, ValueError):
+        return False
+    if bid <= 0 or ask <= 0 or ask < bid:
+        return False
+    tol = float(thr.get("side_confirm_ask_tol", 0.005) or 0)
+    if (a.get("_side") or "").strip().upper() == "BB":   # bid-side (sold into bid)
+        return fill <= bid + tol
+    return fill >= ask - tol                              # ask-side (A/AA)
+
+
+# ── Aggregate fair-NBBO side gate (2026-11-05) ──────────────────────────────
+# For the AGGREGATE tiers (Alpha LEAPS / Ask Accumulation), the single-print
+# _side_confirms is the wrong test: a build is many prints, and one representative
+# fill can be at-ask by luck (a two-sided algo inflated into "100% ask Conviction
+# A" — META 680C 2026-11-05, truly 51% ask) OR a hair inside the spread / on a
+# slow-quoting LEAP the 2.5s fill-lookback can't confirm (PFE 28C 2026-11-05,
+# 100% ask, pre-fill quote 35s stale — wrongly dropped). Instead classify the
+# CONTRACT's whole session tape against the NBBO-at-each-fill and require the
+# dominant premium side to carry >= aggregate_side_min AND match the claimed
+# direction. Memoized per (occ, session-day); fail-OPEN on a data gap.
+_AGG_SIDE_MEMO: dict = {}   # (occ, day) -> (expiry_epoch, (dom_frac, dom_side, n) | None)
+_AGG_SIDE_TTL = 90.0
+
+
+def _massive_pages(path: str, params: dict, max_pages: int = 4, timeout: float = 6.0):
+    """Paginated Massive REST GET (follows next_url, re-appends apiKey). Returns the
+    concatenated results list; whatever was gathered so far on any failure."""
+    key = os.environ.get("MASSIVE_API_KEY", "")
+    if not key:
+        return []
+    import urllib.request
+    import urllib.parse
+    q = dict(params)
+    q["apiKey"] = key
+    url = f"https://api.massive.com{path}?{urllib.parse.urlencode(q)}"
+    out = []
+    try:
+        for _ in range(max_pages):
+            req = urllib.request.Request(url, headers={"User-Agent": "uct-push-gate"})
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                d = json.load(r)
+            out.extend(d.get("results") or [])
+            nxt = d.get("next_url")
+            if not nxt:
+                break
+            url = nxt + (("&" if "?" in nxt else "?") + "apiKey=" + urllib.parse.quote(key))
+    except Exception:
+        return out
+    return out
+
+
+def _session_fair_dominant(occ: str, ts_hint_ns: int, tol: float = 0.01):
+    """Classify every print of `occ` on its session day against the prevailing
+    NBBO-at-fill. Returns (dom_frac, dom_side, n_classified) or None (no data).
+    dom_side in {'ask','bid'}; dom_frac = max(ask,bid)/(ask+bid) on directional
+    premium (mid excluded from the ratio). This is independent of our Q-pool side
+    coverage — it is the same fair-NBBO method the SMR/side-gate audits use."""
+    from bisect import bisect_right
+    try:
+        day = datetime.fromtimestamp(ts_hint_ns / 1e9, tz=timezone.utc).astimezone(ET).date()
+        start = datetime(day.year, day.month, day.day, tzinfo=ET)
+        n0 = int(start.astimezone(timezone.utc).timestamp() * 1e9)
+        n1 = n0 + 24 * 3600 * 1_000_000_000
+    except Exception:
+        return None
+    trades = _massive_pages(f"/v3/trades/{occ}",
+                            {"timestamp.gte": n0, "timestamp.lte": n1, "order": "asc", "limit": 50000}, 3)
+    if not trades:
+        return None
+    quotes = _massive_pages(f"/v3/quotes/{occ}",
+                            {"timestamp.gte": n0, "timestamp.lte": n1, "order": "asc", "limit": 50000}, 6)
+    if not quotes:
+        return None
+    qt = [q.get("sip_timestamp", 0) for q in quotes]
+    ask = bid = mid = 0.0
+    n = 0
+    for t in trades:
+        px = t.get("price") or 0
+        sz = t.get("size") or 0
+        if px <= 0 or sz <= 0:
+            continue
+        i = bisect_right(qt, t.get("sip_timestamp", 0)) - 1
+        if i < 0:
+            continue
+        q = quotes[i]
+        bp = q.get("bid_price")
+        ap = q.get("ask_price")
+        if not bp or not ap or ap < bp:
+            continue
+        m = (bp + ap) / 2.0
+        prem = px * sz * 100
+        n += 1
+        if px > m + tol:
+            ask += prem
+        elif px < m - tol:
+            bid += prem
+        else:
+            mid += prem
+    dirp = ask + bid
+    if dirp <= 0:
+        return None
+    # 2026-11-09: also return the ask/bid DOLLARS. The fraction alone answers
+    # "does the tape confirm this direction"; the dollars answer "how big is the
+    # ask-side build really", which is what the Alpha LEAPS / Ask Accumulation
+    # aggregates need when our stored Side is mostly blank. Tuple is appended to,
+    # never reordered, so existing unpack sites keep working.
+    return (max(ask, bid) / dirp, "ask" if ask >= bid else "bid", n, ask, bid)
+
+
+def _aggregate_side_decision(dom_frac: float, dom_side: str, direction: str, cp: str, min_frac: float) -> bool:
+    """True = the aggregate tape CONFIRMS the claimed direction (push it); False =
+    neutralize. Ask-dominant = buyers = Bull for calls / Bear for puts. Pure +
+    deterministic — unit-tested against the 2026-11-05 labeled fixture."""
+    if dom_frac < min_frac:
+        return False
+    is_call = str(cp or "").upper().startswith("C")
+    if dom_side == "ask":
+        implied = "Bull" if is_call else "Bear"
+    else:
+        implied = "Bear" if is_call else "Bull"
+    return implied == direction
+
+
+def _aggregate_side_clean(a: dict, thr: dict) -> bool:
+    """Aggregate fair-NBBO side gate for Alpha LEAPS / Ask Accumulation. True = keep
+    the directional claim (push); False = neutralize. Fail-OPEN (True) on any data
+    gap so a quotes hiccup never drops a real build. Memoized per (occ, session-day)."""
+    direction = a.get("_direction")
+    if direction not in ("Bull", "Bear"):
+        return True
+    occ = _alert_occ(a)
+    if not occ:
+        return True
+    ts = a.get("timestamp") or a.get("last_ts")
+    try:
+        ts_ns = int(float(ts) * 1e9) if ts else int(time.time() * 1e9)
+    except (TypeError, ValueError):
+        ts_ns = int(time.time() * 1e9)
+    daykey = datetime.fromtimestamp(ts_ns / 1e9, tz=timezone.utc).astimezone(ET).strftime("%Y-%m-%d")
+    mkey = (occ, daykey)
+    now = time.time()
+    hit = _AGG_SIDE_MEMO.get(mkey)
+    if hit and now < hit[0]:
+        res = hit[1]
+    else:
+        res = _session_fair_dominant(occ, ts_ns)
+        if len(_AGG_SIDE_MEMO) > 20000:
+            _AGG_SIDE_MEMO.clear()
+        _AGG_SIDE_MEMO[mkey] = (now + _AGG_SIDE_TTL, res)
+    if not res:
+        return True   # fail-open: no tape/quotes -> never drop a real build
+    dom_frac, dom_side, _n = res[0], res[1], res[2]
+    min_frac = float(thr.get("aggregate_side_min", 0.67) or 0)
+    return _aggregate_side_decision(dom_frac, dom_side, direction, a.get("cp"), min_frac)
+
+
+def _fair_side_cached(occ: str, ts_ns: int):
+    """`_session_fair_dominant` behind the shared (occ, day) memo. Returns the
+    5-tuple (dom_frac, dom_side, n, ask_prem, bid_prem) or None."""
+    try:
+        daykey = datetime.fromtimestamp(ts_ns / 1e9, tz=timezone.utc).astimezone(ET).strftime("%Y-%m-%d")
+    except Exception:
+        return None
+    mkey = (occ, daykey)
+    now = time.time()
+    hit = _AGG_SIDE_MEMO.get(mkey)
+    if hit and now < hit[0]:
+        return hit[1]
+    res = _session_fair_dominant(occ, ts_ns)
+    if len(_AGG_SIDE_MEMO) > 20000:
+        _AGG_SIDE_MEMO.clear()
+    _AGG_SIDE_MEMO[mkey] = (now + _AGG_SIDE_TTL, res)
+    return res
+
+
+def _fair_ask_ledger(conn, source_clause: str, today: str, thr: dict,
+                     sym_clause: str = "", sym_params=()) -> dict:
+    """{(Symbol, CallPut, Strike, ExpirationDate) -> fair ask premium} for the
+    session's BIG contracts, measured against NBBO-at-fill instead of our stored
+    Side.
+
+    WHY (2026-11-09, measured on CRWD 280C 12/17/27 and PANW 410C 12/17/27):
+    `_build_session_ask_premium_ledger` sums the stored `Side`, and on a busy day
+    ~86% of premium lands blank because of Q-pool churn. It admits blank-side
+    SWEEPs (the 2026-09-05 PPTA fix) but NOT blank-side BLOCKs, so CRWD's build
+    summed to $5.57M of a real $13.31M -- $7.75M of it blank blocks contributing
+    zero -- and PANW's to $6.87M of $10.29M. The tier then graded the wrong
+    number, and separately fired on whichever small print happened to carry an
+    A side.
+
+    This asks the tape instead. `_session_fair_dominant` already classifies EVERY
+    print of a contract against the prevailing NBBO-at-fill (the same method the
+    SMR / side-gate audits use, and the one the push veto already trusts), so it
+    is blind to our Q-pool coverage entirely.
+
+    COST CONTROL -- this makes REST calls, so it must never run per-row:
+      * SQL does the candidate selection (GROUP BY + HAVING), so only contracts
+        whose WHOLE-TAPE premium already clears the floor are considered.
+      * at most `fair_ask_max_lookups` contracts per scan, biggest first.
+      * memoized per (occ, day) for `_AGG_SIDE_TTL`, shared with the push gate.
+      * ML/ is excluded -- multi-leg is non-directional by design.
+    Fail-OPEN everywhere: any gap just leaves the stored-Side aggregate in place.
+    """
+    if not thr.get("fair_ask_aggregate_enabled", False):
+        return {}
+    try:
+        floor = float(thr.get("fair_ask_min_total_premium", 3_000_000) or 0)
+        max_lookups = int(thr.get("fair_ask_max_lookups", 12) or 0)
+        min_frac = float(thr.get("aggregate_side_min", 0.67) or 0)
+    except (TypeError, ValueError):
+        return {}
+    if floor <= 0 or max_lookups <= 0:
+        return {}
+
+    try:
+        cands = conn.execute(f"""
+            SELECT Symbol, CallPut, Strike, ExpirationDate,
+                   SUM(CAST(Premium AS REAL)) AS tot, MAX(ts_ns) AS ts
+              FROM flow
+             WHERE {source_clause} AND CreatedDate = ?{sym_clause}
+               AND UPPER(COALESCE(Type,'')) NOT LIKE '%ML%'
+             GROUP BY Symbol, CallPut, Strike, ExpirationDate
+            HAVING tot >= ?
+             ORDER BY tot DESC
+             LIMIT ?
+        """, (today, *sym_params, floor, max_lookups)).fetchall()
+    except sqlite3.DatabaseError as e:
+        if not _is_malformed_db(e):
+            raise
+        logging.getLogger(__name__).error(
+            "[massive] fair-ask candidate scan hit a corrupt page — skipping this cycle")
+        return {}
+
+    out: dict = {}
+    for row in cands:
+        sym, cp, strike, exp = row[0], row[1], row[2], row[3]
+        ts = row[5]
+        if not ts:
+            continue
+        occ = _alert_occ({"ticker": sym, "exp": exp, "cp": cp, "strike": strike})
+        if not occ:
+            continue
+        res = _fair_side_cached(occ, int(ts))
+        if not res or len(res) < 5:
+            continue
+        dom_frac, dom_side, _n, ask_prem, _bid_prem = res
+        # only override when the tape is clearly ask-dominant; a mixed or
+        # bid-dominant contract keeps the conservative stored-Side number.
+        if dom_side != "ask" or dom_frac < min_frac:
+            continue
+        out[(sym, cp, strike, exp)] = float(ask_prem or 0)
+    if out:
+        logging.getLogger(__name__).info(
+            "[massive] fair-ask ledger: %d/%d candidate contract(s) ask-dominant", len(out), len(cands))
+    return out
 
 
 def _next_ex_div(sym: str):
@@ -6127,6 +6724,51 @@ def _relabel_unverified(a: dict) -> dict:
     out["_sideUnconfirmed"] = True
     out["alertName"] = _UNVERIFIED_NAME
     out["_tierKey"] = "size"
+    return out
+
+
+def _darkpool_paired_block(a: dict, thr: dict) -> bool:
+    """True if a large dark-pool equity block on the underlying printed within the
+    pairing window of this options BLOCK — i.e. a hedge package, not a directional
+    bet (PINS 2026-11-04: 6000 ATM puts bought @ ask + a 246k-share dark-pool block,
+    151ms apart). One Massive REST equity-trades call; dark pool = a FINRA TRF print
+    (exchange 4/9) at/above block_dp_min_shares. Fail-closed (False) on any gap, so
+    a REST outage just lets the normal directional path run."""
+    ticker = str(a.get("ticker") or "").upper().strip()
+    if not ticker:
+        return False
+    ts = a.get("timestamp") or a.get("last_ts")
+    try:
+        fill_ns = int(float(ts) * 1e9)
+    except (TypeError, ValueError):
+        return False
+    win_ms = float(thr.get("block_dp_window_ms", 3000) or 0)
+    min_sh = float(thr.get("block_dp_min_shares", 50000) or 0)
+    lo = fill_ns - int(win_ms * 1e6)
+    hi = fill_ns + int(win_ms * 1e6)
+    r = _massive_rest(f"/v3/trades/{ticker}",
+                      {"timestamp.gte": lo, "timestamp.lte": hi, "order": "asc", "limit": 500})
+    for t in (r or {}).get("results") or []:
+        try:
+            sz = float(t.get("size") or 0)
+        except (TypeError, ValueError):
+            sz = 0.0
+        is_dp = t.get("exchange") in (4, 9) or (t.get("trf_id") is not None)
+        if is_dp and sz >= min_sh:
+            return True
+    return False
+
+
+def _relabel_dp_hedge(a: dict) -> dict:
+    """COPY with direction stripped, labeled a neutral Hedge Block — a dark-pool-
+    paired block renders as size, not a bull/bear lean. Original feed row untouched."""
+    out = dict(a)
+    out["_direction"] = None
+    out["_directionUnconfirmed"] = True
+    out["_sideUnconfirmed"] = True
+    out["alertName"] = "UCT Size - Hedge Block"
+    out["_tierKey"] = "size"
+    out["_dpHedge"] = True
     return out
 
 
@@ -6564,9 +7206,45 @@ def _apply_auto_push(alerts: list, mode: str = "single", live: bool = True):
                 _thr = _load_thresholds()
                 if _is_dividend_play(a, _thr):
                     continue   # dividend-capture arbitrage — never push
-                if (_thr.get("side_confirm_enabled", True)
+                # Dark-pool-paired BLOCK = a hedge package, not a directional bet
+                # (PINS 2026-11-04). Compute once (it makes one REST call). Takes
+                # precedence over the side-confirm below: whatever the side reads,
+                # a block tied to a coincident dark-pool equity block is not a bet.
+                _dp_hedge = (_thr.get("block_darkpool_hedge_enabled", True)
+                             and a.get("_direction") in ("Bull", "Bear")
+                             and "BLOCK" in (a.get("_type") or "").upper()
+                             and _darkpool_paired_block(a, _thr))
+                if _dp_hedge and _thr.get("block_darkpool_hedge_suppress", False):
+                    continue   # hedge — drop entirely
+                if _dp_hedge:
+                    push_alert = _relabel_dp_hedge(a)   # neutral Hedge Block card
+                elif ((a.get("_tierKey") or "") in ("alpha_leaps", "ask_accum")
+                        and _thr.get("aggregate_side_enabled", True)
+                        and a.get("_direction") in ("Bull", "Bear")):
+                    # AGGREGATE tiers use the whole-tape fair-NBBO dominance test,
+                    # NOT the single-print side_confirm: a build's one representative
+                    # fill is unreliable in BOTH directions (false 100%-ask on a two-
+                    # sided algo; false drop on a slow-quoting LEAP). _aggregate_side_
+                    # clean fails OPEN on a data gap. Neutralize (not suppress) by
+                    # default so real size still posts; aggregate_side_unclean_suppress
+                    # flips to a hard drop.
+                    if not _aggregate_side_clean(a, _thr):
+                        if _thr.get("aggregate_side_unclean_suppress", False):
+                            continue
+                        push_alert = _relabel_unverified(a)   # neutral card; feed row untouched
+                    else:
+                        _stamp_flow_split(push_alert, a, _flow)   # confirmed dir -> Flow line
+                elif (_thr.get("side_confirm_enabled", True)
                         and a.get("_direction") in ("Bull", "Bear")
                         and not _side_confirms(a, _thr)):
+                    # Side can't be freshly confirmed. Owner directive 2026-11-02:
+                    # post directional flow ONLY — so SUPPRESS rather than push a
+                    # neutral "Unverified" copy. Not claimed, so a later scan that
+                    # DOES confirm the side can still push it directionally within
+                    # the push window. Flip side_unconfirmed_suppress=false to
+                    # restore the neutral relabel-and-push behavior.
+                    if _thr.get("side_unconfirmed_suppress", True):
+                        continue
                     push_alert = _relabel_unverified(a)   # neutral card; feed row `a` untouched
                 elif a.get("_direction") in ("Bull", "Bear"):
                     _stamp_flow_split(push_alert, a, _flow)   # confirmed dir -> Flow line
@@ -7056,6 +7734,9 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         # sweep_empty_side_as_ask above (missing 7/3 → 7/16).
         "direction_max_itm_pct",     # deep-ITM cap above which direction is dropped
         "keep_sizeless_min_premium", # premium floor to keep a direction-less print as neutral Size
+        "rest_side_recover_enabled",      # resolve a blank Side from REST NBBO instead of waiting for the re-pass
+        "rest_side_recover_min_premium",  # only recover a blank Side at/above this premium
+        "rest_side_recover_max_age_ms",   # pre-fill REST quote must be this fresh to recover a side
         "heavy_block_premium",       # $10M+ BLOCK => drop direction, show as neutral hedge Size
         "net_flow_min_ratio",        # feed-side two-way-flow demote threshold
         "hide_sizeless",             # hide direction-unconfirmed rows from curated
@@ -7082,7 +7763,13 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
                                      # without a 400; the code no longer reads it.
         # Push-quality gates (2026-10-29): ex-dividend exclusion + side fresh-confirm.
         "dividend_excl_enabled", "dividend_excl_days", "dividend_extrinsic_buffer",
-        "side_confirm_enabled", "side_confirm_max_age_ms",
+        "side_confirm_enabled", "side_confirm_max_age_ms", "side_unconfirmed_suppress",
+        "side_confirm_use_fill_nbbo", "side_confirm_fill_lookback_ms", "side_confirm_ask_tol",
+        "block_darkpool_hedge_enabled", "block_dp_window_ms", "block_dp_min_shares",
+        "block_darkpool_hedge_suppress",
+        # Aggregate fair-NBBO side gate (2026-11-05): Alpha LEAPS / Ask Accumulation
+        "aggregate_side_enabled", "aggregate_side_min", "aggregate_side_unclean_suppress",
+        "fair_ask_aggregate_enabled", "fair_ask_min_total_premium", "fair_ask_max_lookups",
         "flow_bar_enabled",          # colored ANSI flow bar on directional cards (display only)
     }
     bad_keys = set(body.keys()) - allowed_top

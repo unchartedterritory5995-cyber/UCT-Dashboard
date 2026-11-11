@@ -299,7 +299,7 @@ describe('TERM-063 — an observer hears every key and can answer none', () => {
   const observers = SHORTCUTS.filter((d) => d.observe === true)
 
   it('NON-VACUITY: the registry declares an observer, and every observer is exactly { any: true }', () => {
-    expect(observers.map((d) => d.id)).toEqual(['notebook.inputKind', 'tickerPopup.escapeGate'])
+    expect(observers.map((d) => d.id)).toEqual(['notebook.inputKind', 'agent.guideEscapeGate', 'tickerPopup.escapeGate'])
     for (const d of observers) expect(d.chord).toEqual({ any: true })
   })
 
@@ -478,7 +478,9 @@ describe('TERM-063 — declared == registered (derived by AST)', () => {
     const undeclared = [...reg.keys()].filter((id) => !declared.has(id))
     expect(orphanDecls, 'declared but registered by nothing — delete the declaration').toEqual([])
     expect(undeclared, 'registered but never declared — declare it in SHORTCUTS').toEqual([])
-    expect(reg.get('palette.toggle')).toEqual(['components/CommandPalette.jsx'])
+    // The gate holds the binding until the palette lands, then the palette holds it. Never both:
+    // registerShortcuts throws on a second live owner, and CommandPaletteGate.test.jsx drives the handover.
+    expect([...reg.get('palette.toggle')].sort()).toEqual(['components/CommandPalette.jsx', 'components/CommandPaletteGate.jsx'])
   })
 })
 

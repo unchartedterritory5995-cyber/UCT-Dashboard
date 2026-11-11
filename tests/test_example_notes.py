@@ -1,7 +1,7 @@
 """P3b Task 3: an author's EXAMPLE NOTE -- the preview, the publish, held revisions and the style link.
 
-The service is `api/services/journal_two/template_gallery.py` (`preview_example`, `publish_example`,
-`example_enabled`); the routes are `POST /api/j2/template-gallery/examples/preview` and
+The service is `api/services/journal_two/template_gallery.py` (`preview_example`, `publish_example`; always on
+since the example switch was retired, 2026-11-04); the routes are `POST /api/j2/template-gallery/examples/preview` and
 `POST /api/j2/template-gallery/examples` in `api/routers/notebook_template_gallery.py`.
 
 ⛔ A change entry's `before` is the author's own text. It is handed to the author's preview and is
@@ -31,7 +31,7 @@ REPLACED = "made your value here on NVDA, up your value here, at your broker"
 
 @pytest.fixture
 def ex_on(monkeypatch, lib_on):
-    monkeypatch.setenv("NOTEBOOK_EXAMPLE_NOTES_ENABLED", "1")
+    """Was the flag's switch; the capability is always on since the flag was retired (2026-11-04)."""
 
 
 def _as(api, user_id, role="member", plan="pro"):
@@ -492,59 +492,6 @@ def test_images_on_must_be_a_list_of_addresses(api, conn, ex_on, ocr, bad):
 
 # ── 7. the switches ─────────────────────────────────────────────────────────────────────────
 
-def test_with_the_example_switch_off_both_routes_404_and_the_list_says_so(api, conn, lib_on, monkeypatch, ocr):
-    sid = _shared_style(conn)
-    nid = _note(conn)
-    monkeypatch.setenv("NOTEBOOK_EXAMPLE_NOTES_ENABLED", "0")
-    assert gallery.library_enabled() and not gallery.example_enabled()
-    assert gallery.preview_example(conn, "author", nid, []) is None             # the service says so too
-    assert gallery.publish_example(conn, "author", nid, sid, [], "Plan") is None
-    assert api.post(f"{EX}/preview", json={"noteId": nid}).status_code == 404
-    assert api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Plan"}).status_code == 404
-    listed = api.get(URL)
-    # P4b: the list answer carries layout sharing's capability beside this one (off here: its switches are unset).
-    assert listed.status_code == 200 and listed.json()["capabilities"] == {"exampleNotes": False, "layoutSharing": False}
-    # control: the same requests with the switch on
-    monkeypatch.setenv("NOTEBOOK_EXAMPLE_NOTES_ENABLED", "1")
-    assert api.get(URL).json()["capabilities"] == {"exampleNotes": True, "layoutSharing": False}
-    assert api.post(f"{EX}/preview", json={"noteId": nid}).status_code == 200
-    assert api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Plan"}).status_code == 200
-
-
-def test_the_example_switch_needs_the_library_switch(api, conn, monkeypatch, ocr):
-    monkeypatch.setenv("NOTEBOOK_EXAMPLE_NOTES_ENABLED", "1")
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    nid = _note(conn)
-    assert not gallery.example_enabled()
-    assert api.post(f"{EX}/preview", json={"noteId": nid}).status_code == 404
-    assert api.post(EX, json={"noteId": nid, "styleItemId": "x", "title": "Plan"}).status_code == 404
-    assert api.get(URL).json()["capabilities"] == {"exampleNotes": False, "layoutSharing": False}
-
-
-def test_the_switch_off_404_comes_before_the_plan_check(api, conn, lib_on, monkeypatch, ocr):
-    monkeypatch.setenv("NOTEBOOK_EXAMPLE_NOTES_ENABLED", "0")
-    _as(api, "author", plan="free")
-    assert api.post(f"{EX}/preview", json={}).status_code == 404
-    assert api.post(EX, json={}).status_code == 404
-    monkeypatch.setenv("NOTEBOOK_EXAMPLE_NOTES_ENABLED", "1")
-    assert api.post(f"{EX}/preview", json={}).status_code == 402                     # control: the plan check is there
-    assert api.post(EX, json={}).status_code == 402
-
-
-def test_an_example_row_reads_as_absent_while_its_switch_is_off(api, conn, ex_on, ocr, monkeypatch):
-    sid = _shared_style(conn)
-    nid = _note(conn)
-    gid = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Plan"}).json()["template"]["id"]
-    assert gallery.get_item("author", gid, conn=conn) is not None                    # control
-    assert gid in {p["id"] for p in gallery.admin_queue(conn=conn)["pending"]}
-    monkeypatch.setenv("NOTEBOOK_EXAMPLE_NOTES_ENABLED", "0")
-    assert gallery.get_item("author", gid, conn=conn) is None
-    assert gallery.get_item("admin", gid, is_admin=True, conn=conn) is None
-    assert gid not in {p["id"] for p in gallery.admin_queue(conn=conn)["pending"]}
-    assert gallery.admin_act("admin", gid, "approve", reviewed_updated_at="x", conn=conn) is None
-    assert _row(conn, gid) is not None                                                  # stored, never deleted
-
-
 def test_an_example_is_never_listed_on_its_own(api, conn, ex_on, ocr):
     sid = _shared_style(conn, approve=True)
     nid = _note(conn)
@@ -571,23 +518,6 @@ def test_an_example_is_never_listed_on_its_own(api, conn, ex_on, ocr):
 
 
 # ── 8. the rate limit ───────────────────────────────────────────────────────────────────────
-
-def test_an_authors_examples_leave_your_submissions_while_the_switch_is_off(api, conn, ex_on, ocr, monkeypatch):
-    """P3b-R12's other half: with the example switch off, an example reads as absent in the author's own list
-    too (the rows stay stored), and a rejected one keeps its reviewer's note while it is listed."""
-    sid = _shared_style(conn, approve=True)
-    nid = _note(conn)
-    item = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Plan"}).json()["template"]
-    gallery.admin_act("admin", item["id"], "reject", note="Shows an account number.",
-                      reviewed_updated_at=item["updatedAt"], conn=conn)
-    row = {t["id"]: t for t in gallery.list_gallery("author", section="mine", conn=conn)}[item["id"]]
-    assert (row["status"], row["reviewNote"]) == ("rejected", "Shows an account number.")
-    monkeypatch.setenv(gallery.EXAMPLE_FLAG, "0")
-    ids = {t["id"] for t in gallery.list_gallery("author", section="mine", conn=conn)}
-    assert item["id"] not in ids
-    assert sid in ids                                                                   # control: the style stays
-    assert _row(conn, item["id"]) is not None                                           # stored, never deleted
-
 
 def test_your_submissions_names_the_style_a_row_shares_and_nobody_else_sees_it(api, conn, ex_on, ocr):
     """P3b-T5-R7 (review I-1): the author's `mine` row for a shared style carries `sourceStyleId` -- the Share
@@ -785,23 +715,6 @@ def test_publish_refuses_a_connection_with_an_open_transaction_and_leaves_it_alo
     assert conn.in_transaction
     assert conn.execute("SELECT title FROM j2_notes WHERE id = ?", (nid,)).fetchone()[0] == "caller work"
     conn.rollback()
-
-
-def test_the_example_switch_parses_exactly_as_flag_on(monkeypatch, lib_on):
-    """M-1 / P3b-T3-R2: the server-only read and the one parse agree on every value form."""
-    from api.services.notebook_flags import flag_on
-    forms = [None, "", "1", "true", "yes", "on", "0", "false", "no", "off", "TRUE", "True", " 1 ", " on ",
-             "Yes\n", "\tOFF", "flase", "2", "enabled", " "]
-    for raw in forms:
-        if raw is None:
-            monkeypatch.delenv(gallery.EXAMPLE_FLAG, raising=False)
-        else:
-            monkeypatch.setenv(gallery.EXAMPLE_FLAG, raw)
-        assert gallery.example_enabled() == flag_on(gallery.EXAMPLE_FLAG, False), repr(raw)
-    monkeypatch.setenv(gallery.EXAMPLE_FLAG, " 1 ")
-    assert gallery.example_enabled() is True                                          # non-vacuity
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    assert gallery.example_enabled() is False                                         # and it needs the library
 
 
 def test_a_hidden_style_is_not_one_to_link(api, conn, ex_on, ocr):

@@ -287,9 +287,9 @@ class TestRemeasure:
     def test_the_headline_predicate_is_coverage_maps(self):
         from tools.pine_coverage import coverage_map as cm
         assert remeasure.cm.transfers_fully is cm.transfers_fully
-        u = {"features": {"strategy-decl"}, "items": {"strategy.entry"}}
+        u = {"features": {"strategy-decl"}, "items": {"strategy.entry"}, "orders": {"strategy.entry"}}
         assert cm.transfers_fully({"clean": True}, u) is False                 # orders never transfer
-        assert cm.transfers_fully({"clean": True}, {"features": set(), "items": set()}) is True
+        assert cm.transfers_fully({"clean": True}, {"features": set(), "items": set(), "orders": set()}) is True
 
     def test_sync_master_refuses_a_branch_checkout(self, tmp_path):
         repo = tmp_path / "r"

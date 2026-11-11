@@ -185,7 +185,7 @@
   border-radius: 50%;
   background: var(--text-muted);
   transform: translateY(-50%);
-  transition: left 0.15s ease;
+  transition: left var(--duration-fast) var(--ease-out);
 }
 
 .switchOn .knob {
@@ -447,4 +447,29 @@
 .libraryCard .actions {
   justify-content: flex-start;
   margin-top: auto;
+}
+
+/* S9 (M8): "Customize first", the optional door beside Use: a quiet text button, still a full tap target. */
+.linkBtn {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-min);
+  padding: 0 8px;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.linkBtn:hover:not(:disabled) {
+  color: var(--text-primary, var(--text));
+}
+.linkBtn:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
+.linkBtn:disabled {
+  cursor: default;
+  opacity: 0.6;
 }

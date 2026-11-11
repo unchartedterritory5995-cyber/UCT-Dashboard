@@ -141,7 +141,12 @@ from zoneinfo import ZoneInfo
 from api.services import ast_freshness
 from api.services import ast_interpret
 from api.services import ast_table
+from api.services.bars_window import HISTORY_WINDOW_BARS
+from api.services import block_runs
 from api.services import definition_record
+from api.services import pine_runtime_client
+from api.services import runtime_definitions
+from api.services.screener import scan_runtime
 from api.services import scan_definition
 from api.services.nyse_calendar import (
     NYSE_EARLY_CLOSES_YYYYMMDD,
@@ -219,11 +224,12 @@ UNSWEPT_REASON = "budget:market-open"
 #: that fills the disk.
 _DROPPED_LISTED_MAX = 200
 
-#: The bars window, matching `snapshot_builder._read_daily_bars`. Widened only
-#: when the TREE says it needs more -- `max_lookback` is the tree's own
-#: declaration and the same number the repaint linter and the budget read.
+#: The bars window floor. The CEILING is `bars_window.HISTORY_WINDOW_BARS`, the
+#: one history window every server lane reads (design 3.4, R10); this module no
+#: longer declares its own. Widened only when the TREE says it needs more --
+#: `max_lookback` is the tree's own declaration and the same number the repaint
+#: linter and the budget read.
 _MIN_BARS = 400
-_MAX_BARS = 5000
 
 #: ⏳ OWNER -- design §8.5, and it is LESS OPEN THAN IT LOOKS. The sweep lands at a
 #: fixed hour AFTER the 03:00 ET snapshot build; WHICH hour is the owner's.
@@ -1377,6 +1383,349 @@ def _assert_sweep_closes(*, handed: int, swept: int, refused: int,
             f"refused={refused} duplicate={duplicate} unswept={unswept}")
 
 
+def _block_runs_withheld(definition: Any, key: Optional[str], bars: list, scalars: Any,
+                         tf_code: Any, symbol_series: Any, _eval_now: Any) -> Optional[str]:
+    """⭐⭐ C48 / C45 — why the plot this scan runs is withheld on THIS symbol's bars,
+    or ``None``. A Pine document's plot that reads a call whose code runs only on
+    some bars (a ``ta.*`` in an ``if`` block, in one arm of a ``?:``, on the right of
+    a v6 ``and`` / ``or``) carries that code's guard (``meta.blockRuns``); the
+    member's chart refuses the plot, by name, wherever the code runs after a bar it
+    skipped (``engine/blockRuns.js``), and this sweep asks the SAME question of the
+    same guards over the symbol's own bars (``block_runs.block_runs_refusal``).
+    ⛔ UNDER THE OPTS THE TREE ITSELF IS EVALUATED WITH: the dict below is
+    ``evaluate_one``'s ``interpret`` opts, key for key and expression for expression
+    (the parameters carry the same names), held so by
+    ``tests/test_block_runs_server_lanes.py``. Outside ``evaluate_one`` on purpose:
+    that function's one ``interpret`` call is railed by AST, and this one evaluates
+    a guard, not the tree."""
+    if not key:
+        return None
+    opts = {"tf": tf_code,
+            "symbols": symbol_series,
+            "now": _eval_now,
+            "barIndexAbsolute":
+                ast_interpret.bar_index_absolute_for(definition),
+            "varOriginAbsolute":
+                ast_interpret.bar_index_absolute_for(definition),
+            "semantics":
+                ast_interpret.semantics_for(definition)}
+    return block_runs.block_runs_refusal(
+        definition, key,
+        lambda guard: ast_interpret.interpret(guard, bars, scalars=scalars, opts=dict(opts)))
+
+
+# --------------------------------------------------------------------------- #
+# W5-T14 -- the RUNTIME document in the scan lanes
+# (docs/pine/SERVER-RUNTIME-DESIGN.md section 7 T14, 5.1, 3.7 rule 3)
+# --------------------------------------------------------------------------- #
+#
+# A stored RUNTIME document (`compute.kind == "runtime"`: the member's own Pine
+# script, run bar by bar) is scanned by sending its symbols' bars to the
+# pine-runtime service in chunks and reading ONE plot's column at the as-of bar.
+# Everything about it that is not the service's is THIS lane's, and each point has
+# a rail in `tests/test_scan_runtime_lane.py`:
+#
+#   * NOTHING REACHES A MEMBER UNLESS THE ONE ADMISSION SAYS SO. The sweep's
+#     candidate filter, the on-demand door and EVERY CHUNK ask the verdict
+#     (`engine_withheld_reason`) and then `server_lane_refusal` through
+#     `runtime_server_lane` -- the ordered pair, never a second copy of the order.
+#     With `PINE_RUNTIME_SERVER_STAGE` unset that answer is `runtime:server-stage`
+#     for everyone, so no runtime document is swept, run or sent anywhere.
+#   * A REFUSAL IS NEVER A "NO" (3.7 rule 3). A symbol the service WITHHELD is
+#     counted `withheld` -- it was never looked at -- and never `answered`, never
+#     a non-hit. A per-plot refusal is `not_computable`, with the guard's sentence.
+#   * NEVER PARTIAL, NEVER STALE: the client's. This lane adds the receipt rule:
+#     a nightly run with ANY withheld symbol files NO receipt (a receipt for the
+#     symbols that answered would describe the universe as smaller than it is, the
+#     "quiet market" reading `scan_coverage` exists to prevent), and says so in
+#     `coverage_line` and one WARNING.
+#   * BAR TIME UNITS. The store keys a daily bar by a YYYYMMDD int; the runtime
+#     reads `t` as unix SECONDS (a YYYYMMDD read as seconds is August 1970, and
+#     every clock column and `time` would be wrong or blank). A daily bar is sent
+#     at its session's 09:30 America/New_York open in unix seconds -- the chart's
+#     own daily convention (`indicators.js::barOpenInstant`, here
+#     `indicator_compute.bar_open_instant`). An unreadable `t` makes the SYMBOL
+#     `not_computable`; it is never sent as a guess.
+#   * THE AS-OF BAR IS THE LAST BAR SENT. Bars after the run's session are cut
+#     before sending, so a script that reads ahead (a repainting class) cannot see
+#     a session the screen is not answering for.
+#   * ONE PLOT, A 0/1 COLUMN. A scan is `WHERE <plot> != 0`; a runtime document
+#     maps its plots in `compute.outputs`, and only a document with exactly ONE is
+#     scannable (it names no scan plot of its own). A plot holding any value other
+#     than 0, 1 or na is not a condition (`<price> != 0` would return the
+#     universe): that symbol is `not_computable`, named.
+#   * CLOSED BARS ONLY (ruling Q3): the service evaluates closed bars, so the LIVE
+#     mode, which exists to read a forming bar, refuses a runtime document
+#     (`gate:cadence`) -- re-reading closed bars every five minutes would be a true
+#     number implying new information, the failure `cadence_ceiling` exists for.
+#     `_RUNTIME_PROFILES` names the profile live WOULD use (`sweep`, below alerts).
+#   * NO RULE RECORD: `definition_record.record_pass` takes a tree (W5-T16).
+#   * The script runs with its DEFAULT inputs (`runtimeInputs` empty): a stored
+#     document carries no input values of its own.
+
+#: The service profile each mode sends under (design 3.4: one deadline and one retry
+#: policy per profile). `live` is listed because the live job uses `sweep`, below
+#: alerts; it is refused before it is ever used (closed bars only, Q3).
+_RUNTIME_PROFILES = {NIGHTLY: "sweep", LIVE: "sweep", ON_DEMAND: "on-demand"}
+
+#: Symbols per request. The CLIENT's own constant, read, never retyped: the sweep is
+#: sent in chunks of 50 and a chunk is the unit a kill / stage change can reach.
+_RUNTIME_CHUNK = pine_runtime_client.SWEEP_CHUNK
+
+
+
+def _scannable_handle(definition: Any) -> str:
+    """THE ONE QUESTION "is this definition scannable, and what is it filed under" for
+    BOTH document kinds: a tree is asked of ``scan_definition``, a runtime document
+    of ``scan_runtime.runtime_scan_spec``. Raises ``scan_definition.ScanRefused``."""
+    if runtime_definitions.is_runtime(definition):
+        return scan_runtime.runtime_scan_spec(definition)["def_hash"]
+    return scan_definition.assert_scannable(definition)["def_hash"]
+
+
+def _result_handle(definition: Any) -> str:
+    """The identity a stored definition's results are filed under (the sweep's dedupe
+    key): a runtime document's handle, else ``user_definitions.result_identity``."""
+    from api.services import user_definitions
+    if runtime_definitions.is_runtime(definition):
+        return scan_runtime.runtime_scan_spec(definition)["def_hash"]
+    return user_definitions.result_identity(definition)
+
+
+def _runtime_row(definition: Any) -> Mapping[str, Any]:
+    row = getattr(definition, "lane_row", None)
+    if (not isinstance(row, Mapping) or not isinstance(row.get("def_id"), str)
+            or not row.get("def_id") or row.get("version") is None
+            or not row.get("user_id")):
+        raise ScanRunRefused(
+            "not-scannable",
+            "this runtime document reached the scan evaluator without its stored row "
+            "(id, version, owner), so it does not run on the server")
+    return row
+
+
+def _runtime_bar_seconds(bars: Sequence[Mapping[str, Any]]) -> Optional[list]:
+    """The bars with ``t`` in UNIX SECONDS (see the header), or ``None`` when any bar's
+    time cannot be read -- never a partly converted series. The conversion of ONE store
+    key is ``scan_runtime.store_time_seconds``, the single home both lanes should call."""
+    out: list = []
+    for b in bars:
+        secs = scan_runtime.store_time_seconds(b.get("t"))
+        if secs is None:
+            return None
+        out.append({**b, "t": secs})
+    return out
+
+
+def _runtime_coverage_line(def_hash: str, *, universe: int, evaluated: int, answered: int,
+                           dropped: int, not_computable: int, withheld: int,
+                           guards: Mapping[str, int]) -> str:
+    line = (f"runtime scan {def_hash[:24]}: evaluated {evaluated} of {universe} "
+            f"(answered {answered}, dropped {dropped}, not computable {not_computable})")
+    if withheld:
+        line += (f"; WITHHELD {withheld} ("
+                 + ", ".join(f"{g} x{c}" for g, c in sorted(guards.items()))
+                 + ") -- a withheld symbol is not a non-hit")
+    return line
+
+
+def _evaluate_runtime(definition: Any, tf: str, *, universe: Optional[Sequence[str]],
+                      as_of: Optional[Any], limits: Any, mode: str,
+                      tick: Optional[int]) -> dict:
+    """``evaluate_one`` for a RUNTIME document: the same envelope, the same four
+    outcomes (``answered`` / ``dropped`` / ``not_computable`` / ``withheld``), the
+    same closed identities, evaluated by the service. See the section header."""
+    try:
+        spec = scan_runtime.runtime_scan_spec(definition)
+    except scan_definition.ScanRefused as exc:
+        raise ScanRunRefused("not-scannable", str(exc)) from exc
+    def_hash, plot = spec["def_hash"], spec["plot"]
+    tf_code = scan_store._normalise_tf(tf)
+    if tf_code != DEFAULT_TF:
+        raise ScanRunRefused("tf", _wrong_tf_reason(tf_code))
+    if mode == LIVE:
+        raise ScanRunRefused(
+            "cadence",
+            "a runtime script is evaluated on CLOSED bars only (ruling Q3), so "
+            "re-running it every five minutes returns the nightly answer while "
+            "implying new information arrived; the live sweep does not run it")
+    row = _runtime_row(definition)
+    profile = _RUNTIME_PROFILES[mode]
+    refused = scan_runtime.runtime_admission(row, profile, plot)
+    if refused is not None:
+        raise ScanRunRefused("not-scannable", refused[1])
+
+    session = int(scan_store._normalise_as_of(
+        as_of if as_of is not None else expected_session()))
+    if universe is None:
+        universe = snapshot_builder._load_universe()
+    universe = [str(s).strip().upper() for s in (universe or []) if str(s).strip()]
+    if not universe:
+        raise ScanRunRefused(
+            "no-universe",
+            "the sweep was handed no symbols. An empty universe produces an empty "
+            "hit list that is indistinguishable from a quiet market.")
+    kept, limit_withheld, limit_reason = _apply_limits(universe, limits)
+    want = HISTORY_WINDOW_BARS
+    history_withheld = _history_withheld(want, limits)
+    if history_withheld:
+        kept, limit_withheld, limit_reason = [], len(universe), HISTORY_WITHHELD
+
+    hits: list = []
+    hit_rows: list = []
+    unanswered: list = []
+    withheld_listed: list = []
+    guards: dict = {}
+    evaluated = answered = dropped = not_computable = 0
+
+    def _unanswered(sym: str, reason: str, detail: Optional[str] = None) -> None:
+        if len(unanswered) >= _DROPPED_LISTED_MAX:
+            return
+        entry = {"ticker": sym, "reason": reason}
+        if detail:
+            entry["detail"] = detail
+        unanswered.append(entry)
+
+    def _withhold(sym: str, guard: str, sentence: str) -> None:
+        guards[guard] = guards.get(guard, 0) + 1
+        if len(withheld_listed) < _DROPPED_LISTED_MAX:
+            withheld_listed.append({"ticker": sym, "guard": guard, "sentence": sentence[:240]})
+
+    client = None
+    for start in range(0, len(kept), _RUNTIME_CHUNK):
+        chunk = kept[start:start + _RUNTIME_CHUNK]
+        # ⛔ ASKED AGAIN FOR EVERY CHUNK: a kill, a stage step back or a demotion
+        # reaches the next chunk, and what it stops is withheld by name, never run.
+        refused = scan_runtime.runtime_admission(row, profile, plot)
+        if refused is not None:
+            for sym in chunk:
+                _withhold(sym, refused[0], refused[1])
+            continue
+        jobs: list = []
+        sent: dict = {}
+        for offset, sym in enumerate(chunk):
+            bars = _read_bars(sym, tf_code, want)
+            if not bars:
+                evaluated += 1
+                _unanswered(sym, "no-bars")
+                dropped += 1
+                continue
+            index = _last_confirmed_index(bars, session)
+            if index is None:
+                evaluated += 1
+                _unanswered(sym, "stale-bars", detail=f"newest bar {bars[-1].get('t')!r}")
+                dropped += 1
+                continue
+            seconds = _runtime_bar_seconds(bars[:index + 1])
+            if seconds is None:
+                evaluated += 1
+                _unanswered(sym, NOT_COMPUTABLE_REASON,
+                            detail="a bar's time could not be read as a date")
+                not_computable += 1
+                continue
+            job_id = f"{start + offset}:{sym}"
+            jobs.append(pine_runtime_client.Job(job=job_id, ticker=sym, tf=tf_code,
+                                                bars=seconds, want=(plot,)))
+            sent[job_id] = (sym, bars[index].get("t"))
+        if not jobs:
+            continue
+        if client is None:
+            client = _runtime_client()
+        results = client.run(def_id=row["def_id"], version=row["version"], doc=definition,
+                             owner_id=row["user_id"], profile=profile, jobs=jobs)
+        for job, res in zip(jobs, results):
+            sym, bar_time = sent[job.job]
+            run = res.run_refusal()
+            if res.status != "ok" or run is not None:
+                # ⛔ WITHHELD IS WITHHELD: never looked at, never a non-hit.
+                _withhold(sym, run.guard if run else pine_runtime_client.INTEGRITY,
+                          run.sentence if run else "the service answered with no reason")
+                continue
+            evaluated += 1
+            why = res.refusal_for(plot)
+            if why is not None:
+                _unanswered(sym, NOT_COMPUTABLE_REASON,
+                            detail=f"{why.guard}: {why.sentence}"[:160])
+                not_computable += 1
+                continue
+            column = res.columns[plot]
+            value = column[-1]
+            odd = next((x for x in column if not math.isnan(x) and x not in (0.0, 1.0)), None)
+            if odd is not None:
+                _unanswered(sym, NOT_COMPUTABLE_REASON,
+                            detail=f"plot `{plot}` is not a 0/1 condition (it holds {odd!r})")
+                not_computable += 1
+                continue
+            if math.isnan(value):
+                _unanswered(sym, NOT_COMPUTABLE_REASON,
+                            detail=f"plot `{plot}` is na on the as-of bar")
+                not_computable += 1
+                continue
+            answered += 1
+            if value == 1.0:
+                hits.append(sym)
+                hit_rows.append({"symbol": sym, "value": float(value), "bar_time": bar_time})
+
+    runtime_withheld = sum(guards.values())
+    withheld = limit_withheld + runtime_withheld
+    _assert_coverage_closes(evaluated=evaluated, answered=answered, dropped=dropped,
+                            not_computable=not_computable, withheld=withheld,
+                            universe=len(universe))
+    truncated = len(unanswered) < (dropped + not_computable)
+    line = _runtime_coverage_line(
+        def_hash, universe=len(universe), evaluated=evaluated, answered=answered,
+        dropped=dropped, not_computable=not_computable, withheld=withheld,
+        guards=guards)
+    persisted = False
+    if mode == NIGHTLY and not history_withheld and not runtime_withheld:
+        scan_store.record_hits(def_hash, tf_code, session, hits,
+                               values={r["symbol"]: r["value"] for r in hit_rows})
+        scan_store.record_coverage(
+            def_hash, tf_code, session, evaluated=evaluated, answered=answered,
+            dropped=dropped, not_computable=not_computable, dropped_symbols=unanswered,
+            freshness=ast_freshness.UNKNOWN)
+        persisted = True
+    if runtime_withheld:
+        log.warning("[scan] %s -- %s", line,
+                    "NO receipt filed" if mode == NIGHTLY else "nothing is written in this mode")
+    return {
+        "def_hash": def_hash,
+        "rev": definition["compute"].get("rev"),
+        "tf": tf_code,
+        "as_of": session,
+        "freshness": ast_freshness.UNKNOWN,
+        "cadence": None,
+        "snapshot_date": None,
+        "hits": hits,
+        "evaluated": evaluated,
+        "answered": answered,
+        "dropped": dropped,
+        "stale_excluded": 0,
+        "not_computable": not_computable,
+        "withheld": withheld,
+        "withheld_reason": (limit_reason if limit_withheld else
+                            (sorted(guards, key=lambda g: (-guards[g], g))[0] if guards else None)),
+        "runtime_withheld": runtime_withheld,
+        "runtime_withheld_guards": dict(sorted(guards.items())),
+        "runtime_withheld_symbols": withheld_listed,
+        "coverage_line": line,
+        "dropped_symbols": unanswered,
+        "dropped_listed": len(unanswered),
+        "truncated": truncated,
+        "recorded": 0,
+        "record_refused": 0,
+        "hit_rows": hit_rows,
+        "mode": mode,
+        "tick": tick,
+        "persisted": persisted,
+    }
+
+
+def _runtime_client() -> "pine_runtime_client.PineRuntimeClient":
+    """The one door, configured from the environment (a seam the rails replace)."""
+    return pine_runtime_client.client_from_env()
+
+
 def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
                  universe: Optional[Sequence[str]] = None,
                  as_of: Optional[Any] = None,
@@ -1452,6 +1801,11 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
             "no-definition",
             f"a scan is a definition object; got {definition!r}")
 
+    if runtime_definitions.is_runtime(definition):
+        # W5-T14: a stored runtime document is evaluated by the service.
+        return _evaluate_runtime(definition, tf, universe=universe, as_of=as_of,
+                                 limits=limits, mode=mode, tick=tick)
+
     try:
         spec = scan_definition.assert_scannable(definition)
     except scan_definition.ScanRefused as exc:
@@ -1461,6 +1815,11 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
     tree = compute.get("ast")
     rev = compute.get("rev")
     def_hash = spec["def_hash"]
+    # ⭐⭐ C48 / C45 — the gates the member door stamped on the plot this scan runs
+    # (`compute.ast` is that plot's tree), read ONCE; `None` for every document
+    # without them, which is then evaluated exactly as before.
+    scan_key = block_runs.scan_plot_key(definition)
+    scan_gates = block_runs.block_runs_for(definition, scan_key) if scan_key else None
 
     tf_code = scan_store._normalise_tf(tf)
     # ⭐ ONE INSTANT FOR THE WHOLE CALL, HANDED IN. `tick` is the sweep's own
@@ -1566,7 +1925,7 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
         lookback = ast_interpret.max_lookback(tree)
     except ast_interpret.TableRefusal as exc:
         raise ScanRunRefused("not-scannable", str(exc)) from exc
-    want = min(_MAX_BARS, max(_MIN_BARS, lookback + _MIN_BARS))
+    want = min(HISTORY_WINDOW_BARS, max(_MIN_BARS, lookback + _MIN_BARS))
     pad = max(0, lookback - 1)
 
     # 🔴 THE HISTORY AXIS, AND IT STOPS THE WHOLE DEFINITION RATHER THAN TRIMMING
@@ -1840,8 +2199,23 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
                                                    "now": _eval_now,
                                                    "barIndexAbsolute":
                                                        ast_interpret.bar_index_absolute_for(definition),
+                                                   # 2026-11-09 -- and its `var` state began on the
+                                                   # symbol's first bar (`var_origin_mask`)
+                                                   "varOriginAbsolute":
+                                                       ast_interpret.bar_index_absolute_for(definition),
                                                    "semantics":
                                                        ast_interpret.semantics_for(definition)})
+            # ⭐⭐ C48 / C45 — A PLOT THE MEMBER'S CHART WITHHOLDS ON THESE BARS IS
+            # NOT COMPUTABLE HERE EITHER (`_block_runs_withheld`, under the opts
+            # above), never answered off the every-bar value. Asked AFTER the tree.
+            if scan_gates:
+                why = _block_runs_withheld(definition, scan_key, bars, scalars,
+                                           tf_code, symbol_series, _eval_now)
+                if why:
+                    _unanswered(sym, NOT_COMPUTABLE_REASON,
+                                detail=f"{block_runs.BLOCK_RUNS_GUARD}: {why}")
+                    not_computable += 1
+                    continue
             value = column[index]
             if (value is None or isinstance(value, bool)
                     or not isinstance(value, (int, float))
@@ -2059,7 +2433,7 @@ def _resolve_entries(definitions: Sequence[Any]) -> tuple:
     refusals: list = []
     for definition in definitions:
         try:
-            handle = scan_definition.assert_scannable(definition)["def_hash"]
+            handle = _scannable_handle(definition)
         except scan_definition.ScanRefused as exc:
             refused += 1
             refusals.append({"gate": exc.gate, "detail": str(exc)[:200]})
@@ -2500,6 +2874,12 @@ def _run_live_cycle(definitions: Sequence[Any], tf: str, *,
         # it the same way for a direct caller, so the two doors give one answer.
         eligible = []
         for handle, definition in entries:
+            if runtime_definitions.is_runtime(definition):
+                # W5-T14: closed bars only (ruling Q3) -- never a live-cycle run.
+                refused += 1
+                refusals.append({"def_hash": handle, "gate": "cadence",
+                                 "detail": "runtime document: closed bars only (Q3)"})
+                continue
             ceiling = cadence_ceiling(definition["compute"].get("ast"))
             if ceiling and "nightly" in ceiling.split("/"):
                 refused += 1
@@ -2600,6 +2980,7 @@ def definitions_to_sweep() -> list:
     from api.services import user_definitions
     out: list = []
     seen: set = set()
+    not_admitted: dict = {}
     for row in user_definitions.live_definitions():
         definition = row.get("definition")
         if not isinstance(definition, dict):
@@ -2616,8 +2997,29 @@ def definitions_to_sweep() -> list:
         # refusal the member already read.
         if user_definitions.consumer_refusal("sweep", row.get("requirements")):
             continue
+        # ⭐ SAVED-SCRIPT AUTO-UPGRADE — a version today's script engine refuses is
+        # not swept (silent here for the reason above: the member reads it BY NAME
+        # at `routers/user_definitions._stamped`, gate `withheld`).
+        if user_definitions.engine_withheld_reason(row):
+            continue
         compute = definition.get("compute")
-        if not isinstance(compute, dict) or compute.get("kind") != scan_definition.AST_KIND:
+        if runtime_definitions.is_runtime(definition):
+            # W5-T14: admitted only when the lane admission says so, asked per row
+            # on every sweep. Silent per row (the member read the sentence at the
+            # door), counted per guard in one line below.
+            try:
+                plot = scan_runtime.runtime_scan_spec(definition)["plot"]
+            except scan_definition.ScanRefused:
+                # not scannable: handed on, so `run_sweep` refuses it BY NAME (counted
+                # `refused`); it asks for no plot, runs nothing, sends nothing.
+                plot = None
+            refused = (scan_runtime.runtime_admission(row, "sweep", plot)
+                       if plot is not None else None)
+            if refused is not None:
+                not_admitted[refused[0]] = not_admitted.get(refused[0], 0) + 1
+                continue
+            definition = scan_runtime.runtime_scan_doc(row)
+        elif not isinstance(compute, dict) or compute.get("kind") != scan_definition.AST_KIND:
             continue
         # ⭐⭐ DEDUPED BY MATHS **AND SEMANTICS** (owner decision A). The row's
         # `ast_hash` names the tree only, so deduping on it collapsed a semantics-1
@@ -2625,7 +3027,7 @@ def definitions_to_sweep() -> list:
         # came first — and the other's answers were never computed under its own
         # semantics. `result_identity` is the key the sweep files results under.
         try:
-            handle = user_definitions.result_identity(definition)
+            handle = _result_handle(definition)
         except Exception:                                    # noqa: BLE001
             # not hashable: let `run_sweep` refuse it BY NAME, never drop it here
             handle = ("unhashable", row.get("def_id"), row.get("version"))
@@ -2633,6 +3035,9 @@ def definitions_to_sweep() -> list:
             continue
         seen.add(handle)
         out.append(definition)
+    if not_admitted:
+        log.info("[scan] runtime documents not admitted to the sweep: %s",
+                 ", ".join(f"{g} x{c}" for g, c in sorted(not_admitted.items())))
     return out
 
 
@@ -2662,7 +3067,7 @@ def sweep_job() -> None:
     proven = 0
     for definition in definitions:
         try:
-            handle = scan_definition.assert_scannable(definition)["def_hash"]
+            handle = _scannable_handle(definition)
         except Exception:                                    # noqa: BLE001
             continue
         if scan_store.coverage(handle, receipt["tf"], receipt["as_of"]) is not None:

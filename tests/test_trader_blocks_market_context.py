@@ -141,9 +141,7 @@ def test_route_off_free_paid(db_path, sources, monkeypatch):
     app = FastAPI()
     app.include_router(r.router)
     url = "/api/j2/trader-blocks/market-context"
-    monkeypatch.delenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", raising=False)
-    assert TestClient(app).get(url).status_code == 404
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
+    assert TestClient(app).get(url).status_code == 401
     app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": "u1", "role": "member", "plan": "free"}
     assert TestClient(app).get(url).status_code == 402
     app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": "u1", "role": "member", "plan": "pro"}

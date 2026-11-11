@@ -89,8 +89,7 @@ def _url(path: str) -> str:
 def app(db, monkeypatch):
     """Both routers with every switch a door here sits behind turned ON, and a paid admin signed in (the admin doors
     read through `admin_body`)."""
-    for flag in (gallery.FLAG, gallery.LIBRARY_FLAG, gallery.PAGE_LAYOUTS_FLAG, gallery.LAYOUT_SHARING_FLAG,
-                 gallery.EXAMPLE_FLAG, starter_packs.FLAG, js.FLAG):
+    for flag in (gallery.PAGE_LAYOUTS_FLAG, gallery.LAYOUT_SHARING_FLAG):
         monkeypatch.setenv(flag, "1")
     fa = FastAPI()
     fa.include_router(tgr.router)
@@ -275,7 +274,7 @@ PLAIN_READERS = [(m, f) for m, f, calls, _l in BODY_READERS_DERIVED if "loads_pl
 def test_the_derivation_finds_every_reader_the_review_named():
     """Non-vacuity: the five I-2 readers and both A5 readers are in the derived set."""
     found = {(m.rsplit(".", 1)[1], f) for m, f, *_x in BODY_READERS_DERIVED}
-    named = {("notebook_shares", "read_expiry"), ("notebook_personal_api", "_json_body"),
+    named = {("notebook_shares", "_read_share_options"), ("notebook_personal_api", "_json_body"),
              ("notebook_ai_actions", "_read_json"), ("notebook_chart_alerts", "_read_json"),
              ("notebook_writing_help", "_read_payload"),
              ("notebook_template_gallery", "_read_json"), ("notebook_journal_styles", "paid_body")}
@@ -331,7 +330,8 @@ def test_W11_R55_CONTROL_a_malformed_body_keeps_each_readers_own_refusal(module,
     assert e.value.detail != wbody.S_UNREADABLE_BODY, (module, fn)
     assert e.value.status_code in (400, 422), (module, fn, e.value.status_code)
     ok = _read(module, fn, b'{"a": [[1]]}', monkeypatch)                 # and a shallow object is read
-    assert ok is None or isinstance(ok, (dict, int)), (module, fn, ok)
+    # Audit 2026-11-05 S19: the share reader answers (days, hidePnl) from its one parse.
+    assert ok is None or isinstance(ok, (dict, int)) or (isinstance(ok, tuple) and len(ok) == 2), (module, fn, ok)
 
 
 def test_W11_R55_the_expiry_doors_keep_their_422_sentence_for_a_malformed_body(monkeypatch):

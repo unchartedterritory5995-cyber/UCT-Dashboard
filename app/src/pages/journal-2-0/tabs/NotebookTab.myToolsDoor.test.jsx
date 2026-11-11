@@ -8,6 +8,7 @@ import { useLocation } from 'react-router-dom'
 import { __resetNotebookFlags, latchNotebookFlags } from '../lib/offline/notebookFlags'
 import NotebookTab from './NotebookTab'
 import { openMyTools } from '../components/notebook/myTools/openMyTools.js'
+import { pressToolbar, toolbarOffers } from './__tests__/toolbarDoors'
 
 // My tools has its own rails (MyToolsSheet tests, galleryDoor.test.jsx): here only that the tab's door asks for it.
 vi.mock('../components/notebook/myTools/openMyTools.js', () => ({ openMyTools: vi.fn(() => () => {}) }))
@@ -29,14 +30,14 @@ const MEMBER = { ...AUTH, user: { ...AUTH.user, id: 'member-42' } }
 async function show() {
   render(<Providers route="/journal/notebook?view=all" auth={MEMBER}><NotebookTab /><Where /></Providers>)
   await settle()
-  expect(screen.getByRole('button', { name: 'Import' })).toBeInTheDocument()   // control: the header rendered
+  expect(toolbarOffers('Import')).toBe(true)   // control: the header rendered
 }
 
 describe('the My tools door on the Notebook tab', () => {
   it('my_tools_header_action_only_when_w8_on', async () => {
     latchNotebookFlags({ notebook_widgets_w8_enabled: true })
     await show()
-    fireEvent.click(screen.getByRole('button', { name: 'My tools' }))
+    pressToolbar('My tools')
     await waitFor(() => expect(openMyTools).toHaveBeenCalledTimes(1))
     const args = vi.mocked(openMyTools).mock.calls[0][0]
     expect(args.tab).toBe('widgets')
@@ -51,11 +52,11 @@ describe('the My tools door on the Notebook tab', () => {
   it('has no My tools button while wave 8 is off', async () => {
     latchNotebookFlags({ notebook_widgets_w8_enabled: false, notebook_widgets_w5_enabled: true })
     await show()
-    expect(screen.queryByRole('button', { name: 'My tools' })).toBeNull()
+    expect(toolbarOffers('My tools')).toBe(false)
   })
 
   it('has no My tools button when the server never said', async () => {
     await show()
-    expect(screen.queryByRole('button', { name: 'My tools' })).toBeNull()
+    expect(toolbarOffers('My tools')).toBe(false)
   })
 })

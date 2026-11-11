@@ -155,8 +155,11 @@ describe('3 — seven Technical categories, every row in exactly one, in a fixed
       'Volatility & Bands': 12,
       'Volume & Money Flow': 12,
       VWAP: 2,
-      'Relative Strength': 3,
-      'Levels & Statistics': 1,
+      // ⭐ Review finding U7 (2026-11-06, pulled forward from Phase 2a): `% From MA`
+      // and `52-Week High/Low` are price-LEVEL studies, not relative strength — a
+      // member opening the Relative Strength heading sees the ONE row that is RS.
+      'Relative Strength': 1,
+      'Levels & Statistics': 3,
     })
   })
   it('orderCategories puts the Technical headings first, in order, whatever order they arrive', () => {
@@ -186,8 +189,12 @@ describe('4 — the search aliases resolve to the right row', () => {
 
 describe('5 — the right-click quick menu', () => {
   it('every Tier 1 study declares quickMenu:false; no pre-existing definition does', () => {
+    // ⭐ UCT RS split, U6 (2026-11-09): the three gated server definitions (`meta.requiresServer`)
+    // declare it too, for the same reason: browsed and added in the library once the live
+    // server lists them, never a right-click quick toggle. Spelled by name, like Tier 1.
+    const LIBRARY_ONLY = [...TIER1_IDS, 'rsRating', 'rsPhases', 'rsVsEma']
     for (const d of registry.listDefinitions()) {
-      expect(d.meta.quickMenu === false, d.id).toBe(TIER1_IDS.includes(d.id))
+      expect(d.meta.quickMenu === false, d.id).toBe(LIBRARY_ONLY.includes(d.id))
     }
   })
 })

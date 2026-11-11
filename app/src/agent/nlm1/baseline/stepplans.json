@@ -1,0 +1,84 @@
+{
+  "version": 2,
+  "about": "NLM-1 STRUCTURED STEP PLANS — the no-model scripted-plan harness (nlm1StepPlans.test.jsx) over the PRODUCTION path (nlm1/stepPlans.js, dark behind the NLM-1 keys). Each step's `plan` is a scripted CORRECT planner answer in the step-reference schema (op `id`; later ops name an earlier op's result as \"$<id>.chart\" / \"$<id>.indicator\"), replayed through the REAL panel as the model's answer to an opaque line (+ `names`: the words a real request names its target chart with — the panel never acts on an unnamed chart of a multi-chart board), with NLM-1 on and the in-plan key off. Asserted: FINAL STATE, what the panel SAID (read-back / skipped steps), then grouped Undo. `request`: the natural-language request the plan answers (for the separate planner eval, which replaces the scripted plan by the model's).",
+  "cases": [
+    { "id": "P1.create-then-tf-and-indicator-on-it", "board": "HALF", "steps": [
+      { "request": "add a chart for AMD, make it weekly and put RSI on it",
+        "plan": { "ops": [
+          { "id": "step1", "action": "widget.add", "target": "$workspace", "args": { "type": "chart" } },
+          { "id": "step2", "action": "chart.setSymbol", "target": "$step1.chart", "args": { "symbol": "AMD" } },
+          { "id": "step3", "action": "chart.setTimeframe", "target": "$step1.chart", "args": { "timeframe": "W" } },
+          { "id": "step4", "action": "indicator.add", "target": "$step1.chart", "args": { "defId": "rsi", "inputs": null } } ] },
+        "expect": { "bySymbol": { "AMD": { "tf": "W", "has": ["rsi"] }, "NVDA": { "tf": "D", "hasNot": ["rsi"] } }, "says": ["Checked on your board: all 4 checked steps are in place"] } },
+      { "say": "undo", "expect": { "restored": true } } ] },
+    { "id": "P2.two-creates-indicator-on-each", "board": "HALF", "steps": [
+      { "request": "add charts for AMD and QQQ, each with the 21 ema",
+        "plan": { "ops": [
+          { "id": "a", "action": "widget.add", "target": "$workspace", "args": { "type": "chart" } },
+          { "action": "chart.setSymbol", "target": "$a.chart", "args": { "symbol": "AMD" } },
+          { "id": "q", "action": "widget.add", "target": "$workspace", "args": { "type": "chart" } },
+          { "action": "chart.setSymbol", "target": "$q.chart", "args": { "symbol": "QQQ" } },
+          { "action": "indicator.add", "target": "$a.chart", "args": { "defId": "movingAverage", "inputs": [{ "key": "period", "value": 21 }, { "key": "maType", "value": "ema" }] } },
+          { "action": "indicator.add", "target": "$q.chart", "args": { "defId": "movingAverage", "inputs": [{ "key": "period", "value": 21 }, { "key": "maType", "value": "ema" }] } } ] },
+        "expect": { "bySymbol": { "AMD": { "ma": [21] }, "QQQ": { "ma": [21] }, "NVDA": { "noMa": [21] } } } },
+      { "say": "undo", "expect": { "restored": true } } ] },
+    { "id": "P3.explicit-existing-chart-then-ref", "board": "TWO", "steps": [
+      { "request": "put TSLA on the right chart, make it weekly and add macd", "names": "the right chart",
+        "plan": { "ops": [
+          { "id": "s1", "action": "chart.setSymbol", "target": "$charts[1]", "args": { "symbol": "TSLA" } },
+          { "action": "chart.setTimeframe", "target": "$s1.chart", "args": { "timeframe": "W" } },
+          { "action": "indicator.add", "target": "$s1.chart", "args": { "defId": "macd", "inputs": null } } ] },
+        "expect": { "charts": { "symbols": ["NVDA", "TSLA"], "tfs": ["D", "W"] }, "bySymbol": { "TSLA": { "has": ["macd"] }, "NVDA": { "hasNot": ["macd"] } } } },
+      { "say": "undo", "expect": { "restored": true } } ] },
+    { "id": "P4.create-and-explicit-existing-never-retargeted", "board": "HALF", "steps": [
+      { "request": "add a chart for AMD and make the NVDA chart weekly",
+        "plan": { "ops": [
+          { "id": "n", "action": "widget.add", "target": "$workspace", "args": { "type": "chart" } },
+          { "action": "chart.setSymbol", "target": "$n.chart", "args": { "symbol": "AMD" } },
+          { "action": "chart.setTimeframe", "target": "$charts[0]", "args": { "timeframe": "W" } } ] },
+        "expect": { "bySymbol": { "NVDA": { "tf": "W" }, "AMD": { "tf": "D" } } } },
+      { "say": "undo", "expect": { "restored": true } } ] },
+    { "id": "P5.symbol-tf-indicator-one-existing", "board": "ONE", "steps": [
+      { "request": "switch to AMD on the weekly with the 50 sma",
+        "plan": { "ops": [
+          { "id": "c", "action": "chart.setSymbol", "target": "$charts[0]", "args": { "symbol": "AMD" } },
+          { "action": "chart.setTimeframe", "target": "$c.chart", "args": { "timeframe": "W" } },
+          { "action": "indicator.add", "target": "$c.chart", "args": { "defId": "movingAverage", "inputs": [{ "key": "period", "value": 50 }, { "key": "maType", "value": "sma" }] } } ] },
+        "expect": { "bySymbol": { "AMD": { "tf": "W", "ma": [50] } } } },
+      { "say": "undo", "expect": { "restored": true } } ] },
+    { "id": "P6.style-the-indicator-a-step-added", "board": "HALF", "steps": [
+      { "request": "add a chart for AMD with the 21 ema and make it orange",
+        "plan": { "ops": [
+          { "id": "c", "action": "widget.add", "target": "$workspace", "args": { "type": "chart" } },
+          { "action": "chart.setSymbol", "target": "$c.chart", "args": { "symbol": "AMD" } },
+          { "id": "e", "action": "indicator.add", "target": "$c.chart", "args": { "defId": "movingAverage", "inputs": [{ "key": "period", "value": 21 }, { "key": "maType", "value": "ema" }] } },
+          { "action": "indicatorStyle.set", "target": "$c.chart", "args": { "instance": "$e.indicator", "property": "color", "value": "orange", "output": null } } ] },
+        "expect": { "bySymbol": { "AMD": { "ma": [21] } }, "says": ["Checked on your board: all 3 checked steps are in place"], "saysNot": ["didn't run step"] } } ] },
+    { "id": "P7.forward-reference-refused-whole", "board": "HALF", "steps": [
+      { "request": "(malformed plan: a reference to a LATER step)",
+        "plan": { "ops": [
+          { "action": "chart.setTimeframe", "target": "$later.chart", "args": { "timeframe": "W" } },
+          { "id": "later", "action": "widget.add", "target": "$workspace", "args": { "type": "chart" } } ] },
+        "expect": { "unchanged": true, "refusal": true, "says": ["didn't run any of that plan", "names no earlier step"] } } ] },
+    { "id": "P8.failed-step-mid-plan-partial-said", "board": "ONE", "steps": [
+      { "request": "switch to AMD, add the (non-existent) zigzag study and make it orange",
+        "plan": { "ops": [
+          { "id": "s1", "action": "chart.setSymbol", "target": "$charts[0]", "args": { "symbol": "AMD" } },
+          { "id": "s2", "action": "indicator.add", "target": "$s1.chart", "args": { "defId": "zigzagDoesNotExist", "inputs": null } },
+          { "action": "indicatorStyle.set", "target": "$s1.chart", "args": { "instance": "$s2.indicator", "property": "color", "value": "orange", "output": null } } ] },
+        "expect": { "refusal": true, "says": ["didn't run step 3", "did not take effect", "Not in place: step 2"] } } ] },
+    { "id": "P9.approval-dismissed-mid-plan", "board": "ONE", "steps": [
+      { "request": "make it weekly and alert me if NVDA goes above 150",
+        "plan": { "disposition": "propose", "ops": [
+          { "id": "s1", "action": "chart.setTimeframe", "target": "$charts[0]", "args": { "timeframe": "W" } },
+          { "id": "s2", "action": "alert.create", "target": "$alertLibrary", "args": { "symbol": "NVDA", "price": 150, "direction": "above" } } ] },
+        "expect": { "proposal": true, "noCalls": ["^POST /api/watchlist-alerts"] },
+        "dismiss": true, "afterDismiss": { "noCalls": ["^POST /api/watchlist-alerts"], "says": ["nothing changed"] } } ] },
+    { "id": "P10.reference-to-a-refused-step", "board": "ONE", "steps": [
+      { "request": "add the (non-existent) zigzag study and make it thicker",
+        "plan": { "ops": [
+          { "id": "z", "action": "indicator.add", "target": "$indicatorEdits[0]", "args": { "defId": "zigzagDoesNotExist", "inputs": null } },
+          { "action": "indicatorStyle.set", "target": "$indicatorEdits[0]", "args": { "instance": "$z.indicator", "property": "lineWidth", "value": "thicker", "output": null } } ] },
+        "expect": { "unchanged": true, "refusal": true, "says": ["didn't run step 2", "did not take effect"] } } ] }
+  ]
+}

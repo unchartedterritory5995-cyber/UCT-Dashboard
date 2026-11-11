@@ -1,0 +1,32 @@
+{
+ "about": "Shared by tests/test_uct_agent_scan_compose.py and app/src/agent/agentScanCompose.test.jsx, so the browser and the server cannot drift. `flatten`: each tree, and the flat list it reduces to (null = it stays a tree). Both flattenLogic implementations must give `flat` exactly, and the Python test runs tree and flat on real rows, blanks included, and requires the same tickers. `wire`: a screener.run argument set and the wire spec the browser must send for it; the Python test runs that spec through the real validator and the SQL builder.",
+ "flatten": [
+  {"why": "a one-child group is its child", "tree": {"any": [{"key": "price", "op": "gt", "min": 10}]}, "flat": [{"key": "price", "op": "gt", "min": 10}]},
+  {"why": "all of is what filters already means", "tree": {"all": [{"key": "price", "op": "gt", "min": 10}, {"key": "rsi14", "op": "lt", "max": 30}]}, "flat": [{"key": "price", "op": "gt", "min": 10}, {"key": "rsi14", "op": "lt", "max": 30}]},
+  {"why": "nested all", "tree": {"all": [{"all": [{"key": "price", "op": "gt", "min": 10}]}, {"key": "is_etf", "op": "eq", "value": 0}]}, "flat": [{"key": "price", "op": "gt", "min": 10}, {"key": "is_etf", "op": "eq", "value": 0}]},
+  {"why": "any of one list field's values is one in", "tree": {"any": [{"key": "sector", "op": "in", "values": ["Energy"]}, {"key": "sector", "op": "in", "values": ["Technology"]}]}, "flat": [{"key": "sector", "op": "in", "values": ["Energy", "Technology"]}]},
+  {"why": "none of a list value is not_in: both keep a blank", "tree": {"none": [{"key": "sector", "op": "in", "values": ["Energy"]}]}, "flat": [{"key": "sector", "op": "not_in", "values": ["Energy"]}]},
+  {"why": "none of two is both not_in", "tree": {"none": [{"key": "sector", "op": "in", "values": ["Energy"]}, {"key": "industry", "op": "in", "values": ["Semiconductors"]}]}, "flat": [{"key": "sector", "op": "not_in", "values": ["Energy"]}, {"key": "industry", "op": "not_in", "values": ["Semiconductors"]}]},
+  {"why": "not of not_in is in: both drop a blank", "tree": {"not": {"key": "sector", "op": "not_in", "values": ["Energy"]}}, "flat": [{"key": "sector", "op": "in", "values": ["Energy"]}]},
+  {"why": "double negation", "tree": {"not": {"not": {"key": "price", "op": "gt", "min": 10}}}, "flat": [{"key": "price", "op": "gt", "min": 10}]},
+  {"why": "not of any is none of", "tree": {"not": {"any": [{"key": "sector", "op": "in", "values": ["Energy"]}, {"key": "sector", "op": "in", "values": ["Technology"]}]}}, "flat": [{"key": "sector", "op": "not_in", "values": ["Energy"]}, {"key": "sector", "op": "not_in", "values": ["Technology"]}]},
+  {"why": "not of none is any of", "tree": {"not": {"none": [{"key": "sector", "op": "in", "values": ["Energy"]}, {"key": "sector", "op": "in", "values": ["Technology"]}]}}, "flat": [{"key": "sector", "op": "in", "values": ["Energy", "Technology"]}]},
+  {"why": "none of a token is not_in on the token list", "tree": {"none": [{"key": "candle_type", "op": "contains", "value": ",doji,"}]}, "flat": [{"key": "candle_type", "op": "not_in", "values": [",doji,"]}]},
+  {"why": "any of two tokens is one in", "tree": {"any": [{"key": "candle_type", "op": "in", "values": [",doji,"]}, {"key": "candle_type", "op": "in", "values": [",hammer,"]}]}, "flat": [{"key": "candle_type", "op": "in", "values": [",doji,", ",hammer,"]}]},
+  {"why": "a real OR across fields", "tree": {"any": [{"key": "chg_pct_1d", "op": "gte", "min": 5}, {"key": "chg_pct_1w", "op": "gte", "min": 15}]}, "flat": null},
+  {"why": "a real OR on one number field", "tree": {"any": [{"key": "rsi14", "op": "lte", "max": 30}, {"key": "rsi14", "op": "gte", "min": 70}]}, "flat": null},
+  {"why": "none of a number keeps a blank, and the opposite comparison drops it", "tree": {"none": [{"key": "price", "op": "gt", "min": 10}]}, "flat": null},
+  {"why": "not of a yes/no keeps a blank, and eq 0 drops it", "tree": {"not": {"key": "is_etf", "op": "eq", "value": 1}}, "flat": null},
+  {"why": "not of all is an OR", "tree": {"not": {"all": [{"key": "sector", "op": "in", "values": ["Energy"]}, {"key": "industry", "op": "in", "values": ["Semiconductors"]}]}}, "flat": null},
+  {"why": "any of two fields' values is an OR", "tree": {"any": [{"key": "sector", "op": "in", "values": ["Energy"]}, {"key": "industry", "op": "in", "values": ["Semiconductors"]}]}, "flat": null},
+  {"why": "any of an in and an all is an OR", "tree": {"any": [{"key": "sector", "op": "in", "values": ["Technology"]}, {"all": [{"key": "sector", "op": "in", "values": ["Healthcare"]}, {"key": "rsi14", "op": "lt", "max": 60}]}]}, "flat": null}
+ ],
+ "wire": [
+  {"why": "field against field", "args": {"filters": [{"field": "pt_target", "op": "gt_col", "other": "price"}]}, "spec": {"filters": [{"key": "pt_target", "op": "gt_col", "other": "price"}]}},
+  {"why": "contains, one pattern", "args": {"filters": [{"field": "candle_type", "op": "contains", "value": null, "max": null, "values": ["hammer"]}]}, "spec": {"filters": [{"key": "candle_type", "op": "contains", "value": ",hammer,"}]}},
+  {"why": "in on a token list, any of", "args": {"filters": [{"field": "candle_type", "op": "in", "value": null, "max": null, "values": ["hammer", "doji"]}]}, "spec": {"filters": [{"key": "candle_type", "op": "in", "values": [",hammer,", ",doji,"]}]}},
+  {"why": "a real group", "args": {"filters": [{"field": "price", "op": "gt", "value": 20, "max": null, "values": null}], "logic": "{\"any\":[{\"field\":\"rsi14\",\"op\":\"lte\",\"value\":30},{\"field\":\"rsi14\",\"op\":\"gte\",\"value\":70}]}"}, "spec": {"filters": [{"key": "price", "op": "gt", "min": 20}], "logic": {"any": [{"key": "rsi14", "op": "lte", "max": 30}, {"key": "rsi14", "op": "gte", "min": 70}]}}},
+  {"why": "a comparison inside a group", "args": {"logic": "{\"any\":[{\"field\":\"price\",\"op\":\"gt_col\",\"other\":\"pt_target\"},{\"field\":\"rsi14\",\"op\":\"lt\",\"value\":30}]}"}, "spec": {"filters": [], "logic": {"any": [{"key": "price", "op": "gt_col", "other": "pt_target"}, {"key": "rsi14", "op": "lt", "max": 30}]}}},
+  {"why": "rank, with direction", "args": {"filters": [{"field": "price", "op": "gt", "value": 5, "max": null, "values": null}], "rank": "[{\"field\":\"chg_pct_3m\",\"weight\":70,\"lower_better\":false},{\"field\":\"pe_fwd\",\"weight\":30,\"lower_better\":true}]"}, "spec": {"filters": [{"key": "price", "op": "gt", "min": 5}], "rank": {"criteria": [{"key": "chg_pct_3m", "weight": 70}, {"key": "pe_fwd", "weight": 30, "ascending": true}]}}}
+ ]
+}

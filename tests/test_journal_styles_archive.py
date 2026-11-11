@@ -133,17 +133,6 @@ def test_credit_on_adopted_copy(db):
     assert all(x["credit"] is None and x["fromLibrary"] is False for x in mine.values())
 
 
-def test_credit_none_while_the_library_is_off(db, monkeypatch):
-    src = style(db)
-    gid = list_template(db, src["id"])
-    copy = gallery.adopt_template(MEMBER, gid, conn=db)["style"]
-    db.execute("DELETE FROM j2_gallery_credits WHERE user_id = ?", (MEMBER,))
-    db.commit()
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    row = next(x for x in js.list_styles(MEMBER, db, view="live") if x["id"] == copy["id"])
-    assert row["credit"] is None and row["fromLibrary"] is True
-
-
 def test_duplicate_copies_slots_and_keeps_a_library_copys_provenance(db):
     """W11-R36 c4 (P3a-T10-R6): a duplicate of a LIBRARY copy keeps its provenance (source_* columns and the credit
     snapshot), so it can never be shared as the member's own; a member's own original duplicates clean (below)."""

@@ -64,6 +64,7 @@ def test_the_limit_is_still_60_and_a_routed_request_over_it_is_refused_whole(fla
     assert out["envelope"]["disposition"] == "answer"
 
 
+@pytest.mark.usefixtures("routed_schema")
 def test_a_routed_nl1_request_is_three_cache_blocks_core_first(flag_on):
     caps, routing = CORE_LAYOUTS
     _, c = run(caps, routing, nl1_env("apply", [TF15]), reference=REF)
@@ -147,6 +148,7 @@ def test_routed_rules_differ_from_the_whole_catalog_rules_only_in_the_catalog_se
         assert words in turn._NL1_ROUTED_CATALOG
 
 
+@pytest.mark.usefixtures("routed_schema")
 def test_flag_off_a_routed_nl1_request_is_served_exactly_as_legacy(flag_off):
     caps, routing = CORE_LAYOUTS
     legacy_env = {"disposition": "answer", "reply": "hi", "question": None, "ops": [], "unsupported_category": None,
@@ -159,6 +161,7 @@ def test_flag_off_a_routed_nl1_request_is_served_exactly_as_legacy(flag_off):
     assert len(c1.calls[0]["system"]) == 1 and "UNDERSTANDING THE MEMBER" not in c1.calls[0]["system"][0]["text"]
 
 
+@pytest.mark.usefixtures("routed_schema")
 def test_the_legacy_prompt_is_unchanged_by_the_catalog_refactor():
     """_system_prompt_core now builds its lines with _catalog_lines: the legacy text must be the same as before."""
     caps = turn.validate_manifest(CATALOG[:20])

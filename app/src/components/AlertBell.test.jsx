@@ -54,6 +54,7 @@ function renderAs(userId) {
     <MemoryRouter>
       <AuthContext.Provider value={value}>
         <AlertBell />
+        <RouteSpy />
       </AuthContext.Provider>
     </MemoryRouter>,
   )
@@ -154,6 +155,40 @@ describe('AlertBell identity scoping', () => {
     await waitFor(() => expect(screen.getByText('2')).toBeInTheDocument())
     expect(playAlertSound).not.toHaveBeenCalled()
     expect(showBrowserNotification).not.toHaveBeenCalled()
+  })
+})
+
+describe('AlertBell -- notification click-through', () => {
+  async function newAlertNotifications(extra) {
+    feed = [alert('a_0', 'Old')]
+    renderAs('u_a')
+    await waitFor(() => expect(screen.getByText('1')).toBeInTheDocument())
+    feed = [{ ...alert('a_9', 'New'), ...extra }, alert('a_0', 'Old')]
+    await act(async () => {
+      await swrMutate(['/api/alerts?limit=20', 'u_a'])
+      await new Promise(r => setTimeout(r, 20))
+    })
+    await waitFor(() => expect(showBrowserNotification).toHaveBeenCalled())
+    return showBrowserNotification.mock.calls[0]
+  }
+
+  it('passes the alert id as the tag and a click handler that navigates in-app', async () => {
+    const call = await newAlertNotifications({ data: { research_url: '/research/AAPL' } })
+    expect(call[3].tag).toBe('uct-alert-a_9')
+    expect(typeof call[3].onClick).toBe('function')
+    act(() => call[3].onClick())
+    expect(screen.getByTestId('route-spy').textContent).toBe('/research/AAPL')
+  })
+
+  it('gives no onClick when the alert has no usable URL (focus only)', async () => {
+    const call = await newAlertNotifications({ data: {} })
+    expect(call[3].tag).toBe('uct-alert-a_9')
+    expect(call[3].onClick).toBeUndefined()
+  })
+
+  it('gives no onClick for an off-site research_url', async () => {
+    const call = await newAlertNotifications({ data: { research_url: '//evil.example/x' } })
+    expect(call[3].onClick).toBeUndefined()
   })
 })
 

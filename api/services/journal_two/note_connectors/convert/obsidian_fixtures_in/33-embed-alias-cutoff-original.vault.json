@@ -1,0 +1,26 @@
+{
+  "_comment": "D2 fix round 3, N-I3 (moved here from fixture 26 when 26 was re-pinned to real Obsidian, issue #2 in obsidian-uct-notebook-sync): a file link's original cut off at the embed's own `]]` (`[[r.pdf|![[img2.png]]`), in both ref orders. Obsidian 1.13.7 does NOT produce this shape (its cache gives only the embed, and plugin 0.2.1 sends the whole link); it is kept as server robustness, so a ref with a cut-off original still renders the image, then the file chip.",
+  "vault_id": "vault-1",
+  "self_path": "a.md",
+  "vault_paths": [
+    "a.md",
+    "attachments/r.pdf",
+    "attachments/img2.png",
+    "attachments/s.pdf",
+    "attachments/img3.png"
+  ],
+  "attachments": [
+    {"original": "[[r.pdf|![[img2.png]]", "embed": false,
+     "path": "attachments/r.pdf", "size": 4096,
+     "sha256": "1f2e3d4c5b6a79881f2e3d4c5b6a79881f2e3d4c5b6a79881f2e3d4c5b6a7988", "status": "ok"},
+    {"original": "![[img2.png]]", "embed": true,
+     "path": "attachments/img2.png", "size": 1024,
+     "sha256": "2a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f8091", "status": "ok"},
+    {"original": "![[img3.png]]", "embed": true,
+     "path": "attachments/img3.png", "size": 1024,
+     "sha256": "3a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f8091", "status": "ok"},
+    {"original": "[[s.pdf|![[img3.png]]", "embed": false,
+     "path": "attachments/s.pdf", "size": 4096,
+     "sha256": "4a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f80912a3b4c5d6e7f8091", "status": "ok"}
+  ]
+}

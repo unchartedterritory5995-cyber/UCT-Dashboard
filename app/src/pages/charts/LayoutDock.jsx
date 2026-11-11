@@ -242,6 +242,7 @@ export default function LayoutDock({
       <button
         key={isProvisional ? '__provisional' : `${entry.id}@${index}`}
         type="button"
+        data-layout-pin=""
         className={`${styles.item} ${active || isProvisional ? styles.itemActive : ''}`}
         // Primary button only: a right-click that also emits a click (some
         // automation and a few input devices do) must open the MENU, not switch
@@ -432,6 +433,7 @@ export default function LayoutDock({
           className={styles.menu}
           role="menu"
           aria-label={`${menuEntry.name} actions`}
+          data-guide="workspace.layoutMenu"
           style={{ left: Math.max(6, menu.x - 20) }}
         >
           <div className={styles.menuHead}>{menuEntry.name}</div>
@@ -457,23 +459,27 @@ export default function LayoutDock({
           {writable(menuEntry) && (
             <button
               type="button" role="menuitem" className={styles.menuItem}
+              data-menu-id="rename"
               onClick={() => { setRenameDraft(menuEntry.name); setRenaming(menu.slot.index); setMenu(null) }}
             >Rename layout</button>
           )}
           <button
             type="button" role="menuitem" className={styles.menuItem}
+            data-menu-id="duplicate"
             onClick={() => { onDuplicate?.(menuEntry); setMenu(null) }}
           >Duplicate layout</button>
           {historyAvailable && menuEntry.scope === 'user' && menuEntry.id !== UCT_DEFAULT_ID && (
             <button
               type="button" role="menuitem" className={styles.menuItem}
               data-testid="layout-history-open"
+              data-menu-id="history"
               onClick={() => { setHistoryEntry(menuEntry); setMenu(null) }}
             >Version history</button>
           )}
           <div className={styles.menuDiv} />
           <button
             type="button" role="menuitem" className={styles.menuItem}
+            data-menu-id="close"
             onClick={() => closeSlot(menu.slot.index)}
           >Close</button>
         </div>

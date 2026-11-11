@@ -15,8 +15,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerBuiltins } from './builtins'
 import { manifestFor } from './capabilities'
-import { GROUPS, groupOfAction } from './routing'
-import { selectNl1, assembleNl1, coreOf, NL1_CORE_GROUPS, NL1_CORE_MAX, NL1_LIMIT, NL1_BUDGET, NL1_MAX_NEED } from './nl1/selection'
+import { GROUPS, groupOfAction as legacyGroupOf } from './routing'
+import { selectNl1, assembleNl1, coreOf, nl1GroupOf as groupOfAction, NL1_MOVED_FROM_CORE, NL1_CORE_GROUPS, NL1_CORE_MAX, NL1_LIMIT, NL1_BUDGET, NL1_MAX_NEED } from './nl1/selection'
 
 registerBuiltins()
 
@@ -52,7 +52,7 @@ describe('the core', () => {
     expect(coreOf(f)).toEqual(NL1_CORE_GROUPS)
     const core = f.filter(c => NL1_CORE_GROUPS.includes(groupOfAction(c.name)))
     expect(core.length).toBeLessThanOrEqual(NL1_CORE_MAX)
-    expect(core.length).toBe(42)                                      // charts 21 + indicators 12 (P1: + discardDraft) + screener 8 + agent 1
+    expect(core.length).toBe(37)                                      // charts 16 (NL1_MOVED_FROM_CORE: the 5 chart-tab actions ride with workspace) + indicators 12 + screener 8 + agent 1
     const s = selectNl1(f, { text: 'hello' })
     expect(s.core).toEqual(NL1_CORE_GROUPS)
     invariants(f, s)
@@ -73,7 +73,8 @@ describe('the core', () => {
   it('off the Charts surface the available catalog fits one request: it is sent whole, unrouted', () => {
     const f = manifestFor({ surface: 'dashboard' })
     expect(f.length).toBeLessThanOrEqual(NL1_BUDGET)
-    const s = selectNl1(f, { text: 'add AMD to momentum' })
+    // W2-C1: the everywhere-queries are offered off /charts; a message nothing routes sends them whole
+    const s = selectNl1(f, { text: 'hello there' })
     expect(s.routing).toBe(null)
     expect(names(s.manifest)).toEqual(names(f))
   })
@@ -85,6 +86,19 @@ describe('the core', () => {
     expect(core).toEqual(['charts', 'indicators', 'agent'])
     const s = selectNl1(fat, { text: 'hello' })
     invariants(fat, s)
+  })
+})
+
+describe('the actions NL-1 keeps out of the core', () => {
+  it('are exactly the chart tabs, moved for NL-1 only: every other router still reads them as charts', () => {
+    expect(Object.keys(NL1_MOVED_FROM_CORE).sort()).toEqual(['chart.addTab', 'chart.closeTab', 'chart.linkTab', 'chart.renameTab', 'chart.selectTab'])
+    for (const n of Object.keys(NL1_MOVED_FROM_CORE)) { expect(legacyGroupOf(n)).toBe('charts'); expect(groupOfAction(n)).toBe('workspace') }
+  })
+  it('leave room: the core with lists fits the budget, and with lists and alerts the limit', () => {
+    const f = full(), size = (ids) => f.filter(c => ids.includes(groupOfAction(c.name))).length
+    expect(size(coreOf(f))).toBeLessThanOrEqual(NL1_CORE_MAX)
+    expect(size([...coreOf(f), 'lists'])).toBeLessThanOrEqual(NL1_BUDGET)
+    expect(size([...coreOf(f), 'lists', 'alerts'])).toBeLessThanOrEqual(NL1_LIMIT)
   })
 })
 

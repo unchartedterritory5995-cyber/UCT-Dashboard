@@ -1,7 +1,9 @@
+// S7 (audit 2026-11-05, one vocabulary): the copy these rails pin was renamed (styles -> templates, Adopt -> Use,
+// Community styles/gallery -> Template library, Active setups -> Setups); the rails follow the new words.
 // Finish program, lane KEYS: the Passed setups list is capped, with a "Show all" control.
 //
 // Every row is two Tab stops (the name, Remove), the list had no limit, and the box sits ahead
-// of the review buttons and the Active setups door on Research Home. With 30 names saved a
+// of the review buttons and the Setups door on Research Home. With 30 names saved a
 // keyboard member pressed Tab 66 times to reach "This week's review"
 // (docs/notebook/fin-clicks.md). The list now shows the newest few and one button for the rest.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'

@@ -1778,6 +1778,27 @@ def _tool_input(msg: Any) -> Optional[dict]:
     return parsed if isinstance(parsed, dict) else None
 
 
+def charge_unreported(exc: Optional[BaseException], user_id: Any, market_date: str, model: str,
+                      max_tokens: int, request: Dict[str, Any]) -> float:
+    """A call that reports no usage is charged its WORST CASE on the shared ledger and the member's allowance.
+
+    ⛔ A timeout or a dropped connection may have generated every token, and a reply
+    with no usage says nothing: writing $0 leaves both caps unreached while the bill
+    grows. Only an HTTP error response (`exc` is one) is free. Never raises.
+    """
+    from api.services.uct_agent import budget
+    if exc is not None and budget._is_provider_error_response(exc):
+        return 0.0
+    try:
+        spent = cost_guard.record(market_date, f"concierge:{user_id}", model,
+                                  budget.request_bytes(request) + budget.FRAMING_TOKENS, max_tokens)
+    except Exception:                               # noqa: BLE001
+        logger.exception("[concierge] could not charge an unreported call")
+        spent = 0.0
+    _record_spend(user_id, market_date, spent)
+    return spent
+
+
 def _call_model(messages: List[dict], kind: str = INDICATOR_KIND) -> Tuple[Any, int, int]:
     """ONE Anthropic call. Returns ``(message, input_tokens, output_tokens)``.
 
@@ -1814,6 +1835,11 @@ def _call_model(messages: List[dict], kind: str = INDICATOR_KIND) -> Tuple[Any, 
     usage = getattr(msg, "usage", None)
     return msg, int(getattr(usage, "input_tokens", 0) or 0), \
         int(getattr(usage, "output_tokens", 0) or 0)
+
+
+def _request_for(messages: List[dict], kind: str) -> Dict[str, Any]:
+    """What `_call_model` sends that the model reads, for `charge_unreported`."""
+    return {"system": system_prompt(kind), "tools": [anthropic_tool()], "messages": messages}
 
 
 # --------------------------------------------------------------------------- #
@@ -3167,14 +3193,18 @@ def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None,
             msg, in_tokens, out_tokens = _call_model(messages, kind)
         except Exception as exc:                   # noqa: BLE001 -- never raises out
             logger.warning("[concierge] model call failed: %s", exc)
+            charge_unreported(exc, user_id, market_date, MODEL, MAX_TOKENS, _request_for(messages, kind))
             return {"ok": False, "gate": "model:transport",
                     "reason": REFUSALS["model:transport"]}
 
         tokens["input"] += in_tokens
         tokens["output"] += out_tokens
-        spent = cost_guard.record(market_date, f"concierge:{user_id}", MODEL,
-                                  in_tokens, out_tokens)
-        _record_spend(user_id, market_date, spent)
+        if not (in_tokens or out_tokens):           # no usage: a real reply is never zero tokens
+            spent = charge_unreported(None, user_id, market_date, MODEL, MAX_TOKENS, _request_for(messages, kind))
+        else:
+            spent = cost_guard.record(market_date, f"concierge:{user_id}", MODEL,
+                                      in_tokens, out_tokens)
+            _record_spend(user_id, market_date, spent)
         cost_usd += spent
 
         tool_input = _tool_input(msg)

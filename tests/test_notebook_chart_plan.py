@@ -234,19 +234,7 @@ def _note(uid, body, deleted=False):
         conn.close()
 
 
-def test_every_route_is_404_while_the_flag_is_off_even_signed_out(client, monkeypatch):
-    monkeypatch.delenv(chart_plan.FLAG, raising=False)
-    assert chart_plan.enabled() is False
-    for path in ("/size", "/alerts"):
-        assert client.post("/api/j2/chart-plan" + path, json={}).status_code == 404, path
-    monkeypatch.setenv(chart_plan.FLAG, "1")
-    assert chart_plan.enabled() is True
-    # flag on, signed out: the session is now asked for (CONTROL: the 404 above was the gate)
-    assert client.post("/api/j2/chart-plan/size", json={}).status_code == 401
-
-
 def test_size_reads_the_plan_and_asks_compass_for_a_paid_long(client, monkeypatch):
-    monkeypatch.setenv(chart_plan.FLAG, "1")
     as_user(client, "m1", PAID)
     monkeypatch.setattr(chart_plan, "account_inputs",
                         lambda uid, aid=None: {"accountId": "a1", "accountSize": 100000.0, "riskPct": 1.0})
@@ -266,7 +254,6 @@ def test_size_reads_the_plan_and_asks_compass_for_a_paid_long(client, monkeypatc
 
 
 def test_size_does_not_ask_compass_for_a_free_member_or_a_short(client, monkeypatch):
-    monkeypatch.setenv(chart_plan.FLAG, "1")
     monkeypatch.setattr(chart_plan, "account_inputs",
                         lambda uid, aid=None: {"accountId": "a1", "accountSize": 100000.0, "riskPct": 1.0})
     from api.services import brain_service
@@ -289,7 +276,6 @@ def test_size_does_not_ask_compass_for_a_free_member_or_a_short(client, monkeypa
 
 
 def test_size_refuses_a_body_that_is_not_one(client, monkeypatch):
-    monkeypatch.setenv(chart_plan.FLAG, "1")
     as_user(client, "m1")
     assert client.post("/api/j2/chart-plan/size", content=b"[1]").status_code == 422
     assert client.post("/api/j2/chart-plan/size", json={"annotations": "x"}).status_code == 422
@@ -314,7 +300,6 @@ ALERT = {"noteId": None, "embedId": "emb-1", "drawingId": "b", "direction": "bel
 
 
 def test_an_alert_is_armed_through_the_existing_route_with_the_drawing_id(client, monkeypatch):
-    monkeypatch.setenv(chart_plan.FLAG, "1")
     as_user(client, "m1")
     w = client_writer()
     note = _note("m1", {"type": "doc", "content": [{"type": "widgetEmbed", "attrs": chart_attrs(w["anns"])}]})
@@ -336,7 +321,6 @@ def test_an_alert_is_armed_through_the_existing_route_with_the_drawing_id(client
 
 
 def test_a_trendline_alert_carries_its_anchors(client, monkeypatch):
-    monkeypatch.setenv(chart_plan.FLAG, "1")
     as_user(client, "m1")
     note = _note("m1", {"type": "doc", "content": [{"type": "widgetEmbed", "attrs": chart_attrs([])}]})
     r = client.post("/api/j2/chart-plan/alerts", json={
@@ -348,7 +332,6 @@ def test_a_trendline_alert_carries_its_anchors(client, monkeypatch):
 
 
 def test_alerts_answer_one_404_for_another_members_note_a_trashed_note_or_a_missing_chart(client, monkeypatch):
-    monkeypatch.setenv(chart_plan.FLAG, "1")
     body = {"type": "doc", "content": [{"type": "widgetEmbed", "attrs": chart_attrs([])}]}
     theirs = _note("m2", body)
     trashed = _note("m1", body, deleted=True)
@@ -362,7 +345,6 @@ def test_alerts_answer_one_404_for_another_members_note_a_trashed_note_or_a_miss
 
 
 def test_the_existing_routes_validation_is_the_validation(client, monkeypatch):
-    monkeypatch.setenv(chart_plan.FLAG, "1")
     as_user(client, "m1")
     note = _note("m1", {"type": "doc", "content": [{"type": "widgetEmbed", "attrs": chart_attrs([])}]})
     r = client.post("/api/j2/chart-plan/alerts", json={**ALERT, "noteId": note["id"], "direction": "sideways"})

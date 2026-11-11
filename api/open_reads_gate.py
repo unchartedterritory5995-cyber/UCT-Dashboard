@@ -531,6 +531,10 @@ _add(ADMIN,
      "/api/dealer-positioning/status", "/api/dealer-positioning/sample",
      "/api/dealer-positioning/flow-sources",
      "/api/flow/etf-replica-status", "/api/flow/aggregate-health",
+     # The ROUTING classification's freeze telemetry, beside the TOP-10 replica's.
+     # Same class as its sibling: ops/status, no member page reads it, and the
+     # internal poller (the web-side sender) carries the PUSH_SECRET bearer.
+     "/api/flow/ticker-types-status",
      "/api/flow-gap-fill/status", "/api/flow-backup/status", "/api/watchdog/status",
      "/api/oi-snapshot/run-status", "/api/oi-snapshot/status",
      "/api/oi-snapshot/test-massive/{ticker}",      # a live Massive probe per hit

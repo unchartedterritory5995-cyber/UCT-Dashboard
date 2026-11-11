@@ -105,7 +105,7 @@ describe('first-run welcome -- ONE short welcome (switch on)', () => {
     fireEvent.click(learn)
     const opened = vi.fn()
     window.addEventListener(TOUR_OPEN_EVENT, opened)
-    fireEvent.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'Notebook basics tour' }))
+    fireEvent.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'Notebook basics' }))
     window.removeEventListener(TOUR_OPEN_EVENT, opened)
     expect(opened).toHaveBeenCalledTimes(1)
   })

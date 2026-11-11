@@ -1,13 +1,14 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import {
   listEngineIndicators, listAllIndicators, applyRowPatch, readEnabled,
-  indTarget, splitIndTarget,
+  indTarget, splitIndTarget, visibleInputs,
 } from '../../indicatorRegistry'
 import { mergeChartSettings as mergeChartSettingsReal, CHART_DEFAULTS } from '../../chartDefaults'
 import { CARVED_OUT_ROWS, NOT_IN_BLOB } from '../../indicatorCatalog'
 import { isIndicatorEnabled, removeDefinition, HIDDEN_VIA_DEFINITION } from '../instanceControls'
 import { ENGINE_OWNED } from '../flipState'
+import { isDefinitionOffered, primeServerDefinitions, clearServerDefinitions } from '../serverCompute'
 import * as engineRegistry from '../nativeRegistry'
 import { computeIchimoku } from '../../indicators'
 import { makeBars } from './fakeChart'
@@ -36,7 +37,11 @@ const BARS = makeBars(260)
 // user-facing regression B3 Task 11 refused when asked to delete VWAP's row.
 
 const base = () => mergeChartSettings(null)
-const DEFS = engineRegistry.listDefinitions()
+// ⭐ RS split F4 (2026-11-10): the tab lists only OFFERED definitions. The three
+// `meta.requiresServer` RS definitions (rsRating, rsPhases, rsVsEma) have no row
+// until the live server declares them (U1), so every rail compares against the
+// offered set; the last case in this file primes the server lane and asserts them.
+const DEFS = engineRegistry.listDefinitions().filter(isDefinitionOffered)
 const rowsFor = (settings = base()) => listEngineIndicators(settings, engineRegistry)
 /** THE row for a DEFINITION.
  *
@@ -79,7 +84,11 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
     for (const def of DEFS) {
       const row = rowById(def.id)
       expect(row, def.id).toBeTruthy()
-      expect(row.fields.map((f) => f.key), def.id).toEqual(def.inputs.map((i) => i.key))
+      // ⭐ UCT RS 3-08: a `legacy` input never gets a control and a
+      // `requiresServer` one only once the live row declares it (unit 3-01); with
+      // no declaration that is `visibleInputs(def, null)`, which is every declared
+      // input for every definition that marks nothing.
+      expect(row.fields.map((f) => f.key), def.id).toEqual(visibleInputs(def, null).map((i) => i.key))
     }
   })
 
@@ -172,7 +181,7 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
     expect(Object.keys(cs.indicators), 'the blob still carries indicator sections')
       .toEqual(['volumeProfile'])
     const blank = []
-    for (const def of engineRegistry.listDefinitions()) {
+    for (const def of DEFS) {
       const row = rowById(def.id)
       for (const i of def.inputs) {
         if (i.default === undefined) continue
@@ -183,7 +192,7 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
       'a generated control has no value to show for an indicator that is off. The box renders '
       + 'empty and the number the chart WOULD draw with is nowhere on screen.').toEqual([])
     // …and it is not vacuous: the definitions really declare defaults.
-    expect(engineRegistry.listDefinitions().flatMap(d => d.inputs).filter(i => i.default !== undefined).length)
+    expect(DEFS.flatMap(d => d.inputs).filter(i => i.default !== undefined).length)
       .toBeGreaterThan(20)
     // …and a LIVE instance still wins over the default, which is the branch that
     // already worked and must keep working.
@@ -293,6 +302,7 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
   // A1 (D3): the tombstone is written by `removeDefinition` now — the row's OFF hides.
   it('reads OFF over a tombstone the legacy mirror still calls on, for every flipped id', () => {
     for (const id of ENGINE_OWNED) {
+      if (!DEFS.some((d) => d.id === id)) continue // gated RS definitions: no row until offered (F4)
       const on = mergeChartSettings(JSON.stringify({ indicators: { [id]: { enabled: true } } }))
       const off = removeDefinition(on, id, engineRegistry)
       expect(off.indicatorInstances.some((i) => i.instanceId === `legacy:${id}` && i.deleted === true), id).toBe(true)
@@ -775,5 +785,27 @@ describe('…and it reaches the real dialog, not just the row builder', () => {
       .toBe('#33ff44')
     expect(byId['legacy:rsi'].inputs.color, 'editing the second RSI recoloured the first')
       .toBe('#111133')
+  })
+})
+
+describe('⭐ RS split F4 — the server lane offers the three gated rows', () => {
+  afterEach(() => { clearServerDefinitions() })
+  const GATED = ['rsRating', 'rsPhases', 'rsVsEma']
+
+  it('has no row for them until the server declares them, then one each with the definition defaults', () => {
+    clearServerDefinitions()
+    const before = new Set(rowsFor().map((r) => r.defId))
+    for (const id of GATED) expect(before.has(id), `${id} listed before the server declared it`).toBe(false)
+    primeServerDefinitions({ schemaVersion: 1, definitions: GATED.map((id) => ({ id })) })
+    for (const id of GATED) {
+      const def = engineRegistry.getDefinition(id)
+      expect(def, `${id} is not registered`).toBeTruthy()
+      const row = rowById(id)
+      expect(row, `${id} has no row once offered`).toBeTruthy()
+      for (const i of def.inputs) {
+        if (i.default === undefined) continue
+        expect(row.values[i.key], `${id}.${i.key}`).toBe(i.default)
+      }
+    }
   })
 })

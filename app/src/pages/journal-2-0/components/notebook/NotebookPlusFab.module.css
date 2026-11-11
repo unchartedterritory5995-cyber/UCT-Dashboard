@@ -1,0 +1,71 @@
+/* S12 + VIS-4 (audit 2026-11-05, M9): the phone Notebook's ONE floating "+". Phone only: on a wider screen the
+   list toolbar's "+ New" and the page's own controls serve, so the button is not drawn. It sits where the voice
+   orb sat (bottom-right, above the safe area); the list reserves 96 px for it (NotebookTab.module.css .main). */
+.fab {
+  display: none;
+}
+@media (max-width: 640px) {
+  .fab {
+    position: fixed;
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    z-index: var(--z-fab);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    color: var(--bg);
+    box-shadow: var(--shadow-popover);
+    cursor: pointer;
+  }
+}
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-bright);
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+.row:hover,
+.row:focus-visible {
+  background: var(--bg-hover);
+}
+.row:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+/* The touch tier is <=1024 px (tapFloor.test.js); the button is only drawn at <=640, where it is 56 px. */
+@media (max-width: 1024px) {
+  .fab {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+}
+/* Review Minor 9: the orb stays on the phone Notebook during a live or failing call, in the same bottom-right corner --
+   the "+" steps up above it then, so neither covers the other. Fix round 2 (N6): keyed on the attribute FloatingOrb
+   writes on <html> while a call is showing (cleared on unmount), not a document-wide has-selector. */
+@media (max-width: 640px) {
+  :global(html[data-orb-in-session]) .fab {
+    bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+  }
+}

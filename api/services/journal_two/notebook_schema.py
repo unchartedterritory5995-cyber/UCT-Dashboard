@@ -107,6 +107,13 @@ NOTEBOOK_TYPE_SCHEMA: dict[str, int] = {
     # that lacks the node would open it EMPTY and its next save would write the
     # empty document over the plan. Level 3 makes the server refuse that write.
     "tradeCanvas": 3,
+    # ── 5: connector fidelity (2026-11) ──
+    # ⛔ NEVER-REVERT, like every row above. `importNotice` is the block atom an
+    # import leaves where something could not come over ("Couldn't copy chart.png",
+    # import_notice.py). An editor that lacks the node would open a note holding
+    # one EMPTY and its next save would write the empty document over the note.
+    # Level 5 (4 is the `widgetEmbed.ta` attribute) makes the server refuse that write.
+    "importNotice": 5,
 }
 
 # {"<nodeType>.<attr>": introducedAtSchema} -- an ATTRIBUTE on an existing type

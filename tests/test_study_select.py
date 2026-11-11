@@ -183,3 +183,21 @@ def test_compose_unit_defaults_to_the_stores_walkthrough_list(monkeypatch):
     monkeypatch.setattr(study_store, "weak_skill_ids", lambda u: set())
     ids = sel.compose_unit("u1", "regime.bands", _bank, n=2, rng=random.Random(0))
     assert seen == ["regime.bands"] and ids[0] == "w1" and len(ids) == 3
+
+def test_compose_today_never_selects_a_levels_or_plan_item_before_the_player_can_show_it():
+    """levels.kicker (2026-11-04) holds `levels` drafts for the Draw-it drill, which is
+    spec phase 2; an owner approval must not put one into a member's set until then."""
+    def bank():
+        rows = _bank()
+        rows += [{"id": f"lv{k}", "type": "levels", "skill_id": "setup.levels", "has_chart": True} for k in range(6)]
+        rows += [{"id": f"pl{k}", "type": "plan", "skill_id": "setup.levels", "has_chart": False} for k in range(6)]
+        return rows
+    due = [{"id": "lv0", "type": "levels", "skill_id": "setup.levels", "has_chart": True},
+           {"id": "rec0", "type": "recall", "skill_id": "f1.basics", "has_chart": False}]
+    for seed in range(40):
+        ids = sel.compose_today("u1", bank, due_fn=lambda u, n: due, missed_fn=lambda u: {"lv1", "pl1"},
+                                weak_fn=lambda u: {"setup.levels"}, rng=random.Random(seed))
+        assert len(ids) == 10 and not any(i.startswith(("lv", "pl")) for i in ids), ids
+        assert ids[0] == "rec0"
+    assert sel.UNPLAYABLE_TYPES == ("levels", "plan")
+

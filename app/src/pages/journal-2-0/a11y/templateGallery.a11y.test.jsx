@@ -2,7 +2,7 @@
 //
 // Wave 12, lane 12A: the community template gallery through 8A's axe harness (the ONE way
 // a Notebook rail asks axe-core). The tab and picker recipes run with
-// NOTEBOOK_TEMPLATE_GALLERY_ENABLED off, so they never render these components -- hence
+// the notebook_template_gallery_enabled key unset, so they never render these components -- hence
 // their own recipes here rather than a `coveredBy` entry that would be untrue. Each recipe
 // proves the state it is about rendered before axe runs, so an empty screen can never pass
 // as a clean one:
@@ -73,8 +73,8 @@ function renderPicker() {
 
 async function openGallery() {
   const user = renderPicker()
-  await user.click(await screen.findByRole('button', { name: /Browse the community gallery/ }))
-  await screen.findByRole('heading', { name: 'Community gallery' })
+  await user.click(await screen.findByRole('button', { name: /Browse the Template library/ }))
+  await screen.findByRole('heading', { name: 'Template library · From members' })
   return user
 }
 
@@ -123,7 +123,7 @@ describe('lane 12A surfaces (community template gallery)', () => {
 
   axeSurface('gallery-publish-form', async () => {
     const user = renderPicker()
-    await user.click(await screen.findByRole('button', { name: 'Share Swing plan to the community gallery' }))
-    await screen.findByRole('form', { name: 'Share Swing plan to the community gallery' })
+    await user.click(await screen.findByRole('button', { name: 'Share Swing plan to the Template library' }))
+    await screen.findByRole('form', { name: 'Share Swing plan to the Template library' })
   })
 })

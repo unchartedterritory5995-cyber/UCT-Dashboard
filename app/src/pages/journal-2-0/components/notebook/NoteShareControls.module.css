@@ -49,25 +49,14 @@
   width: 100%;
   box-sizing: border-box;
 }
-.action {
-  font: inherit;
-  font-size: 12.5px;
-  color: var(--text);
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 6px 12px;
-  cursor: pointer;
-}
-.action:hover { border-color: var(--accent); }
-.action:disabled { opacity: 0.55; cursor: default; }
-.action:focus-visible,
+/* VIS-3 (audit 2026-11-05, issues 7 and 21): the actions are on the buttons.css roles -- Create link is the one
+   solid primary, Publish is an outline (it asks first, S1), Copy is secondary, Revoke and Unpublish are danger. The
+   bespoke `.action` / `.danger` classes are retired. */
 .select:focus-visible,
 .field:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-.danger { color: var(--danger-ink); }
 .status {
   margin: 0;
   min-height: 1.4em;
@@ -75,8 +64,95 @@
   color: var(--text);
 }
 
+/* Audit 2026-11-05, S19 (M5): two tabs, the expiry choices, the P&L switch, the preview link and pane. */
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.tab {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-dim);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.choices legend {
+  float: left;
+  margin-right: 4px;
+  padding: 0;
+}
+.choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.switchRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.switchRow > label { flex: 1; cursor: pointer; }
+.switch {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+.switchState {
+  min-width: 2.2em;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.link {
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.preview {
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+}
+.tab:focus-visible,
+.link:focus-visible,
+.switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 @media (max-width: 1024px) {
-  .action { min-height: var(--tap-min); }
   .select { min-height: var(--tap-min); }
   .field { min-height: var(--tap-min); }
+  .tab { min-height: var(--tap-min); }
+  .choice { min-height: var(--tap-min); }
+  .switchRow { min-height: var(--tap-min); }
+  .link { min-height: var(--tap-min); }
 }

@@ -52,7 +52,7 @@
     radial-gradient(40% 50% at 28% 30%, rgba(220, 187, 94, 0.16), transparent 70%),
     radial-gradient(42% 52% at 76% 72%, rgba(52, 209, 124, 0.12), transparent 70%);
   filter: blur(6px);
-  animation: hubGlowPulse 9s ease-in-out infinite alternate;
+  animation: hubGlowPulse 9s ease-in-out 2 alternate; /* Finite on purpose: nothing always on screen may animate forever (2026-11-10, measured: endless    animations kept every window producing frames at the display rate). See ChartsWorkspace .clockDot. */
 }
 @keyframes hubGlowPulse {
   from { opacity: 0.65; transform: scale(1); }
@@ -74,7 +74,7 @@
   display: inline-block;
   line-height: 0;
   margin-bottom: 12px;
-  animation: hubFloat 4.5s ease-in-out infinite;
+  animation: hubFloat 4.5s ease-in-out 3; /* finite: see .hubGlow */
 }
 .hubBook {
   display: block;

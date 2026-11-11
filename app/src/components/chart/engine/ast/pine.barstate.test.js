@@ -151,7 +151,9 @@ describe('🔴 what is still refused, and refused with its own reason', () => {
       // ⭐ ASSERTED AGAINST THE MANIFEST'S OWN SENTENCE, not a phrasing typed
       // here — `closedTable.json::_barstate.refused.isnew` is the one owner of
       // this text, and a second copy in a regex is a second authority over it.
-      expect(why).toMatch(/static fetch once|restatement of the question/)
+      // ⚰️ The sentence was "static fetch once … restatement of the question"; RULING-0927
+      // (2026-11-07) replaced it with what the captures show (newest bar undetermined).
+      expect(why).toMatch(/RULING-0927/)
     }
   })
 

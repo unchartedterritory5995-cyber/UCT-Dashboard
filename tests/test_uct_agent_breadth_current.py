@@ -333,17 +333,36 @@ def test_ENDPOINTS_the_breadth_reading_routes_refuse_without_the_push_secret(mon
     assert r.status_code == 401
 
 
+def _breadth_monitor_hits(files):
+    """The Agent SOURCE files that name the breadth-monitor endpoint. Test files (``*.test.*``) are skipped: a jsdom test that
+    MOCKS the endpoint for a real widget it mounts (widgetDoorRows.outcome.test.jsx serves '/api/breadth-monitor' to the Breadth
+    widget) is not the Agent calling it. AUDIT S1-D, option (a)."""
+    return [str(f) for f in files
+            if ".test." not in f.name and "breadth-monitor" in f.read_text(encoding="utf-8", errors="ignore")]
+
+
 def test_ENDPOINTS_the_agent_never_calls_them_over_http():
     import pathlib
     root = pathlib.Path(__file__).resolve().parents[1]
     files = [*(root / "api/services/uct_agent").glob("*.py"), root / "api/routers/uct_agent.py",
              *(root / "app/src/agent").rglob("*.js"), *(root / "app/src/agent").rglob("*.jsx")]
-    hits = [str(f) for f in files if "breadth-monitor" in f.read_text(encoding="utf-8", errors="ignore")]
+    hits = _breadth_monitor_hits(files)
     assert hits == []
     src = (root / "api/services/uct_agent/breadth_now.py").read_text(encoding="utf-8")
     assert "from api.services import breadth_current" in src                   # in-process
     for client in ("requests", "httpx", "urllib", "aiohttp", "http.client"):
         assert f"import {client}" not in src and f"from {client}" not in src
+
+
+def test_ENDPOINTS_the_scan_still_flags_a_non_test_agent_file(tmp_path):
+    """The control for the skip above: a non-test Agent file that names the endpoint is still caught; a test file is not."""
+    src = tmp_path / "breadthClient.js"
+    src.write_text("fetch('/api/breadth-monitor')", encoding="utf-8")
+    test = tmp_path / "breadthClient.test.jsx"
+    test.write_text("if (k.startsWith('/api/breadth-monitor')) return rows", encoding="utf-8")
+    clean = tmp_path / "other.jsx"
+    clean.write_text("export const x = 1", encoding="utf-8")
+    assert _breadth_monitor_hits([src, test, clean]) == [str(src)]
 
 
 def test_ENDPOINTS_the_agent_route_that_reads_it_is_admin_gated():

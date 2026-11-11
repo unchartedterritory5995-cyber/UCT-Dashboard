@@ -1113,8 +1113,8 @@ export function computeAVWAP(bars, anchor = 'session') {
  * level up — so all three columns start at `bars[period]`, where ATR does.
  *
  * ⚠️ `multiplier` IS AN INPUT READ BY THE COMPUTE, NOT A `$ref` IN A PLOT.
- * `$<inputKey>` substitution is legal in `color`, `width`, `levels` and
- * `lineStyle` only (`SUBSTITUTABLE_PLOT_FIELDS`); a band's WIDTH IN PRICE is
+ * `$<inputKey>` substitution is legal in `color`, `width`, `levels`, `lineStyle`,
+ * `colorUp` and `colorDown` only (`SUBSTITUTABLE_PLOT_FIELDS`); a band's WIDTH IN PRICE is
  * none of those. Writing it as a plot literal would render one multiplier for
  * every user while the settings form offered a control that changed nothing.
  */

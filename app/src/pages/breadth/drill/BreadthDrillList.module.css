@@ -81,3 +81,6 @@
 }
 .retryBtn:hover { background: color-mix(in srgb, var(--ut-gold) 12%, transparent); }
 .when { color: var(--text-muted); }
+
+/* Scan Deck: Filters + group switch where the list title used to be. */
+.deckControls { display: flex; align-items: center; gap: 8px; min-width: 0; }

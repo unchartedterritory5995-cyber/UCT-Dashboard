@@ -5,6 +5,7 @@ One row per (user, trade) in `j2_trade_reviews`. Idempotent by default;
 pass regenerate=True to overwrite.
 """
 from __future__ import annotations
+from api.services import llm_models
 import json
 import os
 import sqlite3
@@ -19,7 +20,7 @@ from api.services.journal_two import regime as regime_service
 
 
 class AnthropicReviewClient:
-    DEFAULT_MODEL = "claude-sonnet-4-6"
+    DEFAULT_MODEL = llm_models.SONNET
 
     def __init__(self, api_key: str | None = None):
         import anthropic
@@ -32,6 +33,7 @@ class AnthropicReviewClient:
             api_key=key,
             timeout=llm_timeouts.seconds("COMPASS_TRADE_REVIEW_LLM_TIMEOUT_SECS",
                                          llm_timeouts.REQUEST_PATH),
+            max_retries=0,
         )
 
     def write_review(self, *, system_prompt: str, user_message: str,
@@ -39,13 +41,13 @@ class AnthropicReviewClient:
         msg = self._client.messages.create(
             model=self.DEFAULT_MODEL,
             max_tokens=600,
-            temperature=0.4,
+            **llm_models.plain(self.DEFAULT_MODEL, temperature=0.4),
             metadata={"user_id": f"compass_trade_review:{user_id}"},
             system=[{"type": "text", "text": system_prompt,
                      "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": user_message}],
         )
-        body = msg.content[0].text if msg.content else ""
+        body = llm_models.text_of(msg)
         return {"body": body}
 
 
@@ -267,6 +269,21 @@ def forget_review(review_id: str, *, user_id: str, conn=None) -> int:
         )
         _conn.commit()
         return cur.rowcount
+    finally:
+        if _close:
+            _conn.close()
+
+
+def replaces_forgotten(user_id: str, trade_id: str, conn=None) -> bool:
+    """Would a generate for this trade re-buy a review the member forgot? See
+    `coach.replaces_forgotten`: forget + generate is the regenerate door."""
+    _conn, _close = _get_conn(conn)
+    try:
+        row = _conn.execute(
+            "SELECT forgotten FROM j2_trade_reviews WHERE user_id = ? AND trade_id = ?",
+            (user_id, trade_id),
+        ).fetchone()
+        return bool(row and row[0])
     finally:
         if _close:
             _conn.close()

@@ -1,9 +1,11 @@
 import useSWR from 'swr'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import useMarketOpen from './useMarketOpen'
 
 const isMobile = typeof window !== 'undefined' &&
   ('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth <= 640)
+
+const MOBILE_POLL_FACTOR = 2
 
 function usePageVisible() {
   const [visible, setVisible] = useState(true)
@@ -29,11 +31,16 @@ export default function useMobileSWR(key, fetcher, options = {}) {
       : interval * 10
   }
 
-  const mobileInterval = interval && isMobile
-    ? (typeof interval === 'function'
-        ? (...args) => interval(...args) * 2
-        : interval * 2)
-    : interval
+  // ⛔ MEMOISED BECAUSE SWR RESTARTS ITS TIMER WHEN THE INTERVAL'S IDENTITY CHANGES. A wrapper rebuilt
+  // each render was restarted by the 60 s useMarketOpen re-render, so any touch timer over 60 s never
+  // fired. No state, no subscription: this cannot add a commit. The function is told the multiplier so
+  // a caller aiming at a moment in time can divide by it.
+  const mobileInterval = useMemo(() => {
+    if (!interval || !isMobile) return interval
+    return typeof interval === 'function'
+      ? (d) => interval(d, MOBILE_POLL_FACTOR) * MOBILE_POLL_FACTOR
+      : interval * MOBILE_POLL_FACTOR
+  }, [interval])
 
   return useSWR(key, fetcher, {
     ...options,

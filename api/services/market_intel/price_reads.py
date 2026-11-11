@@ -41,6 +41,33 @@ def _iso(t) -> Optional[str]:
     return None
 
 
+def daily_open_close(symbol) -> dict:
+    """`{"status":"ok", "symbol", "rows":[(YYYY-MM-DD, open, close)…]}` from the SAME read-only loader as
+    `daily_closes` (W2-B2: the opening-gap series). A bar without a positive open and close is skipped. Never raises."""
+    sym = normalize_symbol(symbol)
+    if not sym:
+        return {"status": "refused", "reason": "bad_symbol", "detail": "That isn't a valid ticker symbol."}
+    try:
+        bars = _load_bars(sym)
+    except Exception:
+        return {"status": "unavailable", "reason": "read_failed", "symbol": sym,
+                "detail": f"{sym} price history could not be read."}
+    seen: dict[str, tuple[float, float]] = {}
+    for b in bars or []:
+        d = _iso(b.get("t"))
+        try:
+            o, c = float(b.get("o")), float(b.get("c"))
+        except (TypeError, ValueError):
+            continue
+        if d and o > 0 and c > 0 and o == o and c == c:
+            seen[d] = (o, c)
+    rows = [(d, o, c) for d, (o, c) in sorted(seen.items())]
+    if not rows:
+        return {"status": "unavailable", "reason": "no_price_history", "symbol": sym,
+                "detail": f"UCT has no stored daily history for {sym}."}
+    return {"status": "ok", "symbol": sym, "rows": rows, "first": rows[0][0], "last": rows[-1][0]}
+
+
 def normalize_symbol(symbol) -> Optional[str]:
     s = str(symbol or "").strip().upper()
     return s if _SYMBOL.match(s) else None

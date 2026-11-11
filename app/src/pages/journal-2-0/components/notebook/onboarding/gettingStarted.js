@@ -40,7 +40,7 @@
 // was ticked) both close the list for good. A capability that arms later adds its tour to
 // the Learn menu and to Help > Walkthroughs (Support.jsx), never to this list, so a closed
 // list has nothing to reopen for.
-import { WALKTHROUGH_TITLE } from '../../../lib/templateBlocks'
+import { WALKTHROUGH_TITLES } from '../../../lib/templateBlocks'
 import { BASE_TOUR_ID, TOUR_REGISTRY, getTourEntry, tourLive } from './tourRegistry'
 import { TOUR_PREF, readTourPref } from './tourPref'
 import { SAMPLE_PREF, readSamplePref } from './sampleNotebook'
@@ -92,7 +92,7 @@ export function ownHomeNotes(home, sampleIds = []) {
 
 /** A note built from a catalog template still carries its walkthrough toggle. */
 export function isTemplateNote(note) {
-  return typeof note?.bodyPlain === 'string' && note.bodyPlain.includes(WALKTHROUGH_TITLE)
+  return typeof note?.bodyPlain === 'string' && WALKTHROUGH_TITLES.some((t) => note.bodyPlain.includes(t))
 }
 
 /** The base tour ticks from its own key, and only on `done` (a dismissed tour is not taken). */
@@ -117,6 +117,9 @@ function baseTourDone(prefs) {
  * plus `tourId` on the tour item. A step recorded as ticked in `notebook_getting_started`
  * stays ticked whatever the current evidence says (a step never unticks).
  */
+/** The steps the "n of N done" line counts: every item but the optional sample. */
+export const countedItems = (items) => items.filter((i) => !i.optional)
+
 export function deriveChecklistItems({
   prefs = {}, home = null, hasAnyNotes = false, canAddSample = false,
   flag, registry = TOUR_REGISTRY,
@@ -131,8 +134,12 @@ export function deriveChecklistItems({
   ]
   // The sample is offered only where it can be had (the server refuses it to a member
   // with notes), and shown ticked once it was.
+  // ⛔ Audit 2026-11-05, spec S5 (B3): the sample is OPTIONAL -- shown while it can be had, never
+  // counted. It used to count, and it drops out the moment the member has a note of their own
+  // (the server refuses the sample then), so the first screen said "1 of 4" and the next "2 of 3".
+  // The total is `countedItems` of this one list, and it never changes under the member.
   if (sample || canAddSample || recordedDone(prefs?.[CHECKLIST_PREF_KEY]).has('sample')) {
-    items.push({ id: 'sample', kind: 'sample', label: CHECKLIST_COPY.sample, done: Boolean(sample) })
+    items.push({ id: 'sample', kind: 'sample', label: CHECKLIST_COPY.sample, done: Boolean(sample), optional: true })
   }
   const base = getTourEntry(BASE_TOUR_ID, registry)
   if (base && base.replayable && tourLive(base, flag)) {

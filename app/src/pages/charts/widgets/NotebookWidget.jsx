@@ -33,6 +33,7 @@ import {
   mergeNotebookWidgetSettings, notebookWidgetStyleVars, notebookDefaultsForTheme,
 } from './notebookWidgetSettings'
 import styles from './NotebookWidget.module.css'
+import { useWidgetDoor } from '../widgetDoors'
 
 const AUTOSAVE_MS = 800
 
@@ -251,6 +252,14 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
   // under its folder. Server-side search still narrows when a query is typed.
   const { notes, refresh } = useJ2Notes({ q: q.trim() || undefined, sort: 'updated' })
   const openNoteRow = useMemo(() => notes.find(n => n.id === openNoteId) || null, [notes, openNoteId])
+  // C3-201 (pl-exec round 5): the notes this widget lists, as its own rows open them (openNote → opts.noteId), for the Agent
+  // C3-202 (round 6): the notes as the widget lists them, and its New control (newNote, below) for a create
+  useWidgetDoor(() => ({
+    options: () => ({ note: notes.map(n => ({ value: n.id, label: n.title?.trim() || 'Untitled note' })) }),
+    read: () => ({ notes: notes.map(n => ({ id: n.id, name: n.title?.trim() || 'Untitled note' })) }),
+    // ONE operation, as its own New control (AUDIT S1-A: never a reconcile of the list it is handed)
+    write: (key, v) => { if (key === 'notes' && v && v.op === 'create') newNoteRef.current?.() },
+  }))
 
   const tree = useMemo(() => buildFolderTree(folders), [folders])
   const notesByFolder = useMemo(() => {
@@ -277,6 +286,7 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
 
   // ── New blank note → open it straight in the editor (in the selected folder) ──
   const [creating, setCreating] = useState(false)
+  const newNoteRef = useRef(null)
   const newNote = async () => {
     if (creating) return
     setCreating(true)
@@ -299,6 +309,7 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
     }
   }
 
+  newNoteRef.current = newNote
   const journalUrl = openNoteId ? `/journal/notebook?note=${encodeURIComponent(openNoteId)}` : '/journal/notebook'
 
   return (
@@ -337,7 +348,7 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
           ref={settingsBtnRef}
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
-          onClick={() => setSettingsOpen(o => !o)}
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)}
           title="Notebook widget settings"
         ><UIcon name="gear" size={13} /></button>
       </div>
@@ -362,7 +373,7 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
         <>
           <div className={styles.toolbar}>
             <input className={styles.search} placeholder="Search notes…" aria-label="Search notes" value={q} onChange={e => setQ(e.target.value)} />
-            <button type="button" className={styles.newBtn} onClick={newNote} disabled={creating} title="New note">
+            <button type="button" className={styles.newBtn} data-guide="notebook.new" onClick={newNote} disabled={creating} title="New note">
               <UIcon name="plus" size={13} /> New
             </button>
           </div>

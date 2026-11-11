@@ -1,0 +1,21 @@
+{
+ "about": "W5-T9 post-deploy smoke fixture (tools/pine_runtime_service_smoke.py). The series is a fixed integer-LCG daily series; identity, digest, columns and bars_sha256 are written by --record from a live service at an engine bump.",
+ "bars_sha256": "c7a0f3fd287c531175299f6a6b96aacc0f770332a2a51c59b8eb6a12b852b953",
+ "columns": [
+  "out2",
+  "out3",
+  "value"
+ ],
+ "digest": "fbc9b9dbd4fd7860a8f025a7af5a9cbc412f9f04811d28cb8322139f94b61a89",
+ "identity": {
+  "runtime_frontend": 1,
+  "runtime_ir": 1,
+  "runtime_language": "pine",
+  "script_engine": 45
+ },
+ "series": {
+  "n": 1500,
+  "seed": 424242,
+  "start": "2015-01-02"
+ }
+}

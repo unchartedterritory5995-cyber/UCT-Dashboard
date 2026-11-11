@@ -184,6 +184,21 @@ REGISTER: dict[tuple, tuple] = {
         "adjustment (vendor / bars_sanitize / bars_split_repair) — never "
         "rescales a price itself. The two rows above remain the only real "
         "rescale sites; this is CP7's reader, not a third one."),
+    # ⛔ RS owner decisions N4 / N5 (2026-11-07): the two RS batch jobs ask the
+    # same one detector READ-ONLY, as their split GUARD. Neither rescales a bar
+    # or writes the store; a name or a forward window the detector marks is
+    # simply not rated / not counted. Same OUTSIDE pattern as the row above.
+    ("api/services/screener/rs_history.py", ADJUSTMENT_APPLIED): (
+        OUTSIDE,
+        "the RS rating history's split guard: unadjusted_splits() over a name's "
+        "scored closes decides whether to leave it unrated for a session. It never "
+        "rescales a price; the bars_sanitize and bars_split_repair rows remain the "
+        "only rescale sites."),
+    ("api/services/rs_evidence/job.py", ADJUSTMENT_APPLIED): (
+        OUTSIDE,
+        "the RS evidence job's split guard: unadjusted_splits() finds the "
+        "boundaries in a ticker's held bars so a forward window that crosses one "
+        "is left out of the statistics. It never rescales a price or writes bars."),
 
     # ── VENDOR_ADJUSTED ──────────────────────────────────────────────────────
     # ⛔ These are NOT debt in the same sense: asking a vendor for an adjusted

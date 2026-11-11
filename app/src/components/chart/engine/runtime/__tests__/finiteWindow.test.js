@@ -316,8 +316,12 @@ describe('⭐ length semantics and resources', () => {
   it('⛔ a length only known while the bar runs refuses, and SAYS length', () => {
     // ⛔ A RING IS SIZED BEFORE BAR 0. A length that only exists once the bar
     // is running cannot size one, so it must refuse rather than pick a width.
-    const src = `${head}var x = 0.0\nx := close\nplot(ta.sma(x, bar_index))\n`
-    const r = refusalOf(src)
+    // (W4-T8 r1: a v5/v6 series int length is read per bar. W34-I6c: so is v4's `series[integer]`, so this
+    // refusal is pinned at the OBJECT door, which keeps master's answer in every version)
+    const src = `//@version=4\nstudy("t")\nvar x = 0.0\nx := close\nplot(sma(x, bar_index))\n`
+    const b = buildRuntimeIr(src, { bars: BARS, inputs: {}, objectDoor: true })
+    expect(b.ok, 'expected a refusal, got a program').toBe(false)
+    const r = b.refusal
     expect(r.guard).toBe('runtime:history-dynamic-offset')
     // ⭐ THE GUARD IS SHARED WITH `x[n]` ON PURPOSE (one knob, one meaning) but
     // the SENTENCE must name a length, or it points the reader at the ring.
@@ -325,17 +329,16 @@ describe('⭐ length semantics and resources', () => {
     expect(r.message).not.toMatch(/^a history offset/)
   })
 
-  it('⚠️ MEASURED GAP — ARITHMETIC over an input does NOT fold yet', () => {
+  it('⭐ ARITHMETIC over an input folds (W4-T2 closed the measured gap)', () => {
     // A bare input name folds because `pine.js` substitutes the frozen default
-    // and the canonical node IS a `num`. `k + 2` stays an `op` node, so the
-    // fold refuses. That is CONSERVATIVE — a refusal, never a wrong width — but
-    // it is a real gap and this pins it as a fact rather than folklore. Closing
-    // it means consulting `pine.js`'s own `constantValueOf` (with its fold
-    // budget), which touches history offsets too and is therefore NOT 2F-2B's
-    // to change. ⛔ If this test ever goes red because the length now folds,
-    // that is the fix landing — assert the value, do not delete the case.
+    // and the canonical node IS a `num`. `k + 2` stayed an `op` node and the
+    // fold refused — conservative, and pinned here as a gap "to assert the value
+    // of, not delete, the day it lands". W4-T2 folds pointwise arithmetic over a
+    // canonical tree with no bar in it (`foldConstNode`, `foldScalar`): 5 + 2.
     const src = `${head}k = input.int(5, "K")\nvar x = 0.0\nx := close\nplot(ta.sma(x, k + 2))\n`
-    expect(refusalOf(src).guard).toBe('runtime:history-dynamic-offset')
+    const { out, program } = runPine(src)
+    expect(program.windows[0].span).toBe(7)
+    sameSeries(out, pureLane('ta.sma(close, 7)'), 'input arithmetic length')
   })
 
   it('⛔ a FRACTIONAL or NEGATIVE length refuses — a ring has whole cells', () => {
@@ -419,8 +422,12 @@ describe('⛔⛔ what 2F-2B does NOT admit — the families stay apart', () => {
     // computes `cum` as a forward scan; the bar-by-bar runtime has no entry, so the
     // two families stay apart exactly as the heading says.
     expect(FINITE_WINDOW.cum).toBeUndefined()
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.cum(x))\n`).guard)
-      .toBe('runtime:call-windowed-state')
+    // ⭐ W4 T10 — and then the runtime lane BUILT it: `CARRIED.cumPine`, held to the
+    // columnar `cumCol` in `w4StateKernels.test.js`. It is still not a FINITE window.
+    // The specimen of "a builtin this lane has no entry for" is now `ta.cog`.
+    expect(buildRuntimeIr(`${head}var x = 0.0\nx := close\nplot(ta.cum(x))\n`, { bars: BARS, inputs: {} }).ok).toBe(true)
+    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.cog(x, 5))\n`).guard)
+      .toBe('runtime:call-undeclared-builtin-state')
   })
 
   it('⛔⛔ A PINE SPELLING THE TABLE HOLDS UNDER ANOTHER NAME IS NOT "UNDECLARED"', () => {

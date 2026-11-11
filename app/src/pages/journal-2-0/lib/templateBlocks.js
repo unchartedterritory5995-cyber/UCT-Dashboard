@@ -19,7 +19,12 @@
 import { p } from '../../../lib/tiptapDocBuilders'
 
 /** The summary of the walkthrough toggle -- also how the catalog recognises it. */
-export const WALKTHROUGH_TITLE = 'How to use this template'
+// S7 fix round 2 (re-review R1-1): one vocabulary -- "use this template" is retired. A NEW note's walkthrough reads
+// the new title; a note made before carries the old one in its own body (stored data), so both are recognised.
+export const WALKTHROUGH_TITLE = 'How to fill in this note'
+export const LEGACY_WALKTHROUGH_TITLE = 'How to use this template'
+/** Every title a walkthrough toggle has carried (the new one first). */
+export const WALKTHROUGH_TITLES = Object.freeze([WALKTHROUGH_TITLE, LEGACY_WALKTHROUGH_TITLE])
 
 const textOf = (s) => (s ? [{ type: 'text', text: s }] : undefined)
 
@@ -92,5 +97,5 @@ function summaryText(node) {
 
 /** Is `node` the walkthrough toggle (and not some other toggle a template writes)? */
 export function isWalkthroughNode(node) {
-  return Boolean(node) && node.type === 'toggle' && summaryText(node) === WALKTHROUGH_TITLE
+  return Boolean(node) && node.type === 'toggle' && WALKTHROUGH_TITLES.includes(summaryText(node))
 }

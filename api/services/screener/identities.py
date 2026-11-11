@@ -651,6 +651,65 @@ def build_identities(*, percent_cols: Sequence[str] | None = None
         "the RS rank is a 0-99 score",
         "same published unit convention in `filters.py`",
         Tol(value=0.0, why="an integer score has no tolerance")))
+
+    # ── UCT Relative Strength (Phase 2a, unit 2a-08) ──────────────────────
+    # The rating family is a PUBLISHED scale, read off the constant rather than
+    # typed: `rs_history.rating` is `max(1, min(RATING_MAX, ceil(pct *
+    # RATING_MAX)))`, so the IBD-style rating and its four component
+    # percentiles live on [1, RATING_MAX] by construction, and the difference
+    # of two such ratings on [-(RATING_MAX - 1), RATING_MAX - 1].
+    from api.services.screener import rs_history as _rsh   # local: keep import graph thin
+    top = float(_rsh.RATING_MAX)
+    rating_tol = Tol(value=0.0, why="an integer rating has no tolerance")
+    for col, what in (("rs_rating_ibd", "the IBD-style RS rating"),
+                      ("rs_rating_1m", "the one-month return percentile"),
+                      ("rs_rating_3m", "the three-month return percentile"),
+                      ("rs_rating_6m", "the six-month return percentile"),
+                      ("rs_rating_9m", "the nine-month return percentile"),
+                      ("rs_rating_12m", "the twelve-month return percentile")):
+        out.append(band(
+            f"{col}_in_range", "indicators", col, 1.0, top,
+            f"{what} is a 1-{int(top)} score",
+            "`rs_history.rating` is max(1, min(RATING_MAX, ceil(pct * RATING_MAX))) "
+            "and an ETF's interpolated percentile passes through the same clamp, so "
+            "nothing the writer emits can leave the interval",
+            rating_tol))
+    for col, n in (("rs_rating_chg_5", 5), ("rs_rating_chg_20", 20)):
+        out.append(band(
+            f"{col}_in_range", "indicators", col, -(top - 1.0), top - 1.0,
+            f"a {n}-session change of a 1-{int(top)} rating is within "
+            f"[-{int(top) - 1}, {int(top) - 1}]",
+            "`rs_history.read_fields` derives the delta as the rating minus the "
+            "rating stored n sessions earlier; two values on [1, RATING_MAX] cannot "
+            "differ by more than RATING_MAX - 1",
+            rating_tol))
+    # The bar-derived flags are built from ONE ANOTHER in `relative_strength`
+    # and land in the row through one `rs_columns.collect_one` call, so the
+    # relations below are the maths, not a plausibility guess.
+    out.append(implies(
+        "rs_nh_before_price_implies_rs_new_high", "indicators",
+        ("rs_nh_before_price", "rs_new_high"),
+        lambda r: r["rs_nh_before_price"] == 1,
+        lambda r: r["rs_new_high"] == 1,
+        "an RS high before price is an RS high",
+        "`relative_strength.and_not(rsNH, pxNH)` is 1 only where rsNH is 1, and "
+        "`rs_columns.collect_one` reads both flags off the same bar"))
+    out.append(implies(
+        "rs_nh_red_day_implies_rs_new_high", "indicators",
+        ("rs_nh_red_day", "rs_new_high"),
+        lambda r: r["rs_nh_red_day"] == 1,
+        lambda r: r["rs_new_high"] == 1,
+        "an RS high on a red day is an RS high",
+        "`relative_strength.both(rsNH, red)` is 1 only where rsNH is 1, read off "
+        "the same bar by the same collector call"))
+    out.append(implies(
+        "rs_new_high_implies_age_zero", "indicators",
+        ("rs_new_high", "rs_nh_bars_ago"),
+        lambda r: r["rs_new_high"] == 1,
+        lambda r: r["rs_nh_bars_ago"] == 0,
+        "an RS high on the last session has an age of 0",
+        "`relative_strength.bars_ago_column` is 0 on the event bar itself, and the "
+        "age is cut from the very event column the flag is the last value of"))
     # ⛔ `rating_eps`/`rating_growth`/`rating_value`/`rating_smr` are NOT banded.
     # They ship as `_open_range` filters with no published scale, so any band
     # would be invented — and a refusal built on an invented range fires on

@@ -30,7 +30,7 @@ import { STUDIO_PREVIEW_DEF_ID } from '../studio/chartPreview'
 import { memberError, memberSaveError, memberRefusal } from './memberWords'
 import { logStudioAction, definitionKinds, clientFailureOf } from './studioTelemetry'
 import { outputNamer, slotWords } from './readback'
-import { soleCueName } from './derivedName'
+import { soleCueName, memberCueNames } from './derivedName'
 import { renamePatch, withMemberName } from './memberNamePatch'
 import { validateUserDefinitions } from '../../engine/nativeRegistry'
 import { saveReceipt } from '../studio/saveOutcomeReceipt'
@@ -178,6 +178,18 @@ export function renameTurn(before, name, { gateCtx = {}, memberWords = null } = 
       lines: [`Renamed to “${out.readback.name || name}”.`] }] }
 }
 
+/** PACKAGE 3: `envelope` with its `create` name kept as a custom name (see modelTurn), else the SAME envelope. */
+function withCreateName(envelope, words, accept) {
+  if (!envelope || !Array.isArray(envelope.ops)) return envelope
+  if (soleCueName(words) || memberCueNames(words).length) return envelope
+  if (envelope.ops.some((o) => o && o.op === 'rename_definition')) return envelope
+  const created = envelope.ops.find((o) => o && o.op === 'create')
+  const name = created && typeof created.name === 'string' ? created.name.replace(/\s+/g, ' ').trim() : ''
+  let ok = false
+  try { ok = !!name && accept(name) === true } catch { ok = false }
+  return ok ? { ...envelope, ops: [...envelope.ops, { op: 'rename_definition', name }] } : envelope
+}
+
 /**
  * THE MODEL HALF OF A TURN — one `/converse` call; the server declares what the turn is
  * (`classifyTurn`). ANSWER / UNSUPPORTED / REFUSED are the assistant's words and nothing
@@ -188,12 +200,10 @@ export function renameTurn(before, name, { gateCtx = {}, memberWords = null } = 
  * @returns `{ok, entries, state: next|null, changed}` — `changed`: a new revision of the
  *          definition (the preview acknowledgement resets, the "updated" cue fires).
  */
-export async function modelTurn(before, current, words, { snippets = [], gateCtx = {}, converse = converseTurn } = {}) {
+export async function modelTurn(before, current, words, { snippets = [], gateCtx = {}, converse = converseTurn, keepCreateName = null } = {}) {
   const res = await converse({ message: words, state: before, gateCtx, snippets })
-  const gaps = [
-    ...distinctNotUnderstood(res).map((n) => `I didn't understand "${n.clause || n.text || ''}"${n.reason ? ` — ${n.reason}` : ''}.`),
-    ...((res && res.unavailable) || []).map((n) => `${n.column || n.name || 'That'} isn't available yet${n.reason ? ` — ${n.reason}` : ''}.`),
-  ]
+  const unclear = distinctNotUnderstood(res).map((n) => `I didn't understand "${n.clause || n.text || ''}"${n.reason ? ` — ${n.reason}` : ''}.`)
+  const gaps = [...unclear, ...unavailableLines(res)]
   const turn = classifyTurn(res)
   const said = (ok, entry, extra = {}) => ({ ok, state: null, changed: false, entries: [entry], outcome: turn.outcome, ...extra })
   if (turn.outcome === OUTCOMES.ANSWER) {
@@ -210,7 +220,13 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
       lines: [memberRefusal(turn.gate, turn.reason), ...gaps, NOTHING_CHANGED] }, { gate: turn.gate, reason: turn.reason })
   }
   // ⭐ BATCH 1 — a name the member gave in the same message rides in this envelope.
-  const envelope = turn.outcome === OUTCOMES.CHANGE ? withMemberName(turn.envelope, words) : turn.envelope
+  const named = turn.outcome === OUTCOMES.CHANGE ? withMemberName(turn.envelope, words) : turn.envelope
+  // ⭐ PACKAGE 3 seam (Agent, 2026-11-04 — AGENT-M3-CONTRACT §17): a caller that asks for it (`keepCreateName`, a
+  // predicate — only UCT Agent passes one) keeps the model's `create` name as the definition's CUSTOM name, in the SAME
+  // patch (an appended `rename_definition`: one revision, one Undo step). Only for the turn that CREATES the definition,
+  // only when the member named nothing, and only for a name the predicate accepts. The dock never passes it: there,
+  // `create` still takes the derived name (derivedName.js).
+  const envelope = typeof keepCreateName === 'function' && !before.working ? withCreateName(named, words, keepCreateName) : named
   const now = current()
   const out = applyTurn(now, envelope, { gateCtx, memberWords: words })
   const { result } = out
@@ -228,7 +244,31 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
   // ⛔ P3S: a CHANGE shows the deterministic readback of the RESULT and nothing the model wrote.
   return { ok: true, state: out.state, changed: true, outcome: turn.outcome, changes: result.changes || [],
     entries: [{ role: 'uct', kind: before.working ? 'patched' : 'created', revision: out.state.revision, updated: true,
-      lines: [...replyLines(out.readback, out.state, result.changes), ...gaps] }] }
+      lines: [...replyLines(out.readback, out.state, result.changes), ...unclear] }] }
+}
+
+/**
+ * ⭐ 2026-11-01 — the planner's `unavailable` notes, in member words, and ONLY beside a turn
+ * that built nothing. They name a SCREENER column the formula grammar cannot read (a text
+ * label: `candle_matches`, `bar_character`, `sector`). On a chart the model often builds the
+ * idea from bars instead ("mark a doji", "every inside day"), and the old line then sat
+ * under a working indicator saying "candle_matches isn't available yet — TEXT -- the
+ * Candle Matches column…": an internal column name, manifest prose, and false. The model
+ * is never told these notes (`definition_conversation._language_notes`), so a change it
+ * made is its own answer; the read-back above describes exactly what was built.
+ */
+export function unavailableLines(res) {
+  const seen = new Set()
+  const out = []
+  for (const n of (res && res.unavailable) || []) {
+    const phrase = String((n && (n.phrase || n.column || n.name)) || '').trim()
+    if (!phrase || seen.has(phrase.toLowerCase())) continue
+    seen.add(phrase.toLowerCase())
+    // ⛔ NOT "a text label": most excluded columns are numbers (enterprise value, EPS), live-only or
+    // dates. And never the manifest's `reason`, which is internal prose ("TEXT -- ...").
+    out.push(`“${phrase}” is in UCT's screener data, which a chart formula can't read.`)
+  }
+  return out
 }
 
 /** Undo the last applied change. @returns null (nothing to undo) | `{state, entry}`. */

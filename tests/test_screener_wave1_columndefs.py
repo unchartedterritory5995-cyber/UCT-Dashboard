@@ -40,6 +40,10 @@ def test_every_filterable_and_viewed_column_has_a_def():
 # in a view. Anything else must be named here WITH ITS REASON: we compute it,
 # store it nightly, and deliberately never show it.
 _PROVENANCE_ONLY = {
+    "live_base_close_1w": "a live-tier base: the session-shifted level live_tier restates a member column from; the member reads that column, never this",
+    "live_base_close_1m": "a live-tier base: the session-shifted level live_tier restates a member column from; the member reads that column, never this",
+    "live_base_close_1y": "a live-tier base: the session-shifted level live_tier restates a member column from; the member reads that column, never this",
+    "live_base_min_volume_3d": "a live-tier base: the session-shifted level live_tier restates a member column from; the member reads that column, never this",
     "snapshot_date": "the row's as-of date — surfaced as the toolbar's date chip "
                      "and /api/screener/snapshot-status, never as a grid column",
     "bars_asof":     "provenance for the bar-fed columns; the Seal popover reads it",
@@ -134,3 +138,38 @@ def test_the_renderability_check_can_actually_SAY_NO():
     assert not _renderable("    fmt: v => v,\n  }")       # formatter, no label
     # …and it is reading the real file, not an empty parse.
     assert len(_column_def_bodies()) >= 150
+
+
+# ─── UCT Relative Strength (Phase 2a, unit 2a-08): a def WITH its honesty text ──
+
+_DESC = re.compile(r"desc: '((?:[^'\\]|\\.)*)'", re.S)
+
+
+def _desc_of(body: str) -> str:
+    m = _DESC.search(body)
+    return m.group(1).replace("\\'", "'") if m else ""
+
+
+def test_every_rs_column_def_carries_a_desc_that_names_daily_bars():
+    """⛔ DERIVED FROM THE TWO WRITERS. Every column `rs_columns` or the
+    rs_history reader writes has a renderable def AND a `desc` a member can
+    open, and every desc says the number is daily-bar based — the one fact a
+    chart reader on an intraday timeframe would otherwise assume wrong."""
+    from api.services.screener import rs_columns, snapshot_builder
+    cols = [*rs_columns.COLUMNS, *snapshot_builder._RS_HISTORY_COLUMNS]
+    assert len(cols) == 17, cols
+    bodies = _column_def_bodies()
+    for col in cols:
+        assert col in bodies, f"{col} has no column def"
+        assert _renderable(bodies[col]), col
+        desc = _desc_of(bodies[col])
+        assert len(desc) > 60, (col, desc)
+        assert "daily" in desc.lower(), (col, "the desc does not say daily bars")
+        assert "weekly" not in desc.lower() or col == "mansfield", col   # Mansfield names Weinstein's weekly 52 to say it is NOT that
+    # the rating says whose number it is, and whose it is not
+    rating = _desc_of(bodies["rs_rating_ibd"])
+    assert "IBD-style" in rating and "our own calculation" in rating
+    assert "not MarketSurge" in rating
+    # …and the parser is reading real text, not matching nothing
+    assert _desc_of("    label: 'X', fmt: v => v, desc: 'it\\'s a test',\n  }") == "it's a test"
+    assert _desc_of("    label: 'X', fmt: v => v,\n  }") == ""

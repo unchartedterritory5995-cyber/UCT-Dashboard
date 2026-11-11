@@ -1,0 +1,15 @@
+//@version=5
+indicator("hp array window", overlay=false)
+var a = array.new_float(0)
+array.push(a, close)
+if array.size(a) > 30
+    array.shift(a)
+m = array.avg(a)
+float ss = 0.0
+for i = 0 to array.size(a) - 1
+    d = array.get(a, i) - m
+    ss += d * d
+plot(m, "avg")
+plot(math.sqrt(ss / array.size(a)), "sd")
+plot(array.max(a) - array.min(a), "range")
+plot(array.sum(a), "sum")

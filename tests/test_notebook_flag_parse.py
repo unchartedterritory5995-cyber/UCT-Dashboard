@@ -44,28 +44,14 @@ from pathlib import Path
 import pytest
 
 from api.routers import auth as auth_router
-from api.routers import notebook_smart_chips
 from api.services import feature_flag_index as ffi
 from api.services import notebook_flags
 from api.services.journal_two import note_shares
 from api.services.journal_two import ai_actions
 from api.services.journal_two import writing_help
-from api.services.journal_two import tech_fingerprint
-from api.services.journal_two import transcript_capture, passed_setups
-from api.services.journal_two import thesis_chips
-from api.services.journal_two import chart_plan
-from api.services.journal_two import entry_context
-from api.services.journal_two import visual_playbook
 from api.services.journal_two import note_levels
-from api.services.journal_two import setups_board
-from api.services.journal_two import similar_matches
-from api.services.journal_two import review_drafts
-from api.services.journal_two import document_extraction, note_semantic, note_tasks
+from api.services.journal_two import note_semantic, note_tasks
 from api.services.journal_two import coach_chat_tools
-from api.services.journal_two import journal_styles
-from api.services.journal_two import earnings_followup
-from api.services.journal_two import template_gallery
-from api.services.journal_two import starter_packs
 
 REPO = Path(__file__).resolve().parents[1]
 ONE_PARSE = "api/services/notebook_flags.py"
@@ -135,49 +121,19 @@ def _server_gates() -> dict:
         "NOTEBOOK_ONBOARDING_ENABLED": lambda: notebook_flags.flag_on("NOTEBOOK_ONBOARDING_ENABLED", False),
         # Wave 11 lane 11C: the AI-actions router's own gate function.
         "NOTEBOOK_AI_ACTIONS_ENABLED": ai_actions.enabled,
-        # Wave 13 lane 13I-1: the fingerprint router's own gate function.
-        "NOTEBOOK_TA_FINGERPRINT_ENABLED": tech_fingerprint.enabled,
-        # Wave 13 lane 13H-1: the chart-plan router's own gate function.
-        "NOTEBOOK_CHART_PLAN_ENABLED": chart_plan.enabled,
-        # Wave 13 lane 13E-1: the entry-context router's (and hooks') own gate function.
-        "NOTEBOOK_ENTRY_CONTEXT_ENABLED": entry_context.enabled,
-        # Wave 13 lane 13G-1: one gate function per research-capture router.
-        "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": transcript_capture.enabled,
-        "NOTEBOOK_PASSED_SETUPS_ENABLED": passed_setups.enabled,
-        # Wave 13 lane 13G-2: the thesis-chips router's own gate function.
-        "NOTEBOOK_THESIS_CHIPS_ENABLED": thesis_chips.enabled,
-        # Wave 13 lane 13I-2: the visual playbook router's own gate function.
-        "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": visual_playbook.enabled,
         # Wave 13 lane 13D: the resurfacing scan's own gate function.
         "AWARENESS_NOTE_RESURFACE_ENABLED": note_levels.enabled,
-        # Wave 13 lane 13J: the setups-board and similar-names routers' own gate functions.
-        "NOTEBOOK_SETUPS_BOARD_ENABLED": setups_board.enabled,
-        "NOTEBOOK_FIND_SIMILAR_ENABLED": similar_matches.enabled,
-        # Wave 13 lane 13F: the review-drafts service's own gate function (the router's
-        # `enabled()` is a thin re-export of this one).
-        "NOTEBOOK_REVIEW_DRAFTS_ENABLED": review_drafts.enabled,
-        # Wave 14 lane W14-C1: three capabilities' own gate functions, now on the payload.
-        "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": document_extraction.image_docx_documents_enabled,
+        # Wave 14 lane W14-C1: capabilities' own gate functions, now on the payload.
         "NOTEBOOK_TASK_REMINDERS_ENABLED": note_tasks.reminders_enabled,
         "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": note_semantic.semantic_enabled,
         # Task 14b: Compass's search_my_notes tool gate, now on the payload.
         "COMPASS_NOTES_TOOL_ENABLED": coach_chat_tools.notes_tool_enabled,
-        # Notebook P1: the journal styles service's own gate function.
-        "NOTEBOOK_JOURNAL_STYLES_ENABLED": journal_styles.enabled,
-        # Tier 2 part A: the smart-chips ticker route's own gate function.
-        "NOTEBOOK_SMART_CHIPS_ENABLED": notebook_smart_chips.enabled,
-        # Tier 2 part B: the earnings follow-up service's own gate function.
-        "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED": earnings_followup.enabled,
         # P4a: no service module yet, so the gate IS the one-parse call (the truth-table half of (b)
         # keeps the comparison from being a mirror), as for publish and onboarding above.
         "JOURNAL_PAGE_LAYOUTS_ENABLED": lambda: notebook_flags.flag_on("JOURNAL_PAGE_LAYOUTS_ENABLED", False),
-        # P3a: the style library's own gate function (Task 3 replaced the placeholder lambda).
-        "NOTEBOOK_STYLE_LIBRARY_ENABLED": template_gallery.library_enabled,
         # P2 Tier 3: no service module exists yet, so the row is the neighbours' own flag_on parse.
         # Task 6 or 7 swaps it for the service's enabled() once one is built.
         "JOURNAL_TIER3_ENABLED": lambda: notebook_flags.flag_on("JOURNAL_TIER3_ENABLED", False),
-        # P5: the starter-pack service's own gate function (Task 4 replaced the placeholder lambda).
-        "NOTEBOOK_STARTER_PACKS_ENABLED": starter_packs.enabled,
     }
 
 

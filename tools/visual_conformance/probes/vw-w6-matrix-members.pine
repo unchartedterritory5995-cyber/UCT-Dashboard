@@ -1,0 +1,83 @@
+// W6-T7 (2026-11-06) — probe W6-M1 for the capture lane. Queue: docs/pine/capture-queue-2026-11-06-w6.md
+// Chart: AMEX:SPY 1D, inputs at defaults (none), AFTER THE CLOSE.
+// ⚠️ Not compiled on TradingView yet: if a row does not compile, the error names the line — split it out.
+// A runtime error is itself a reading: record its text and the bar it names, then
+// comment that row out and capture the rest. Rows that are EXPECTED to raise are grouped last.
+//
+//   V01-V03  matrix.min / max / avg over a 2x2 float matrix holding one na
+//   V04      matrix.avg of a matrix<int> holding (1, 2): 1, 2 or 1.5 (the series int form)
+//   S01      matrix.sum of a matrix<int> holding 2 and the scalar 0.5: 2, 2.5 or 3
+//   S02      matrix.sum of a float matrix holding one na and 1.0: the na cell (na?) and a real cell
+//   A01-A02  add_row on a 0x3 matrix with an array of 5: rows / columns after (or a runtime error)
+//   A03-A04  add_row with no array on a 0x0 matrix<float>: rows / columns after
+//   R01-R02  remove_row of the LAST row of a 1x3 matrix: rows / columns after
+//   R03-R04  remove_col of the LAST column of a 3x1 matrix: rows / columns after
+//   B01      matrix.new<bool>(1, 1) with no initial value: what get(0, 0) reads (as 1 / 0 / na)
+//   D01-D04  (review N1) degenerate shapes: default add_row on 2x0 (rows, columns after), default add_col on 0x3
+//            (rows, columns after); E09-E10 below: submatrix with an empty row / column range
+//   --- expected to raise; uncomment one at a time and record the error text:
+//   E01      matrix.new<float>(na, 2, na): rows
+//   E02-E03  matrix.get at row = rows, and at row -1
+//   E04      add_row on a 2x2 matrix with an array of 3
+//   E05      remove_row with the index omitted
+//   E06      matrix.min of an empty matrix
+//   E07      matrix.sum of a 1x1 and a 2x1 matrix
+//   E08      matrix.fill with an na to_row
+//   E09-E10  (review N1) submatrix with an empty row range / column range
+//@version=6
+indicator("vw-w6-matrix-members", overlay = false)
+v = matrix.new<float>(2, 2, 1.5)
+matrix.set(v, 0, 1, na)
+plot(matrix.min(v), "V01 min with an na cell")
+plot(matrix.max(v), "V02 max with an na cell")
+plot(matrix.avg(v), "V03 avg with an na cell")
+vi = matrix.new<int>(1, 2, 1)
+matrix.set(vi, 0, 1, 2)
+plot(matrix.avg(vi), "V04 avg of matrix<int> (1, 2)")
+si = matrix.new<int>(1, 1, 2)
+plot(matrix.get(matrix.sum(si, 0.5), 0, 0), "S01 matrix<int> 2 + 0.5")
+sn = matrix.new<float>(1, 2, 1.0)
+matrix.set(sn, 0, 0, na)
+snr = matrix.sum(sn, 1.0)
+plot(na(matrix.get(snr, 0, 0)) ? 1 : 0, "S02 na cell + 1 is na")
+a1 = matrix.new<float>(0, 3)
+matrix.add_row(a1, 0, array.from(1.0, 2.0, 3.0, 4.0, 5.0))
+plot(matrix.rows(a1), "A01 rows after add_row of 5 into 0x3")
+plot(matrix.columns(a1), "A02 columns after add_row of 5 into 0x3")
+a3 = matrix.new<float>()
+matrix.add_row(a3)
+plot(matrix.rows(a3), "A03 rows after default add_row on 0x0")
+plot(matrix.columns(a3), "A04 columns after default add_row on 0x0")
+r1 = matrix.new<float>(1, 3, 1.0)
+matrix.remove_row(r1, 0)
+plot(matrix.rows(r1), "R01 rows after removing the last row")
+plot(matrix.columns(r1), "R02 columns after removing the last row")
+r3 = matrix.new<float>(3, 1, 1.0)
+matrix.remove_col(r3, 0)
+plot(matrix.rows(r3), "R03 rows after removing the last column")
+plot(matrix.columns(r3), "R04 columns after removing the last column")
+b1 = matrix.new<bool>(1, 1)
+plot(na(matrix.get(b1, 0, 0)) ? -1 : matrix.get(b1, 0, 0) ? 1 : 0, "B01 bool default (-1 = na)")
+d1 = matrix.new<float>(2, 0)
+matrix.add_row(d1)
+plot(matrix.rows(d1), "D01 rows after default add_row on 2x0")
+plot(matrix.columns(d1), "D02 columns after default add_row on 2x0")
+d3 = matrix.new<float>(0, 3)
+matrix.add_col(d3)
+plot(matrix.rows(d3), "D03 rows after default add_col on 0x3")
+plot(matrix.columns(d3), "D04 columns after default add_col on 0x3")
+// e1 = matrix.new<float>(na, 2, na)
+// plot(matrix.rows(e1), "E01 na row count")
+// e2 = matrix.new<float>(2, 2, 1.0)
+// plot(matrix.get(e2, 2, 0), "E02 row = rows")
+// plot(matrix.get(e2, -1, 0), "E03 row -1")
+// matrix.add_row(e2, 0, array.from(1.0, 2.0, 3.0))
+// plot(matrix.rows(e2), "E04 add_row of 3 into 2x2")
+// matrix.remove_row(e2)
+// plot(matrix.rows(e2), "E05 remove_row with no index")
+// plot(matrix.min(matrix.new<float>()), "E06 min of empty")
+// plot(matrix.get(matrix.sum(matrix.new<float>(1, 1, 1.0), matrix.new<float>(2, 1, 1.0)), 0, 0), "E07 sum of 1x1 and 2x1")
+// matrix.fill(e2, 3.0, 0, na)
+// plot(matrix.get(e2, 1, 1), "E08 fill with na to_row")
+// plot(matrix.rows(matrix.submatrix(e2, 1, 1)), "E09 submatrix empty row range")
+// plot(matrix.columns(matrix.submatrix(e2, 0, 2, 1, 1)), "E10 submatrix empty column range")

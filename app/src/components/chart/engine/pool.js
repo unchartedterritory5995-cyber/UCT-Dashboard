@@ -64,6 +64,7 @@ import { withObjectTransparency } from './ast/objectProgram'
 import { MAIN_PRICE_SCALE_ID } from './placement'
 import { presentedPlot } from './presentation'
 import { LINE_WIDTH_HARD_MAX } from './defSchema'
+import { inputsAsServed, hasServerGate } from './legacyInputs'
 
 /** The four LWC series constructors any v1 plot can need. */
 /**
@@ -236,9 +237,13 @@ export function resolvePlotForInstance(plot, inputs, { pickReplacesOpacity = fal
 
   let out = null
   // `lineStyle` is here because VWAP's user-facing style picker has to reach the
-  // series (B3 Task 8) — see `SUBSTITUTABLE_PLOT_FIELDS`. `levels` is handled
-  // below because it is per-ELEMENT rather than whole-value.
-  for (const field of ['color', 'width', 'lineStyle']) {
+  // series (B3 Task 8); `colorUp`/`colorDown` because UCT RS's Phase preset
+  // colours the line by its position against its average from TWO colour inputs
+  // (2026-11-05) — see `SUBSTITUTABLE_PLOT_FIELDS`. `levels` is handled below
+  // because it is per-ELEMENT rather than whole-value. The binder reads the
+  // plot this returns (`planBindings` → `b.plot`), so `columnColorsForPlot`
+  // sees the member's pair, not the definition's defaults.
+  for (const field of ['color', 'width', 'lineStyle', 'colorUp', 'colorDown']) {
     const key = refs[field]
     if (!key) continue
     const v = inputs[key]
@@ -376,11 +381,16 @@ const LWC_DEFAULTS = Object.freeze({
 /** LWC's OWN `priceFormat.precision` (`seriesOptionsDefaults`, 5.2.0). Naming it
  *  here is what makes `precision` free to wire onto EVERY pool key: a plot that
  *  says nothing gets the number the renderer already uses, so the emitted
- *  `{type: 'price', precision: 2}` is a no-op on the picture and Flip A parity is
- *  untouched. `minMove` is deliberately NOT emitted — LWC's `merge` recurses into
- *  a nested plain object, so the series keeps its own `minMove: 0.01`, which is
- *  exactly what the legacy MACD call (`StockChart.jsx:6018`,
- *  `{type: 'price', precision: 5}` and nothing else) leaves it at. */
+ *  `{type: 'price', precision: 2, minMove: 0.01}` is a no-op on the picture and
+ *  Flip A parity is untouched for every plot that declares nothing.
+ *
+ *  ⚰️ `minMove` used to be deliberately left out, to match the legacy MACD call
+ *  (`{type: 'price', precision: 5}` and nothing else). That kept the series' own
+ *  `minMove: 0.01`, and LWC 5.2.0's `PriceFormatter` ROUNDS to `minMove` and only
+ *  PADS to `precision` (`base = 10^precision / (minMove * 10^precision)`): MACD's
+ *  histogram tag printed 0.12000 for 0.12345, and the RS line's 4-dp tag printed
+ *  0.2500 for 0.2477. Decision B1 (2026-11-07): every engine series sets
+ *  `minMove = 10^-precision`, and the parity diffs this causes are corrections. */
 const DEFAULT_PRICE_PRECISION = 2
 
 /**
@@ -396,9 +406,37 @@ const DEFAULT_PRICE_PRECISION = 2
  * Emitted on every pool key rather than only where the author asked for it: the
  * C-1 key set has to be identical for every plot sharing a pool key, or an
  * `applyOptions` merge carries the last tenant's precision onto the next one.
+ *
+ * Only a whole number of decimals >= 0 is accepted, the same rule `defSchema`
+ * applies: `minMove` is derived from it, and 10^-2.5 or 10^1 is a step no axis
+ * should round to.
  */
 function precisionFor(plot) {
-  return Number.isFinite(plot.precision) ? plot.precision : DEFAULT_PRICE_PRECISION
+  const p = plot.precision
+  return Number.isInteger(p) && p >= 0 ? p : DEFAULT_PRICE_PRECISION
+}
+
+/**
+ * The `priceFormat` for a plot: its precision AND the matching `minMove`.
+ *
+ * `minMove` is what LWC rounds to (see `DEFAULT_PRICE_PRECISION`), so it must be
+ * `10^-precision` or a 4-decimal tag rounds to 2. Emitted on every bind, like
+ * `precision`, so a pooled series re-purposed from a tenant with another step
+ * (a fundamental's custom format sets `minMove: 1`) cannot keep that step: LWC's
+ * `merge` recurses into `priceFormat` and keeps any key the new object omits.
+ * ⛔ `minMove` is PARSED from the literal `1e-p`, never computed as `10 ** -p`. The
+ * exponent operator is NOT correctly rounded on every engine: on V8 as shipped in
+ * Node 20 (CI's and the Docker build's Node), `10 ** -4` is 0.00009999999999999999
+ * and `10 ** -5` is 0.000009999999999999999, so `minMove * 10^p` came out as
+ * 0.9999999999999999 and a precision-4/5 series stepped one ulp short of its last decimal
+ * (2026-11-08: red on Node 20, green on Node 24, which is why it read as a 'baseline
+ * red'). Number-from-string is correctly rounded by the language spec on every
+ * engine, so `minMove * 10^p` is exactly 1 for p = 0..10 everywhere (pinned in
+ * `pool.test.js`), and LWC's step is one unit of the last decimal.
+ */
+function priceFormatFor(plot) {
+  const precision = precisionFor(plot)
+  return { type: 'price', precision, minMove: Number(`1e-${precision}`) }
 }
 
 /** The engine's own default line width. NOT LWC's (which is 3): every indicator
@@ -514,11 +552,41 @@ export function fixedRangeProvider(min, max) {
   return fn
 }
 
+/**
+ * ⭐ THE INCLUDE-RANGE PROVIDER (rsLine rev 5, 2026-11-08) — `plots[].autoscaleInclude`.
+ * Unlike the fixed range above it answers NOTHING of its own while the series has
+ * no data in view (`baseImplementation()` is null): a series the server blanks
+ * under another reading must not reframe that reading's scale. With data, it
+ * widens the series' own range to include `[min, max]` (guides at fixed levels,
+ * the RS Rating's 80 and 90, stay on screen) and keeps the library's margins.
+ * Memoised by range, like the fixed one.
+ */
+const INCLUDE_PROVIDERS = new Map()
+export function includeRangeProvider(min, max) {
+  const key = `${min}:${max}`
+  let fn = INCLUDE_PROVIDERS.get(key)
+  if (!fn) {
+    fn = (baseImplementation) => {
+      const base = baseImplementation()
+      const pr = base && base.priceRange
+      if (!pr || !Number.isFinite(pr.minValue) || !Number.isFinite(pr.maxValue)) return base
+      return { priceRange: { minValue: Math.min(min, pr.minValue), maxValue: Math.max(max, pr.maxValue) },
+        ...(base.margins ? { margins: base.margins } : {}) }
+    }
+    INCLUDE_PROVIDERS.set(key, fn)
+  }
+  return fn
+}
+
 /** The provider a series gets: the declared fixed range when placement passed
- *  one on a self-owned scale, else the mode's singleton. */
-function providerFor(mode, range) {
+ *  one on a self-owned scale; else the plot's own include range (rev 5); else the
+ *  mode's singleton. A guest on another axis (`exclude`) is never widened. */
+function providerFor(mode, range, include) {
   if (range && Number.isFinite(range.min) && Number.isFinite(range.max) && mode !== 'exclude') {
     return fixedRangeProvider(range.min, range.max)
+  }
+  if (include && Number.isFinite(include.min) && Number.isFinite(include.max) && mode !== 'exclude') {
+    return includeRangeProvider(include.min, include.max)
   }
   return autoscaleProvider(mode)
 }
@@ -666,7 +734,7 @@ export function seriesOptionsForPlot(plot, ctx) {
     // ⭐ A historical fundamental reads in ITS unit on the axis (`$365.0B`, `24.3%`,
     // `28.40x`) -- the binder resolves the catalogue format and hands a frozen
     // priceFormat; every other plot keeps the declared precision, unchanged.
-    priceFormat: c.priceFormat || { type: 'price', precision: precisionFor(plot) },
+    priceFormat: c.priceFormat || priceFormatFor(plot),
     // B3 carry #1. A price overlay is a GUEST on the candles' axis and must not
     // stretch it; anything owning its own band must. Always emitted, because a
     // key that can be set must be set on every bind or a re-purpose inherits it —
@@ -674,7 +742,8 @@ export function seriesOptionsForPlot(plot, ctx) {
     // ⭐ …AND THE SAME OUTRANKING FOR AUTOSCALE: a moving average on price is
     // part of the candles' framing (a far SMA 200 stays in view), as the overlay
     // renderer drew it, unless the surface fits price to the candles.
-    autoscaleInfoProvider: providerFor((plot && plot.autoscale) || c.autoscale, c.autoscaleRange),
+    autoscaleInfoProvider: providerFor((plot && plot.autoscale) || c.autoscale, c.autoscaleRange,
+      plot && plot.autoscaleInclude),
   }
 
   // ── A CANDLESTICK, WHICH SHARES ONLY THE BASE ─────────────────────────
@@ -742,6 +811,14 @@ export function seriesOptionsForPlot(plot, ctx) {
 
   // ── everything else is one of LWC's line-shaped series ──
   const markers = plot.style === 'markers'
+  // ⭐ A GLYPH DRAWS NO POINT MARKER UNDER ITSELF (2a-13). A `markers` plot WITH a
+  // `marker` block is painted by the series-marker lane (`binder.js` →
+  // `markersFor`, riding this very series); its `width` was still emitted here as
+  // `pointMarkersRadius` with `pointMarkersVisible: true`, so a 2 px disc sat under
+  // every gold glyph — invisible beneath the disc, and the SECOND renderer the
+  // review warned about (`presentation.js:421` vs `binder.js:2511`). The series
+  // keeps its data (the glyph's `inBar` anchor IS the value) and draws nothing.
+  const glyph = markers && !!plot.marker && typeof plot.marker === 'object' && !Array.isArray(plot.marker)
   base.crosshairMarkerVisible = false
   // SAR: dots, not a line — `lineWidth: 0` plus point markers
   // (`StockChart.jsx:5889-5894`). The plot's `width` is the DOT RADIUS there,
@@ -753,14 +830,24 @@ export function seriesOptionsForPlot(plot, ctx) {
   // (`presentation.lineLookPatch` never stamps it on a step).
   base.lineType = lineTypeValue(plot.style === 'stepline' ? 'WithSteps'
     : (plot.lineType === 'curved' ? 'Curved' : 'Simple'), c.LineType)
-  base.pointMarkersVisible = markers
+  base.pointMarkersVisible = markers && !glyph
   base.pointMarkersRadius = (markers && Number.isFinite(plot.width)) ? plot.width : DEFAULT_DOT_RADIUS
   // ⭐ "Last value horizontal" (`presentation.presentedPlot` → `plot.levelOnly`): no
   // history ink, one level at the latest value. EMITTED ON EVERY LINE-FAMILY BIND, true
   // by default, because LWC's merge skips undefined — a series re-purposed from a level
   // back to a line would otherwise keep its line hidden.
   const levelOnly = plot.levelOnly === true
-  base.lineVisible = !levelOnly
+  // ⭐ A DOT PLOT HAS NO LINE TO SHOW (2026-11-06, UCT RS unit 6). `lineWidth: 0`
+  // alone does not hide it: the canvas IGNORES a zero line width (HTML spec —
+  // "zero, negative, infinite, and NaN values must be ignored"), so LWC's `walkLine`
+  // still stroked a one-device-pixel chord between consecutive points in the dot
+  // colour. Under SAR (a value on every bar) that chord hid beneath the dots; under
+  // a SPARSE dot column (UCT RS's new-high dots, finite only on event bars) it was a
+  // straight line across the pane from one dot to the next. `lineVisible: false` is
+  // LWC's own switch for it: `_internal_lineType` goes undefined and nothing is
+  // walked, while the point markers draw regardless (`drawSeriesPointMarkers` keys
+  // on `pointMarkersRadius` alone).
+  base.lineVisible = !levelOnly && !markers
   if (levelOnly) { base.priceLineVisible = true; base.lastValueVisible = true }
 
   if (pk === 'area') {
@@ -966,6 +1053,40 @@ function dataPlots(def) {
 }
 
 /** The static guides of a definition, in declaration order. */
+/**
+ * `plots[].activeWhen` (UCT RS visual round, 2026-11-07): a plot that declares
+ * the same condition grammar the settings form uses for inputs is bound only
+ * while the condition holds for THIS instance's inputs (stored value, else the
+ * declared default). Mirrors `indicatorRegistry.evalActiveWhen` exactly; it is
+ * repeated here because the engine must not import the settings registry (that
+ * module imports `engine/readout`, and the pool sits under both). A rail in
+ * `pool.plotActiveWhen.test.js` holds the two equal on every comparator.
+ */
+export function plotActiveFor(plot, def, stored, declared) {
+  const aw = plot && plot.activeWhen
+  if (!aw || typeof aw !== 'object' || typeof aw.key !== 'string') return true
+  // ⭐ 3-08b: a stored legacy input reads as its successor (`legacyInputs`).
+  // ⭐ 3-14: and, given what the live server row `declared`, a stored value that
+  // row drops reads as not stored (`inputsAsServed`): a v4 `view: 'rotation'`
+  // under a v3 server draws the RS line, so the 100 guide stays off. `declared`
+  // omitted (undefined) is the 3-08b answer, unchanged.
+  const inputs = inputsAsServed(def, stored, declared)
+  let v = inputs && Object.prototype.hasOwnProperty.call(inputs, aw.key) ? inputs[aw.key] : undefined
+  if (v === undefined) {
+    const spec = ((def && def.inputs) || []).find(i => i && i.key === aw.key)
+    v = spec ? spec.default : undefined
+  }
+  if ('equals' in aw) return v === aw.equals
+  if ('notEquals' in aw) return v !== aw.notEquals
+  if ('in' in aw) return Array.isArray(aw.in) && aw.in.includes(v)
+  if ('gt' in aw) return Number(v) > Number(aw.gt)
+  if ('gte' in aw) return Number(v) >= Number(aw.gte)
+  if ('lt' in aw) return Number(v) < Number(aw.lt)
+  if ('lte' in aw) return Number(v) <= Number(aw.lte)
+  if (Object.keys(aw).some((k) => k !== 'key')) return true
+  return !!v
+}
+
 function guidePlots(def) {
   return (def.plots || []).filter(p => p && p.style === 'hlines' && typeof p.key === 'string')
 }
@@ -1019,6 +1140,10 @@ export function planBindings(instances, registry, prevBindings, opts) {
   // default a passthrough row starts at and NARROWS what the resolver will honour.
   const sourceCapability = opts && typeof opts.sourceCapability === 'function'
     ? opts.sourceCapability : null
+  // ⭐ UCT RS 3-14 — `(defId) => declaration|null`, `serverCompute.serverDeclares`.
+  // Asked only for a definition that marks something `requiresServer`, so every
+  // other definition's guides are planned exactly as before. Absent ⇒ not known.
+  const serverDeclares = opts && typeof opts.serverDeclares === 'function' ? opts.serverDeclares : null
 
   // ── 1. What the chart SHOULD hold ──
   const desired = []
@@ -1033,11 +1158,24 @@ export function planBindings(instances, registry, prevBindings, opts) {
     // Every plot is resolved against THIS instance's inputs before anything
     // reads it, so nothing downstream can accidentally use a definition default
     // where the user set a value.
-    const guides = guidePlots(def).map(p => resolvePlotForInstance(p, inst.inputs))
+    let declared
+    if (serverDeclares && hasServerGate(def)) {
+      try { declared = serverDeclares(def.id) } catch { declared = null }
+    }
+    const guides = guidePlots(def)
+      .filter(p => plotActiveFor(p, def, inst.inputs, declared))
+      .map(p => resolvePlotForInstance(p, inst.inputs))
     const guideSig = guideSignature(guides)
     let first = true
 
     for (const rawPlot of dataPlots(def)) {
+      // ⭐ UCT RS split, U7 (2026-11-09): a DATA plot may carry `activeWhen` too —
+      // the schema admits it on a server definition for a presentation key the
+      // server never hears of (`defSchema.validatePlotActiveWhen`), so nothing
+      // blanks the column and the plan is where the member's switch takes effect.
+      // Read exactly as the guides are, one line above; a plot with no condition
+      // is planned as it always was.
+      if (!plotActiveFor(rawPlot, def, inst.inputs, declared)) continue
       // ⭐ INPUTS FIRST, THEN PRESENTATION. `resolvePlotForInstance` answers "what
       // did the member set for colour and width"; `presentedPlot` answers "what
       // SHAPE did they ask this output to be". The second reads the first's

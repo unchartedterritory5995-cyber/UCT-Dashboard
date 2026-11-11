@@ -5,7 +5,7 @@ neither can get them:
 
   1. The gate's compensating control needs to know which SHA was last PROMOTED, so it
      can tell a promotion from somebody pushing to `production` by hand.
-  2. A human needs to know what the advisory range scan said. Session 14 could not read
+  2. A human needs to know what the range scan said (gating since 2026-11-06, PR #896). Session 14 could not read
      it: `gh` is not installed on the operator's box and the Actions log needs a token,
      so the six states the scan can report were invisible from outside CI.
 

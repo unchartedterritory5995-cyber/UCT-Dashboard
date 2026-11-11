@@ -1,0 +1,22 @@
+{
+ "identity": {
+  "script_engine": "fixture",
+  "runtime_language": "pine",
+  "runtime_frontend": 1,
+  "runtime_ir": 1,
+  "bundle_sha256": "abababababababababababababababababababababababababababababababab"
+ },
+ "result": {
+  "job": "RDDT",
+  "status": "withheld",
+  "refusals": [
+   {
+    "key": "*",
+    "guard": "pine:strategy-call",
+    "sentence": "a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`",
+    "bar": null
+   }
+  ],
+  "digest": "2b5bee88b5088dd67308315143a60c928952932173173204b999f3e3e19f8e03"
+ }
+}

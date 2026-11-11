@@ -496,12 +496,11 @@
   height: 28px;
   padding: 0 12px;
   border-radius: var(--radius-pill);
-  background: var(--hub-glass-tint);
-  /* D1 — LIGHT. The chip is a readout, read WHILE the thumb is moving, so it is the one
-     surface that must stay crisp; a heavy blur here costs legibility for depth nobody
-     is looking for. */
-  -webkit-backdrop-filter: blur(var(--hub-blur-chip)) saturate(var(--hub-saturate));
-  backdrop-filter: blur(var(--hub-blur-chip)) saturate(var(--hub-saturate));
+  /* B4 (2026-11-07): the chip is a readout, read WHILE the thumb moves, so it sits on a solid
+     --bg-elevated plate rather than glass: --text-bright on it, whatever the chart or list
+     behind it is doing. (It wore light glass, `--hub-blur-chip`, until then; an opaque plate
+     has nothing behind it to blur, so the blur went with it.) */
+  background: var(--bg-elevated);
   border: var(--hub-rim-width) solid var(--hub-rim);
   box-shadow: var(--hub-shadow);
   white-space: nowrap;
@@ -517,7 +516,11 @@
    is the one string in this chip a member needs whole. The hint is the part that gives way. */
 .chipMode {
   flex: 0 0 auto;
-  font-weight: 500;
+  /* B4: the mode word is the chip's one look-here mark, in gold on every mode. The per-mode
+     hues (violet for Chart, sky blue for Screener, ...) are not used for words: outside data,
+     neither hue appears. 600, not 500: 11 px gold needs the weight to hold its edge. */
+  color: var(--ut-gold);
+  font-weight: 600;
   font-size: var(--text-sm);
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -531,7 +534,8 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--text-muted);
+  /* B4: the pill body reads --text-bright on its --bg-elevated plate. */
+  color: var(--text-bright);
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
 }

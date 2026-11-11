@@ -32,12 +32,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import StockChart from '../../components/StockChart'
+import useSessionChartSettings from '../../components/chart/pane/useSessionChartSettings'
 import { appendForwardBars, normalizeBars } from '../study/useStudySession'
 import Textarea from '../../components/ui/Textarea'
 import UIcon from '../../components/ui/UIcon'
 import { studySettingsOverride, HOUSE_CHART_URL } from '../study/studyChartLook'
 import { CHART_TYPES, choicesFromPrompt, questionOf as playerQuestionOf } from '../study/drills/types'
-import { studyAnnotations } from '../study/studyOverlays'
+import { studyAnnotations, studyOpenMarkers } from '../study/studyOverlays'
+import { toChartTime } from '../../components/chart/patternTime'
 import { slingshotInstances } from '../study/slingshotOverlay'
 import styles from './StudyReview.module.css'
 import { registerShortcuts } from '../command/shortcutRegistry'
@@ -563,14 +565,26 @@ export default function StudyReview() {
   const houseSettings = houseData?.chart_settings || null
   // A Slingshot draft carries the E4H (4-EMA of highs) beside the house
   // averages, exactly as the member's chart does (owner ruling 2026-10-25).
-  const settingsOverride = useMemo(
+  const studyOverride = useMemo(
     () => studySettingsOverride(chartOpts, houseSettings, { instances: slingshotInstances(sel) }),
     [chartOpts, houseSettings, sel],
   )
+  // ⭐ Policy A (2026-11-02): an exhibit has no stored settings of its own, so an
+  // edit made on it (a legend hide, a scale toggle) stays on THIS chart for the
+  // session instead of falling through to the member's global chart_settings.
+  const sessionChart = useSessionChartSettings(studyOverride, sel?.id || null)
   const markers = useMemo(() => {
     if (!sel?.asof) return null
+    // An hourly item marks its OPEN (the first-hour bar) instead of the session date: the three dotted bars
+    // under the arrow are the ones the reader judges (owner 2026-10-31), in their own red/green (owner 2026-11-01).
+    const firstHour = isHourlyItem(sel) ? sel.reveal_json?.facts?.first_hour_t : null
+    if (firstHour != null) {
+      // StockChart feeds intraday bars at toChartTime(t) (adjustTime, per-instant ET offset); the marker rides the same shift or it lands hours late.
+      const arrow = { time: toChartTime(Number(firstHour), '60'), position: 'aboveBar', color: GOLD, shape: 'arrowDown', text: 'the open: first 3 hours dotted', id: 'study-open' }
+      return [arrow, ...((chartBars && studyOpenMarkers(sel, chartBars)) || [])]
+    }
     return [{ time: sel.asof, position: 'aboveBar', color: GOLD, shape: 'arrowDown', text: 'member sees to here', id: 'study-asof' }]
-  }, [sel])
+  }, [sel, chartBars])
   const priceLines = useMemo(() => {
     const lv = sel?.reveal_json?.facts?.levels
     if (!lv || typeof lv !== 'object') return null
@@ -763,11 +777,13 @@ export default function StudyReview() {
                     entryDate={frame?.entryDate || null}
                     exitDate={frame?.exitDate || null}
                     exactDateRange
-                    settingsOverride={settingsOverride}
+                    settingsOverride={sessionChart.settingsOverride}
+                    onSettingsPersist={sessionChart.onSettingsPersist}
                     markers={markers}
                     priceLines={priceLines}
                     annotations={annotations}
                     annotationsVisible={!!annotations}
+                    annotationsTextVisible={!!annotations}
                   />
                 </div>
                 <p className={styles.strip}>

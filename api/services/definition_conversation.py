@@ -308,6 +308,9 @@ REFUSALS: Mapping[str, str] = {
     "envelope:reference": (
         "the assistant's change named a part of the indicator that does not exist, so "
         "nothing was offered to apply"),
+    "envelope:rename-unrequested": (
+        "the assistant's change also renamed a line you did not name, so nothing was "
+        "offered to apply"),
     "envelope:revision": (
         "the assistant's change was written against a different version of this "
         "indicator, so nothing was offered to apply"),
@@ -547,7 +550,7 @@ CONVERSE_SYSTEM_PROMPT = (
     "follow a yes/no output -- colorWhen / backgroundWhen, e.g. green where bullish, red where "
     "not -- a yes/no cell may show its own `labels`, `size` sets text size and `span` merges a "
     "title across columns); remove_table removes it. Formula functions linreg, correlation, "
-    "vwma, roc, mom, kcUpper / kcMiddle / kcLower may be called in any tree (their lengths are "
+    "vwma, roc, mom, kcUpper / kcMiddle / kcLower, bbUpper / bbMiddle / bbLower may be called in any tree (their lengths are "
     "whole-number literals; `capabilities.formulaFunctions` lists them). A number the "
     "MEMBER sets (account size, risk %, entry, stop): declare it as an input (create `inputs`, "
     "or set_input) and read it in a tree as a series named by its key. NEVER invent the member's "
@@ -1228,6 +1231,107 @@ def _check_references(envelope: Mapping[str, Any], view: Any) -> None:
                 "assumption `text` alone.")
 
 
+def _label_text(value: Any) -> str:
+    """A label as the view carries it (``{"untrusted_text": ...}``) or as a patch
+    carries it (a string), folded for comparison: case, outer quotes, whitespace."""
+    if isinstance(value, Mapping):
+        value = value.get("untrusted_text")
+    if not isinstance(value, str):
+        return ""
+    return re.sub(r"\s+", " ", value).strip().strip("\"'“”‘’").strip().casefold()
+
+
+def _said(phrase: str, text: str) -> bool:
+    """``phrase`` occurs in ``text`` as whole words (both already folded)."""
+    return bool(phrase) and re.search(
+        rf"(?<![\w]){re.escape(phrase)}(?![\w])", text) is not None
+
+
+#: Words that make a member's text a request to NAME something. Without one, a label
+#: that merely occurs in the text ("RSI" in "make the RSI length 28") is not a name
+#: the member gave (independent review, 2026-11-02).
+_RENAME_INTENT = re.compile(
+    r"(?<![/\w-])(?:re-?name[sd]?|label(?:l?ed|s)?|call(?:ed|s)?|name[sd]?|title[sd]?)\b"
+    r"(?!\s+(?:ratios?|options?|spreads?)\b)", re.I)
+#: How many words after a naming verb the name itself may sit ("rename the RSI line
+#: to Fast RSI" -- 4 words between). Independent QA 2026-11-02: tying the label to
+#: the verb is what stops "hide the RSI label" or "the put/call ratio next to the
+#: RSI" from counting as a request to name a line "RSI".
+_NAME_WINDOW_WORDS = 10
+
+
+def _named_after_intent(label: str, text: str) -> bool:
+    """`label` occurs, as whole words, within `_NAME_WINDOW_WORDS` words AFTER a
+    naming verb in `text` (both already folded)."""
+    for m in _RENAME_INTENT.finditer(text):
+        window = " ".join(text[m.end():].split()[:_NAME_WINDOW_WORDS])
+        if _said(label, window):
+            return True
+    return False
+
+
+def check_output_renames(envelope: Mapping[str, Any], message: Any, view: Any,
+                         turns: Any = ()) -> None:
+    """⭐ 2026-11-02 -- OPEN-FINDINGS-2026-10 §3. A LINE IS RENAMED ONLY IN THE MEMBER'S
+    OWN WORDS. Measured in production on 10-08: "make the RSI length 28 and call it
+    Momentum Pulse" renamed the indicator correctly AND relabelled the RSI line to
+    "Momentum", which the member never asked for; only the prompt forbade it. This is
+    the definition-name rule (``MEMBER_NAME_RULE``) applied to a line: a
+    ``rename_output`` of an EXISTING line must carry a label the member gave, in this
+    turn or an earlier MEMBER turn of the same conversation (``turns``; a "which
+    line?" clarify answered "the first one" carries the name in the turn before):
+      * words the member wrote, outside their cue names, in text that asks to name
+        something (``_RENAME_INTENT``) -- so "RSI" in "make the RSI length 28" is not
+        a line name; or
+      * their explicit cue name (``naming_split``) -- that is the INDICATOR's name, so
+        it may label a line only on a ONE-line definition, where the plot label
+        follows the indicator's name anyway (``readback.outputNamer``). A fragment of
+        it ("Momentum" out of "Momentum Pulse") never passes.
+
+    Refused like any envelope gate (never stripped -- ``check_envelope`` does not
+    edit a patch), so the model gets its ONE bounded repair with the reason.
+    Passes: a rename of a line this same patch creates or adds (it has no name the
+    member could have chosen yet), and a "rename" to the label it already has."""
+    if envelope.get("disposition") != "change":
+        return
+    ops = [o for o in (envelope.get("ops") or []) if isinstance(o, Mapping)]
+    if not any(o.get("op") == "rename_output" for o in ops):
+        return
+    new_keys: set = set()
+    for o in ops:
+        if o.get("op") == "create":
+            new_keys.update(k for k in _create_keys(o) if k)
+        elif o.get("op") == "add_output" and isinstance(o.get("key"), str):
+            new_keys.add(o["key"])
+    d = (view or {}).get("definition") if isinstance(view, Mapping) else None
+    current = {o["key"]: _label_text(o.get("label"))
+               for o in ((d or {}).get("outputs") or [])
+               if isinstance(o, Mapping) and isinstance(o.get("key"), str)}
+    texts = [message if isinstance(message, str) else ""] + [
+        t["text"] for t in (turns or [])
+        if isinstance(t, Mapping) and t.get("role") == "member" and isinstance(t.get("text"), str)]
+    cue_names: set = set()
+    asked: List[str] = []
+    for text in texts:
+        names, rest = conversation_preflight.naming_split(text)
+        cue_names.update(_label_text(n) for n in names)
+        asked.append(_label_text(rest))
+    one_line = len(current) <= 1
+    for i, o in enumerate(ops):
+        if o.get("op") != "rename_output" or o.get("output") in new_keys:
+            continue
+        label = _label_text(o.get("label"))
+        if not label or label == current.get(o.get("output")):
+            continue
+        if (one_line and label in cue_names) or any(_named_after_intent(label, a) for a in asked):
+            continue
+        raise _Refused(
+            "envelope:rename-unrequested",
+            f"ops[{i}] rename_output {o.get('output')!r} -> {o.get('label')!r}: the member did "
+            "not give this line a name this turn. Drop the rename_output and leave the "
+            "line's label as it is; the indicator's own name is rename_definition.")
+
+
 def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, Any]:
     """Structural pre-check of the model's answer. Returns it UNCHANGED, or raises
     ``_Refused``. ⛔ Never applies, never repairs, never strips: an envelope with
@@ -1349,6 +1453,11 @@ def _call_model(messages: List[dict]) -> Tuple[Any, int, int]:
     usage = getattr(msg, "usage", None)
     return msg, int(getattr(usage, "input_tokens", 0) or 0), \
         int(getattr(usage, "output_tokens", 0) or 0)
+
+
+def _request_for(messages: List[dict]) -> Dict[str, Any]:
+    """What `_call_model` sends that the model reads, for `dc.charge_unreported`."""
+    return {"system": system_blocks(), "tools": [anthropic_tool()], "messages": messages}
 
 
 def _tool_input(msg: Any) -> Optional[dict]:
@@ -1702,24 +1811,22 @@ def _record_turn(user_id: Any, conversation_id: Any, result: Mapping[str, Any], 
         logger.exception("[converse] turn telemetry failed")
 
 
-def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
-                   snippets: Any, chart: Any, cap_usd: float,
-                   calls: List[Dict[str, Any]],
-                   trace: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    trace = trace if trace is not None else {}
-    try:
-        message, view, state, turns = _bounded_inputs(message, view, authoring, snippets)
-    except _Refused as refused:
-        return {"ok": False, "gate": refused.gate, "reason": refused.reason}
-    revision = view["revision"]
+def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
+    """The deterministic half of a turn, before any model call: the pre-flight, the
+    member's own names, and the planner. ⭐ PURE (no model, no clock, no network),
+    which is why ``tests/test_plain_english_chart_door.py`` can drive real trader
+    phrasings through the SAME code ``_converse_turn`` runs, for nothing.
 
+    Returns ``{"refusal": <the turn's response>}`` when the turn ends here, else
+    ``{"refusal": None, request_text, notes, advisory, other_sym, discussed,
+    not_understood, unavailable, terms}``.
+    """
     caught = conversation_preflight.check(message, chart)
     if caught is not None:
-        logger.info("[converse] preflight %s (no model call)", caught["gate"])
-        return {"ok": False, "gate": caught["gate"], "reason": caught["reason"],
-                "disposition": "unsupported", "preflight": True, "attempts": 0,
-                "tokens": {"input": 0, "output": 0}, "cost_usd": 0.0,
-                "not_understood": [], "unavailable": []}
+        return {"refusal": {"ok": False, "gate": caught["gate"], "reason": caught["reason"],
+                            "disposition": "unsupported", "preflight": True, "attempts": 0,
+                            "tokens": {"input": 0, "output": 0}, "cost_usd": 0.0,
+                            "not_understood": [], "unavailable": []}}
 
     # ⭐ P3 -- TALK CONTINUITY. A QUESTION (or a bare "compare ...") may name things
     # UCT cannot build -- "What period would you recommend for a Swing Trader?",
@@ -1755,10 +1862,10 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         request_text = RENAME_REQUEST
     elif not understanding["understood"]:
         first = not_understood[0] if not_understood else None
-        return {"ok": False,
-                "gate": first["gate"] if first else "prompt:empty",
-                "reason": first["reason"] if first else dc.REFUSALS["prompt:empty"],
-                "not_understood": not_understood, "unavailable": unavailable}
+        return {"refusal": {"ok": False,
+                            "gate": first["gate"] if first else "prompt:empty",
+                            "reason": first["reason"] if first else dc.REFUSALS["prompt:empty"],
+                            "not_understood": not_understood, "unavailable": unavailable}}
     else:
         request_text = understanding["understood"]
 
@@ -1771,6 +1878,35 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         notes["other_symbols"] = [{"symbol": other_sym, "rule": OTHER_SYMBOL_RULE}]
     if member_names:
         notes["member_names"] = [{"name": n, "rule": MEMBER_NAME_RULE} for n in member_names]
+    return {"refusal": None, "request_text": request_text, "notes": notes,
+            "advisory": advisory, "other_sym": other_sym, "discussed": discussed,
+            "not_understood": not_understood, "unavailable": unavailable,
+            "terms": understanding.get("terms") or []}
+
+
+def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
+                   snippets: Any, chart: Any, cap_usd: float,
+                   calls: List[Dict[str, Any]],
+                   trace: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    trace = trace if trace is not None else {}
+    try:
+        message, view, state, turns = _bounded_inputs(message, view, authoring, snippets)
+    except _Refused as refused:
+        return {"ok": False, "gate": refused.gate, "reason": refused.reason}
+    revision = view["revision"]
+
+    understood_turn = understand_turn(message, chart)
+    if understood_turn["refusal"] is not None:
+        if understood_turn["refusal"].get("preflight"):
+            logger.info("[converse] preflight %s (no model call)", understood_turn["refusal"]["gate"])
+        return understood_turn["refusal"]
+    request_text = understood_turn["request_text"]
+    notes = understood_turn["notes"]
+    advisory = understood_turn["advisory"]
+    other_sym = understood_turn["other_sym"]
+    discussed = understood_turn["discussed"]
+    not_understood = understood_turn["not_understood"]
+    unavailable = understood_turn["unavailable"]
     content = user_turn(request_text, notes, view, state, turns)
     if len(content) > MAX_INPUT_CHARS:
         return _refusal("converse:too-large", f"turn {len(content)} > {MAX_INPUT_CHARS}",
@@ -1796,6 +1932,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             msg, in_tokens, out_tokens = _call_model(messages)
         except Exception as exc:                   # noqa: BLE001 -- never raises out
             logger.warning("[converse] model call failed: %s", exc)
+            dc.charge_unreported(exc, user_id, market_date, dc.MODEL, dc.MAX_TOKENS, _request_for(messages))
             return _refusal("model:transport", **extra)
 
         # ⭐ P3S -- with the cache breakpoint, `input_tokens` is only the UNCACHED part;
@@ -1806,10 +1943,13 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         cache_write = int(getattr(usage, "cache_creation_input_tokens", 0) or 0)
         tokens["input"] += in_tokens
         tokens["output"] += out_tokens
-        spent = cost_guard.record(market_date, f"concierge:{user_id}", dc.MODEL,
-                                  in_tokens, out_tokens,
-                                  cache_read_tokens=cache_read, cache_creation_tokens=cache_write)
-        dc._record_spend(user_id, market_date, spent)
+        if not (in_tokens or out_tokens or cache_read or cache_write):    # no usage: a real reply is never zero tokens
+            spent = dc.charge_unreported(None, user_id, market_date, dc.MODEL, dc.MAX_TOKENS, _request_for(messages))
+        else:
+            spent = cost_guard.record(market_date, f"concierge:{user_id}", dc.MODEL,
+                                      in_tokens, out_tokens,
+                                      cache_read_tokens=cache_read, cache_creation_tokens=cache_write)
+            dc._record_spend(user_id, market_date, spent)
         cost_usd += spent
         calls.append({"input_tokens": in_tokens, "output_tokens": out_tokens,
                       "cache_read_tokens": cache_read, "cache_creation_tokens": cache_write,
@@ -1823,6 +1963,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             trace.setdefault("input_wrapper", wrapper)
         try:
             envelope = check_envelope(candidate, revision, view)
+            check_output_renames(envelope, message, view, turns)
         except _Refused as refused:
             last = refused
             # the diagnostic (op path, validator text) is for the model and a DEBUG

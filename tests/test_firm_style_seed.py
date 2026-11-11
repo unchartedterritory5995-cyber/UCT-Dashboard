@@ -14,10 +14,9 @@ each section proves:
     admin hide that survives a reboot.
   * VISIBILITY (P5-AUD-1, superseding P5-R-C3): a firm style row is listed, and readable, in EVERY gallery
     read path (the list, UCT picks, one item, the feed, an author page, the update list and plan, the review
-    queue, and the adopt, helpful, report and review doors) only while BOTH the library switch and the
-    starter-packs switch are on. Either one alone shows nothing, so NOTEBOOK_STARTER_PACKS_ENABLED=0 hides
-    them again. The one rule (`template_gallery._hidden_styles`) and its two renderings are held equal over
-    every switch state.
+    queue, and the adopt, helpful, report and review doors). The library and starter-packs switches that
+    could hide it were retired as always on (2026-11-04). The one rule (`template_gallery._hidden_styles`)
+    and its two renderings are held equal over every switch state that is left.
 """
 from __future__ import annotations
 
@@ -35,9 +34,6 @@ from api.services.journal_two import template_gallery as gallery
 
 ADMIN = "user-p5-admin"
 MEMBER = "user-p5-member"
-LIBRARY = "NOTEBOOK_STYLE_LIBRARY_ENABLED"
-STARTER = "NOTEBOOK_STARTER_PACKS_ENABLED"
-STYLES = "NOTEBOOK_JOURNAL_STYLES_ENABLED"
 
 #: R-P5-3 and the Task 3 table, verbatim: (seed key, pack, kind, title, blocks with their settings).
 RULED = (
@@ -110,8 +106,6 @@ def _unlink(path):
 @pytest.fixture
 def booted(monkeypatch):
     """A throwaway auth.db exactly as a boot leaves it: nothing removed."""
-    for name in (LIBRARY, STARTER, STYLES):
-        monkeypatch.delenv(name, raising=False)
     path, auth_db = _fresh_auth_db(monkeypatch)
     c = auth_db.get_connection()
     for uid, role in ((ADMIN, "admin"), (MEMBER, "member")):
@@ -273,8 +267,6 @@ def test_a_boot_seeds_the_styles_and_leaves_the_outline_count_alone(booted):
 # ── 5. an admin choice survives a reboot ────────────────────────────────────────────────
 
 def test_reboot_keeps_an_admin_hide(conn, monkeypatch):
-    monkeypatch.setenv(LIBRARY, "1")
-    monkeypatch.setenv(STARTER, "1")                  # a firm style is reviewable only with both on (P5-AUD-1)
     target = _style_rows(conn)[0]["id"]
     assert gallery.admin_act(ADMIN, target, "hide", conn=conn) is not None
     gallery.ensure_gallery_schema(conn)                                        # a reboot
@@ -291,7 +283,6 @@ def _firm_style_ids_listed(conn, **kw):
 
 #: Every (library, starter) state that must hide the firm style rows. ("1", "0") is the state production is in
 #: while P5 ships dark: the library is ARMED and the starter switch is not.
-HIDING_STATES = [("0", "0"), ("0", "1"), ("1", "0")]
 
 
 def _member_style_row(conn, user_id):
@@ -305,37 +296,9 @@ def _member_style_row(conn, user_id):
     return gid
 
 
-@pytest.mark.parametrize("starter", ["0", "1"])
-def test_library_off_shows_no_firm_style_whatever_the_starter_switch(conn, monkeypatch, starter):
-    monkeypatch.setenv(LIBRARY, "0")
-    monkeypatch.setenv(STARTER, starter)
-    ids = [r["id"] for r in _style_rows(conn)]
-    assert _firm_style_ids_listed(conn) == set()
-    assert _firm_style_ids_listed(conn, section="picks") == set()
-    assert all(gallery.get_item(MEMBER, i, conn=conn) is None for i in ids)
-    assert all(gallery.get_item(ADMIN, i, is_admin=True, conn=conn) is None for i in ids)
-
-
-@pytest.mark.parametrize("starter", ["0", "1"])
-def test_library_off_still_lists_the_outlines_and_refuses_a_style_filter(conn, monkeypatch, starter):
-    """The library-off gallery is what it was before P5: outline rows only, and a style filter is the one 400
-    (`Unknown item type.`), whatever the starter switch says."""
-    gallery.seed_firm_templates(conn)
-    monkeypatch.setenv(LIBRARY, "0")
-    monkeypatch.setenv(STARTER, starter)
-    listed = gallery.list_gallery(MEMBER, conn=conn)
-    assert listed and {x["itemType"] for x in listed} == {"outline"}
-    assert {x["itemType"] for x in gallery.admin_queue(conn=conn)["hidden"]} <= {"outline"}
-    with pytest.raises(gallery.GalleryError, match="Unknown item type"):
-        gallery.list_gallery(MEMBER, item_type="style", conn=conn)
-
-
-def _starter_installed_copy(conn, monkeypatch, gid):
-    """A member's copy of firm style `gid`, adopted while both switches are on, with the row then listed at a
-    newer version so an update is waiting for it. Returns the copy's style id."""
-    monkeypatch.setenv(LIBRARY, "1")
-    monkeypatch.setenv(STARTER, "1")
-    monkeypatch.setenv(STYLES, "1")
+def _starter_installed_copy(conn, gid):
+    """A member's copy of firm style `gid`, with the row then listed at a newer version so an update is waiting
+    for it. Returns the copy's style id."""
     out = gallery.adopt_style(MEMBER, gid, conn=conn)
     assert out is not None
     conn.execute("UPDATE j2_template_gallery SET version = version + 1 WHERE id = ?", (gid,))
@@ -362,36 +325,21 @@ def _every_read(conn, gid, hidden_gid, style_id):
     }
 
 
-def test_starter_off_hides_every_firm_style_in_every_read_path(conn, monkeypatch):
-    """THE LOAD-BEARING RAIL (P5-AUD-1). With the library on and the starter switch off (production while P5
-    ships dark), no firm style row appears anywhere a gallery read can reach it, UCT picks included. The same
-    world with both switches on shows it on every one of those paths, so a path that shows nothing in either
-    state cannot pass for one that hides."""
+def test_every_read_path_shows_a_firm_style(conn):
+    """THE LOAD-BEARING RAIL (P5-AUD-1), its on half: a firm style row appears on every path a gallery read can
+    reach it by -- the list, UCT picks, the style / pack / search filters, the member and admin item, the update
+    list and plan for an adopted copy, and the admin queue's hidden and reported lists. (Its off half tested the
+    starter-packs switch, retired as always on 2026-11-04, so this state is production's.)"""
     rows = _style_rows(conn)
     gid = next(r["id"] for r in rows if r["trading_style"] == "swing")
     hidden_gid = next(r["id"] for r in rows if r["trading_style"] == "day")
-    style_id = _starter_installed_copy(conn, monkeypatch, gid)
-    # A report on the firm row and an admin hide of another one, both made while both switches were on.
+    style_id = _starter_installed_copy(conn, gid)
+    # A report on the firm row and an admin hide of another one.
     assert gallery.report(MEMBER, gid, reason="other", conn=conn) == {"reported": True, "already": False}
     assert gallery.admin_act(ADMIN, hidden_gid, "hide", conn=conn) is not None
-
     shown = _every_read(conn, gid, hidden_gid, style_id)
+    assert len(shown) == 11, sorted(shown)                                    # non-vacuity: every path was read
     assert all(shown.values()), {k: v for k, v in shown.items() if not v}
-
-    monkeypatch.setenv(STARTER, "0")
-    gone = _every_read(conn, gid, hidden_gid, style_id)
-    assert not any(gone.values()), {k: v for k, v in gone.items() if v}
-    # Not one firm style anywhere in the list, in either section, nor as a single item.
-    assert _firm_style_ids_listed(conn) == set() and _firm_style_ids_listed(conn, section="picks") == set()
-    assert all(gallery.get_item(MEMBER, r["id"], conn=conn) is None for r in rows)
-    # The write doors read it as absent too: nothing is adopted, marked, reported, used or reviewed.
-    assert gallery.adopt_style(MEMBER, gid, conn=conn) is None
-    assert gallery.set_helpful(MEMBER, gid, True, conn=conn) is None
-    assert gallery.report(MEMBER, rows[2]["id"], reason="other", conn=conn) is None
-    assert gallery.use_template(MEMBER, gid, conn=conn) is None
-    assert gallery.admin_act(ADMIN, gid, "unfeature", conn=conn) is None
-    open_report = conn.execute("SELECT id FROM j2_template_gallery_reports WHERE gallery_id = ?", (gid,)).fetchone()
-    assert gallery.admin_report_act(ADMIN, open_report[0], "dismiss", conn=conn) is False
     # Hidden is a visibility state: nothing was deleted, the pick is still featured, the member's copy is theirs.
     assert len(_style_rows(conn)) == 15
     assert conn.execute("SELECT featured FROM j2_template_gallery WHERE id = ?", (gid,)).fetchone()[0] == 1
@@ -399,8 +347,6 @@ def test_starter_off_hides_every_firm_style_in_every_read_path(conn, monkeypatch
 
 
 def test_with_both_switches_on_every_firm_style_is_a_uct_pick(conn, monkeypatch):
-    monkeypatch.setenv(LIBRARY, "1")
-    monkeypatch.setenv(STARTER, "1")
     ids = {r["id"] for r in _style_rows(conn)}
     assert _firm_style_ids_listed(conn) == ids
     assert _firm_style_ids_listed(conn, section="picks") == ids
@@ -411,42 +357,25 @@ def test_with_both_switches_on_every_firm_style_is_a_uct_pick(conn, monkeypatch)
     assert item is not None and item["payload"]["kindId"] in nk.BUILTIN_KIND_IDS
 
 
-@pytest.mark.parametrize("library,starter", HIDING_STATES)
-def test_a_hiding_state_hides_only_firm_styles(conn, monkeypatch, library, starter):
-    """The starter switch hides firm STYLE rows only: a member's listed style (while the library is on) and the
-    firm outlines stay where they were, so the rule cannot pass by hiding everything."""
-    gallery.seed_firm_templates(conn)
-    member_style = _member_style_row(conn, ADMIN)
-    monkeypatch.setenv(LIBRARY, library)
-    monkeypatch.setenv(STARTER, starter)
-    listed = gallery.list_gallery(MEMBER, conn=conn)
-    assert _firm_style_ids_listed(conn) == set()
-    assert any(x["firm"] and x["itemType"] == "outline" for x in listed)
-    assert (member_style in {x["id"] for x in listed}) is (library == "1")
-
-
-@pytest.mark.parametrize("library", ["0", "1"])
-@pytest.mark.parametrize("starter", ["0", "1"])
-def test_the_one_rule_and_its_two_renderings_agree(conn, monkeypatch, library, starter):
-    """`_library_hides` (one row) and `_hidden_styles_sql` (a list's WHERE) are the same decision: over every
-    switch state, the rows the SQL term keeps are exactly the rows the row predicate does not hide."""
+def test_the_one_rule_and_its_two_renderings_agree(conn, monkeypatch):
+    """`_library_hides` (one row) and `_hidden_styles_sql` (a list's WHERE) are the same decision: the rows the
+    SQL term keeps are exactly the rows the row predicate does not hide. (The library and starter switches were
+    retired as always on, 2026-11-04, so every firm style is kept.)"""
     gallery.seed_firm_templates(conn)
     _member_style_row(conn, ADMIN)
-    monkeypatch.setenv(LIBRARY, library)
-    monkeypatch.setenv(STARTER, starter)
     every = conn.execute("SELECT id, item_type, kind FROM j2_template_gallery g").fetchall()
     assert {(r["item_type"], r["kind"]) for r in every} == {("outline", "firm"), ("style", "firm"), ("style", "member")}
     kept = {r[0] for r in conn.execute(f"SELECT g.id FROM j2_template_gallery g WHERE {gallery._hidden_styles_sql()}")}
     assert {r["id"] for r in every if not gallery._library_hides(r)} == kept
     firm_styles = {r["id"] for r in every if r["item_type"] == "style" and r["kind"] == "firm"}
-    assert (firm_styles <= kept) is (library == "1" and starter == "1")
+    assert firm_styles <= kept
 
 
-EXAMPLES = "NOTEBOOK_EXAMPLE_NOTES_ENABLED"
 PAGE_LAYOUTS = "JOURNAL_PAGE_LAYOUTS_ENABLED"
 SHARING = "NOTEBOOK_LAYOUT_SHARING_ENABLED"
-#: Every switch a row's visibility can turn on: (library, examples, starter, page layouts, layout sharing).
-EVERY_STATE = [tuple("1" if (i >> b) & 1 else "0" for b in range(5)) for i in range(32)]
+#: Every switch a row's visibility can still turn on: (page layouts, layout sharing). The library, example and
+#: starter-pack switches were retired as always on (2026-11-04).
+EVERY_STATE = [tuple("1" if (i >> b) & 1 else "0" for b in range(2)) for i in range(4)]
 
 
 def _typed_row(conn, item_type, kind, user_id=ADMIN, **cols):
@@ -463,7 +392,7 @@ def _typed_row(conn, item_type, kind, user_id=ADMIN, **cols):
     return gid
 
 
-@pytest.mark.parametrize("state", EVERY_STATE, ids=lambda s: "lib{}-ex{}-starter{}-pl{}-share{}".format(*s))
+@pytest.mark.parametrize("state", EVERY_STATE, ids=lambda s: "pl{}-share{}".format(*s))
 def test_the_one_order_holds_for_every_row_type_in_every_switch_state(conn, monkeypatch, state):
     """P4b final I-M2 (T1). `_library_hides` keeps ONE order -- the example branch, the layout branch, then P5's
     style rule -- and it is the same decision as the list WHERE (`_hidden_styles_sql AND _type_visible_clause`) for
@@ -472,8 +401,8 @@ def test_the_one_order_holds_for_every_row_type_in_every_switch_state(conn, monk
     sharing off" mixed state included (triage 4). Then each answer is held to what the switches MEAN, so the two
     renderings cannot agree by both being wrong, and two readers that ask the rule are checked against it: an
     admin's single read (`get_item`) and the member's list, where `_NEVER_LISTED` also keeps every example out."""
-    library, examples, starter, page_layouts, sharing = (v == "1" for v in state)
-    for name, value in zip((LIBRARY, EXAMPLES, STARTER, PAGE_LAYOUTS, SHARING), state):
+    page_layouts, sharing = (v == "1" for v in state)
+    for name, value in zip((PAGE_LAYOUTS, SHARING), state):
         monkeypatch.setenv(name, value)
     ids = {
         "outline": _typed_row(conn, "outline", "firm", user_id=None),
@@ -489,55 +418,14 @@ def test_the_one_order_holds_for_every_row_type_in_every_switch_state(conn, monk
     where = f"{gallery._hidden_styles_sql()} AND {gallery._type_visible_clause()}"
     kept = {r[0] for r in conn.execute(f"SELECT g.id FROM j2_template_gallery g WHERE {where}")} & ours
     assert shown == kept, "the row rule and the list WHERE disagree"
-    want = {"outline": True, "firm_style": library and starter, "member_style": library,
-            "example": library and examples, "layout": library and page_layouts and sharing}
+    want = {"outline": True, "firm_style": True, "member_style": True,
+            "example": True, "layout": page_layouts and sharing}
     assert {k: ids[k] in shown for k in ids} == want
     # Two readers that ask the rule: an admin's single read sees exactly the shown rows (a hidden type reads as
     # absent for an admin too), and the member's list lists exactly the shown rows minus every example.
     assert {i for i in ours if gallery.get_item(ADMIN, i, is_admin=True, conn=conn) is not None} == shown
     listed = {x["id"] for x in gallery.list_gallery(MEMBER, conn=conn)} & ours
     assert listed == shown - {ids["example"]}
-
-
-def test_one_list_request_reads_the_switches_once(conn, monkeypatch):
-    """P5-T5b-R1. `list_gallery` decides once per request: a library switch that flips between two reads (off,
-    then on, with the starter switch on) cannot pair the library-off branch, which adds no item-type filter, with
-    a WHERE term that lets style rows through. The flipping switch also proves the request read it ONCE."""
-    gallery.seed_firm_templates(conn)
-    _member_style_row(conn, ADMIN)
-    monkeypatch.setenv(STARTER, "1")
-    reads = []
-
-    def flips() -> bool:
-        reads.append(1)
-        return len(reads) > 1           # off on the first read, on on every later one
-
-    monkeypatch.setattr(gallery, "library_enabled", flips)
-    listed = gallery.list_gallery(MEMBER, conn=conn)
-    assert listed, "the outlines must still list, or this proves nothing"
-    assert {x["itemType"] for x in listed} == {"outline"}
-    assert len(reads) == 1
-
-
-@pytest.mark.parametrize("section,item_type", [("all", None), ("picks", None), ("mine", None),
-                                               ("all", "outline"), ("all", "page_layout"), ("all", "style")])
-def test_every_list_request_reads_the_library_switch_once(conn, monkeypatch, section, item_type):
-    """P4b final I-M3. With P3b's example rule and P4b's layout rule merged in, a list still reads `library_enabled`
-    ONCE, in every section and for every type filter: the example and layout halves take this request's
-    `library_on` (`_example_switch_on`, `_layout_switches_on`) instead of re-reading the library switch. Every
-    other switch is on, so a stray second read could not hide behind a short-circuit."""
-    for name in ("NOTEBOOK_EXAMPLE_NOTES_ENABLED", "JOURNAL_PAGE_LAYOUTS_ENABLED", "NOTEBOOK_LAYOUT_SHARING_ENABLED"):
-        monkeypatch.setenv(name, "1")
-    monkeypatch.setenv(STARTER, "1")
-    reads = []
-
-    def counted() -> bool:
-        reads.append(1)
-        return True
-
-    monkeypatch.setattr(gallery, "library_enabled", counted)
-    gallery.list_gallery(ADMIN if section == "mine" else MEMBER, section=section, item_type=item_type, conn=conn)
-    assert len(reads) == 1
 
 
 def test_the_feed_and_an_author_page_apply_the_same_rule(conn, monkeypatch):
@@ -547,11 +435,9 @@ def test_the_feed_and_an_author_page_apply_the_same_rule(conn, monkeypatch):
     gid = _style_rows(conn)[0]["id"]
     conn.execute("UPDATE j2_template_gallery SET user_id = ? WHERE id = ?", (ADMIN, gid))
     conn.commit()
-    monkeypatch.setenv(LIBRARY, "1")
     handle = gallery.author_handle(ADMIN, conn)
     assert gallery.set_follow(MEMBER, handle, True, conn=conn) == {"following": True}
-    for starter, want in (("1", True), ("0", False)):
-        monkeypatch.setenv(STARTER, starter)
+    for want in (True,):              # the starter switch that could hide it was retired (2026-11-04)
         assert (gid in {x["id"] for x in gallery.feed(MEMBER, conn=conn)}) is want
         page = gallery.author_page(MEMBER, handle, conn=conn)
         assert (gid in {x["id"] for x in page["items"]}) is want
@@ -560,9 +446,6 @@ def test_the_feed_and_an_author_page_apply_the_same_rule(conn, monkeypatch):
 
 def test_with_both_switches_on_every_firm_style_adopts(conn, monkeypatch):
     """What Task 4 installs: each row is a style P3a's adopt can turn into a member's own copy."""
-    monkeypatch.setenv(LIBRARY, "1")
-    monkeypatch.setenv(STARTER, "1")
-    monkeypatch.setenv(STYLES, "1")
     for r in _style_rows(conn):
         out = gallery.adopt_style(MEMBER, r["id"], conn=conn)
         assert out is not None, r["seed_key"]
@@ -573,10 +456,8 @@ def test_with_both_switches_on_every_firm_style_adopts(conn, monkeypatch):
 W11 = "NOTEBOOK_WIDGETS_W11_ENABLED"
 
 
-@pytest.mark.parametrize("library", ["0", "1"])
-@pytest.mark.parametrize("starter", ["0", "1"])
 @pytest.mark.parametrize("wave11", ["0", "1"])
-def test_official_rows_one_rule_two_renderings(conn, monkeypatch, library, starter, wave11):
+def test_official_rows_one_rule_two_renderings(conn, monkeypatch, wave11):
     """Task 11.7 (W11-R4). The equality rail above, extended over the 2 x 2 x 2 states of the library, starter-packs
     and wave 11 switches and over EVERY row kind, the official templates (`kind = 'official'`) and the three tool
     item types included. `_hidden_styles()` answers one of five strings, `_library_hides` (one row) and the list WHERE
@@ -584,13 +465,11 @@ def test_official_rows_one_rule_two_renderings(conn, monkeypatch, library, start
     answer is held to what the switches MEAN: an official row is shown only while the library AND wave 11 are on,
     whatever the starter switch says; a firm style only while the library AND starter packs are on; a tool row only
     while the library AND wave 11 are on. The example and layout switches are on, so they hide nothing here."""
-    lib, st, w11 = library == "1", starter == "1", wave11 == "1"
-    for name, value in ((LIBRARY, library), (STARTER, starter), (W11, wave11),
-                        (EXAMPLES, "1"), (PAGE_LAYOUTS, "1"), (SHARING, "1")):
+    lib, st, w11 = True, True, wave11 == "1"      # the library and starter switches are always on (retired)
+    for name, value in ((W11, wave11), (PAGE_LAYOUTS, "1"), (SHARING, "1")):
         monkeypatch.setenv(name, value)
     answer = gallery._hidden_styles()
-    assert answer in ("all", "firm", "official", "firm+official", "")
-    assert answer == ("all" if not lib else "+".join(k for k, on in (("firm", st), ("official", w11)) if not on))
+    assert answer == ("" if w11 else "official")
     ids = {
         "outline": _typed_row(conn, "outline", "firm", user_id=None),
         "firm_style": _typed_row(conn, "style", "firm", user_id=None),

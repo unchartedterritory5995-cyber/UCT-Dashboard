@@ -25,11 +25,11 @@ export const TOUR_STEP_COPY = Object.freeze({
   }),
   'view-switcher': Object.freeze({
     title: 'Views',
-    body: 'See your notes as a list, a table, a board, a calendar, a graph of their links, a timeline or a list of tasks.',
+    body: 'Open View to see your notes as a list, a table, a board, a calendar, a graph of their links, a timeline or a list of tasks.',
   }),
   import: Object.freeze({
     title: 'Import',
-    body: 'Bring in notes from Notion, Obsidian, Evernote, Markdown files or Word documents.',
+    body: 'Open the ▾ beside New and choose Import to bring in notes from Notion, Obsidian, Evernote, Markdown files or Word documents.',
   }),
   ask: Object.freeze({
     title: 'Ask your notebook',

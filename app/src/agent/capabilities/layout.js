@@ -528,18 +528,23 @@ export function registerLayoutCapabilities() {
     exclusive: true,
     exclusiveReason: 'Rename the layout on its own, then ask for any other changes.',
     summary: 'Rename one of the member\'s OWN layouts (not prebuilt or built-in ones).',
-    hints: 'target = the ref of the layouts entry; layout = the id of the layout to rename (the open one if they say "this layout"); name = the new name exactly as given.',
+    hints: 'target = the ref of the layouts entry; layout = the id of the layout to rename (the open one if they say "this layout"); name = the new name exactly as given. '
+      + '"rename <X> to <Y>" where X is a layout name = this op, never chart.renameTab (a chart widget\'s TAB, only when they say "tab"). A protected layout is refused by UCT itself: plan the op, never say you can\'t rename.',
     args: {
       type: 'object',
       properties: { layout: { type: 'string' }, name: { type: 'string' } },
       required: ['layout', 'name'], additionalProperties: false,
     },
+    argAliases: { layout: ['id', 'layout_id', 'layoutId', 'from', 'old_name', 'oldName', 'current'], name: ['to', 'new_name', 'newName', 'new'] },
+    shape: '{"layout":"<id from layouts>","name":"<new name>"}',
     fast: ({ raw, host }) => {
       const m = /^(?:please )?rename (?:my |the )?(.+?)(?: layout)? to (.+?)[.!]?$/i.exec(String(raw).trim())
       if (!m || !host?.layouts) return null
       const s = host.layouts.snapshot()
       const which = /^(this|this one|current|the current one|it)$/i.test(m[1].trim()) ? (s.active && s.entries.find(e => e.id === s.active.id)) : resolveNameStrict(s.entries, m[1])
       const name = m[2].replace(/^[“"'‘]|[”"'’]$/g, '').trim()
+      // (W1.1 R-03, LT-9: a PROTECTED name that is not in the list is refused by the Agent's guard before any path —
+      // useAgent protectedRenameRefusal — so this phrase only ever resolves real entries)
       return which && name ? { layout: String(which.id), name } : null
     },
     check(st, { layout, name }) {

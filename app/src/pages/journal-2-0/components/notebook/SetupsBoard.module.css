@@ -113,7 +113,7 @@
 }
 .distance {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-bright);
 }
@@ -121,7 +121,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px 12px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--text-bright);
 }
 .levelLabel {
@@ -155,7 +155,8 @@
   gap: 6px 10px;
 }
 .noteLink {
-  font-size: 12.5px;
+  /* Finish review 6: the same step as `.action` beside it in the card footer. */
+  font-size: 13px;
   color: var(--text-bright);
   /* Underlined in its own colour: a fixed white underline was invisible in the light theme. */
   text-decoration: underline;
@@ -169,7 +170,8 @@
   gap: 4px;
   min-height: 32px;
   padding: 4px 10px;
-  font-size: 12.5px;
+  /* Finish batch: 12.5 px was off the type scale (the Notebook home's "Plan it"); 13 matches its input. */
+  font-size: 13px;
   color: var(--text-bright);
   background: transparent;
   border: 1px solid var(--border);
@@ -240,7 +242,7 @@
 }
 .reasons {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-bright);
   overflow-wrap: anywhere;
 }
@@ -282,4 +284,49 @@
   .grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* S17 (audit 2026-11-05, M7): the empty board's "Draw your first plan". It reserves no space beyond its own lines. */
+.firstPlan {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+.firstPlanTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.firstPlanSteps {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+.firstPlanForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.firstPlanInput {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--field-edge, var(--border));
+  border-radius: var(--radius-md);
+  padding: 5px 8px;
+  width: 9em;
+  text-transform: uppercase;
+}
+.firstPlanInput::placeholder { text-transform: none; }
+
+@media (max-width: 1024px) {
+  .firstPlanInput { min-height: var(--tap-min); }
 }

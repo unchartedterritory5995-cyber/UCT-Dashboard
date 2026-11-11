@@ -4,8 +4,8 @@ An official template is a gallery row like a firm style (`template_gallery.seed_
 `kind = 'official'`, `item_type = 'style'`, its id `template_gallery.firm_style_id(seed key)` and its group in
 the `template_group` column. Its payload is the shared template format (`share.FORMAT`, 2), so the library reads
 it through the same safe reader a member's shared template takes (`template_gallery._safe_listed`), and using one
-adopts it once per member (`template_gallery.use_library_template`). Visible only while the library switch AND
-wave 11 are on: `template_gallery._hidden_styles` is the one rule, and this module never decides it.
+adopts it once per member (`template_gallery.use_library_template`). Visible only while wave 11 is on (the library
+switch was retired as always on, 2026-11-04): `template_gallery._hidden_styles` is the one rule, and this module never decides it.
 
 The seed is `template_library_seed.json`, one row per template:
 

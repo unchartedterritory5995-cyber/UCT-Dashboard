@@ -45,7 +45,7 @@ def test_the_one_renamed_pair_is_comparable():
 def test_the_other_thirty_are_not_comparable():
     census = proj.comparability_census()
     assert census["n_comparable"] == 1, census["comparable"]
-    assert census["n_not_comparable"] == 30, sorted(census["not_comparable"])
+    assert census["n_not_comparable"] == 31, sorted(census["not_comparable"])  # 2026-11-04: +ma_cross
     assert "rsi" in census["not_comparable"]
     assert "bb.upper" in census["not_comparable"]
 

@@ -182,7 +182,7 @@ export default function WidgetHeader({
               title="Scroll tabs left"
             >‹</button>
           )}
-          <div className={styles.wtabStrip} ref={stripRef} role="tablist" aria-label="Widget tabs">
+          <div className={styles.wtabStrip} ref={stripRef} role="tablist" aria-label="Widget tabs" data-guide="workspace.widgetTabs">
             {tabs.map((tab, i) => {
               const active = i === activeIndex
               const editing = editingId === tab.id
@@ -216,6 +216,7 @@ export default function WidgetHeader({
                   )}
                   {!tab.isMain && active && !editing && (
                     <span
+                      data-guide="workspace.widgetTabClose"
                       className={`${styles.wtabClose}${confirmCloseId === tab.id ? ' ' + styles.wtabCloseConfirm : ''}`}
                       role="button"
                       aria-label={confirmCloseId === tab.id ? `Confirm close ${tab.label} tab` : `Close ${tab.label} tab`}
@@ -247,6 +248,7 @@ export default function WidgetHeader({
         type="button"
         className={styles.wtabAdd}
         onClick={() => setAddOpen(o => !o)}
+        data-guide="widget.addTab"
         aria-label="Add a tab to this widget"
         title="Add a tab — hold multiple widgets in this one slot"
       >+</button>
@@ -290,6 +292,7 @@ export default function WidgetHeader({
     <div
       className={`${styles.widgetHeader}${atBottom ? ' ' + styles.widgetHeaderBottom : ''}${!floating ? ' charts-widget-drag-handle' : ''}`}
       style={{ ...(style || {}), cursor: 'grab' }}
+      data-guide="widget.headerBar"
       onPointerDown={floating ? (e) => {
         if (e.target.closest('button, input, textarea, a, select, [role="tab"]')) return
         onHeaderDragStart?.(e)
@@ -323,6 +326,7 @@ export default function WidgetHeader({
           type="button"
           className={styles.popOutBtn}
           onClick={onFloat}
+          data-guide="widget.float"
           aria-label="Float widget on top of another"
           title="Pop out to float on top of another widget (e.g. onto a chart)"
         >▣</button>
@@ -332,6 +336,7 @@ export default function WidgetHeader({
           type="button"
           className={styles.popOutBtn}
           onClick={onPopOut}
+          data-guide="widget.popOut"
           aria-label="Pop out widget"
           title="Open this widget in its own window you can drag to another monitor"
         >⧉</button>
@@ -386,6 +391,7 @@ export default function WidgetHeader({
           type="button"
           className={styles.closeBtn}
           onClick={onRemove}
+          data-guide="widget.close"
           aria-label="Close widget"
           title="Remove this widget"
         ><UIcon name="x" size={13} /></button>

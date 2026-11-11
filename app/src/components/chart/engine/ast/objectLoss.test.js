@@ -13,7 +13,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import {
-  classifyDropKey, classifyReaderName, assessObjectLoss, objectLossNote,
+  classifyDropKey, classifyReaderName, assessObjectLoss, objectLossNote, objectRemovalRefusal,
   DROP_KEYS, GUARD_KINDS, DROP_KEY_FAMILIES, FN_REFUSALS, LOSS,
 } from './objectLoss'
 import { translatePine } from './pine'
@@ -76,7 +76,7 @@ describe('⛔ every drop reason the pass emits is classified', () => {
   it('every TEMPLATED key has a family, and `guard:` covers every reader op kind', () => {
     const families = DROP_KEY_FAMILIES.map((f) => f.prefix)
     const unhandled = TEMPLATE_PREFIXES
-      .filter((p) => p !== 'guard:' && p !== 'fn:' && !families.includes(p))
+      .filter((p) => p !== 'guard:' && p !== 'fn:' && p !== 'strategy:' && !families.includes(p))
     expect(unhandled).toEqual([])
     const unguarded = READER_KINDS.filter((k) => !Object.prototype.hasOwnProperty.call(GUARD_KINDS, k))
     expect(unguarded).toEqual([])
@@ -93,6 +93,14 @@ describe('⛔ every drop reason the pass emits is classified', () => {
     expect(dead).toEqual([])
     // ⛔ An unknown `why` fails closed like any other unclassified key.
     expect(classifyDropKey('fn:teleport').cls).toBe(LOSS.REMOVES)
+  })
+
+  it('⛔ W9-OQ-N2 — `strategy:<kind>` takes the class of the op it withholds; an unknown kind is refused', () => {
+    expect(TEMPLATE_PREFIXES).toContain('strategy:')
+    expect(classifyDropKey('strategy:create').cls).toBe(LOSS.PARTIAL)
+    expect(classifyDropKey('strategy:update').cls).toBe(LOSS.PARTIAL)
+    expect(classifyDropKey('strategy:delete').cls).toBe(LOSS.REMOVES)
+    expect(classifyDropKey('strategy:teleport').cls).toBe(LOSS.REMOVES)
   })
 
   it('⛔ an unknown key is REFUSED, never guessed', () => {
@@ -268,5 +276,77 @@ describe('the sentences', () => {
   it('clean: no sentence at all', () => {
     expect(objectLossNote({ verdict: 'clean', dropped: 0, attempted: 4, removes: [], readerNames: [] }))
       .toBe(null)
+  })
+})
+
+// ⭐ W9 D8 ("show the refusal", owner 2026-11-07) — a drawing step withheld because a `strategy.*`
+// value reaches it (`strategy:<kind>`, W9-OQ-N2) is worded by its REASON, not as "aren't supported
+// yet". The sentences are typed out whole here on purpose: the rail must fail if the words move.
+describe('W9 D8 — a drawing withheld for a strategy read says why', () => {
+  const M = 'are every drawing step this chart tried to carry: each line, label, box or table created, '
+    + 'changed or written to, each change to a list of them, each loop, and each call to a drawing '
+    + "function of the script's own that could not be followed.)"
+  const lossOf = (droppedOps, attemptedOps, dropReasons) =>
+    assessObjectLoss({ objectDiagnostics: { droppedOps, attemptedOps, dropReasons, lostRemovals: [] } })
+
+  it('every lost step is strategy-withheld: the reason replaces "aren\'t supported yet"', () => {
+    const loss = lossOf(2, 3, { 'strategy:create': 1, 'strategy:cell': 1 })
+    expect(loss.strategyDropped).toBe(2)
+    expect(objectLossNote(loss).note).toBe('2 of 3 drawing elements in this script read values from the '
+      + "strategy's backtest (such as its position, trades, equity or settings), which this chart doesn't "
+      + `run yet, so what it draws is incomplete. (The 3 ${M}`)
+    expect(objectLossNote(lossOf(1, 1, { 'strategy:create': 1 })).note).toBe('1 of 1 drawing elements in '
+      + "this script reads values from the strategy's backtest (such as its position, trades, equity or "
+      + `settings), which this chart doesn't run yet, so what it draws is incomplete. (The 1 ${M}`)
+  })
+
+  it('control: a loss with no strategy read keeps today\'s sentence, word for word, and no new key', () => {
+    const loss = lossOf(3, 10, { 'create:label': 2, 'update:props': 1 })
+    expect(loss).not.toHaveProperty('strategyDropped')
+    expect(loss).not.toHaveProperty('strategyRemoves')
+    expect(objectLossNote(loss).note).toBe("3 of 10 drawing elements in this script aren't supported yet, "
+      + `so what it draws is incomplete. (The 10 ${M}`)
+    expect(objectLossNote(loss).note).not.toMatch(/strategy/)
+  })
+
+  it('mixed: today\'s sentence stands and one clause counts the strategy reads among them', () => {
+    const loss = lossOf(3, 5, { 'strategy:create': 1, 'create:label': 2 })
+    expect(loss.strategyDropped).toBe(1)
+    expect(objectLossNote(loss).note).toBe("3 of 5 drawing elements in this script aren't supported yet, "
+      + `so what it draws is incomplete. (The 5 ${M} 1 of those is withheld because it reads values `
+      + "from the strategy's backtest (such as its position, trades, equity or settings), which this "
+      + "chart doesn't run yet.")
+    expect(objectLossNote(lossOf(4, 6, { 'strategy:create': 2, 'guard:create': 2 })).note)
+      .toMatch(/\) 2 of those are withheld because they read values from the strategy's backtest \(such as its position, trades, equity or settings\), which this chart doesn't run yet\.$/)
+  })
+
+  it('a removal a strategy value decides: the withheld and refused sentences add the reason', () => {
+    const loss = lossOf(1, 2, { 'strategy:delete': 1 })
+    expect(loss.verdict).toBe('removes')
+    expect(loss.strategyRemoves).toBe(true)
+    const why = " Some of what it removes is decided by values from the strategy's backtest, which this "
+      + "chart doesn't run yet."
+    expect(objectLossNote(loss, { withheld: true }).note).toBe("This script's plots are shown, but its "
+      + "drawings are not. It removes drawings as it runs, and this chart can't follow part of that (a "
+      + 'delete), so showing them would leave lines, labels, boxes or table cells on screen that '
+      + `TradingView would have removed.${why}`)
+    expect(objectRemovalRefusal(loss)).toBe("This script's drawing can't be shown yet. It removes "
+      + "drawings as it runs, and this chart can't follow part of that (a delete), so drawing the rest "
+      + 'would leave lines, labels, boxes or table cells on screen that TradingView would have removed.'
+      + why)
+    // control: a removal lost for another reason keeps today's sentence
+    const other = lossOf(1, 2, { 'delete:target': 1 })
+    expect(other).not.toHaveProperty('strategyRemoves')
+    expect(objectLossNote(other, { withheld: true }).note).not.toMatch(/strategy/)
+    expect(objectRemovalRefusal(other)).toMatch(/TradingView would have removed\.$/)
+  })
+
+  it('M3 (r1): a removal lost for ANOTHER reason beside a strategy-withheld create does not blame the strategy', () => {
+    const loss = lossOf(2, 3, { 'delete:target': 1, 'strategy:create': 1 })
+    expect(loss.verdict).toBe('removes')
+    expect(loss.strategyDropped).toBe(1)
+    expect(loss).not.toHaveProperty('strategyRemoves')
+    expect(objectLossNote(loss, { withheld: true }).note).not.toMatch(/strategy/)
+    expect(objectRemovalRefusal(loss)).not.toMatch(/strategy/)
   })
 })

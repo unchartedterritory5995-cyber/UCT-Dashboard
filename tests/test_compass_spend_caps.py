@@ -242,6 +242,146 @@ def test_each_door_has_its_own_counter(db_path, fake_coach, fake_trade_review, m
     assert len(scopes) == 4
 
 
+# ── forget + generate is the regenerate door ────────────────────────────────
+
+
+def _coach_row(acc, output_type, metadata, row_id="o1", forgotten=1):
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    conn.execute(
+        "INSERT INTO j2_coach_outputs (id, user_id, account_id, output_type, body, summary,"
+        " metadata, forgotten, created_at) VALUES (?, ?, ?, ?, 'b', 's', ?, ?, '2026-11-05')",
+        (row_id, USER["id"], acc, output_type, json.dumps(metadata), forgotten))
+    conn.commit()
+    conn.close()
+
+
+def _forgotten(row_id="o1"):
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        return conn.execute("SELECT forgotten FROM j2_coach_outputs WHERE id = ?", (row_id,)).fetchone()[0]
+    finally:
+        conn.close()
+
+
+def _gen_weekly(acc):
+    from api.routers import journal_two as r
+    return r.generate_coach_weekly_review(acc, payload={"weekStart": "2026-09-21"}, user=USER)
+
+
+def _gen_eod(acc):
+    from api.routers import journal_two as r
+    return r.generate_coach_eod_recap(acc, payload={"day": "2026-09-25"}, user=USER)
+
+
+def test_a_first_generate_is_not_charged(db_path, fake_coach):
+    from api.services.journal_two import compass_daily_caps as caps
+    acc = _seed_account()
+    _gen_weekly(acc)
+    _gen_eod(acc)
+    assert fake_coach["generate_weekly"] == 1 and fake_coach["generate_eod"] == 1
+    assert _counted(caps.WEEKLY_REVIEW_REGENERATE.scope) == 0
+    assert _counted(caps.EOD_RECAP_REGENERATE.scope) == 0
+
+
+def test_a_generate_answered_by_a_live_row_is_not_charged(db_path, fake_coach):
+    from api.services.journal_two import compass_daily_caps as caps
+    acc = _seed_account()
+    _coach_row(acc, "weekly_review", {"week_start": "2026-09-21"}, "old", forgotten=1)
+    _coach_row(acc, "weekly_review", {"week_start": "2026-09-21"}, "live", forgotten=0)
+    _gen_weekly(acc)
+    assert _counted(caps.WEEKLY_REVIEW_REGENERATE.scope) == 0
+
+
+def test_forget_then_generate_weekly_uses_the_regenerate_door(db_path, fake_coach, monkeypatch):
+    from api.services.journal_two import compass_daily_caps as caps
+    monkeypatch.setenv(caps.WEEKLY_REVIEW_REGENERATE.env, "1")
+    acc = _seed_account()
+    _coach_row(acc, "weekly_review", {"week_start": "2026-09-21"})
+    _gen_weekly(acc)
+    assert _counted(caps.WEEKLY_REVIEW_REGENERATE.scope) == 1
+    with pytest.raises(HTTPException) as exc:
+        _gen_weekly(acc)
+    assert exc.value.status_code == 429
+    assert fake_coach["generate_weekly"] == 1
+
+
+def test_forget_then_generate_eod_uses_the_regenerate_door(db_path, fake_coach, monkeypatch):
+    from api.services.journal_two import compass_daily_caps as caps
+    monkeypatch.setenv(caps.EOD_RECAP_REGENERATE.env, "1")
+    acc = _seed_account()
+    _coach_row(acc, "eod_recap", {"day": "2026-09-25"})
+    _gen_eod(acc)
+    with pytest.raises(HTTPException) as exc:
+        _gen_eod(acc)
+    assert exc.value.status_code == 429
+    assert fake_coach["generate_eod"] == 1
+
+
+def test_forget_then_generate_trade_review_uses_the_regenerate_door(db_path, fake_trade_review, monkeypatch):
+    from api.routers import journal_two as r
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import compass_daily_caps as caps
+    monkeypatch.setenv(caps.TRADE_REVIEW_REGENERATE.env, "1")
+    acc = _seed_account()
+    conn = get_connection()
+    conn.execute("INSERT INTO j2_trade_reviews (id, user_id, account_id, trade_id, body, forgotten, created_at)"
+                 " VALUES ('tr1', ?, ?, 't1', 'b', 1, '2026-11-05')", (USER["id"], acc))
+    conn.commit()
+    conn.close()
+    r.generate_trade_review(acc, payload={"trade_id": "t1"}, user=USER)
+    with pytest.raises(HTTPException) as exc:
+        r.generate_trade_review(acc, payload={"trade_id": "t1"}, user=USER)
+    assert exc.value.status_code == 429
+    assert fake_trade_review["generate"] == 1
+
+
+# ── a regenerate that fails keeps the old output ────────────────────────────
+
+
+@pytest.mark.parametrize("error,status", [(RuntimeError("no key"), 503), (TimeoutError("late"), None)])
+def test_a_failed_weekly_regenerate_restores_the_review(db_path, monkeypatch, error, status):
+    from api.routers import journal_two as r
+    from api.services.journal_two import coach as coach_service
+    acc = _seed_account()
+    _coach_row(acc, "weekly_review", {"week_start": "2026-09-21"}, forgotten=0)
+
+    def fail(**_kw):
+        raise error
+    monkeypatch.setattr(coach_service, "generate_weekly_review", fail)
+    with pytest.raises(HTTPException if status else TimeoutError) as exc:
+        r.regenerate_coach_weekly_review(acc, "o1", user=USER)
+    if status:
+        assert exc.value.status_code == status
+    assert _forgotten() == 0
+
+
+def test_a_failed_eod_regenerate_restores_the_recap(db_path, monkeypatch):
+    from api.routers import journal_two as r
+    from api.services.journal_two import coach as coach_service
+    acc = _seed_account()
+    _coach_row(acc, "eod_recap", {"day": "2026-09-25"}, forgotten=0)
+
+    def fail(**_kw):
+        raise RuntimeError("no key")
+    monkeypatch.setattr(coach_service, "generate_eod_recap", fail)
+    with pytest.raises(HTTPException) as exc:
+        r.regenerate_coach_eod_recap(acc, "o1", user=USER)
+    assert exc.value.status_code == 503
+    assert _forgotten() == 0
+
+
+def test_a_successful_regenerate_still_forgets_the_old_review(db_path, monkeypatch):
+    from api.routers import journal_two as r
+    from api.services.journal_two import coach as coach_service
+    acc = _seed_account()
+    _coach_row(acc, "weekly_review", {"week_start": "2026-09-21"}, forgotten=0)
+    monkeypatch.setattr(coach_service, "generate_weekly_review", lambda **_kw: {"id": "new"})
+    assert r.regenerate_coach_weekly_review(acc, "o1", user=USER)["id"] == "new"
+    assert _forgotten() == 1
+
+
 def test_a_cap_is_read_per_call_and_bad_values_fall_back_to_the_default(monkeypatch):
     from api.services.journal_two import compass_daily_caps as caps
     door = caps.PRE_TRADE_VERDICT

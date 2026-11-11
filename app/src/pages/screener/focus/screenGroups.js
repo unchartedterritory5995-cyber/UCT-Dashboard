@@ -1,5 +1,9 @@
 export const GROUPS = [
   { key: 'momentum', label: 'Momentum leaders' },
+  // The UCT Relative Strength starters (`saved_screens.RS_STARTER_GROUP`). Without this row
+  // the label matched nothing and `groupOf` filed all seven under Momentum leaders (review
+  // finding #12, 2026-11-07). Shown only while RS_V2_ENABLED is on (the server gates them).
+  { key: 'relative_strength', label: 'Relative strength' },
   { key: 'breakouts', label: 'Breakouts & entries' },
   { key: 'bases', label: 'Bases & chart patterns' },
   { key: 'earnings', label: 'Earnings' },
@@ -16,6 +20,7 @@ export const FALLBACK_GROUP = {
   starter_momentum_leaders: 'momentum',
   starter_pullback_20ema: 'momentum',
   starter_power_play: 'momentum',
+  starter_anticipation: 'momentum',
   starter_gap_movers: 'momentum',
   starter_volume_surge_now: 'momentum',
   starter_gap_up_volume: 'momentum',

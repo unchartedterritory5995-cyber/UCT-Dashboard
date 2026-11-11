@@ -103,6 +103,10 @@ from api.services.journal_two.attachment_root import (
 from api.services.journal_two.notes_quota import (
     NoteQuotaExceeded, assert_import_headroom,
 )
+from api.services.journal_two import import_provenance
+from api.services.journal_two.import_notice import (
+    MEDIA_PENDING_RETRY, MEDIA_PENDING_STORAGE, media_pending_state,
+)
 from api.services.journal_two.notes_search import fts_match_expr
 # Which node types are leaves / inline leaves / textblocks: ONE table, owned by
 # the citation text and pinned against the real schema (see extract_plain_text).
@@ -135,6 +139,30 @@ _ALLOWED_FILE_MIMES = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.document",
 }
 _MAX_FILE_BYTES = 25 * 1024 * 1024
+# The extensions a stored file may carry (anything else is stored as `.bin`). The legacy set is
+# what an allowlisted (untrusted-MIME) save keeps; the media policy's trusted save
+# (`media_policy.store_media`) keeps the widened set, and names an extension-less file from its
+# sniffed type. `.html`/`.htm`/`.js` are deliberately absent: the policy refuses web pages.
+_LEGACY_FILE_EXTS = frozenset({".pdf", ".txt", ".csv", ".md", ".zip", ".mp3", ".m4a", ".docx", ".xlsx"})
+_SAFE_FILE_EXTS = _LEGACY_FILE_EXTS | frozenset({
+    ".mp4", ".mov", ".webm", ".wav", ".ogg", ".m4a", ".mp3", ".pptx", ".ppt", ".doc", ".xls", ".rtf",
+    ".json", ".epub", ".heic", ".heif", ".tif", ".tiff", ".bmp", ".avif", ".svg", ".gif", ".png",
+    ".jpg", ".webp", ".key",
+})
+_FILE_EXT_BY_MIME = {
+    "application/pdf": ".pdf", "text/plain": ".txt", "text/csv": ".csv", "text/markdown": ".md",
+    "application/zip": ".zip", "audio/mpeg": ".mp3", "audio/mp4": ".m4a", "audio/wav": ".wav",
+    "audio/ogg": ".ogg", "video/mp4": ".mp4", "video/quicktime": ".mov", "video/webm": ".webm",
+    "application/json": ".json", "application/rtf": ".rtf", "application/epub+zip": ".epub",
+    "application/msword": ".doc", "application/vnd.ms-excel": ".xls",
+    "application/vnd.ms-powerpoint": ".ppt", "application/vnd.apple.keynote": ".key",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
+    "image/heic": ".heic", "image/heif": ".heif", "image/tiff": ".tif", "image/bmp": ".bmp",
+    "image/avif": ".avif", "image/svg+xml": ".svg", "image/gif": ".gif", "image/png": ".png",
+    "image/jpeg": ".jpg", "image/webp": ".webp",
+}
 # WAVE P POST-CLOSURE: the byte cap is the ONLY member-facing authority.
 # `_MAX_PAGES = 500` is an internal secondary ceiling and must never be
 # quoted as an upload guarantee: how many scanned pages fit inside 25 MB moves
@@ -146,6 +174,13 @@ FILE_TOO_BIG_SENTENCE = ("File is larger than the 25 MB limit. How many scanned 
 
 class NoteValidationError(ValueError):
     """Raised when note payload is malformed."""
+
+
+class DestinationFolderNotFound(NoteValidationError):
+    """`import_confirm`'s `destFolderId` names no folder of this member's. A subclass, so every
+    caller that maps a `NoteValidationError` (the file importer's 400) is unchanged, while the
+    connector engine can tell THIS failure, which no retry fixes, from one that a retry might
+    (live audit 2026-11-03: it was reported as "will be tried again" forever)."""
 
 
 class NoteConflictError(Exception):
@@ -463,6 +498,42 @@ def _routine_tracker_use_row(widget_id: str, params: dict[str, Any]) -> tuple[st
     return (widget_id, tool_id, None)
 
 
+# ── An internal note link MARK (Plan A Task 2, L-2) ─────────────────────────
+# An imported wiki link resolves to a `link` mark whose href is
+# `/journal?j2tab=notebook&note=<id>` (note_connectors/convert/rewrite.py), not a
+# `noteLink` node, so it used to be invisible to backlinks and the graph. It is
+# projected into j2_note_links alongside the nodes. Only this exact shape counts:
+# the two params in either order, nothing else in the query, no fragment.
+# ⛔ ONE FACT IN TWO FILES: INTERNAL_NOTE_RE in
+# app/src/pages/journal-2-0/lib/linkClickOpen.js (what opens in-app) is this
+# pattern; test_note_links_internal_href.py reads that literal and pins the two.
+_INTERNAL_NOTE_RE = re.compile(
+    r"^/journal\?(?:j2tab=notebook&note=([A-Za-z0-9_-]+)|note=([A-Za-z0-9_-]+)&j2tab=notebook)$")
+
+
+def _internal_note_id(href: Any) -> str | None:
+    """The note id an in-app note link names, or None for any other href."""
+    if not isinstance(href, str):
+        return None
+    m = _INTERNAL_NOTE_RE.fullmatch(href.strip())
+    return (m.group(1) or m.group(2)) if m else None
+
+
+def _internal_link_href(text_node: dict[str, Any]) -> str | None:
+    """A TEXT node's link href when it is an internal note link, else None. The
+    caller has already read the node's type (the one-walk rule: each node's type
+    is read once, test_sync_note_sidecars_walks_the_document_exactly_once)."""
+    marks = text_node.get("marks")
+    if not isinstance(marks, list):
+        return None
+    for mark in marks:
+        if isinstance(mark, dict) and mark.get("type") == "link":
+            attrs = mark.get("attrs")
+            href = attrs.get("href") if isinstance(attrs, dict) else None
+            return href if _internal_note_id(href) else None
+    return None
+
+
 def _sync_note_sidecars(
     conn: sqlite3.Connection, user_id: str, note_id: str,
     body_json: dict[str, Any] | None, body_plain: str | None,
@@ -483,10 +554,14 @@ def _sync_note_sidecars(
     excerpt_ids: list[str] = []
     has_task = [False]   # wave 10: whether the task index needs its own walk at all
 
-    def walk(node: Any) -> None:
+    def walk(node: Any) -> str | None:
+        """Visits `node`; returns its internal note link href when it is a text
+        node carrying one (its PARENT decides whether that starts a new link)."""
         if not isinstance(node, dict):
-            return
+            return None
         ntype = node.get("type")
+        if ntype == "text":
+            return _internal_link_href(node)
         if ntype == "taskItem":
             has_task[0] = True
         if ntype == "widgetEmbed":
@@ -559,8 +634,17 @@ def _sync_note_sidecars(
         # body that predates it from 500ing the save.
         children = node.get("content")
         if isinstance(children, list):
+            # Plan A Task 2 (L-2): an internal note link MARK is a note link too. One
+            # link bolded in the middle is several adjacent text nodes carrying the
+            # same href -- it counts ONCE, so a run continuing the previous sibling's
+            # href adds nothing. Any other sibling (plain words, a hard break) ends it.
+            prev_href: str | None = None
             for child in children:
-                walk(child)
+                href = walk(child)
+                if href is not None and href != prev_href:
+                    link_ids.append(_internal_note_id(href))
+                prev_href = href
+        return None
     if isinstance(body_json, dict):
         walk(body_json)
 
@@ -607,7 +691,8 @@ def _sync_note_sidecars(
     # (db.run_notebook_migration_v7) rebuilds it through this same code.
     _sync_note_mentions(conn, user_id, note_id, body_plain)
 
-    # j2_note_links -- a `noteLink` node's target id is NEVER validated
+    # j2_note_links -- a `noteLink` node's (or an internal link mark's,
+    # Plan A Task 2) target id is NEVER validated
     # against j2_notes here: a link to a note that doesn't exist (foreign
     # tenant, already deleted, malformed id typed via direct API use) still
     # gets a sidecar row -- resolving whether that target is real, owned,
@@ -1047,9 +1132,7 @@ def _validate_body_json(raw: Any) -> dict[str, Any]:
         # name, with no idea what to do about it. One raise site fixes
         # both surfaces; a per-surface translation would fix neither for
         # the other and would be a second authority over this sentence.
-        raise NoteValidationError(
-            "This note is too long to save as one page. "
-            "Split it into two or more notes and try again.")
+        raise NoteValidationError(TOO_LONG_BODY_DETAIL)
     # ⛔ Wave 10 (10C): never STORE a note no door can serve back -- see MAX_BODY_DEPTH.
     if _json_depth_exceeds(raw, MAX_BODY_DEPTH):
         raise NoteValidationError(TOO_DEEP_BODY_DETAIL)
@@ -1070,6 +1153,13 @@ def _validate_body_json(raw: Any) -> dict[str, Any]:
 # goes red rather than notes going unreadable. Notes already stored deeper than this
 # still 500 on read -- that half is the router's (the 10C report names it).
 MAX_BODY_DEPTH = 97
+
+#: The sentence a body over MAX_BODY_JSON_BYTES is refused with; it reaches a member verbatim (see
+#: its raise site in `_validate_body_json`). Named so the sync engine can recognise it (Plan E Task 9
+#: fix round 2, m1) without restating it.
+TOO_LONG_BODY_DETAIL = (
+    "This note is too long to save as one page. "
+    "Split it into two or more notes and try again.")
 
 TOO_DEEP_BODY_DETAIL = (
     "This note has too many lists, quotes or toggles nested inside each other to "
@@ -1253,6 +1343,13 @@ def validate_title(raw: Any) -> str:
 
 # ── Import support ───────────────────────────────────────────────────────────
 
+def import_title(raw: Any) -> str:
+    """The title `import_confirm` stores: stripped, "Untitled" when empty, cut to
+    `MAX_TITLE_CHARS`. Public for the connectors' `.enex` adoption (Plan E Task 8), which compares a
+    live title through this same rule."""
+    return (raw or "Untitled").strip()[:MAX_TITLE_CHARS]
+
+
 def _import_payload_hash(note: dict) -> str:
     """Compute a SHA256 hash of the note's immutable content for fingerprinting."""
     basis = json.dumps({
@@ -1279,22 +1376,42 @@ def _import_date(value, fallback):
 
 
 def _body_has_import_placeholder(body_json: Any) -> bool:
-    """True when this body still carries an unresolved import-time
+    """True when this body still carries an unresolved import-time MEDIA
     placeholder — `import-ref://<ref>` (an image/attachmentChip node whose
-    media upload has not yet been confirmed) or `import-link://<key>` (a
-    cross-note link not yet rewritten to a real note URL). A raw substring
-    scan of the serialized JSON, not a node-type walk: correct regardless of
-    which node shape (image, attachmentChip, a link mark nested anywhere in
-    the tree) carries the placeholder, and cheap enough to run on every
+    media upload has not yet been confirmed). A raw substring scan of the
+    serialized JSON, not a node-type walk: correct regardless of which node
+    shape carries the placeholder, and cheap enough to run on every
     import_confirm write. False positive only if a note's OWN authored text
-    happens to contain one of these literal strings — harmless: it merely
-    stays "pending" one write longer than strictly necessary, never loses
-    data (see audit B5 / import_confirm's docstring)."""
+    happens to contain the literal string — harmless: it merely stays
+    "pending" one write longer than strictly necessary, never loses data
+    (see audit B5 / import_confirm's docstring).
+
+    Connector fidelity Plan A Task 4: MEDIA ONLY. An `import-link://<key>`
+    mark used to count here too, so a link that could never resolve (a
+    Notion page not shared with the integration) kept the note pending
+    forever and `import_confirm` re-wrote it, and the engine re-downloaded
+    its media, on every pass. "Pending" means something can still resolve
+    by re-importing; a link is `_body_has_import_link`'s answer
+    (`import_links_pending`), finished by the link heal pass
+    (`note_connectors/link_keys.py`), never by a re-import.
+
+    Plan A Task 6: delegates to `import_notice.media_pending_state(...) == 1`, so
+    "retry now" has ONE rule: a placeholder, or an importNotice with attempts left."""
+    return media_pending_state(body_json) == MEDIA_PENDING_RETRY
+
+
+def _body_has_import_link(body_json: Any) -> bool:
+    """True when this body still carries an `import-link://<key>` mark — a
+    cross-note link whose target is not here yet. The `import_links_pending`
+    column is this answer about the STORED body, set by every import writer
+    (`import_confirm`, the engine's `_apply_resolved_body`) and by
+    `update_note`'s body write. Same substring scan as
+    `_body_has_import_placeholder`, same harmless false positive."""
     try:
         blob = json.dumps(body_json)
     except (TypeError, ValueError):
         return False
-    return "import-ref://" in blob or "import-link://" in blob
+    return "import-link://" in blob
 
 
 # Genuine resource bound on one import-check request — NOT a silent
@@ -1353,8 +1470,56 @@ def import_check(user_id: str, import_keys: list[str], conn: sqlite3.Connection 
             conn.close()
 
 
-def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None = None) -> dict:
+def _newest_media_mtime(user_id: str, note_id: str) -> float | None:
+    """The newest mtime of any stored media file under the note's `inline/` and `file/` dirs
+    (where `save_note_image_bytes` / `store_media` write), or None when there is none."""
+    newest = None
+    for sub in ("inline", "file"):
+        base = Path(_ATTACHMENT_ROOT) / user_id / "notes" / note_id / sub
+        try:
+            entries = list(base.rglob("*"))
+        except OSError:
+            continue
+        for p in entries:
+            try:
+                if p.is_file():
+                    m = p.stat().st_mtime
+                    newest = m if newest is None or m > newest else newest
+            except OSError:
+                continue
+    return newest
+
+
+def _edited_since_file_import(conn: sqlite3.Connection, user_id: str, row: sqlite3.Row) -> bool:
+    """Plan B Task 10 (ruling R4): the file importer's "hands off" answer. The ONE predicate
+    (`import_provenance.edited_since_import`) minus the legacy finalize shape -- a note whose
+    only post-import write was the importer's own finalize PUT from before `update_note`
+    stamped `imported_at` (`import_provenance.legacy_finalize_shape`). Never a second rule."""
+    updated_at, imported_at = row["updated_at"], row["imported_at"]
+    if not import_provenance.edited_since_import(updated_at, imported_at):
+        return False
+    # Fix round 1 (ruling): the legacy shape describes only imports from before the stamp.
+    if not import_provenance.predates_finalize_stamp(imported_at):
+        return True
+    later_version = any(
+        import_provenance.is_later(v[0], imported_at)
+        for v in conn.execute("SELECT created_at FROM j2_note_versions WHERE note_id = ?", (row["id"],)))
+    return not import_provenance.legacy_finalize_shape(
+        updated_at, imported_at, _newest_media_mtime(user_id, row["id"]), later_version)
+
+
+def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None = None, *,
+                   guard_edits: bool = False) -> dict:
     """Transactional upsert of notes by fingerprint.
+
+    Plan B Task 10: `guard_edits=True` (the file-import route) never rewrites a note edited
+    since its import (`_edited_since_file_import`): it is reported in `keptEdited`
+    `{importKey, id}` instead. `payload["mode"] == "recover"` (implies the guard) rebuilds
+    every unedited existing note even when its hash matches and nothing is pending, keeping
+    its folder and checkpointing the replaced content in version history; reported in
+    `recovered` `{importKey, id, updatedAt}`. Any other mode is a `NoteValidationError`. The
+    response carries `recovered` and `keptEdited` only under the guard, so the connector
+    engine's call (no guard) keeps its exact shape and behaviour.
 
     Payload shape: {
         "source": str,
@@ -1373,6 +1538,9 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
     again and reported via `updated` instead, so a failed media upload gets
     retried on the member's next import attempt rather than silently and
     permanently missing its image forever. See `_body_has_import_placeholder`.
+    Plan A Task 4: that flag is MEDIA only now; an `import-link://` mark sets
+    `import_links_pending` instead (`_body_has_import_link`) and never defeats
+    the skip -- the link heal pass (`note_connectors/link_keys.py`) finishes it.
 
     ⛔⛔ session-audit.md A1/A2: ONE note that cannot be stored (oversized
     body, malformed shape) is isolated to a per-note SAVEPOINT and reported
@@ -1397,6 +1565,11 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
     if raw_source is not None and not isinstance(raw_source, str):
         raise NoteValidationError("source must be a string")
     source = (raw_source or "file")[:40]
+    mode = payload.get("mode")
+    if mode is not None and (not isinstance(mode, str) or mode != "recover"):
+        raise NoteValidationError('mode must be "recover"')
+    recover = mode == "recover"
+    guard_edits = guard_edits or recover
     dest = payload.get("destFolderId") or ""
     owned = conn is None
     conn = conn or get_connection()
@@ -1405,7 +1578,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
             ok = conn.execute("SELECT 1 FROM j2_note_folders WHERE id = ? AND user_id = ?",
                               (dest, user_id)).fetchone()
             if not ok:
-                raise NoteValidationError("destination folder not found")
+                raise DestinationFolderNotFound("destination folder not found")
         # A deep folderPath used to be truncated to MAX_FOLDER_DEPTH segments
         # and then created UNDER destFolderId — so a dest at depth >=1 plus a
         # path already at the cap raised "folder nesting too deep" and 400'd
@@ -1417,9 +1590,16 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
         dest_depth = _folder_depth(conn, user_id, dest) if dest else 0
         max_path_depth = max(0, MAX_FOLDER_DEPTH - dest_depth)
         created, updated, skipped, failed = [], [], [], []
+        recovered, kept_edited = [], []   # Plan B Task 10: reported only under the guard
         # One import operation = one imported_at timestamp, deliberate
         now = _now_iso()
         path_cache: dict[tuple, str] = {}
+        # Slot scheduling fix round 1 (concern 3): every note's CPU work (validation, the
+        # plain-text extraction, the payload hash, the pending flags) is done FIRST, before
+        # this call writes anything, so the write transaction below spans only the writes and a
+        # member's own save waits on it for as short a time as possible. Pure functions of the
+        # payload; a note that fails here is reported in `failed` exactly as before, in order.
+        prepared: list[tuple[dict, str | None, Exception | None, tuple | None]] = []
         for n in notes:
             raw_key = n.get("importKey")
             key = raw_key if isinstance(raw_key, str) and raw_key else None
@@ -1430,12 +1610,22 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                 # ⛔ Wave 10 (10C): an imported note the editor cannot build lands in
                 # "Needs attention" with the sentence, never as a locked note.
                 _refuse_unbuildable(body_json)
-                body_plain = extract_plain_text(body_json)
-                first_image = _extract_first_image(body_json)
-                title = (n.get("title") or "Untitled").strip()[:MAX_TITLE_CHARS]
-                tags = _validate_tags(n.get("tags"))
-                ticker = _validate_ticker(n.get("ticker"))
-                h = _import_payload_hash(n)
+                prepared.append((n, key, None, (
+                    body_json, extract_plain_text(body_json), _extract_first_image(body_json),
+                    import_title(n.get("title")), _validate_tags(n.get("tags")),
+                    _validate_ticker(n.get("ticker")), _import_payload_hash(n),
+                    _import_date(n.get("createdAt"), now), _import_date(n.get("updatedAt"), now),
+                    media_pending_state(body_json),  # Plan A Task 6: 0 / 1 / 2
+                    1 if _body_has_import_link(body_json) else 0,  # Plan A Task 4
+                )))
+            except Exception as e:  # noqa: BLE001 -- isolated per note, as below
+                prepared.append((n, key, e, None))
+        for n, key, prep_error, derived in prepared:
+            try:
+                if prep_error is not None:
+                    raise prep_error
+                (body_json, body_plain, first_image, title, tags, ticker, h, created_at,
+                 updated_at, media_pending, links_pending) = derived
                 # Folder resolution is shared across notes (path_cache) and
                 # deliberately sits OUTSIDE the per-note SAVEPOINT below: a
                 # folder a healthy note needs must survive even when a LATER
@@ -1455,7 +1645,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                 # re-import creates fresh content instead of resurrecting a
                 # note the member deliberately trashed.
                 row = conn.execute(
-                    "SELECT id, import_hash, import_media_pending FROM j2_notes "
+                    "SELECT id, import_hash, import_media_pending, updated_at, imported_at FROM j2_notes "
                     "WHERE user_id = ? AND deleted_at IS NULL AND import_key = ?",
                     (user_id, key)).fetchone()
                 item = {"importKey": key, "id": row["id"] if row else None}
@@ -1469,12 +1659,22 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                 # ever retries it. Fall through to the normal write instead,
                 # which recomputes media_pending below and reports this note
                 # via `updated` so the client's media/link phase runs again.
-                if row and row["import_hash"] == h and not row["import_media_pending"]:
+                # Plan A Task 6: 2 ("waiting for storage space") skips like 0 --
+                # waiting must not re-import and re-download the note every pass.
+                # Plan B Task 10: `recover` rebuilds even an unchanged, settled note.
+                if row and not recover and row["import_hash"] == h and (
+                        not row["import_media_pending"]
+                        or row["import_media_pending"] == MEDIA_PENDING_STORAGE):
                     skipped.append(item)
                     continue
-                created_at = _import_date(n.get("createdAt"), now)
-                updated_at = _import_date(n.get("updatedAt"), now)
-                media_pending = 1 if _body_has_import_placeholder(body_json) else 0
+                # Plan B Task 10: never rewrite a note edited since its import. Recover's
+                # stricter caller rule (R4): it rebuilds only a note whose import it can date,
+                # so a missing or unreadable `imported_at` is hands off too.
+                if row and guard_edits and (
+                        (recover and not import_provenance.stamp_readable(row["imported_at"]))
+                        or _edited_since_file_import(conn, user_id, row)):
+                    kept_edited.append(item)
+                    continue
 
                 # This note's write is isolated in its own SAVEPOINT: a note
                 # that cannot be stored must not discard any sibling note
@@ -1486,15 +1686,45 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                 # this note wrote.
                 conn.execute("SAVEPOINT j2_import_note")
                 try:
-                    if row:
+                    if row and recover:
+                        # Plan B Task 10: the content being replaced goes into version
+                        # history first (forced: a recover is an explicit member action).
+                        # The UPDATE is the `updated` branch's minus `folder_id`: the member
+                        # chose where the note lives.
+                        full = conn.execute("SELECT * FROM j2_notes WHERE id=? AND user_id=?",
+                                            (row["id"], user_id)).fetchone()
+                        _maybe_capture_version(conn, row["id"], user_id, full, force=True)
+                        conn.execute(
+                            "UPDATE j2_notes SET title=?, subtitle=?, body_json=?, body_plain=?, "
+                            "first_image_url=?, ticker=?, tags=?, import_hash=?, "
+                            "import_media_pending=?, imported_at=?, updated_at=?, "
+                            "import_remote_rev=? "
+                            "WHERE id=? AND user_id=?",
+                            (title, n.get("subtitle") or None, json.dumps(body_json), body_plain,
+                             first_image, ticker, json.dumps(tags), h, media_pending, now,
+                             updated_at, n.get("updatedAt") or None, row["id"], user_id))
+                        conn.execute("UPDATE j2_notes SET import_links_pending=? WHERE id=? AND user_id=?",
+                                     (links_pending, row["id"], user_id))
+                        _sync_note_sidecars(conn, user_id, row["id"], body_json, body_plain)
+                        conn.execute("RELEASE j2_import_note")
+                        recovered.append({"importKey": key, "id": row["id"], "updatedAt": updated_at})
+                    elif row:
                         conn.execute(
                             "UPDATE j2_notes SET title=?, subtitle=?, body_json=?, body_plain=?, "
                             "first_image_url=?, folder_id=?, ticker=?, tags=?, import_hash=?, "
-                            "import_media_pending=?, imported_at=?, updated_at=? "
+                            "import_media_pending=?, imported_at=?, updated_at=?, "
+                            # Connector fidelity Plan A Task 1: the remote's own revision,
+                            # the sync engine's "did the remote change" key (engine.py
+                            # `_remote_changed`). The RAW entry string, never `updated_at`
+                            # above (which falls back to `now` on a missing/invalid value).
+                            "import_remote_rev=? "
                             "WHERE id=? AND user_id=?",
                             (title, n.get("subtitle") or None, json.dumps(body_json), body_plain,
                              first_image, folder_id, ticker, json.dumps(tags), h, media_pending, now,
-                             updated_at, row["id"], user_id))
+                             updated_at, n.get("updatedAt") or None, row["id"], user_id))
+                        # Plan A Task 4: the link half of "pending" (see _body_has_import_link).
+                        conn.execute("UPDATE j2_notes SET import_links_pending=? WHERE id=? AND user_id=?",
+                                     (links_pending, row["id"], user_id))
                         _sync_note_sidecars(conn, user_id, row["id"], body_json, body_plain)
                         conn.execute("RELEASE j2_import_note")
                         # Wave Q1 (2026-09-12): ADDITIVE — the revision this write
@@ -1511,11 +1741,16 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                         conn.execute(
                             "INSERT INTO j2_notes (id, user_id, folder_id, title, subtitle, body_json, "
                             "body_plain, first_image_url, ticker, tags, import_source, import_key, import_hash, "
-                            "import_media_pending, imported_at, created_at, updated_at) "
-                            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                            "import_media_pending, imported_at, created_at, updated_at, "
+                            "import_remote_rev) "  # Plan A Task 1, see the UPDATE above
+                            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                             (new_id, user_id, folder_id, title, n.get("subtitle") or None,
                              json.dumps(body_json), body_plain, first_image, ticker, json.dumps(tags),
-                             source, key, h, media_pending, now, created_at, updated_at))
+                             source, key, h, media_pending, now, created_at, updated_at,
+                             n.get("updatedAt") or None))
+                        # Plan A Task 4: the link half of "pending" (see _body_has_import_link).
+                        conn.execute("UPDATE j2_notes SET import_links_pending=? WHERE id=? AND user_id=?",
+                                     (links_pending, new_id, user_id))
                         _sync_note_sidecars(conn, user_id, new_id, body_json, body_plain)
                         conn.execute("RELEASE j2_import_note")
                         item["id"] = new_id
@@ -1537,7 +1772,11 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                 failed.append({"importKey": key, "error": str(e)})
                 continue
         conn.commit()
-        return {"created": created, "updated": updated, "skipped": skipped, "failed": failed}
+        out = {"created": created, "updated": updated, "skipped": skipped, "failed": failed}
+        if guard_edits:
+            out["recovered"] = recovered
+            out["keptEdited"] = kept_edited
+        return out
     except Exception:
         conn.rollback()
         raise
@@ -1603,6 +1842,10 @@ def _row_to_note(row: sqlite3.Row) -> dict[str, Any]:
         "styleId": row["style_id"] if "style_id" in row.keys() else None,
         "styleVersion": row["style_version"] if "style_version" in row.keys() else None,
         "kindId": row["kind_id"] if "kind_id" in row.keys() else None,
+        # L3 (2026-11-03): the app a synced note came from (`obsidian`, `evernote`, ...; the
+        # connector's provider name, `import_confirm`'s `source`), so the note view can name it
+        # in its "removed from <app>" notice. None for a note made in UCT.
+        "importSource": row["import_source"] if "import_source" in row.keys() else None,
     }
 
 
@@ -3953,6 +4196,10 @@ def update_note(
             sets.append("body_json = ?"); params.append(json.dumps(bj))
             sets.append("body_plain = ?"); params.append(bp)
             sets.append("first_image_url = ?"); params.append(_extract_first_image(bj))
+            # Plan A Task 4: the stored body's link half of "pending", kept true on every
+            # body write so a member's edit that drops (or keeps) an import-link:// mark
+            # says so. The heal pass never rewrites an edited note either way.
+            sets.append("import_links_pending = ?"); params.append(1 if _body_has_import_link(bj) else 0)
         if "folderId" in patch:
             f = patch["folderId"] or None
             if f:
@@ -4045,7 +4292,17 @@ def update_note(
                 restored_from_version_id=restored_from_version_id,
             )
 
-        sets.append("updated_at = ?"); params.append(_now_iso())
+        now = _now_iso()
+        sets.append("updated_at = ?"); params.append(now)
+        if "importMediaPending" in patch and existing["import_key"]:
+            # Fix round 1: only an IMPORTED note carries import provenance to stamp; a
+            # hand-crafted PUT on a note nobody imported must not invent an `imported_at`.
+            # Plan B Task 10 (R5/H1): only the importer's own post-confirm write carries
+            # `importMediaPending`, so it re-stamps `imported_at` with the SAME instant as
+            # `updated_at`. Without this, that write read as a member edit
+            # (`import_provenance.edited_since_import`) and every file-imported note was
+            # left un-healed and un-recoverable.
+            sets.append("imported_at = ?"); params.append(now)
         params.extend([note_id, user_id])
         conn.execute(
             f"UPDATE j2_notes SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
@@ -4575,6 +4832,8 @@ def purge_expired_deleted_notes(
             conn.execute("DELETE FROM j2_notes WHERE id = ?", (note_id,))
             conn.execute("DELETE FROM j2_note_embeds WHERE note_id = ?", (note_id,))
             conn.execute("DELETE FROM j2_note_mentions WHERE note_id = ?", (note_id,))
+            # L4 fix round 1: the sync engine's record of what this note's media is stored as.
+            conn.execute("DELETE FROM j2_note_import_media WHERE note_id = ?", (note_id,))
             # P2 Tier 3: no trigger cleans the check-ins either (R-T3-V3).
             conn.execute("DELETE FROM j2_note_checkins WHERE note_id = ?", (note_id,))
             # Notebook widgets phase 2 (Task 8.9): nor the "used in" projection.
@@ -5710,19 +5969,49 @@ def delete_folder(
         # longer be found by the folder they used to be in. Reading them after
         # would return an empty list and land nothing, which is exactly the
         # shape of a fix that looks present and does nothing.
-        moved = [r["id"] for r in conn.execute(
-            "SELECT id FROM j2_notes WHERE folder_id = ? AND user_id = ?",
-            (folder_id, user_id)).fetchall()]
+        moved_rows = conn.execute(
+            "SELECT id, import_key, updated_at, imported_at, import_remote_rev FROM j2_notes "
+            "WHERE folder_id = ? AND user_id = ?", (folder_id, user_id)).fetchall()
+        moved = [r["id"] for r in moved_rows]
+        # ⛔ A FOLDER MOVE IS NOT A CONTENT EDIT (review I2, `probe_conflict.py`). The note sync
+        # engine reads `updated_at > imported_at` as "the member edited this"
+        # (`import_provenance.edited_since_import`), so bumping `updated_at` alone made every
+        # later remote edit of an imported note a "(synced copy)" sibling. An imported note that
+        # was UNEDITED before the move has `imported_at` advanced to the same stamp, in the same
+        # UPDATE, so it stays unedited. ⛔ Never one the member had already edited (or whose stamps
+        # cannot be read): hiding a real edit would let a remote change overwrite their work.
+        # ⛔ Nor a LEGACY row (`import_remote_rev IS NULL`, re-review N1): the engine judges its
+        # remote by `remote revision > imported_at` (`engine._remote_changed` rule 4), so moving
+        # `imported_at` forward would swallow a remote edit made before this delete and not yet
+        # synced. Such a row keeps the old answer: a conflict copy, never a missed edit.
+        unedited_imports = [
+            r["id"] for r in moved_rows
+            if r["import_key"] and r["import_remote_rev"] is not None
+            and import_provenance.instant(r["updated_at"]) is not None
+            and import_provenance.instant(r["imported_at"]) is not None
+            and not import_provenance.edited_since_import(r["updated_at"], r["imported_at"])]
         # Delete the folder first to avoid UNIQUE constraint violations when re-parenting
         cur = conn.execute(
             "DELETE FROM j2_note_folders WHERE id = ? AND user_id = ?", (folder_id, user_id))
         # notes climb to the parent; at root ('' parent) they go Unfiled (NULL)
         conn.execute(
-            "UPDATE j2_notes SET folder_id = ?, updated_at = ? WHERE folder_id = ? AND user_id = ?",
-            (parent or None, now, folder_id, user_id))
+            "UPDATE j2_notes SET folder_id = ?, updated_at = ?, "
+            "imported_at = CASE WHEN id IN (SELECT value FROM json_each(?)) THEN ? ELSE imported_at END "
+            "WHERE folder_id = ? AND user_id = ?",
+            (parent or None, now, json.dumps(unedited_imports), now, folder_id, user_id))
         conn.execute(
             "UPDATE j2_note_folders SET parent_id = ? WHERE parent_id = ? AND user_id = ?",
             (parent, folder_id, user_id))
+        # ⛔ A note-connector source importing into this folder follows its notes to the parent
+        # (the root is None, which `import_confirm` accepts). ⚰️ Live audit 2026-11-03: this
+        # cascade never touched `j2_note_sources`, so a deleted destination left its source
+        # refusing every batch forever ("destination folder not found"). Only THIS folder is
+        # removed here: its children are re-parented, never deleted, so a source on a child
+        # stays where it is. A source left pointing at a missing folder some other way is
+        # repaired by the sync engine (`note_connectors/dest_folder.heal_missing_dest_folder`).
+        conn.execute(
+            "UPDATE j2_note_sources SET dest_folder_id = ? WHERE dest_folder_id = ? AND user_id = ?",
+            (parent or None, folder_id, user_id))
         if owned:
             conn.commit()
         # ⭐ ONE revision for all of them: the cascade is a single UPDATE, so every
@@ -5801,6 +6090,30 @@ def ensure_folder_path(user_id: str, path_parts: list[str], dest_folder_id: str 
 
 # ── Image upload ─────────────────────────────────────────────────────────────
 
+_IMAGE_EXT_BY_MIME = {
+    "image/png": ".png", "image/jpeg": ".jpg",
+    "image/gif": ".gif", "image/webp": ".webp",
+}
+
+
+def note_image_target(
+    user_id: str, note_id: str, data: bytes, content_type: str, *, kind: str = "inline",
+) -> Path:
+    """The ONE place an image's on-disk path is decided: where `save_note_image_bytes` writes
+    these bytes (and finds them already written). Content-hash filename (post-v1 dedupe,
+    designed for from day one via the fallback.url indirection): an identical byte-for-byte
+    upload — e.g. the embed self-archive re-capturing an unchanged chart — lands on the SAME
+    path and is a no-op instead of a new file. Truncated sha256 keeps the exact 32-hex shape
+    uuid4().hex had, so the attachment GC's upload-name filter and every stored URL stay
+    valid; changed pixels = new hash = new file, and the orphaned old one ages into the GC.
+    `media_policy.store_media` reads it too, so a no-op write reserves no room under the
+    member's media cap (connector fidelity final review I1)."""
+    sub = "hero" if kind == "hero" else "inline"
+    ext = _IMAGE_EXT_BY_MIME.get(content_type, ".png")
+    new_id = hashlib.sha256(data).hexdigest()[:32]
+    return _ATTACHMENT_ROOT / user_id / "notes" / note_id / sub / f"{new_id}{ext}"
+
+
 def save_note_image_bytes(
     user_id: str,
     note_id: str,
@@ -5827,29 +6140,14 @@ def save_note_image_bytes(
     except NoteQuotaExceeded as e:
         raise NoteValidationError(str(e)) from e
 
-    ext_map = {
-        "image/png": ".png", "image/jpeg": ".jpg",
-        "image/gif": ".gif", "image/webp": ".webp",
-    }
-    ext = ext_map.get(content_type, ".png")
-
     sub = "hero" if kind == "hero" else "inline"
-    target_dir = _ATTACHMENT_ROOT / user_id / "notes" / note_id / sub
-    target_dir.mkdir(parents=True, exist_ok=True)
-    # Content-hash filename (post-v1 dedupe, designed for from day one via the
-    # fallback.url indirection): an identical byte-for-byte upload — e.g. the
-    # embed self-archive re-capturing an unchanged chart — lands on the SAME
-    # path and is a no-op instead of a new file. Truncated sha256 keeps the
-    # exact 32-hex shape uuid4().hex had, so the attachment GC's upload-name
-    # filter and every stored URL stay valid; changed pixels = new hash = new
-    # file, and the orphaned old one ages into the GC.
-    new_id = hashlib.sha256(data).hexdigest()[:32]
-    target_path = target_dir / f"{new_id}{ext}"
+    target_path = note_image_target(user_id, note_id, data, content_type, kind=kind)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
     if not target_path.exists():
         target_path.write_bytes(data)
 
     public_url = (
-        f"/api/j2/notes/attachments/{user_id}/{note_id}/{sub}/{new_id}{ext}"
+        f"/api/j2/notes/attachments/{user_id}/{note_id}/{sub}/{target_path.name}"
     )
     # Width/height: only computed if Pillow can read it; otherwise skip.
     width = height = None
@@ -5868,12 +6166,21 @@ def save_note_attachment_bytes(
     data: bytes,
     filename: str,
     content_type: str,
+    *,
+    trusted_mime: bool = False,
 ) -> dict[str, Any]:
     """Sync bytes-level file save. Validate + persist file bytes to disk.
     Returns {url, name, size}. File is stored under _ATTACHMENT_ROOT/{user_id}/notes/{note_id}/file/
 
-    Empty filename defaults to "attachment"."""
-    if content_type not in _ALLOWED_FILE_MIMES:
+    Empty filename defaults to "attachment".
+
+    `trusted_mime=True` (Plan A Task 8): the caller is `media_policy.store_media`, whose
+    `normalize_media` already sniffed the bytes and refused web pages, so the
+    `_ALLOWED_FILE_MIMES` allowlist is skipped (every file type is kept, never dropped) and a
+    filename with no known extension takes the extension of `content_type`. The stored
+    extension is always one of `_SAFE_FILE_EXTS`, else `.bin`; serving adds `nosniff` to every
+    file and download-only headers to the risky ones (`journal_two.serve_note_attachment`)."""
+    if not trusted_mime and content_type not in _ALLOWED_FILE_MIMES:
         raise NoteValidationError(f"MIME type {content_type} not allowed")
     if len(data) > _MAX_FILE_BYTES:
         raise NoteValidationError(FILE_TOO_BIG_SENTENCE)   # see the constant's note
@@ -5887,17 +6194,18 @@ def save_note_attachment_bytes(
     # Fallback: empty filename becomes "attachment"
     filename = filename or "attachment"
 
-    # Extract extension from filename; default to .bin if not in allowlist
-    ext_map = {
-        ".pdf": ".pdf", ".txt": ".txt", ".csv": ".csv", ".md": ".md",
-        ".zip": ".zip", ".mp3": ".mp3", ".m4a": ".m4a",
-        ".docx": ".docx", ".xlsx": ".xlsx",
-    }
-    # Get extension from filename (case-insensitive)
+    # Get extension from filename (case-insensitive); default to .bin if not in the safe set
     file_ext = ""
     if "." in filename:
         file_ext = filename[filename.rfind("."):].lower()
-    ext = ext_map.get(file_ext, ".bin")
+    if file_ext == ".jpeg":
+        file_ext = ".jpg"
+    if file_ext in (_SAFE_FILE_EXTS if trusted_mime else _LEGACY_FILE_EXTS):
+        ext = file_ext
+    elif trusted_mime:
+        ext = _FILE_EXT_BY_MIME.get(content_type, ".bin")
+    else:
+        ext = ".bin"
 
     sub = "file"
     target_dir = _ATTACHMENT_ROOT / user_id / "notes" / note_id / sub

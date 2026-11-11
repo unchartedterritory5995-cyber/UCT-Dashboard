@@ -525,6 +525,43 @@ export function chartDefaultsForTheme(theme) {
 
 // ─── Deep merge user settings over defaults ──────────────────────────────────
 
+/**
+ * ⭐ VA2 — `cs.indicatorDefaults`, kept to its shape: `{ [defId]: { inputs: {key: scalar} } }`.
+ * A definition id and an input key are short identifier strings; a value is a
+ * string, a finite number or a boolean (an input value is never an object, and a
+ * `source` input is never saved). Anything else is dropped. `null` when nothing
+ * survives, so the key stays absent.
+ */
+const _DEFAULTS_ID_RE = /^[A-Za-z_][A-Za-z0-9_:.-]{0,63}$/
+const _DEFAULTS_MAX_DEFS = 200
+const _DEFAULTS_MAX_INPUTS = 80
+export function sanitizeIndicatorDefaults(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const out = {}
+  let n = 0
+  for (const [defId, entry] of Object.entries(raw)) {
+    if (n >= _DEFAULTS_MAX_DEFS) break
+    if (!_DEFAULTS_ID_RE.test(defId) || !entry || typeof entry !== 'object' || Array.isArray(entry)) continue
+    const src = entry.inputs
+    if (!src || typeof src !== 'object' || Array.isArray(src)) continue
+    const inputs = {}
+    let k = 0
+    for (const [key, v] of Object.entries(src)) {
+      if (k >= _DEFAULTS_MAX_INPUTS) break
+      if (!_DEFAULTS_ID_RE.test(key)) continue
+      const ok = typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v))
+        || (typeof v === 'string' && v.length <= 200)
+      if (!ok) continue
+      inputs[key] = v
+      k += 1
+    }
+    if (!k) continue
+    out[defId] = { inputs }
+    n += 1
+  }
+  return n ? out : null
+}
+
 export function mergeChartSettings(userSettings) {
   // ⭐ EVERY RETURN IS ADOPTED — see `maAdoption.js`. A member with no stored blob
   // reads the defaults, and the defaults' four averages are instances too; a blob
@@ -698,9 +735,20 @@ function mergeChartSettingsRaw(userSettings) {
     },
     countdown: parsed.countdown ?? CHART_DEFAULTS.countdown,
     showPatterns: parsed.showPatterns ?? CHART_DEFAULTS.showPatterns,
+    // Chart IQ (server-gated pattern recognition; both doors write it: the toolbar button and the phone Indicators sheet).
+    // Like uctIntelligence: NO default and no key unless it is ON, so a chart that never turned it on merges byte-identically
+    // to before (alertSets/perInstanceDoor pin that digest). An undeclared key would be dropped here, so it must stay listed.
+    ...(parsed.showChartIq === true ? { showChartIq: true } : {}),
     // The UCT Intelligence indicator's own block (uctIntelligence.js). NO default and no key at all when
     // absent or malformed, so a chart that never added it merges byte-identically to before.
     ...(sanitizeUctIntelligence(parsed.uctIntelligence) ? { uctIntelligence: sanitizeUctIntelligence(parsed.uctIntelligence) } : {}),
+    // ⭐ VA2 (UCT RS §17.8) — "Save as my default": the inputs a member saved for NEW
+    // copies of an indicator, per definition id (`engine/instanceControls`
+    // `saveInstanceAsDefault`). NO default and no key unless one was saved, so every
+    // blob that never saved one merges byte-identically to before (the pinned
+    // merged-blob digests). SANITISED here to scalars only; each value is validated
+    // against its definition again where it is applied (`memberDefaultInputs`).
+    ...(sanitizeIndicatorDefaults(parsed.indicatorDefaults) ? { indicatorDefaults: sanitizeIndicatorDefaults(parsed.indicatorDefaults) } : {}),
     showPriceLabels: parsed.showPriceLabels ?? CHART_DEFAULTS.showPriceLabels,
     showMaLabels: parsed.showMaLabels ?? CHART_DEFAULTS.showMaLabels,
     darkPool: { ...CHART_DEFAULTS.darkPool, ...(parsed.darkPool || {}) },

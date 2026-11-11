@@ -1,0 +1,158 @@
+[
+ [
+  "M01 NBSP: type keyword read with JS \\s (master spelling)",
+  "src/components/chart/engine/pineTextFormat.js",
+  "/^[\\x00-\\x20]*number[\\x00-\\x20]*,(.*)$/",
+  "/^\\s*number\\s*,(.*)$/"
+ ],
+ [
+  "M03 -0: an input of -0 no longer withheld",
+  "src/components/chart/engine/pineTextFormat.js",
+  "(p < 0 || Object.is(p, -0))",
+  "(p < 0)"
+ ],
+ [
+  "M04 negative-zero rule removed",
+  "src/components/chart/engine/pineTextFormat.js",
+  "if (k === 0 && (p < 0 || Object.is(p, -0))) return 'percent:negative-zero'",
+  ""
+ ],
+ [
+  "M05 decimal-tie rule removed",
+  "src/components/chart/engine/pineTextFormat.js",
+  "if (Math.abs(Number(p.toPrecision(15)) % 1) === 0.5) return 'percent:decimal-tie'",
+  ""
+ ],
+ [
+  "M06 exact tie rule removed",
+  "src/components/chart/engine/pineTextFormat.js",
+  "if (exactTieAt(p, 0)) return 'percent:tie'",
+  ""
+ ],
+ [
+  "M07 grouping bound asked of the product, not the rounded whole",
+  "src/components/chart/engine/pineTextFormat.js",
+  "if (Math.abs(k) >= MESSAGE_NUMBER_LIMIT) return 'percent:grouping'",
+  "if (Math.abs(p) >= MESSAGE_NUMBER_LIMIT) return 'percent:grouping'"
+ ],
+ [
+  "M08 na rule removed",
+  "src/components/chart/engine/pineTextFormat.js",
+  "if (typeof n !== 'number' || !Number.isFinite(n)) return 'percent:na'",
+  ""
+ ],
+ [
+  "M10 {N} bound not asked of the rounded text (999.9996)",
+  "src/components/chart/engine/pineTextFormat.js",
+  "return s !== null && Math.abs(Number(s)) >= MESSAGE_NUMBER_LIMIT ? null : s",
+  "return s"
+ ],
+ [
+  "M14 validator stops asking the one authority (master's pattern-only check)",
+  "src/components/chart/engine/ast/objectProgram.js",
+  "if (v.fmt !== undefined && !isMessageNumberFormat(v.fmt)) {",
+  "if (v.fmt !== undefined && v.fmt !== '#.##') {"
+ ],
+ [
+  "M15 cell drop site ignores the text reader's refusal",
+  "src/components/chart/engine/ast/pine.js",
+  "const r = lastCanonRefusal !== cellRefusalBefore ? lastCanonRefusal\n              : lastTextRefusal !== textRefusalBefore ? lastTextRefusal : null",
+  "const r = lastCanonRefusal !== cellRefusalBefore ? lastCanonRefusal : null"
+ ],
+ [
+  "M16 create drop site ignores the text reader's refusal",
+  "src/components/chart/engine/ast/pine.js",
+  "noteCreateDrop(op, k, lastCanonRefusal !== refusalBefore ? lastCanonRefusal\n              : lastTextRefusal !== textRefusalBefore ? lastTextRefusal : null)",
+  "noteCreateDrop(op, k, lastCanonRefusal !== refusalBefore ? lastCanonRefusal : null)"
+ ],
+ [
+  "M17 str.format refusal not named",
+  "src/components/chart/engine/ast/pine.js",
+  "      textRefuse('pine:text-value', `\\`str.format\\` ${messageFormatWhyText(why)}`)\n",
+  ""
+ ],
+ [
+  "M18 loop per-pass refusal not named",
+  "src/components/chart/engine/ast/pine.js",
+  "textRefuse('loop:per-pass', `${slot ?",
+  "void ('loop:per-pass', `${slot ?"
+ ],
+ [
+  "M19 text refusal leaks onto lastCanonRefusal (decision state)",
+  "src/components/chart/engine/ast/pine.js",
+  "const textRefuse = (guard, message) => { lastTextRefusal = { guard, message } }",
+  "const textRefuse = (guard, message) => { lastTextRefusal = { guard, message }; lastCanonRefusal = { guard, message } }"
+ ],
+ [
+  "M20 bare {N,number} named generically",
+  "src/components/chart/engine/ast/pine.js",
+  "if (m[2] === 'number') return 'has a `{N,number}` element",
+  "if (m[2] === 'number-x') return 'has a `{N,number}` element"
+ ],
+ [
+  "M21 per-pass ternary shape not spelled",
+  "src/components/chart/engine/ast/pine.js",
+  "if (node.type === 'ternary') return `a \\`?:\\` whose test or arm moves per pass",
+  "if (node.type === 'ternary-x') return `a \\`?:\\` whose test or arm moves per pass"
+ ],
+ [
+  "M22 per-pass list element shape not spelled",
+  "src/components/chart/engine/ast/pine.js",
+  "if (node.name === 'array.get' || /\\.get$/.test(String(node.name)))",
+  "if (false)"
+ ],
+ [
+  "N01 Q-W3-3 gate opened (PERCENT_CAPTURED = true): percent served again",
+  "src/components/chart/engine/pineTextFormat.js",
+  "export const PERCENT_CAPTURED = false",
+  "export const PERCENT_CAPTURED = true"
+ ],
+ [
+  "N02 servedPreset ignores the gate",
+  "src/components/chart/engine/pineTextFormat.js",
+  "(keyword !== 'percent' || PERCENT_CAPTURED)",
+  "true"
+ ],
+ [
+  "N03 percentMessageNumber ignores the gate",
+  "src/components/chart/engine/pineTextFormat.js",
+  "if (!PERCENT_CAPTURED) return null // ⛔ r3 — percent:uncaptured, every value, either sign\n  return percentFormatUncaptured(n)",
+  "return percentFormatUncaptured(n)"
+ ],
+ [
+  "N04 percentWithheldWhy ignores the gate",
+  "src/components/chart/engine/pineTextFormat.js",
+  "return PERCENT_CAPTURED ? percentCornerWhy(n) : 'percent:uncaptured'",
+  "return percentCornerWhy(n)"
+ ],
+ [
+  "N05 isMessageNumberFormat accepts the presets ungated",
+  "src/components/chart/engine/pineTextFormat.js",
+  "|| servedPreset(fmt))",
+  "|| Object.hasOwn(MESSAGE_NUMBER_PRESETS, fmt))"
+ ],
+ [
+  "N06 compileMessagePattern accepts the presets ungated",
+  "src/components/chart/engine/pineTextFormat.js",
+  "if (servedPreset(keyword)) fmt = keyword",
+  "if (Object.hasOwn(MESSAGE_NUMBER_PRESETS, keyword)) fmt = keyword"
+ ],
+ [
+  "N07 formatMessageNumber serves percent ungated",
+  "src/components/chart/engine/pineTextFormat.js",
+  "if (fmt === 'percent') return percentMessageNumber(n)",
+  "if (fmt === 'percent') return percentFormatUncaptured(n)"
+ ],
+ [
+  "N08 percentFormatUncaptured stops asking the corner authority",
+  "src/components/chart/engine/pineTextFormat.js",
+  "if (percentCornerWhy(n) !== null) return null\n  return `${Math.round(n * 100)}%`",
+  "return `${Math.round(n * 100)}%`"
+ ],
+ [
+  "N09 the percent refusal sentence loses its Q-W3-3 pointer",
+  "src/components/chart/engine/ast/pine.js",
+  "stays refused until capture Q-W3-3 matches",
+  "stays refused"
+ ]
+]

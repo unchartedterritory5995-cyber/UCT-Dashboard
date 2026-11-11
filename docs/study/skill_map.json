@@ -1,6 +1,6 @@
 {
   "version": "2026-10-17.1",
-  "notes": "Phase 0 draft. Foundations tracks carry ids and titles only; the Foundations author fills their units. Method tracks are complete. lesson_key = 'uct-method:' + slug(title) as education_curriculum.py derives it. door_only links name the nearest lesson for a unit with no course lesson of its own.",
+  "notes": "Phase 0 draft. Foundations tracks carry ids and titles only; the Foundations author fills their units. Method tracks are complete. lesson_key = 'uct-method:' + slug(title) as education_curriculum.py derives it. door_only links name the nearest lesson for a unit with no course lesson of its own. 2026-11-07: Foundations F2 (chart words, the cycle of price action, chart events), F2b (tap the base low and the buy point on the chart), F3 (candle names) and F4 (bases) carry their first units, one skill each, so a member can choose them; before this those items reached members only through the daily set. 2026-11-08 (UCT RS Phase 4, unit 4-08): F2.04 \"Reading relative strength\" (skill read.rs): tap the RS new high, which line is the leader, strong on a weak day, RS or RSI; 40 drafts in docs/study/bank/rs.drills.json.",
   "curricula": [
     {
       "id": "foundations",
@@ -14,22 +14,117 @@
         {
           "id": "F2",
           "title": "Chart reading",
-          "units": []
+          "units": [
+            {
+              "id": "F2.01",
+              "title": "Chart words",
+              "skills": [
+                "vocab.chart"
+              ],
+              "lessons": [],
+              "modules": [
+                "F2"
+              ],
+              "supply": "thin",
+              "est_questions": 29
+            },
+            {
+              "id": "F2.02",
+              "title": "The cycle of price action",
+              "skills": [
+                "read.cycle"
+              ],
+              "lessons": [],
+              "modules": [
+                "F2"
+              ],
+              "supply": "good",
+              "est_questions": 1800
+            },
+            {
+              "id": "F2.03",
+              "title": "Chart events",
+              "skills": [
+                "read.events"
+              ],
+              "lessons": [],
+              "modules": [
+                "F2"
+              ],
+              "supply": "good",
+              "est_questions": 1700
+            },
+            {
+              "id": "F2.04",
+              "title": "Reading relative strength",
+              "skills": [
+                "read.rs"
+              ],
+              "lessons": [],
+              "modules": [
+                "F2"
+              ],
+              "supply": "thin",
+              "est_questions": 40
+            }
+          ]
         },
         {
           "id": "F2b",
           "title": "Levels, lines and drawings",
-          "units": []
+          "units": [
+            {
+              "id": "F2b.01",
+              "title": "Levels and lines: tap the spot, pick the support",
+              "skills": [
+                "read.levels"
+              ],
+              "lessons": [],
+              "modules": [
+                "F2b"
+              ],
+              "supply": "good",
+              "est_questions": 700
+            }
+          ]
         },
         {
           "id": "F3",
           "title": "Candlesticks",
-          "units": []
+          "units": [
+            {
+              "id": "F3.01",
+              "title": "Candle names",
+              "skills": [
+                "vocab.candle"
+              ],
+              "lessons": [],
+              "modules": [
+                "F3"
+              ],
+              "supply": "good",
+              "est_questions": 776
+            }
+          ]
         },
         {
           "id": "F4",
           "title": "Patterns and bases",
-          "units": []
+          "units": [
+            {
+              "id": "F4.01",
+              "title": "Bases",
+              "skills": [
+                "read.bases"
+              ],
+              "lessons": [],
+              "modules": [
+                "F4"
+              ],
+              "supply": "good",
+              "est_questions": 886
+            }
+          ]
         },
         {
           "id": "F5",

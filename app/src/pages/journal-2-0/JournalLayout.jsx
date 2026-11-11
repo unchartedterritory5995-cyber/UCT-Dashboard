@@ -22,11 +22,21 @@
  * once").
  */
 
-import { Suspense, useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { NavLink, Navigate, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useHotkeys } from 'react-hotkeys-hook'
 import UIcon from '../../components/ui/UIcon'
+import {
+  feedbackMenuMounted, openFeedback, registerHelpHost, registerShortcutsHost,
+} from '../../components/feedbackDoor'
+import { SUPPORT_PATH } from '../../components/helpAnchors'
+import {
+  OPEN_JOURNAL_TOOLS_EVENT, isNotebookListAddress, isNotebookNoteAddress, journalToolsDoorMounted, subscribeJournalToolsDoor,
+} from './lib/journalToolsDoor'
+import { VIEW_MODES } from './lib/savedViewModes'
 import useRovingTabIndex from '../../hooks/useRovingTabIndex'
+import usePreferences from '../../hooks/usePreferences'
+import { LANDING_PREF, resolveLanding } from './lib/todayHome'
 import RouteFocusTarget from './lib/routeFocus'
 import { useIsPaid } from '../../context/AuthContext'
 import useJ2Settings from './hooks/useJ2Settings'
@@ -43,11 +53,14 @@ import lazyChunk from './lib/lazyChunk'
 // chunk door, never with the page. ⛔ Never a static import of ShortcutCheatSheet
 // (rail: components/notebook/RefusedCopyOffer.lazy.test.js).
 import ShortcutCheatSheet from './components/ShortcutCheatSheetDoor'
+import { pageSection } from './lib/shortcutPage'
 import LogTradeButton from './LogTradeButton'
 import JournalMobileNav from './JournalMobileNav'
 import JournalLogFab from './JournalLogFab'
 import TrialBanner from './components/TrialBanner'
 import styles from './JournalLayout.module.css'
+import { AgentDockButton } from '../../agent/AgentProvider'
+import { useJournalAgentHost } from '../../agent/hosts/usePageAgentHosts'
 
 // Wave 14 perf lane (docs/notebook/wave14-perf.md): the header's three on-demand dialogs load
 // when first opened, not with the shell. Each is mounted only while its flag below is true, so
@@ -97,6 +110,18 @@ export const HOTKEY_ROUTES = {
 // (mirrors the disabled Compass nav teaser — never routes to a blank surface).
 export const PAID_HOTKEY_CHORDS = new Set(['g>k'])
 
+const VIEW_MODE_IDS = VIEW_MODES.map((m) => m.id)
+
+/** Tier 2 re-review R1-1. Rendered beside the page INSIDE its Suspense boundary, so it commits only when the page
+ *  has (never during the chunk's fallback). By its passive effect the page's own layout effects have run, and a list
+ *  toolbar has registered its "Journal tools" door; when none has, the page offers no door at this address. */
+function ListDoorProbe({ at, onDoorless }) {
+  useEffect(() => {
+    if (!journalToolsDoorMounted()) onDoorless(at)
+  }, [at, onDoorless])
+  return null
+}
+
 export default function JournalLayout() {
   const isPaid = useIsPaid()
   // Best-effort refresh of broker-synced trades when the journal opens
@@ -109,7 +134,8 @@ export default function JournalLayout() {
   const { settings, isLoading, error, save, accountName, noSpecificAccount, noAccountReason } = useJ2Settings()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { pathname } = useLocation()
+  const location = useLocation()
+  const { pathname } = location
   const compactHeader = isCompactHeaderRoute(pathname)
   // D2 (D-1): the phone Notebook's header tools, folded until asked for.
   const [toolsOpen, setToolsOpen] = useState(false)
@@ -130,8 +156,53 @@ export default function JournalLayout() {
   // Header overflow: Community + Accounts are NOT primary nav items (A5) — they
   // live here so the primary rail stays exactly 5. The routes still exist (A2).
   const [showMore, setShowMore] = useState(false)
+  // ⭐ W2-C1: what UCT Agent may read and write here (recent notes; create a note through the Notebook's own path)
+  useJournalAgentHost()
 
   const openSettings = useCallback(() => setShowSettings(true), [])
+
+  // Tier 2 fix round 1 (review Important 1): while the Notebook list offers "Journal tools" in its own ⋯ menu, the
+  // folded phone header takes no row (lib/journalToolsDoor.js); that row opens the tools here, focus on the toggle.
+  const toolsDoor = useSyncExternalStore(subscribeJournalToolsDoor, journalToolsDoorMounted, () => false)
+  const toolsToggleRef = useRef(null)
+  // ...and from the FIRST paint on the list's own address, before the list has mounted (no fold after a paint).
+  // Tier 3b fix round 1 (M10): a member whose chosen landing is All notes opens the LIST at the bare address, so it
+  // folds from the first paint there too (read from the shared preferences cache; nothing more is fetched).
+  const { prefs: jlPrefs } = usePreferences()
+  const landingAll = resolveLanding(jlPrefs?.[LANDING_PREF], { on: true }) === 'all'
+  const onListAddress = isNotebookListAddress(pathname, location.search, NOTEBOOK_PATH, VIEW_MODE_IDS, { landingAll })
+  // Tier 2 re-review R1-1: the first-paint fold is a PROMISE that the list's ⋯ will offer "Journal tools". When the
+  // page under it has rendered and offers no door (an error state, a missing list, anything without the list
+  // toolbar), the promise is released for this address, so the tools are never stranded (ListDoorProbe, below).
+  const [doorlessAt, setDoorlessAt] = useState(null)
+  // Final polish (WebKit at 390 px): an open note folds the header too -- its ⋯ carries "Journal tools" (NoteEditorPage).
+  const onNoteAddress = isNotebookNoteAddress(pathname, location.search, NOTEBOOK_PATH)
+  const holdListFold = (onListAddress || onNoteAddress) && doorlessAt !== location.key
+  // A note whose door went away after it was there (its load failed: the missing-note and failure pages have no ⋯)
+  // releases the fold for this address, so the tools are never stranded.
+  const hadDoorRef = useRef(false)
+  useEffect(() => {
+    if (toolsDoor) { hadDoorRef.current = true; return }
+    if (hadDoorRef.current && onNoteAddress) { hadDoorRef.current = false; setDoorlessAt(location.key) }
+  }, [toolsDoor, onNoteAddress, location.key])
+  useEffect(() => {
+    const onOpen = () => {
+      setToolsOpen(true)
+      requestAnimationFrame(() => toolsToggleRef.current?.focus())
+    }
+    window.addEventListener(OPEN_JOURNAL_TOOLS_EVENT, onOpen)
+    return () => window.removeEventListener(OPEN_JOURNAL_TOOLS_EVENT, onOpen)
+  }, [])
+
+  // S14: the header's Help button is THE Help button on Journal pages, and this page's shortcut sheet is what the
+  // menu's "Keyboard shortcuts" row opens.
+  const helpBtnRef = useRef(null)
+  useEffect(() => registerHelpHost(), [])
+  useEffect(() => registerShortcutsHost(() => setShowShortcuts(true)), [])
+  const openHelp = useCallback(() => {
+    if (feedbackMenuMounted()) openFeedback('menu', helpBtnRef.current, { toggle: true })
+    else navigate(SUPPORT_PATH)
+  }, [navigate])
   const closeSettings = useCallback(() => setShowSettings(false), [])
 
   // Wave 13 (13Q-4): the 6-item primary nav (Today/Trades/Calendar/Notebook/
@@ -214,6 +285,7 @@ export default function JournalLayout() {
       className={styles.root}
       data-compact-header={compactHeader ? 'true' : undefined}
       data-tools-open={toolsOpen ? 'true' : undefined}
+      data-tools-door={compactHeader && (toolsDoor || holdListFold) ? 'true' : undefined}
     >
       <div className={styles.header}>
         <h1 className={styles.heading}><UIcon name="journal" size={18} style={{ verticalAlign: '-3px', marginRight: 8 }} />Trade Journal</h1>
@@ -260,17 +332,27 @@ export default function JournalLayout() {
           })}
         </nav>
         <div className={styles.headerRight}>
+          <AgentDockButton />
           {/* Persistent "+ Log Trade" — the primary write affordance, on every
-              surface (A5). Owns its own add-position / add-trade modals. */}
-          <LogTradeButton />
+              surface (A5). Owns its own add-position / add-trade modals.
+              S12 + VIS-4 (audit 2026-11-05, V4 / issue 14): on the Notebook it folds into the
+              "Journal tools" disclosure below (the header's ⋯ there), so a phone's first screen is
+              notes; off the Notebook it stays here. On a wider screen the fold is `display:
+              contents`, so it still sits in the row. */}
+          {!compactHeader && <LogTradeButton />}
           {/* D2 (D-1): shown only on the Notebook route at <=640 px (the
               stylesheet decides the width). A disclosure, not a menu: the
               controls it reveals are the header's own, unchanged. */}
           {compactHeader && (
             <button
               type="button"
+              ref={toolsToggleRef}
               className={styles.toolsToggle}
-              onClick={() => setToolsOpen((x) => !x)}
+              onClick={() => {
+                // Closed with the door on screen, the folded header takes no row: focus goes back to the door's ⋯.
+                if (toolsOpen && toolsDoor) requestAnimationFrame(() => document.querySelector('[data-journal-tools-door]')?.focus())
+                setToolsOpen((x) => !x)
+              }}
               aria-expanded={toolsOpen}
               aria-controls="journal-header-tools"
               data-journal-tools-toggle=""
@@ -283,21 +365,22 @@ export default function JournalLayout() {
               controls stay flex items of this row (and the More menu keeps the
               row as its anchor on a phone). */}
           <div id="journal-header-tools" className={styles.headerTools}>
+          {compactHeader && <LogTradeButton />}
+          {/* S14 (audit 2026-11-05, details #3-#5): ONE Help menu. This was the keyboard-shortcuts "?", a second
+              "?" beside the app's corner one with a different job. It now opens THE Help menu (FeedbackWidget's:
+              Search help, Quick answers, Keyboard shortcuts, Tours, Send feedback), and while it is on screen the
+              corner "?" steps aside (registerHelpHost), so exactly one "?" shows. Shift+? still opens the
+              shortcuts directly. With the touch hub up there is no menu to open (Layout does not mount it), so the
+              press goes to the Support page instead of doing nothing. */}
           <button
+            ref={helpBtnRef}
             type="button"
             className={styles.shortcutsBtn}
-            onClick={() => setShowShortcuts(true)}
-            // A2R-04: explicit, so Enter/Space are guaranteed regardless of a
-            // native <button>'s own default activation — see ShortcutCheatSheet
-            // for the dialog-side half of this fix (trap + focus restore).
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
-                e.preventDefault()
-                setShowShortcuts(true)
-              }
-            }}
-            aria-label="Show keyboard shortcuts"
-            title="Keyboard shortcuts (Shift + ?)"
+            onClick={openHelp}
+            aria-label="Help"
+            aria-haspopup="menu"
+            title="Help (Shift + ? for keyboard shortcuts)"
+            data-journal-help=""
           >
             <kbd className={styles.headerKbd}>?</kbd>
           </button>
@@ -383,7 +466,7 @@ export default function JournalLayout() {
           surfaces, shown ONLY on phone (the desktop rail above hides via CSS).
           A TOP nav — NOT a second fixed bottom bar — so it never collides with
           the app-wide MobileTabBar. Always mounted; CSS decides where it shows. */}
-      <JournalMobileNav />
+      <JournalMobileNav compact={compactHeader} />
 
       {/* Shared J2 price provider (Task A6): a STABLE base subscription to the
           browser-wide SSE pool for the current account's open positions, held
@@ -398,6 +481,7 @@ export default function JournalLayout() {
           <RouteFocusTarget />
           <Suspense fallback={<div className={styles.surfaceFallback}>Loading…</div>}>
             <Outlet context={{ settings }} />
+            {(onListAddress || onNoteAddress) && <ListDoorProbe at={location.key} onDoorless={setDoorlessAt} />}
           </Suspense>
         </div>
       </J2PriceProvider>
@@ -427,7 +511,8 @@ export default function JournalLayout() {
         </Suspense>
       )}
 
-      <ShortcutCheatSheet open={showShortcuts} onClose={() => setShowShortcuts(false)} />
+      <ShortcutCheatSheet open={showShortcuts} onClose={() => setShowShortcuts(false)}
+        page={pageSection(pathname, location.search)} />
 
       {/* Mobile quick-log FAB (Task B5): a phone-only fixed "+ Log" button that
           opens the same add flow as the header LogTradeButton. Placed clear of

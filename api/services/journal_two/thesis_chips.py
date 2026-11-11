@@ -35,10 +35,6 @@ from typing import Any
 
 from api.services.journal_two import sample_marker
 from api.services.journal_two.note_levels import note_link
-from api.services.notebook_flags import flag_on
-
-#: The gate. An enablement gate: unset means OFF.
-FLAG = "NOTEBOOK_THESIS_CHIPS_ENABLED"
 
 #: Symbols a single batch call will resolve. A row population beyond this is not a normal
 #: Positions/Holdings/Watchlist page; truncating (not erroring) keeps a large widget's
@@ -51,11 +47,6 @@ _PRICE_FIELDS = ("entry", "stop", "target")
 #: The one property this feature reads off a note -- Wave E's builtin select
 #: (`note_properties.BUILTIN_PROPERTY_DEFS`), never a second status store.
 _THESIS_STATUS_PROP = "builtin:thesis_status"
-
-
-def enabled() -> bool:
-    """Is the chip on, read now (the one parse; unset = OFF)."""
-    return flag_on(FLAG, False)
 
 
 def _clean_symbol(v: Any) -> str | None:

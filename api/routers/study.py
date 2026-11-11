@@ -35,6 +35,8 @@ test_study_no_sym_leak.py` walks every member response shape.
 """
 from __future__ import annotations
 
+import logging
+
 import json
 import os
 from datetime import date, timedelta
@@ -48,7 +50,7 @@ from api.middleware.auth_middleware import (
     is_paid_user,
     require_admin,
 )
-from api.services import study_import, study_scoring, study_select, study_store
+from api.services import study_hard, study_import, study_scoring, study_select, study_store
 
 router = APIRouter(prefix="/api/study", tags=["study"])
 
@@ -59,6 +61,11 @@ _CHART_REVEAL_TYPES = {"spot", "levels", "next", "tap", "grade", "family", "call
 #: Forward bars served on the reveal; the rest come through /step.
 REVEAL_FORWARD_BARS = 20
 STEP_MAX = 60
+#: How far a chart's forward strip reaches (reveal + /step): the stored strip, topped up from the server's own
+#: bars. Owner, batch 21: the run-on "should do to the full culmination or maximization of the trade".
+FORWARD_WANT = 60
+#: The largest jump allowed where the server's own bars join the stored strip (a bigger one is another price basis).
+FORWARD_JOIN_MAX = 0.40
 
 
 def study_enabled() -> bool:
@@ -94,6 +101,11 @@ class SessionIn(BaseModel):
     kind: str = "free"                 # daily | skill | checkpoint | refresher | free
     skill_id: Optional[str] = None
     size: int = study_select.SET_SIZE
+    # HARD MODE (owner, batch 21, 2026-11-06): only charts whose last-bar sweep agrees with the key
+    # (study_hard: a Yes item nothing else fires on, a No item nothing fires on at all).
+    hard: bool = False
+    # a lesson set (the lesson player's practise sets): each chart carries its ticker (_set_payload `ticker`)
+    lesson: bool = False
 
 
 class AttemptIn(BaseModel):
@@ -175,9 +187,13 @@ def _prompt_or_404(item_id: str) -> dict:
     return p
 
 
-def _set_payload(user_id: str, session: dict) -> dict:
+def _set_payload(user_id: str, session: dict, ticker: bool = False) -> dict:
     """Prompts + visible bars inline for a session (T5), with the ids already
-    answered so a resume reads "Continue · 6 left" (D18)."""
+    answered so a resume reads "Continue · 6 left" (D18).
+
+    `ticker` (the owner, 2026-11-02 and again 2026-11-08, "Yes": the lesson's question card shows the chart exactly as
+    on the Charts page, its ticker and watermark visible before answering): a LESSON set carries each chart's ticker.
+    The challenges never ask for it (Hard mode's game is "no ticker"), so their sets stay as they were."""
     items = []
     for iid in session.get("item_ids") or []:
         p = study_store.get_item_prompt(iid)
@@ -185,6 +201,8 @@ def _set_payload(user_id: str, session: dict) -> dict:
             continue
         if p.get("has_chart"):
             p["bars"] = study_store.get_visible_bars(iid)
+            if ticker:
+                p["ticker"] = (study_store.get_item_full(iid) or {}).get("sym") or None
         items.append(p)
     return {
         "session_id": session["id"],
@@ -219,7 +237,7 @@ def get_today(user: dict = Depends(require_paid)):
     if session is None:
         ids = study_select.compose_today(uid, _bank_query)
         session = study_store.create_session(uid, "daily", ids, day_et=day)
-    payload = _set_payload(uid, session)
+    payload = _set_payload(uid, session, ticker=True)
     payload["profile"] = _profile_view(study_store.get_profile(uid))
     return payload
 
@@ -241,6 +259,8 @@ def post_session(body: SessionIn, user: dict = Depends(require_paid)):
         rows = study_store.list_bank()
         if body.skill_id:
             rows = [r for r in rows if r["skill_id"] == body.skill_id]
+        if body.hard:
+            rows = [r for r in rows if r.get("has_chart") and study_hard.item_eligible(r["id"])]
         return rows
 
     if body.kind == "unit":
@@ -251,7 +271,7 @@ def post_session(body: SessionIn, user: dict = Depends(require_paid)):
         due_slots = 0 if body.kind in ("skill", "checkpoint") else study_select.DUE_SLOTS
         ids = study_select.compose_today(uid, bank, n=n, due_slots=due_slots)
     session = study_store.create_session(uid, body.kind, ids, skill_id=body.skill_id)
-    return _set_payload(uid, session)
+    return _set_payload(uid, session, ticker=bool(body.lesson) and not body.hard)
 
 
 @router.get("/house-chart", dependencies=_ARMED)
@@ -280,6 +300,116 @@ def get_item_bars(item_id: str, _user: dict = Depends(require_paid)):
     return bars
 
 
+class SpotSetupIn(BaseModel):
+    view: int = 90
+    rounds: int = 8
+    # Blitz asks for a fresh draw each run (2026-11-08, the owner: never the same few charts); Spot the Setup sends none,
+    # so its run stays the same for a member all day
+    seed: Optional[str] = None
+    # Draw it asks only for charts whose setup has a trade plan (study_trade.plan), so every chart can be scored
+    need_plan: bool = False
+
+
+@router.post("/spot-setup", dependencies=_ARMED)
+def post_spot_setup(body: SpotSetupIn, user: dict = Depends(require_paid)):
+    """SPOT THE SETUP in one request (2026-11-08: seven skill sessions plus a look-alike call per chart kept the game on
+    "Loading the bank"). Charts whose last candle is their setup and nothing else, each with the candles in view that
+    look like it but where its own rules do not fire (study_spot_setup.lookalikes), taken round-robin across the setups so
+    a run is not eight of one kind, shuffled per member and day; one session so every answer is scored like any other.
+    Each item carries `look` beside its prompt and bars; the key never leaves the server."""
+    import random as _random
+    from datetime import date as _date
+    from api.services import study_spot_setup
+    uid = user["id"]
+    rounds = max(1, min(24, int(body.rounds or 8)))
+    view = max(20, min(250, int(body.view or 90)))
+    rows = [r for r in study_store.list_bank() if r.get("has_chart") and r.get("type") == "spot"
+            and r.get("skill_id") in study_hard.SETUP_RULES]
+    rng = _random.Random(f"{uid}:{_date.today().isoformat()}" + (f":{body.seed[:40]}" if body.seed else ""))
+    rng.shuffle(rows)
+    by: dict[str, list] = {}
+    for r in rows:
+        by.setdefault(r["skill_id"], []).append(r["id"])
+    picked: list[tuple[str, dict]] = []
+    tried = 0
+    queues = [list(v) for v in by.values()]
+    while len(picked) < rounds and any(queues) and tried < rounds * 12:
+        for q in queues:
+            if not q or len(picked) >= rounds:
+                continue
+            iid = q.pop(0)
+            tried += 1
+            full = study_store.get_item_full(iid) or {}
+            if study_hard.key_is_yes(full.get("answer_json")) is not True:
+                continue
+            vis_bars = (study_store.get_visible_bars(iid) or {}).get("bars") or []
+            if body.need_plan:
+                from api.services import study_trade
+                if not study_trade.plan(full.get("skill_id") or "", vis_bars):
+                    continue
+            look = study_spot_setup.lookalikes(vis_bars, full.get("skill_id") or "", view=view)
+            if look:
+                picked.append((iid, look))
+    session = study_store.create_session(uid, "free", [iid for iid, _ in picked])
+    payload = _set_payload(uid, session)
+    looks = dict(picked)
+    for it in payload["items"]:
+        it["look"] = looks.get(it["id"])
+    return payload
+
+
+class DrawIn(BaseModel):
+    item_id: str
+    entry: float
+    stop: float
+
+
+@router.post("/draw/score", dependencies=_ARMED)
+def post_draw_score(body: DrawIn, _user: dict = Depends(require_paid)):
+    """DRAW IT (the owner's notes on the draw game: "Show the entry as a line and explain why and where and how simply
+    and easily" · "the ease of placement and adjustment for stop can be easier"). The member places an entry and a stop
+    on a setup chart; this scores both against the setup's own plan (api/services/study_trade.plan, the detectors'
+    trigger and stop) and returns the plan with the bars that followed, for the review. Close enough is a quarter of the
+    plan's risk or 1% of the price, whichever is larger. A setup with no defined trade (the Bear gap) has nothing to
+    draw: 404. Nothing is scored before the member has placed both lines, so nothing leaks before the answer."""
+    from api.services import study_trade
+    full = study_store.get_item_full(body.item_id) or {}
+    if not full or full.get("review_status") != study_store.STATUS_APPROVED:
+        raise HTTPException(status_code=404, detail="item not found")
+    vis = (study_store.get_visible_bars(body.item_id) or {}).get("bars") or []
+    plan = study_trade.plan(full.get("skill_id") or "", vis)
+    if not plan:
+        raise HTTPException(status_code=404, detail="no trade to draw on this chart")
+    entry, stop = float(plan["entry"]), float(plan["stop"])
+    risk = abs(entry - stop)
+    tol = max(0.25 * risk, 0.01 * entry)
+
+    def judge(mine: float, truth: float) -> dict:
+        off = abs(float(mine) - truth)
+        return {"ok": off <= tol, "off": round(off, 4), "off_pct": round(off / truth * 100, 2) if truth else None, "plan": round(truth, 4)}
+    fwd = study_store.get_forward_bars(body.item_id) or []
+    return {"item_id": body.item_id, "sym": full.get("sym"), "plan": plan, "tolerance": round(tol, 4),
+            "entry": judge(body.entry, entry), "stop": judge(body.stop, stop),
+            "correct": bool(judge(body.entry, entry)["ok"] and judge(body.stop, stop)["ok"]),
+            "forward_bars": fwd[:REVEAL_FORWARD_BARS],
+            # the replay within the day for those bars (the member has placed both lines: the answer is in)
+            "forward_intraday": (study_store.get_intraday(body.item_id) or {"tf": None, "days": {}})}
+
+
+@router.get("/items/{item_id}/lookalikes", dependencies=_ARMED)
+def get_item_lookalikes(item_id: str, view: int = 90, _user: dict = Depends(require_paid)):
+    """SPOT THE SETUP (owner, 2026-11-08): for a chart whose last candle is its setup and nothing else, the candles in the
+    last `view` bars that look like it but where the setup's own rules do not fire, each measured beside the real one
+    (api/services/study_spot_setup.py). 404 when the chart cannot play this game."""
+    from api.services import study_spot_setup
+    item = _prompt_or_404(item_id)
+    bars = study_store.get_visible_bars(item_id)
+    out = study_spot_setup.lookalikes((bars or {}).get("bars") or [], item.get("skill_id") or "", view=max(20, min(250, int(view))))
+    if not out:
+        raise HTTPException(status_code=404, detail="This chart does not play Spot the Setup")
+    return out
+
+
 @router.post("/attempts", dependencies=_ARMED)
 def post_attempt(body: AttemptIn, user: dict = Depends(require_paid)):
     """Score server-side, write the attempt in ONE transaction, return the
@@ -295,9 +425,21 @@ def post_attempt(body: AttemptIn, user: dict = Depends(require_paid)):
         time_ms=body.time_ms, session_id=body.session_id, unscored=verdict.unscored)
     reveal = study_store.reveal_for(item)
     reveal["detail"] = verdict.detail
+    if item["type"] == "spot" and item.get("skill_id") in study_hard.SETUP_RULES:
+        # the setup's rule in the bank's own words, for a lesson that is a near-miss template (study_hard.setup_rule)
+        reveal["setup_rule"] = study_hard.setup_rule(item["skill_id"])
+        # the trade on the setup's own rules (study_trade: entry, stop, 2R / 3R, the trail), when it fired on this chart
+        try:
+            from api.services import study_trade
+            _vis = (study_store.get_visible_bars(item["id"]) or {}).get("bars") or []
+            _tp = study_trade.plan(item["skill_id"], _vis)
+            if _tp:
+                reveal["trade"] = _tp
+        except Exception as e:  # noqa: BLE001  (a lesson never fails for want of its trade)
+            logging.getLogger(__name__).warning("study: trade plan failed for %s: %s", item.get("id"), e)
     reveal["ref"] = study_store.short_ref(item["id"])      # named from Discord: /study ref:872a0a
     if item.get("bars_ref") or item["type"] in _CHART_REVEAL_TYPES:
-        fwd = study_store.get_forward_bars(item["id"])
+        fwd = _forward_bars(item)
         reveal["forward_bars"] = fwd[:REVEAL_FORWARD_BARS]
         reveal["forward_total"] = len(fwd)
     # A walk-through (§13.9 #1) is recorded as seen: `unscored` true, `score`
@@ -305,9 +447,10 @@ def post_attempt(body: AttemptIn, user: dict = Depends(require_paid)):
     return {"attempt_id": result["attempt_id"], "item_id": item["id"],
             "correct": verdict.correct, "score": verdict.score,
             "unscored": bool(result.get("unscored")), "reveal": reveal,
-            "progress": {k: result[k] for k in ("xp_gained", "xp", "level", "streak",
-                                                "streak_best", "due_at", "weekly_xp",
-                                                "daily_done")},
+            "progress": {**{k: result[k] for k in ("xp_gained", "xp", "level", "streak",
+                                                   "streak_best", "due_at", "weekly_xp",
+                                                   "daily_done")},
+                         "badges_new": result.get("badges_new") or []},
             "skill": result["skill"]}
 
 
@@ -318,13 +461,28 @@ def post_step(attempt_id: int, body: StepIn, user: dict = Depends(require_paid))
     att = study_store.get_attempt(attempt_id)
     if not att or att.get("user_id") != user["id"]:
         raise HTTPException(status_code=404, detail="Attempt not found")
-    fwd = study_store.get_forward_bars(att["item_id"])
+    item = study_store.get_item_full(att["item_id"])
+    fwd = _forward_bars(item) if item else []
     off = max(0, int(body.offset))
     n = max(1, min(STEP_MAX, int(body.n)))
     chunk = fwd[off:off + n]
     return {"item_id": att["item_id"], "offset": off, "bars": chunk,
             "next_offset": off + len(chunk), "done": off + len(chunk) >= len(fwd),
             "forward_total": len(fwd)}
+
+
+@router.get("/attempts/{attempt_id}/intraday", dependencies=_ARMED)
+def get_attempt_intraday(attempt_id: int, user: dict = Depends(require_paid)):
+    """THE REPLAY WITHIN THE DAY (the owner: "tick by tick so each day has multiuple ticks like using each 30 min or
+    hourly close to show how everyday moved"). The chart's forward days as their 30-minute (or hourly) bars, keyed
+    "YYYYMMDD", ONLY when the attempt is this member's own (the same gate as /step: these are the forward bars, finer).
+    Only days that add up to the daily candle were stored (study_intraday.build); a chart with none answers an empty
+    `days`, and its run-on stays daily."""
+    att = study_store.get_attempt(attempt_id)
+    if not att or att.get("user_id") != user["id"]:
+        raise HTTPException(status_code=404, detail="Attempt not found")
+    got = study_store.get_intraday(att["item_id"]) or {}
+    return {"item_id": att["item_id"], "tf": got.get("tf"), "days": got.get("days") or {}}
 
 
 def _profile_view(p: dict) -> dict:
@@ -559,6 +717,44 @@ def _key_from_date(d: date) -> int:
 _FORWARD_HORIZON_DAYS = {"D": 2, "W": 10, "M": 45}   # calendar days per forward bar
 
 
+def _forward_bars(item: dict) -> list:
+    """A chart item's forward strip: what the import stored (the sealed record, always first), topped up to
+    FORWARD_WANT from the server's OWN bars through `bars_sqlite` (never a provider fetch, B3) when the item names its
+    symbol and the strip is daily / weekly / monthly. The top-up is only ever bars AFTER the stored strip; a missing
+    symbol in bars.db just leaves the strip as stored."""
+    stored = list(study_store.get_forward_bars(item["id"]) or [])
+    sym = str(item.get("sym") or "").upper()
+    if len(stored) >= FORWARD_WANT or not sym:
+        return stored
+    vis = study_store.get_visible_bars(item["id"], approved_only=False) or {}
+    tf = str(vis.get("tf") or "D")
+    seq = stored or (vis.get("bars") or [])
+    try:
+        last_t = int(seq[-1]["t"]) if seq else None
+    except (KeyError, TypeError, ValueError):
+        last_t = None
+    if last_t is None or tf not in _FORWARD_HORIZON_DAYS:
+        return stored
+    want = FORWARD_WANT - len(stored)
+    try:
+        from api.services import bars_sqlite
+        d = date(last_t // 10000, (last_t // 100) % 100, last_t % 100)
+        to_key = _key_from_date(d + timedelta(days=want * _FORWARD_HORIZON_DAYS[tf] + 7))
+        rows = bars_sqlite.get_bars_before(sym, tf, want + 60, to_key)
+    except Exception:  # noqa: BLE001  the server's own bars are a top-up, never a dependency
+        return stored
+    extra = [{"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]} for r in rows if int(r[0]) > last_t]
+    # the server's bars must CONTINUE the chart: a split adjusted after the item was imported would put the top-up on
+    # another price basis (a cliff in the run-on), so a first open more than 40% off the last close drops the top-up
+    try:
+        last_c = float(seq[-1]["c"])
+        if extra and last_c > 0 and abs(float(extra[0]["o"]) / last_c - 1.0) > FORWARD_JOIN_MAX:
+            return stored
+    except (KeyError, TypeError, ValueError):
+        return stored
+    return stored + extra[:want]
+
+
 def resolve_bars(spec: dict) -> dict:
     """Resolve an item's `bars` spec against the server's OWN bars.db through
     `bars_sqlite.get_bars_before` ONLY — never a provider fetch (B3). Returns
@@ -668,9 +864,9 @@ def import_bank(body: ImportIn, _: None = Depends(require_push_secret)):
             it["asof"] = it.get("asof") or spec.get("asof")
         ready.append(it)
     try:
-        up = study_store.upsert_items(ready) if ready else {"inserted": 0, "updated": 0, "ids": []}
+        up = study_store.upsert_items(ready) if ready else {"inserted": 0, "updated": 0, "kept": 0, "ids": []}
         n_terms = study_store.upsert_terms(body.terms) if body.terms else 0
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    return {"inserted": up["inserted"], "updated": up["updated"], "ids": up["ids"],
+    return {"inserted": up["inserted"], "updated": up["updated"], "kept": up.get("kept", 0), "ids": up["ids"],
             "terms": n_terms, "misses": misses, "rejected": rejected, "flagged": flagged}

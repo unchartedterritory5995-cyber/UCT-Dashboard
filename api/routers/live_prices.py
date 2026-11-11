@@ -418,6 +418,11 @@ def _last_session_row(ticker: str, t: dict, last_map: dict, prior_map: dict) -> 
 # function's signature (which many tests replace by name) is unchanged; a
 # replacement that never sets it reads as "not answered", the old 503.
 _FETCH_STATUS = threading.local()
+# Per-thread opt-out of the extended-hours volume warm. The scheduled price-alert
+# evaluator reads only `price`, so the per-ticker aggregate fetch the warm queues
+# would be pure waste (and _EXVOL_TTL is shorter than its cadence, so it would
+# re-fire for every symbol every cycle). Unset (the request path) = unchanged.
+_SUPPRESS_EXVOL_WARM = threading.local()
 
 
 def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
@@ -611,7 +616,7 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
 
     # Warm the aggregate volume for any extended-hours ticker still on its
     # placeholder; the next poll reads the chart-matching value from cache.
-    if need_exvol:
+    if need_exvol and not getattr(_SUPPRESS_EXVOL_WARM, "on", False):
         _warm_extended_volumes_async(need_exvol)
     return out
 

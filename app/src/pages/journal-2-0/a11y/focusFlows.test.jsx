@@ -1,3 +1,4 @@
+// S7 (audit 2026-11-05, one vocabulary): the note menu's "Delete" reads "Move to Trash" (and its question "Move this note to Trash?"), the sidebar's word; the rails below follow the new words.
 // app/src/pages/journal-2-0/a11y/focusFlows.test.jsx
 //
 // A4: where focus LANDS after each of the Notebook's everyday actions. A
@@ -87,9 +88,9 @@ const openMoreNoteActions = (scope = screen) => {
 async function deleteOpenNote() {
   const pane = document.getElementById('notebook-pane')
   openMoreNoteActions(within(pane))
-  fireEvent.click(within(pane).getByRole('button', { name: 'Delete' }))
-  const dialog = await screen.findByRole('dialog', { name: /Delete this note\?/ })
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+  fireEvent.click(within(pane).getByRole('button', { name: 'Move to Trash' }))
+  const dialog = await screen.findByRole('dialog', { name: /Move this note to Trash\?/ })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Move to Trash' }))
   // A note this device still holds unsent words for asks first (wave 6 item
   // 11); jsdom's editor can read as "ahead" of the fixture. Trash anyway.
   await settle(60)
@@ -135,7 +136,7 @@ describe('focus in the Notebook tab', () => {
       [/^\/api\/j2\/notes\/n9$/, { note: fresh }],
     ])
     const pane = await renderTab()
-    fireEvent.click(within(pane).getByRole('button', { name: '+ New note' }))
+    fireEvent.click(within(pane).getByRole('button', { name: '+ New' }))
     // The note loads, its editor attaches, and the attach-polling effect places
     // the caret across animation frames -- in jsdom that chain needs real time
     // inside act() to advance, so this polls with `settle` (bounded, ~5 s)
@@ -145,7 +146,7 @@ describe('focus in the Notebook tab', () => {
     for (let i = 0; i < 50 && !(bodyEl() && active() === bodyEl()); i += 1) await settle(100)
     const body = bodyEl()
     expect(body, 'the new note never rendered its body').not.toBeNull()
-    expect(document.querySelector('input[aria-label="Note title"]'), 'the new note never loaded').not.toBeNull()
+    expect(document.querySelector('[aria-label="Note title"]'), 'the new note never loaded').not.toBeNull()
     expect(active()).toBe(body)
     expect(active()).not.toBe(document.body)
     expect(takesText(active())).toBe(true)
@@ -213,9 +214,12 @@ describe('focus in the Notebook tab', () => {
 
   it('a Notebook Sheet (Save view) gives focus back to the button that opened it', async () => {
     const pane = await renderTab()
-    const opener = within(pane).getByRole('button', { name: 'Save view' })
+    // S11: Save view is a row of the View menu; the menu hands focus back to its trigger before the
+    // Sheet opens, so the trigger is the button the Sheet returns focus to.
+    const opener = within(pane).getByRole('button', { name: /^View:/ })
     opener.focus()
     fireEvent.click(opener)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Save view' }))
     const field = await screen.findByRole('textbox', { name: /name/i })
     await waitFor(() => expect(active()).toBe(field))
     fireEvent.keyDown(document, { key: 'Escape' })
@@ -261,6 +265,8 @@ describe('focus in the note editor', () => {
 
   it('closing the find bar gives focus back to the note', async () => {
     const editor = await renderEditor()
+    // S10 (audit 2026-11-05, M4): Find is an item in "More note actions" now.
+    fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
     fireEvent.click(screen.getByRole('button', { name: 'Find in note' }))
     const bar = await screen.findByRole('search', { name: 'Find in note' })
     const input = within(bar).getByRole('searchbox', { name: 'Find in note' })
@@ -310,15 +316,19 @@ describe('focus in the note editor', () => {
     expect(active()).toBe(toggle)
   })
 
-  it('closing the outline gives focus back to its toolbar button', async () => {
+  // S10 (audit 2026-11-05, M4): the Outline door is an item in "More note actions"; the item hides with the panel, so
+  // closing the outline gives focus to the More door, the control that stays on screen (never <body>).
+  it('closing the outline gives focus back to the More door it was opened from', async () => {
     await renderEditor()
+    const door = screen.getByRole('button', { name: 'More note actions' })
+    door.focus()
+    fireEvent.click(door)
     const toggle = screen.getByRole('button', { name: 'Outline' })
-    toggle.focus()
     fireEvent.click(toggle)
     const item = (await screen.findAllByText('Setup')).map((el) => el.closest('button[data-outline-item]')).find(Boolean)
     item.focus()
     fireEvent.keyDown(item, { key: 'Escape' })
     await waitFor(() => expect(toggle.getAttribute('aria-expanded')).toBe('false'))
-    expect(active()).toBe(toggle)
+    expect(active()).toBe(door)
   })
 })

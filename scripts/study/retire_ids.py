@@ -94,7 +94,7 @@ def main(argv: list[str] | None = None) -> int:
           f"unknown {len(out['unknown'])}, duplicate {len(out['duplicate'])}")
     for k in ("not_draft", "unknown", "duplicate"):
         if out[k]:
-            print(f"  {k}: {', '.join(out[k][:40])}")
+            print(f"  {k}: {', '.join(out[k])}")   # every one: a dry run is how the pod's state is read
     return 0
 
 

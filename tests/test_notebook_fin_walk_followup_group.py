@@ -23,9 +23,13 @@ def test_the_followup_step_is_registered_right_after_smart():
     assert F.ORDER.count("followup") == 1
 
 
-def test_the_followup_flag_is_one_the_walk_arms_in_c2():
-    assert F.EARNINGS_FOLLOWUP_KEY.upper() in C.WAVE_FLAGS          # armed in c2 (c2 = armed + WAVE_FLAGS)
-    assert F.JOURNAL_STYLES_KEY.upper() in C.WAVE_FLAGS             # the card's create needs it too
+def test_the_followup_flag_is_always_on_so_the_walk_arms_nothing_for_it():
+    """Both switches were retired as ALWAYS ON (2026-11-04): the payload hard-codes their keys True, so
+    every config serves the follow-up and the walk must not arm a variable nobody reads."""
+    from api.routers import auth
+    for key in (F.EARNINGS_FOLLOWUP_KEY, F.JOURNAL_STYLES_KEY):     # the card's create needs styles too
+        assert key in auth.NOTEBOOK_ALWAYS_ON_KEYS
+        assert key.upper() not in C.WAVE_FLAGS
 
 
 def test_the_headings_the_walk_expects_are_the_products():

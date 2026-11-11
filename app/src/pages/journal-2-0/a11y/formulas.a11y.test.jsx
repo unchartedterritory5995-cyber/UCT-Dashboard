@@ -2,7 +2,7 @@
 //
 // Wave 11, lane 11B: formula and rollup properties through 8A's axe harness (the ONE way a
 // Notebook rail asks axe-core; frozen exclusions, ruling D-A5). The existing table and editor
-// recipes run with NOTEBOOK_FORMULAS_ENABLED off, so they never render these components --
+// recipes run without the notebook_formulas_enabled key, so they never render these components --
 // hence their own recipes here rather than a `coveredBy` entry that would be untrue. Each
 // recipe proves the state it is about rendered before axe runs, so an empty screen can never
 // pass as a clean one.
@@ -56,6 +56,14 @@ describe('lane 11B surfaces', () => {
     render(<FormulaHarness />)
     screen.getByRole('textbox', { name: 'Formula' })
     screen.getByRole('group', { name: 'Insert a property' })
+  })
+
+  // S13 (audit 2026-11-05): a new formula opens on the trader formulas, the raw box closed behind "Write your own".
+  axeSurface('formula-editor:starters', async () => {
+    render(<FormulaEditor value="" onChange={() => {}} defs={DEFS} />)
+    screen.getByRole('group', { name: 'Start from a trader formula' })
+    screen.getByRole('button', { name: 'R-multiple' })
+    screen.getByRole('button', { name: 'Write your own' })
   })
 
   axeSurface('rollup-editor', async () => {

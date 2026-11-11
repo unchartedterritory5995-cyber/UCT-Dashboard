@@ -14,10 +14,13 @@ WHAT THIS DOES
 --------------
 Posts each bank segment (one file = one request) to the import route, in file
 order, and prints one line per segment with the server's counts:
-`inserted / updated / terms` (rows written), `flagged` (stored as drafts with
-import flags), `misses` (stored, bars not resolvable from bars.db yet),
-`rejected` (bars sha mismatch; NOT stored). Re-runs are safe: the route
-upserts by item id, so the same bank imports as `updated`, not duplicates.
+`inserted / updated / terms` (rows written), `kept` (rows the owner edited on
+the pod, at a version above the bank's: left as they stand), `flagged`
+(stored as drafts with import flags), `misses` (stored, bars not resolvable
+from bars.db yet), `rejected` (bars sha mismatch; NOT stored). Re-runs are
+safe: the route upserts by item id, so the same bank imports as `updated`,
+not duplicates; an approved row stays approved at the same version and keeps
+the owner's grade on the example.
 
 HOW TO RUN (on the pod, from PowerShell; Git Bash mangles the python path)
 --------------------------------------------------------------------------
@@ -43,7 +46,7 @@ from typing import Any, Iterable
 REPO = pathlib.Path(__file__).resolve().parents[2]
 BANK_DIR = REPO / "docs" / "study" / "bank"
 
-COUNT_KEYS = ("inserted", "updated", "terms", "flagged", "misses", "rejected")
+COUNT_KEYS = ("inserted", "updated", "kept", "terms", "flagged", "misses", "rejected")
 
 
 def iter_bank(bank_dir: pathlib.Path, only: Iterable[str] = ()) -> list[tuple[str, list]]:

@@ -70,6 +70,8 @@ deploy FREQUENCY** — fewer merges per day pays this floor fewer times, which i
 whole argument for batching Tier-1 pushes rather than the "push whenever" reading of
 this rule.
 
+**`pine-runtime` service (W5, not yet created) is Tier 1** and is not on flow-worker's watch list: stateless, no volume, so a deploy overlaps with no 502 window. A push touching `app/src/components/chart/engine/**` restarts both `web` and `pine-runtime`; for minutes runtime evaluations read `runtime:server-unavailable` or `runtime:server-engine-mismatch` and are withheld by name. Runbook and gate: `docs/runbooks/pine-runtime-service.md`.
+
 ### Tier 2 — after-hours or weekend only
 Any file on **flow-worker's watch list**.
 

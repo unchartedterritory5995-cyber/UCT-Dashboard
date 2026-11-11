@@ -97,10 +97,22 @@ _DIRECT_USER_TABLES = (
     "j2_note_sources",
     "j2_note_sync_log",
     "j2_note_remote_index",
+    # L4 (2026-11-03): what each synced note's content-named media ref is stored as.
+    "j2_note_import_media",
     "j2_obsidian_devices",
     "j2_obsidian_staging",
     "j2_obsidian_manifest",
+    # L2 (2026-11-03): renames a final push showed, waiting for the next sync.
+    "j2_obsidian_renames",
     "j2_obsidian_connect_epoch",
+    # Plan C: staged vault attachments (rows here; the blob tree is removed in
+    # purge_user_data beside the attachment tree).
+    "j2_obsidian_attachments",
+    # Plan F import repair: per-member progress, the per-note log (it holds note bodies,
+    # the undo copy) and the member's loss notice.
+    "j2_import_repair_progress",
+    "j2_import_repair_log",
+    "j2_import_repair_notices",
     # Trade-ref-keyed extras (attachments/excursions/rule-adherence)
     "j2_trade_attachments",
     "j2_trade_excursions",
@@ -410,6 +422,16 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
     except Exception as e:  # noqa: BLE001 — disk cleanup must never mask the DB purge's result
         errors.append(f"attachments: {e}")
         log.warning("journal_two attachment purge failed for %s: %s", user_id, e)
+
+    # Plan C: staged Obsidian attachment blobs live OUTSIDE attachment_root() (so the
+    # attachment backup never tars them); their rows went with the table list above.
+    try:
+        from api.services.journal_two.note_connectors import obsidian_attachments
+        if obsidian_attachments.remove_user_tree(user_id):
+            freed_dirs += 1
+    except Exception as e:  # noqa: BLE001 -- disk cleanup must never mask the DB purge's result
+        errors.append(f"obsidian staging blobs: {e}")
+        log.warning("obsidian staging blob purge failed for %s: %s", user_id, e)
 
     example_dirs = 0
     try:

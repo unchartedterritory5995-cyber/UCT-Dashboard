@@ -103,6 +103,11 @@ import {
 // `LEGACY_ID_PREFIX` live in `engine/instances.js` and a typed copy here would be
 // the twin this phase retires, in the file whose header is about retiring them.
 import { legacyInstanceId } from './engine/instances'
+// ⭐ UCT RS PHASE 3 (unit 3-01) — the ONE reader of an enum option's gate marker.
+import { enumOptionRequiresServer, validateInputValue } from './engine/defSchema'
+// ⭐ RS split U1 — the definition-level gate (`meta.requiresServer`).
+import { isDefinitionOffered } from './engine/serverCompute'
+import { inputsAsRead } from './engine/legacyInputs'
 // ⚠️ IMPORTED, NEVER REDEFINED. The B4 plan sketched `unwiredKeys` and a second
 // carved-out field table inside THIS file; both live in `indicatorCatalog.js`,
 // because a predicate — or a field table — copied into two files is precisely
@@ -219,8 +224,9 @@ function optionPair(option) {
  *
  * This function is the whole of what a per-indicator `*_FIELDS` array used to
  * be, written once instead of once per indicator. Returns `null` for an input
- * type the tab has no control for (`string`) — those render nothing rather than
- * rendering wrong.
+ * type the tab has no control for — those render nothing rather than rendering
+ * wrong. ⭐ UCT RS Phase 3, unit 3-02: `string` came off that list when the
+ * settings dialog and the phone sheet gained a text box (`type: 'text'`).
  *
  * ⭐⭐ `source` USED TO BE ON THAT LIST, AND IT CAME OFF WHEN IT ACQUIRED A REAL
  * CONTROL. While no shipped definition declared one the honest answer was `null`;
@@ -263,10 +269,60 @@ export function fieldFromInput(input) {
       return { ...base, type: 'datetime' }
     case 'session':
       return { ...base, type: 'session' }
+    // ⭐ UCT RS Phase 3, unit 3-02 — a text box. It carries the input's declared
+    // `pattern`, `maxLength`, `case`, `placeholder` and `hint` (only those it
+    // declares), which is everything the control needs to refuse a value before
+    // `setInstanceInput` would (`textInputCommit`).
+    case 'string': {
+      const out = { ...base, type: 'text' }
+      for (const k of TEXT_FIELD_KEYS) if (input[k] !== undefined) out[k] = input[k]
+      return out
+    }
     default:
       return null
   }
 }
+
+const TEXT_FIELD_KEYS = ['pattern', 'maxLength', 'case', 'placeholder', 'hint']
+
+/** ⭐ 3-02 — the line a text box shows under itself when a typed value is refused:
+ *  the input's own declared `hint`, else a generic sentence. */
+export const TEXT_INPUT_FALLBACK_HINT = 'Not a valid value'
+
+/**
+ * ⭐ UCT RS Phase 3, unit 3-02 — what a text box would commit for `raw`.
+ *
+ * Trims, upper-cases when the field says `case: 'upper'`, then asks the ONE
+ * answer to "may this input take this value" for a string
+ * (`defSchema.validateInputValue`, the check `setInstanceInput` runs), so the
+ * box never offers a write the engine would refuse. Empty is always legal and
+ * means "not set".
+ *
+ * @returns {{ok: boolean, value: string, hint: string|null}} `hint` is the
+ *   sentence to show on a miss, null on a hit.
+ */
+export function textInputCommit(field, raw) {
+  let value = typeof raw === 'string' ? raw.trim() : (raw == null ? '' : String(raw).trim())
+  if (field && field.case === 'upper') value = value.toUpperCase()
+  const errors = []
+  const spec = { type: 'string' }
+  for (const k of ['pattern', 'maxLength']) if (field && field[k] !== undefined) spec[k] = field[k]
+  validateInputValue(spec, value, 'text', errors)
+  if (!errors.length) return { ok: true, value, hint: null }
+  const hint = field && typeof field.hint === 'string' && field.hint ? field.hint : TEXT_INPUT_FALLBACK_HINT
+  return { ok: false, value, hint }
+}
+
+/** ⭐ 3-02 — the text a box shows as the member types: upper-cased when told to,
+ *  never trimmed (trimming under the cursor eats a space before it is followed). */
+export function textInputDraft(field, raw) {
+  const text = typeof raw === 'string' ? raw : (raw == null ? '' : String(raw))
+  return field && field.case === 'upper' ? text.toUpperCase() : text
+}
+
+/** The label suffix a stored, server-gated option carries while the live row does
+ *  not declare it (`fieldsForInstance`). */
+export const UNAVAILABLE_OPTION_SUFFIX = ' (not available)'
 
 /** ⭐ PHASE 3 WS-D — a time input's value (UNIX ms) as the `datetime-local` text the dialog
  *  shows, IN UTC (`YYYY-MM-DDTHH:MM`), or '' for a value that is not one. The dialog labels the
@@ -289,11 +345,186 @@ export function timeInputMs(text) {
   return timeInputText(ms) === text ? ms : null
 }
 
-/** Every field a definition declares, in DECLARATION ORDER — which is the order
- *  the definition's author chose and the order `defSchema` validates in. */
-export function fieldsFromDefinition(def) {
+// ─── THE SERVER GATE AND LEGACY INPUTS (UCT RS Phase 3, unit 3-01) ─────────
+//
+// ⭐⭐ WHAT A SETTINGS SURFACE MAY SHOW, GIVEN WHAT THE LIVE SERVER DECLARES.
+// `declared` is `serverCompute.serverDeclares(def.id)`: `{inputs, options}` from
+// the live row, or `null` while unknown or after a failure. The rules
+// (`defSchema.validateServerGates` refuses the shapes that would break them):
+//
+//   - a `legacy: true` input is NEVER rendered. It stays declared so a stored
+//     instance carrying it still validates, and `values` still holds it;
+//     ⭐ 3-14: EXCEPT while its `mapsTo` successor is itself gated off (the
+//     server has not declared it): then the legacy input is the only control
+//     this server reads, so it renders and writes itself until the successor
+//     shows (`legacySuccessorPending`);
+//   - a `requiresServer: true` input is shown only when `declared.inputs` names it;
+//   - a `requiresServer` enum OPTION is listed only when `declared.options[key]`
+//     names its value;
+//   - ⛔ `null` IS "NOT DECLARED". Fail closed: a gated control one page load late
+//     is a non-event; one shown against a server that cannot answer it draws nothing;
+//   - an UNGATED input or option is never hidden, whatever the server says. The
+//     gate only ever hides what a definition marked, so a definition that marks
+//     nothing renders exactly what it rendered before the gate existed — by
+//     IDENTITY: the same input objects reach `fieldFromInput`.
+
+function declaresInput(declared, key) {
+  return !!declared && Array.isArray(declared.inputs) && declared.inputs.includes(key)
+}
+
+function declaresOption(declared, key, value) {
+  const opts = declared && declared.options && typeof declared.options === 'object' ? declared.options[key] : null
+  return Array.isArray(opts) && opts.includes(value)
+}
+
+const optionValueOf = (option) => optionPair(option)[0]
+
+/**
+ * ⭐ UCT RS 3-14 — IS A LEGACY INPUT'S SUCCESSOR LIVE, given `declared`? A
+ * `legacy` input whose `mapsTo` names a successor is REPLACED only once the
+ * successor can be shown: its input is not hidden by the server gate and the
+ * value it maps to is not an undeclared gated option. Until then the legacy
+ * input is still the only control that does the job on this server (v3 reads
+ * `showMansfield`, never `view`), so it renders and writes itself.
+ * A legacy input with no `mapsTo` (or one naming no declared input) has no
+ * successor to wait for: it is retired, as before.
+ */
+function legacySuccessorPending(input, declared, def) {
+  const m = input && input.legacy === true ? input.mapsTo : null
+  if (!m || typeof m !== 'object' || typeof m.key !== 'string' || !def) return false
+  const target = (Array.isArray(def.inputs) ? def.inputs : []).find((i) => i && i.key === m.key)
+  if (!target || target.legacy === true) return false
+  if (isInputHidden(target, declared)) return true
+  if (target.type === 'enum' && Array.isArray(target.options)) {
+    const option = target.options.find((o) => optionValueOf(o) === m.value)
+    if (option !== undefined && enumOptionRequiresServer(option) && !declaresOption(declared, m.key, m.value)) return true
+  }
+  return false
+}
+
+/**
+ * Is this declared input hidden from every settings surface, given `declared`?
+ * ⭐ 3-14 — pass the definition (`def`) and a legacy input whose `mapsTo`
+ * successor is still gated off is SHOWN (`legacySuccessorPending`). Without
+ * `def` a legacy input is always hidden, the 3-01 answer.
+ */
+export function isInputHidden(input, declared = null, def = null) {
+  if (!input || typeof input !== 'object') return true
+  if (input.legacy === true) return !legacySuccessorPending(input, declared, def)
+  return input.requiresServer === true && !declaresInput(declared, input.key)
+}
+
+/**
+ * The inputs a settings surface renders, in DECLARATION ORDER: legacy and
+ * undeclared gated inputs dropped, undeclared gated options filtered out. An
+ * input with no gated option is returned AS IS (the same object).
+ */
+export function visibleInputs(def, declared = null) {
   const inputs = Array.isArray(def?.inputs) ? def.inputs : []
-  return inputs.map(fieldFromInput).filter(Boolean)
+  const out = []
+  for (const input of inputs) {
+    if (isInputHidden(input, declared, def)) continue
+    if (input.type === 'enum' && Array.isArray(input.options) && input.options.some(enumOptionRequiresServer)) {
+      out.push({
+        ...input,
+        options: input.options.filter((o) => !enumOptionRequiresServer(o)
+          || declaresOption(declared, input.key, optionValueOf(o))),
+      })
+    } else {
+      out.push(input)
+    }
+  }
+  return out
+}
+
+/**
+ * ⭐ UCT RS 3-14 — is this PLOT gated off every settings surface, given `declared`?
+ * A plot marked `requiresServer: true` is a column only the gated server row sends
+ * (the Phase 3 readings' lines: RS-Ratio, Momentum, Quality, VARS). Its Plot style
+ * row is offered only once the live row declares EVERY `requiresServer` input of
+ * the definition (decision D20: one flag arms the whole contract), so a v3 server
+ * shows the inspector it always did. `null` hides it (fail closed). An unmarked
+ * plot is never hidden here.
+ */
+export function isPlotHidden(def, plot, declared = null) {
+  if (!plot || typeof plot !== 'object' || plot.requiresServer !== true) return false
+  if (!declared) return true
+  const gated = (Array.isArray(def?.inputs) ? def.inputs : []).filter((i) => i && i.requiresServer === true)
+  if (!gated.length) return true
+  return !gated.every((i) => declaresInput(declared, i.key))
+}
+
+/**
+ * ⭐ The presets a picker lists, given `declared`. Hidden:
+ *   - a preset whose `inputs` set a hidden gated input, or set an enum to a
+ *     gated option the live row does not declare (applying it would write a
+ *     value no control on the form can show);
+ *   - a `requiresServer` preset, unless the live row declares every input it
+ *     sets that the definition sends to the server (`meta.serverInputs`; every
+ *     key it sets when the definition names no such list), each enum value among
+ *     the row's options for that key. `null` hides it (fail closed).
+ * ⚠️ A preset that sets a `legacy` input is NOT hidden for it: the key is still
+ * a valid value to write (that is what `legacy` means), and a preset that keeps
+ * an old layout's meaning through it is the reason the key was kept.
+ * ⭐ UCT RS 3-08 — and an UNGATED preset (no `requiresServer`) is not hidden for a
+ * gated input it sets when either
+ *   - the value is that input's declared DEFAULT: an unset input already reads
+ *     it, so the write changes nothing a form or an undeclaring server can see
+ *     (Classic's `view: 'ratio'`, stated so `detectPreset` stays exact); or
+ *   - the preset ALSO sets a `legacy` input: the old key carries the preset's
+ *     meaning to a server that has not declared the new one, and a server that
+ *     has reads the new key (Trend's `showMansfield: true` beside
+ *     `view: 'mansfield'`, decision D2).
+ * Without these the shipped presets of a definition that grows a gated input
+ * would vanish from the picker until the server row is armed.
+ * A key that names no declared input is skipped, as the picker already skips it.
+ *
+ * @returns {object[]} the definition's own preset objects, in declared order.
+ */
+export function visiblePresets(def, declared = null) {
+  const presets = def && def.meta && Array.isArray(def.meta.presets) ? def.meta.presets : []
+  const byKey = new Map((Array.isArray(def?.inputs) ? def.inputs : [])
+    .filter((i) => i && typeof i.key === 'string').map((i) => [i.key, i]))
+  const sent = def && def.meta && Array.isArray(def.meta.serverInputs) ? new Set(def.meta.serverInputs) : null
+  const optionFor = (input, value) => (Array.isArray(input.options) ? input.options : [])
+    .find((o) => optionValueOf(o) === value)
+  return presets.filter((p) => {
+    if (!p || typeof p !== 'object') return false
+    const vals = p.inputs && typeof p.inputs === 'object' ? p.inputs : {}
+    const ungated = p.requiresServer !== true
+    const carriesLegacy = Object.keys(vals).some((k) => byKey.get(k)?.legacy === true)
+    for (const [key, value] of Object.entries(vals)) {
+      const input = byKey.get(key)
+      if (!input || input.legacy === true) continue
+      if (isInputHidden(input, declared)) {
+        if (ungated && (value === input.default || carriesLegacy)) continue
+        return false
+      }
+      if (input.type === 'enum') {
+        const option = optionFor(input, value)
+        if (option !== undefined && enumOptionRequiresServer(option) && !declaresOption(declared, key, value)) return false
+      }
+    }
+    if (p.requiresServer === true) {
+      if (!declared) return false
+      for (const [key, value] of Object.entries(vals)) {
+        const input = byKey.get(key)
+        if (!input || (sent && !sent.has(key))) continue
+        if (!declaresInput(declared, key)) return false
+        const opts = declared.options && declared.options[key]
+        if (input.type === 'enum' && Array.isArray(opts) && !opts.includes(value)) return false
+      }
+    }
+    return true
+  })
+}
+
+/** Every field a definition declares, in DECLARATION ORDER — which is the order
+ *  the definition's author chose and the order `defSchema` validates in.
+ *  ⭐ 3-01: through `visibleInputs`, so a legacy input never gets a field and a
+ *  gated one gets one only when `opts.declared` declares it. */
+export function fieldsFromDefinition(def, opts = {}) {
+  return visibleInputs(def, opts && opts.declared).map(fieldFromInput).filter(Boolean)
 }
 
 // ─── THE PER-INSTANCE FORM MODEL (spec §6's settings dialog) ────────────────
@@ -402,11 +633,19 @@ export function evalActiveWhen(activeWhen, values) {
  *   `inputs`/`style` — the same fields PARTITIONED by `styleInputKeys`, order
  *              preserved within each half. A partition, never a filter: an input
  *              that reached `all` reaches exactly one tab.
+ * @param {{declared?: object|null}} [opts] ⭐ 3-01 — `declared` is
+ *   `serverCompute.serverDeclares(def.id)`. `all` leaves out `legacy` inputs, and
+ *   `requiresServer` inputs and options the live row does not declare (absent or
+ *   `null` = not declared). `values` still carries every declared input: a hidden
+ *   input is still computed with.
  */
-export function fieldsForInstance(def, instance) {
+export function fieldsForInstance(def, instance, opts = {}) {
   const declared = Array.isArray(def?.inputs) ? def.inputs : []
   const byKey = new Map(declared.map((i) => [i && i.key, i]))
-  const stored = (instance && instance.inputs && typeof instance.inputs === 'object') ? instance.inputs : {}
+  // ⭐ 3-08b: a stored legacy input reads as its successor (`legacyInputs`), so
+  // the form, its activeWhen and its preset picker show what the chart draws.
+  // Read-time only: nothing here is written back to the instance.
+  const stored = inputsAsRead(def, (instance && instance.inputs && typeof instance.inputs === 'object') ? instance.inputs : {})
 
   const values = {}
   for (const d of declared) {
@@ -415,7 +654,7 @@ export function fieldsForInstance(def, instance) {
     if (Object.prototype.hasOwnProperty.call(stored, d.key)) values[d.key] = stored[d.key]
   }
 
-  const all = fieldsFromDefinition(def).map((f) => {
+  const all = fieldsFromDefinition(def, { declared: opts && opts.declared }).map((f) => {
     const d = byKey.get(f.key) || {}
     return {
       ...f,
@@ -432,6 +671,26 @@ export function fieldsForInstance(def, instance) {
     }
   })
 
+  // ⭐ UCT RS Phase 3, unit 3-02 — A STORED GATED VALUE IS SHOWN, HONESTLY. An
+  // instance saved while the server declared a gated option (`CUSTOM`) keeps it
+  // after the server stops declaring it; a select whose value is missing from its
+  // list renders as whatever option comes first, which is a lie about what the
+  // chart is computing. So that ONE option comes back, DISABLED, labelled
+  // "<label> (not available)": the member sees the truth and can choose a live
+  // option, and cannot choose the dark one again. Only a value the definition
+  // itself declares is restored — anything else would fail validation upstream.
+  for (let i = 0; i < all.length; i++) {
+    const f = all[i]
+    if (f.type !== 'select' || !Object.prototype.hasOwnProperty.call(values, f.key)) continue
+    const v = values[f.key]
+    if ((f.options || []).some(([ov]) => ov === v)) continue
+    const d = byKey.get(f.key)
+    const hit = d && Array.isArray(d.options) ? d.options.find((o) => optionValueOf(o) === v) : undefined
+    if (hit === undefined) continue
+    const [, label] = optionPair(hit)
+    all[i] = { ...f, options: [...(f.options || []), [v, `${label}${UNAVAILABLE_OPTION_SUFFIX}`, { disabled: true }]] }
+  }
+
   const styleKeys = styleInputKeys(def)
   return {
     defId: def?.id,
@@ -441,6 +700,104 @@ export function fieldsForInstance(def, instance) {
     inputs: all.filter((f) => !styleKeys.has(f.key)),
     style: all.filter((f) => styleKeys.has(f.key)),
   }
+}
+
+// ─── THE GROUPING HELPERS (spec §3.1 `group` / `inline`, plan §6.3 `groupsCollapsed`) ──
+//
+// ⭐ UCT RS PHASE 2a, UNIT 2a-11 — these three are the settings dialog's own
+// `sectionize` / `packRows` / `startsCollapsed`, lifted here so the phone sheet
+// and the dialog read ONE answer to "which rows share a section, which rows
+// share a line, which groups start folded". The dialog keeps its private copy
+// until unit 2a-15 swaps it to these exports (that unit owns the dialog file);
+// the rules below are the dialog's rules, byte for byte in effect, so that swap
+// changes no pixel. Pure: no React, no DOM, no registry read.
+
+/** §6: `inline` packs up to THREE same-type controls onto one row; a fourth wraps. */
+export const INLINE_MAX = 3
+
+/**
+ * The groups a definition asks to START collapsed — `meta.groupsCollapsed`,
+ * strings only, as a Set. A default, not a lock: the consumer keeps the member's
+ * own toggles and reads this only for a group they have not touched. A
+ * definition with no hint, or junk in it, yields an empty Set (everything opens).
+ */
+export function initialCollapsed(def) {
+  const raw = def && def.meta && Array.isArray(def.meta.groupsCollapsed) ? def.meta.groupsCollapsed : []
+  return new Set(raw.filter((g) => typeof g === 'string' && g))
+}
+
+const fieldOf = (item, byKey) => {
+  if (typeof item !== 'string') return item
+  if (!byKey) return null
+  if (byKey instanceof Map) return byKey.get(item) || null
+  return Object.prototype.hasOwnProperty.call(byKey, item) ? byKey[item] : null
+}
+
+/**
+ * Rows for a compact layout: a run of consecutive fields sharing an `inline`
+ * name AND a generated `type` is chunked at `INLINE_MAX` into packs; everything
+ * else is its own row. Mixed types never pack (three widths on one row is a
+ * layout, not a lie — the dialog's rule, pinned by its tests). Layout only:
+ * every field that arrives here leaves here, in order.
+ *
+ * @param {Array<object|string>} fields  generated fields (`fieldsForInstance(...).all`
+ *   or a slice of it), or their KEYS resolved through `byKey`
+ * @param {Map|object} [byKey]  key → field, needed only when `fields` holds keys
+ * @returns {Array<{kind:'row', field, keys:[string]} | {kind:'pack', inline, fields, keys}>}
+ */
+export function packRows(fields, byKey) {
+  const list = (Array.isArray(fields) ? fields : []).map((f) => fieldOf(f, byKey)).filter((f) => f && typeof f.key === 'string')
+  const out = []
+  let i = 0
+  while (i < list.length) {
+    const f = list[i]
+    if (!f.inline) { out.push({ kind: 'row', field: f, keys: [f.key] }); i += 1; continue }
+    let j = i + 1
+    while (j < list.length && list[j].inline === f.inline && list[j].type === f.type) j += 1
+    for (let k = i; k < j; k += INLINE_MAX) {
+      const slice = list.slice(k, Math.min(k + INLINE_MAX, j))
+      out.push({ kind: 'pack', inline: f.inline, fields: slice, keys: slice.map((x) => x.key) })
+    }
+    i = j
+  }
+  return out
+}
+
+/**
+ * Sections by declared `group`, in FIRST-APPEARANCE order, each carrying its
+ * fields in declaration order, its packed rows and whether the definition asks
+ * it to start collapsed. Ungrouped fields keep a headerless section
+ * (`group: null`), so a definition that declares no group renders exactly what
+ * it did before groups existed: one section, no head, never collapsed.
+ *
+ * @param {object} def     a registered definition (read for `meta.groupsCollapsed`)
+ * @param {Array<object>} [fields]  the generated fields to section — all of
+ *   them, or one tab's half (`.inputs` / `.style`); defaults to every field of
+ *   the definition at its declared defaults
+ * @returns {Array<{group: string|null, label: string|null, keys: string[], fields: object[], rows: object[], collapsed: boolean}>}
+ */
+export function sectionize(def, fields) {
+  const list = Array.isArray(fields) ? fields : fieldsForInstance(def, null).all
+  const hint = initialCollapsed(def)
+  const order = []
+  const byGroup = new Map()
+  for (const f of list) {
+    if (!f || typeof f.key !== 'string') continue
+    const g = typeof f.group === 'string' && f.group ? f.group : null
+    if (!byGroup.has(g)) { byGroup.set(g, []); order.push(g) }
+    byGroup.get(g).push(f)
+  }
+  return order.map((g) => {
+    const fs = byGroup.get(g)
+    return {
+      group: g,
+      label: g,
+      keys: fs.map((f) => f.key),
+      fields: fs,
+      rows: packRows(fs),
+      collapsed: g !== null && hint.has(g),
+    }
+  })
 }
 
 /** EVERY live (non-tombstoned) instance of a definition, in STORED ORDER.
@@ -495,7 +852,8 @@ function liveInstancesFor(defId, settings) {
  */
 function drawnValues(def, settings, live) {
   const section = (settings && settings.indicators && settings.indicators[def.id]) || {}
-  const inputs = (live && live.inputs && typeof live.inputs === 'object') ? live.inputs : null
+  // ⭐ 3-08b: the legacy → successor read, as `fieldsForInstance` (`legacyInputs`).
+  const inputs = (live && live.inputs && typeof live.inputs === 'object') ? inputsAsRead(def, live.inputs) : null
   const out = {}
   for (const declared of (Array.isArray(def.inputs) ? def.inputs : [])) {
     if (!declared || typeof declared.key !== 'string') continue
@@ -582,6 +940,11 @@ export function listEngineIndicators(settings, registry) {
     // fresh chart shows — the "turn it on" control — is the one every earlier
     // regression in this function landed on (B5 Task 9's blank Period box).
     const live = liveInstancesFor(def.id, settings)
+    // ⭐ RS split U1 — a `meta.requiresServer` definition the live server has
+    // not listed gets no "turn it on" row: that row is an OFFER, and the server
+    // cannot compute it yet. An instance already on the chart keeps its rows —
+    // the gate hides offers, never what a member already placed.
+    if (!live.length && !isDefinitionOffered(def)) continue
     // Read through the ONE reader every other control door uses, so a
     // tombstone cannot leave this toggle ticked over a chart with no line. It is
     // per DEFINITION and therefore shared by every row of one definition.

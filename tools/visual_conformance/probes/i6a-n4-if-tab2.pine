@@ -1,0 +1,14 @@
+//@version=6
+indicator("UCTPROBE_I6AN4_IF_TAB2", overlay = false)
+
+// I6a-N4 (2026-11-07), capture row I6A-N4-1d: `docs/pine/capture-queue-2026-11-07-i6a-n4.md`.
+// The question is whether TradingView COMPILES this file. The `if` body below is ONE TAB then TWO
+// SPACES (our lexer measures 6: a tab advances to the next multiple of four). Ours refuses it
+// `pine:indent`. The manual does not say how a tab followed by spaces is counted, so this row pins
+// it. COMPILE FAILS = our refusal is right. COMPILES = N01 says what the line did (close on up bars
+// = read as a block, an over-refusal). Paste ALONE; keep the tab (do not let the editor convert it).
+
+v = open
+if close > open
+	  v := close
+plot(v, "N01_if_body_tab_plus_2")

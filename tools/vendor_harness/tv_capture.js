@@ -348,8 +348,149 @@
   }
 
   const declaredTitle = (src) => {
-    const m = /\bindicator\s*\(\s*(?:title\s*=\s*)?"([^"]*)"/.exec(String(src || ''))
+    const m = /\b(?:indicator|strategy)\s*\(\s*(?:title\s*=\s*)?"([^"]*)"/.exec(String(src || ''))
     return m ? m[1] : null
+  }
+
+  // ── W9-T3a: strategies ─────────────────────────────────────────────────────
+  // ⛔ READ-ONLY, like everything here. No `exportData()`, no pixels, no CSV.
+  // ⛔ Where the strategy REPORT lives in the chart model is W9-C0, which only the owner can
+  // take: `_strategyKeys()` is that spike (names and types, depth 2, never a value, never a call).
+  // `strategyReport({reportPath})` reads only the path the owner names after that walk; with no
+  // path it REFUSES by name. Which key means which tester figure is Node's `strategy_report_slots.json`.
+  const STRATEGY_ID_RX = /^StrategyScript\$/
+  const isStrategyDs = (ds) => {
+    const mi = tryOr(() => ds.metaInfo(), {}) || {}
+    return [mi.id, mi.fullId].some((x) => typeof x === 'string' && STRATEGY_ID_RX.test(x))
+  }
+  const typeOf = (v) => (v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v)
+
+  function strategyDs() {
+    const { mm } = model()
+    const c = census(mm)
+    const hits = c.indicators.filter((r) => isStrategyDs(r.ds))
+    if (hits.length !== 1) throw new Error(`strategy-keys: ${hits.length} strategies on the chart — need exactly one`)
+    return hits[0].ds
+  }
+
+  /** W9-C0: the depth-2 key walk of the strategy data source. Names and types only. It never
+   *  calls a function and never reads a value, so it cannot change anything or leak a number. */
+  function strategyKeys() {
+    const ds = strategyDs()
+    const names = (o) => {
+      const out = new Set()
+      for (let p = o, d = 0; p && p !== Object.prototype && d < 4; p = Object.getPrototypeOf(p), d += 1) {
+        for (const k of Object.getOwnPropertyNames(p)) if (k !== 'constructor') out.add(k)
+      }
+      return Array.from(out).sort()
+    }
+    // ⛔ DESCRIPTORS ONLY: walk the prototype chain to the object that owns `k` and read ITS descriptor.
+    // `o[k]` or `proto[k]` would run an inherited getter (with the chart model as receiver); a getter is
+    // reported as 'accessor' and is never invoked.
+    const describe = (o, k) => tryOr(() => {
+      for (let p = o, d = 0; p && p !== Object.prototype && d < 6; p = Object.getPrototypeOf(p), d += 1) {
+        const ds = Object.getOwnPropertyDescriptor(p, k)
+        if (!ds) continue
+        if ('value' in ds) return typeOf(ds.value)
+        return 'accessor'
+      }
+      return 'inherited'
+    }, 'unreadable')
+    const level1 = names(ds).map((k) => ({ name: k, type: describe(ds, k) }))
+    const level2 = {}
+    for (const k of names(ds)) {
+      const d = tryOr(() => Object.getOwnPropertyDescriptor(ds, k), null)
+      const v = d && 'value' in d ? d.value : undefined
+      if (v && typeof v === 'object') level2[k] = names(v).map((n) => ({ name: n, type: describe(v, n) }))
+    }
+    return { walk: 'strategy data source, depth 2, names and types only, no calls', level1, level2 }
+  }
+
+  const REPORT_DENY = /^(set|add|remove|delete|clear|reset|apply|dispose|destroy|update|create|save|request|fetch|send|run|start|stop|toggle|show|hide|open|close|export|import|post|put)/i
+  const STEP_OK = /^[A-Za-z_$][\w$]*$/
+
+  /** Deep-serialise to JSON-safe data with hard limits. A truncation is REPORTED, never silent. */
+  function jsonSafe(root, lim) {
+    const seen = new Set()
+    const notes = []
+    let nodes = 0
+    const walk = (x, depth, path) => {
+      nodes += 1
+      if (nodes > lim.nodes) { notes.push(`node limit ${lim.nodes} hit at ${path}`); return null }
+      if (x === null || x === undefined) return null
+      const t = typeof x
+      if (t === 'number') return Number.isFinite(x) ? x : { $nonfinite: String(x) }
+      if (t === 'string' || t === 'boolean') return x
+      if (t === 'function' || t === 'symbol') { notes.push(`skipped ${t} at ${path}`); return null }
+      if (t === 'bigint') return { $bigint: String(x) }
+      if (seen.has(x)) { notes.push(`cycle at ${path}`); return { $cycle: path } }
+      if (depth > lim.depth) { notes.push(`depth limit ${lim.depth} hit at ${path}`); return null }
+      seen.add(x)
+      let out
+      if (x instanceof Date) out = { $date: tryOr(() => x.toISOString(), null) }
+      else if (x instanceof Map) out = { $map: Array.from(x.entries(), ([k, v]) => [walk(k, depth + 1, `${path}<key>`), walk(v, depth + 1, `${path}[${String(k)}]`)]) }
+      else if (x instanceof Set) out = { $set: Array.from(x.values(), (v, i) => walk(v, depth + 1, `${path}{${i}}`)) }
+      else if (Array.isArray(x)) out = x.map((v, i) => walk(v, depth + 1, `${path}[${i}]`))
+      else {
+        out = {}
+        for (const k of Object.keys(x)) out[k] = walk(x[k], depth + 1, `${path}.${k}`)
+      }
+      seen.delete(x)
+      return out
+    }
+    return { tree: walk(root, 0, '$'), notes }
+  }
+
+  /** The tester report, read at the owner-named path. Statuses: ok | partial | refused | not-requested. */
+  function strategyReport(opts) {
+    const o = opts || {}
+    if (!Array.isArray(o.reportPath) || !o.reportPath.length) {
+      return { status: 'refused', reason: 'strategy-report:unpinned: no reportPath (W9-C0 not taken: run __uctVH._strategyKeys() and name the path)' }
+    }
+    for (const s of o.reportPath) {
+      if (typeof s !== 'string' || !STEP_OK.test(s)) return { status: 'refused', reason: `strategy-report:bad-step ${JSON.stringify(s)}` }
+      if (REPORT_DENY.test(s)) return { status: 'refused', reason: `strategy-report:denied-step ${s} (a name that looks like a mutator or an export)` }
+    }
+    let cur
+    try { cur = strategyDs() } catch (e) { return { status: 'refused', reason: String((e && e.message) || e) } }
+    for (const s of o.reportPath) {
+      let parent = cur
+      try {
+        cur = cur[s]
+        if (typeof cur === 'function') cur = cur.call(parent)      // a zero-argument accessor only
+      } catch (e) { return { status: 'refused', reason: `strategy-report:step ${s} threw ${String((e && e.message) || e)}` } }
+      if (cur === undefined || cur === null) return { status: 'refused', reason: `strategy-report:step ${s} is ${cur === null ? 'null' : 'undefined'}` }
+    }
+    const { tree, notes } = jsonSafe(cur, { depth: 10, nodes: 50000 })
+    const truncated = notes.filter((n) => /limit/.test(n))
+    if (truncated.length) return { status: 'partial', reason: truncated.join('; '), path: o.reportPath, notes, tree }
+    return { status: 'ok', path: o.reportPath, notes, tree }
+  }
+
+  /** `provenance.strategySettings`: every Properties input the strategy carries (hidden ones, e.g. the
+   *  encoded script, are left out), plus the raw dividend / back-adjustment reads. Which input means
+   *  what is Node's PROPERTY_TABLE; here nothing is interpreted. */
+  function readStrategySettings(inputs, mm) {
+    const properties = inputs.filter((i) => i && !i.isHidden && i.id !== '__profile')
+      .map((i) => ({ id: i.id, name: i.name, type: i.type, value: i.value, defval: i.defval }))
+    const adjustments = []
+    const rx = /adjust|dividend/i
+    const walkProps = (node, path, depth) => {
+      if (!node || depth > 6) return
+      const names = tryOr(() => (typeof node.childNames === 'function' ? node.childNames() : []), [])
+      for (const n of names) {
+        const c = tryOr(() => node.child(n), null)
+        if (!c) continue
+        const p = `${path}.${n}`
+        if (typeof c.value === 'function' && typeof c.childNames !== 'function') {
+          if (rx.test(p)) adjustments.push({ path: p, value: tryOr(() => c.value(), null) })
+        } else walkProps(c, p, depth + 1)
+      }
+    }
+    tryOr(() => walkProps(mm.mainSeries().properties(), 'mainSeries', 0), null)
+    const si = tryOr(() => mm.mainSeries().symbolInfo(), {}) || {}
+    for (const k of Object.keys(si)) if (rx.test(k)) adjustments.push({ path: `symbolInfo.${k}`, value: si[k] })
+    return { properties, chartData: { adjustments } }
   }
 
   let staged = null
@@ -469,11 +610,29 @@
       warnings.push(`the source declares indicator(${JSON.stringify(srcTitle)}) but the study on the chart is ${JSON.stringify(title)} — is this the right source?`)
     }
 
+    // ⭐ W9-T3a. A strategy capture is written as tool v3 and carries `provenance`; every other
+    // capture keeps v2 and no `provenance` key, so existing captures are byte-identical.
+    const isStrategy = isStrategyDs(ds)
+    let provenance = null
+    if (isStrategy) {
+      const gm = o.gradeMethod
+      if (!['a', 'b', 'none'].includes(gm)) {
+        throw new Error('capture({gradeMethod}) — a strategy capture must say how it is graded: "a" (RDDT from the listing), "b" (a gradeRange window) or "none" (a fact capture)')
+      }
+      provenance = { strategySettings: readStrategySettings(inputs, mm), gradeMethod: gm }
+      if (gm === 'b') {
+        const g = o.gradeRange || {}
+        provenance.gradeRange = { fromTime: g.fromTime, toTime: g.toTime, warmupBars: g.warmupBars }
+        if (g.variantOfSha256) provenance.gradeRange.variantOfSha256 = g.variantOfSha256
+      }
+      provenance.report = Array.isArray(o.reportPath) ? strategyReport({ reportPath: o.reportPath }) : { status: 'not-requested' }
+    }
+
     const body = {
       schema: 'uct.vendor-capture/v1',
       id: o.id || String(srcTitle || title || 'capture').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
       capturedAtUTC: new Date(capturedMs).toISOString(),
-      tool: { snippet: 'tools/vendor_harness/tv_capture.js', version: 2 },
+      tool: { snippet: 'tools/vendor_harness/tv_capture.js', version: isStrategy ? 3 : 2 },
       page: { url: tryOr(() => location.href, null), visibilityState: tryOr(() => document.visibilityState, null), hasFocus: tryOr(() => document.hasFocus(), null) },
       symbol: {
         name: si.name || null, full_name: si.full_name || null, pro_name: si.pro_name || null,
@@ -513,6 +672,7 @@
       bars: { fields: ['time', 'open', 'high', 'low', 'close', 'volume'], timeUnit: 'unix-s', count: bars.length, rows: bars },
       plotValues: { fields: ['time', ...plots.map((p) => p.id)], rows: valueRows },
       objects: readGraphics(ds),
+      ...(provenance ? { provenance } : {}),
       warnings,
     }
     const text0 = JSON.stringify(body)
@@ -555,6 +715,6 @@
     return { globalsLeft: window.__uctVH === undefined ? [] : ['__uctVH'] }
   }
 
-  window.__uctVH = { studies, capture, chunk, cleanup, _fnv1a: fnv1a, _sha256Hex: sha256Hex, _newestBarState: newestBarState }
+  window.__uctVH = { studies, capture, chunk, cleanup, _strategyKeys: strategyKeys, strategyReport, _fnv1a: fnv1a, _sha256Hex: sha256Hex, _newestBarState: newestBarState }
   return 'uct vendor harness ready: __uctVH.studies(), .capture({study, source, …}), .chunk(i), .cleanup()'
 })()

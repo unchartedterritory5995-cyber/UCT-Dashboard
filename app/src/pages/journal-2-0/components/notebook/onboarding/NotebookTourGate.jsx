@@ -28,6 +28,7 @@ import { notebookFlag } from '../../../lib/offline/notebookFlags'
 import { lazyLeaf, RETRY_WAIT_MS } from '../../../lib/lazyChunk'
 import { TOUR_OPEN_EVENT, hasPendingTourOpen } from './tourControl'
 import { TOUR_PREF, readTourPref, tourFinished, tourIsForThisMember } from './tourPref'
+import { useFirstRunShowing } from '../../../lib/firstRun'
 
 /** The tour's own boundary: a failed chunk (or a throw while it renders) renders NOTHING,
  *  never the route's error screen. Swallowed on purpose, never silently. */
@@ -77,7 +78,9 @@ export function makeTourGate(load, waitMs = RETRY_WAIT_MS) {
     const savedState = readTourPref(prefs?.[TOUR_PREF])?.state ?? null
     const auto = tourIsForThisMember({ enabled, isPaid, notesKnown, hasAnyNotes, loading, hadNotes })
       && !tourFinished(savedState)
-    const wanted = enabled && (asked || auto || Boolean(location.state?.startTour))
+    // Audit 2026-11-05, S16: never while the 60-second first run is on screen -- one first-run moment at a time.
+    const firstRunShowing = useFirstRunShowing()
+    const wanted = enabled && !firstRunShowing && (asked || auto || Boolean(location.state?.startTour))
     // Latched: once the tour is wanted it stays mounted -- it may be open, or recording.
     const [mounted, setMounted] = useState(false)
     if (wanted && !mounted) setMounted(true)

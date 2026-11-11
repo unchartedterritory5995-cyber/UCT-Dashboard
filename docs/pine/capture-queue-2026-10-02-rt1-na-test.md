@@ -19,7 +19,7 @@ This probe settles the rule per test shape, so the lanes can serve one witnessed
 | # | capture | settles |
 |---|---|---|
 | Q-NA-a | `rt1-na-test.pine` as written (v5), NYSE:RDDT **1D**, full history, market closed | v5: cmp / cross / history / explicit-na tests |
-| Q-NA-b | line 1 `//@version=4`, `indicator(` → `study(` | v4 (float truthiness era) |
+| Q-NA-b | `rt1-na-test.pine` with line 1 `//@version=4`, `indicator(` → `study(` (its file: `rt1-na-test-v4.pine`), NYSE:RDDT **1D**, full history, market closed | v4 (float truthiness era) |
 | Q-NA-c | line 1 `//@version=6` | v6 (bools are never na) |
 
 Read: on bars 0..18 rows `A01`, `A02`, `A04`, `A05` are 2 if TradingView takes the else branch on an

@@ -1,0 +1,182 @@
+{
+ "_about": "The rsLine server row as /api/signature/definitions served it BEFORE Phase 3 (captured 2026-11-07 from feat/uct-rs-phase3 at 45442009bf, RS_V3_ENABLED unset). v1 = RS_V2_ENABLED unset; v3 = RS_V2_ENABLED=1. Unit 3-05 control: with RS_V3_ENABLED unset the served row must serialize to exactly these bytes (tests/test_registry_string_inputs.py). Never regenerate this file to make a red test green.",
+ "v1": {
+  "schemaVersion": 1,
+  "id": "rsLine",
+  "version": 1,
+  "compute": {
+   "kind": "server",
+   "fn": "rsLine",
+   "rev": 1
+  },
+  "meta": {
+   "name": "Relative Strength Line",
+   "shortName": "RS",
+   "category": "Momentum",
+   "description": "This symbol's close divided by a benchmark's.",
+   "tier": "premium",
+   "repaint": "non-repainting"
+  },
+  "placement": {
+   "target": "pane"
+  },
+  "inputs": [
+   {
+    "key": "benchmark",
+    "type": "enum",
+    "default": "SPY",
+    "options": [
+     "SPY",
+     "RSP",
+     "SECTOR",
+     "QQQ",
+     "IWM",
+     "INDUSTRY"
+    ]
+   }
+  ],
+  "columns": [
+   "rsLine"
+  ],
+  "payload_keys": [],
+  "rules_key": null
+ },
+ "v3": {
+  "schemaVersion": 1,
+  "id": "rsLine",
+  "version": 3,
+  "compute": {
+   "kind": "server",
+   "fn": "rsLine",
+   "rev": 3
+  },
+  "meta": {
+   "name": "UCT Relative Strength",
+   "shortName": "UCT RS",
+   "category": "Momentum",
+   "description": "Is this stock beating the market, or just riding it? The RS line against a benchmark, with new-high dots.",
+   "tier": "premium",
+   "repaint": "non-repainting"
+  },
+  "placement": {
+   "target": "pane"
+  },
+  "inputs": [
+   {
+    "key": "benchmark",
+    "type": "enum",
+    "default": "SPY",
+    "options": [
+     "SPY",
+     "RSP",
+     "SECTOR",
+     "QQQ",
+     "IWM",
+     "INDUSTRY"
+    ]
+   },
+   {
+    "key": "maLength",
+    "type": "int",
+    "default": 21,
+    "min": 2,
+    "max": 200
+   },
+   {
+    "key": "maType",
+    "type": "enum",
+    "default": "EMA",
+    "options": [
+     "EMA",
+     "SMA"
+    ]
+   },
+   {
+    "key": "lookback",
+    "type": "int",
+    "default": 252,
+    "min": 20,
+    "max": 500
+   },
+   {
+    "key": "priceTolerance",
+    "type": "float",
+    "default": 2.0,
+    "min": 0.0,
+    "max": 10.0
+   },
+   {
+    "key": "redDayThreshold",
+    "type": "float",
+    "default": -0.5,
+    "min": -3.0,
+    "max": 0.0
+   },
+   {
+    "key": "showNewHigh",
+    "type": "bool",
+    "default": true
+   },
+   {
+    "key": "showNewHighBeforePrice",
+    "type": "bool",
+    "default": true
+   },
+   {
+    "key": "shortHistoryDots",
+    "type": "bool",
+    "default": true
+   },
+   {
+    "key": "mansfieldLength",
+    "type": "int",
+    "default": 200,
+    "min": 2,
+    "max": 500
+   },
+   {
+    "key": "showMansfield",
+    "type": "bool",
+    "default": false
+   },
+   {
+    "key": "showRedDay",
+    "type": "bool",
+    "default": false
+   },
+   {
+    "key": "showNewLow",
+    "type": "bool",
+    "default": false
+   }
+  ],
+  "columns": [
+   "rsLine",
+   "rsMa",
+   "rsAbove",
+   "rsNH",
+   "rsNHpartial",
+   "pxNH",
+   "rsNHbeforePx",
+   "rsNHred",
+   "rsNL",
+   "gor",
+   "rog",
+   "crossUp",
+   "crossDown",
+   "dotNH",
+   "dotNHbeforePx",
+   "dotNHred",
+   "dotNHpartial",
+   "dotNL",
+   "mansfield",
+   "mansfieldCrossUp",
+   "mansfieldCrossDown",
+   "dotMansfieldCross"
+  ],
+  "payload_keys": [
+   "payload"
+  ],
+  "rules_key": null
+ }
+}

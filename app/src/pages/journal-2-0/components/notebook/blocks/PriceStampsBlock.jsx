@@ -28,7 +28,7 @@ export default function PriceStampsBlock({ params, setParams, editable, editor }
       </label>
       {switchOn
         ? <p className={styles.muted}>Write $NVDA and press Enter: the price is added below the line a moment later, and stays as it was. Outside market hours it is the last close, with its date.</p>
-        : <BlockNeedsSwitch what="Journal styles" />}
+        : <BlockNeedsSwitch what="Templates" />}
     </div>
   )
 }

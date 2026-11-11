@@ -49,7 +49,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 
 <!-- BEGIN GENERATED: python tools/account_deletion_manifest.py --write (derived from api/services/journal_two/account_purge.py) -- never hand-edit -->
 
-**146 tables in auth.db** (135 direct by `user_id`, 3 direct by another member key, 1 direct by a key derived from the member's id, 7 indirect).
+**152 tables in auth.db** (141 direct by `user_id`, 3 direct by another member key, 1 direct by a key derived from the member's id, 7 indirect).
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
@@ -111,10 +111,16 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `j2_note_sources` | `user_id` | Direct | `DELETE FROM j2_note_sources WHERE user_id = ?` |
 | `j2_note_sync_log` | `user_id` | Direct | `DELETE FROM j2_note_sync_log WHERE user_id = ?` |
 | `j2_note_remote_index` | `user_id` | Direct | `DELETE FROM j2_note_remote_index WHERE user_id = ?` |
+| `j2_note_import_media` | `user_id` | Direct | `DELETE FROM j2_note_import_media WHERE user_id = ?` |
 | `j2_obsidian_devices` | `user_id` | Direct | `DELETE FROM j2_obsidian_devices WHERE user_id = ?` |
 | `j2_obsidian_staging` | `user_id` | Direct | `DELETE FROM j2_obsidian_staging WHERE user_id = ?` |
 | `j2_obsidian_manifest` | `user_id` | Direct | `DELETE FROM j2_obsidian_manifest WHERE user_id = ?` |
+| `j2_obsidian_renames` | `user_id` | Direct | `DELETE FROM j2_obsidian_renames WHERE user_id = ?` |
 | `j2_obsidian_connect_epoch` | `user_id` | Direct | `DELETE FROM j2_obsidian_connect_epoch WHERE user_id = ?` |
+| `j2_obsidian_attachments` | `user_id` | Direct | `DELETE FROM j2_obsidian_attachments WHERE user_id = ?` |
+| `j2_import_repair_progress` | `user_id` | Direct | `DELETE FROM j2_import_repair_progress WHERE user_id = ?` |
+| `j2_import_repair_log` | `user_id` | Direct | `DELETE FROM j2_import_repair_log WHERE user_id = ?` |
+| `j2_import_repair_notices` | `user_id` | Direct | `DELETE FROM j2_import_repair_notices WHERE user_id = ?` |
 | `j2_trade_attachments` | `user_id` | Direct | `DELETE FROM j2_trade_attachments WHERE user_id = ?` |
 | `j2_trade_excursions` | `user_id` | Direct | `DELETE FROM j2_trade_excursions WHERE user_id = ?` |
 | `j2_trade_adherence` | `user_id` | Direct | `DELETE FROM j2_trade_adherence WHERE user_id = ?` |
@@ -200,7 +206,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `j2_gallery_follows` | `author_id` (the member's id) | Direct | `DELETE FROM j2_gallery_follows WHERE author_id = ?` |
 | `indicator_gap_hits` | `member_key` (`_gap_member_key(user_id)`, a keyed hash of the member's id) | Direct | `DELETE FROM indicator_gap_hits WHERE member_key = ?` with `_gap_member_key(user_id)` |
 
-**user_definitions.db** -- a second database, which no statement on auth.db reaches: **4 tables**, deleted by `api/services/user_definitions_erasure.py` through `user_definitions.purge_user`.
+**user_definitions.db** -- a second database, which no statement on auth.db reaches: **5 tables**, deleted by `api/services/user_definitions_erasure.py` through `user_definitions.purge_user`.
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
@@ -208,6 +214,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `definition_shares` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_shares WHERE user_id = ?` |
 | `definition_listings` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_listings WHERE user_id = ?` |
 | `user_definition_relint_log` | `user_id` | Direct (user_definitions.db) | `DELETE FROM user_definition_relint_log WHERE user_id = ?` |
+| `definition_engine_status` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_engine_status WHERE user_id = ?` |
 
 **alert_taxonomy.db** -- a second database, which no statement on auth.db reaches: **16 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
 

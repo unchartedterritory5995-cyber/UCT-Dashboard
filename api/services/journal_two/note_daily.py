@@ -30,7 +30,7 @@ from __future__ import annotations
 import re
 import sqlite3
 from datetime import date
-from typing import Any
+from typing import Any, Callable
 
 from api.services.auth_db import get_connection
 
@@ -81,7 +81,50 @@ def _answer(user_id: str, note_id: str, conn: sqlite3.Connection, *, created: bo
             "created": created, "templateMissing": missing}
 
 
-def open_daily_note(user_id: str, raw_date: Any, template_id: Any = None) -> dict[str, Any]:
+def _text_of(node: Any) -> str:
+    if not isinstance(node, dict):
+        return ""
+    if node.get("type") == "text":
+        return str(node.get("text") or "")
+    return "".join(_text_of(c) for c in node.get("content") or [])
+
+
+def merge_seed(seed: list[dict], content: list[dict]) -> list[dict]:
+    """The seed's blocks above the template's body -- unless the seed starts with a heading the template ALSO has
+    (the "Daily prep" shape: its own "Today's plan"). Then the seed's checklist items join the template's first
+    checklist under that heading (or a new one right after it), and no second heading is written (Tier 3b M9)."""
+    if not seed or seed[0].get("type") != "heading":
+        return [*seed, *content]
+    title = _text_of(seed[0]).strip().lower()
+    at = next((i for i, n in enumerate(content) if isinstance(n, dict) and n.get("type") == "heading"
+               and _text_of(n).strip().lower() == title), None)
+    if at is None:
+        return [*seed, *content]
+    items = [it for b in seed[1:] if b.get("type") == "taskList" for it in b.get("content") or []]
+    others = [b for b in seed[1:] if b.get("type") != "taskList"]
+    out = list(content)
+    nxt = out[at + 1] if at + 1 < len(out) else None
+    if items and isinstance(nxt, dict) and nxt.get("type") == "taskList":
+        out[at + 1] = {**nxt, "content": [*items, *(nxt.get("content") or [])]}
+    elif items:
+        out.insert(at + 1, {"type": "taskList", "content": items})
+    return [*others, *out] if others else out
+
+
+def _seed_list(seed_blocks: Any) -> list[dict]:
+    try:
+        got = seed_blocks() if callable(seed_blocks) else seed_blocks
+    except Exception:  # noqa: BLE001 -- the seed is a convenience; the day's note is not
+        return []
+    return [b for b in (got or []) if isinstance(b, dict)]
+
+
+def open_daily_note(user_id: str, raw_date: Any, template_id: Any = None, *,
+                    seed_blocks: Callable[[], list[dict]] | list[dict] | None = None) -> dict[str, Any]:
+    """`seed_blocks` (the Today home, audit 2026-11-05 S18): blocks that START a note this call MAKES, above the
+    template's body -- a list, or a function called only when the note is made (so an open of an existing note
+    computes nothing). Never applied to a note that already exists, like the template itself. A seed that cannot
+    be built is left out; the note is still made."""
     from api.services.journal_two import notes as notes_service
     from api.services.journal_two import note_templates
 
@@ -110,6 +153,12 @@ def open_daily_note(user_id: str, raw_date: Any, template_id: Any = None) -> dic
                 # it is not an edit (the one authority, journal_styles.with_trailing_paragraph).
                 payload["bodyJson"] = _js.with_trailing_paragraph(_js.without_placeholder_lines(tpl["bodyJson"]))
                 properties = tpl["properties"] or None
+        seed = _seed_list(seed_blocks)
+        if seed:
+            from api.services.journal_two import journal_styles as _js
+            body = payload.get("bodyJson") if isinstance(payload.get("bodyJson"), dict) else None
+            rest = list(body.get("content") or []) if body else []
+            payload["bodyJson"] = _js.with_trailing_paragraph({"type": "doc", "content": merge_seed(seed, rest)})
         try:
             note = notes_service.create_note(user_id, payload, conn=conn,
                                              daily_date=iso, properties=properties)

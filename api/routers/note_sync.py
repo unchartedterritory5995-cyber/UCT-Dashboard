@@ -22,18 +22,18 @@ import asyncio
 import base64
 import hashlib
 import hmac as _hmac
+import html
 import json
 import logging
 import os
 import secrets
 import time
-from typing import Any
-from urllib.parse import quote
+from typing import Any, Literal
+from urllib.parse import quote, unquote
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, ValidationError
+from fastapi.responses import HTMLResponse, RedirectResponse
+from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from api.middleware.auth_middleware import (
     PAID_PLANS,
@@ -45,15 +45,19 @@ from api.middleware.auth_middleware import (
 from api.services import auth_service, crypto_box
 from api.services import request_body_cap as body_cap
 from api.services.auth_db import get_connection
-from api.services.journal_two import notes as notes_svc
+from api.services.journal_two import widget_request_body
 from api.services.journal_two.note_connectors import (
-    connections, engine, errors, obsidian_link, obsidian_staging, oauth, registry,
+    connections, dest_folder, engine, errors, obsidian_attachments, obsidian_link, obsidian_staging, oauth,
+    registry,
 )
 from api.services.journal_two.note_connectors.providers.craft import parse_capability_url
+from api.services.upload_gate import UPLOAD_BUSY_SENTENCE, UploadGate
 
 log = logging.getLogger("note_connectors.router")
 
 router = APIRouter(prefix="/api/j2/notes/connectors", tags=["note-connectors"])
+
+BUSY_DETAIL = "A sync is already running for this source. Its results will appear here when it finishes."
 
 _paid = require_plan(list(PAID_PLANS))
 
@@ -174,7 +178,7 @@ def _verify_state(state: str, *, provider: str) -> str:
 
     ⛔ That "on ANY failure" claim was FALSE until the `compare_digest` call
     below was fixed to compare BYTES: `state` arrives as a raw URL query
-    value on the Notion/Dropbox/MS Graph OAuth callback, and a malformed one
+    value on the Notion/Evernote OAuth callback, and a malformed one
     can decode (base64 + `.decode("utf-8")`) into a `sig` half containing a
     non-ASCII character. `hmac.compare_digest` on two `str` raises
     `TypeError` (not a clean False) the instant either side is non-ASCII --
@@ -266,35 +270,14 @@ def _dashboard_url() -> str:
     return (os.environ.get("DASHBOARD_URL") or "https://uctintelligence.com").rstrip("/")
 
 
-def _dropbox_redirect_uri() -> str:
-    # Reuses oauth.py's OWN redirect-uri derivation (pure, no side effects,
-    # not keyed off oauth.py's `_PROVIDERS` registry at all — see its
-    # source) rather than re-deriving the `<PROVIDER>_REDIRECT_URI` override
-    # + DASHBOARD_URL + callback-path format a second time here. A second
-    # authority over that format drifting from the first is exactly this
-    # repo's most-repeated defect class.
-    return oauth._redirect_uri("dropbox")
-
-
-def _default_dest_folder_id(user_id: str, name: str) -> str | None:
-    """Best-effort default Notebook folder for a newly-connected source
-    (spec §5: "default: 'Roam — {graph}' root folder") — NEVER raises; a
-    failure here degrades to `None` (notes land at the Notebook root) rather
-    than blocking the connect flow."""
-    trimmed = (name or "").strip()[:80] or "Notebook Sync"
-    try:
-        folder = notes_svc.create_folder(user_id, trimmed)
-        return folder["id"]
-    except notes_svc.NoteValidationError:
-        try:
-            for f in notes_svc.list_folders(user_id):
-                if f["name"] == trimmed and not f.get("parentId"):
-                    return f["id"]
-        except Exception:  # noqa: BLE001
-            pass
-        return None
-    except Exception:  # noqa: BLE001
-        return None
+def _default_dest_folder_id(user_id: str, provider: str, display_name: str | None,
+                            remote_id: str | None) -> str | None:
+    """Best-effort default Notebook folder for a newly-connected source -- NEVER raises; a failure
+    degrades to `None` (notes land at the Notebook root) rather than blocking the connect flow.
+    The name and the make-or-reuse are `dest_folder`'s, the ONE authority the engine's self-heal
+    shares (a deleted destination folder is recreated under exactly this name)."""
+    return dest_folder.default_folder_id(
+        user_id, dest_folder.default_folder_name(provider, display_name, remote_id))
 
 
 # ── GET /status ───────────────────────────────────────────────────────────────
@@ -352,6 +335,65 @@ def _latest_sync_counts(user_id: str, source_ids: list[str]) -> dict[str, dict[s
     return out
 
 
+def _parse_failures(raw: Any) -> tuple[list[dict[str, Any]], bool]:
+    """`failures_json` -> (failures, unreadable). NULL/empty -> ([], False);
+    malformed or wrong-shaped -> ([], True) so the client can say "details
+    unavailable" instead of claiming there were none."""
+    if raw is None or raw == "":
+        return [], False
+    try:
+        data = json.loads(raw)
+    except (TypeError, ValueError):
+        return [], True
+    if not isinstance(data, list):
+        return [], True
+    out: list[dict[str, Any]] = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        title = item.get("noteTitle")
+        reason = item.get("reason")
+        name = item.get("name")
+        out.append({
+            "noteTitle": title if isinstance(title, str) else "Untitled note",
+            "reason": reason if isinstance(reason, str) else "",
+            "name": name if isinstance(name, str) else None,
+        })
+    return out, False
+
+
+def _latest_failure_counts(user_id: str, source_ids: list[str]) -> dict[str, int | None]:
+    """Per-source failure count from the newest `j2_note_sync_log` row's
+    `failures_json`: 0 for NULL, None for UNREADABLE (unknown, never "none":
+    a 0 would hide the card's "didn't come over" label). Same newest-row
+    subquery as `_latest_sync_counts`; one bulk query, never N+1."""
+    if not source_ids:
+        return {}
+    placeholders = ",".join("?" * len(source_ids))
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            f"""
+            SELECT source_id, failures_json
+              FROM j2_note_sync_log
+             WHERE user_id = ? AND source_id IN ({placeholders})
+               AND id IN (
+                   SELECT MAX(id) FROM j2_note_sync_log
+                    WHERE user_id = ? AND source_id IN ({placeholders})
+                    GROUP BY source_id
+               )
+            """,
+            (user_id, *source_ids, user_id, *source_ids),
+        ).fetchall()
+    finally:
+        conn.close()
+    out: dict[str, int | None] = {}
+    for r in rows:
+        failures, unreadable = _parse_failures(r["failures_json"])
+        out[r["source_id"]] = None if unreadable else len(failures)
+    return out
+
+
 @router.get("/status")
 def get_status(user: dict = Depends(get_current_user)) -> dict[str, Any]:
     """Providers configured/connected + per-source freshness (spec §8).
@@ -359,11 +401,42 @@ def get_status(user: dict = Depends(get_current_user)) -> dict[str, Any]:
     than re-querying `j2_note_connectors` directly."""
     connectors = {c["provider"]: c for c in connections.list_connectors(user["id"])}
     all_sources = connections.list_sources(user["id"])
-    counts_by_source = _latest_sync_counts(user["id"], [s["id"] for s in all_sources])
+    source_ids = [s["id"] for s in all_sources]
+    counts_by_source = _latest_sync_counts(user["id"], source_ids)
+    failure_counts = _latest_failure_counts(user["id"], source_ids)
+    pending = connections.pending_removal_counts(user["id"], source_ids)
+    # Plan C Task 2: what each Obsidian vault's plugin can do, from the version that
+    # vault's device last reported (>= 0.2.0). The version alone: refs already staged say
+    # nothing about the plugin running NOW, and a device that downgrades must show the
+    # update hint again (fix round 1, M1).
+    plugin_versions = (obsidian_link.plugin_versions_for_user(user["id"])
+                       if any(s.get("provider") == "obsidian" for s in all_sources) else {})
+    # Final review I3: with the attachment layer OFF for this member, no capability is
+    # reported (null: the card's update hint never shows) and `obsidianAttachments` is
+    # false (the connect modal shows the text-only consent copy).
+    attachments_on = obsidian_attachments.attachments_enabled_for_user(user)
     sources_by_provider: dict[str, list[dict[str, Any]]] = {}
     for s in all_sources:
         s = dict(s)
+        if s.get("provider") == "obsidian":
+            version = plugin_versions.get(s.get("remoteId"))
+            s["pluginVersion"] = version
+            s["pluginSupportsAttachments"] = (
+                obsidian_link.plugin_version_supports_attachments(version) if attachments_on else None)
         s["counts"] = counts_by_source.get(s["id"], dict(_ZERO_COUNTS))
+        # Fix round 1 (I3): a pass for this source is running right now (this process's in-flight
+        # guard), so the row can read "syncing" after a background Sync now. D4-2: a pass that
+        # holds the guard but still waits for one of the shared pass slots is "queued" instead.
+        queued = engine.is_source_queued(s["id"])
+        s["queued"] = queued
+        s["syncing"] = engine.is_source_busy(s["id"]) and not queued
+        s["pendingRemoval"] = int(pending.get(s["id"], 0))
+        # None = the newest row's failures could not be read: the count is
+        # unknown (null), and `lastFailuresUnreadable` keeps the card's path to
+        # the log's "couldn't be read" line. Older clients read null as 0.
+        failure_count = failure_counts.get(s["id"], 0)
+        s["lastFailureCount"] = None if failure_count is None else int(failure_count)
+        s["lastFailuresUnreadable"] = failure_count is None
         sources_by_provider.setdefault(s["provider"], []).append(s)
 
     providers: dict[str, Any] = {}
@@ -371,20 +444,19 @@ def get_status(user: dict = Depends(get_current_user)) -> dict[str, Any]:
         entry = registry.get_entry(name)
         connector = connectors.get(name)
         providers[name] = {
-            "configured": entry.configured(),
+            "configured": entry.configured() and registry.provider_allowed_for(name, user),
             "connectKind": entry.connect_kind,
             "connected": connector is not None,
             "status": connector["status"] if connector else None,
             "accountLabel": connector["accountLabel"] if connector else None,
             "sources": sources_by_provider.get(name, []),
         }
-    return {"enabled": _sync_enabled(), "providers": providers}
+    return {"enabled": _sync_enabled(), "obsidianAttachments": attachments_on, "providers": providers}
 
 
 # ── POST /{provider}/connect ──────────────────────────────────────────────────
 
 async def _connect_token_provider(provider: str, body: ConnectBody, user_id: str) -> dict[str, Any]:
-    entry = registry.get_entry(provider)
     if provider == "roam":
         if not body.graphName or not body.token:
             raise HTTPException(status_code=400, detail="graphName and token are required")
@@ -414,7 +486,7 @@ async def _connect_token_provider(provider: str, body: ConnectBody, user_id: str
         await _aclose(provider_obj)
 
     _upsert_connector_or_503(user_id, provider, creds, account_label=info.label)
-    dest_folder_id = _default_dest_folder_id(user_id, f"{entry.label} — {info.label}")
+    dest_folder_id = _default_dest_folder_id(user_id, provider, info.label, remote_id)
     source = connections.create_source(
         user_id, provider, remote_id, display_name=info.label, dest_folder_id=dest_folder_id,
     )
@@ -441,6 +513,15 @@ def _mint_device_connect_code(provider: str, user_id: str) -> dict[str, Any]:
     return {"connectCode": code, "expiresInSeconds": obsidian_link._CONNECT_CODE_TTL_SECONDS}
 
 
+def _require_provider_allowed(provider: str, user: dict) -> None:
+    """Plan E Task 7: the per-member gate (`registry.provider_allowed_for`; only Evernote's
+    `admin` mode ever says no). The SAME 503 text as an unconfigured provider, so a member cannot
+    tell "admin-only" from "off". Disconnect and the log stay ungated: a paused member can leave."""
+    if not registry.provider_allowed_for(provider, user):
+        label = registry.get_entry(provider).label
+        raise HTTPException(status_code=503, detail=f"{label} is not configured on this server.")
+
+
 def _start_oauth(provider: str, user_id: str) -> dict[str, Any]:
     entry = registry.get_entry(provider)
     if not entry.configured():
@@ -450,15 +531,16 @@ def _start_oauth(provider: str, user_id: str) -> dict[str, Any]:
     except errors.NoteConnNotConfigured as e:
         raise HTTPException(status_code=503, detail=str(e))
     if provider in oauth._PROVIDERS:
-        # Generic path — Notion today, onenote/onedrive (Microsoft Graph)
-        # once their registry.py rows land (Task 3/7 of this plan): ZERO
-        # per-name code here, the branch is keyed on which providers
-        # `oauth.py` itself knows how to talk to.
+        # Generic path (Notion): keyed on which providers `oauth.py` itself knows how to talk to.
         url = oauth.authorize_url(provider, state)
-    else:  # dropbox -- owns its OAuth mechanics outside oauth.py, see this
-        # module's own docstring / oauth.py's docstring for why.
-        from api.services.journal_two.note_connectors.providers.dropbox import authorize_url as dbx_authorize_url
-        url = dbx_authorize_url(_dropbox_redirect_uri(), state)
+    elif provider == "evernote":
+        # Plan E Task 7. PKCE: the verifier is derived from the state.
+        from api.services.journal_two.note_connectors import evernote_oauth
+        url = evernote_oauth.authorize_url(state, _state_secret())
+    else:
+        # Every registered "oauth" provider is handled above (Dropbox, the only one that owned
+        # its OAuth outside oauth.py, was archived 2026-11-04).
+        raise HTTPException(status_code=404, detail=f"unknown OAuth provider {provider!r}")
     return {"redirectUrl": url}
 
 
@@ -469,6 +551,7 @@ async def connect(provider: str, user: dict = Depends(_paid), body: ConnectBody 
     if not body.consent:
         raise HTTPException(status_code=400, detail="Consent is required to connect a note source.")
 
+    _require_provider_allowed(provider, user)
     entry = registry.get_entry(provider)
     if entry.connect_kind == "oauth":
         return _start_oauth(provider, user["id"])
@@ -479,15 +562,19 @@ async def connect(provider: str, user: dict = Depends(_paid), body: ConnectBody 
 
 # ── GET /{provider}/callback (OAuth) ──────────────────────────────────────────
 
-# Generic-OAuth providers (`provider in oauth._PROVIDERS`) whose OWN token
-# response carries no natural source-identifying field (Notion's
-# `workspaceId`/`botId` vocabulary), but which STILL need exactly ONE
-# whole-account source auto-created on callback (Task 7, msgraph wave --
-# the Notion pattern, not Dropbox/OneDrive's connector-only-then-folder-
-# picker shape). Today: just `onenote`. Deliberately does NOT include
-# `onedrive` -- OneDrive must stay sourceless -> folder-picker, same as
-# Dropbox (see `_FOLDER_PICKER_PROVIDERS` below).
-_MSGRAPH_WHOLE_ACCOUNT_PROVIDERS = frozenset({"onenote"})
+# Plan E Task 7: the `reason=` an Evernote account that cannot use the MCP server lands with (a
+# 403 at validate, or a consent refusal whose description names the plan). The card offers the
+# `.enex` import path for it.
+EVERNOTE_PLAN_REASON = "evernote_plan"
+# The `reason=` when Evernote stopped being configured between connect and callback: member words,
+# the same as connect's 503, never the env var name an unconfigured `exchange_code` would carry.
+EVERNOTE_UNAVAILABLE_REASON = "Evernote is not configured on this server."
+_PLAN_WORDS = ("plan", "subscription", "upgrade", "premium", "personal", "professional", "tier")
+
+
+def _is_evernote_plan_refusal(error: str, description: str | None) -> bool:
+    text = (description or "").lower()
+    return error == "access_denied" and any(word in text for word in _PLAN_WORDS)
 
 
 
@@ -525,11 +612,39 @@ def _start_initial_sync(source_id: str) -> None:
 
 # ── GET /{provider}/callback ─────────────────────────────────────────────────
 
-@router.get("/{provider}/callback")
+def _oauth_state_failure_page(provider: str) -> HTMLResponse:
+    """The ONE page every OAuth state failure returns (bad, tampered, expired,
+    wrong-provider, replayed, no session, or a different session user). Status
+    400, identical body for every cause, so it stays as indistinguishable as
+    the JSON 400 it replaces. No script, no external assets, no user id, no
+    state echo."""
+    label = html.escape(registry.get_entry(provider).label)
+    minutes = _STATE_TTL_SECONDS // 60
+    link = html.escape(
+        f"/settings?section=connections&connector={provider}&connected=0&reason=oauth_state"
+    )
+    body = (
+        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+        f"<title>Couldn't finish connecting {label}</title></head><body>"
+        f"<h1>Couldn't finish connecting {label}</h1>"
+        f"<p>The link back from {label} only works in the same browser where you pressed "
+        f"Connect, within {minutes} minutes, and only once.</p>"
+        "<p>If you started on another device or browser, go back there and press Connect "
+        "again. To connect from this browser instead, sign in to UCT here and press "
+        "Connect again.</p>"
+        f"<a href=\"{link}\">Open Connections</a>"
+        "</body></html>"
+    )
+    return HTMLResponse(body, status_code=400)
+
+
+@router.get("/{provider}/callback", response_model=None)
 async def oauth_callback(
     provider: str, code: str | None = None, state: str | None = None, error: str | None = None,
     user: dict | None = Depends(get_current_user_optional),
-) -> RedirectResponse:
+    error_description: str | None = None,
+) -> RedirectResponse | HTMLResponse:
     """Fix-round-1 Important #2: the redirect from the provider is a
     top-level browser GET, so the user's OWN `Lax` session cookie arrives
     with it — `get_current_user_optional` (never raises; `None` when
@@ -544,6 +659,8 @@ async def oauth_callback(
     if not registry.is_known(provider) or registry.get_entry(provider).connect_kind != "oauth":
         raise HTTPException(status_code=404, detail=f"unknown OAuth provider {provider!r}")
 
+    if error and provider == "evernote" and _is_evernote_plan_refusal(error, error_description):
+        error = EVERNOTE_PLAN_REASON
     if error:
         return RedirectResponse(
             f"{dashboard}/settings?section=connections&connector={provider}&connected=0&reason={quote(error)}",
@@ -556,88 +673,64 @@ async def oauth_callback(
         state_user_id = _verify_state(state, provider=provider)  # raises 400 on failure (incl. replay)
     except errors.NoteConnNotConfigured as e:
         raise HTTPException(status_code=503, detail=str(e))
+    except HTTPException:
+        return _oauth_state_failure_page(provider)
     if user is None or user.get("id") != state_user_id:
-        # SAME generic failure as a bad/expired/replayed state — a missing
-        # session and a cross-user session are deliberately indistinguishable
-        # from a bad signature to anyone probing this endpoint.
-        raise HTTPException(status_code=400, detail="invalid or expired state")
+        # SAME page as a bad/expired/replayed state — a missing session and
+        # a cross-user session are deliberately indistinguishable from a bad
+        # signature to anyone probing this endpoint.
+        return _oauth_state_failure_page(provider)
     user_id = state_user_id
     entry = registry.get_entry(provider)
+    if not registry.provider_allowed_for(provider, user):
+        # The flag can change between connect and callback: nothing is exchanged or stored.
+        return RedirectResponse(
+            f"{dashboard}/settings?section=connections&connector={provider}&connected=0",
+            status_code=302,
+        )
 
     try:
         if provider in oauth._PROVIDERS:
-            # Generic path (Task 1's own scope: Notion today, onenote/
-            # onedrive once their registry.py rows land) -- ZERO per-name
-            # code for the TOKEN EXCHANGE itself. `workspaceName`/
-            # `workspaceId`/`botId` are Notion's own fields
-            # (`_normalize_token_response` never invents them for a
-            # provider that doesn't return them, e.g. Microsoft Graph), so
-            # falling back to the registry's own label/None keeps this
-            # branch honest for a provider with no "workspace" concept at
-            # all rather than baking Notion's vocabulary into a generic
-            # branch.
+            # Generic path (Notion) -- ZERO per-name code for the TOKEN EXCHANGE itself.
+            # `workspaceName`/`workspaceId`/`botId` are Notion's own fields
+            # (`_normalize_token_response` never invents them), so falling back to the
+            # registry's own label/None keeps this branch honest for a provider with no
+            # "workspace" concept at all.
             creds = await oauth.exchange_code(provider, code)
             account_label = creds.get("workspaceName") or entry.label
             remote_id: str | None = creds.get("workspaceId") or creds.get("botId")
-            if remote_id is None and provider in _MSGRAPH_WHOLE_ACCOUNT_PROVIDERS:
-                # Task 7's named risk: OneNote is Notion-shaped ("the
-                # connector IS the one implicit source", spec §12), but
-                # unlike Notion its OAuth token response carries no
-                # workspace/bot id to key that source on -- Microsoft Graph
-                # has nothing resembling a "workspace." Left alone,
-                # `remote_id` would stay None and OneNote would land in
-                # Dropbox/OneDrive's connector-only, SOURCELESS state -- a
-                # dead end for a provider with no folder picker to complete
-                # it (OneNote is deliberately excluded from
-                # `_FOLDER_PICKER_PROVIDERS` below). `MSGraphClient.validate`
-                # (`GET /me`) is the SAME call every msgraph provider
-                # already makes for account-label resolution; its
-                # `AccountInfo.raw["id"]` is a real, stable Microsoft
-                # account id, reused here so the stored source reflects the
-                # actual connected account (and gives `account_label` a real
-                # display name instead of just repeating the registry's
-                # generic "OneNote" label) -- with a fixed "me" sentinel as
-                # a defensive fallback only if Graph's own `/me` response is
-                # ever missing its `id` field. A validate() failure here
-                # (e.g. a since-revoked token) is caught by the SAME
-                # `except errors.NoteConnError` below the dropbox branch,
-                # exactly like dropbox's own validate() call.
-                provider_obj = registry.build_provider(provider)
-                try:
-                    info = await provider_obj.validate(creds)
-                finally:
-                    await _aclose(provider_obj)
-                account_label = info.label or account_label
-                remote_id = (info.raw or {}).get("id") or "me"
-        else:  # dropbox -- no oauth.py entry (see providers/dropbox.py's own OAuth
-            # mechanics); exchanges directly against its documented private
-            # helper (the module's own docstring invites this: "the router
-            # task ... can call these directly", and the existing provider
-            # test suite already does the same).
-            from api.services.journal_two.note_connectors.providers import dropbox as dbx
-            client = httpx.AsyncClient(timeout=30.0)
+        elif provider == "evernote" and not entry.configured():
+            # Task 7 review nit: re-checked here; nothing is exchanged or stored.
+            return RedirectResponse(
+                f"{dashboard}/settings?section=connections&connector={provider}&connected=0"
+                f"&reason={quote(EVERNOTE_UNAVAILABLE_REASON)}",
+                status_code=302,
+            )
+        elif provider == "evernote":
+            # Plan E Task 7. The PKCE verifier is re-derived
+            # from the signed state; one whole-account source (a member has one connector).
+            from api.services.journal_two.note_connectors import evernote_oauth
+            from api.services.journal_two.note_connectors.providers.evernote import EvernoteProvider
+            creds = await evernote_oauth.exchange_code(code, state, _state_secret())
+            # Task 7 review m2: NO user, so validation proves the NEW token alone; a 401 here can
+            # never refresh (and rotate) a still-stored OLD connection.
+            provider_obj = EvernoteProvider(user_id=None)
             try:
-                token_data = await dbx._exchange_authorization_code(client, code, _dropbox_redirect_uri())
-            finally:
-                await client.aclose()
-            creds = {"accessToken": token_data.get("access_token")}
-            if token_data.get("refresh_token"):
-                creds["refreshToken"] = token_data["refresh_token"]
-            provider_obj = registry.build_provider("dropbox")
-            try:
-                info = await provider_obj.validate(creds)
+                await provider_obj.validate(creds)
             finally:
                 await _aclose(provider_obj)
-            account_label = info.label
-            # Dropbox needs a FOLDER before a source can exist -- picked
-            # separately via GET .../dropbox/folders + POST .../dropbox/sources
-            # (MUST-RESOLVE #3). The connector is fully connected here; the
-            # source is not auto-created (unlike Roam/Craft/Notion, where the
-            # connector IS the one implicit source).
-            remote_id = None
+            account_label = "Evernote"
+            remote_id = "account"
+        else:
+            # Unreachable: every registered "oauth" provider is handled above (the 404 at the
+            # top of this function already refused any other name).
+            raise HTTPException(status_code=404, detail=f"unknown OAuth provider {provider!r}")
     except errors.NoteConnError as e:
+        reason = str(e)
+        if provider == "evernote" and getattr(e, "code", None) == "evernote_forbidden":
+            reason = EVERNOTE_PLAN_REASON  # ruling: any 403 at validate reads as the plan message
         return RedirectResponse(
-            f"{dashboard}/settings?section=connections&connector={provider}&connected=0&reason={quote(str(e))}",
+            f"{dashboard}/settings?section=connections&connector={provider}&connected=0&reason={quote(reason)}",
             status_code=302,
         )
 
@@ -662,7 +755,8 @@ async def oauth_callback(
             status_code=302,
         )
     if remote_id:
-        dest_folder_id = _default_dest_folder_id(user_id, f"{entry.label} — {account_label}")
+        # Evernote's folder is just "Evernote" (Task 7 review m1): `dest_folder.default_folder_name`.
+        dest_folder_id = _default_dest_folder_id(user_id, provider, account_label, remote_id)
         source = connections.create_source(
             user_id, provider, remote_id, display_name=account_label, dest_folder_id=dest_folder_id,
         )
@@ -677,69 +771,31 @@ async def oauth_callback(
     return RedirectResponse(f"{dashboard}/settings?section=connections&connector={provider}&connected=1", status_code=302)
 
 
-# ── Folder picker (spec §7: "OWN folder picker") ──────────────────────────────
-# Dropbox originally; generalized to OneDrive (msgraph wave Task 3) — both
-# sync a PICKED FOLDER (source-level `remoteId`), unlike Notion/Roam/Craft/
-# OneNote which sync a whole workspace/graph/account and have no folder
-# concept to pick. Every provider in this set dispatches identically through
-# `provider_obj.list_folders` — no per-provider branch below.
-_FOLDER_PICKER_PROVIDERS = frozenset({"dropbox", "onedrive"})
-
-
-@router.get("/{provider}/folders")
-async def list_provider_folders(
-    provider: str, path: str = "", user: dict = Depends(_paid),
-) -> dict[str, Any]:
-    if provider not in _FOLDER_PICKER_PROVIDERS:
-        raise HTTPException(status_code=404, detail="this provider does not expose a folder picker")
-    label = registry.get_entry(provider).label
-    try:
-        # Fix-round Important #3: a connected-but-sourceless OneDrive
-        # connector (the exact state this endpoint exists to complete) gets
-        # NO sync ticks -- nothing else ever calls `refresh_if_needed` for
-        # it -- so its ~60-90min Graph access token expires long before the
-        # user opens the picker again ("choose a folder tomorrow" 401s
-        # permanently otherwise). Route through `engine._resolve_credentials`
-        # (the SAME refresh-then-read helper every sync tick already uses)
-        # rather than the plain `connections.get_token` read this used to
-        # do -- a no-op for Dropbox (not `oauth.is_registered`, byte-
-        # identical to the old read) and for a still-fresh msgraph token
-        # (no `expiresAt`/not-yet-near-expiry -> `refresh_if_needed` itself
-        # short-circuits, per its own docstring).
-        creds = await engine._resolve_credentials(user["id"], provider)
-    except errors.NoteConnError as e:
-        _raise_for_provider_error(e)
-    except Exception:  # noqa: BLE001 — crypto_box.CryptoBoxError etc. -> treat as needing reconnect
-        raise HTTPException(status_code=409, detail=f"Reconnect {label} — stored credentials are unreadable.")
-    if creds is None:
-        raise HTTPException(status_code=409, detail=f"Connect {label} first.")
-
-    provider_obj = registry.build_provider(provider)
-    try:
-        folders = await provider_obj.list_folders(creds, path)
-    except errors.NoteConnError as e:
-        _raise_for_provider_error(e)
-    finally:
-        await _aclose(provider_obj)
-    return {"folders": folders}
-
-
 # ── POST /{provider}/sources (add an additional source) ──────────────────────
+
+#: The answer to a second Evernote source (final review M1): Evernote syncs the whole account.
+EVERNOTE_ONE_SOURCE = ("Evernote syncs your whole account, and it is already connected. "
+                       "There is nothing more to add.")
+
 
 @router.post("/{provider}/sources")
 async def add_source(provider: str, user: dict = Depends(_paid), body: AddSourceBody = Depends(_json(AddSourceBody))) -> dict[str, Any]:
     if not registry.is_known(provider):
         raise HTTPException(status_code=404, detail=f"unknown provider {provider!r}")
+    _require_provider_allowed(provider, user)
     if connections.get_connector(user["id"], provider) is None:
         raise HTTPException(status_code=409, detail=f"Connect {provider} first.")
     remote_id = (body.remoteId or "").strip()
     if not remote_id:
         raise HTTPException(status_code=400, detail="remoteId is required")
+    if provider == "evernote" and any(
+            src["provider"] == "evernote" for src in connections.list_sources(user["id"])):
+        # Final review M1: Evernote's import keys do not depend on the source, so a second source
+        # would sync the same notes under the same keys into a second folder.
+        raise HTTPException(status_code=409, detail=EVERNOTE_ONE_SOURCE)
 
-    entry = registry.get_entry(provider)
-    label = body.displayName or remote_id
     dest_folder_id = body.destFolderId or _default_dest_folder_id(
-        user["id"], f"{entry.label} — {label}")
+        user["id"], provider, body.displayName, remote_id)
     source = connections.create_source(
         user["id"], provider, remote_id, display_name=body.displayName, dest_folder_id=dest_folder_id,
     )
@@ -763,11 +819,22 @@ async def sync_source_now(
     source = connections.get_source(user["id"], source_id)
     if source is None:
         raise HTTPException(status_code=404, detail="source not found")
+    _require_provider_allowed(source["provider"], user)
+    # Evernote rate-limit fix round 1 (I3): a provider whose pass can wait out a rate limit
+    # (Evernote) always syncs in the background; the source row then reads "syncing", and the
+    # progress line when the pass records it.
+    if not background and registry.runs_sync_in_background(source["provider"]):
+        background = True
 
     if background:
+        if engine.is_source_busy(source_id):
+            raise HTTPException(status_code=409, detail=BUSY_DETAIL)
+
         async def _bg() -> None:
             try:
-                await engine.sync_source(source_id, full=full, manual=True)
+                # A busy result here (lost the race after the peek) is a
+                # quiet no-op: the other run's results will land in the log.
+                await engine.sync_source(source_id, full=full, manual=True, member=True)
             except Exception:  # noqa: BLE001
                 log.exception("[note_sync] background sync failed for source %s", source_id)
 
@@ -775,11 +842,14 @@ async def sync_source_now(
         return {"status": "started", "background": True}
 
     try:
-        return await engine.sync_source(source_id, full=full, manual=True)
+        result = await engine.sync_source(source_id, full=full, manual=True, member=True)
     except errors.NoteConnError as e:
         _raise_for_provider_error(e)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    if isinstance(result, dict) and result.get("status") == "busy":
+        raise HTTPException(status_code=409, detail=BUSY_DETAIL)
+    return result
 
 
 # ── PUT /sources/{id} ──────────────────────────────────────────────────────────
@@ -789,6 +859,7 @@ def update_source(source_id: str, user: dict = Depends(_paid), body: SourceUpdat
     source = connections.get_source(user["id"], source_id)
     if source is None:
         raise HTTPException(status_code=404, detail="source not found")
+    _require_provider_allowed(source["provider"], user)
     if body.syncEnabled is None and body.destFolderId is None:
         raise HTTPException(status_code=400, detail="nothing to update")
     if body.syncEnabled is not None:
@@ -800,30 +871,27 @@ def update_source(source_id: str, user: dict = Depends(_paid), body: SourceUpdat
 
 # ── DELETE /{provider} (disconnect) ───────────────────────────────────────────
 
-async def _best_effort_revoke_dropbox(user_id: str) -> None:
-    """Fix-round-1 Important #5 (spec §8: "revoke best-effort, purge
-    tokens, keep notes"). Dropbox exposes `POST /2/auth/token/revoke`
-    (`providers/dropbox.py::revoke_token`) — called here, BEFORE the token
-    is purged (it needs to still be readable), and NEVER allowed to block
-    or fail the disconnect: any failure (network, already-revoked, an
-    unreadable stored credential) is caught and logged, not raised.
-    Notion has no revoke endpoint for a third-party OAuth app (the user's
-    own Notion "Connections" settings is the only place that grant can be
-    pulled) and Roam/Craft credentials are user-pasted tokens they manage
-    themselves, never app-issued OAuth grants — there is nothing on our
-    side to revoke for either, so this is Dropbox-only by design, not an
-    oversight."""
+#: Final re-review N1: the whole best-effort Evernote revoke (two POSTs) may take at most this long,
+#: so a hanging Evernote never holds a member's Disconnect.
+EVERNOTE_REVOKE_BUDGET_S = 10.0
+
+
+async def _best_effort_revoke_evernote(user_id: str) -> None:
+    """Final review M5: Evernote publishes an RFC 7009 `revocation_endpoint`
+    (`evernote_oauth.revoke_token`), so Disconnect ends the grant there too: BEFORE the purge (the token must still be readable), and NEVER allowed to
+    block or fail the disconnect. Ungated by the flag, as Disconnect is: a member can always cut
+    the grant."""
     try:
-        creds = connections.get_token(user_id, "dropbox")
-    except Exception:  # noqa: BLE001 — crypto_box.CryptoBoxError etc. -> nothing readable to revoke
+        creds = connections.get_token(user_id, "evernote")
+    except Exception:  # noqa: BLE001 — an unreadable stored credential: nothing to revoke
         return
     if creds is None:
         return
     try:
-        from api.services.journal_two.note_connectors.providers.dropbox import revoke_token
-        await revoke_token(creds)
+        from api.services.journal_two.note_connectors import evernote_oauth  # lazy, as the doors above
+        await asyncio.wait_for(evernote_oauth.revoke_token(creds), EVERNOTE_REVOKE_BUDGET_S)
     except Exception as e:  # noqa: BLE001 — best-effort; must NEVER block or fail the disconnect
-        log.warning("[note_sync] Dropbox token revoke failed (disconnect proceeds regardless): %s", e)
+        log.warning("[note_sync] Evernote token revoke failed (disconnect proceeds regardless): %s", e)
 
 
 @router.delete("/{provider}")
@@ -842,17 +910,17 @@ async def disconnect(provider: str, user: dict = Depends(_paid)) -> dict[str, An
     believing they cut the plugin off, still had a plugin able to push
     notes into staging (reproduced before this fix landed — see
     `test_obsidian_ingest.py`'s disconnect-revokes-the-device-token tests).
-    Mirrors Dropbox's best-effort-revoke-before-purge shape immediately
+    Mirrors Evernote's best-effort-revoke-before-purge shape immediately
     below, generalized to whichever provider owns an out-of-band credential
-    store of its own (Dropbox: a third-party OAuth grant; Obsidian: a
+    store of its own (Evernote: a third-party OAuth grant; Obsidian: a
     locally-issued device token) — NOT best-effort, though: a failed revoke
     here must fail the whole disconnect rather than silently claim success
     while a device is still live (see `obsidian_link.revoke_devices`'s own
     docstring)."""
     if not registry.is_known(provider):
         raise HTTPException(status_code=404, detail=f"unknown provider {provider!r}")
-    if provider == "dropbox":
-        await _best_effort_revoke_dropbox(user["id"])
+    if provider == "evernote":
+        await _best_effort_revoke_evernote(user["id"])
     if provider == "obsidian":
         obsidian_link.revoke_devices(user["id"])
     ok = connections.delete_connector(user["id"], provider)
@@ -876,7 +944,25 @@ def source_log(source_id: str, limit: int = 20, user: dict = Depends(get_current
             "ORDER BY id DESC LIMIT ?",
             (source_id, user["id"], bounded),
         ).fetchall()
-        return {"rows": [dict(r) for r in rows]}
+        out = []
+        for r in rows:
+            failures, unreadable = _parse_failures(r["failures_json"])
+            if unreadable:
+                log.warning("[note_sync] unreadable failures_json on sync log row %s", r["id"])
+            out.append({
+                "id": r["id"],
+                "at": r["finished_at"] or r["started_at"],
+                "status": r["status"],
+                "created": r["notes_created"] or 0,
+                "updated": r["notes_updated"] or 0,
+                "skipped": r["notes_skipped"] or 0,
+                "conflicts": r["conflicts"] or 0,
+                "sourceDeleted": r["source_deleted"] or 0,
+                "adopted": r["adopted"] or 0,  # Plan E Task 8; NULL in older rows reads 0
+                "failures": failures,
+                "failuresUnreadable": unreadable,
+            })
+        return {"rows": out}
     finally:
         conn.close()
 
@@ -907,7 +993,10 @@ class ObsidianRedeemBody(BaseModel):
 
 
 @router.post("/obsidian/redeem")
-def obsidian_redeem(body: ObsidianRedeemBody = Depends(_json(ObsidianRedeemBody, after=None))) -> dict[str, Any]:
+def obsidian_redeem(
+    request: Request,
+    body: ObsidianRedeemBody = Depends(_json(ObsidianRedeemBody, after=None)),
+) -> dict[str, Any]:
     """Exchanges a connect code for a device token + creates (or reuses) the
     `j2_note_sources` row that makes the sync engine pull this vault.
 
@@ -986,6 +1075,7 @@ def obsidian_redeem(body: ObsidianRedeemBody = Depends(_json(ObsidianRedeemBody,
         # raised rather than returning.
         raise HTTPException(status_code=503, detail="Obsidian device could not be verified after redemption")
     _require_paid_device_user(device["user_id"])  # same re-check /obsidian/ingest performs on every push
+    obsidian_link.record_plugin_version(device_id, request.headers.get(PLUGIN_VERSION_HEADER))
 
     # ⛔ The `j2_note_sources` row alone is NOT enough to make
     # `engine.sync_source` actually run: `_do_sync` calls
@@ -1006,8 +1096,7 @@ def obsidian_redeem(body: ObsidianRedeemBody = Depends(_json(ObsidianRedeemBody,
     # encrypted the device secret with the same key.
     _upsert_connector_or_503(device["user_id"], "obsidian", {}, account_label=device["label"])
 
-    display_label = device["label"] or f"Vault ({vault_id})"
-    dest_folder_id = _default_dest_folder_id(device["user_id"], f"{entry.label} — {display_label}")
+    dest_folder_id = _default_dest_folder_id(device["user_id"], "obsidian", device["label"], vault_id)
     source = connections.create_source(
         device["user_id"], "obsidian", vault_id,
         display_name=device["label"], dest_folder_id=dest_folder_id,
@@ -1062,11 +1151,46 @@ async def _read_bounded_body(request: Request, limit: int) -> bytes:
     return b"".join(chunks)
 
 
+# Plan C wire protocol (docs/superpowers/plans/2026-11-01-connector-fidelity-c-obsidian.md,
+# "The wire protocol"). Every plugin request carries this header; a 0.1.x plugin sends none.
+PLUGIN_VERSION_HEADER = "X-UCT-Plugin-Version"
+# The plugin's own cap (it sends at most 5000 refs per note). Kept at 5000 after final review
+# I1: the attachment pass is now one scan of the body per original
+# (`providers/obsidian.py::_apply_attachment_refs`), measured at ~0.8 s for 5000 refs over a
+# 1 MB body, and it runs in a worker thread, off the event loop
+# (`test_the_attachment_pass_is_bounded_at_the_ref_cap`).
+_MAX_ATTACHMENTS_PER_NOTE = 5000
+# The statuses that carry a staged blob's hash; every other status carries none.
+_REF_STATUSES_WITH_HASH = frozenset({"ok", "storage-limit"})
+
+
+class ObsidianAttachmentRef(BaseModel):
+    """One attachment reference the plugin resolved with Obsidian's own resolver. The
+    provider swaps `original` (an exact substring of the note) for the attachment. A ref
+    whose hash presence disagrees with its status is refused: the provider would
+    otherwise look up a blob for a status that never uploads one, or render a hashless
+    `ok` as an attachment it can never fetch."""
+    original: str = Field(min_length=1, max_length=2048)
+    embed: bool
+    path: str = Field(min_length=1, max_length=1024)
+    size: int = Field(ge=0)
+    sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    status: Literal["ok", "too-large", "missing", "off", "storage-limit"]
+
+    @model_validator(mode="after")
+    def _hash_matches_status(self) -> "ObsidianAttachmentRef":
+        if (self.sha256 is not None) != (self.status in _REF_STATUSES_WITH_HASH):
+            raise ValueError(f"sha256 must be set exactly when status is ok or storage-limit (status {self.status!r})")
+        return self
+
+
 class ObsidianNoteItem(BaseModel):
     vault_path: str
     content_hash: str
     body_md: str
     updated_at: str
+    # None = the plugin sends no refs (0.1.x, or 0.2.0 in legacy mode). Stored as NULL.
+    attachments: list[ObsidianAttachmentRef] | None = Field(default=None, max_length=_MAX_ATTACHMENTS_PER_NOTE)
 
 
 # The ingest batch's top-level notes-array key -- PINNED. This name is a wire
@@ -1118,7 +1242,11 @@ def _authenticate_obsidian_device(request: Request) -> dict[str, Any]:
     cross-reference, is how it went unverified for two files at once;
     read `authenticate_device`'s own docstring for the mechanism, not this
     comment."""
-    auth = request.headers.get("authorization") or ""
+    return _device_from_authorization(request.headers.get("authorization"))
+
+
+def _device_from_authorization(header: str | None) -> dict[str, Any]:
+    auth = header or ""
     if not auth.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Not authenticated")
     raw_token = auth[len("Bearer "):].strip()
@@ -1126,6 +1254,31 @@ def _authenticate_obsidian_device(request: Request) -> dict[str, Any]:
     if device is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return device
+
+
+async def _paid_obsidian_device(request: Request, *, attachments: bool = False) -> dict[str, Any]:
+    """The plugin's door, shared by ingest, the attachment check and the blob upload: device
+    auth (which writes `last_seen_at`), the paid-plan reads and the plugin-version record,
+    in ONE worker-thread call (final review I2). On the event loop these were up to four
+    SQLite calls, two of them writes, per request, and the upload runs once per BLOB: under
+    auth.db write contention each could hold every member's request for its busy timeout.
+    `attachments`: an attachment route. When the master switch is off for this device's
+    member (`admin` mode, a non-admin) it answers 404 right after authenticating, before the
+    paid gate, so the plugin reads "this server takes no attachments" and syncs text only,
+    never a 403 it would read as offline (final review I3)."""
+    authorization = request.headers.get("authorization")
+    version = request.headers.get(PLUGIN_VERSION_HEADER)
+
+    def gate() -> dict[str, Any]:
+        device = _device_from_authorization(authorization)
+        user = _device_user(device["user_id"])
+        if attachments and not obsidian_attachments.attachments_enabled_for_user(user):
+            raise HTTPException(status_code=404, detail="Not Found")
+        _require_paid(user)
+        obsidian_link.record_plugin_version(device["device_id"], version)
+        return device
+
+    return await asyncio.to_thread(gate)
 
 
 def _require_paid_device_user(user_id: str) -> None:
@@ -1140,12 +1293,21 @@ def _require_paid_device_user(user_id: str) -> None:
     reaching it, so the cookie path and the device path can never drift.
     The identity itself still comes from ONLY the already-authenticated
     device — this never reads a user id out of the request."""
+    _require_paid(_device_user(user_id))
+
+
+def _device_user(user_id: str) -> dict[str, Any] | None:
+    """The device's member with their plan, or None."""
     user = auth_service.get_user_by_id(user_id)
     if user is None:
-        raise HTTPException(status_code=403, detail="Upgrade required")
+        return None
     user = dict(user)
     user["plan"] = auth_service.get_user_plan(user_id)
-    if meets_plan_gate(user, list(PAID_PLANS)):
+    return user
+
+
+def _require_paid(user: dict[str, Any] | None) -> None:
+    if user is not None and meets_plan_gate(user, list(PAID_PLANS)):
         return
     raise HTTPException(status_code=403, detail="Upgrade required")
 
@@ -1171,8 +1333,7 @@ async def obsidian_ingest(request: Request) -> dict[str, Any]:
     entry = registry.get_entry("obsidian")
     if not entry.configured():
         raise HTTPException(status_code=503, detail=f"{entry.label} is not configured on this server.")
-    device = _authenticate_obsidian_device(request)
-    _require_paid_device_user(device["user_id"])
+    device = await _paid_obsidian_device(request)
 
     try:
         declared = int(request.headers.get("content-length") or 0)
@@ -1204,6 +1365,8 @@ async def obsidian_ingest(request: Request) -> dict[str, Any]:
             manifest=body.manifest,
             final=body.final,
         )
+        if result.get("manifestReplaced"):
+            await _gc_staged_blobs(device["user_id"], device["vault_id"])
         # A `final` batch is the plugin saying "that is the whole vault".
         # Draining it into the Notebook right now is what makes connecting a
         # vault mean "bring this vault into UCT" instead of "stage it and
@@ -1224,3 +1387,169 @@ async def obsidian_ingest(request: Request) -> dict[str, Any]:
         # `NoteConnValidationError` for a padded/empty manifest or an
         # over-cap batch — mapped to a clean 400, never a 500.
         _raise_for_provider_error(e)
+
+
+# ── Obsidian attachments (connector fidelity Plan C, Task 2) ─────────────────
+#
+# The plugin hashes a note's attachments, asks `/attachments/check` which hashes this
+# (member, vault) lacks, uploads each missing blob once with `PUT /attachments/{sha256}`,
+# then pushes the notes through `/obsidian/ingest` with per-note `attachments` refs. The
+# blob store is `obsidian_attachments` (Task 1); these routes are its only door.
+#
+# Gate order, the same as `obsidian_ingest`: the attachments flag (404), the Obsidian
+# flag (503), the device token (401), the paid plan (403), then the version header is
+# recorded. The (member, vault) of every read and write is the AUTHENTICATED DEVICE's;
+# nothing in the request names either. 404 with the flag off is exactly what a server
+# without these routes answers, so a 0.2.0 plugin falls back to text-only either way.
+
+_MAX_ATTACHMENT_CHECK_BYTES = 512_000
+_MAX_ATTACHMENT_CHECK_HASHES = 5000
+_MAX_ATTACHMENT_NAME_CHARS = 255
+_MAX_DECLARED_MIME_CHARS = 255
+ATTACHMENT_PROTOCOL_VERSION = 1
+# Fix round 1, M5: blob uploads in flight at once, per member and for the pod. Over either
+# => 429 at once, before any byte is read (the plugin retries a 429 on its next sync). The
+# editor upload doors' gate class, with its OWN instance and limits: a vault sync uploads
+# blob after blob, and sharing the editor doors' pod budget would answer a member's editor
+# upload 429 while other vaults sync. Per-process state (CLAUDE.md's single-process roster).
+OBSIDIAN_UPLOAD_PER_MEMBER_INFLIGHT = 2
+OBSIDIAN_UPLOAD_GLOBAL_INFLIGHT = 8
+_OBSIDIAN_UPLOAD_GATE = UploadGate(per_member=OBSIDIAN_UPLOAD_PER_MEMBER_INFLIGHT,
+                                   total=OBSIDIAN_UPLOAD_GLOBAL_INFLIGHT)
+
+
+def _obsidian_attachments_off_for_everyone() -> bool:
+    """The master switch at `0` (default, unset, unknown): both attachment routes 404 before
+    reading anything. `admin` is decided per member after authenticating
+    (`_paid_obsidian_device(attachments=True)`). `obsidian_attachments.attachments_mode`."""
+    return obsidian_attachments.attachments_mode() == "0"
+
+
+class ObsidianAttachmentCheckBody(BaseModel):
+    sha256: list[str] = Field(max_length=_MAX_ATTACHMENT_CHECK_HASHES)
+
+
+def _blob_rejected(e: "obsidian_attachments.BlobRejected") -> HTTPException:
+    """The store's refusal, unflattened: its status (400 bad id/hash, 403 vault revoked
+    mid-upload, 413 too large / member bound, 503 volume full) and its member-safe
+    sentence."""
+    return HTTPException(status_code=e.status, detail=e.detail)
+
+
+async def _gc_staged_blobs(user_id: str, vault_id: str) -> None:
+    """After a `final` push replaced the manifest, drop this vault's staged blobs no staged
+    note references. Off the event loop; a failure is logged and never fails the push
+    (the next final push collects them)."""
+    try:
+        await asyncio.to_thread(obsidian_attachments.gc_unreferenced, user_id, vault_id)
+    except Exception:  # noqa: BLE001 -- GC is housekeeping, never the push's outcome
+        log.exception("obsidian staged-blob gc failed for user=%s vault=%s", user_id, vault_id)
+
+
+async def _blob_body(request: Request):
+    """The upload body as it arrives, never buffered whole, bounded by the per-file cap
+    while it is read (a body with no or a lying Content-Length included). The store
+    streams it to disk and hashes it."""
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > obsidian_attachments.MAX_BLOB_BYTES:
+            raise obsidian_attachments.BlobRejected(
+                413, f"attachment is too large (limit {obsidian_attachments.MAX_BLOB_BYTES // (1024 * 1024)} MB)")
+        yield chunk
+
+
+def _attachment_name(raw: str | None) -> str | None:
+    """`X-UCT-Attachment-Name`: the percent-encoded basename, decoded once. A 400, never
+    stored: over 255 characters, a path separator, a control character (NUL, CR/LF, tab,
+    DEL: the stored name may become a label or a header value), or the names `.` and `..`."""
+    if raw is None:
+        return None
+    name = unquote(raw)
+    if (len(name) > _MAX_ATTACHMENT_NAME_CHARS or "/" in name or "\\" in name
+            or any(ord(c) < 0x20 or ord(c) == 0x7F for c in name) or name in (".", "..")):
+        raise HTTPException(status_code=400, detail="X-UCT-Attachment-Name must be a file name of at most 255 characters")
+    return name or None
+
+
+def _declared_mime(raw: str | None) -> str | None:
+    mime = (raw or "").split(";", 1)[0].strip().lower()
+    if len(mime) > _MAX_DECLARED_MIME_CHARS:
+        raise HTTPException(status_code=400, detail="Content-Type is too long")
+    return mime or None
+
+
+@router.post("/obsidian/attachments/check")
+async def obsidian_attachments_check(request: Request) -> dict[str, Any]:
+    """`{"sha256": [..≤5000]}` -> `{"protocol", "missing", "maxBytes", "remainingBytes"}`.
+    `missing` is the hashes not staged for THIS device's (member, vault), in request order;
+    an empty list is how the plugin learns the protocol and the limits."""
+    if _obsidian_attachments_off_for_everyone():
+        raise HTTPException(status_code=404, detail="Not Found")
+    entry = registry.get_entry("obsidian")
+    if not entry.configured():
+        raise HTTPException(status_code=503, detail=f"{entry.label} is not configured on this server.")
+    device = await _paid_obsidian_device(request, attachments=True)
+
+    raw = await _read_bounded_body(request, _MAX_ATTACHMENT_CHECK_BYTES)
+    try:
+        # The shared body decode: a body nested past the parser's recursion limit is
+        # `BodyTooDeep`, a 400 here, never a 500 (fix round 1, I1).
+        payload = widget_request_body.loads_json(raw or b"{}")
+        body = ObsidianAttachmentCheckBody(**payload) if isinstance(payload, dict) else None
+    except (ValueError, ValidationError, widget_request_body.BodyTooDeep):
+        body = None
+    if body is None:
+        raise HTTPException(status_code=400, detail='body must be {"sha256": [up to 5000 hashes]}')
+    try:
+        missing = await asyncio.to_thread(
+            obsidian_attachments.missing_hashes, device["user_id"], device["vault_id"], body.sha256)
+    except obsidian_attachments.BlobRejected as e:
+        raise _blob_rejected(e)
+    remaining = await asyncio.to_thread(obsidian_attachments.remaining_bytes, device["user_id"])
+    return {
+        "protocol": ATTACHMENT_PROTOCOL_VERSION,
+        "missing": missing,
+        "maxBytes": obsidian_attachments.MAX_BLOB_BYTES,
+        # The plugin's own final review: the limits it must respect, stated by the server
+        # (`maxBytes` kept for 0.2.0 plugins that read it).
+        "maxBlobBytes": obsidian_attachments.MAX_BLOB_BYTES,
+        "maxRefsPerNote": _MAX_ATTACHMENTS_PER_NOTE,
+        "remainingBytes": remaining,
+    }
+
+
+@router.put("/obsidian/attachments/{sha256}")
+async def obsidian_attachments_put(sha256: str, request: Request) -> dict[str, Any]:
+    """Raw body = the blob. `Content-Type` = declared MIME (parameters dropped),
+    `X-UCT-Attachment-Name` = percent-encoded basename. `{"stored": false}` means this
+    (member, vault) already had it. The store refuses a hash mismatch (400), a body over
+    the per-file cap or the member's room (413, the declared length checked before any
+    byte is read) and a full volume (503); nothing is left on disk after a refusal."""
+    if _obsidian_attachments_off_for_everyone():
+        raise HTTPException(status_code=404, detail="Not Found")
+    entry = registry.get_entry("obsidian")
+    if not entry.configured():
+        raise HTTPException(status_code=503, detail=f"{entry.label} is not configured on this server.")
+    device = await _paid_obsidian_device(request, attachments=True)
+
+    name = _attachment_name(request.headers.get("x-uct-attachment-name"))
+    mime = _declared_mime(request.headers.get("content-type"))
+    length_header = request.headers.get("content-length")
+    try:
+        declared = int(length_header) if length_header is not None else None
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid Content-Length")
+    gate = _OBSIDIAN_UPLOAD_GATE
+    if not gate.acquire(device["user_id"]):
+        raise HTTPException(status_code=429, detail=UPLOAD_BUSY_SENTENCE)
+    try:
+        stored = await obsidian_attachments.stage_blob_stream(
+            user_id=device["user_id"], vault_id=device["vault_id"], sha256=sha256,
+            declared_mime=mime, name=name, chunks=_blob_body(request), declared_length=declared,
+        )
+    except obsidian_attachments.BlobRejected as e:
+        raise _blob_rejected(e)
+    finally:
+        gate.release(device["user_id"])
+    return {"stored": stored}

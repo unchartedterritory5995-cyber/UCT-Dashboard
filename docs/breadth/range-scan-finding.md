@@ -66,6 +66,8 @@ A second step scanning `origin/production..HEAD`, `continue-on-error: true`, end
 | `range-scan: EXECUTED … NOTHING-TO-SCAN` | real base, zero changed files | no |
 | `range-scan: NOTHING AHEAD` | HEAD already contained in the base | no |
 | `range-scan: INCONCLUSIVE` | **base unreachable in this clone** | **no** |
+| `range-scan: DIFF FAILED` | `git diff` itself errored, so the file list cannot be trusted | **no** |
+| `range-scan: SCANNER ERROR` | a listed path was missing, or the scanner crashed or did not report every path | **no** |
 | `range-scan: NO RANGE` | new ref / force push, no `before` | no |
 
 ⛔⛔ **`INCONCLUSIVE` exists because the first version of this step would have been
@@ -91,6 +93,51 @@ Promote when **either**:
 
 Promotion means dropping `continue-on-error` and the trailing `exit 0`. ⚠️ Do not promote
 it in the same change that widens what it scans.
+
+### Promoted 2026-11-06
+
+**Criterion met.** Of the last 40 completed `master deploy gate` runs on master, **37**
+logged `range-scan: EXECUTED` with `verdict=CLEAN`, **0** reported a finding, and **0** were
+`INCONCLUSIVE` or `NO RANGE`. The other 3 were cancelled before the step ran. Read from the
+run logs, 2026-11-06.
+
+**Why it could not wait.** `master-deploy` keeps one pending run, so a third push cancels
+the second push's gate run. The per-commit scan then never sees that commit, and the next
+green tip promotes its content. The range here is `origin/production..HEAD`, and
+`production` is the last promotion, so every commit about to reach production is in it.
+
+**What changed.** The range and the scanner are unchanged; every way the step could pass
+*without proving the range clean* now fails. An independent review (PR #896) proved each one
+by running the real step against synthetic repositories:
+
+- A finding fails the gate (`continue-on-error` is gone).
+- `NO RANGE`: `origin/production` is the only base. The pre-cutover fallback to the push's
+  own range is removed; it was reachable when the fetch and `ls-remote` both failed, and it
+  is the gap itself.
+- `INCONCLUSIVE`: production's commit is not readable.
+- `DIFF FAILED` (new): `git diff`'s own exit status decides. Before, a failing `git diff`
+  piped into `tr` produced an empty list and passed as `NOTHING-TO-SCAN`.
+- `SCANNER ERROR` (new): every listed path must exist (the scanner silently skips missing
+  ones), and the scanner's summary must report exactly the paths it was given. The scanner
+  exits 1 for a finding *and* for a crash, so a crash no longer reads as a leaked secret.
+- Paths with spaces or non-ASCII names are now scanned: `git diff -z` with
+  `core.quotePath=false`, passed as an array. Before, they were split or quoted into names
+  that did not exist and skipped silently. 45 tracked paths have spaces and 2 are non-ASCII.
+- Files are scanned in chunks of 400, under the kernel's argument limit.
+
+`NOTHING AHEAD` and `NOTHING-TO-SCAN` still pass: their range resolved.
+
+**Known limit: it compares snapshots.** A secret added in one commit and deleted by a later
+commit in the same range is not in `production..HEAD`, so it is not flagged. That secret was
+already public when it was pushed; it is the pre-push hook's and rotation's problem, not
+this gate's.
+
+**Also not changed here:** the per-commit step above still word-splits its file list, so on
+its own it would also skip awkward paths. The range scan covers every path it covers, which
+is why this change could leave it alone. A follow-up should fix it too.
+
+A real finding keeps every later push red until master is clean: rotate the credential,
+then remove it.
 
 ---
 

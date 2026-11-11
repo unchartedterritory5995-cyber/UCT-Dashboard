@@ -33,6 +33,8 @@ NOTEBOOK_KEYS = [
     "notebook_onboarding_enabled",
     # Wave 11 lane 11A: voice and meeting notes — an enablement gate.
     "notebook_voice_notes_enabled",
+    # Import a tweet: X posts into a note — an enablement gate.
+    "notebook_tweet_import_enabled",
     # Wave 11 lane 11C: "Ask Notebook to do something" — an enablement gate.
     "notebook_ai_actions_enabled",
     # Wave 11 lane 11B: formula and rollup properties — an enablement gate.
@@ -51,6 +53,8 @@ NOTEBOOK_KEYS = [
     "notebook_plan_grading_enabled",
     # Wave 13 lane 13E-1: the market context frozen at the fill — an enablement gate.
     "notebook_entry_context_enabled",
+    # P3b example notes: server-only until retired as always on (2026-11-04); now a payload key, always True.
+    "notebook_example_notes_enabled",
     # Wave 13 lane 13G-1: research capture -- two enablement gates.
     "notebook_transcript_capture_enabled",
     "notebook_passed_setups_enabled",
@@ -143,8 +147,23 @@ def test_K_R6_the_env_var_and_the_payload_key_are_DERIVED_from_one_function():
     for env_name in auth_router.NOTEBOOK_FLAGS:
         key = auth_router._notebook_flag_key(env_name)
         assert key in _payload(), f"{env_name} derives {key}, which is not on the payload"
-    # …and the roster is exactly the capabilities, no more and no fewer.
-    assert sorted(auth_router._notebook_flag_key(e) for e in auth_router.NOTEBOOK_FLAGS) == sorted(NOTEBOOK_KEYS)
+    # …and the roster is exactly the capabilities, no more and no fewer: the table's rows plus the
+    # capabilities retired as always on (2026-11-04), which keep their key with no variable.
+    assert sorted(auth_router._notebook_flag_key(e) for e in auth_router.NOTEBOOK_FLAGS) == sorted(
+        k for k in NOTEBOOK_KEYS if k not in auth_router.NOTEBOOK_ALWAYS_ON_KEYS)
+    assert set(auth_router.NOTEBOOK_ALWAYS_ON_KEYS) <= set(NOTEBOOK_KEYS)
+
+
+def test_a_retired_capability_is_ALWAYS_ON_whatever_its_old_variable_says():
+    """The retired flags' payload keys are hard-coded True: no variable can turn one off, so the
+    client can never render the off state of a capability that is always on."""
+    assert auth_router.NOTEBOOK_ALWAYS_ON_KEYS, "non-vacuity: at least one capability is retired"
+    for raw in (None, "0", "false", "off", "1"):
+        p = _payload(**{k.upper(): raw for k in auth_router.NOTEBOOK_ALWAYS_ON_KEYS})
+        for k in auth_router.NOTEBOOK_ALWAYS_ON_KEYS:
+            assert p[k] is True, (k, raw)
+        assert not set(auth_router.NOTEBOOK_ALWAYS_ON_KEYS) & {
+            auth_router._notebook_flag_key(e) for e in auth_router.NOTEBOOK_FLAGS}
 
 
 def test_the_kill_switch_defaults_ON_and_the_enablement_gates_default_OFF():
@@ -155,7 +174,7 @@ def test_the_kill_switch_defaults_ON_and_the_enablement_gates_default_OFF():
     for k in KILL_SWITCH_KEYS:
         assert p[k] is True, f"{k}: a forgotten variable must not kill a shipped capability"
     for k in NOTEBOOK_KEYS:
-        if k not in KILL_SWITCH_KEYS:
+        if k not in KILL_SWITCH_KEYS and k not in auth_router.NOTEBOOK_ALWAYS_ON_KEYS:
             assert p[k] is False, f"{k} is an enablement gate — unset means not turned on yet"
 
 
@@ -216,16 +235,15 @@ _SPELLINGS = [None, "", "1", "0", "true", "false", "TRUE", " yes ", "no", "on", 
 
 
 def _own_reads():
-    from api.services.journal_two import document_extraction, note_semantic, note_tasks
+    from api.services.journal_two import note_semantic, note_tasks
     return {
-        "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": document_extraction.image_docx_documents_enabled,
         "NOTEBOOK_TASK_REMINDERS_ENABLED": note_tasks.reminders_enabled,
         "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": note_semantic.semantic_enabled,
     }
 
 
 @pytest.mark.parametrize("env_name", sorted([
-    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED", "NOTEBOOK_TASK_REMINDERS_ENABLED", "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+    "NOTEBOOK_TASK_REMINDERS_ENABLED", "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
 ]))
 @pytest.mark.parametrize("raw", _SPELLINGS)
 def test_W14_C1_the_payload_key_agrees_with_the_capabilitys_own_read(env_name, raw):

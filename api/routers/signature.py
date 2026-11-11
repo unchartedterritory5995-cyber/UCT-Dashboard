@@ -42,12 +42,13 @@ import threading
 import time
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.cache import cache
 from api.services.serve_stale import ServeStale
 from api.services.signature import ledger, registry_defs, rules
+from api.services.signature import rs_provider
 from api.services.signature.darkpool_levels import fetch_dp_levels
 from api.services.signature.flow_breakout import (
     FLOW_COLS, _bar_date_iso, evaluated_window, fcb_signals, flow_by_date,
@@ -880,22 +881,80 @@ def _rs_line_provider(sym: str, tf: str, inputs: dict) -> dict:
     decision A3 put it on this lane: spec §4's compute contract carries ONE
     `bars` and an RS line needs two, so the second symbol is fetched where a
     second symbol is reachable.
+
+    ⭐ THE BODY LIVES IN `api/services/signature/rs_provider.py` (unit VA1,
+    2026-11-07; moved verbatim, ~1,050 lines). What stays HERE is what the note
+    above the tenants asks for: the registered provider, and the two lane helpers
+    the body is handed — this module's bar reader and its cache-key builder —
+    looked up at call time, so a test that patches `_fetch_bars_for_tf` on this
+    module still drives every bar the provider reads.
+
+    Phase 3 (unit 3-06) adds the third: `_rs_warm_bars`, the fire-and-forget
+    warm for a custom benchmark the pod holds no rows for (v4 rows only reach it).
     """
-    from api.services.indicator_compute import compute_rs_line
-    bars = _fetch_bars_for_tf(sym, tf)
-    benchmark = inputs.get("benchmark") or registry_defs.RS_LINE_BENCHMARKS[0]
-    bench_bars = _fetch_bars_for_tf(benchmark, tf)
-    return {
-        "columns": {"rsLine": compute_rs_line(bars, bench_bars)},
-        "times": [int(b["t"]) for b in bars],
-        "asOf": time.time(),
-    }
+    return rs_provider.rs_line_envelope(sym, tf, inputs, fetch_bars=_fetch_bars_for_tf, cache_key=_ck,
+                                        warm=lambda ticker: _rs_warm_bars(ticker, tf))
+
+
+#: Daily / weekly / monthly warms ask for the deep history every other warm on
+#: the web pod asks for (`warm_bars_async(..., bars=8000)`); intraday, the RS
+#: lane's own 400.
+_RS_WARM_DEEP_BARS = 8000
+
+
+def _rs_warm_bars(ticker: str, tf: str) -> None:
+    """Warm bars.db for a custom RS benchmark (D4) WITHOUT blocking the request.
+
+    ⭐ `bars_fetch._kick_cold_fetch`, NOT `warm_bars_async` (unit 3-06, checked
+    against both): it is the exact path `get_bars` itself takes on a cold
+    ticker, it dedupes a key already in flight, drops work past its queue cap
+    (`_COLD_BG_QUEUE_MAX`) and skips a (ticker, tf) every provider has already
+    answered "no data" for (`cold_negative`), so members typing nonsense tickers
+    cannot pile work onto the pool. `warm_bars_async` has an unbounded queue and
+    no dedupe across calls. The submit returns at once; the job writes bars.db
+    and the next request (the degraded envelope is cached for 60 s) reads it.
+    `rs_benchmarks` already limits this to one call per ticker per ten minutes.
+    """
+    from api.services import bars_fetch
+    store = registry_defs.store_tf(tf)
+    date_tf = store in ("D", "W", "M")
+    bars_fetch._kick_cold_fetch(str(ticker).upper(), store,
+                                _RS_WARM_DEEP_BARS if date_tf else 400, date_tf)
+
+
+def _rs_rating_provider(sym: str, tf: str, inputs: dict) -> dict:
+    """RS split unit U4: `rsRating`, the same thin-wrapper shape as `_rs_line_provider`."""
+    return rs_provider.rs_rating_envelope(sym, tf, inputs, fetch_bars=_fetch_bars_for_tf, cache_key=_ck,
+                                          warm=lambda ticker: _rs_warm_bars(ticker, tf))
+
+
+def _rs_phases_provider(sym: str, tf: str, inputs: dict) -> dict:
+    """RS split unit U4: `rsPhases`."""
+    return rs_provider.rs_phases_envelope(sym, tf, inputs, fetch_bars=_fetch_bars_for_tf, cache_key=_ck,
+                                          warm=lambda ticker: _rs_warm_bars(ticker, tf))
+
+
+def _rs_vs_ema_provider(sym: str, tf: str, inputs: dict) -> dict:
+    """RS split unit U4: `rsVsEma`."""
+    return rs_provider.rs_vs_ema_envelope(sym, tf, inputs, fetch_bars=_fetch_bars_for_tf, cache_key=_ck,
+                                          warm=lambda ticker: _rs_warm_bars(ticker, tf))
+
+
+#: The RS split's three tenants by row id (unit U4). Tests install a row and
+#: plug the matching wrapper in by hand; production registers them below only
+#: when `RS_SPLIT_ENABLED` put the rows in `SERVER_DEFS` (`register_provider`
+#: refuses an id with no row, so the two cannot be armed apart).
+RS_SPLIT_PROVIDERS: dict = {"rsRating": _rs_rating_provider, "rsPhases": _rs_phases_provider,
+                            "rsVsEma": _rs_vs_ema_provider}
 
 
 registry_defs.register_provider("uct-darkpool-levels", _dpl_provider)
 registry_defs.register_provider("uct-gex-walls", _gxw_provider)
 registry_defs.register_provider("uct-flow-breakout", _fcb_provider)
 registry_defs.register_provider("rsLine", _rs_line_provider)
+if registry_defs.RS_SPLIT_ENABLED:
+    for _def_id, _fn in RS_SPLIT_PROVIDERS.items():
+        registry_defs.register_provider(_def_id, _fn)
 
 
 # ── routes (all sync `def` — see rule 3) ────────────────────────────────────
@@ -935,6 +994,7 @@ def server_definitions(_user: dict = Depends(require_paid)):
 
 @router.get("/columns")
 def server_columns(
+    response: Response,
     defId: str = Query(..., description="a server-lane definition id"),
     sym: str = Query(...),
     tf: str = Query("D"),
@@ -947,6 +1007,11 @@ def server_columns(
     `null`, positionally aligned to `times`. `null` ⇄ NaN is mapped at the client
     boundary. **Compute never emits point objects** — `registry_defs.wire_columns`
     refuses `[{time, value}]` by name.
+
+    ⭐ `Server-Timing` (unit VA1): when the RS provider ran on this request it
+    recorded its own duration and stages (`rs_provider.last_timing`); the header
+    carries them in `/api/bars`' shape. A cache hit reads `desc="cache"`. The
+    body is untouched, and the cached envelope never carries a timing.
     """
     s = _sym_or_422(sym)
     try:
@@ -955,6 +1020,7 @@ def server_columns(
         raise HTTPException(status_code=422, detail="inputs must be a JSON object")
     if parsed is not None and not isinstance(parsed, dict):
         raise HTTPException(status_code=422, detail="inputs must be a JSON object")
+    rs_provider.timing_reset()
     try:
         return registry_defs.serve(defId, s, str(tf or "D"), parsed)
     except registry_defs.DefinitionNotOffered as exc:
@@ -970,6 +1036,18 @@ def server_columns(
         logger.exception("signature: server lane failed for %s/%s", defId, s)
         return {"defId": defId, "sym": s, "tf": tf, "columns": {}, "times": [],
                 "error": "server lane unavailable", "asOf": time.time()}
+    finally:
+        _rs_server_timing(response)
+
+
+def _rs_server_timing(response) -> None:
+    """Behaviour-neutral: a diagnostic header never fails a response."""
+    try:
+        st = rs_provider.server_timing()
+        if st and response is not None:
+            response.headers["Server-Timing"] = st
+    except Exception:                                  # noqa: BLE001
+        pass
 
 
 # ── Dark-Pool Reclaim Confluence (dpc-v1) ───────────────────────────────────

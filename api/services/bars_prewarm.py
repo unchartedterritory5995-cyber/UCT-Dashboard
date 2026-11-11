@@ -12,6 +12,31 @@ import time as _time
 
 _log = logging.getLogger(__name__)
 
+# ── Always-warmed priority tickers ───────────────────────────────────────────
+# The head of every warm list (D/W/M, 60/30/15, 5m, 1m): the broad-market ETFs
+# and the mega-caps users open first. Module-level so a test can read it
+# without running the loop.
+#
+# ⭐ UCT RELATIVE STRENGTH BENCHMARKS RIDE ALONG (plan §4 row "cap_universe.json"
+# and §17 item 7: "RSP added to the bars prewarm priority set"). The RS lane
+# (`api/routers/signature.py::_fetch_bars_for_tf`) reads benchmark bars from
+# bars.db ONLY — no on-demand fetch — so a benchmark the warm never touched
+# draws nothing. cap_universe.json is an equity screen: RSP and four of the
+# eleven SPDR sector ETFs (XLY, XLP, XLU, XLB) are absent from it, measured
+# 2026-11-05. DERIVED from `rs_benchmarks`, never re-typed, so the resolver
+# and the warm cannot drift apart.
+from api.services import rs_benchmarks as _rs_benchmarks
+
+RS_BENCHMARK_TICKERS: tuple = tuple(dict.fromkeys(
+    [t.upper() for t in _rs_benchmarks.LITERAL_BENCHMARKS]
+    + [t.upper() for t in _rs_benchmarks.SECTOR_ETF.values()]))
+
+_CORE_PRIORITY = ['SPY', 'QQQ', 'IWM', 'DIA', 'AAPL', 'NVDA', 'MSFT', 'TSLA',
+                  'AMZN', 'META', 'GOOGL', 'AMD', 'AVGO', 'SMCI', 'PLTR', 'ARM',
+                  'COIN', 'MSTR', 'HOOD', 'ANET', 'NFLX', 'CRM', 'ORCL', 'UBER']
+PRIORITY_TICKERS: list = _CORE_PRIORITY + [
+    t for t in RS_BENCHMARK_TICKERS if t not in set(_CORE_PRIORITY)]
+
 
 # ── Prewarmer liveness heartbeat ─────────────────────────────────────────────
 # The prewarmer is the sole thing keeping the worker's bars.db warm. It ran for
@@ -670,9 +695,7 @@ def run_prewarmer_forever():
         except Exception:
             pass
     tickers = set()
-    tickers.update(['SPY', 'QQQ', 'IWM', 'DIA', 'AAPL', 'NVDA', 'MSFT', 'TSLA',
-                    'AMZN', 'META', 'GOOGL', 'AMD', 'AVGO', 'SMCI', 'PLTR', 'ARM',
-                    'COIN', 'MSTR', 'HOOD', 'ANET', 'NFLX', 'CRM', 'ORCL', 'UBER'])
+    tickers.update(PRIORITY_TICKERS)   # same list as `_PRIORITY` below (incl. RS benchmarks)
     try:
         from api.services.cache import cache
         wd = cache.get("wire_data")
@@ -775,9 +798,9 @@ def run_prewarmer_forever():
     except Exception:
         pass
     tickers.discard('')
-    _PRIORITY = ['SPY', 'QQQ', 'IWM', 'DIA', 'AAPL', 'NVDA', 'MSFT', 'TSLA',
-                  'AMZN', 'META', 'GOOGL', 'AMD', 'AVGO', 'SMCI', 'PLTR', 'ARM',
-                  'COIN', 'MSTR', 'HOOD', 'ANET', 'NFLX', 'CRM', 'ORCL', 'UBER']
+    # Module-level so tests can pin it; carries the UCT RS benchmarks (RSP + the
+    # SPDR sector ETFs) per plan §4 / §17.7 — see `PRIORITY_TICKERS` above.
+    _PRIORITY = list(PRIORITY_TICKERS)
     priority_set = set(_PRIORITY)
     _FAST_PATH: list[str] = []
     try:

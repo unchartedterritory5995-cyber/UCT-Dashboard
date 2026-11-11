@@ -34,7 +34,7 @@ What lane 8B changed, each one a finding of `docs/notebook/share-links-authoriza
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from api.middleware.auth_middleware import get_current_user, get_current_user_with_plan, is_paid_user
 from api.services.journal_two import note_shares
@@ -48,6 +48,10 @@ MINT_RATE = "30/hour"
 SCOPE_PUBLIC = "notebook-share-public"
 SCOPE_IMAGES = "notebook-share-images"
 SCOPE_MINT = "notebook-share-mint"
+#: Audit 2026-11-05, S19: the share preview, per member, in-process (a second web process doubles it).
+PREVIEW_RATE = "60/minute"
+SCOPE_PREVIEW = "notebook-share-preview"
+PREVIEW_RATE_SENTENCE = "Too many previews in a minute. Wait a moment and try again."
 
 PUBLIC_RATE_SENTENCE = "Too many requests for this page. Wait a minute and try again."
 MINT_RATE_SENTENCE = "You've made a lot of share links in the last hour. Try again later."
@@ -81,6 +85,21 @@ _MAX_BODY_BYTES = 64 * 1024
 
 
 async def read_expiry(request: Request) -> int | None:
+    """See `_read_share_options`, which this calls for the expiry alone (the publish doors)."""
+    return (await _read_share_options(request))[0]
+
+
+#: Audit 2026-11-05, S19: the one sentence for a `hidePnl` that is not a boolean.
+HIDE_PNL_SENTENCE = "Choose whether to hide your P&L and position size: true or false."
+
+
+async def read_share_options(request: Request) -> tuple[int | None, bool]:
+    """`(days, hide_pnl)` for the share-link mint: `{expiresInDays, hidePnl?}`. `hidePnl` absent is False (a client
+    that predates S19 mints exactly what it always did); anything but a boolean is one 422 sentence."""
+    return await _read_share_options(request, with_hide=True)
+
+
+async def _read_share_options(request: Request, with_hide: bool = False) -> tuple[int | None, bool]:
     """`{expiresInDays: null | 7 | 30 | 90}` from the request body, optional -> the days.
 
     ⛔ THE ONE BODY PARSE for every expiry door (mint here; publish, publish folder and PATCH
@@ -103,24 +122,29 @@ async def read_expiry(request: Request) -> int | None:
         chunks.append(chunk)
     raw = b"".join(chunks)
     if not raw.strip():
-        return None
+        return None, False
     try:
         payload = wbody.loads_plain_body(raw)  # W11-R55: too deep to parse is 400 no-store
     except ValueError:
         raise HTTPException(status_code=422, detail=note_shares.EXPIRY_SENTENCE) from None
     if payload is None:
-        return None
+        return None, False
     if not isinstance(payload, dict):
         raise HTTPException(status_code=422, detail=note_shares.EXPIRY_SENTENCE)
     try:
-        return note_shares.validate_expiry(payload.get("expiresInDays"))
+        days = note_shares.validate_expiry(payload.get("expiresInDays"))
     except ValueError:
         raise HTTPException(status_code=422, detail=note_shares.EXPIRY_SENTENCE) from None
+    hide = payload.get("hidePnl", False) if with_hide else False
+    if not isinstance(hide, bool):
+        raise HTTPException(status_code=422, detail=HIDE_PNL_SENTENCE)
+    return days, hide
 
 
-async def expiry_body(request: Request, _user: dict = Depends(require_paid)) -> int | None:
-    """The expiry, read AFTER this router's `require_paid` has answered (see `read_expiry`)."""
-    return await read_expiry(request)
+async def expiry_body(request: Request, _user: dict = Depends(require_paid)) -> tuple[int | None, bool]:
+    """The mint's options `(days, hide_pnl)`, read AFTER this router's `require_paid` has answered (see
+    `read_expiry`). Audit 2026-11-05, S19: it also reads `hidePnl`, in the same one parse."""
+    return await read_share_options(request)
 
 
 @router.get("/notes/{note_id}/share")
@@ -132,16 +156,30 @@ def get_note_share_endpoint(note_id: str, user: dict = Depends(get_current_user)
 @router.post("/notes/{note_id}/share")
 def create_note_share_endpoint(
     note_id: str,
-    days: int | None = Depends(expiry_body),
+    options: tuple[int | None, bool] = Depends(expiry_body),
     user: dict = Depends(require_paid),
 ) -> dict[str, Any]:
-    """Mint (or return the active link). Body `{expiresInDays: null | 7 | 30 | 90}`,
+    """Mint (or return the active link). Body `{expiresInDays: null | 7 | 30 | 90, hidePnl?: bool}`,
     optional. A foreign, missing, trashed or archived note answers the same 404."""
     public.enforce_rate(MINT_RATE, SCOPE_MINT, f"member:{user['id']}", MINT_RATE_SENTENCE, public=False)
-    share = note_shares.create_share(user["id"], note_id, expires_in_days=days)
+    days, hide_pnl = options
+    share = note_shares.create_share(user["id"], note_id, expires_in_days=days, hide_pnl=hide_pnl)
     if share is None:
         raise public.not_found()
     return {"share": share}
+
+
+@router.get("/notes/{note_id}/share/preview")
+def preview_note_share_endpoint(note_id: str, hide_pnl: bool = Query(default=True, alias="hidePnl"),
+                                user: dict = Depends(require_paid)) -> Any:
+    """Audit 2026-11-05, S19: "Preview: see exactly what they'll see". The public read's own payload for the
+    member's OWN note, through the same reducer, before a link exists. Owner only; a foreign, missing, trashed or
+    archived note is the same 404. Rate-limited per member (one reduction of the note each)."""
+    public.enforce_rate(PREVIEW_RATE, SCOPE_PREVIEW, f"member:{user['id']}", PREVIEW_RATE_SENTENCE, public=False)
+    payload = note_shares.preview_share(user["id"], note_id, hide_pnl=hide_pnl)
+    if payload is None:
+        raise public.not_found()
+    return public.public_json({"note": payload})
 
 
 @router.delete("/notes/{note_id}/share")

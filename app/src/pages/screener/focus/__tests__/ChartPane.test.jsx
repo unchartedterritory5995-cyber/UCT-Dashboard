@@ -4,6 +4,7 @@ import { vi, expect, test } from 'vitest'
 // are about what the pane hands it (the stock, the pivot line) and the pane's own header and actions.
 vi.mock('../ScreenerChartWidget', () => ({ default: props => <div data-testid="stockchart" data-sym={props.sym} data-phone={props.phone ? '1' : undefined} data-lines={JSON.stringify(props.priceLines || [])} /> }))
 import ChartPane from '../ChartPane'
+import { volumeFact, plainFact, rsLineFact, rsRatingFact } from '../plainWords'
 
 const row = { ticker: 'MU', company: 'Micron Technology', industry: 'Semiconductors', price: 956.12, chg_pct_1d: -3.7, base_render: 'Flat Base', vol_ratio: 0.8, adr_pct: 3.1 }
 const why = { items: [{ kind: 'check', label: 'RS Rank ≥ 80', value: '94' }, { kind: 'pool', label: 'In UCT Universe' }], more: 0 }
@@ -150,4 +151,38 @@ test('the theme the stock belongs to is named beside its setup, and nothing is s
   expect(screen.getByTestId('pane-theme')).toHaveAttribute('title', 'Theme: Memory & Storage')
   rerender(<ChartPane row={row} why={why} theme={null} onFlag={vi.fn()} onWatch={vi.fn()} />)
   expect(screen.queryByTestId('pane-theme')).toBeNull()
+})
+
+// -- 2a-08b: the RS facts on the fact line --
+// The fact line is one span, its facts joined by " · ": a row's facts are its pieces, in order.
+const factPieces = () => document.querySelector('[data-testid="focus-chart-pane"] [class*="paneFacts"]:not([aria-hidden])').textContent.split(' · ')
+const RS_NULL = { rs_rating_ibd: null, rs_rating_chg_5: null, rs_rating_chg_20: null, rs_new_high: null, rs_nh_before_price: null,
+  rs_nh_red_day: null, rs_line_above_ma: null, rs_nh_bars_ago: null, mansfield: null }
+const RS_ROW = { ...row, vol_ratio: 0.6, adr_pct: 4.1, rs_rating_ibd: 94, rs_rating_chg_5: 6, rs_rating_chg_20: 11,
+  rs_new_high: 1, rs_nh_before_price: 1, rs_nh_red_day: 0, rs_line_above_ma: 1, rs_nh_bars_ago: 0, mansfield: 12.4 }
+
+test('2a-08b: a row with RS columns reads the RS line and the RS rating after volume and ADR, in the words plainWords makes', () => {
+  render(<ChartPane row={RS_ROW} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  // the sentences are the ones plainWords makes for this very row, never retyped here
+  const line = rsLineFact(RS_ROW), rating = rsRatingFact(RS_ROW)
+  expect(line).toBe('RS line at a 52-week high while price is not')
+  expect(rating).toBe('RS rating 94 of 99, up 6 in a week')
+  expect(factPieces()).toEqual([volumeFact(RS_ROW), plainFact('adr_pct', RS_ROW.adr_pct), line, rating])
+  expect(screen.getByText(`Volume 0.6× avg · Avg daily range 4.1% · ${line} · ${rating}`)).toBeInTheDocument()
+  // said once each: no second RS-line flag, no month delta, no Mansfield on the fact line
+  expect(screen.queryByText(/on a red day|in a month|Mansfield/)).toBeNull()
+})
+test('2a-08b: a row with null RS columns renders the fact line exactly as before (two facts, no RS sentence)', () => {
+  render(<ChartPane row={{ ...row, vol_ratio: 0.6, adr_pct: 4.1, ...RS_NULL }} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  // the before count: the plain-words test above pins "Volume 0.6× avg · Avg daily range 4.1%", two facts
+  expect(factPieces()).toEqual(['Volume 0.6× avg', 'Avg daily range 4.1%'])
+  expect(factPieces()).toHaveLength(2)
+  expect(screen.getByText('Volume 0.6× avg · Avg daily range 4.1%')).toBeInTheDocument()
+  expect(screen.queryByText(/RS line|RS rating/)).toBeNull()
+})
+test('2a-08b: a rating without an RS-line flag, and an RS-line flag without a rating, each add one fact only', () => {
+  const { rerender } = render(<ChartPane row={{ ...row, vol_ratio: 0.6, adr_pct: 4.1, ...RS_NULL, rs_rating_ibd: 94 }} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(factPieces()).toEqual(['Volume 0.6× avg', 'Avg daily range 4.1%', 'RS rating 94 of 99'])
+  rerender(<ChartPane row={{ ...row, vol_ratio: 0.6, adr_pct: 4.1, ...RS_NULL, rs_line_above_ma: 0 }} why={why} onFlag={vi.fn()} onWatch={vi.fn()} />)
+  expect(factPieces()).toEqual(['Volume 0.6× avg', 'Avg daily range 4.1%', 'RS line below its 21-day avg'])
 })

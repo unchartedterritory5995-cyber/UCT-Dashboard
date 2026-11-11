@@ -1,0 +1,50 @@
+{
+  "id": "29-root-relative-and-file-links",
+  "input_markdown": "# Root-relative and file links\n\n[[/Plan]] from a sub-folder opens the root note, where [[Plan]] opens the one beside.\n\n[[/Notes/Plan|by path]] names the folder.\n\n[[/Ghost]] is not in the vault.\n\nsee [the **q3** deck](files/deck.pdf) from the vault root, and [deck.pdf](files/deck.pdf) by its name.\n",
+  "self_path": "Notes/a.md",
+  "server": {
+    "callouts": [],
+    "files": [
+      {
+        "label": "the q3 deck",
+        "name": "deck.pdf"
+      },
+      {
+        "label": null,
+        "name": "deck.pdf"
+      }
+    ],
+    "highlights": [],
+    "images": [],
+    "links": [
+      {
+        "target": "Plan.md",
+        "text": "/Plan"
+      },
+      {
+        "target": "Notes/Plan.md",
+        "text": "Plan"
+      },
+      {
+        "target": "Notes/Plan.md",
+        "text": "by path"
+      }
+    ],
+    "notices": [],
+    "pending": [
+      {
+        "key": "name:obsidian:vault-1//ghost|notes",
+        "text": "/Ghost"
+      }
+    ],
+    "task_checked": [],
+    "text": "Root-relative and file links /Plan from a sub-folder opens the root note, where Plan opens the one beside. by path names the folder. /Ghost is not in the vault. see  [file: deck.pdf]  from the vault root, and  [file: deck.pdf]  by its name."
+  },
+  "vault_id": "vault-1",
+  "vault_paths": [
+    "Notes/a.md",
+    "Plan.md",
+    "Notes/Plan.md",
+    "files/deck.pdf"
+  ]
+}

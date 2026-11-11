@@ -53,6 +53,9 @@ _V_FILES = re.compile(r"Test Files\s+(?:(\d+)\s+failed\D+)?(?:(\d+)\s+passed\D+)
 # parentheses; at least one count word is required, or it is not a totals line.
 _V_TESTS_LINE = re.compile(r"^[ \t]*Tests[ \t]+(?P<body>[^\n(]*?)\((?P<total>\d+)\)[ \t]*$", re.M)
 _V_COUNT_WORDS = ("failed", "passed", "skipped", "todo")
+#: The `Test Files` line, read the same way: any-order counts, total in parentheses. Carried
+#: so a SHARDED run's file counts can be summed (tools/ci_aggregate.aggregate_vitest).
+_V_FILES_LINE = re.compile(r"^[ \t]*Test Files[ \t]+(?P<body>[^\n(]*?)\((?P<total>\d+)\)[ \t]*$", re.M)
 _V_DUR = re.compile(r"Duration\s+([\d.]+)s")
 _V_FAILFILE = re.compile(r"(?:FAIL|❯)\s+(\S+\.(?:test|spec)\.[jt]sx?)")
 
@@ -97,6 +100,14 @@ def summarize(suite: str, text: str) -> dict:
             out["failed"], out["passed"] = _count(body, "failed"), _count(body, "passed")
             out["skipped"] = _count(body, "skipped") + _count(body, "todo")
             out["collected"] = _i(m.group("total"))
+            out["tests_line"] = m.group(0).strip()
+        flines = [m for m in _V_FILES_LINE.finditer(text)
+                  if any(re.search(r"\d+\s+\b%s\b" % w, m.group("body")) for w in _V_COUNT_WORDS)]
+        if flines:
+            fb = flines[-1].group("body")
+            out["files_collected"] = _i(flines[-1].group("total"))
+            out["files_failed"], out["files_passed"] = _count(fb, "failed"), _count(fb, "passed")
+            out["files_skipped"] = _count(fb, "skipped") + _count(fb, "todo")
         d = _V_DUR.search(text)
         if d:
             out["wall_s"] = float(d.group(1))
@@ -175,6 +186,9 @@ def _self_check() -> int:
     show("a `todo` count no longer hides the totals line",
          (s["totals_line_found"], s["collected"], s["failed"], s["passed"], s["skipped"]),
          (True, 45832, 20, 45683, 129))
+    show("...and its Test Files line is read too (summable across shards)",
+         (s["files_collected"], s["files_failed"], s["files_passed"], s["files_skipped"]),
+         (3354, 20, 3303, 31))
     s = summarize("vitest", "      Tests  3 todo | 5 passed (8)\n   Duration  1.0s\n")
     show("count ORDER does not matter", (s["passed"], s["skipped"], s["collected"]), (5, 3, 8))
     # ⛔ CONTROL: a test NAME containing "Tests" and a parenthesised number is not a totals line.

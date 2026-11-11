@@ -20,6 +20,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fnv1a, validateCapture } from './schema.mjs'
+import { isStrategyCapture, settingsAgreement, STRATEGY_TOOL_VERSION } from './strategy_capture.mjs'
 
 function fail(msg) {
   console.error(`FAIL: ${msg}`)
@@ -63,7 +64,15 @@ function verifyFiles(paths) {
     let c
     try { c = JSON.parse(fs.readFileSync(p, 'utf8')) } catch (e) { console.error(`FAIL ${p}: ${e.message}`); bad += 1; continue }
     const v = validateCapture(c)
-    if (v.ok) console.log(`OK   ${p} — ${c.id} · ${c.symbol.pro_name || c.symbol.name} ${c.timeframe} · ${c.bars.count} bars · ${c.study.plots.length} plots`)
+    if (v.ok) {
+      console.log(`OK   ${p} — ${c.id} · ${c.symbol.pro_name || c.symbol.name} ${c.timeframe} · ${c.bars.count} bars · ${c.study.plots.length} plots`)
+      // W9-T3a: a v3 strategy capture also says whether its settings read back as declared.
+      // A disagreement is INCONCLUSIVE and is reported, never turned into a pass or a grade.
+      if (isStrategyCapture(c) && Number(c.tool && c.tool.version) >= STRATEGY_TOOL_VERSION) {
+        const a = settingsAgreement(c)
+        console.log(`SETTINGS: ${a.verdict} (${a.compared} compared, ${a.disagreements.length} disagree, ${a.unread.length} unread)${a.reason ? ` ${a.reason}` : ''}`)
+      }
+    }
     else { bad += 1; console.error(`FAIL ${p}\n  - ${v.errors.join('\n  - ')}`) }
   }
   console.log(`VERDICT: ${bad ? 'FAIL' : 'PASS'} (${paths.length - bad}/${paths.length})`)

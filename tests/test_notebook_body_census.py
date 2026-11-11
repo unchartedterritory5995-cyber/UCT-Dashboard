@@ -62,6 +62,8 @@ NO_SESSION_BY_DESIGN = {
     ("POST", "/api/j2/personal/daily/append"): "personal API bearer token",
     ("POST", "/api/j2/notes/connectors/obsidian/ingest"): "Obsidian plugin bearer token",
     ("POST", "/api/j2/notes/connectors/obsidian/redeem"): "one-time pairing code in the body",
+    ("POST", "/api/j2/notes/connectors/obsidian/attachments/check"): "Obsidian plugin bearer token",
+    ("PUT", "/api/j2/notes/connectors/obsidian/attachments/{sha256}"): "Obsidian plugin bearer token",
     ("POST", "/api/j2/capture/token"): "one-time authorisation code in the body",
     ("POST", "/api/j2/capture"): "capture token or session (its own dependency)",
     ("POST", "/api/j2/broker/webhook"): "SnapTrade signature over the body",
@@ -97,12 +99,14 @@ def test_the_census_is_not_vacuous(rows):
     by_key = {_key(r): r for r in rows}
     # one of each kind of bounded door, found where it is known to be
     upload = by_key[("POST", "/api/j2/notes/{note_id}/images")]
-    assert upload.reads[0].how == "capped" and upload.reads[0].limit_bytes == 5 * 1024 * 1024
+    # Plan A Task 8: /images reads to the media policy's 25 MB source cap (it downscales).
+    assert upload.reads[0].how == "capped" and upload.reads[0].limit_bytes == 25 * 1024 * 1024
     email = by_key[("POST", "/api/j2/inbound-email")]
     assert email.reads[0].how == "stream-loop" and email.reads[0].limit_bytes == 36 * 1024 * 1024
-    gallery = by_key[("POST", "/api/j2/template-gallery")]
-    assert gallery.reads[0].call == "read_capped_body" and gallery.gate_position == 0
-    assert gallery.session_position is not None and gallery.reads[0].position > gallery.session_position
+    # a flag-gated capped door (the gallery was the example until its gate was retired as always on, 2026-11-04)
+    tokens = by_key[("POST", "/api/j2/personal/tokens")]
+    assert tokens.reads[0].call == "read_capped_body" and tokens.gate_position == 0
+    assert tokens.session_position is not None and tokens.reads[0].position > tokens.session_position
 
 
 def test_every_route_under_the_journal_prefix_is_in_the_family(real_app):
@@ -147,6 +151,8 @@ def test_every_bounded_read_has_a_limit_the_census_can_state(rows):
     allowed = {
         # _read_bounded_body(request, _MAX_OBSIDIAN_INGEST_BYTES): 2,000,000 bytes at the call site
         "POST /api/j2/notes/connectors/obsidian/ingest  (note_sync.obsidian_ingest): request.stream() limit `limit`",
+        # _read_bounded_body(request, _MAX_ATTACHMENT_CHECK_BYTES): 512,000 bytes at the call site
+        "POST /api/j2/notes/connectors/obsidian/attachments/check  (note_sync.obsidian_attachments_check): request.stream() limit `limit`",
         # read_capped_form(request, limit + FRAMING_SLACK, ...): limit is vn.MAX_UPLOAD_BYTES (90 MiB)
         "POST /api/j2/voice-notes/jobs  (notebook_voice_notes.create_job): read_capped_form limit `limit + body_cap.FRAMING_SLACK`",
     }

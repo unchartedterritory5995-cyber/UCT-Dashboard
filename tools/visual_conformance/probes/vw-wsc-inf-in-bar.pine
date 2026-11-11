@@ -1,0 +1,16 @@
+//@version=6
+indicator("UCTPROBE_VW_WSC_INF_IN_BAR", overlay = false)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme, capture queue row I1
+// (docs/pine/capture-queue-2026-10-31-wsc-history.md section Q2). NEVER COMPILED ON TRADINGVIEW.
+// Is `1/0` (here close / 0) already `na` INSIDE the bar in Pine, or an infinity that only becomes
+// `na` when read back from history? The lane launders +-Infinity to `na` on a history read only.
+//   I1a  x > 1 ? 1 : 0   an infinity reads 1; an `na` reads 0
+//   I1b  na(x) ? 1 : 0   an `na` reads 1; an infinity reads 0
+// CHART: the row names none (the queue marks it NEEDS_CHART). Every bar carries the same answer.
+
+x = close / (close - close)
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(x > 1 ? 1 : 0, "I1a_x_gt_1")
+plot(na(x) ? 1 : 0, "I1b_na_x")

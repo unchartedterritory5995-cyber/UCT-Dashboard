@@ -15,8 +15,7 @@ import { registerBuiltins } from './builtins'
 import { SETS } from './testing/sets'
 import { captureCase } from './testing/capture'
 import { isProtected } from './protectedLayouts'
-import { groupOfAction } from './routing'
-import { NL1_CORE_GROUPS, NL1_CORE_MAX, NL1_LIMIT, NL1_BUDGET } from './nl1/selection'
+import { NL1_CORE_GROUPS, NL1_CORE_MAX, NL1_LIMIT, NL1_BUDGET, nl1GroupOf as groupOfAction } from './nl1/selection'
 import { loadMeta, loadOptions, loadSaved, _resetScreenerCache } from './capabilities/screener'
 
 registerBuiltins()

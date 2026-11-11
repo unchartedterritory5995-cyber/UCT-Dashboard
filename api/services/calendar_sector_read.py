@@ -17,6 +17,7 @@ conservative):
   - Background-generated + polled (never blocks the calendar request path).
 """
 from __future__ import annotations
+from api.services import llm_models
 
 import datetime
 import logging
@@ -32,7 +33,7 @@ _ET = ZoneInfo("America/New_York")
 
 # Inherit the catalyst Opus override on prod if set; else current Opus 4.8
 # (owner preference: Opus for synthesis, never a stale/cheaper default).
-_OPUS_MODEL = os.environ.get("CATALYST_OPUS_MODEL") or "claude-opus-4-8"
+_OPUS_MODEL = os.environ.get("CATALYST_OPUS_MODEL") or llm_models.OPUS
 _READ_TTL = 12 * 3600           # refresh ~twice a day ("per sector per day")
 _NULL_TTL = 3600                # short negative cache — retry within the hour
 _MAX_REPORTERS = 12             # grounding context cap (prompt stays cheap)
@@ -69,6 +70,7 @@ def _anthropic_client():
         api_key=api_key,
         timeout=llm_timeouts.seconds("SECTOR_READ_LLM_TIMEOUT_SECS",
                                      llm_timeouts.REQUEST_PATH_LONG),
+        max_retries=0,
     )
 
 
@@ -170,10 +172,14 @@ def _generate(sector: str, week: str, reporters: list[dict]) -> None:
         client = _anthropic_client()
         resp = client.messages.create(
             model=_OPUS_MODEL,
-            max_tokens=120,
+            # 120 was the cap while the model thinks by default (Opus 5 / 5.5): the thinking
+            # spent the budget and the sentence never came. Billing is per token generated,
+            # so a roomy cap costs nothing; low effort keeps the thinking short.
+            max_tokens=1500,
+            output_config={"effort": "low"},
             messages=[{"role": "user", "content": prompt}],
         )
-        line = (resp.content[0].text or "").strip().strip('"').strip()
+        line = llm_models.text_of(resp).strip().strip('"').strip()
         guard.record(
             market_date=market_date,
             ticker=f"sector:{sector}",

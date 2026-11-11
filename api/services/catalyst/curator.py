@@ -458,7 +458,14 @@ def curate(scored: list[dict], *, market_date: str) -> list[dict]:
 
     try:
         prompt = _build_prompt(pool)
-        text, in_tok, out_tok, stop_reason = _call(CURATOR_MODEL, prompt)
+        try:
+            text, in_tok, out_tok, stop_reason = _call(CURATOR_MODEL, prompt)
+        except Exception as e:
+            cost_guard.charge_unreported_call(
+                market_date, "_CURATOR", CURATOR_MODEL,
+                {"system": SYSTEM_PROMPT, "messages": [{"role": "user", "content": prompt}],
+                 "max_tokens": _intenv("CATALYST_CURATOR_MAX_TOKENS", 3000)}, e)
+            raise
         try:
             cost_guard.record(market_date, "_CURATOR", CURATOR_MODEL, in_tok, out_tok)
         except Exception:

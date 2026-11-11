@@ -759,16 +759,23 @@ describe('4 · end to end on REAL vendor bars, through the member door', () => {
       // palette-by-version-rddt-1d-2026-09-27.json). The synthetic state said `#FF5252`
       // — v5's red — while the engine's palette was version-blind.
       const plots = [{ id: 'plot_0', type: 'line', title: 'sma20' }]
-      const agree = captureFrom({ source: SRC, rows, plots, values, extra: { study: { title: 'x', plots, styleState: { plot_0: { color: '#F23645', transparency: 0 } } } } })
+      // ⭐ DIV-1 (2026-11-09): these are real AMEX:SPY 1D bars, so the harness now replays
+      // SPY's proved history before them — but the SMA observation's own values are `na` on
+      // its first 19 bars (TradingView computed THAT observation from this window). The
+      // synthetic capture states so (`warmup`), as the observation does; the colour, which
+      // is what this rail grades, is compared on every valued bar either way.
+      const warmup = { bars: 19, source: 'the SMA observation is na on its first 19 bars' }
+      const agree = captureFrom({ source: SRC, rows, plots, values, extra: { warmup, study: { title: 'x', plots, styleState: { plot_0: { color: '#F23645', transparency: 0 } } } } })
       const g1 = gradeCapture(agree).verdict
       expect(g1.verdict, JSON.stringify(g1.plots.map((p) => [p.verdict, p.reason, p.color]))).toBe('MATCH')
       expect(g1.plots[0].color).toBe('compared')
       expect(g1.plots[0].stats.colorCompared).toBeGreaterThan(1000)
 
-      const differ = captureFrom({ source: SRC, rows, plots, values, extra: { study: { title: 'x', plots, styleState: { plot_0: { color: '#2962FF', transparency: 0 } } } } })
+      const differ = captureFrom({ source: SRC, rows, plots, values, extra: { warmup, study: { title: 'x', plots, styleState: { plot_0: { color: '#2962FF', transparency: 0 } } } } })
       const g2 = gradeCapture(differ).verdict
       expect(g2.verdict).toBe('DIVERGE')
-      expect(g2.plots[0].stats.firstDivergence).toMatchObject({ kind: 'color', vendorColor: '#2962ffff', ourColor: '#f23645ff' })
+      // (the first STEADY divergence: the 19 declared warm-up bars are na on the vendor's side only)
+      expect(g2.plots[0].stats.steady.first).toMatchObject({ kind: 'color', vendorColor: '#2962ffff', ourColor: '#f23645ff' })
     })
 
     // A per-bar two-colour vendor state over the real bars: palette index 0 on

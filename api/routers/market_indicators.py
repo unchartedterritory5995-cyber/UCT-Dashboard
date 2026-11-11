@@ -24,12 +24,20 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
+from api.services.cache import cache
 from api.services.market_indicators import discovery as disc
 from api.services.market_indicators import registry as reg
 from api.services.market_indicators import series as mseries
 
 router = APIRouter()
 _log = logging.getLogger("market_indicators.router")
+
+#: The whole catalogue, shared for a minute: it is rebuilt from the registry and the publication
+#: flags, reads nothing about the caller, and every chart mount asks for it.
+#: ⛔ THIS LIVES INSIDE THE HANDLER, AFTER `require_paid` HAS RUN, AND NEVER AS `s-maxage`. An edge
+#: cache would replay a paid answer to an anonymous caller.
+_CATALOGUE_CACHE_KEY = "chart_catalogue_market_indicators"
+_CATALOGUE_TTL = 60
 
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
@@ -62,8 +70,12 @@ def get_catalogue(_user: dict = Depends(require_paid)):
     discovery panel renders and `/api/bars` refuses them, so no client change can make
     one reachable.
     """
+    cached = cache.get(_CATALOGUE_CACHE_KEY)
+    if cached is not None:
+        return cached
     cat = disc.catalogue()
     cat["dormant"] = [disc.indicator_row(s) for s in reg.dormant_rows()]
+    cache.set(_CATALOGUE_CACHE_KEY, cat, ttl=_CATALOGUE_TTL)
     return cat
 
 

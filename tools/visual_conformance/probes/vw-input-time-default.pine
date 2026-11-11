@@ -1,0 +1,24 @@
+//@version=6
+indicator("UCTPROBE_VW_INPUT_TIME_DEFAULT", overlay = false)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme, capture queue row Q-D1
+// (docs/pine/capture-queue-2026-10-31-wsd-input-kinds.md). NEVER COMPILED ON TRADINGVIEW.
+// A date string with NO zone as an `input.time` default: is it read as GMT+0 (the reference's
+// sentence) or in the exchange's zone? Each input is read twice: the instant itself (UNIX ms, T0N)
+// and the first bar plotting 1 (D0N).
+//   T01 / D01  timestamp("20 Feb 2020")
+//   T02 / D02  timestamp("20 Feb 2020 15:30")
+//   T03 / D03  timestamp("2020-02-20")
+// CAPTURE: AMEX:SPY 1D and AMEX:SPY 15, inputs at defaults.
+
+t1 = input.time(timestamp("20 Feb 2020"), "t1")
+t2 = input.time(timestamp("20 Feb 2020 15:30"), "t2")
+t3 = input.time(timestamp("2020-02-20"), "t3")
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(t1, "T01_t1_ms")
+plot(t2, "T02_t2_ms")
+plot(t3, "T03_t3_ms")
+plot(time >= t1 ? 1 : 0, "D01_time_ge_t1")
+plot(time >= t2 ? 1 : 0, "D02_time_ge_t2")
+plot(time >= t3 ? 1 : 0, "D03_time_ge_t3")

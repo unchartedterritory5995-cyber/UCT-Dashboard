@@ -7,10 +7,10 @@
     "get_bars_before",
     "get_bars_since"
   ],
-  "modules_scanned": 1505,
+  "modules_scanned": 2266,
   "summary": {
     "named_access_count": 2,
-    "positional_count": 32,
+    "positional_count": 52,
     "named_access": [
       "api/services/canonical/resolver.py",
       "api/services/ticker_returns.py"
@@ -19,31 +19,51 @@
       "api/main.py",
       "api/routers/ai_search.py",
       "api/routers/backtest.py",
+      "api/routers/pine_strategy_backtest.py",
       "api/routers/screener_backtest.py",
       "api/routers/signature.py",
+      "api/routers/study.py",
       "api/services/adjustment_basis.py",
       "api/services/audit.py",
+      "api/services/auto_structures.py",
       "api/services/bars_fetch.py",
       "api/services/bars_split_repair.py",
       "api/services/barspack.py",
+      "api/services/deal_status.py",
       "api/services/desk_article_anchors.py",
       "api/services/discord_render/symbols.py",
       "api/services/fundamentals_pit/beta_store.py",
       "api/services/indicator_alert_evaluator.py",
+      "api/services/intraday_gap_audit.py",
       "api/services/journal_two/excursion_engine.py",
+      "api/services/journal_two/notebook_today.py",
+      "api/services/journal_two/notebook_widgets.py",
+      "api/services/journal_two/passed_setups.py",
+      "api/services/journal_two/setups_board.py",
+      "api/services/journal_two/tech_fingerprint.py",
+      "api/services/journal_two/trader_blocks.py",
+      "api/services/journal_two/tweet_price.py",
+      "api/services/market_intel/price_reads.py",
       "api/services/pattern_engine/memory.py",
       "api/services/pattern_vision/modelbook_examples.py",
       "api/services/pattern_vision/orchestrator.py",
       "api/services/research/ratings_universe.py",
+      "api/services/rs_evidence/job.py",
       "api/services/scan_gainers.py",
       "api/services/scan_ipo.py",
       "api/services/scan_volume.py",
+      "api/services/screener/rs_history.py",
       "api/services/screener/scan_evaluator.py",
       "api/services/screener/snapshot_builder.py",
+      "api/services/screener/sparks.py",
+      "api/services/setup_tags.py",
       "api/services/single_stock_etfs.py",
       "api/services/theme_engine/comovement.py",
       "api/services/theme_index.py",
+      "api/services/uct_agent/marketdata/bars_daily.py",
       "api/services/voice_deep_data_tools.py",
+      "api/services/wisdom/archive/levels.py",
+      "api/services/wisdom/archive/setup_map.py",
       "api/services/wisdom/core/stt.py",
       "api/services/wisdom/evals/bars_asof.py",
       "api/services/wisdom/publish/level_alerts.py",
@@ -56,23 +76,23 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 429
+          "line": 547
         },
         {
           "function": "get_bars",
-          "line": 602
+          "line": 836
         },
         {
           "function": "get_bars",
-          "line": 620
+          "line": 854
         },
         {
           "function": "get_bars",
-          "line": 4532
+          "line": 5815
         }
       ],
       "evidence": {
-        "line": 436,
+        "line": 554,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -82,11 +102,11 @@
       "calls": [
         {
           "function": "get_bars_before",
-          "line": 1489
+          "line": 1428
         }
       ],
       "evidence": {
-        "line": 859,
+        "line": 787,
         "pattern": "int-subscript",
         "index": 1
       }
@@ -105,18 +125,32 @@
         "index": 0
       }
     },
+    "api/routers/pine_strategy_backtest.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 142
+        }
+      ],
+      "evidence": {
+        "line": 146,
+        "pattern": "known-positional-delegate",
+        "delegate": "_fmt_sqlite_bars"
+      }
+    },
     "api/routers/screener_backtest.py": {
       "classification": "positional",
       "calls": [
         {
           "function": "get_bars_before",
-          "line": 680
+          "line": 889
         }
       ],
       "evidence": {
-        "line": 697,
-        "pattern": "known-positional-delegate",
-        "delegate": "_fmt_sqlite_bars"
+        "line": 566,
+        "pattern": "int-subscript",
+        "index": 4
       }
     },
     "api/routers/signature.py": {
@@ -124,15 +158,37 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 241
+          "line": 242
         },
         {
           "function": "get_bars",
-          "line": 828
+          "line": 833
         }
       ],
       "evidence": {
-        "line": 245,
+        "line": 246,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/routers/study.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 743
+        },
+        {
+          "function": "get_bars_before",
+          "line": 776
+        },
+        {
+          "function": "get_bars_before",
+          "line": 785
+        }
+      ],
+      "evidence": {
+        "line": 746,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -142,11 +198,15 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 86
+          "line": 99
+        },
+        {
+          "function": "get_bars",
+          "line": 151
         }
       ],
       "evidence": {
-        "line": 84,
+        "line": 97,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -165,80 +225,102 @@
         "index": 0
       }
     },
+    "api/services/auto_structures.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 370
+        },
+        {
+          "function": "get_bars",
+          "line": 2395
+        },
+        {
+          "function": "get_bars",
+          "line": 2679
+        }
+      ],
+      "evidence": {
+        "line": 371,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
     "api/services/bars_fetch.py": {
       "classification": "positional",
       "calls": [
         {
           "function": "get_bars_since",
-          "line": 223
+          "line": 293
         },
         {
           "function": "get_bars",
-          "line": 924
+          "line": 1214
         },
         {
           "function": "get_bars",
-          "line": 1346
+          "line": 1728
         },
         {
           "function": "get_bars_since",
-          "line": 1678
+          "line": 2068
         },
         {
           "function": "get_bars",
-          "line": 2150
+          "line": 2543
         },
         {
           "function": "get_bars_before",
-          "line": 2228
+          "line": 2621
         },
         {
           "function": "get_bars_before",
-          "line": 2247
+          "line": 2640
         },
         {
           "function": "get_bars_before",
-          "line": 2307
+          "line": 2700
         },
         {
           "function": "get_bars_before",
-          "line": 2371
+          "line": 2764
         },
         {
           "function": "get_bars_since",
-          "line": 2507
+          "line": 2900
         },
         {
           "function": "get_bars",
-          "line": 2511
+          "line": 2904
         },
         {
           "function": "get_bars",
-          "line": 3021
+          "line": 3490
         },
         {
           "function": "get_bars",
-          "line": 3068
+          "line": 3544
         },
         {
           "function": "get_bars",
-          "line": 3155
+          "line": 3644
         },
         {
           "function": "get_bars",
-          "line": 3220
+          "line": 3715
         },
         {
           "function": "get_bars",
-          "line": 3314
+          "line": 3815
         },
         {
           "function": "get_bars",
-          "line": 3452
+          "line": 3953
         }
       ],
       "evidence": {
-        "line": 223,
+        "line": 293,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -276,16 +358,30 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 294
+          "line": 338
         },
         {
           "function": "get_bars_before",
-          "line": 299
+          "line": 343
         }
       ],
       "evidence": {
-        "line": 286,
+        "line": 330,
         "pattern": "row_position"
+      }
+    },
+    "api/services/deal_status.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 609
+        }
+      ],
+      "evidence": {
+        "line": 496,
+        "pattern": "int-subscript",
+        "index": 0
       }
     },
     "api/services/desk_article_anchors.py": {
@@ -335,11 +431,29 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 1104
+          "line": 1442
         }
       ],
       "evidence": {
-        "line": 838,
+        "line": 1070,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/intraday_gap_audit.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_since",
+          "line": 106
+        },
+        {
+          "function": "get_bars_since",
+          "line": 171
+        }
+      ],
+      "evidence": {
+        "line": 103,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -358,18 +472,158 @@
         "index": 4
       }
     },
+    "api/services/journal_two/notebook_today.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 186
+        }
+      ],
+      "evidence": {
+        "line": 108,
+        "pattern": "int-subscript",
+        "index": 1
+      }
+    },
+    "api/services/journal_two/notebook_widgets.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 1152
+        },
+        {
+          "function": "get_bars",
+          "line": 1406
+        },
+        {
+          "function": "get_bars_before",
+          "line": 1590
+        },
+        {
+          "function": "get_bars",
+          "line": 2034
+        }
+      ],
+      "evidence": {
+        "line": 190,
+        "pattern": "int-subscript",
+        "index": 1
+      }
+    },
+    "api/services/journal_two/passed_setups.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 207
+        },
+        {
+          "function": "get_bars_since",
+          "line": 214
+        }
+      ],
+      "evidence": {
+        "line": 190,
+        "pattern": "int-subscript",
+        "index": 1
+      }
+    },
+    "api/services/journal_two/setups_board.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 171
+        }
+      ],
+      "evidence": {
+        "line": 175,
+        "pattern": "int-subscript",
+        "index": 4
+      }
+    },
+    "api/services/journal_two/tech_fingerprint.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 208
+        },
+        {
+          "function": "get_bars_before",
+          "line": 220
+        }
+      ],
+      "evidence": {
+        "line": 212,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/journal_two/trader_blocks.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 331
+        }
+      ],
+      "evidence": {
+        "line": 280,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/journal_two/tweet_price.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 198
+        },
+        {
+          "function": "get_bars_before",
+          "line": 217
+        },
+        {
+          "function": "get_bars_before",
+          "line": 246
+        }
+      ],
+      "evidence": {
+        "line": 127,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/market_intel/price_reads.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 31
+        }
+      ],
+      "evidence": {
+        "line": 32,
+        "pattern": "known-positional-delegate",
+        "delegate": "_fmt_sqlite_bars"
+      }
+    },
     "api/services/pattern_engine/memory.py": {
       "classification": "positional",
       "calls": [
         {
           "function": "get_bars_since",
-          "line": 328
+          "line": 356
         }
       ],
       "evidence": {
-        "line": 346,
-        "pattern": "assign-unpack",
-        "size": 6
+        "line": 234,
+        "pattern": "int-subscript",
+        "index": 0
       }
     },
     "api/services/pattern_vision/modelbook_examples.py": {
@@ -391,11 +645,11 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 53
+          "line": 67
         }
       ],
       "evidence": {
-        "line": 60,
+        "line": 74,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -412,6 +666,20 @@
         "line": 70,
         "pattern": "int-subscript",
         "index": 4
+      }
+    },
+    "api/services/rs_evidence/job.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 133
+        }
+      ],
+      "evidence": {
+        "line": 209,
+        "pattern": "for-unpack",
+        "size": 6
       }
     },
     "api/services/scan_gainers.py": {
@@ -456,16 +724,30 @@
         "index": 0
       }
     },
+    "api/services/screener/rs_history.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 517
+        }
+      ],
+      "evidence": {
+        "line": 141,
+        "pattern": "int-subscript",
+        "index": 1
+      }
+    },
     "api/services/screener/scan_evaluator.py": {
       "classification": "positional",
       "calls": [
         {
           "function": "get_bars",
-          "line": 1026
+          "line": 1063
         }
       ],
       "evidence": {
-        "line": 702,
+        "line": 708,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -475,15 +757,39 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 591
-        },
-        {
-          "function": "get_bars",
-          "line": 618
+          "line": 818
         }
       ],
       "evidence": {
-        "line": 595,
+        "line": 822,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/screener/sparks.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 30
+        }
+      ],
+      "evidence": {
+        "line": 34,
+        "pattern": "int-subscript",
+        "index": 4
+      }
+    },
+    "api/services/setup_tags.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 291
+        }
+      ],
+      "evidence": {
+        "line": 219,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -547,6 +853,20 @@
         "pattern": "row_position"
       }
     },
+    "api/services/uct_agent/marketdata/bars_daily.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 121
+        }
+      ],
+      "evidence": {
+        "line": 123,
+        "pattern": "known-positional-delegate",
+        "delegate": "_fmt_sqlite_bars"
+      }
+    },
     "api/services/voice_deep_data_tools.py": {
       "classification": "positional",
       "calls": [
@@ -557,6 +877,34 @@
       ],
       "evidence": {
         "line": 90,
+        "pattern": "int-subscript",
+        "index": 4
+      }
+    },
+    "api/services/wisdom/archive/levels.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 178
+        }
+      ],
+      "evidence": {
+        "line": 132,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/wisdom/archive/setup_map.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 77
+        }
+      ],
+      "evidence": {
+        "line": 78,
         "pattern": "int-subscript",
         "index": 4
       }
@@ -602,7 +950,7 @@
         }
       ],
       "evidence": {
-        "line": 119,
+        "line": 156,
         "pattern": "int-subscript",
         "index": 0
       }

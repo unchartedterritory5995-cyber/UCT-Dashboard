@@ -85,6 +85,7 @@ const EXPANSION_ARGS = Object.freeze({
   linreg: ['source', 'length', 'offset'], correlation: ['source', 'source', 'length'],
   vwma: ['source', 'length'], roc: ['source', 'length'], mom: ['source', 'length'],
   kcMiddle: ['source', 'length'], kcUpper: ['source', 'length', 'multiplier'], kcLower: ['source', 'length', 'multiplier'],
+  bbMiddle: ['source', 'length'], bbUpper: ['source', 'length', 'multiplier'], bbLower: ['source', 'length', 'multiplier'],
 })
 
 function roleOf(parent, index) {

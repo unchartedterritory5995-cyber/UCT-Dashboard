@@ -79,6 +79,7 @@ def test_BUG_a_model_requested_search_for_a_breadth_lookup_is_dropped(searched):
     assert out["usage"]["breadth_research_blocked"] is True
 
 
+@pytest.mark.usefixtures("routed_schema")
 def test_BUG_the_planned_lookup_runs_as_before(searched):
     m = ScriptedModel()
     m.queue = [env("apply", [NASDAQ_OP])]

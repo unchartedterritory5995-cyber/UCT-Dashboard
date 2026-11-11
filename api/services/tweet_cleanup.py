@@ -60,6 +60,13 @@ def run_cleanup() -> int:
     deleted = tweet_store.delete_tweets_older_than(days=days)
     logger.info("[tweet_cleanup] deleted %d tweets older than %d days", deleted, days)
 
+    # The shadow log holds ids + timestamps only (no tweet text), but it is still
+    # a record of vendor content; it ages out on the same retention window.
+    try:
+        tweet_store.delete_shadow_older_than(days=days)
+    except Exception:
+        logger.exception("[tweet_cleanup] shadow log prune failed")
+
     # PACKET-S CP5 (RG-21 §1e): redact stale vendor text out of
     # catalysts.raw_signals using the SAME TWEET_RETENTION_DAYS window, so the
     # tweet's own table and its echo inside a catalyst row cannot drift apart

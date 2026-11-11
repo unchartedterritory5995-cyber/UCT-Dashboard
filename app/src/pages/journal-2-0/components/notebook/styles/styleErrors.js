@@ -5,7 +5,7 @@
 // Any other status-less error is a bug on our side: worded as such, never blamed on the member's wifi.
 // ⛔ friendlyError is PURE (it runs during render). Logging a bug is reportError's job, called from the catch
 // that caught it (or once from an effect), never from a render.
-export const OFFLINE_SENTENCE = "You're offline. Changes to styles need a connection."
+export const OFFLINE_SENTENCE = "You're offline. Changes to templates need a connection."
 export const SERVER_SIDE_SENTENCE = 'Something went wrong on our side. Try again.'
 
 const NETWORK_WORDS = /failed to fetch|networkerror|network request failed|load failed|fetch failed/i

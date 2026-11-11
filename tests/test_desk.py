@@ -384,3 +384,110 @@ def test_feed_attaches_media(tweets):
                          "raw_json": '{"x":"https://pbs.twimg.com/media/PIC9.jpg"}'}, [])
     feed = tweets.feed(hours=24, limit=10, official_only=True)
     assert feed[0]["media"] and "PIC9" in feed[0]["media"][0]
+
+
+# -- archive walk ----------------------------------------------------------------
+# Substack replaced offset pagination with an opaque cursor: `offset` is now a
+# 400, the body is {"posts": [...], "nextCursor": "..."}, and the last page has
+# no cursor. These cursors are the real base64 shape, trailing `=` included.
+class _Resp:
+    def __init__(self, payload, status=200):
+        self._payload, self.status_code = payload, status
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise RuntimeError(f"HTTP {self.status_code}")
+
+    def json(self):
+        return self._payload
+
+
+def _archive_item(n):
+    return {"canonical_url": f"https://x.substack.com/p/post-{n}", "title": f"Post {n}",
+            "post_date": "2026-11-08T17:42:39.492Z"}
+
+
+def _script_archive(monkeypatch, pages):
+    urls = []
+    remaining = iter(pages)
+
+    def fake_get(url, **_kw):
+        urls.append(url)
+        return next(remaining)
+
+    monkeypatch.setattr(substack_poller.requests, "get", fake_get)
+    return urls
+
+
+FEED = "https://x.substack.com/feed"
+
+
+def test_archive_walk_follows_the_cursor_to_the_last_page(monkeypatch):
+    urls = _script_archive(monkeypatch, [
+        _Resp({"posts": [_archive_item(1)], "nextCursor": "eyJhIjoxfQ=="}),
+        _Resp({"posts": [_archive_item(2)]}),
+    ])
+    posts = substack_poller.fetch_archive(FEED)
+    assert [p["title"] for p in posts] == ["Post 1", "Post 2"]
+    assert len(urls) == 2
+
+
+def test_archive_walk_never_sends_offset(monkeypatch):
+    urls = _script_archive(monkeypatch, [
+        _Resp({"posts": [_archive_item(1)], "nextCursor": "abc"}),
+        _Resp({"posts": [_archive_item(2)]}),
+    ])
+    substack_poller.fetch_archive(FEED)
+    assert not any("offset" in u for u in urls)
+
+
+def test_archive_walk_first_request_has_no_cursor(monkeypatch):
+    urls = _script_archive(monkeypatch, [_Resp({"posts": [_archive_item(1)]})])
+    substack_poller.fetch_archive(FEED)
+    assert "cursor" not in urls[0]
+
+
+def test_archive_walk_url_encodes_the_cursor(monkeypatch):
+    urls = _script_archive(monkeypatch, [
+        _Resp({"posts": [_archive_item(1)], "nextCursor": "eyJhIjoxfQ=="}),
+        _Resp({"posts": [_archive_item(2)]}),
+    ])
+    substack_poller.fetch_archive(FEED)
+    assert "cursor=eyJhIjoxfQ%3D%3D" in urls[1]
+
+
+def test_a_short_page_with_a_cursor_does_not_end_the_walk(monkeypatch):
+    urls = _script_archive(monkeypatch, [
+        _Resp({"posts": [_archive_item(1)], "nextCursor": "more"}),
+        _Resp({"posts": [_archive_item(2)], "nextCursor": None}),
+    ])
+    assert len(substack_poller.fetch_archive(FEED)) == 2 and len(urls) == 2
+
+
+def test_a_repeated_cursor_cannot_loop_forever(monkeypatch):
+    urls = _script_archive(monkeypatch, [
+        _Resp({"posts": [_archive_item(1)], "nextCursor": "same"}),
+        _Resp({"posts": [_archive_item(2)], "nextCursor": "same"}),
+    ])
+    substack_poller.fetch_archive(FEED)
+    assert len(urls) == 2
+
+
+def test_archive_walk_respects_max_posts(monkeypatch):
+    urls = _script_archive(monkeypatch, [
+        _Resp({"posts": [_archive_item(1), _archive_item(2)], "nextCursor": "more"}),
+    ])
+    assert len(substack_poller.fetch_archive(FEED, max_posts=2)) == 2 and len(urls) == 1
+
+
+@pytest.mark.parametrize("payload", [["a", "list"], {"errors": []}, None])
+def test_an_unrecognised_archive_shape_raises_so_rss_can_take_over(monkeypatch, payload):
+    _script_archive(monkeypatch, [_Resp(payload)])
+    with pytest.raises(ValueError):
+        substack_poller.fetch_archive(FEED)
+
+
+def test_a_rejected_archive_request_raises(monkeypatch):
+    _script_archive(monkeypatch, [_Resp({"errors": [{"param": "offset"}]}, status=400)])
+    with pytest.raises(RuntimeError):
+        substack_poller.fetch_archive(FEED)

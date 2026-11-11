@@ -7,6 +7,7 @@ import { planOps, collectTargets, prepareOps } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry } from './runtime'
 import { planChartGrid } from './chartGrid'
+import { multiChartPlan } from './multiChart'
 import { boardProblems } from '../pages/charts/placement/arrange'
 import { makeBoard } from './__fixtures__/board'
 
@@ -124,6 +125,88 @@ describe('planChartGrid (pure)', () => {
   it('the workspace limit is said with the numbers', () => {
     const many = Array.from({ length: 15 }, (_, i) => ({ id: `w${i}`, type: 'news', x: 0, y: 0, w: 1, h: 1 }))
     const g = planChartGrid({ board: [...many, { id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20 }], charts, symbols: ['A1', 'B1', 'C1'], cols: 24, rows: 20, minOf, maxWidgets: 16 })
-    expect(g.reason).toMatch(/holds 16 widgets and has room for 0 more/)
+    expect(g.reason).toMatch(/A board holds at most 16 widgets, and this one would hold \d+\. Close a widget before adding another\./)
+  })
+})
+// AUTOTEST chart-grid-01 — "I want SPY, QQQ, NVDA and TSLA side by side, four equal charts" was refused with no model call:
+// four columns of a chart beside a Watchlist are under a chart's minimum width. A line of charts is a layout, not the request.
+describe('chartGrid.set — a line of charts that cannot hold them becomes the even grid, and says so', () => {
+  // the product's own minimum (widgets/registry: chart minW 6, minH 6); the fixture board's default is smaller
+  const real = { minOf: () => ({ minW: 6, minH: 6 }) }
+  const beside = () => makeBoard([{ id: 'c1', type: 'chart', x: 0, y: 0, w: 18, h: 20, color: 'N' }, { id: 'wl', type: 'watchlist', x: 18, y: 0, w: 6, h: 20 }], { 'N:c1': 'AAPL' }, real)
+  const whole = () => makeBoard([{ id: 'c1', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'A' }], { A: 'AAPL' }, real)
+  const FOUR = ['SPY', 'QQQ', 'NVDA', 'TSLA']
+
+  it('four "side by side" beside a Watchlist: a 2×2 in the charts\' area, the receipt says why, one Undo restores', async () => {
+    const b = beside()
+    const before = JSON.stringify(b.state.widgets)
+    const { p, env } = await plan(b, [grid(FOUR, null, 'columns')])
+    expect(p.ok).toBe(true)
+    expect(p.lines[0]).toBe('Set up four charts for SPY, QQQ, NVDA and TSLA in a 2×2 grid, because four side by side would be too narrow (1 reused, 3 new)')
+    const res = await commitPlan(b.host, p, { env })
+    expect(res.ok).toBe(true)
+    expect(cells(b)).toEqual([[0, 0, 9, 10], [9, 0, 9, 10], [0, 10, 9, 10], [9, 10, 9, 10]])
+    expect(b.state.widgets.find(w => w.id === 'wl')).toMatchObject({ x: 18, y: 0, w: 6, h: 20 })
+    expect((await undoEntry(b.host, res.undo)).ok).toBe(true)
+    expect(JSON.stringify(b.state.widgets)).toBe(before)
+  })
+  it('four "stacked" on a board too short for four rows: the same, in the words of a stack', async () => {
+    const b = whole()
+    const { p } = await plan(b, [grid(FOUR, null, 'rows')])
+    expect(p.ok).toBe(true)
+    expect(p.lines[0]).toMatch(/in a 2×2 grid, because four stacked would be too short/)
+  })
+  it('five that cannot share a row: three above two, on the board\'s even grid', async () => {
+    const b = whole()
+    const { p, env } = await plan(b, [grid(['SPY', 'QQQ', 'NVDA', 'TSLA', 'AMD'], null, 'columns')])
+    expect(p.ok).toBe(true)
+    expect(p.lines[0]).toMatch(/because five side by side would be too narrow/)
+    expect((await commitPlan(b.host, p, { env })).ok).toBe(true)
+    expect(charts(b)).toHaveLength(5)
+    expect(boardProblems(b.state.widgets, 24, 20)).toEqual([])
+  })
+  it('NEGATIVE: a line that fits stays a line, with no explanation', async () => {
+    for (const [symbols, layout, word] of [[['SPY', 'QQQ', 'NVDA'], 'columns', 'side by side'], [['SPY', 'QQQ'], 'columns', 'side by side'], [['SPY', 'QQQ', 'NVDA'], 'rows', 'stacked']]) {
+      const { p } = await plan(beside(), [grid(symbols, null, layout)])
+      expect(p.ok).toBe(true)
+      expect(p.lines[0]).toContain(word)
+      expect(p.lines[0]).not.toMatch(/because/)
+    }
+  })
+  it('NEGATIVE: four columns that DO fit a whole board stay four columns', async () => {
+    const { p } = await plan(whole(), [grid(FOUR, null, 'columns')])
+    expect(p.lines[0]).toContain('side by side')
+    expect(p.lines[0]).not.toMatch(/because/)
+  })
+  it('NEGATIVE: when the even grid cannot hold them either, the refusal stands and nothing is planned', async () => {
+    const tight = makeBoard([{ id: 'c1', type: 'chart', x: 0, y: 0, w: 8, h: 8, color: 'N' }, { id: 'n1', type: 'news', x: 8, y: 0, w: 16, h: 8 }, { id: 'n2', type: 'news', x: 0, y: 8, w: 24, h: 12 }], { 'N:c1': 'AAPL' }, real)
+    const { p } = await plan(tight, [grid(FOUR, null, 'columns')])
+    expect(p.ok).toBe(false)
+    expect(p.refusals[0].reason).toMatch(/There isn't room for 4 equal charts/)
+  })
+  it('NEGATIVE: an unknown ticker is refused by name, whatever the shape', async () => {
+    const { p } = await plan(beside(), [grid(['SPY', 'ZZZZ', 'NVDA', 'TSLA'], null, 'columns')])
+    expect(p.ok).toBe(false)
+    expect(p.refusals[0].reason).toContain('ZZZZ')
+  })
+  it('AUDIT D2: a bare "grid" can be the board itself, so it never outranks the shape the member asked for', () => {
+    const host = beside().host
+    const layoutOf = (t) => multiChartPlan(t, { host })?.ops?.[0]?.args?.layout
+    expect(layoutOf('put NVDA and AMD stacked on the grid')).toBe('rows')
+    expect(layoutOf('put NVDA, AMD and TSLA side by side in my grid')).toBe('columns')
+    for (const t of ['put NVDA, AMD, TSLA and SPY side by side in a grid', 'NVDA, AMD, TSLA and SPY stacked as a grid', 'NVDA, AMD, TSLA and SPY side by side in a 2x2', 'NVDA, AMD, TSLA and SPY stacked in a quad']) expect(layoutOf(t), t).toBe('grid')
+    expect(layoutOf('grid of NVDA, AMD and TSLA')).toBe('grid')
+  })
+  it('the reflow note counts every chart tiled, kept ones included', async () => {
+    const { p } = await plan(whole(), [{ ...grid(['SPY', 'QQQ', 'NVDA', 'TSLA'], null, 'columns'), args: { ...grid(['SPY', 'QQQ', 'NVDA', 'TSLA'], null, 'columns').args, new_charts: true } }])
+    expect(p.ok).toBe(true)
+    expect(p.lines[0]).toMatch(/because five side by side would be too narrow/)
+  })
+  it('the instant reader: the same sentence and its variations reach this plan; a shape stated outright wins', () => {
+    const host = beside().host
+    const layoutOf = (t) => multiChartPlan(t, { host })?.ops?.[0]?.args?.layout
+    for (const t of ['I want SPY, QQQ, NVDA and TSLA side by side, four equal charts', 'put SPY QQQ NVDA TSLA in a row']) expect(layoutOf(t), t).toBe('columns')
+    expect(multiChartPlan('SPY, QQQ, NVDA and TSLA next to each other', { host })).toBeNull()      // not read here: the model's
+    for (const t of ['SPY, QQQ, NVDA and TSLA side by side in a 2x2 grid', 'put SPY, QQQ, NVDA and TSLA in a grid, side by side']) expect(layoutOf(t), t).toBe('grid')
   })
 })

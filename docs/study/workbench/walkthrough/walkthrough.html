@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Study walkthrough</title>
+<style>
+  :root { --bg:#0b0b0b; --panel:#141414; --line:#262626; --fg:#f2efe6; --mute:#9a958a; --gold:#d9b84a; --gold-dim:#5e4f1f; --good:#1ae51a; --bad:#c41f2d; }
+  * { box-sizing:border-box }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--fg); font:15px/1.45 "Instrument Sans", system-ui, -apple-system, Segoe UI, sans-serif }
+  .wrap { display:grid; grid-template-columns: 1fr 420px; height:100vh }
+  iframe { width:100%; height:100%; border:0; background:#000 }
+  .panel { border-left:1px solid var(--line); background:var(--panel); display:flex; flex-direction:column; min-width:0 }
+  .head { padding:14px 18px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:10px }
+  .head .k { color:var(--gold); letter-spacing:.14em; font-size:11px; text-transform:uppercase }
+  .head .n { margin-left:auto; color:var(--mute); font-size:12px }
+  .body { padding:16px 18px; overflow:auto; flex:1 }
+  h1 { font-size:20px; margin:0 0 8px; text-wrap:balance }
+  .what { color:var(--fg); margin:0 0 10px }
+  .judge { color:var(--mute); margin:0 0 16px; border-left:2px solid var(--gold-dim); padding-left:10px }
+  label.l { display:block; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--mute); margin:14px 0 6px }
+  .score { display:flex; align-items:center; gap:12px }
+  .score input[type=range] { flex:1; accent-color:var(--gold) }
+  .score output { width:54px; text-align:right; font-size:26px; font-weight:700; color:var(--gold); font-variant-numeric:tabular-nums }
+  .axes { display:grid; grid-template-columns:1fr 1fr; gap:8px }
+  .axis { background:#0f0f0f; border:1px solid var(--line); border-radius:10px; padding:8px 10px }
+  .axis .t { font-size:12px; color:var(--mute); margin-bottom:6px }
+  .dots { display:flex; gap:5px }
+  .dots button { width:30px; height:30px; border-radius:8px; border:1px solid var(--line); background:#161616; color:var(--mute); cursor:pointer; font-size:12px }
+  .dots button.on { background:var(--gold); color:#111; border-color:var(--gold); font-weight:700 }
+  textarea { width:100%; min-height:110px; background:#0f0f0f; color:var(--fg); border:1px solid var(--line); border-radius:10px; padding:10px; font:inherit; resize:vertical }
+  .row { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap }
+  button.b { padding:12px 16px; border-radius:10px; border:1px solid var(--line); background:#1a1a1a; color:var(--fg); cursor:pointer; font:inherit; font-weight:600 }
+  button.b.gold { background:var(--gold); color:#111; border-color:var(--gold); flex:1 }
+  button.b:disabled { opacity:.4; cursor:default }
+  .steps { display:flex; gap:4px; padding:10px 18px 0; flex-wrap:wrap }
+  .steps button { font-size:11px; padding:5px 8px; border-radius:999px; border:1px solid var(--line); background:#111; color:var(--mute); cursor:pointer }
+  .steps button.cur { border-color:var(--gold); color:var(--gold) }
+  .steps button.done { background:var(--gold-dim); color:#f2efe6; border-color:var(--gold-dim) }
+  .saved { font-size:12px; color:var(--mute); margin-top:8px; min-height:18px }
+  .hist { border-top:1px solid var(--line); padding:12px 18px; font-size:12px; color:var(--mute); max-height:28vh; overflow:auto }
+  .hist div { margin:4px 0 }
+  .hist b { color:var(--gold) }
+  .link { color:var(--gold); font-size:12px; text-decoration:none }
+  @media (max-width: 900px) { .wrap { grid-template-columns:1fr; grid-template-rows: 48vh 1fr } .panel { border-left:0; border-top:1px solid var(--line) } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <iframe id="frame" src="about:blank" title="Study (local copy)"></iframe>
+  <aside class="panel">
+    <div class="head"><span class="k">Study walkthrough</span><span class="n" id="counter"></span></div>
+    <div class="steps" id="steps"></div>
+    <div class="body">
+      <h1 id="title"></h1>
+      <p class="what" id="what"></p>
+      <p class="judge" id="judge"></p>
+      <div class="row" style="margin-top:0">
+        <button class="b" id="reload" type="button">Reload the screen</button>
+        <a class="link" id="open" href="#" target="_blank" rel="noopener" style="align-self:center">open in its own tab</a>
+      </div>
+      <label class="l">Score out of 100</label>
+      <div class="score"><input id="score" type="range" min="0" max="100" value="2"><output id="scoreOut">2</output></div>
+      <label class="l">Quick marks, 1 (bad) to 5 (great)</label>
+      <div class="axes" id="axes"></div>
+      <label class="l">What is wrong, what would make it a 100</label>
+      <textarea id="note" placeholder="Say it the way you would say it out loud."></textarea>
+      <div class="row">
+        <button class="b" id="prev" type="button">Back</button>
+        <button class="b gold" id="save" type="button">Save and next</button>
+      </div>
+      <div class="saved" id="saved"></div>
+    </div>
+    <div class="hist" id="hist"></div>
+  </aside>
+</div>
+<script>
+const AXES = [["visual","Visual"],["structure","Structure"],["content","Content"],["teaching","Teaching"]];
+let steps = [], i = 0, marks = {}, done = new Set();
+const $ = (id) => document.getElementById(id);
+async function load() {
+  steps = await fetch('/steps.json', {cache:'no-store'}).then(r => r.json());
+  const hist = await fetch('/feedback', {cache:'no-store'}).then(r => r.json());
+  hist.forEach(h => done.add(h.step));
+  renderHist(hist);
+  const first = steps.findIndex(s => !done.has(s.id));
+  i = first < 0 ? 0 : first;
+  show();
+}
+function renderHist(hist) {
+  $('hist').innerHTML = hist.length ? '<div><b>Saved so far</b></div>' + hist.slice().reverse().map(h =>
+    `<div><b>${h.score}</b> · ${h.title || h.step} ${h.note ? '· ' + h.note.replace(/</g,'&lt;').slice(0,140) : ''}</div>`).join('') : '<div>Nothing saved yet.</div>';
+}
+function show() {
+  const s = steps[i];
+  $('title').textContent = s.title; $('what').textContent = s.what; $('judge').textContent = s.judge;
+  $('counter').textContent = (i + 1) + ' of ' + steps.length;
+  $('frame').src = s.url; $('open').href = s.url;
+  $('score').value = 2; $('scoreOut').value = 2; $('note').value = ''; marks = {};
+  $('axes').innerHTML = AXES.map(([k, t]) => `<div class="axis"><div class="t">${t}</div><div class="dots" data-k="${k}">${[1,2,3,4,5].map(n => `<button type="button" data-n="${n}">${n}</button>`).join('')}</div></div>`).join('');
+  $('axes').querySelectorAll('.dots button').forEach(b => b.onclick = () => {
+    const k = b.parentElement.dataset.k; marks[k] = +b.dataset.n;
+    b.parentElement.querySelectorAll('button').forEach(x => x.classList.toggle('on', +x.dataset.n <= marks[k]));
+  });
+  $('steps').innerHTML = steps.map((st, j) => `<button type="button" class="${j === i ? 'cur' : ''} ${done.has(st.id) ? 'done' : ''}" data-j="${j}">${j + 1}</button>`).join('');
+  $('steps').querySelectorAll('button').forEach(b => b.onclick = () => { i = +b.dataset.j; show(); });
+  $('prev').disabled = i === 0;
+  $('save').textContent = i === steps.length - 1 ? 'Save' : 'Save and next';
+  $('saved').textContent = '';
+}
+$('score').oninput = () => $('scoreOut').value = $('score').value;
+$('reload').onclick = () => { $('frame').src = steps[i].url; };
+$('prev').onclick = () => { if (i > 0) { i--; show(); } };
+$('save').onclick = async () => {
+  const s = steps[i];
+  const body = { step: s.id, title: s.title, score: +$('score').value, marks, note: $('note').value.trim() };
+  $('save').disabled = true;
+  try {
+    await fetch('/feedback', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+    done.add(s.id);
+    const hist = await fetch('/feedback', {cache:'no-store'}).then(r => r.json()); renderHist(hist);
+    $('saved').textContent = 'Saved.';
+    if (i < steps.length - 1) { i++; show(); } else { $('saved').textContent = 'Saved. That is the last step: I have everything.'; }
+  } catch (e) { $('saved').textContent = 'Could not save: ' + e; }
+  $('save').disabled = false;
+};
+load();
+</script>
+</body>
+</html>

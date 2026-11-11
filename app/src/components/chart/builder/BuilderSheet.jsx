@@ -73,6 +73,7 @@
 // definition the chart is already drawing is never re-installed. A broken edit
 // must not brick a working indicator.
 
+import { withoutGuardIds } from '../engine/ast/guardIdText'
 import { Component, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../../../context/AuthContext'
 import { useCreateIndicatorAccess } from './studio/createIndicatorFlag'
@@ -84,7 +85,7 @@ import { astHash } from '../engine/ast/parse'
 import { lexPine } from '../engine/ast/pine'
 import { DOOR_VERSION } from '../engine/memberDocumentMigration'
 import { withEngineStamp } from '../engine/scriptEngineVersion'
-import { SCRIPT_UPGRADE_PASTE_NOTE } from './memberPane/savedScriptUpgrade'
+import { SCRIPT_UPGRADE_PASTE_NOTE, SCRIPT_UPGRADE_RESAVE_NOTE } from './memberPane/savedScriptUpgrade'
 // ⛔ THE SECOND MACHINE-ASSIGNED BADGE, AND IT IS MEASURED HERE FOR THE SAME
 // REASON `repaint` IS: `validateUserDefinitions` REQUIRES `meta.freshness` on
 // the `ast` lane and refuses a disagreement in both directions, so a document
@@ -137,6 +138,7 @@ import ImageBox from './ImageBox'
 import { logIndicatorTelemetry, newImportId } from '../../../lib/indicatorTelemetry'
 import EvidenceTab from './EvidenceTab'
 import SharePanel from './SharePanel'
+import RunsOnLine from './RunsOnLine'
 import {
   INTENTS, INTENT_LABELS, intentReadback, defaultIntentFor, signalPaintsFor, signalPaintsOf,
   presentationVerdict, SIGNAL_MARKER_DEFAULT, SIGNAL_PAINT_DEFAULTS, NO_PAINT,
@@ -148,6 +150,9 @@ import {
 import { objectCarry, carriableObjectProgram, carryProgramMeta } from './objectProgramCarry'
 import { isTruthType } from '../engine/outputType'
 import { STATUS as GATE_STATUS } from '../engine/evaluability'
+import {
+  NEW_LINE_FLAG, rowIsNewLine, withLocalLineIdentities, servedLineIdentities, withoutNewLineMarkers,
+} from '../engine/lineIdentity'
 import styles from './BuilderSheet.module.css'
 
 /** The badge vocabulary, cased for display. ⛔ The definition's vocabulary is
@@ -320,6 +325,9 @@ export function isUntouchedRow(row) {
     // mode, an opacity, a fill, a marker) is not the untouched default either;
     // the schema-1 document would silently drop it.
     && !rowCarriesPresentation(row)
+    // ⭐ LINE IDENTITY — a row added (or re-keyed) in this edit is a NEW line, which
+    // only the v2 body can say (`newLine`); the schema-1 body would continue the old one.
+    && !rowIsNewLine(row)
 }
 
 /**
@@ -675,6 +683,13 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       // conversational row model does, so a dashed plot is representable there.
       // Last, where `preservePresentation` has always appended it.
       ...(PLOT_LINE_STYLES.includes(r.lineStyle) ? { lineStyle: r.lineStyle } : {}),
+      // ⭐⭐ LINE IDENTITY (owner decision 2026-11-02) — a row ADDED in this edit (or
+      // re-keyed) tells the store it is a NEW line, so a key removed and typed again
+      // before one save does not inherit the removed line's references or alerts
+      // (`api/services/user_definitions.py::decide_line_ids`). The store never keeps
+      // the marker. A row restored from the saved document never carries it, so
+      // every existing document's bytes are unchanged.
+      ...(rowIsNewLine(r) ? { [NEW_LINE_FLAG]: true } : {}),
     }
   })
   const guides = Array.isArray(levels) && levels.length
@@ -1197,7 +1212,8 @@ export default function BuilderSheet({
     setPlotRows((prev) => prev.map((r, j) => (j === i - 1 ? { ...r, ...patch } : r)))
   }, [])
   const addPlot = useCallback(() => {
-    setPlotRows((prev) => [...prev, newPlotRow('')])
+    // ⭐ LINE IDENTITY — a row added here is a NEW line whatever key it is given.
+    setPlotRows((prev) => [...prev, { ...newPlotRow(''), [NEW_LINE_FLAG]: true }])
   }, [])
   const removePlot = useCallback((i) => {
     setPlotRows((prev) => prev.filter((_, j) => j !== i - 1))
@@ -1441,9 +1457,11 @@ export default function BuilderSheet({
     if (row && row.upgradeScript === true && compute.kind === 'ast') {
       setEditing({ defId: row.def_id, version: Number(row.version) || 1, prior: def || null, runtime: true })
       setName(String(def?.meta?.name || ''))
-      setPineText('')
+      // the script, when it is stored (a remembered failed write-back); else an empty box
+      const stored = typeof row.pine_source === 'string' && row.pine_source.trim() ? row.pine_source : ''
+      setPineText(stored)
       setBuildMode('pine')
-      setScriptUpgradeNote(SCRIPT_UPGRADE_PASTE_NOTE)
+      setScriptUpgradeNote(stored ? SCRIPT_UPGRADE_RESAVE_NOTE : SCRIPT_UPGRADE_PASTE_NOTE)
       return
     }
     // ⛔⛔ P1 HARDENING (2026-10-11) — THE FORMULA BOX EDITS FORMULAS, AND ONLY FORMULAS.
@@ -1524,6 +1542,9 @@ export default function BuilderSheet({
       const derived = i === 0 ? DEFAULT_PLOT1_LABEL(metaShort) : p.key
       return {
         key: p.key,
+        // ⭐ LINE IDENTITY — the key this row was SAVED under; a row whose key the
+        // member changes is a new line (`lineIdentity.rowIsNewLine`).
+        savedKey: p.key,
         label: (typeof p.label === 'string' && p.label !== derived) ? p.label : '',
         style: typeof p.style === 'string' ? p.style : 'line',
         color: (colorSpec && typeof colorSpec.default === 'string' && colorSpec.default)
@@ -2077,7 +2098,10 @@ export default function BuilderSheet({
     // ⭐ SAVED-SCRIPT AUTO-UPGRADE — this save sends no script, so `saveUserDefinition`
     // strips any engine stamp the edit carried (`carryProgramMeta`): a hand edit never
     // claims to be the translator's output, and is never re-translated away.
-    let doc = withPineDoorStamp(withApplyProvenance(documentFor(rows, docArgs), applyProvenanceRef.current), pineDoorStampRef.current)
+    // ⭐ LINE IDENTITY — the `newLine` marks ride an EDIT's body only (a create has no
+    // previous version: every line is new to the store anyway).
+    const lineMarks = (d) => (editing ? d : withoutNewLineMarkers(d))
+    let doc = lineMarks(withPineDoorStamp(withApplyProvenance(documentFor(rows, docArgs), applyProvenanceRef.current), pineDoorStampRef.current))
     // ⭐⭐ P2X (owner decision 3) — A SAVE NEVER SILENTLY DESTROYS THE STORED
     // OBJECT PROGRAM. Kept → it rides byte-identically. Lossy → NOTHING is sent
     // until the member confirms a save that names what it removes; Cancel leaves
@@ -2090,7 +2114,7 @@ export default function BuilderSheet({
         setSaving(false)
         return
       }
-      doc = withPineDoorStamp(withApplyProvenance(documentFor(rows, { ...docArgs, dropObjects: true }), applyProvenanceRef.current), pineDoorStampRef.current)
+      doc = lineMarks(withPineDoorStamp(withApplyProvenance(documentFor(rows, { ...docArgs, dropObjects: true }), applyProvenanceRef.current), pineDoorStampRef.current))
     }
     setObjectLoss(null)
     const valueKey = intent === INTENTS.VALUE && intentRead ? intentRead.selectedKey : null
@@ -2149,6 +2173,15 @@ export default function BuilderSheet({
     applyProvenanceRef.current = null; pineDoorStampRef.current = null
     const row = res.row || { def_id: doc.id, version: doc.version, rev: 1 }
     setSavedRow(row)
+    // ⭐ LINE IDENTITY — every row is now SAVED under its key: no row is a new line
+    // for the next save (resending the marker would mint a new identity again).
+    const settleRow = (r) => {
+      if (!r) return r
+      const { [NEW_LINE_FLAG]: _n, ...rest } = r
+      return { ...rest, savedKey: r.key }
+    }
+    setPlot0(settleRow)
+    setPlotRows((prev) => prev.map(settleRow))
 
     // ── the definition the STORE holds, not the draft ────────────────────────
     //
@@ -2162,7 +2195,10 @@ export default function BuilderSheet({
     // the blob's copy was left to lag it.
     // ⭐ P0G — WITH THE STORE'S SEMANTICS, never the draft's guess: the server
     // decides (`decide_semantics`) and says so in `row.semantics`.
-    const storedDoc = withStoredSemantics({
+    // ⭐ LINE IDENTITY — this tab's copy carries each line's identity as the store
+    // decided it, or is marked pending where only the store knows it yet
+    // (`lineIdentity.withLocalLineIdentities`); the list read replaces it.
+    const storedDoc = withStoredSemantics(withLocalLineIdentities({
       ...doc,
       id: row.def_id || doc.id,
       ...(Number.isInteger(row.version) ? { version: row.version } : {}),
@@ -2170,7 +2206,8 @@ export default function BuilderSheet({
         ...doc.compute,
         ...(Number.isInteger(row.rev) ? { rev: row.rev } : {}),
       },
-    }, row)
+    }, engineRegistry.getDefinition(row.def_id || doc.id) || (editing ? editing.prior : null) || null,
+    servedLineIdentities(row)), row)
     if (editing && row.def_id) {
       setEditing({ defId: row.def_id, version: Number(row.version) || editing.version + 1, prior: storedDoc })
     }
@@ -2206,7 +2243,7 @@ export default function BuilderSheet({
         onChange(req.settings)
         setValueNote(req.added
           ? 'Added to the chart, and its latest value is shown in the chart header.'
-          : `Added to the chart. ${req.reason}`)
+          : `Added to the chart. ${withoutGuardIds(req.reason)}`)
       } else {
         onChange(next)
       }
@@ -2298,7 +2335,8 @@ export default function BuilderSheet({
     if (!res.ok) return res
     importTelemetryRef.current = null
     const row = res.row || {}
-    const storedDoc = {
+    // ⭐ LINE IDENTITY — as `save` (a create has no prior: every line pending).
+    const storedDoc = withLocalLineIdentities({
       ...doc,
       id: row.def_id || doc.id,
       ...(Number.isInteger(row.version) ? { version: row.version } : {}),
@@ -2306,7 +2344,7 @@ export default function BuilderSheet({
         ...doc.compute,
         ...(Number.isInteger(row.rev) ? { rev: row.rev } : {}),
       },
-    }
+    }, target ? (engineRegistry.getDefinition(target.defId) || target.prior || null) : null, servedLineIdentities(row))
     const { installed, errors: installErrors } = engineRegistry.installUserDefinitions([storedDoc])
     if (installErrors.length || installed.length !== 1) {
       return {
@@ -2530,7 +2568,7 @@ export default function BuilderSheet({
               — a starter that was special-cased would be a second class of
               object, and `BuilderSheet.starters.test.jsx` asserts the saved
               blob carries no trace of where it came from. */}
-          <div className={styles.modeRow} role="tablist" aria-label="How to build this">
+          <div className={styles.modeRow} role="tablist" aria-label="How to build this" data-guide="builder.modes">
             <button
               type="button" role="tab"
               className={`${styles.modeTab} ${buildMode === 'library' ? styles.modeTabActive : ''}`}
@@ -2622,9 +2660,16 @@ export default function BuilderSheet({
             const notice = openRow && openRow.repaint_notice
             return notice && typeof notice.sentence === 'string' ? (
               <p className={styles.pickerNote} role="status" data-testid="repaint-label-notice">
-                {notice.sentence}
+                {withoutGuardIds(notice.sentence)}
               </p>
             ) : null
+          })()}
+
+          {/* W5-T18 - the server's per-lane answer for the open definition (runtime rows
+              only; an ast row carries no `server_lanes`, so nothing renders). */}
+          {editing && (() => {
+            const openRow = (Array.isArray(rows) ? rows : []).find((r) => r && r.def_id === editing.defId)
+            return openRow ? <RunsOnLine serverLanes={openRow.server_lanes} /> : null
           })()}
 
           {buildMode === 'library' && (
@@ -2677,6 +2722,16 @@ export default function BuilderSheet({
               // ⭐ SUPPORT LOOP A3 — what the member is viewing rides an opt-in report.
               sym={sym}
               tf={tf}
+              // ⭐ EDITOR STATUS PANEL: the served row being edited. Its own facts, held by
+              // the script engine (`editorStatus.js::isHeld`, the twin of
+              // `engine_withheld_reason`: `upgradeKindOf` says `refused`, or an older
+              // engine's refusal waits for today's re-translation, `retranslate` with
+              // `engine_status.status === 'refused'`) or its served `scan_refusal`, are the
+              // saved version's own line beside the live rows (`savedVersion`), shown only
+              // while the editor holds that version's own script; they never change a row.
+              // ⛔ NOT `scan_refusal.gate === 'withheld'`: the sweep's C45 check refuses under
+              // that same gate. Read only while VITE_PINE_EDITOR_STATUS is on.
+              savedRow={editing ? ((Array.isArray(rows) ? rows : []).find((r) => r && r.def_id === editing.defId) || null) : null}
               onPick={(picked) => {
                 // ⛔ THE SOURCE AND NOTHING ELSE — verbatim the StarterLibrary
                 // contract three lines down. Not the tree the translator built
@@ -3484,6 +3539,7 @@ export default function BuilderSheet({
                 className={styles.plotStyle}
                 value={target}
                 aria-label="Placement"
+                data-guide="builder.placement"
                 onChange={(e) => setTarget(e.target.value)}
               >
                 <option value="pane">Own pane</option>
@@ -3501,6 +3557,7 @@ export default function BuilderSheet({
                 value={levelsText}
                 placeholder="70, 30"
                 aria-label="Levels"
+                data-guide="builder.levels"
                 aria-invalid={levelsProblem ? 'true' : undefined}
                 onChange={(e) => setLevelsText(e.target.value)}
               />
@@ -3555,10 +3612,10 @@ export default function BuilderSheet({
                     <strong>{o.label}</strong>{` is ${o.words}`}
                     {o.selected && (intent === INTENTS.SIGNAL ? ' — the signal' : ' — the value')}
                     {o.verdict.status === GATE_STATUS.REFUSED && !o.verdict.pending && (
-                      <span role="alert">{` — not available: ${o.verdict.reason}`}</span>
+                      <span role="alert">{` — not available: ${withoutGuardIds(o.verdict.reason)}`}</span>
                     )}
                     {o.verdict.status === GATE_STATUS.REFUSED && o.verdict.pending && ' — waiting for data'}
-                    {o.verdict.status === GATE_STATUS.DISCLOSED && ` — note: ${o.verdict.note}`}
+                    {o.verdict.status === GATE_STATUS.DISCLOSED && ` — note: ${withoutGuardIds(o.verdict.note)}`}
                   </li>
                 ))}
               </ul>
@@ -3580,7 +3637,7 @@ export default function BuilderSheet({
               <p className={styles.inputProblem} role="alert" data-testid="intent-refusal">{intentBlock}</p>
             )}
             {intent === INTENTS.SIGNAL && signalSelected && isTruthType(signalSelected.type) && (
-              <div className={styles.placementRow} data-testid="signal-look">
+              <div className={styles.placementRow} data-testid="signal-look" data-guide="builder.signalLook">
                 <label className={styles.plotToggle}>
                   <input
                     type="checkbox"
@@ -3734,6 +3791,7 @@ export default function BuilderSheet({
             <label className={styles.label} htmlFor="uct-formula-name">Name</label>
             <input
               id="uct-formula-name"
+              data-guide="builder.name"
               className={styles.nameField}
               type="text"
               maxLength={48}
@@ -3806,7 +3864,7 @@ export default function BuilderSheet({
               sent. Cancel changes nothing; Remove and save is the explicit act. */}
           {objectLoss && (
             <div className={styles.discardBar} role="alertdialog" data-testid="object-loss-confirm">
-              <span data-testid="object-loss-sentence">{objectLoss.sentence}</span>
+              <span data-testid="object-loss-sentence">{withoutGuardIds(objectLoss.sentence)}</span>
               {objectLoss.reasons.length > 0 && (
                 <span data-testid="object-loss-reason">{` (${objectLoss.reasons.join('; ')}.)`}</span>
               )}
@@ -3864,7 +3922,7 @@ export default function BuilderSheet({
             )}
             {/* Cancel goes through the SAME door as Escape and the × — one place
                 decides whether unsaved work needs a prompt. */}
-            <button type="button" className="btn btn-ghost" onClick={requestClose}>Cancel</button>
+            <button type="button" className="btn btn-ghost" data-guide="builder.cancel" onClick={requestClose}>Cancel</button>
             {/* ⛔ UIE PHASE 5 (M1) — while a stored SCRIPT is open for edit, the formula
                 save is not offered: it would PUT the formula draft over the script. The
                 script's own save is the member pane's ("Save changes"). */}
@@ -3872,6 +3930,7 @@ export default function BuilderSheet({
               type="button"
               className="btn btn-primary"
               data-testid="sheet-save"
+              data-guide="builder.save"
               onClick={converseActive ? () => converseCommitRef.current?.save() : save}
               disabled={converseActive ? !converseCommit.canSave : !canSave}
             >{converseActive
@@ -3894,6 +3953,7 @@ export default function BuilderSheet({
                       type="button"
                       className="btn btn-ghost"
                       aria-label={`Edit ${row.definition?.meta?.name || row.def_id}`}
+                      data-guide="builder.edit"
                       onClick={() => openForEdit(row)}
                     ><UIcon name="edit" size={14} /></button>
                     {pendingDelete === row.def_id ? (

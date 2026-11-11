@@ -1,0 +1,356 @@
+[
+[
+"control:noop-comment",
+"services/pine_runtime/server.mjs",
+"// the per-request total of design 3.4",
+"// the per-request total of design 3.4 (control)"
+],
+[
+"auth:skew-off",
+"services/pine_runtime/auth.mjs",
+"if (Math.abs(nowSeconds - t) > SKEW_SECONDS)",
+"if (false)"
+],
+[
+"auth:skew-one-sided",
+"services/pine_runtime/auth.mjs",
+"if (Math.abs(nowSeconds - t) > SKEW_SECONDS)",
+"if (nowSeconds - t > SKEW_SECONDS)"
+],
+[
+"auth:replay-off",
+"services/pine_runtime/auth.mjs",
+"if (this.seen.has(v1)) return false",
+"if (false) return false"
+],
+[
+"auth:replay-no-prune",
+"services/pine_runtime/auth.mjs",
+"if (exp < nowSeconds) this.seen.delete(k)",
+"if (false) this.seen.delete(k)"
+],
+[
+"auth:verify-always",
+"services/pine_runtime/auth.mjs",
+"let ok = false",
+"let ok = true"
+],
+[
+"auth:body-unbound",
+"services/pine_runtime/auth.mjs",
+"update(`${t}.${sha256Hex(body)}`)",
+"update(`${t}.`)"
+],
+[
+"auth:weak-secret-ok",
+"services/pine_runtime/auth.mjs",
+"if (s.length < MIN_SECRET_LENGTH) {",
+"if (s.length < 1) {"
+],
+[
+"auth:empty-ok",
+"services/pine_runtime/auth.mjs",
+"if (list.length === 1 && list[0] === '') {",
+"if (false) {"
+],
+[
+"auth:first-secret-only",
+"services/pine_runtime/auth.mjs",
+"for (const s of secrets) {",
+"for (const s of secrets.slice(0, 1)) {"
+],
+[
+"auth:header-uppercase-hex",
+"services/pine_runtime/auth.mjs",
+"v1=([0-9a-f]{64})$/",
+"v1=([0-9a-fA-F]{64})$/"
+],
+[
+"proto:extra-keys-ok",
+"services/pine_runtime/protocol.mjs",
+"if (!required.includes(k) && !optional.includes(k)) throw",
+"if (false) throw"
+],
+[
+"proto:missing-keys-ok",
+"services/pine_runtime/protocol.mjs",
+"for (const k of required) if (!Object.hasOwn(v, k)) throw",
+"for (const k of required) if (false) throw"
+],
+[
+"proto:tf-any",
+"services/pine_runtime/protocol.mjs",
+"if (typeof v.tf !== 'string' || !tfSet.includes(v.tf))",
+"if (typeof v.tf !== 'string')"
+],
+[
+"proto:nonfinite-ok",
+"services/pine_runtime/protocol.mjs",
+"if (!Number.isFinite(x)) throw",
+"if (false) throw"
+],
+[
+"proto:t-unordered",
+"services/pine_runtime/protocol.mjs",
+"if (k === 't' && i > 0 && !(x > col[i - 1]))",
+"if (false)"
+],
+[
+"proto:t-nondecreasing",
+"services/pine_runtime/protocol.mjs",
+"!(x > col[i - 1])",
+"(x < col[i - 1])"
+],
+[
+"proto:b64-reencode-off",
+"services/pine_runtime/protocol.mjs",
+"if (bytes.toString('base64') !== v) throw",
+"if (false) throw"
+],
+[
+"proto:col-length-off",
+"services/pine_runtime/protocol.mjs",
+"if (b.length !== n * 8) throw",
+"if (false) throw"
+],
+[
+"proto:jobs-cap-off",
+"services/pine_runtime/protocol.mjs",
+"raw.jobs.length > MAX_JOBS",
+"false"
+],
+[
+"proto:jobs-empty-ok",
+"services/pine_runtime/protocol.mjs",
+"raw.jobs.length < 1 ||",
+""
+],
+[
+"proto:bars-cap-off",
+"services/pine_runtime/protocol.mjs",
+"v.n < 1 || v.n > maxBars",
+"v.n < 1"
+],
+[
+"proto:doc-cap-off",
+"services/pine_runtime/protocol.mjs",
+"if (docBytes.length > MAX_DOC_BYTES) throw",
+"if (false) throw"
+],
+[
+"proto:doc-hash-off",
+"services/pine_runtime/protocol.mjs",
+"digest('hex') !== docSha",
+"digest('hex') === 'x'"
+],
+[
+"proto:bars-hash-off",
+"services/pine_runtime/protocol.mjs",
+"if (barsSha256(bars.n, bytes) !== bars.sha256) {",
+"if (false) {"
+],
+[
+"proto:engine-off",
+"services/pine_runtime/protocol.mjs",
+"if (!sameIdentity(engine, identity)) {",
+"if (false) {"
+],
+[
+"proto:identity-strict",
+"services/pine_runtime/protocol.mjs",
+"String(a[k]) === String(b[k])",
+"a[k] === b[k]"
+],
+[
+"proto:identity-subset",
+"services/pine_runtime/protocol.mjs",
+"return ENGINE_FIELDS.every((k)",
+"return ENGINE_FIELDS.slice(0, 4).every((k)"
+],
+[
+"proto:dup-job-ok",
+"services/pine_runtime/protocol.mjs",
+"if (ids.has(job.job)) throw",
+"if (false) throw"
+],
+[
+"proto:dup-want-ok",
+"services/pine_runtime/protocol.mjs",
+"if (seen.has(k)) throw",
+"if (false) throw"
+],
+[
+"proto:protocol-any",
+"services/pine_runtime/protocol.mjs",
+"if (raw.protocol !== PROTOCOL) throw",
+"if (false) throw"
+],
+[
+"proto:profile-any",
+"services/pine_runtime/protocol.mjs",
+"if (!PROFILES.includes(raw.profile)) throw",
+"if (false) throw"
+],
+[
+"proto:utf8-lenient",
+"services/pine_runtime/protocol.mjs",
+"new TextDecoder('utf-8', { fatal: true })",
+"new TextDecoder('utf-8', { fatal: false })"
+],
+[
+"proto:inputs-any",
+"services/pine_runtime/protocol.mjs",
+"if (!ok) throw",
+"if (false) throw"
+],
+[
+"proto:bool-any",
+"services/pine_runtime/protocol.mjs",
+"if (typeof v !== 'boolean') throw",
+"if (false) throw"
+],
+[
+"proto:doc-not-object-ok",
+"services/pine_runtime/protocol.mjs",
+"if (!isPlain(doc)) throw",
+"if (false) throw"
+],
+[
+"proto:doc-unknown-off",
+"services/pine_runtime/protocol.mjs",
+"if (d.doc === null) {\n    throw",
+"if (false) {\n    throw"
+],
+[
+"srv:header-before-body-off",
+"services/pine_runtime/server.mjs",
+"if (parsed.reason) {",
+"if (false) {"
+],
+[
+"srv:declared-cap-off",
+"services/pine_runtime/server.mjs",
+"if (declared > MAX_BODY_BYTES) {",
+"if (false) {"
+],
+[
+"srv:stream-cap-off",
+"services/pine_runtime/server.mjs",
+"if (size > cap) { over = true; chunks.length = 0; return }",
+"if (false) { over = true; chunks.length = 0; return }"
+],
+[
+"srv:verify-off",
+"services/pine_runtime/server.mjs",
+"if (!verifyBody(secrets, parsed, body)) return",
+"if (false) return"
+],
+[
+"srv:replay-off",
+"services/pine_runtime/server.mjs",
+"if (!replay.admit(parsed.v1, parsed.t, now())) return",
+"if (false) return"
+],
+[
+"srv:ready-without-runner",
+"services/pine_runtime/server.mjs",
+"Boolean(door && door.identity && runner)",
+"Boolean(door && door.identity)"
+],
+[
+"srv:canary-ignored",
+"services/pine_runtime/server.mjs",
+"&& canary() === true",
+""
+],
+[
+"srv:ready-before-schema",
+"services/pine_runtime/server.mjs",
+"if (!checked.ok) return refuse(res, checked.status, checked.guard, checked.sentence, log)",
+"if (!checked.ok && false) return refuse(res, checked.status, checked.guard, checked.sentence, log)"
+],
+[
+"srv:results-unchecked",
+"services/pine_runtime/server.mjs",
+"if (!wellFormedResults(checked.request.jobs, results)) {",
+"if (false) {"
+],
+[
+"srv:results-order-free",
+"services/pine_runtime/server.mjs",
+"r && r.job === jobs[i].job &&",
+"r &&"
+],
+[
+"srv:runner-throw-leaks",
+"services/pine_runtime/server.mjs",
+"} catch {\n      return refuse(res, 500, FAILED_GUARD, 'the runtime pool failed",
+"} catch (e) {\n      return refuse(res, 500, FAILED_GUARD, e.message + 'the runtime pool failed"
+],
+[
+"srv:env-allow-all",
+"services/pine_runtime/server.mjs",
+"filter((k) => !ENV_ALLOWLIST.includes(k))",
+"filter(() => false)"
+],
+[
+"srv:env-railway-prefix",
+"services/pine_runtime/server.mjs",
+"filter((k) => !ENV_ALLOWLIST.includes(k))",
+"filter((k) => !ENV_ALLOWLIST.includes(k) && !k.startsWith('RAILWAY_'))"
+],
+[
+"srv:env-value-in-sentence",
+"services/pine_runtime/server.mjs",
+"(${extra.join(', ')})",
+"(${extra.map((k) => k + '=' + env[k]).join(', ')})"
+],
+[
+"srv:dualstack-proof-off",
+"services/pine_runtime/server.mjs",
+"if (!v4 || !v6) {",
+"if (false) {"
+],
+[
+"srv:ipv6only",
+"services/pine_runtime/server.mjs",
+"ipv6Only: false",
+"ipv6Only: true"
+],
+[
+"srv:port-zero-ok",
+"services/pine_runtime/server.mjs",
+"Number(env.PORT) < 1 ||",
+""
+],
+[
+"srv:main-env-off",
+"services/pine_runtime/server.mjs",
+"if (refusal) throw new Error(refusal)",
+""
+],
+[
+"srv:identity-from-path",
+"services/pine_runtime/server.mjs",
+"bundle_sha256: sha256Hex(bytes)",
+"bundle_sha256: sha256Hex(Buffer.from(path))"
+],
+[
+"srv:tfset-retyped",
+"services/pine_runtime/server.mjs",
+"tfSet: [...mod.NATIVE_TFS]",
+"tfSet: ['1', '5', '15', '30', '60', 'D', 'W']"
+],
+[
+"srv:maxbars-retyped",
+"services/pine_runtime/server.mjs",
+"maxBars: mod.DEFAULT_LIMITS.HISTORY }",
+"maxBars: 32000 }"
+],
+[
+"entry:drop-tfs",
+"app/src/components/chart/engine/runtime/serverEntry.js",
+"export { NATIVE_TFS } from '../../timeframes.js'",
+""
+]
+]

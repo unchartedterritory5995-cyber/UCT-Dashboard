@@ -1,6 +1,9 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 import ConnectedAppsCard from './ConnectedAppsCard'
+import ConnectConsentPanel from './ConnectConsentPanel'
+import { ENEX_IMPORT_HREF, EVERNOTE_CONNECT_NOTES, EVERNOTE_ENEX_OFFER, EVERNOTE_PLAN_RETURN } from './evernoteCopy'
 
 let mockIsPaid = true
 vi.mock('../../../../context/AuthContext', () => ({
@@ -31,7 +34,6 @@ const STATUS_MIXED = {
     },
     craft: { configured: true, connected: false, sources: [] },
     notion: { configured: false, connected: false, sources: [] },
-    dropbox: { configured: false, connected: false, sources: [] },
   },
 }
 
@@ -40,7 +42,6 @@ const EMPTY_STATUS = {
     roam: { configured: true, connected: false, sources: [] },
     craft: { configured: true, connected: false, sources: [] },
     notion: { configured: false, connected: false, sources: [] },
-    dropbox: { configured: false, connected: false, sources: [] },
   },
 }
 
@@ -121,9 +122,12 @@ describe('ConnectedAppsCard — provider matrix', () => {
     const craftTile = screen.getByTestId('connector-tile-craft')
     expect(craftTile).toHaveTextContent('Connect')
 
-    // notion + dropbox: not configured -> Coming soon
+    // notion: not configured -> Coming soon
     expect(screen.getByTestId('connector-tile-notion')).toHaveTextContent('Coming soon')
-    expect(screen.getByTestId('connector-tile-dropbox')).toHaveTextContent('Coming soon')
+    // Dropbox, OneNote and OneDrive were archived on 2026-11-04: no tile at all
+    for (const gone of ['dropbox', 'onenote', 'onedrive']) {
+      expect(screen.queryByTestId(`connector-tile-${gone}`)).toBeNull()
+    }
   })
 
   it('renders the conflict count on a source with conflicts', async () => {
@@ -158,6 +162,14 @@ describe('ConnectedAppsCard — provider matrix', () => {
     await screen.findByText('Conflicts')
     expect(screen.queryByText('Removed')).not.toBeInTheDocument()
     expect(screen.queryByText(/source-deleted/)).not.toBeInTheDocument()
+  })
+
+  it('passes the provider label so the pending line names the app', async () => {
+    const pending = JSON.parse(JSON.stringify(STATUS_MIXED))
+    pending.providers.roam.sources[0].pendingRemoval = 2
+    mockFetch([['/api/j2/notes/connectors/status', { body: pending }]])
+    render(<ConnectedAppsCard />)
+    expect(await screen.findByText('2 notes look removed in Roam Research; confirming on the next check.')).toBeInTheDocument()
   })
 
   it('Sync now fires POST /sources/{id}/sync', async () => {
@@ -348,7 +360,7 @@ describe('ConnectedAppsCard — token modal (craft)', () => {
   })
 })
 
-describe('ConnectedAppsCard — OAuth (notion/dropbox) consent gate', () => {
+describe('ConnectedAppsCard — OAuth (notion) consent gate', () => {
   afterEach(() => {
     window.history.replaceState({}, '', '/settings')
     vi.restoreAllMocks()
@@ -359,7 +371,6 @@ describe('ConnectedAppsCard — OAuth (notion/dropbox) consent gate', () => {
       roam: { configured: false, connected: false, sources: [] },
       craft: { configured: false, connected: false, sources: [] },
       notion: { configured: true, connected: false, sources: [] },
-      dropbox: { configured: false, connected: false, sources: [] },
     },
   }
 
@@ -430,348 +441,29 @@ describe('ConnectedAppsCard — OAuth return self-heal', () => {
     expect(window.location.search).not.toContain('connected')
     expect(window.location.search).toContain('section=connections')
   })
-})
 
-describe('ConnectedAppsCard — Dropbox folder picker + sourceless-connected state (Task 12b)', () => {
-  afterEach(() => {
-    window.history.replaceState({}, '', '/settings')
-    vi.restoreAllMocks()
-  })
-
-  const DROPBOX_SOURCELESS_STATUS = {
-    providers: {
-      roam: { configured: false, connected: false, sources: [] },
-      craft: { configured: false, connected: false, sources: [] },
-      notion: { configured: false, connected: false, sources: [] },
-      dropbox: { configured: true, connected: true, sources: [] },
-    },
+  const failedReturn = async (query) => {
+    window.history.replaceState({}, '', `/settings?section=connections&${query}`)
+    mockFetch([['/api/j2/notes/connectors/status', { body: { providers: {} } }]])
+    render(<ConnectedAppsCard />)
   }
 
-  it('a connected-but-sourceless Dropbox tile shows a "Choose folder" CTA, not the healthy Connected badge', async () => {
-    mockFetch([['/api/j2/notes/connectors/status', { body: DROPBOX_SOURCELESS_STATUS }]])
-    render(<ConnectedAppsCard />)
-
-    const tile = await screen.findByTestId('connector-tile-dropbox')
-    expect(within(tile).getByRole('button', { name: /choose folder/i })).toBeInTheDocument()
-    // The healthy "Connected · N source(s)" pill must NOT render for this state.
-    expect(within(tile).queryByText(/Connected · \d+ source/)).not.toBeInTheDocument()
+  it('an OAuth return that failed in this browser says how to finish, then strips the params', async () => {
+    await failedReturn('connector=notion&connected=0&reason=oauth_state')
+    const note = await screen.findByText("Connecting Notion didn't finish in this browser. Press Connect below to start again here.")
+    expect(note.getAttribute('role')).toBe('status')
+    expect(window.location.search).toBe('?section=connections')
   })
 
-  it('clicking "Choose folder" opens the picker, which lists folders from the mocked GET', async () => {
-    mockFetch([
-      ['/api/j2/notes/connectors/status', { body: DROPBOX_SOURCELESS_STATUS }],
-      ['/dropbox/folders', { body: { folders: [{ path_lower: '/team notes', name: 'Team Notes' }] } }],
-    ])
-    render(<ConnectedAppsCard />)
-    const tile = await screen.findByTestId('connector-tile-dropbox')
-    fireEvent.click(within(tile).getByRole('button', { name: /choose folder/i }))
-
-    expect(await screen.findByText('Team Notes')).toBeInTheDocument()
-    const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/dropbox/folders'))
-    expect(call).toBeTruthy()
+  it('names any other reason the provider gave', async () => {
+    await failedReturn('connector=craft&connected=0&reason=access_denied')
+    expect(await screen.findByText("Couldn't connect Craft: access_denied")).toBeTruthy()
+    expect(window.location.search).toBe('?section=connections')
   })
 
-  it('picking a folder POSTs {remoteId, displayName} to /dropbox/sources and refreshes status', async () => {
-    let sourcesCreated = false
-    mockFetch([
-      ['/api/j2/notes/connectors/status', {
-        body: () => (sourcesCreated
-          ? {
-              providers: {
-                ...DROPBOX_SOURCELESS_STATUS.providers,
-                dropbox: {
-                  configured: true, connected: true,
-                  sources: [{ id: 'dbx-1', provider: 'dropbox', displayName: 'Team Notes', remoteId: '/team notes', syncEnabled: true, counts: {} }],
-                },
-              },
-            }
-          : DROPBOX_SOURCELESS_STATUS),
-      }],
-      ['/dropbox/folders', { body: { folders: [{ path_lower: '/team notes', name: 'Team Notes' }] } }],
-      ['/dropbox/sources', {
-        body: () => {
-          sourcesCreated = true
-          return { source: { id: 'dbx-1' } }
-        },
-      }],
-    ])
-    render(<ConnectedAppsCard />)
-    const tile = await screen.findByTestId('connector-tile-dropbox')
-    fireEvent.click(within(tile).getByRole('button', { name: /choose folder/i }))
-    fireEvent.click(await screen.findByRole('button', { name: /sync this folder/i }))
-
-    await waitFor(() => {
-      const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/dropbox/sources') && c[1]?.method === 'POST')
-      expect(call).toBeTruthy()
-    })
-    // Fix-round: the POST body is asserted HERE, outside any mock callback —
-    // a thrown assertion inside `resp.body()` is silently SWALLOWED by
-    // `addSource`'s `r.json().catch(() => ({}))`, which is exactly how an
-    // empty-remoteId regression could have gone undetected behind a green
-    // test (the bug class this fix-round exists to close).
-    const postCall = global.fetch.mock.calls.find(
-      (c) => String(c[0]).includes('/dropbox/sources') && c[1]?.method === 'POST'
-    )
-    expect(JSON.parse(postCall[1].body)).toEqual({ remoteId: '/team notes', displayName: 'Team Notes' })
-    // Status re-fetched after the pick -> the tile flips to the healthy Connected state.
-    expect(await screen.findByText(/Connected · 1 source/)).toBeInTheDocument()
-  })
-
-  it('a folder-list failure (e.g. broken connector) renders inline with a retry, mirroring the existing error idiom', async () => {
-    let attempt = 0
-    // A bespoke fetch mock (not the `mockFetch` helper) — this test needs the
-    // FIRST /dropbox/folders call to answer with a real non-ok Response (409,
-    // matching the router's "Reconnect Dropbox" contract) and the SECOND to
-    // succeed, which the helper's single-route-per-URL table can't express.
-    global.fetch = vi.fn(async (url) => {
-      if (String(url).includes('/api/j2/notes/connectors/status')) {
-        return { ok: true, status: 200, json: async () => DROPBOX_SOURCELESS_STATUS }
-      }
-      if (String(url).includes('/dropbox/folders')) {
-        attempt += 1
-        if (attempt === 1) {
-          return { ok: false, status: 409, json: async () => ({ detail: 'Reconnect Dropbox — stored credentials are unreadable.' }) }
-        }
-        return { ok: true, status: 200, json: async () => ({ folders: [{ path_lower: '/team notes', name: 'Team Notes' }] }) }
-      }
-      return { ok: true, status: 200, json: async () => ({}) }
-    })
-    render(<ConnectedAppsCard />)
-    const tile = await screen.findByTestId('connector-tile-dropbox')
-    fireEvent.click(within(tile).getByRole('button', { name: /choose folder/i }))
-
-    expect(await screen.findByText(/reconnect dropbox/i)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /try again/i }))
-    expect(await screen.findByText('Team Notes')).toBeInTheDocument()
-  })
-
-  it('OAuth return for dropbox auto-opens the folder picker when it lands connected-but-sourceless', async () => {
-    window.history.replaceState({}, '', '/settings?section=connections&connector=dropbox&connected=1')
-    mockFetch([
-      ['/api/j2/notes/connectors/status', { body: DROPBOX_SOURCELESS_STATUS }],
-      ['/dropbox/folders', { body: { folders: [] } }],
-    ])
-    render(<ConnectedAppsCard />)
-
-    // The picker opens WITHOUT any click — the self-heal drove it.
-    expect(await screen.findByText('Choose a Dropbox folder')).toBeInTheDocument()
-  })
-
-  it('OAuth return for notion (which always gets a source atomically) does NOT open the Dropbox picker', async () => {
-    window.history.replaceState({}, '', '/settings?section=connections&connector=notion&connected=1')
-    mockFetch([[
-      '/api/j2/notes/connectors/status',
-      { body: { providers: { notion: { configured: true, connected: true, sources: [{ id: 's1', provider: 'notion', displayName: 'Work', syncEnabled: true, counts: {} }] } } } },
-    ]])
-    render(<ConnectedAppsCard />)
-
-    expect(await screen.findByText(/Connected · 1 source/)).toBeInTheDocument()
-    expect(screen.queryByText('Choose a Dropbox folder')).not.toBeInTheDocument()
-  })
-})
-
-describe('ConnectedAppsCard — OneNote/OneDrive tiles (Task 7, msgraph wave)', () => {
-  afterEach(() => {
-    window.history.replaceState({}, '', '/settings')
-    vi.restoreAllMocks()
-  })
-
-  const MSGRAPH_UNCONFIGURED_STATUS = {
-    providers: {
-      roam: { configured: false, connected: false, sources: [] },
-      craft: { configured: false, connected: false, sources: [] },
-      notion: { configured: false, connected: false, sources: [] },
-      dropbox: { configured: false, connected: false, sources: [] },
-      onenote: { configured: false, connected: false, sources: [] },
-      onedrive: { configured: false, connected: false, sources: [] },
-    },
-  }
-
-  it('renders "Coming soon" for both onenote and onedrive when the server reports them unconfigured', async () => {
-    mockFetch([['/api/j2/notes/connectors/status', { body: MSGRAPH_UNCONFIGURED_STATUS }]])
-    render(<ConnectedAppsCard />)
-    expect(await screen.findByTestId('connector-tile-onenote')).toHaveTextContent('Coming soon')
-    expect(screen.getByTestId('connector-tile-onedrive')).toHaveTextContent('Coming soon')
-    // Existing wave-1 tiles stay unregressed alongside the two new ones.
-    expect(screen.getByTestId('connector-tile-notion')).toHaveTextContent('Coming soon')
-    expect(screen.getByTestId('connector-tile-dropbox')).toHaveTextContent('Coming soon')
-  })
-
-  const MSGRAPH_CONFIGURED_STATUS = {
-    providers: {
-      roam: { configured: false, connected: false, sources: [] },
-      craft: { configured: false, connected: false, sources: [] },
-      notion: { configured: false, connected: false, sources: [] },
-      dropbox: { configured: false, connected: false, sources: [] },
-      onenote: { configured: true, connected: false, sources: [] },
-      onedrive: { configured: true, connected: false, sources: [] },
-    },
-  }
-
-  it('"Connect" on a configured onenote tile POSTs {consent:true} once consent is checked, starting the OAuth redirect', async () => {
-    mockFetch([
-      ['/api/j2/notes/connectors/status', { body: MSGRAPH_CONFIGURED_STATUS }],
-      ['/api/j2/notes/connectors/onenote/connect', { body: { redirectUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize?x=1' } }],
-    ])
-    render(<ConnectedAppsCard />)
-    const tile = await screen.findByTestId('connector-tile-onenote')
-    fireEvent.click(within(tile).getByRole('button', { name: /connect/i }))
-    fireEvent.click(await screen.findByRole('checkbox'))
-    fireEvent.click(screen.getByRole('button', { name: /^continue$/i }))
-
-    await waitFor(() => {
-      const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/onenote/connect'))
-      expect(call).toBeTruthy()
-      expect(JSON.parse(call[1].body)).toEqual({ consent: true })
-    })
-  })
-
-  it('"Connect" on a configured onedrive tile POSTs {consent:true} once consent is checked, starting the OAuth redirect', async () => {
-    mockFetch([
-      ['/api/j2/notes/connectors/status', { body: MSGRAPH_CONFIGURED_STATUS }],
-      ['/api/j2/notes/connectors/onedrive/connect', { body: { redirectUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize?x=1' } }],
-    ])
-    render(<ConnectedAppsCard />)
-    const tile = await screen.findByTestId('connector-tile-onedrive')
-    fireEvent.click(within(tile).getByRole('button', { name: /connect/i }))
-    fireEvent.click(await screen.findByRole('checkbox'))
-    fireEvent.click(screen.getByRole('button', { name: /^continue$/i }))
-
-    await waitFor(() => {
-      const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/onedrive/connect'))
-      expect(call).toBeTruthy()
-      expect(JSON.parse(call[1].body)).toEqual({ consent: true })
-    })
-  })
-
-  // ── The two wiring subtleties this task exists to get right ──────────────
-
-  const ONENOTE_CONNECTED_STATUS = {
-    providers: {
-      roam: { configured: false, connected: false, sources: [] },
-      craft: { configured: false, connected: false, sources: [] },
-      notion: { configured: false, connected: false, sources: [] },
-      dropbox: { configured: false, connected: false, sources: [] },
-      onenote: {
-        configured: true, connected: true,
-        sources: [{
-          id: 'onenote-1', provider: 'onenote', displayName: 'OneNote — Patrick', remoteId: 'me',
-          syncEnabled: true, status: 'active', lastSyncAt: null, counts: {},
-        }],
-      },
-      onedrive: { configured: false, connected: false, sources: [] },
-    },
-  }
-
-  const ONEDRIVE_SOURCELESS_STATUS = {
-    providers: {
-      roam: { configured: false, connected: false, sources: [] },
-      craft: { configured: false, connected: false, sources: [] },
-      notion: { configured: false, connected: false, sources: [] },
-      dropbox: { configured: false, connected: false, sources: [] },
-      onenote: { configured: false, connected: false, sources: [] },
-      onedrive: { configured: true, connected: true, sources: [] },
-    },
-  }
-
-  it('a connected onenote tile renders a normal whole-account SourceRow, never the "Choose folder" CTA', async () => {
-    mockFetch([['/api/j2/notes/connectors/status', { body: ONENOTE_CONNECTED_STATUS }]])
-    render(<ConnectedAppsCard />)
-    const tile = await screen.findByTestId('connector-tile-onenote')
-    expect(within(tile).getByText('OneNote — Patrick')).toBeInTheDocument()
-    expect(within(tile).getByText(/Connected · 1 source/)).toBeInTheDocument()
-    expect(within(tile).queryByRole('button', { name: /choose folder/i })).not.toBeInTheDocument()
-  })
-
-  it('a connected-but-sourceless onedrive tile shows the "Choose folder" CTA (the folder-picker gate widened to onedrive)', async () => {
-    mockFetch([['/api/j2/notes/connectors/status', { body: ONEDRIVE_SOURCELESS_STATUS }]])
-    render(<ConnectedAppsCard />)
-    const tile = await screen.findByTestId('connector-tile-onedrive')
-    expect(within(tile).getByRole('button', { name: /choose folder/i })).toBeInTheDocument()
-    expect(within(tile).queryByText(/Connected · \d+ source/)).not.toBeInTheDocument()
-  })
-
-  it('clicking "Choose folder" on onedrive opens the picker against /onedrive/folders, not /dropbox/folders', async () => {
-    mockFetch([
-      ['/api/j2/notes/connectors/status', { body: ONEDRIVE_SOURCELESS_STATUS }],
-      ['/onedrive/folders', { body: { folders: [{ id: 'item-1', name: 'Work Notes' }] } }],
-    ])
-    render(<ConnectedAppsCard />)
-    const tile = await screen.findByTestId('connector-tile-onedrive')
-    fireEvent.click(within(tile).getByRole('button', { name: /choose folder/i }))
-
-    expect(await screen.findByText('Choose a OneDrive folder')).toBeInTheDocument()
-    expect(await screen.findByText('Work Notes')).toBeInTheDocument()
-    const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/onedrive/folders'))
-    expect(call).toBeTruthy()
-    expect(global.fetch.mock.calls.some((c) => String(c[0]).includes('/dropbox/folders'))).toBe(false)
-  })
-
-  it('picking an onedrive folder POSTs {remoteId, displayName} to /onedrive/sources, not /dropbox/sources', async () => {
-    let sourcesCreated = false
-    mockFetch([
-      ['/api/j2/notes/connectors/status', {
-        body: () => (sourcesCreated
-          ? {
-              providers: {
-                ...ONEDRIVE_SOURCELESS_STATUS.providers,
-                onedrive: {
-                  configured: true, connected: true,
-                  sources: [{ id: 'od-1', provider: 'onedrive', displayName: 'Work Notes', remoteId: 'item-1', syncEnabled: true, counts: {} }],
-                },
-              },
-            }
-          : ONEDRIVE_SOURCELESS_STATUS),
-      }],
-      ['/onedrive/folders', { body: { folders: [{ id: 'item-1', name: 'Work Notes' }] } }],
-      ['/onedrive/sources', {
-        body: () => {
-          sourcesCreated = true
-          return { source: { id: 'od-1' } }
-        },
-      }],
-    ])
-    render(<ConnectedAppsCard />)
-    const tile = await screen.findByTestId('connector-tile-onedrive')
-    fireEvent.click(within(tile).getByRole('button', { name: /choose folder/i }))
-    fireEvent.click(await screen.findByRole('button', { name: /sync this folder/i }))
-
-    await waitFor(() => {
-      const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/onedrive/sources') && c[1]?.method === 'POST')
-      expect(call).toBeTruthy()
-    })
-    // Fix-round CRITICAL: asserted OUTSIDE the fetch mock's json() callback
-    // (see the matching dropbox test's comment above) — this is the exact
-    // assertion that would have caught the bug (remoteId reaching the
-    // backend as '' for every OneDrive folder) had it been written this way
-    // the first time.
-    const postCall = global.fetch.mock.calls.find(
-      (c) => String(c[0]).includes('/onedrive/sources') && c[1]?.method === 'POST'
-    )
-    expect(JSON.parse(postCall[1].body)).toEqual({ remoteId: 'item-1', displayName: 'Work Notes' })
-    expect(await screen.findByText(/Connected · 1 source/)).toBeInTheDocument()
-  })
-
-  it('OAuth return for onedrive auto-opens the folder picker when it lands connected-but-sourceless', async () => {
-    window.history.replaceState({}, '', '/settings?section=connections&connector=onedrive&connected=1')
-    mockFetch([
-      ['/api/j2/notes/connectors/status', { body: ONEDRIVE_SOURCELESS_STATUS }],
-      ['/onedrive/folders', { body: { folders: [] } }],
-    ])
-    render(<ConnectedAppsCard />)
-
-    // The picker opens WITHOUT any click — the self-heal drove it, and it's
-    // scoped to onedrive (not the Dropbox picker's default provider).
-    expect(await screen.findByText('Choose a OneDrive folder')).toBeInTheDocument()
-  })
-
-  it('OAuth return for onenote (whole-account, always gets its one source atomically) does NOT open any folder picker', async () => {
-    window.history.replaceState({}, '', '/settings?section=connections&connector=onenote&connected=1')
-    mockFetch([['/api/j2/notes/connectors/status', { body: ONENOTE_CONNECTED_STATUS }]])
-    render(<ConnectedAppsCard />)
-
-    expect(await screen.findByText(/Connected · 1 source/)).toBeInTheDocument()
-    expect(screen.queryByText(/Choose a .+ folder/)).not.toBeInTheDocument()
+  it('says to try again when there is no reason', async () => {
+    await failedReturn('connector=notion&connected=0')
+    expect(await screen.findByText("Couldn't connect Notion. Try again.")).toBeTruthy()
   })
 })
 
@@ -833,8 +525,8 @@ describe('ConnectedAppsCard — normalization contract (fix-round 1, finding #2)
         ],
       },
       craft: { is_configured: false, connected: false, sources: [] },
-      // notion/dropbox intentionally OMITTED — normalizeStatus must still
-      // produce a "not configured" tile for both rather than crashing.
+      // notion intentionally OMITTED — normalizeStatus must still
+      // produce a "not configured" tile for it rather than crashing.
     },
   }
 
@@ -850,9 +542,8 @@ describe('ConnectedAppsCard — normalization contract (fix-round 1, finding #2)
     expect(screen.getByText('Conflicts')).toBeInTheDocument()
     // craft: is_configured:false -> Coming soon
     expect(screen.getByTestId('connector-tile-craft')).toHaveTextContent('Coming soon')
-    // notion/dropbox missing from the raw payload entirely -> still render as not-configured
+    // notion missing from the raw payload entirely -> still renders as not-configured
     expect(screen.getByTestId('connector-tile-notion')).toHaveTextContent('Coming soon')
-    expect(screen.getByTestId('connector-tile-dropbox')).toHaveTextContent('Coming soon')
   })
 })
 
@@ -867,7 +558,6 @@ describe('ConnectedAppsCard — device modal (obsidian, Task 5)', () => {
       roam: { configured: false, connected: false, sources: [] },
       craft: { configured: false, connected: false, sources: [] },
       notion: { configured: false, connected: false, sources: [] },
-      dropbox: { configured: false, connected: false, sources: [] },
       obsidian: { configured: true, connected: false, connectKind: 'device', sources: [] },
     },
   }
@@ -877,6 +567,20 @@ describe('ConnectedAppsCard — device modal (obsidian, Task 5)', () => {
   // tile click, never rendering ObsidianConnectModal directly. That is the
   // exact shape this repo's export door was missing (every test rendered
   // the dialog directly, so deleting the door left them all green).
+  it('the consent promises images and files only when /status says attachments are on', async () => {
+    mockFetch([
+      ['/api/j2/notes/connectors/status', { body: { ...OBSIDIAN_CONFIGURED_STATUS, obsidianAttachments: true } }],
+    ])
+    render(<ConnectedAppsCard />)
+    const obsidianTile = await screen.findByTestId('connector-tile-obsidian')
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    await new Promise((r) => setTimeout(r, 20))
+    fireEvent.click(within(obsidianTile).getByRole('button', { name: /connect/i }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(/and the images and files your notes use/)).toBeInTheDocument()
+    expect(within(dialog).queryByText(/does not upload attachments/)).toBeNull()
+  })
+
   it('minting a connect code is reachable from the Obsidian tile\'s own Connect button', async () => {
     mockFetch([
       ['/api/j2/notes/connectors/status', { body: OBSIDIAN_CONFIGURED_STATUS }],
@@ -890,6 +594,8 @@ describe('ConnectedAppsCard — device modal (obsidian, Task 5)', () => {
     // Phase 1: explanation + required consent checkbox — no POST yet.
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText(/markdown text of your notes/i)).toBeInTheDocument()
+    // Final review I3: no `obsidianAttachments` in /status -> the text-only consent.
+    expect(within(dialog).getByText(/does not upload attachments/)).toBeInTheDocument()
     const generateBtn = within(dialog).getByRole('button', { name: /generate code/i })
     expect(generateBtn).toBeDisabled()
     await new Promise((r) => setTimeout(r, 20))
@@ -973,7 +679,6 @@ describe('ConnectedAppsCard — reconnecting a broken source (member-reachabilit
       },
       craft: { configured: true, connected: false, sources: [] },
       notion: { configured: false, connected: false, sources: [] },
-      dropbox: { configured: false, connected: false, sources: [] },
     },
   }
 
@@ -1025,3 +730,172 @@ describe('ConnectedAppsCard — reconnecting a broken source (member-reachabilit
     expect(within(roamTile).queryByRole('button', { name: /^reconnect$/i })).not.toBeInTheDocument()
   })
 })
+
+// Plan E Task 10: the honest Evernote tile. ⛔ /status lists evernote to EVERY member, with
+// `configured` false while the flag is off or the member is not allowed (the server makes those
+// two indistinguishable from "not set up" on purpose). So the gate is the status field, applied
+// here: no tile at all until the server says configured. The `.enex` offer and the plan notice
+// link out of Settings, so these cases render inside a router.
+describe('ConnectedAppsCard — Evernote (Plan E Task 10)', () => {
+  afterEach(() => {
+    window.history.replaceState({}, '', '/settings')
+    vi.restoreAllMocks()
+  })
+
+  const ALL = ['roam', 'craft', 'notion', 'obsidian', 'evernote']
+  const statusWith = (evernote, others = { configured: true, connected: false, sources: [] }) => ({
+    providers: Object.fromEntries(ALL.map((k) => [k, k === 'evernote' ? evernote : others])),
+  })
+  const renderCard = () => render(<MemoryRouter><ConnectedAppsCard /></MemoryRouter>)
+
+  it('the copy module carries the exact sentences, verbatim', () => {
+    expect(EVERNOTE_CONNECT_NOTES).toEqual([
+      'Live sync needs a paid Evernote plan (Personal or above). Evernote does not allow it on the Free plan.',
+      "Beta: Evernote's connection for apps is in beta, so things may change.",
+      'Notes you imported earlier from an .enex file are matched by title and created time and kept up to date, never duplicated. Notes you have edited here are never overwritten.',
+    ])
+    expect(EVERNOTE_ENEX_OFFER).toBe('On Evernote Free? Import an .enex export instead.')
+    expect(EVERNOTE_PLAN_RETURN).toBe('Evernote did not let us read this account. Live sync needs a paid Evernote plan. You can import an .enex export instead.')
+    expect(ENEX_IMPORT_HREF).toBe('/journal/notebook?import=evernote')
+  })
+
+  // Replaces the brief's "offers the .enex import instead of Coming soon when not configured":
+  // the controller ruled the tile never shows while the flag is off or the member is not allowed,
+  // and /status cannot tell those apart from "not set up". So Evernote never says Coming soon
+  // because it is not there at all; the `.enex` offer lives under the consent panel and on the
+  // plan return, where a member who CAN see the tile meets it.
+  it('evernote tile never shows to a member while /status says not configured (flag off or not allowed)', async () => {
+    mockFetch([['/api/j2/notes/connectors/status', { body: statusWith({ configured: false, connected: false, sources: [] }) }]])
+    renderCard()
+    expect(await screen.findByTestId('connector-tile-notion')).toBeInTheDocument()   // control: tiles rendered
+    expect(screen.queryByTestId('connector-tile-evernote')).toBeNull()
+    expect(screen.queryByText('Evernote')).toBeNull()
+  })
+
+  it('evernote tile never shows when the server predates the provider (absent from /status)', async () => {
+    const body = statusWith({ configured: true, connected: false, sources: [] })
+    delete body.providers.evernote
+    mockFetch([['/api/j2/notes/connectors/status', { body }]])
+    renderCard()
+    expect(await screen.findByTestId('connector-tile-notion')).toBeInTheDocument()
+    expect(screen.queryByTestId('connector-tile-evernote')).toBeNull()
+  })
+
+  it('evernote consent panel lists the paid-plan, beta and adoption notes', async () => {
+    mockFetch([['/api/j2/notes/connectors/status', { body: statusWith({ configured: true, connected: false, sources: [] }) }]])
+    renderCard()
+    const tile = await screen.findByTestId('connector-tile-evernote')
+    expect(within(tile).queryByText(EVERNOTE_ENEX_OFFER)).toBeNull()   // not before Connect
+    fireEvent.click(within(tile).getByRole('button', { name: /connect/i }))
+
+    const panel = await within(tile).findByRole('group', { name: 'Consent to connect Evernote' })
+    const items = within(within(panel).getByRole('list')).getAllByRole('listitem').map((li) => li.textContent)
+    expect(items).toEqual(EVERNOTE_CONNECT_NOTES)
+    // The list sits above the checkbox.
+    const list = within(panel).getByRole('list')
+    const box = within(panel).getByRole('checkbox')
+    expect(list.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // The `.enex` offer sits under the panel, and links to the import.
+    const offer = within(tile).getByRole('link', { name: EVERNOTE_ENEX_OFFER })
+    expect(offer.getAttribute('href')).toBe(ENEX_IMPORT_HREF)
+    expect(panel.compareDocumentPosition(offer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('another provider\'s consent panel carries no notes list', async () => {
+    mockFetch([['/api/j2/notes/connectors/status', { body: statusWith({ configured: true, connected: false, sources: [] }) }]])
+    renderCard()
+    const tile = await screen.findByTestId('connector-tile-notion')
+    fireEvent.click(within(tile).getByRole('button', { name: /connect/i }))
+    const panel = await within(tile).findByRole('group', { name: 'Consent to connect Notion' })
+    expect(within(panel).queryByRole('list')).toBeNull()
+    expect(within(tile).queryByText(EVERNOTE_ENEX_OFFER)).toBeNull()
+  })
+
+  it('evernote_plan return reason shows the plan sentence and the .enex link', async () => {
+    window.history.replaceState({}, '', '/settings?section=connections&connector=evernote&connected=0&reason=evernote_plan')
+    mockFetch([['/api/j2/notes/connectors/status', { body: statusWith({ configured: true, connected: false, sources: [] }) }]])
+    renderCard()
+    const note = await screen.findByTestId('oauth-return-notice')
+    expect(note.getAttribute('role')).toBe('status')
+    expect(note.textContent).toContain(EVERNOTE_PLAN_RETURN)
+    expect(note.textContent).not.toContain('evernote_plan')
+    const link = within(note).getByRole('link')
+    expect(link.getAttribute('href')).toBe(ENEX_IMPORT_HREF)
+    expect(window.location.search).toBe('?section=connections')
+  })
+
+  // Review M3: the Evernote sentence keys on BOTH connector=evernote and reason=evernote_plan.
+  it('reason=evernote_plan on another connector never shows the Evernote plan sentence', async () => {
+    window.history.replaceState({}, '', '/settings?section=connections&connector=notion&connected=0&reason=evernote_plan')
+    mockFetch([['/api/j2/notes/connectors/status', { body: statusWith({ configured: true, connected: false, sources: [] }) }]])
+    renderCard()
+    const note = await screen.findByTestId('oauth-return-notice')
+    expect(note.textContent).toBe("Couldn't connect Notion: evernote_plan")   // the generic line, as any other reason
+    expect(screen.queryByText(EVERNOTE_PLAN_RETURN, { exact: false })).toBeNull()
+    expect(within(note).queryByRole('link')).toBeNull()
+  })
+
+  it('evernote tile carries a Beta pill and no other tile does', async () => {
+    mockFetch([['/api/j2/notes/connectors/status', { body: statusWith({ configured: true, connected: false, sources: [] }) }]])
+    renderCard()
+    const tile = await screen.findByTestId('connector-tile-evernote')
+    expect(within(tile).getByText('Beta')).toBeInTheDocument()
+    expect(screen.getAllByText('Beta')).toHaveLength(1)
+    // Review M2: a real separator, so a screen reader says "Evernote, Beta", never "EvernoteBeta".
+    const name = within(tile).getByText('Beta').parentElement
+    expect(name.textContent).toBe('Evernote, Beta')
+    expect(name.querySelector('.sr-only')?.textContent).toBe(', ')
+    for (const k of ALL.filter((x) => x !== 'evernote')) {
+      expect(within(screen.getByTestId(`connector-tile-${k}`)).queryByText('Beta')).toBeNull()
+    }
+  })
+
+  // Coordinator ruling (concern 2): a member who ALREADY has Evernote connected keeps the tile while
+  // it is connected, even with the flag off or admin mode excluding them, so a connection is never
+  // invisible or unremovable. The server leaves Disconnect and the log ungated, but refuses Sync now
+  // and pause (503), so the tile says sync is off and offers only what works.
+  it('a connected member keeps the evernote tile while gated off: sync-off notice and a working Disconnect, no dead buttons', async () => {
+    const source = {
+      id: 'src-en-1', provider: 'evernote', displayName: 'Evernote', remoteId: 'acct-1', syncEnabled: true,
+      status: 'broken', lastSyncStatus: 'error', lastSyncError: 'Evernote sync is paused.', counts: {},
+    }
+    mockFetch([
+      ['/api/j2/notes/connectors/status', { body: statusWith({ configured: false, connected: true, sources: [source] }) }],
+      ['/api/j2/notes/connectors/evernote', { body: { disconnected: true } }],
+    ])
+    renderCard()
+    const tile = await screen.findByTestId('connector-tile-evernote')
+    expect(within(tile).getByText('Evernote sync is off for this account. Your imported notes stay here, and you can disconnect.')).toBeInTheDocument()
+    expect(within(tile).queryByText('Coming soon')).toBeNull()
+    expect(within(tile).queryByRole('button', { name: /^connect$/i })).toBeNull()
+    expect(within(tile).queryByRole('button', { name: /sync now/i })).toBeNull()
+    expect(within(tile).queryByRole('button', { name: /reconnect/i })).toBeNull()
+    expect(within(tile).queryByRole('checkbox')).toBeNull()
+    fireEvent.click(within(tile).getByRole('button', { name: /disconnect/i }))
+    fireEvent.click(within(tile).getByRole('button', { name: /click again to disconnect/i }))
+    await waitFor(() => {
+      const call = global.fetch.mock.calls.find((c) => String(c[0]).endsWith('/connectors/evernote') && c[1]?.method === 'DELETE')
+      expect(call).toBeTruthy()
+    })
+  })
+})
+
+// Review M6: the notes list keys by position, so two identical notes both render with no duplicate-key warning.
+describe('ConnectConsentPanel — notes', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('renders a repeated note twice, with no duplicate-key warning', () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    render(<ConnectConsentPanel providerLabel="X" checked={false} onCheck={() => {}} onConfirm={() => {}} onCancel={() => {}} notes={['Same.', 'Same.']} />)
+    expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Same.', 'Same.'])
+    expect(err.mock.calls.some((c) => /same key/i.test(String(c[0])) || c.some((a) => /same key/i.test(String(a))))).toBe(false)
+  })
+
+  it('renders no list when notes is empty or absent', () => {
+    const { rerender } = render(<ConnectConsentPanel providerLabel="X" checked={false} onCheck={() => {}} onConfirm={() => {}} onCancel={() => {}} notes={[]} />)
+    expect(screen.queryByRole('list')).toBeNull()
+    rerender(<ConnectConsentPanel providerLabel="X" checked={false} onCheck={() => {}} onConfirm={() => {}} onCancel={() => {}} />)
+    expect(screen.queryByRole('list')).toBeNull()
+  })
+})
+

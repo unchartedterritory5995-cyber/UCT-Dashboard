@@ -1057,9 +1057,10 @@ describe('a migrated definition is drawn ONCE — never by the engine and legacy
     .filter(d => d.compute.kind === 'server').map(d => d.id)
   const NATIVE_OWNED = [...ENGINE_OWNED].filter(id => !SERVER_LANE.includes(id))
 
-  it('the server lane is excluded from these rails, and it is exactly rsLine', () => {
-    expect(SERVER_LANE).toEqual(['rsLine'])
-    expect(NATIVE_OWNED.length).toBe(ENGINE_OWNED.size - 1)
+  it('the server lane is excluded from these rails, and it is exactly the four RS definitions', () => {
+    // ⭐ U6 (2026-11-09): the RS split's three join rsLine on the server lane.
+    expect(SERVER_LANE).toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma'])
+    expect(NATIVE_OWNED.length).toBe(ENGINE_OWNED.size - SERVER_LANE.length)
   })
 
   it('names at least one definition — otherwise every case below is vacuous', () => {
@@ -1781,7 +1782,9 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
         'dollarVolume', 'donchian', 'ichimoku', 'macd', 'mfi', 'movingAverage',
         'obv', 'rsLine', 'rsi', 'sar', 'stoch', 'vwap', 'williamsR',
         // ⭐ 2026-10-01 — every Technical library Tier 1 study bears a chip.
-        ...TIER1_IDS].sort())
+        ...TIER1_IDS,
+        // ⭐ U6 (2026-11-09) — the RS split's three server definitions each bear one chip.
+        'rsRating', 'rsPhases', 'rsVsEma'].sort())
     // ⛔ …AND THAT SET IS NOW TOTAL, WHICH IS THE CLAIM TASK 2 ACTUALLY MAKES.
     // Derived, so a definition landing WITHOUT a chip fails by construction
     // rather than by somebody remembering to widen the literal above.
@@ -3130,7 +3133,8 @@ describe('MACD Flip A — the legacy block stands down, all three plots move tog
       expect(c.options.autoscaleInfoProvider(() => 'BASE'),
         'the only thing on that axis has to be what sizes it').toBe('BASE')
     }
-    expect(macdHistogram()[0].options.priceFormat).toEqual({ type: 'price', precision: 5 })
+    // Decision B1: `minMove` follows the five decimals, or LWC rounds them to two.
+    expect(macdHistogram()[0].options.priceFormat).toEqual({ type: 'price', precision: 5, minMove: 0.00001 })
   })
 
   it('the zero guide is drawn ONCE, on the MACD line — as legacy draws it', () => {
@@ -4349,6 +4353,8 @@ describe('the Flip-B machinery, live (Task 10)', () => {
       // The set grew again with no flip and nothing to migrate.
       ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'dollarVolume',
         'donchian', 'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine',
+        // ⭐ U6 (2026-11-09): the RS split's three, server definitions like `rsLine`.
+        'rsRating', 'rsPhases', 'rsVsEma',
         'rsi', 'sar', 'stoch', 'vwap', 'williamsR',
         // ⭐ FIFTY-THREE AT 2026-10-01: the Technical library's Tier 1.
         ...TIER1_IDS].sort())
@@ -4404,7 +4410,7 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     const serverLane = registry.listDefinitions()
       .filter(d => d.compute.kind === 'server').map(d => d.id)
     expect(serverLane, 'the server-lane exclusion selects nothing — it is inert')
-      .toEqual(['rsLine'])
+      .toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma'])   // U6 (2026-11-09): rsLine plus the RS split's three
     let seen = 0
     for (const defId of [...ENGINE_OWNED].filter(id => !serverLane.includes(id))) {
       cleanup(); H.reset()
@@ -4777,6 +4783,121 @@ describe('B4 Task 3 — the right-click doors read the catalog', () => {
     }
   })
 
+})
+
+// ─── B9 (2026-11-07) — THE PANE OWNER'S CHIP ROWS ON THE PAYLOAD ────────────
+//
+// A host that draws its own menu (`onBarContextMenu`: the /charts ChartWidget)
+// leads a right-click inside an indicator pane with that indicator's chip rows.
+// StockChart resolves the pane's owner from the layout's host bookkeeping
+// (`region.hostKey`) and hands the rows over as `paneIndicator`; each row is
+// the chip's, wired to the chip's handler.
+describe('B9 — paneIndicator', () => {
+  it('an indicator pane carries its HOST instance and the chip rows, in the decided order', () => {
+    for (const id of ['rsi', 'macd', 'stoch']) {
+      cleanup(); H.reset()
+      H.paneModel = { stackPx: PLOT.height - 40 }
+      const view = renderChart({ settings: mergeChartSettings({ indicators: { [id]: { enabled: true } } }) })
+      const hit = openContextMenuHit(view, { region: 'indicator', key: id })
+      expect(hit.paneIndicator, `${id}: no pane rows on the payload`).toBeTruthy()
+      expect(hit.paneIndicator.instanceId, `${id}: rows for the wrong copy`).toBe(hit.region.hostKey)
+      expect(hit.paneIndicator.defId).toBe(id)
+      expect(hit.paneIndicator.items.map(r => r.key), id).toEqual(['settings', 'hidden', 'alerts', 'about'])
+      expect(hit.paneIndicator.items[0].label).toBe(`${labelFor(id)} settings…`)
+      expect(hit.paneIndicator.items.at(-1).label)
+        .toBe(`About ${registry.getDefinition(id).meta.name}`)
+    }
+  })
+
+  it('a definition that declares presets adds Preset, naming the preset its inputs match', () => {
+    // ⚠️ A CLIENT-COMPUTED fixture with presets, not `rsLine`: UCT RS is server
+    // computed and resolved no pane region in this harness (measured, even with
+    // empty columns primed). `chipMenu.pane.test.js` pins RS's own rows; this pins the wiring:
+    // StockChart reads `meta.presets` and `detectPreset` for the pane's owner.
+    const id = 'u_b9_pane_presets'
+    const fixture = {
+      schemaVersion: 1, id, version: 1,
+      compute: { kind: 'native', fn: 'rsi', rev: 1 },
+      meta: {
+        name: 'Pane Preset Fixture', shortName: 'PPF', category: 'Momentum', repaint: 'non-repainting',
+        presets: [
+          { id: 'classic', label: 'Classic', origin: 'fixture', inputs: { period: 14 } },
+          { id: 'fast', label: 'Fast', origin: 'fixture', inputs: { period: 7 } },
+        ],
+      },
+      placement: { target: 'pane', scale: { min: 0, max: 100 } },
+      inputs: [{ key: 'period', type: 'int', label: 'Length', default: 14, min: 2, max: 200 }],
+      plots: [{ key: 'rsi', label: 'PPF', style: 'line', color: 'token:info', width: 1, legend: { decimals: 1 } }],
+      events: [],
+    }
+    const r = registry.installUserDefinitions([fixture])
+    expect(r.errors, 'the fixture installs').toEqual([])
+    try {
+      H.paneModel = { stackPx: PLOT.height - 40 }
+      const inst = { instanceId: 'engine-test:ppf', defId: id, hidden: false, inputs: {} }
+      const view = renderChart({ settings: { indicatorInstances: [inst] } })
+      const pane = openContextMenuHit(view, { region: 'indicator', key: id }).paneIndicator
+      expect(pane && pane.instanceId).toBe('engine-test:ppf')
+      expect(pane.items.map(x => x.key)).toEqual(['settings', 'preset', 'hidden', 'alerts', 'about'])
+      expect(pane.items.at(-1).label).toBe('About Pane Preset Fixture')
+      const preset = pane.items.find(x => x.key === 'preset')
+      // defaults (period 14) ARE the Classic preset
+      expect(preset.trailing).toBe('Classic')
+      expect(preset.submenu.filter(s => s.checked).map(s => s.presetId)).toEqual(['classic'])
+      // pressing Fast writes it through the chip's preset writer
+      act(() => { preset.submenu.find(s => s.presetId === 'fast').onClick() })
+      const after = (view.lastSettings().indicatorInstances || []).find(i => i && i.instanceId === 'engine-test:ppf')
+      expect(after && after.inputs && after.inputs.period).toBe(7)
+    } finally {
+      registry.uninstallUserDefinition(id)
+    }
+  })
+
+  it('the price area carries none', () => {
+    H.paneModel = { stackPx: PLOT.height - 40 }
+    const view = renderChart({ settings: mergeChartSettings({ indicators: { rsi: { enabled: true } } }) })
+    expect(openContextMenuHit(view, { region: 'price' }).paneIndicator).toBeNull()
+  })
+
+  it('Hide hides the host instance through the chip writer, never deletes it', () => {
+    H.paneModel = { stackPx: PLOT.height - 40 }
+    const view = renderChart({ settings: mergeChartSettings({ indicators: { rsi: { enabled: true } } }) })
+    const rows = openContextMenuHit(view, { region: 'indicator', key: 'rsi' }).paneIndicator.items
+    act(() => { rows.find(r => r.key === 'hidden').onClick() })
+    const next = view.lastSettings()
+    const host = (next.indicatorInstances || []).find(i => i && i.instanceId === 'legacy:rsi')
+    expect(host && host.hidden, 'Hide did not hide the pane owner').toBe(true)
+    expect(host && host.deleted, 'Hide deleted it').toBeFalsy()
+  })
+
+  it('settings opens the per-instance dialog for the pane owner', () => {
+    H.paneModel = { stackPx: PLOT.height - 40 }
+    const a = { instanceId: 'engine-test:macd-a', defId: 'macd', hidden: false,
+      inputs: { fastPeriod: 7, slowPeriod: 26, signalPeriod: 9, macdColor: '#2196F3', signalColor: '#FF9800' } }
+    const view = renderChart({ settings: { indicators: { macd: { enabled: true } }, indicatorInstances: [a] } })
+    const pane = openContextMenuHit(view, { region: 'indicator', key: 'macd' }).paneIndicator
+    expect(pane.instanceId).toBe('engine-test:macd-a')
+    act(() => { pane.items.find(r => r.key === 'settings').onClick() })
+    const fast = document.body.querySelector('[role="dialog"] [data-input-key="fastPeriod"] input')
+    expect(fast, 'the settings row opened no dialog').toBeTruthy()
+    expect(fast.value).toBe('7')
+  })
+
+  it('About opens the chip About card for the definition', () => {
+    H.paneModel = { stackPx: PLOT.height - 40 }
+    const view = renderChart({ settings: mergeChartSettings({ indicators: { rsi: { enabled: true } } }) })
+    const rows = openContextMenuHit(view, { region: 'indicator', key: 'rsi' }).paneIndicator.items
+    act(() => { rows.find(r => r.key === 'about').onClick() })
+    const desc = registry.getDefinition('rsi').meta.description
+    expect(desc, 'rsi declares no description: vacuous').toBeTruthy()
+    expect(document.body.textContent, 'the About card did not open').toContain(desc)
+  })
+
+  it('a read-only mount (no drawing tools) carries no pane rows', () => {
+    H.paneModel = { stackPx: PLOT.height - 40 }
+    const view = renderChart({ settings: mergeChartSettings({ indicators: { rsi: { enabled: true } } }), showDrawingTools: false })
+    expect(openContextMenuHit(view, { region: 'indicator', key: 'rsi' }).paneIndicator).toBeNull()
+  })
 })
 
 // ─── A1 DOORS (D3/C2) — THE RIGHT-CLICK MENU UNDER "OFF HIDES" ──────────────

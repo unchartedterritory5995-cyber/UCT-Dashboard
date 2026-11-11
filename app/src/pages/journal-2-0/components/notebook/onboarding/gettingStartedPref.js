@@ -19,8 +19,8 @@
 // `_PREFERENCE_KEYS` is required (an unlisted key answers 400);
 // `tests/test_preference_key_validation.py` re-derives the key from the list's call site.
 //
-// The list shows only while BOTH `notebook_onboarding_enabled` and its own dark gate
-// `notebook_getting_started_enabled` (NOTEBOOK_GETTING_STARTED_ENABLED) are on.
+// The list shows only while BOTH `notebook_onboarding_enabled` and its own key
+// `notebook_getting_started_enabled` (always true: its variable was retired, 2026-11-04) are on.
 import { parsePref } from '../../../../../hooks/usePreferences'
 
 export const CHECKLIST_PREF = 'notebook_getting_started'
