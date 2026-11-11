@@ -126,8 +126,8 @@
   "drawing.setProps": "drawings",
   "drawing.setFibLevels": "drawings",
   "drawing.setAlert": "alerts",
-  "drawing.duplicate": "drawings",
-  "drawing.setPositionAlerts": "alerts",
+  "drawing.duplicate": "drawingOps",
+  "drawing.setPositionAlerts": "drawingOps",
   "indicator.list": "indicators",
   "indicator.openCreate": "indicators",
   "indicator.add": "indicators",
@@ -216,6 +216,10 @@
    "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
   },
   {
+   "id": "drawingOps",
+   "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+  },
+  {
    "id": "drawingTools",
    "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
   },
@@ -233,7 +237,7 @@
   },
   {
    "id": "alerts",
-   "title": "Price alerts (list, create, delete), an alert that follows a drawn line or Fibonacci level, and the entry / stop / target alerts of a position drawing"
+   "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
   },
   {
    "id": "indicatorAlerts",
@@ -363,6 +367,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
@@ -380,7 +388,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete), an alert that follows a drawn line or Fibonacci level, and the entry / stop / target alerts of a position drawing"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -528,6 +536,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
@@ -545,7 +557,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete), an alert that follows a drawn line or Fibonacci level, and the entry / stop / target alerts of a position drawing"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -661,8 +673,7 @@
     "alert.create",
     "alert.delete",
     "watchlist.open",
-    "drawing.setAlert",
-    "drawing.setPositionAlerts"
+    "drawing.setAlert"
    ],
    "routing": {
     "version": 1,
@@ -708,6 +719,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
@@ -725,7 +740,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete), an alert that follows a drawn line or Fibonacci level, and the entry / stop / target alerts of a position drawing"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -851,8 +866,7 @@
     "drawing.clear",
     "drawing.setAnchors",
     "drawing.setProps",
-    "drawing.setFibLevels",
-    "drawing.duplicate"
+    "drawing.setFibLevels"
    ],
    "routing": {
     "version": 1,
@@ -898,6 +912,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
@@ -915,7 +933,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete), an alert that follows a drawn line or Fibonacci level, and the entry / stop / target alerts of a position drawing"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -1059,6 +1077,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
       "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
@@ -1076,7 +1098,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete), an alert that follows a drawn line or Fibonacci level, and the entry / stop / target alerts of a position drawing"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
@@ -1137,6 +1159,7 @@
     "indicators",
     "indicatorSetup",
     "definitions",
+    "drawingOps",
     "drawingTools",
     "drawings",
     "lists",

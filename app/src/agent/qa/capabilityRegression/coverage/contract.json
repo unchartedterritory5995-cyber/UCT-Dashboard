@@ -862,7 +862,7 @@
   },
   "drawing.duplicate": {
    "domain": "drawing",
-   "group": "drawings",
+   "group": "drawingOps",
    "target": "drawing",
    "risk": "local",
    "reversible": true,
@@ -979,7 +979,7 @@
   },
   "drawing.setPositionAlerts": {
    "domain": "drawing",
-   "group": "alerts",
+   "group": "drawingOps",
    "target": "drawing",
    "risk": "confirm",
    "reversible": true,

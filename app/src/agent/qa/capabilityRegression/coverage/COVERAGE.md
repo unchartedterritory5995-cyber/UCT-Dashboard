@@ -98,7 +98,7 @@ Catalog: **185** capabilities (every server-gated kind on; 176 with production's
 | drawing.addText | drawingTools | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | drawing.addTrendline | drawingTools | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | drawing.clear | drawings | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ | ✓ |
-| drawing.duplicate | drawings | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
+| drawing.duplicate | drawingOps | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
 | drawing.list | drawings | local | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✓ | ✓ |
 | drawing.lock | drawings | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
 | drawing.remove | drawings | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
@@ -107,7 +107,7 @@ Catalog: **185** capabilities (every server-gated kind on; 176 with production's
 | drawing.setAnchors | drawings | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
 | drawing.setFibLevels | drawings | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✓ | ✓ |
 | drawing.setLevel | drawings | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
-| drawing.setPositionAlerts | alerts | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✓ |
+| drawing.setPositionAlerts | drawingOps | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✓ |
 | drawing.setProps | drawings | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✓ | ✓ |
 | drawing.setVisible | drawings | local | exact | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
 | drawing.style | drawings | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✓ | ✓ |

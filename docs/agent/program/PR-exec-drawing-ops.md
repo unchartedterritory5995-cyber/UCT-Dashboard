@@ -106,3 +106,27 @@ A	docs/agent/program/PR-exec-drawing-ops.md           this file
 - **STOP — v2 in→out 2** ([evidence](evidence/drawing-ops-1076/first-calls-master-vs-merged.md)): heldout-v2 h2-data-09 (stock.profile: `data` group no longer fits) and agentExec widget tune C3-148 (widget.setOption: `boardEdit` no longer fits). v1: 4 nlm1 dev agent.undo paraphrases in→out (the 1-action undo group leaves the fallback fill on 905 rows; #1076's undo words cover only its own phrasings).
 - **SAT-1 not regenerated**: every hunk is caused by #1076 (master regenerates clean), but 6 scan requests (d04, d08, d13, d20, d21, r05) lose `screener` from the first call (reroute needed); 30/31 also carry the alerts title change.
 - Cause (one): `drawing.setPositionAlerts` makes `alerts` (a non-fillLast fill group) 5 actions and `drawing.duplicate` grows `drawings`; on master the nothing-recognised fill sits exactly at the 55-action budget, so the last group that just fit is displaced by smaller fillLast ones. Needs a Lead decision (e.g. a fillLast/wordsOnly home for the position alerts, or budget headroom) before this PR can pass T2.
+
+## Lead decision: drawingOps words-only group (2026-11-11)
+
+- drawing.duplicate and drawing.setPositionAlerts now live in their own group, `drawingOps` (`wordsOnly`, `fillLast`), following the watchlistShow / compareGroups pattern. `alerts` and `drawings` are back to master's exact definitions and sizes. Supersedes the "stays in `alerts`" note above.
+- Its words, with no lookbehind:
+  - a duplicate / copy / clone verb with a drawing noun;
+  - an alert word with entry / stop / target / position.
+- Rails in `nlm1/nlm1Routing.test.js`:
+  - OWN_WORDS has 4 drawingOps phrases.
+  - Controls on v1 and v2: "alert me at 150" and "set an alert on NVDA" → alerts / alert.create. "duplicate my RSI" → indicatorSetup / indicatorCopy.duplicate. Under v2, "create a custom copy of the rsi indicator" → definitions / definition.duplicate. None selects drawingOps.
+  - The v1 undo words ("scratch that", "never mind", "go back to how it was before", "put it back") carry agent.undo in the first call on v1 and v2.
+- `agentUndoMixedPhrasing.test.jsx` is unchanged and green.
+- Hint wording: drawing.setPositionAlerts' hint no longer uses the word "choose". That word was new to the typo lexicon and moved one no-expectation routing row.
+- AUDIT mutant targets, all in `qa/chartsOutcome/drawingOps.outcome.test.jsx`:
+  - "the entry with no readable price is refused as unavailable — never a guessed side" covers M3.
+  - "Undo will not pretend once a position alert has gone off" is a new test that refuses to undo a fired position alert. It was not mutation-run.
+  - Both are green.
+- 25 routing groups on master 64421f770d. Server `turn.py` MAX_GROUPS = 24 until #1089 lands, so `tests/test_uct_agent_nl1_selection.py::test_a_routed_nl1_request_is_three_cache_blocks_core_first` fails for that reason only: the 25th group, `guide`, is dropped. `turn.py` is not touched.
+- First calls vs master on the final tree: 0 rows differ on both v2 and v1, and in→out = 0. SAT-1 was regenerated in its own commit: its 30 hunks are only the drawingOps listing in `routing.groups`, no `selected` moved, and scan/eval are untouched. See [evidence](evidence/drawing-ops-1076/first-calls-master-vs-merged.md).
+- Regenerated, each in its own run:
+  - parity: the drawingOps listing only;
+  - golden: the one hint line;
+  - capreg `coverage/*`: group column → drawingOps.
+- `baseline.lock.json` did not move.

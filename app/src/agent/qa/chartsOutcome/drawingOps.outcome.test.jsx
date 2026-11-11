@@ -136,6 +136,18 @@ describe('C1-118 position alerts: the menu\'s three bells, each on the side the 
     expect(proposalsNow()).toHaveLength(0)
     expect(bound(m)).toEqual([])
   })
+  // AUDIT target (#1076): a position alert that already went off is not "undone" — Undo says so and removes nothing
+  it('Undo will not pretend once a position alert has gone off', async () => {
+    const m = quad()
+    const id = position()
+    await m.say('set the stop and target alerts', (c) => [POS(c, id, ['stop', 'target'])])
+    await m.apply()
+    await waitFor(() => expect(bound(m)).toHaveLength(2))
+    m.st.alerts = m.st.alerts.map(x => (x.drawing_id === `${id}#1` ? { ...x, is_active: 0, triggered_at: '2026-11-04T15:00:00Z' } : x))
+    await m.say('undo')
+    expect(bound(m)).toHaveLength(2)
+    expect(m.p.transcript()).toMatch(/already went off/)
+  })
   it('"all three" skips a level already set (as the menu\'s button does); one named level already set is refused', async () => {
     QUOTES = { NVDA: 95 }
     const m = quad()

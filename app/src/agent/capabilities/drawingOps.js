@@ -111,7 +111,7 @@ export function registerDrawingOps(common, { registerCapability, byId, notFound,
     name: 'drawing.setPositionAlerts',
     risk: 'confirm',
     summary: 'Set a POSITION drawing\'s alerts (its menu\'s Alerts row): entry, stop, target, or all three. Each is an alert bound to that level, going off on the side the menu gives it (stop = the losing side, target = the winning side, entry = toward the entry from the current price). Always shown first; Undo removes them unless one already went off.',
-    hints: 'target = the drawings entry; drawing = the position\'s id; levels = any of "entry", "stop", "target" ("all three" / "all its alerts" = all three). The member does not choose the side — never ask. A line, ray or Fibonacci is drawing.setAlert.',
+    hints: 'target = the drawings entry; drawing = the position\'s id; levels = any of "entry", "stop", "target" ("all three" / "all its alerts" = all three). The side is the position\'s own — never ask the member. A line, ray or Fibonacci is drawing.setAlert.',
     args: { type: 'object', properties: {
       drawing: { type: 'string' },
       levels: { type: 'array', items: { type: 'string', enum: POSITION_LEVEL_NAMES } },
