@@ -1,3 +1,4 @@
+import { mergeMonotonic } from './barsMerge'
 // Synchronous in-memory LRU cache of chart bars, keyed by `${SYM}_${TF}`.
 // This is the FAST layer in front of IndexedDB: a switch to a (sym, tf) that's
 // in here paints in the SAME synchronous frame — no async idbGet hop, no
@@ -61,6 +62,23 @@ export function memPut(sym, tf, bars, { savedAt } = {}) {
   while (_map.size > MEM_CACHE_MAX) {
     _map.delete(_map.keys().next().value) // evict least-recently-used (oldest)
   }
+}
+
+/** The monotonic twin of memPut (see barsIDB `mergeMonotonic`): merges `bars` into the
+ *  entry held NOW so a background writer can never move it backwards or shallower. */
+// `startedAt`: when the incoming request BEGAN — a held set written after that is newer on
+// an equal tail (see mergeMonotonic `curIsNewer`).
+export function memPutMonotonic(sym, tf, bars, { savedAt, delta = false, startedAt = null } = {}) {
+  if (!sym || !tf || !bars?.length) return null
+  const cur = _map.get(_key(sym, tf))
+  const curIsNewer = Number.isFinite(startedAt) && Number.isFinite(cur?.savedAt) && cur.savedAt > startedAt
+  const next = mergeMonotonic(cur?.bars ?? null, bars, { delta, curIsNewer })
+  if (!next?.length || next === cur?.bars) return next ?? null
+  // The stamp follows the source that supplied the tail BAR: the incoming set's own
+  // (`savedAt`, or now when it is fresh from the server), else the held entry's.
+  const incomingWins = next[next.length - 1] === bars[bars.length - 1]
+  memPut(sym, tf, next, incomingWins ? (savedAt === undefined ? {} : { savedAt }) : { savedAt: cur?.savedAt ?? null })
+  return next
 }
 
 export function memClear() {
