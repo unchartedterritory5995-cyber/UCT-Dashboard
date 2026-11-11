@@ -20,6 +20,7 @@
 import { allCapabilityNames, getCapability, onSurface } from './capabilities'
 import { lexiconFor, correctTypos, setBaseSources } from './nl/lexicon'
 import { chartQualifier, ordinalChart, ORD_RE } from './deixis'
+import { spatialTargetSpan } from './spatialCheck'
 
 // Phase 1: "change MY chart to 15 minutes", "change the timeframe to daily", "switch to the 15 minute"
 // are the same obvious commands as "15 minute chart" — no model call.
@@ -161,6 +162,14 @@ export function extractTarget(text, host = null) {
   // ⭐ PHASE 3: "add rsi to the first chart" — the preposition before the ordinal goes with it (as a position's does), so
   // the clause left is "add rsi", not "add rsi to"
   if (ord) return { text: cut(s, ord.match).replace(/\s+(?:on|to|onto|for|in|into)$/i, ''), target: ord.ref ? { chart: ord.ref, word: ord.word } : { ask: ord.ask } }
+  // AUDIT probe 17 (#988): a WHOLE absolute line ("the top row" → every cell of it, one change) or a relation from a NAMED
+  // anchor ("the one beside the top-left chart" → its neighbour; asked without the anchor when not one) — read before the
+  // position words, which would take the line's or the anchor's own word ("top", "top-left") for the target
+  const span = host ? spatialTargetSpan(s, host.charts?.list?.() || []) : null
+  if (span) {
+    const rest = (s.slice(0, span.start) + ' ' + s.slice(span.end)).replace(/\s+/g, ' ').trim().replace(/\s+(?:on|to|onto|for|in|into)$/i, '')
+    return { text: rest, target: span.target }
+  }
   const m = POS_RE.exec(s)
   if (m) {
     // ⭐ PHASE 2: "top left" / "upper right" (no hyphen) are the same position as "top-left"
