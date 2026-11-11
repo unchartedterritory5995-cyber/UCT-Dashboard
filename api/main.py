@@ -3236,7 +3236,17 @@ def register_company_news_jobs(scheduler):
         ticker outside it -- LITE, for one -- could never receive a filing no
         matter how long the service ran. The offset persists in the store, so
         the sweep resumes where it left off across restarts.
+
+        ⚡ It skips a run that would overlap the opening or closing rush (desktop
+        speed plan 10.5): measured 2026-11-11 at 09:38-09:45 ET, 390 s wall and
+        42.5 s of this pod's CPU while members loaded every page. Coverage is
+        not time-critical; the next 20-minute interval runs after the rush.
         """
+        from api.services import market_rush
+        rush = market_rush.should_wait(datetime.now(_ET), 8)
+        if rush:
+            print(f"[news] per-company sweep skipped: {rush} rush")
+            return
         try:
             from api.services.news import ingest
             syms = ingest._active_universe(SEC_SYMS, rotate="sec_sweep")
