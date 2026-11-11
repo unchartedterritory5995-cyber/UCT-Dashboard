@@ -150,3 +150,62 @@ def test_ext_complete_tolerates_one_bucket():
     assert bars_fetch.intraday_ext_session_complete("1", et(2026, 11, 10, 19, 58)) is True
     assert bars_fetch.intraday_ext_session_complete("1", et(2026, 11, 10, 19, 57)) is False
     assert bars_fetch.intraday_ext_session_complete("1", TAIL_1653) is False
+
+
+# ── review #1051 F1: live-stream-covered 5m series ───────────────────────────
+
+SAT_1200 = et(2026, 11, 14, 12, 0)                    # Saturday
+FRI_1555 = et(2026, 11, 13, 15, 55)                   # a thin name's last print
+FRI_LAST_MINUTE_MS = et(2026, 11, 13, 19, 59) * 1000  # the stream's last delivered minute
+
+
+@pytest.fixture
+def live(monkeypatch):
+    from api.services import bars_live_store as bls
+    monkeypatch.setenv("BARS_LIVE_COVERAGE_ENABLED", "1")
+    bls._reset_for_tests()
+    bls._covered5.add("THIN")
+    bls._state["last_push_mono"] = bls._now_mono()      # heartbeat: stream alive
+    bls._state["watermark_ms"] = FRI_LAST_MINUTE_MS
+    yield bls
+    bls._reset_for_tests()
+
+
+def test_F1_thin_covered_name_on_saturday_is_verified_by_the_stream(live):
+    st = bars_fetch.intraday_tail_status("THIN", "5", FRI_1555, now=SAT_1200)
+    assert st["tail_status"] == "verified"
+    assert st["verified_through"] == et(2026, 11, 13, 20, 0)
+
+
+def test_F1_covered_and_proven_needs_no_provider_call(live, monkeypatch):
+    monkeypatch.setattr(bars_fetch, "intraday_tail_status",
+                        lambda t, tf, tail, now=None, _real=bars_fetch.intraday_tail_status:
+                        _real(t, tf, tail, now=SAT_1200))
+    bars_fetch.set_request_interactive(True)
+    assert bars_fetch._needs_fresh(FRI_1555, "5", "THIN") is False
+
+
+def test_F1_dead_stream_is_unverified_then_a_provider_reask_verifies(live, monkeypatch):
+    monkeypatch.setattr(live, "STREAM_ALIVE_S", -1)     # the feed went quiet
+    assert bars_fetch.intraday_tail_status("THIN", "5", FRI_1555, now=SAT_1200)["tail_status"] == "unverified"
+    # the interactive request falls through to the extended re-ask ...
+    sat = types.SimpleNamespace(**{k: getattr(_real_time, k) for k in dir(_real_time) if not k.startswith("__")})
+    sat.time = lambda: float(SAT_1200)
+
+    class _SatDT(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime.fromtimestamp(SAT_1200, tz)
+    monkeypatch.setattr(bars_fetch, "_time", sat)
+    monkeypatch.setattr(bars_fetch, "datetime", _SatDT)
+    bars_fetch.set_request_interactive(True)
+    assert bars_fetch._needs_fresh(FRI_1555, "5", "THIN") is True
+    # ... whose provider answer marks it verified
+    bars_fetch._mark_tail_verified("THIN", "5", SAT_1200)
+    monkeypatch.setattr(bars_fetch, "datetime", datetime)
+    assert bars_fetch.intraday_tail_status("THIN", "5", FRI_1555, now=SAT_1200)["tail_status"] == "verified"
+
+
+def test_F1_CONTROL_a_new_epoch_with_no_minute_yet_proves_nothing(live):
+    live._state["watermark_ms"] = None
+    assert bars_fetch.intraday_tail_status("THIN", "5", FRI_1555, now=SAT_1200)["tail_status"] == "unverified"

@@ -725,7 +725,20 @@ def _mark_tail_verified(ticker: str, tf: str, checked_at: float) -> None:
 
 def tail_verified_through(ticker: str, tf: str):
     with _tail_verified_lock:
-        return _tail_verified.get((ticker.upper(), tf))
+        vt = _tail_verified.get((ticker.upper(), tf))
+    # ⭐ A 5m series the universe live stream covers is VERIFIED by the stream itself
+    # through its newest delivered minute (review #1051 F1): a thin covered name never
+    # takes the provider-heal path that writes `_tail_verified`, so without this its
+    # off-hours tail would read `unverified` forever.
+    if tf == "5":
+        try:
+            from api.services import bars_live_store as _bls
+            lv = _bls.proven_through_s(ticker)
+            if lv is not None and (vt is None or lv > vt):
+                vt = lv
+        except Exception:                  # noqa: BLE001
+            pass
+    return vt
 
 
 def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool = False) -> list:
@@ -817,33 +830,11 @@ def intraday_tail_status(ticker: str, tf: str, tail_ts, now: float | None = None
         elif vt is not None and tail is not None and vt >= _bucket_end(tf, ext_frontier, step):
             out["tail_status"] = "verified"
         return out
-    frontier = expected_completed_bucket(tf, now)
-    if frontier is not None:
-        if tf == "60":
-            tolerance_floor = bucket_60_et_unix_seconds(frontier - 1)
-        else:
-            tolerance_floor = frontier - step
-        if tail is not None and tail >= tolerance_floor:
-            out["tail_status"] = "current"
-        elif vt is not None and tail is not None and vt >= _bucket_end(tf, frontier, step):
-            out["tail_status"] = "verified"
-        return out
-    # No bucket of today is expected: the tail must carry the last session to its close.
-    if (tail is not None and not _is_cold_stale_intraday(tf, tail)
-            and intraday_session_complete(tf, tail)):
-        out["tail_status"] = "current"
-    elif tail is not None and vt is not None and vt > tail:
-        # The provider was asked after the tail and had nothing newer (a genuinely thin
-        # name that stopped printing early) — proven, not assumed.
-        try:
-            _ymd = _expected_latest_session_yyyymmdd()
-            et = _ZI("America/New_York")
-            _d = datetime.strptime(str(_ymd), "%Y%m%d").replace(tzinfo=et)
-            _close = int(_d.timestamp()) + _session_close_minutes(_ymd) * 60
-            if vt >= _close:
-                out["tail_status"] = "verified"
-        except Exception:                  # noqa: BLE001
-            pass
+    # The extended frontier exists for every intraday tf at every instant (it falls
+    # back to the previous session's final bucket), so the old RTH-frontier and
+    # "no bucket of today is expected" branches are unreachable and were removed
+    # (review #1051 F4). Reaching here means the clock or calendar was unreadable:
+    # abstain as `unverified` — never claim currentness we could not compute.
     return out
 
 
@@ -937,7 +928,12 @@ def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> boo
         try:
             from api.services import bars_live_store as _bls
             if _bls.covered(ticker, tf):
-                return False
+                # ⛔ 5m: "covered" is not proof by itself (review #1051 F1). Fresh only
+                # while the stream's proof makes the tail current/verified; otherwise
+                # fall through so the normal rules (incl. the extended re-ask, which
+                # marks verified) can repair it — e.g. a new epoch with no minute yet.
+                if tf == "D" or intraday_tail_status(ticker, tf, last_ts)["tail_status"] != "unverified":
+                    return False
         except Exception:
             pass
     if tf == "W":
