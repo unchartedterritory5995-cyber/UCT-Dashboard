@@ -630,20 +630,14 @@ def purge_mis_keyed_weekly_rows() -> int:
 
     Returns rows deleted.
     """
-    import datetime as _dt
+    from api.services import date_bar_keys as _dk
 
     def _is_bad(ts: int) -> bool:
-        s = str(ts)
-        if len(s) != 8:
-            return True  # not a YYYYMMDD key — malformed for a date TF
-        try:
-            d = _dt.date(int(s[:4]), int(s[4:6]), int(s[6:]))
-        except ValueError:
-            return True
-        return d.weekday() != 4  # 4 = Friday
+        return not _dk.key_ok("W", ts)  # the ISO-week-Friday rule — `date_bar_keys`
 
     c = _conn()
     deleted = 0
+    off_calendar = 0
     # ⭐ Same pass, same PK-prefixed seeks: a ticker still carrying the
     # pre-2026-11-10 clock-hour 60m layout is REBUILT in place from its own stored
     # 15m/30m rows (bars_fetch.rebuild_sixty_min_grid — local, no provider call),
@@ -661,6 +655,13 @@ def purge_mis_keyed_weekly_rows() -> int:
                         sixty_rebuilt += 1
             except Exception as e:  # noqa: BLE001 — never let the 60m check stop the weekly purge
                 _logger.warning(f"[sqlite] 60m grid rebuild {tkr} failed (non-fatal): {e}")
+        # Same pass, same PK-prefixed seek: daily rows on a non-trading day (+ the
+        # weeks/months they were summed into). Runs before the W scan below so a W row
+        # it rewrites is judged by that scan like any other.
+        try:
+            off_calendar += purge_off_calendar_daily(tkr, c)
+        except Exception as e:  # noqa: BLE001 — never let it stop the weekly purge
+            _logger.warning(f"[sqlite] off-calendar daily purge {tkr} failed (non-fatal): {e}")
         bad = [
             ts for (ts,) in c.execute(
                 "SELECT ts FROM ohlcv WHERE ticker=? AND tf='W'", (tkr,)
@@ -685,7 +686,92 @@ def purge_mis_keyed_weekly_rows() -> int:
             _mark_sixty_grid_clean(c)
     if deleted:
         _logger.info(f"[sqlite] purge_mis_keyed_weekly_rows: deleted {deleted} stale weekly rows")
+    if off_calendar:
+        _logger.warning(f"[sqlite] purge_off_calendar_daily: deleted {off_calendar} non-trading-day daily rows")
     return deleted
+
+
+def _off_calendar_candidate_sql() -> tuple[str, list]:
+    """A SQL PRE-FILTER (superset) for D keys that are not NYSE trading days:
+    Saturday/Sunday, a calendar holiday, or not a real date. Every candidate is
+    re-judged by `date_bar_keys.key_ok` — the SQL never decides a deletion alone
+    (same discipline as `_IMPOSSIBLE_CANDIDATE_SQL`). Spelled in SQL so the scan of
+    a ticker's daily rows stays in C instead of one Python call per row."""
+    from api.services import session_calendar as _sc
+    hol = sorted(int(d.strftime("%Y%m%d")) for d in _sc.calendar().holidays)
+    iso = "printf('%04d-%02d-%02d', ts / 10000, (ts / 100) % 100, ts % 100)"
+    sql = (f"(date({iso}) IS NULL OR date({iso}) != {iso} "
+           f"OR strftime('%w', {iso}) IN ('0','6')"
+           + (f" OR ts IN ({','.join('?' for _ in hol)})" if hol else "") + ")")
+    return sql, hol
+
+
+def purge_off_calendar_daily(ticker: str, c: sqlite3.Connection | None = None) -> int:
+    """Delete ``ticker``'s daily rows keyed on a non-trading day, then rebuild the
+    stored W / M rows those days were summed into from the remaining daily rows.
+
+    Idempotent (a second run finds nothing) and bounded (one PK-prefixed read per
+    ticker; writes only for a ticker that has a bad row). A W/M row is rebuilt only
+    when the store holds the period's daily rows from its start — otherwise it is
+    left as it is rather than replaced by a partial period. Returns D rows deleted.
+    Rule: `date_bar_keys`. The write gate (`_writable_bars`) stops new ones."""
+    from api.services import date_bar_keys as _dk
+    tkr = ticker.upper()
+    if not _dk.calendar_applies(tkr):
+        return 0
+    c = c or _conn()
+    pred, params = _off_calendar_candidate_sql()
+    cand = [ts for (ts,) in c.execute(
+        f"SELECT ts FROM ohlcv WHERE ticker=? AND tf='D' AND {pred}", [tkr, *params]).fetchall()]
+    bad = [ts for ts in cand if not _dk.key_ok("D", ts)]
+    if not bad:
+        return 0
+    with _WRITE_LOCK:
+        qs = ",".join("?" for _ in bad)
+        cur = c.execute(f"DELETE FROM ohlcv WHERE ticker=? AND tf='D' AND ts IN ({qs})", [tkr, *bad])
+        c.commit()
+    n = cur.rowcount
+    _logger.warning("[sqlite] %s: deleted %d non-trading-day daily row(s): %s", tkr, n, bad[:5])
+    _rebuild_periods_from_daily(tkr, bad, c)
+    return n
+
+
+def _rebuild_periods_from_daily(tkr: str, bad_ts: list[int], c: sqlite3.Connection) -> None:
+    """Recompute the stored W and M rows covering ``bad_ts`` from stored D rows,
+    with the one W/M resampler (`bars_fetch._resample_*_iso`)."""
+    import datetime as _dt
+    from api.services import date_bar_keys as _dk
+    from api.services.bars_fetch import _resample_monthly_iso, _resample_weekly_iso
+
+    def ymd(x) -> int:
+        return int(x.strftime("%Y%m%d"))
+
+    first_d = get_first_ts(tkr, "D")
+    periods = set()
+    for ts in bad_ts:
+        d = _dk.key_date(ts)
+        if d is None:
+            continue
+        mon = d - _dt.timedelta(days=d.weekday())
+        periods.add(("W", mon, mon + _dt.timedelta(days=6), mon + _dt.timedelta(days=4)))
+        m1 = d.replace(day=1)
+        nxt = (m1 + _dt.timedelta(days=32)).replace(day=1)
+        periods.add(("M", m1, nxt - _dt.timedelta(days=1), m1))
+    for tf, start, end, key in sorted(periods):
+        if not first_d or first_d > ymd(start):
+            continue  # the store's daily history does not reach the period start
+        if not c.execute("SELECT 1 FROM ohlcv WHERE ticker=? AND tf=? AND ts=?",
+                         (tkr, tf, ymd(key))).fetchone():
+            continue  # no stored row to correct
+        rows = c.execute("SELECT ts,o,h,l,c,v FROM ohlcv WHERE ticker=? AND tf='D' AND ts>=? AND ts<=? "
+                         "ORDER BY ts", (tkr, ymd(start), ymd(end))).fetchall()
+        daily = [{"t": f"{str(r[0])[:4]}-{str(r[0])[4:6]}-{str(r[0])[6:]}", "o": r[1], "h": r[2],
+                  "l": r[3], "c": r[4], "v": r[5]} for r in rows if None not in r[1:5]]
+        if not daily:
+            continue
+        built = (_resample_weekly_iso if tf == "W" else _resample_monthly_iso)(daily)
+        if built:
+            put_bars(tkr, tf, built[-1:], date_tf=True)
 
 
 _purge_weekly_thread_lock = threading.Lock()
@@ -1439,10 +1525,26 @@ def _writable_bars(ticker: str, tf: str, bars: list[dict]) -> tuple[list[dict], 
         from api.services.bar_validation import possible_bar_reasons
     except Exception:                                    # pragma: no cover
         return list(bars), []
+    # 🔴 THE DATE-KEY INVARIANT, AT THE SAME DOOR (2026-11-11): a D row only on an NYSE
+    # trading day, a W row only on its ISO-week Friday, an M row only on the 1st. Prod
+    # held a SATURDAY daily bar (META et al. 2026-11-07) that drew as an extra candle
+    # and was summed into the week. Rule + rationale: `date_bar_keys` module doc.
+    key_reason = None
+    if tf in ("D", "W", "M"):
+        try:
+            from api.services import date_bar_keys as _dk
+            if tf != "D" or _dk.calendar_applies(ticker):
+                key_reason = _dk.key_reason
+        except Exception:                                # pragma: no cover
+            key_reason = None
     keep, rejected = [], []
     for b in bars:
         try:
             reasons = possible_bar_reasons(b)
+            if key_reason is not None:
+                why = key_reason(tf, b.get("t"))
+                if why:
+                    reasons = [*reasons, why]
         except Exception:                                # pragma: no cover
             reasons = []
         if reasons:

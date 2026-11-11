@@ -1124,16 +1124,17 @@ class TestResampleWeeklyClosingDate:
     def test_iso_complete_week_dated_friday(self):
         from api.services.bars_fetch import _resample_weekly_iso
         daily = [
-            {"t": "2026-06-15", "o": 12.0, "h": 12.5, "l": 11.8, "c": 12.3, "v": 100},
-            {"t": "2026-06-16", "o": 12.3, "h": 12.4, "l": 11.5, "c": 11.7, "v": 200},
-            {"t": "2026-06-17", "o": 11.7, "h": 11.9, "l": 11.0, "c": 11.2, "v": 150},
-            {"t": "2026-06-18", "o": 11.2, "h": 11.6, "l": 10.9, "c": 11.5, "v": 120},
-            {"t": "2026-06-19", "o": 11.5, "h": 12.0, "l": 11.3, "c": 11.9, "v": 180},
+            # (week of 6/8: the 6/15 week's Friday is Juneteenth, a holiday with no session)
+            {"t": "2026-06-08", "o": 12.0, "h": 12.5, "l": 11.8, "c": 12.3, "v": 100},
+            {"t": "2026-06-09", "o": 12.3, "h": 12.4, "l": 11.5, "c": 11.7, "v": 200},
+            {"t": "2026-06-10", "o": 11.7, "h": 11.9, "l": 11.0, "c": 11.2, "v": 150},
+            {"t": "2026-06-11", "o": 11.2, "h": 11.6, "l": 10.9, "c": 11.5, "v": 120},
+            {"t": "2026-06-12", "o": 11.5, "h": 12.0, "l": 11.3, "c": 11.9, "v": 180},
         ]
         out = _resample_weekly_iso(daily)
         assert len(out) == 1
         bar = out[0]
-        assert bar["t"] == "2026-06-19"  # Friday of ISO week 25, not Monday 6/15
+        assert bar["t"] == "2026-06-12"  # Friday of ISO week 24, not Monday 6/8
         assert bar["o"] == 12.0  # first day's open
         assert bar["c"] == 11.9  # last day's close
         assert bar["h"] == 12.5  # week high

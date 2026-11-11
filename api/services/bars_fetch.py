@@ -1571,6 +1571,14 @@ def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> l
     just-restored stale snapshot between purges."""
     date_tf = tf in ("D", "W", "M")
     weekly = tf == "W"
+    # Key guard (W: 2026-07-02, D: 2026-11-11): a stored row whose date key breaks the
+    # `date_bar_keys` rule (a W not on its Friday; a D on a non-trading day — prod's
+    # Saturday 2026-11-07 bar) never renders, even before the background purge lands.
+    key_guard = None
+    if tf in ("D", "W"):
+        from api.services import date_bar_keys as _dk
+        if tf == "W" or _dk.calendar_applies(ticker):
+            key_guard = _dk.key_ok
     out = []
     for ts, o, h, l, c, v in rows:
         if o is None or h is None or l is None or c is None:
@@ -1579,12 +1587,8 @@ def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> l
             continue
         if date_tf:
             s = str(ts)
-            if weekly:
-                try:
-                    if datetime(int(s[:4]), int(s[4:6]), int(s[6:])).weekday() != 4:
-                        continue
-                except ValueError:
-                    continue
+            if key_guard is not None and not key_guard(tf, ts):
+                continue
             t_val = f"{s[:4]}-{s[4:6]}-{s[6:]}"
         else:
             t_val = ts
@@ -2154,7 +2158,13 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
 
 def _massive_raw_to_iso(raw) -> list[dict]:
     """Convert raw Massive aggs (t = unix ms) to our normalized daily
-    format (t = ISO date string)."""
+    format (t = ISO date string).
+
+    ⛔ Only NYSE sessions (2026-11-11). The provider's daily aggregate carries its own
+    date, and on 2026-11-07 it carried a SATURDAY for a handful of names; copied
+    through verbatim it was stored, drawn as an extra candle and summed into the week.
+    The key rule has one owner: `date_bar_keys`."""
+    from api.services.date_bar_keys import session_daily
     out = []
     for bar in raw:
         dt = datetime.utcfromtimestamp(bar["t"] / 1000)
@@ -2164,7 +2174,7 @@ def _massive_raw_to_iso(raw) -> list[dict]:
             "l": _px(bar["l"]), "c": _px(bar["c"]),
             "v": int(_bar_volume(bar)),
         })
-    return out
+    return session_daily(out)
 
 
 # Hard deadline for the REQUEST-path yfinance daily tail-fill. 3.5s bounds a cold
@@ -2830,11 +2840,13 @@ def _bar_volume(bar: dict) -> float:
 
 
 def _resample_weekly_iso(daily_bars: list[dict]) -> list[dict]:
-    """Resample our normalized daily bars (t = ISO date string) to weekly."""
+    """Resample our normalized daily bars (t = ISO date string) to weekly.
+    Non-session daily rows are excluded (`date_bar_keys`) — a week is its sessions."""
     if not daily_bars:
         return []
+    from api.services.date_bar_keys import session_daily
     weeks = {}
-    for bar in daily_bars:
+    for bar in session_daily(daily_bars):
         try:
             dt = datetime.strptime(bar["t"], "%Y-%m-%d")
         except (ValueError, TypeError):
@@ -2868,11 +2880,13 @@ def _resample_weekly_iso(daily_bars: list[dict]) -> list[dict]:
 
 
 def _resample_monthly_iso(daily_bars: list[dict]) -> list[dict]:
-    """Resample our normalized daily bars (t = ISO date string) to monthly."""
+    """Resample our normalized daily bars (t = ISO date string) to monthly.
+    Non-session daily rows are excluded (`date_bar_keys`) — a month is its sessions."""
     if not daily_bars:
         return []
+    from api.services.date_bar_keys import session_daily
     months = {}
-    for bar in daily_bars:
+    for bar in session_daily(daily_bars):
         try:
             dt = datetime.strptime(bar["t"], "%Y-%m-%d")
         except (ValueError, TypeError):
