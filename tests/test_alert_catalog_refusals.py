@@ -62,6 +62,8 @@ _AST_SMA5 = {"type": "call", "name": "sma", "args": [
 def _rs_alert_flags_lit(monkeypatch):
     from api.services.signature import registry_defs as _rs_flag_defs
     monkeypatch.setattr(_rs_flag_defs, "RS_V2_ENABLED", True)
+    import api.main  # noqa: F401 -- import BEFORE lighting RS_SPLIT_ENABLED: api.main registers providers for the split rows, which registry_defs only built if the flag was on at ITS import
+    monkeypatch.setattr(_rs_flag_defs, "RS_SPLIT_ENABLED", True)  # 2026-11-10 (RS split, S2): the lit shape includes the split alerts
     monkeypatch.setenv("RS_HISTORY_ENABLED", "1")
 
 
@@ -349,8 +351,8 @@ def test_the_CATALOG_half_of_the_response_is_BYTE_UNMOVED(client):
     save(USER_A, defn(), repaint={"value": "repaints"})
     body = served(client)
     assert body["catalog"] == ev.alert_catalog()
-    assert len(ev.alert_catalog()) == 18  # 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
-    assert len(ev.all_addresses()) == 44  # 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
+    assert len(ev.alert_catalog()) == 20  # 2026-11-10 (RS split, S2): 18 -> 20, +rs_phases +rs_vs_ema groups; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
+    assert len(ev.all_addresses()) == 48  # 2026-11-10 (RS split, S2): 44 -> 48, +rs_phases.flipBlue/flipRed +rs_vs_ema.crossUp/crossDown; 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
     assert len(ev.ADDRESS_PARTITIONS) == 5  # 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
 
 

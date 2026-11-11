@@ -50,6 +50,7 @@ import re
 import time
 from typing import Any, Callable
 
+from api.services.uct_agent.scan import hidden
 from api.services.uct_agent.scan import refine as scan_refine
 
 DISPOSITIONS = ("answer", "clarify", "apply", "propose", "unsupported")
@@ -1227,6 +1228,55 @@ _HIDDEN_SCREEN_UNIVERSE = re.compile(r"\b(?:stocks|names|tickers|equities|ones|t
                                      r"just|top \d+|anything|everything|leaders|which|what)\b", re.I)
 _HIDDEN_NOT_A_SCREEN = re.compile(r"\b(?:where|how|what(?:'s| is| does| do| are)|explain|meaning|means|definition|defined|charts?|levels?|toggle|"
                                   r"settings?|overlay|widget|turn (?:on|off)|enable|disable|bars)\b", re.I)
+
+
+#: The owner's exception to F-16 (app/src/agent/capabilities/screener.js; 11-05 Calls only, WIDENED 2026-11-10 to every chip): the
+#: Agent operates controls already available to the member: the Options Flow widget's own filter chips, nothing else.
+_FLOW_WIDGET_NAME = "options flow"
+#: The widget's four single-select chip groups (OptionsFlowWidget.jsx; app/src/widgets/widgetControls.js `optionsflow` rows):
+#: control key → every value it takes, each as its stored value and as the word on its chip. agentFlowChipsParity.test.js
+#: pins this table to the JS rows, so a chip added on one side and not the other fails a rail.
+_FLOW_CHIPS = {
+    "minPremium": {"0": "0", "all": "0", "250000": "250000", "$250k": "250000", "500000": "500000", "$500k": "500000",
+                   "1000000": "1000000", "$1m": "1000000"},
+    "callPut": {"all": "all", "c": "C", "calls": "C", "p": "P", "puts": "P"},
+    "printType": {"all": "all", "any": "all", "sweep": "SWEEP", "block": "BLOCK"},
+    "direction": {"all": "all", "bull": "BULL", "bear": "BEAR"},
+}
+#: the words a member says a chip with (the chips' own words, less All / Any, and how a person says one)
+_FLOW_CHIP_WORD = re.compile(r"(?:^|[^a-z0-9$])(?:calls?|puts?|sweeps?|blocks?|bull(?:ish)?s?|bear(?:ish)?s?|premium|million|\$?250k|\$?500k|\$?1m)(?![a-z0-9])")
+_STOCK_UNIVERSE = re.compile(r"\b(?:stocks?|names|tickers?|equities|companies)\b")
+
+
+def plans_only_flow_chips(message: str, env: dict, context: dict | None) -> bool:
+    """True only when the member named the widget and one of its chips, asked for no universe of stocks, and EVERY planned op
+    sets one of that widget's chip groups to one of its own chips on an Options Flow widget on this turn's own board. Nothing
+    else leaves the F-16 refusal: a screen, prose, another control, a value no chip has, another widget, a mixed plan. It reads
+    no field and opens no data: only chips the member has."""
+    low = str(message or "").lower()
+    hit = hidden.hidden_phrase_in(low)
+    if not hit or not _FLOW_CHIP_WORD.search(low) or _STOCK_UNIVERSE.search(low):
+        return False
+    if re.sub(r"[\s-]+", " ", hit[1]).replace("option ", "options ", 1) != _FLOW_WIDGET_NAME:
+        return False
+    ops = env.get("ops") if isinstance(env, dict) else None
+    entries = (context or {}).get("board") if isinstance(context, dict) else None
+    if not ops or not isinstance(entries, list):
+        return False
+    flow = {str(w.get("id")) for b in entries if isinstance(b, dict) for w in (b.get("widgets") or [])
+            if isinstance(w, dict) and w.get("type") == "optionsflow"}
+    for o in ops:
+        args = o.get("args") if isinstance(o, dict) else None
+        if not isinstance(args, dict) or o.get("action") != "widget.setOption":
+            return False
+        chips = _FLOW_CHIPS.get(str(args.get("key")))
+        if str(args.get("widget")) not in flow or chips is None or str(args.get("value")).strip().lower() not in chips:
+            return False
+    return True
+
+
+#: kept for callers of the 11-05 name: the Calls chip is one of the chips
+plans_only_flow_calls_chip = plans_only_flow_chips
 
 
 def hidden_screen_request(message: str) -> bool:
@@ -2619,7 +2669,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         if "screener.run" in cap_names and isinstance(env, dict) and not asks_groups:
             hidden_why = scan_refine.refusal_for_text(msg)
             plans_screen = any(isinstance(o, dict) and str(o.get("action") or "").startswith("screener.") for o in env.get("ops") or [])
-            if hidden_why and (plans_screen or hidden_screen_request(msg)):
+            if hidden_why and (plans_screen or hidden_screen_request(msg)) and not plans_only_flow_chips(msg, env, context):
                 usage["hidden_phrase"] = True
                 env = {**env, "disposition": "answer", "reply": f"I didn't run it: {hidden_why}", "ops": [], "question": None,
                        "research": None, "need_groups": None}

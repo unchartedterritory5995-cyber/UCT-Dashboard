@@ -160,9 +160,16 @@ describe('urgent key matches the chart', () => {
   it('StockChart still requests /api/bars/<sym>?tf=<tf>&bars=<first-paint bars> and urgent builds the same', async () => {
     const fs = await import('node:fs')
     const src = fs.readFileSync('src/components/StockChart.jsx', 'utf8')
-    expect(src).toContain('/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_primaryBars}${_sinceParam')
-    const { FIRST_PAINT_BARS } = await import('./barsBackfill')
+    expect(src).toContain('/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_primaryBars}${_sessQ}${_sinceParam')
+    expect(src).toContain("/api/bars/${encodeURIComponent(sym || '')}?tf=${resolvedTf}&bars=${_primaryBars}${_sessQ}`")
+    const { FIRST_PAINT_BARS, firstPaintBarsFor } = await import('./barsBackfill')
     expect(mod._url('AAPL', 'D', false)).toBe(`/api/bars/AAPL?tf=D&bars=${FIRST_PAINT_BARS}`)
+    // intraday: the same `&session=` the chart's `_sessQ` appends (barsSessionQuery)
+    mod.setPrefetchShowExtended(false)
+    expect(mod._url('AAPL', '5', false)).toBe(`/api/bars/AAPL?tf=5&bars=${firstPaintBarsFor('5', false)}&session=rth`)
+    mod.setPrefetchShowExtended(true)
+    expect(mod._url('AAPL', '60', false)).toBe(`/api/bars/AAPL?tf=60&bars=${firstPaintBarsFor('60', true)}&session=eth`)
+    mod.setPrefetchShowExtended(false)
   })
 })
 
@@ -177,5 +184,63 @@ describe('one download per row (2026-10-17)', () => {
     expect(aaa.some(u => u.includes('warm=1'))).toBe(false)
     // CONTROL: a row without an urgent job is still warmed into IDB
     expect(urls().some(u => u.includes('/api/bars/BBB') && u.includes('warm=1'))).toBe(true)
+  })
+})
+
+describe('session-aware warms (2026-11-10)', () => {
+  it('with extended hours on, a 60m urgent warm fills the 60e key with the session=eth series', async () => {
+    const { memHas } = await import('./barsMemCache')
+    const { firstPaintBarsFor } = await import('./barsBackfill')
+    preload.mockImplementation(() => Promise.resolve({ bars: [{ t: 1, o: 1, h: 1, l: 1, c: 1, v: 1 }], session: 'eth' }))
+    mod.setPrefetchShowExtended(true)
+    try {
+      mod.prefetchBars(['ETHW'], '60', { urgent: true })
+      await drain()
+      expect(urls()).toEqual([`/api/bars/ETHW?tf=60&bars=${firstPaintBarsFor('60', true)}&session=eth`])
+      expect(memHas('ETHW', '60e')).toBe(true)
+      expect(memHas('ETHW', '60')).toBe(false)
+    } finally { mod.setPrefetchShowExtended(false) }
+  })
+  it('RTH 60m and every non-60 tf keep their plain key', async () => {
+    const { memHas } = await import('./barsMemCache')
+    preload.mockImplementation(() => Promise.resolve({ bars: [{ t: 1, o: 1, h: 1, l: 1, c: 1, v: 1 }] }))
+    mod.prefetchBars(['RTHW'], '60', { urgent: true })
+    await drain()
+    mod.setPrefetchShowExtended(true)
+    try {
+      mod.prefetchBars(['EXT5'], '5', { urgent: true })
+      await drain()
+    } finally { mod.setPrefetchShowExtended(false) }
+    expect(urls().some(u => u.startsWith('/api/bars/RTHW?tf=60') && u.endsWith('&session=rth'))).toBe(true)
+    expect(memHas('RTHW', '60')).toBe(true)
+    expect(memHas('EXT5', '5')).toBe(true)
+  })
+})
+
+describe('a warm keeps the key it started with (review #1061 F3)', () => {
+  it('toggling EXT while an RTH 60m warm is in flight writes the RTH answer under 60, never 60e', async () => {
+    const { memHas } = await import('./barsMemCache')
+    let resolve
+    preload.mockImplementation(() => new Promise((r) => { resolve = r }))
+    mod.setPrefetchShowExtended(false)
+    try {
+      mod.prefetchBars(['FLIPW'], '60', { urgent: true })
+      await drain()
+      expect(urls()[0]).toContain('session=rth')
+      mod.setPrefetchShowExtended(true)                    // member flips EXT mid-flight
+      resolve({ bars: [{ t: 1, o: 1, h: 1, l: 1, c: 1, v: 1 }] })
+      await drain()
+      expect(memHas('FLIPW', '60e')).toBe(false)
+      mod.setPrefetchShowExtended(false)
+      expect(memHas('FLIPW', '60')).toBe(true)
+    } finally { mod.setPrefetchShowExtended(false) }
+  })
+  it('an answer on the other grid than the job key is not written at all', async () => {
+    const { memHas } = await import('./barsMemCache')
+    preload.mockImplementation(() => Promise.resolve({ bars: [{ t: 1, o: 1, h: 1, l: 1, c: 1, v: 1 }], session: 'eth' }))
+    mod.prefetchBars(['GRIDX'], '60', { urgent: true })   // RTH job, eth answer
+    await drain()
+    expect(memHas('GRIDX', '60')).toBe(false)
+    expect(memHas('GRIDX', '60e')).toBe(false)
   })
 })

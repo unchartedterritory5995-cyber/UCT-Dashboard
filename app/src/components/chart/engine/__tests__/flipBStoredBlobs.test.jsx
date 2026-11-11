@@ -311,6 +311,9 @@ describe('the blob shapes themselves — without these the cases below prove not
       ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'dollarVolume',
         'donchian', 'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine',
         'rsi', 'sar', 'stoch', 'vwap', 'williamsR',
+        // RS split U6 (2026-11-10): the three split RS definitions are registry-native
+        // server definitions (no block, no section, no toggle); the set grew with no flip.
+        'rsPhases', 'rsRating', 'rsVsEma',
         // ⭐ FIFTY-THREE AT 2026-10-01: the Technical library's Tier 1 — registry-
         // native, no block, no section, no toggle; the set grew with no flip.
         ...TIER1_IDS].sort())

@@ -104,6 +104,13 @@ describe('_ingestHotPack (server hot shard)', () => {
     expect(localStorage.getItem('barspack.hotVersion')).toBeNull()
   })
 
+  it('does NOT stamp when the hot shard download fails (404 / offline), so it retries next load', async () => {
+    globalThis.fetch = vi.fn(async (url) => (url.endsWith('/manifest') ? { ok: true, json: async () => manifest } : { ok: false, json: async () => ({}) }))
+    await _ingestHotPack(HOT_CFG)
+    expect(idbImportPack).not.toHaveBeenCalled()
+    expect(localStorage.getItem('barspack.hotVersion')).toBeNull()
+  })
+
   it('does NOT stamp when the ingest aborts (quota) so it retries next load', async () => {
     idbImportPack.mockResolvedValue({ aborted: true })
     globalThis.fetch = stubFetch({ manifest, hotShard })
@@ -140,6 +147,20 @@ describe('_ingestFull — never reports false success (the dead-stamp bug)', () 
     const ok = await _ingestFull(FULL_CFG, '2026-09-02', [{ idx: 0 }])
     expect(ok).toBe(true)
     expect(idbImportPack).toHaveBeenCalled()
+  })
+
+  it('returns FALSE when one shard 404s even though another imported rows', async () => {
+    idbImportPack.mockResolvedValue({ written: 300, skipped: 0, aborted: false })
+    globalThis.fetch = vi.fn(async (url) => (url.endsWith('/1') ? { ok: false, json: async () => ({}) } : { ok: true, json: async () => okShard }))
+    const ok = await _ingestFull(FULL_CFG, '2026-09-02', [{ idx: 0 }, { idx: 1 }])
+    expect(ok).toBe(false)
+  })
+
+  it('returns FALSE when one shard\'s import throws even though another imported rows', async () => {
+    idbImportPack.mockResolvedValueOnce({ written: 300, skipped: 0, aborted: false }).mockRejectedValueOnce(new Error('tx'))
+    globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => okShard }))
+    const ok = await _ingestFull(FULL_CFG, '2026-09-02', [{ idx: 0 }, { idx: 1 }])
+    expect(ok).toBe(false)
   })
 
   it('returns FALSE on a quota abort even though data downloaded', async () => {

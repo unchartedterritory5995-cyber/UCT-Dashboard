@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { TIER1_IDS } from './tier1Library.fixture'
+
+// ⭐ RS split F1 (2026-11-10): the three definitions split out of `rsLine`. All
+// `compute.kind: 'server'`, none ever a settings section, so no July blob can
+// name one and a migration may switch none on. Named, not derived from the
+// registry, so a fourth server definition cannot join this list unnoticed.
+const RS_SPLIT_IDS = ['rsRating', 'rsPhases', 'rsVsEma']
 import fs from 'node:fs'
 import path from 'node:path'
 import { stripComments } from './sourceScan'
@@ -388,7 +394,9 @@ describe('a stored July blob on cutover day — every indicator still on, nothin
     // named it, so there is nothing for a July blob to have carried.
     expect([...SHIPPED_STACK_ORDER].filter(id => !(id in juliaIds)).sort())
       // ⭐ 2026-10-01 — and the Technical library's Tier 1: no July section, no toggle.
-      .toEqual(['atrBands', 'avwap', 'dataSeries', 'dollarVolume', 'movingAverage', 'rsLine', ...TIER1_IDS].sort())
+      // ⭐ RS split F1 (2026-11-10) — and the three server-lane RS definitions
+      // (`compute.kind: 'server'`, like rsLine): no July section, no legacy flag.
+      .toEqual(['atrBands', 'avwap', 'dataSeries', 'dollarVolume', 'movingAverage', 'rsLine', ...RS_SPLIT_IDS, ...TIER1_IDS].sort())
     // Non-vacuity twice over: the record covers every registered definition, and
     // it is NOT registry order (which is what this line used to assert).
     expect([...SHIPPED_STACK_ORDER].sort())
@@ -441,7 +449,9 @@ describe('a stored July blob on cutover day — every indicator still on, nothin
     // definition is ADDITIVE beside them, not a migration OF them, so no July
     // blob could have carried it either.
     // ⭐ 2026-10-01 — the Tier 1 studies are not carried either: they did not exist.
-    expect(notCarried).toEqual(['atrBands', 'avwap', 'dataSeries', 'dollarVolume', 'movingAverage', 'rsLine', ...TIER1_IDS].sort())
+    // ⭐ RS split F1 (2026-11-10) — nor the three server-lane RS definitions: no
+    // July section, no legacy flag, the same ground as rsLine.
+    expect(notCarried).toEqual(['atrBands', 'avwap', 'dataSeries', 'dollarVolume', 'movingAverage', 'rsLine', ...RS_SPLIT_IDS, ...TIER1_IDS].sort())
     for (const id of notCarried) {
       expect(isIndicatorEnabled(cs, id, ENGINE_OWNED),
         `${id} was switched ON by a migration of a blob that never mentioned it`).toBe(false)

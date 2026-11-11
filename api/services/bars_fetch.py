@@ -213,6 +213,20 @@ def _request_is_interactive() -> bool:
     return bool(getattr(_req_ctx, "interactive", False))
 
 
+def set_background_caller(flag: bool) -> None:
+    """Mark the CURRENT thread as an in-process BACKGROUND bars caller (bars_prewarm
+    workers, `warm_bars_async`). Such a caller is not behind the edge (no request
+    budget) yet is not member demand either, so the D/W/M delta pool counts it against
+    the warm share (`_date_delta_warm_sem`) instead of the interactive/in-process
+    branch (review #1034 N1). In-process callers that answer a member (seasonality,
+    data_exports, discord...) never set it and keep their blocking semantics."""
+    _req_ctx.background = bool(flag)
+
+
+def _is_background_caller() -> bool:
+    return bool(getattr(_req_ctx, "background", False))
+
+
 # ── REQUEST WAIT BUDGET (2026-11-10) ─────────────────────────────────────────
 # ⛔⛔ THE EDGE ABORTS THE TIER AT 8 s (edge/bars-edge-router/worker.js
 # BARS_TIMEOUT_MS) AND RE-ASKS WEB_ORIGIN — a different bars.db with a different
@@ -799,7 +813,47 @@ def expected_completed_bucket(tf: str, now: float | None = None):
         return None
 
 
-def intraday_tail_status(ticker: str, tf: str, tail_ts, now: float | None = None) -> dict:
+def expected_completed_rth_bucket(tf: str, now: float | None = None):
+    """Start (unix s) of the latest REGULAR-session bucket that has CLOSED: today's once
+    its first RTH bucket has closed, else the FINAL RTH bucket of the previous trading
+    session (half-day aware). The RTH twin of `expected_completed_ext_bucket` and the
+    frontier an RTH-only chart (`session=rth`) is judged against (review #1051 F2: a
+    thin name with no post-market prints is complete at its close for a chart that
+    never shows post-market). None for a non-intraday tf or an unreadable clock."""
+    if tf not in ("1", "5", "15", "30", "60"):
+        return None
+    today = expected_completed_bucket(tf, now)
+    if today is not None:
+        return today
+    try:
+        et = _ZI("America/New_York")
+        now_ts = float(now if now is not None else _time.time())
+        d = datetime.fromtimestamp(now_ts, et).replace(hour=0, minute=0, second=0, microsecond=0)
+        d -= timedelta(days=1)
+        for _ in range(14):
+            if _is_trading_day_ymd(d):
+                ymd = int(d.strftime("%Y%m%d"))
+                midnight = int(datetime(d.year, d.month, d.day, tzinfo=et).timestamp())
+                return _ext_bucket_start(tf, midnight + _session_close_minutes(ymd) * 60 - 1)
+            d -= timedelta(days=1)
+        return None
+    except Exception:                      # noqa: BLE001 — abstain, never guess
+        return None
+
+
+def normalize_session(session) -> str | None:
+    """The `/api/bars` `session` param: 'rth' | 'eth', else None (= the pre-param
+    behaviour: RTH 60m grid, tails judged against the extended frontier)."""
+    s = str(session or "").strip().lower()
+    if s in ("rth", "regular"):
+        return "rth"
+    if s in ("eth", "ext", "extended"):
+        return "eth"
+    return None
+
+
+def intraday_tail_status(ticker: str, tf: str, tail_ts, now: float | None = None,
+                         session: str | None = None) -> dict:
     """Machine-readable currentness for an intraday response.
 
     Returns {"tail_status": "current" | "verified" | "unverified",
@@ -822,7 +876,14 @@ def intraday_tail_status(ticker: str, tf: str, tail_ts, now: float | None = None
     # RTH that is the same bucket as before; pre-market, post-market and after 20:00
     # it is the bucket the RTH-only rule could not see (a 16:53 tail at 20:22 was
     # `current`). Same one-bucket tolerance; beyond it only provider proof counts.
-    ext_frontier = expected_completed_ext_bucket(tf, now)
+    # ⭐ THE CHART'S OWN SESSION (2026-11-10, review #1051 F2): an RTH-only chart
+    # (`session=rth`) never shows post/pre-market, so its tail is judged against the
+    # REGULAR frontier — a thin name with no after-hours prints is current at its
+    # close, not `unverified` + fast polls all evening. Absent/eth = extended frontier.
+    if normalize_session(session) == "rth":
+        ext_frontier = expected_completed_rth_bucket(tf, now)
+    else:
+        ext_frontier = expected_completed_ext_bucket(tf, now)
     if ext_frontier is not None:
         tolerance_floor = _ext_bucket_start(tf, ext_frontier - 1)
         if tail is not None and tail >= tolerance_floor:
@@ -911,6 +972,44 @@ def _ext_session_verified(ticker: str, tf: str, last_ts) -> bool:
     return vt is not None and end is not None and vt >= end
 
 
+#: Seconds after a 5m boundary during which the live stream's proof may trail the new
+#: frontier by its final minute without a request-path provider heal (#1051 note).
+_LIVE_PROOF_BOUNDARY_GRACE_S = 60
+
+
+def _live_proof_in_boundary_grace(ticker: str, tf: str, now: float | None = None) -> bool:
+    """True when a covered 5m series' stream proof trails the newest closed bucket ONLY
+    by that bucket's final minute, and that minute closed less than
+    `_LIVE_PROOF_BOUNDARY_GRACE_S` ago.
+
+    ⭐ WHY THIS IS SAFE. `proven_through_s` is the end of the newest minute the alive
+    stream has delivered for the WHOLE market. Its minute aggregates land 2-5 s after
+    the minute closes, so for those seconds after every 5m boundary the proof reads one
+    minute short of the new bucket's end and a thin covered name fell through to a
+    provider heal on the request path — hundreds of them at once, every 5 minutes.
+    In that window everything up to the final minute IS proven, and the final minute is
+    the one the stream is delivering right now (the provider, asked at the same instant,
+    has no newer data for it). After the grace, a proof that still trails means the
+    stream really is lagging, and the fall-through repairs as before. This only skips
+    the heal: the wire still reports `unverified` (no currentness is claimed), so the
+    client's catch-up poll re-asks and reads the minute the stream has by then written."""
+    if tf != "5":
+        return False
+    try:
+        from api.services import bars_live_store as _bls
+        proven = _bls.proven_through_s(ticker)
+        if proven is None:
+            return False
+        now_ts = float(now if now is not None else _time.time())
+        frontier = expected_completed_ext_bucket(tf, now_ts)
+        if frontier is None:
+            return False
+        end = int(frontier) + 300
+        return proven >= end - 60 and now_ts < end + _LIVE_PROOF_BOUNDARY_GRACE_S
+    except Exception:                      # noqa: BLE001 — abstain: the normal rules run
+        return False
+
+
 def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> bool:
     """True if SQLite data is stale enough to warrant a delta fetch.
 
@@ -933,6 +1032,8 @@ def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> boo
                 # fall through so the normal rules (incl. the extended re-ask, which
                 # marks verified) can repair it — e.g. a new epoch with no minute yet.
                 if tf == "D" or intraday_tail_status(ticker, tf, last_ts)["tail_status"] != "unverified":
+                    return False
+                if _live_proof_in_boundary_grace(ticker, tf):
                     return False
         except Exception:
             pass
@@ -1488,6 +1589,17 @@ def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> l
         else:
             t_val = ts
         out.append({"t": t_val, "o": o, "h": h, "l": l, "c": c, "v": v})
+    if not date_tf and out:
+        # ⛔ Grid guard (2026-11-10): an intraday row is keyed on its bucket START. A
+        # stored off-grid row (the yfinance live row stamped at a trade time, e.g. SPY
+        # 5m 16:35:50 beside 16:35:00) drew as an extra candle. Drop it beside its
+        # bucket row (or snap it when the bucket has no row) and queue a repair of the
+        # stored pair — `intraday_grid` module doc. No-op (no copy) on a clean series.
+        try:
+            from api.services import intraday_grid as _grid
+            out = _grid.fold_for_serve(tf, out, ticker)
+        except Exception:
+            pass  # best-effort: never let the guard blank a chart
     if ticker and weekly and out:
         out = _reconcile_developing_week(ticker, out)
     if ticker and date_tf and out:
@@ -1764,7 +1876,8 @@ def _fetch_intraday_fmp(ticker: str, tf: str, max_bars: int) -> list[dict]:
                 })
             except (KeyError, ValueError, TypeError):
                 continue
-        return bars[-max_bars:]
+        from api.services import intraday_grid as _grid
+        return _grid.normalize(tf, bars)[-max_bars:]
     except Exception as _e:
         _note_provider_fault(_e)
         import logging as _log
@@ -1830,6 +1943,13 @@ def _fetch_intraday_yfinance(ticker: str, tf: str, max_bars: int) -> list[dict]:
                 # outer except emptied the WHOLE payload over one padded row.
                 "v": _safe_volume(row.get("Volume")),
             })
+        # ⛔ YAHOO'S LIVE ROW IS STAMPED AT THE LAST TRADE, NOT THE BUCKET START. While an
+        # interval is forming Yahoo returns it as a separate last row (e.g. 16:35:50 on 5m);
+        # yfinance folds it in only when the bucket already has a row, which thin
+        # post-market buckets often lack. Persisted add-only, it sat next to the Massive
+        # 16:35:00 row as an extra candle (prod 2026-11-10). Fold it onto the grid here.
+        from api.services import intraday_grid as _grid
+        bars = _grid.normalize(tf, bars)
         return bars[-max_bars:]
     except Exception as _e:
         _note_provider_fault(_e)
@@ -3585,6 +3705,8 @@ _DATE_DELTA_SLOT_WAIT_S = 1.0
 #: In-process (non-edge) callers keep the original blocking semantics, with a
 #: generous safety ceiling instead of none.
 _DATE_DELTA_INPROC_CEILING_S = 60.0
+#: How long an in-process BACKGROUND caller may wait for its warm-share slot.
+_DATE_DELTA_BG_SLOT_WAIT_S = 10.0
 
 
 def _bounded_date_delta(ticker_up: str, tf: str, last_ts, deadline: float | None = None) -> bool:
@@ -3593,7 +3715,15 @@ def _bounded_date_delta(ticker_up: str, tf: str, last_ts, deadline: float | None
         deadline = (_DATE_DELTA_DEADLINE_SECONDS if _budget_active()
                     else _DATE_DELTA_INPROC_CEILING_S)
     warm_slot = None
-    if _budget_active() and not _request_is_interactive():
+    if _is_background_caller() and not _budget_active():
+        # in-process BACKGROUND (prewarm / warm_bars_async): counts against the warm
+        # share like warm=1, so it can never hold the slots a click needs (N1). It is
+        # not on a member's clock, so it may wait for its share rather than shed.
+        if not _date_delta_warm_sem.acquire(timeout=_DATE_DELTA_BG_SLOT_WAIT_S):
+            return False
+        warm_slot = _date_delta_warm_sem
+        got = _date_delta_sem.acquire(timeout=_DATE_DELTA_BG_SLOT_WAIT_S)
+    elif _budget_active() and not _request_is_interactive():
         # warm=1 over HTTP: never more than the warm share, never waits for a slot
         if not _date_delta_warm_sem.acquire(blocking=False):
             return False
@@ -3720,7 +3850,14 @@ def _start_tail_gapfill(key) -> bool:
                         _tail_gapfill_at[nk] = now + _TAIL_GAPFILL_RETRY_S
                         k = nk
                         break
-        _tail_gapfill_sem.release()
+                if k is None:
+                    # ⛔ RELEASE UNDER THE LOCK (review #1034 N2). Released after the
+                    # lock, a kick landing in between saw the pool still full, queued
+                    # its key, and this runner then exited without draining it — the
+                    # key waited for some unrelated future kick. `_kick_tail_gapfill`
+                    # acquires under this same lock, so it now sees either a runner
+                    # that will drain its queued key or a free slot.
+                    _tail_gapfill_sem.release()
 
     try:
         _threading.Thread(target=_run, daemon=True,
@@ -3802,10 +3939,13 @@ def warm_bars_async(tickers: list[str], tf: str = "D", bars: int = 8000) -> None
         return
 
     def _warm_one(t: str) -> None:
+        set_background_caller(True)       # warm share of the D/W/M pool (N1)
         try:
             _get_bars_inner(t, tf, bars)
         except Exception:
             pass  # warming is best-effort; don't poison the executor
+        finally:
+            set_background_caller(False)
 
     seen: set[str] = set()
     for t in tickers:

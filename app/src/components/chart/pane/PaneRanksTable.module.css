@@ -36,6 +36,16 @@
   --rank-neutral: #7a5c16;
   --rank-lag: #7d1620;
 }
+/* ⭐ UCT RS split, U2 — hosted by the PRICE pane, on the price legend's row: the
+   TOP canvas sample's inks and panel ground (`.legend`'s own), since the strip is
+   at the top of the canvas there, not ~80 % down it. */
+.legendRanksTable[data-host="price"] {
+  background: var(--chart-panel-bg, rgba(26, 28, 23, 0.88));
+  /* `inherit`, not a `var()` of the same name (that is a cycle, so invalid): the
+     wrapper publishes the top sample under these very names (`legendInk.js`). */
+  --legend-ink-bright: inherit;
+  --legend-ink-muted: inherit;
+}
 /* Stepped aside: it would touch the pane label. Kept in the layout (visibility,
    not display) so its width can still be measured and it comes back by itself. */
 .legendRanksTable[data-collapsed] { visibility: hidden; }

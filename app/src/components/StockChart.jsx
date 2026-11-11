@@ -1,7 +1,9 @@
 // app/src/components/StockChart.jsx — TradingView Lightweight Charts v5 wrapper
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
-import { computeBarTime, toChartTime, fromChartTime, liveStreamSession, isOnSixtyMinGrid } from './chart/barTime'
+import { computeBarTime, toChartTime, fromChartTime, isOnSixtyMinGrid, seriesCacheTf, barsSessionQuery, barsGridQuery } from './chart/barTime'
+import { liveStreamSession } from './chart/liveBuckets'
+import { foldOffGridBars } from './chart/offGridBars'
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
 import { markChartLayoutPresentational } from '../utils/chartLayoutTable'
 import { Fragment, useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo, useId, useSyncExternalStore } from 'react'
@@ -120,7 +122,7 @@ import {
 } from './chart/engine/paneLayout'
 import { resolvePaneOrder, PRICE_PANE, VOLUME_PANE } from './chart/engine/paneOrder'
 import { orderPaneRows } from './chart/engine/paneSeriesOrder'
-import { storedPaneSizes, setPaneSizes, sizesFromStretch } from './chart/engine/paneSizes'
+import { storedPaneSizes, setPaneSizes, sizesFromStretch, clearPaneSize } from './chart/engine/paneSizes'
 import { nativeVolumeOwnsPane, volumePaneRequired, volumeResidentKeys } from './chart/engine/volumePresentation'
 import { prepareArrangement, settleArrangement } from './chart/engine/paneRealization'
 // ⭐ chart-UX-walls TASK 4 — `setInstanceHidden` / `removeInstance` join the two
@@ -170,7 +172,7 @@ import { COMPARE_OPEN_EVENT } from '../pages/charts/compareGroups'
 import { cardEvidenceText } from './chart/engine/readoutSchema'
 import { RS_LEARN_VIDEOS, learnHref } from '../lib/deskVideoHref'
 // ⭐ VA2 — the plan's §13 counts (on since the server lists the six events; `VITE_RS_TELEMETRY_ENABLED=0` turns them off; see the module).
-import { createRsInstanceTracker, noteRsPreset, noteRsCard, noteRsLearn } from '../lib/rsTelemetry'
+import { createRsInstanceTracker, noteRsCard, noteRsLearn } from '../lib/rsTelemetry'
 // ⛔ `Link` is rendered ONLY inside a router — see `LearnLink`. StockChart is
 // mounted without one on several surfaces (popups, the Model Book, its own
 // suites), and `<Link>` calls `useHref`, which throws there.
@@ -188,6 +190,10 @@ import LegendRow from './chart/legend/LegendRow'
 // ⭐ UCT RS design round (2026-11-08) — a pane's corner table (`meta.paneTable`).
 import PaneRanksTable from './chart/pane/PaneRanksTable'
 import { paneTableShownOn, paneTableFits } from './chart/engine/paneTable'
+// ⭐ UCT RS split, U2 — the line-end tag (`plots[].endLabel`) and the ranks strip's
+// price-pane host (`engine/endLabel.js`, `chart/pane/PlotEndLabel.jsx`).
+import PlotEndLabel from './chart/pane/PlotEndLabel'
+import { lastFinitePoint, endLabelText, endLabelPlacement } from './chart/engine/endLabel'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
 import { chipMenuItems, paneMenuItems, presetLabelOf } from './chart/legend/chipMenu'
 // ⭐ UCT RS Phase 4 (unit 4-05) — the teaching surfaces on the chip menu: the
@@ -293,6 +299,52 @@ const NO_PANE_KEYS = Object.freeze([])
  * @param {object} [cs]  chart settings, for `paneSeriesOrder`
  * @returns {{key: string, index: number, chips: object[]}[]}
  */
+/**
+ * ⭐ UCT RS split, U2 — WHAT THE PRICE PANE HOSTS BESIDES ITS LEGEND. The first
+ * chip DRAWN ON PRICE (`hostOf` answers `null`: the candles' pane, including an
+ * `own:`-scale instance) whose definition declares a ranks table shown on this
+ * timeframe, and every chip, on any pane, whose plot declares a line-end tag
+ * (`readout.stampReadout` stamps both; a hidden chip stamps neither). One table on
+ * the price pane, as in an indicator pane; a tag per plot, pinned by its own series.
+ *
+ * @param {object[]} chips `crosshairData.chips`
+ * @param {Function} hostOf `chipPaneHost`
+ * @param {string} tf the chart timeframe
+ * @returns {{table: object|null, ends: object[]}}
+ */
+/**
+ * ⭐ F3 (2026-11-10) — the off-hover END-TAG chips, compared field for field so
+ * the refresh below writes state only when a tag's identity, ink or text moved
+ * (the chips are rebuilt on every call, so object identity says nothing).
+ */
+function sameEndTagChips(a, b) {
+  if (a === b) return true
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i], y = b[i]
+    if (!x || !y) return false
+    if (x.instanceId !== y.instanceId || x.plotKey !== y.plotKey || x.color !== y.color || !!x.hidden !== !!y.hidden) return false
+    const ex = x.endLabel || {}, ey = y.endLabel || {}
+    if (ex.text !== ey.text || !!ex.fromValue !== !!ey.fromValue || ex.spec !== ey.spec) return false
+  }
+  return true
+}
+
+function priceHostChips(chips, hostOf, tf) {
+  const out = { table: null, ends: [] }
+  if (!Array.isArray(chips) || !chips.length) return out
+  for (const c of chips) {
+    if (!c || c.hidden === true) continue
+    if (c.endLabel) out.ends.push(c)
+    if (!out.table && c.paneTable && paneTableShownOn(c.paneTable, tf)) {
+      let host = null
+      try { host = hostOf ? hostOf(c) : null } catch { host = null }
+      if (host === null) out.table = c
+    }
+  }
+  return out
+}
+
 function paneReadoutRows(chips, layout, hostOf, cs) {
   const panes = (layout && Array.isArray(layout.panes)) ? layout.panes : null
   if (!panes || !panes.length || !Array.isArray(chips) || !chips.length) return EMPTY_CHIPS
@@ -1534,6 +1586,10 @@ import {
   // host is. That is what tells `SMA 50 of Volume` (shares, formatted like
   // volume) apart from an RSI a member happened to park on the volume pane.
   derivedTargetOf,
+  // ⭐ RS split U3 — which pane an instance's series lives in (its own, or the
+  // host it joined), so the chip menu can offer "Reset pane height" for THAT pane
+  // and only when that pane carries a stored member size.
+  paneOwnerOf,
 } from './chart/engine/displayTarget'
 import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/sourceRef'
 import { chromePlan, capturedPriceRange, viewLockFractions, lookbackPlacementSettled, LOOKBACK_REVEAL_MAX_MS } from './chart/chromeGeometry'
@@ -3623,6 +3679,13 @@ export default function StockChart({
     const rgb = parseColor(canvasSample.low)
     return rgb ? luminance(rgb) > 0.5 : false
   }, [canvasSample])
+  // ⭐ UCT RS split, U2 — and at the TOP of the canvas, for the ranks strip when it
+  // sits on the price pane beside the price legend (a gradient canvas is darkest
+  // or lightest at one end; the strip reads the end it is on).
+  const topCanvasIsLight = useMemo(() => {
+    const rgb = parseColor(canvasSample.top)
+    return rgb ? luminance(rgb) > 0.5 : false
+  }, [canvasSample])
   const separatorColors = useMemo(() => {
     const light = lowCanvasIsLight
     return light
@@ -4796,6 +4859,18 @@ export default function StockChart({
    *  same pane key. Pinned by `pinPaneLegend` in the same frame as the label it
    *  must never touch. */
   const paneTableRefs = useRef(new Map())
+  // ⭐ UCT RS split, U2 — the ranks strip hosted by the PRICE pane (one at most), and
+  // every plot's line-end tag by `instanceId::plotKey` → `{el, model}`; the pins
+  // run from the rAF sampler below, so both are refs, never state.
+  const priceTableRef = useRef(null)
+  const endLabelRefs = useRef(new Map())
+  // The last finite point per binding, so the series' data is walked once per
+  // sync rather than once per frame. Keyed by the binding OBJECT: the binder
+  // rebuilds its bindings on every sync, so a stale entry cannot outlive the data
+  // it describes.
+  const endLabelLastRef = useRef(new WeakMap())
+  // What the price chrome looks like this render, for the `[]`-deps pin below.
+  const priceChromeRef = useRef({ legendFlush: false, toolbarCollapsed: false })
   /** Which indicator panes exist, in order — published by the layout effect.
    *
    *  ⭐ STATE, NOT A READ OF `paneLayoutRef` DURING RENDER. The layout lives in a
@@ -5291,6 +5366,16 @@ export default function StockChart({
   // filter — or the current ext session leaks onto an RTH-only chart.
   const showExtendedRef = useRef(showExtended)
   showExtendedRef.current = showExtended
+  // ⭐ (2026-11-10) THE SESSION IS PART OF WHAT IS FETCHED. `_barsTf` is the series'
+  // CACHE identity (IDB / mem / load keys): '60e' for 60m with extended hours on (the
+  // clock grid, served by `/api/bars?tf=60&session=eth`), else the tf itself — only
+  // 60m differs between views, so no other tf splits its cache. `_sessQ` is the
+  // `&session=` every primary /api/bars URL carries (the server judges the tail against
+  // the chart's own session); `_gridQ` is `&session=eth` only where the bars differ,
+  // for secondary series that must sit on the primary's grid.
+  const _barsTf = seriesCacheTf(resolvedTf, showExtended)
+  const _sessQ = barsSessionQuery(resolvedTf, showExtended)
+  const _gridQ = barsGridQuery(resolvedTf, showExtended)
   // Latest "is it pre/post market right now (ET clock)", same latest-ref reason.
   // Assigned next to _inExtWindow's derivation further down.
   const inExtWindowRef = useRef(false)
@@ -5298,6 +5383,24 @@ export default function StockChart({
   // ── Drawing tools state ──
   // ── Crosshair legend state ──
   const [crosshairData, setCrosshairData] = useState(null)
+  /**
+   * ⭐ F3 (2026-11-10) — THE LINE-END TAGS WHILE THERE IS NO READOUT PAYLOAD.
+   *
+   * ⚰️ MEASURED ON THE PHONE (sandbox, 390 px, `_phone_rsline_only.png`): the
+   * `RS 82` tag never showed on the price pane. The host that renders the tags
+   * read its chips off `crosshairData`, and the phone shell mounts with
+   * `alwaysShowLegend: false` (the legend is a crosshair inspection tool there,
+   * `MobileChartsApp.stockChartProps`), so off-hover `crosshairData` is `null`
+   * and the tag existed only under a finger. A desktop legend folded to
+   * hover-only (`compactLegend`) lost it the same way. The tag is MarketSurge's
+   * number at the line's end, pane furniture like the axis' own last-value tag,
+   * not a readout: it must not depend on the legend being persistent. So the
+   * chips that carry a tag are kept here, refreshed where the off-cursor readout
+   * is (`refreshOffCursorReadout`, and the two hover-leave sites), and the host
+   * reads them whenever `crosshairData` is absent. ⛔ END TAGS ONLY — the ranks
+   * strip stays a readout surface and keeps the legend's gates.
+   */
+  const [offHoverEndTagChips, setOffHoverEndTagChips] = useState(EMPTY_CHIPS)
   // Responsive vertical legend. "Collapsed" = the legend's full height reaches the
   // range-selector band (just above the price/volume boundary). At that point we
   // (a) hide the range bar, (b) switch the legend to HOVER-ONLY (like a multi-chart
@@ -5590,7 +5693,9 @@ export default function StockChart({
         resolved = resolvedInputsOf(def, (inst && inst.inputs) || {})
         scalars = readoutChipOpts.scalarsOf(def, resolved)
       } catch { scalars = null }
-      fallback = readoutFallbackValue(def, scalars, c.decimals, resolved)
+      // F3: the chip's plot, so a `legend.showValue: false` line withholds its
+      // dated last value the way it withholds the live one.
+      fallback = readoutFallbackValue(def, scalars, c.decimals, resolved, { plotKey: c.plotKey })
     }
     return { def, name, fallback }
   }
@@ -5846,6 +5951,17 @@ export default function StockChart({
     (alwaysShowLegend && !compactLegendRef.current) ? computeLatestCrosshair() : null
   )
   /**
+   * ⭐ F3 — the end-tag chips the price-pane host reads while `crosshairData` is
+   * `null` (see the state's own note). Empty while the legend is persistent: the
+   * readout payload carries the same chips then, and one source is enough. Reads
+   * refs only (`latestChips`), so the hover-leave closures may call it; a
+   * field-for-field compare keeps a no-change refresh from re-rendering.
+   */
+  const refreshOffHoverEndTags = (persistentLegend) => {
+    const next = persistentLegend ? EMPTY_CHIPS : latestChips().filter((c) => c && c.endLabel && c.hidden !== true)
+    setOffHoverEndTagChips((prev) => (sameEndTagChips(prev, next) ? prev : (next.length ? next : EMPTY_CHIPS)))
+  }
+  /**
    * Re-derive the off-cursor readout from the bars currently on the chart,
    * unless a hover or a synced crosshair owns it. ONE expression for the data
    * refresh effect and the switch-time applier, so the two cannot disagree.
@@ -5853,6 +5969,7 @@ export default function StockChart({
   const refreshOffCursorReadout = () => {
     if (readoutIsOwned()) return
     setCrosshairData(effAlwaysShow ? computeLatestCrosshair() : null)
+    refreshOffHoverEndTags(effAlwaysShow)
   }
   /**
    * Is something already OWNING the readout, so the off-hover refreshers must
@@ -6160,6 +6277,19 @@ export default function StockChart({
     if (next !== cs) writeInstance(next)
   }, [cs, writeInstance])
 
+  // ⭐ RS split U3 — "Reset pane height": forget the member's stored size for the
+  // pane this instance draws in. `clearPaneSize` is "return to automatic"
+  // (absent = the layout's computed default), so the next `computePaneLayout`
+  // reads the blob without that entry and the binder re-lays the stack out.
+  // Through the same one writer as every other chip action; a pane with no
+  // stored size comes back by identity and persists nothing.
+  const handleChipResetPaneSize = useCallback((instanceId) => {
+    const inst = findInstance(cs, instanceId)
+    const key = inst ? paneOwnerOf(inst, cs) : null
+    if (!key) return
+    writeInstance(clearPaneSize(cs, key))
+  }, [cs, writeInstance])
+
   // ⭐ Phase 2a (A6) — PRESET ▸ IN THE CHIP MENU. The same writer the dialog's
   // preset bar and the phone sheet's preset chips call (`applyPresetInputs`: a
   // loop over `setInstanceInput`, then the visibility / dot-size writers), through
@@ -6170,7 +6300,7 @@ export default function StockChart({
     const def = inst ? engineRegistry.getDefinition(inst.defId) : null
     const preset = def ? presetsOf(def).find((p) => p.id === presetId) : null
     if (!preset) return
-    noteRsPreset(def, preset)
+    // (the `rs_preset` count was retired with the presets, RS split U9)
     const next = applyPresetInputs(cs, instanceId, def, preset, engineRegistry)
     if (next !== cs) writeInstance(next)
   }, [cs, writeInstance])
@@ -7837,7 +7967,7 @@ export default function StockChart({
     compareSymbol || indexPaneSymbol ||
     (cs.comparisonSymbols || []).some(c => c && c.enabled && c.sym)
   )
-  const _depthKey = `${sym}_${resolvedTf}`
+  const _depthKey = `${sym}_${_barsTf}`
   if (_depthKeyRef.current !== _depthKey) {
     _depthKeyRef.current = _depthKey
     // T0 — a new (symbol, timeframe) load begins. Inert unless the diagnostic flag
@@ -8182,9 +8312,9 @@ export default function StockChart({
   // effect consumes the same promise, so there is still exactly one IDB read per load.
   const _idbReadRef = useRef(null)
   {
-    const _rk = `${sym}_${resolvedTf}`
+    const _rk = `${sym}_${_barsTf}`
     if (sym && resolvedTf && !_econId && _idbReadRef.current?.key !== _rk) {
-      _idbReadRef.current = { key: _rk, p: idbGet(sym, resolvedTf) }
+      _idbReadRef.current = { key: _rk, p: idbGet(sym, _barsTf) }
     }
   }
 
@@ -8197,7 +8327,7 @@ export default function StockChart({
     idbRepairFromRef.current = null
     idbReadyForRef.current = null  // synchronous — invalidates the gate immediately
     axisWidthRatchetRef.current = 0  // new sym/tf → let the axis column re-fit once
-    const key = `${sym}_${resolvedTf}`
+    const key = `${sym}_${_barsTf}`
     // ⛔ An economic series is never cached in the bars IndexedDB (nor read from it).
     if (_econId) { idbReadyForRef.current = key; setIdbLoaded(true); return undefined }
     let settled = false
@@ -8230,7 +8360,7 @@ export default function StockChart({
       idbReadyForRef.current = key   // open the gate; idbBars stays null → full fetch
       setIdbLoaded(true)
     }, _patient ? _IDB_FIRST_PAINT_TIMEOUT_CACHED_MS : _IDB_FIRST_PAINT_TIMEOUT_MS)
-    const _read = (_idbReadRef.current?.key === key) ? _idbReadRef.current.p : idbGet(sym, resolvedTf)
+    const _read = (_idbReadRef.current?.key === key) ? _idbReadRef.current.p : idbGet(sym, _barsTf)
     let _gone = false   // this (sym, tf) was left: a late read must not stamp the NEW key's state
     _read.then(entry => {
       settled = true; clearTimeout(_t)
@@ -8264,7 +8394,7 @@ export default function StockChart({
       setIdbLoaded(true)
     }).catch(() => { settled = true; clearTimeout(_t); if (_gone) return; idbReadyForRef.current = key; setIdbLoaded(true) })
     return () => { settled = true; _gone = true; clearTimeout(_t) }
-  }, [sym, resolvedTf, _econId])
+  }, [sym, resolvedTf, _barsTf, _econId])
 
   // SWR URL: only set if IDB state is for the CURRENT sym+tf. Stale idbLoaded
   // from a previous ticker (before the IDB effect runs) is rejected by the ref
@@ -8558,7 +8688,7 @@ export default function StockChart({
   const _histFirstPaint = _splitOn && _deepFirstPaint && !_idbAlreadyDeep && _fpDwellReady && _fpEdge
   // Deep sealed history from the edge — after the user pans PAST the first-paint tail
   // (fetchDepth grows), OR on first paint when _histFirstPaint (Fix 2) is enabled.
-  const _histFire = _splitOn && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`
+  const _histFire = _splitOn && idbLoaded && idbReadyForRef.current === `${sym}_${_barsTf}`
     && (fetchDepth > _fpBars || _histFirstPaint)
   // Standardize the history URL: always the FULL sealed depth (`_fullTarget`, fixed per tf)
   // + `d=<last sealed date>` derived from the bars we already hold. Fixed URL = every user +
@@ -8607,10 +8737,10 @@ export default function StockChart({
   // Scroll-back (`bars=` grows) is a new base → its FIRST fetch is full, every poll after
   // it is `since=` again (`_tailFullDoneRef`), instead of re-downloading 9k-32k bars.
   const _tailKeyed = isIntraday && !!sym && _toParam == null && !_hasOverride && !_isCustomTf
-  const _primaryBase = `/api/bars/${encodeURIComponent(sym || '')}?tf=${resolvedTf}&bars=${_primaryBars}`
+  const _primaryBase = `/api/bars/${encodeURIComponent(sym || '')}?tf=${resolvedTf}&bars=${_primaryBars}${_sessQ}`
   const _tailReqRef = useRef(null)
   _tailReqRef.current = {
-    key: `${sym}_${resolvedTf}`, sym, tf: resolvedTf, base: _primaryBase,
+    key: `${sym}_${_barsTf}`, sym, tf: resolvedTf, ck: _barsTf, base: _primaryBase,
     forceFull: _primaryForceFull, sinceFromIdb: _sinceFromIdbNow,
   }
   const _tailFullDoneRef = useRef(null)
@@ -8632,7 +8762,7 @@ export default function StockChart({
       } else {
         // IDB for this key has not landed. Seed from the mem cache, else race the read.
         let seed = null
-        const mem = memPeek(req.sym, req.tf)
+        const mem = memPeek(req.sym, req.ck)
         const mt = mem?.length ? mem[mem.length - 1]?.t : null
         if (typeof mt === 'number' && classifyIntradayTail(mt, req.tf) !== 'gapped') {
           seed = { bars: mem, t: mt, rf: null }
@@ -8676,10 +8806,10 @@ export default function StockChart({
     ? null
     : _tailKeyed
     ? _tailKey
-    : ((sym && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`)
+    : ((sym && idbLoaded && idbReadyForRef.current === `${sym}_${_barsTf}`)
         ? (_toParam != null
-            ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_primaryBars}&to=${encodeURIComponent(_toParam)}`
-            : `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_primaryBars}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`)
+            ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_primaryBars}${_sessQ}&to=${encodeURIComponent(_toParam)}`
+            : `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_primaryBars}${_sessQ}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`)
         : null)
 
   // Self-healing poll cadence: with no refreshInterval, the chart was frozen
@@ -8724,7 +8854,7 @@ export default function StockChart({
   // render exactly when the budget flips.
   const [, _bumpTailBudget] = useState(0)
   const _intradayPollMs = useCallback((latest) => {
-    const key = `${sym}_${resolvedTf}`
+    const key = `${sym}_${_barsTf}`
     const _wasSpent = tailRetriesExhausted(_tailCatchupRef.current, key)
     // The tail ACTUALLY ON SCREEN: a `since=` response carries only the delta (and
     // is empty when nothing is new), so the merged cache tail is the honest reading.
@@ -8808,7 +8938,7 @@ export default function StockChart({
 
   // ── Comparison symbol SWR fetch ──
   const compareSwrUrl = compareSymbol
-    ? `/api/bars/${encodeURIComponent(compareSymbol.toUpperCase())}?tf=${resolvedTf}&bars=${barCount}`
+    ? `/api/bars/${encodeURIComponent(compareSymbol.toUpperCase())}?tf=${resolvedTf}&bars=${barCount}${_gridQ}`
     : null
   const { data: compareData } = useSWR(compareSwrUrl, instFetcher, { dedupingInterval: 60_000, revalidateOnFocus: false })
 
@@ -8821,10 +8951,10 @@ export default function StockChart({
   const _intradayDeepFire = isIntraday && !_isCustomTf && _intradayDeepBackfillEnabled()
     && !_hasOverride && !replayCutoff && !_pinnedFull && !_overlayActive
     && _intradayDeepArmed
-    && !!sym && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`
+    && !!sym && idbLoaded && idbReadyForRef.current === `${sym}_${_barsTf}`
     && (idbBars?.length || 0) < INTRADAY_DEFAULT_BARS
   const _intradayDeepUrl = _intradayDeepFire
-    ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${INTRADAY_DEFAULT_BARS}`
+    ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${INTRADAY_DEFAULT_BARS}${_sessQ}`
     : null
   const { data: _intradayDeepData } = useSWR(_intradayDeepUrl, instFetcher, {
     dedupingInterval: 60_000,
@@ -8857,10 +8987,13 @@ export default function StockChart({
     // the server's `ticker` field reveals the mismatch — skip to avoid storing
     // e.g. AAPL bars under MSFT when the user switches tickers rapidly.
     if (data.ticker && data.ticker !== sym.toUpperCase()) return
+    // ⛔ A 60m answer on the OTHER grid (a server without `session=eth` support, or a
+    // straggler from before an RTH/ETH toggle) never merges into this key's series.
+    if (resolvedTf === '60' && ((data.session === 'eth') !== (_barsTf === '60e'))) return
     // Belt-and-suspenders: only merge if idbBars is known to belong to this sym+tf.
     // Without this, a delta response could merge with leftover bars from another
     // ticker still sitting in idbBars state (the cross-ticker race).
-    const sameSymTf = idbReadyForRef.current === `${sym}_${resolvedTf}`
+    const sameSymTf = idbReadyForRef.current === `${sym}_${_barsTf}`
     // TEMP DIAGNOSTIC (enable in DevTools: window.__uctBarsDebug = true) — traces
     // the delta-sync path to find the "missing candles until ~10s later" stall on
     // a stale-cache revisit. Logs the since sent, the delta response, the cached
@@ -8874,7 +9007,7 @@ export default function StockChart({
     // merge it onto the base it was asked from, and make that the IDB state for this key
     // (the late IDB read folds UNDER it — see the IDB effect).
     const _sb = _sinceBaseRef.current
-    if (data.delta && !(idbBars?.length && sameSymTf) && _sb?.key === `${sym}_${resolvedTf}`
+    if (data.delta && !(idbBars?.length && sameSymTf) && _sb?.key === `${sym}_${_barsTf}`
         && _sb.seq === _loadSeqRef.current && _sb.bars?.length) {
       const merged = (_deltaMergedRef.current?.data === data) ? _deltaMergedRef.current.bars : mergeDelta(_sb.bars, data.bars)
       idbBarsRef.current = merged
@@ -8882,10 +9015,10 @@ export default function StockChart({
       idbSinceRef.current = merged[merged.length - 1]?.t ?? idbSinceRef.current
       idbSavedAtRef.current = Date.now()
       idbRepairFromRef.current = null
-      idbReadyForRef.current = `${sym}_${resolvedTf}`
+      idbReadyForRef.current = `${sym}_${_barsTf}`
       setIdbLoaded(true)
-      idbPut(sym, resolvedTf, merged)
-      memPut(sym, resolvedTf, merged)
+      idbPut(sym, _barsTf, merged)
+      memPut(sym, _barsTf, merged)
       return
     }
     if (data.delta && idbBars?.length && sameSymTf) {
@@ -8919,8 +9052,8 @@ export default function StockChart({
       // intra-session age gate would keep calling a freshly-merged set stale and the
       // chart would drop its own deep history one commit after healing it.
       idbSavedAtRef.current = Date.now()
-      idbPut(sym, resolvedTf, merged)
-      memPut(sym, resolvedTf, merged)
+      idbPut(sym, _barsTf, merged)
+      memPut(sym, _barsTf, merged)
     } else if (!data.delta && data.bars.length) {
       // If IDB already holds a DEEPER history than this (shallow, recent) full set —
       // e.g. the Custom-Period-Sort deep prefetch pre-warmed the full pre-2024 tail —
@@ -8948,8 +9081,8 @@ export default function StockChart({
       setIdbBars(next)
       idbSinceRef.current = next[next.length - 1]?.t ?? null
       idbSavedAtRef.current = Date.now()        // healed from the server — see above
-      idbPut(sym, resolvedTf, next)
-      memPut(sym, resolvedTf, next)
+      idbPut(sym, _barsTf, next)
+      memPut(sym, _barsTf, next)
     }
   }, [data])  // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -8962,7 +9095,7 @@ export default function StockChart({
     if (!histData?.bars?.length || !sym || !resolvedTf) return
     if (!histData.sealed) return                                   // only the sealed endpoint's shape
     if (histData.ticker && histData.ticker !== sym.toUpperCase()) return   // stale-closure guard
-    if (idbReadyForRef.current !== `${sym}_${resolvedTf}`) return  // cross-ticker guard
+    if (idbReadyForRef.current !== `${sym}_${_barsTf}`) return  // cross-ticker guard
     const cur = idbBarsRef.current
     // Fix 2 cold-tail paint: when the /api/bars tail is slow or HUNG (a cold-server long-tail
     // ticker — XXII/KORU-class microcaps + thin ETFs can stall the tail 20s+), the deep SEALED
@@ -8984,8 +9117,8 @@ export default function StockChart({
       // door. The set is genuinely fresh FROM THE SERVER, so the recency stamp is now.
       idbSinceRef.current = histData.bars[histData.bars.length - 1]?.t ?? null
       idbSavedAtRef.current = Date.now()
-      idbPut(sym, resolvedTf, histData.bars)
-      memPut(sym, resolvedTf, histData.bars)
+      idbPut(sym, _barsTf, histData.bars)
+      memPut(sym, _barsTf, histData.bars)
       return
     }
     const merged = mergeDelta(histData.bars, cur)
@@ -8995,8 +9128,8 @@ export default function StockChart({
     // A history merge only PREPENDS, so the tail is unchanged — but state it anyway
     // rather than leaving the ref to be right by accident.
     idbSinceRef.current = merged[merged.length - 1]?.t ?? idbSinceRef.current
-    idbPut(sym, resolvedTf, merged)
-    memPut(sym, resolvedTf, merged)
+    idbPut(sym, _barsTf, merged)
+    memPut(sym, _barsTf, merged)
   }, [histData, idbBars])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Phase 3' Part 3: arm the intraday deep-backfill ~900ms after the sym/tf settles ──
@@ -9021,23 +9154,23 @@ export default function StockChart({
   useEffect(() => {
     if (!_intradayDeepData?.bars?.length || !sym || !resolvedTf) return
     if (_intradayDeepData.ticker && _intradayDeepData.ticker !== sym.toUpperCase()) return
-    if (idbReadyForRef.current !== `${sym}_${resolvedTf}`) return
+    if (idbReadyForRef.current !== `${sym}_${_barsTf}`) return
     const cur = idbBarsRef.current
     if (!cur?.length) {
       idbBarsRef.current = _intradayDeepData.bars
       setIdbBars(_intradayDeepData.bars)
       idbSinceRef.current = _intradayDeepData.bars[_intradayDeepData.bars.length - 1]?.t ?? idbSinceRef.current
       idbSavedAtRef.current = Date.now()        // healed from the server — see above
-      idbPut(sym, resolvedTf, _intradayDeepData.bars)
-      memPut(sym, resolvedTf, _intradayDeepData.bars)
+      idbPut(sym, _barsTf, _intradayDeepData.bars)
+      memPut(sym, _barsTf, _intradayDeepData.bars)
       return
     }
     const merged = mergeDelta(_intradayDeepData.bars, cur)
     if (merged.length === cur.length) return                       // no older bars added — nothing to repaint
     idbBarsRef.current = merged
     setIdbBars(merged)
-    idbPut(sym, resolvedTf, merged)
-    memPut(sym, resolvedTf, merged)
+    idbPut(sym, _barsTf, merged)
+    memPut(sym, _barsTf, merged)
   }, [_intradayDeepData, idbBars])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Background prefetch — all other timeframes when sym changes ───────────
@@ -9081,7 +9214,8 @@ export default function StockChart({
         try {
           // The timeframe now ON SCREEN is the chart's own fetch — never warm it in parallel.
           if (tf === activeTfRef.current) continue
-          const entry = await idbGet(sym, tf)
+          const _ckTf = seriesCacheTf(tf, showExtended)   // this view's cache key for tf
+          const entry = await idbGet(sym, _ckTf)
           // ⭐ (2026-11-10) ONE classifier for every cache decision. Intraday: a FRESH
           // entry (within one bucket of the frontier) is skipped; a BEHIND one is repaired
           // with `since=` (every row past the tail — tiny); only a GAPPED/absent one
@@ -9113,7 +9247,7 @@ export default function StockChart({
           // 2026-09-01). With it, a busy server sheds them fast (a cache-hit warm still
           // serves — the server checks the cache first); switching to a TF for real is
           // a non-warm fetch that always serves.
-          const url   = `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bc}${since != null ? `&since=${encodeURIComponent(String(since))}` : ''}&warm=1`
+          const url   = `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bc}${barsSessionQuery(tf, showExtended)}${since != null ? `&since=${encodeURIComponent(String(since))}` : ''}&warm=1`
           // Through the SHARED slot gate, as BACKGROUND traffic: it only takes a slot while
           // BARS_BG_RESERVE stay free for the visible chart, and never ahead of it.
           let d
@@ -9125,8 +9259,9 @@ export default function StockChart({
           }
           if (cancelled || !d?.bars?.length) continue
           const next = (d.delta && entry?.bars?.length) ? mergeDelta(entry.bars, d.bars) : d.bars
-          idbPut(sym, tf, next)
-          memPut(sym, tf, next)   // warm the sync mem cache too → instant TF switch
+          if (tf === '60' && ((d.session === 'eth') !== (_ckTf === '60e'))) continue   // wrong grid for this key
+          idbPut(sym, _ckTf, next)
+          memPut(sym, _ckTf, next)   // warm the sync mem cache too → instant TF switch
         } catch {
           // Single-TF failures shouldn't kill the whole prefetch chain.
         }
@@ -9150,6 +9285,9 @@ export default function StockChart({
   // updateChart clears the series) instead of the wrong stock.
   const _symU = sym ? sym.toUpperCase() : ''
   const _netMatches = data?.bars?.length && (!data.ticker || data.ticker === _symU)
+    // …and on THIS view's 60m grid: an answer without `session: 'eth'` (an older server,
+    // a straggler) is never painted as the clock-grid series, nor the reverse.
+    && !(resolvedTf === '60' && ((data.session === 'eth') !== (_barsTf === '60e')))
   // SPLIT / RE-BASIS heal (render path). The pack importer already drops a stale
   // wrong-basis IDB entry when the authoritative tail disagrees (_closeMismatch in
   // _importBatch), but a chart that paints straight from IDB BEFORE any pack re-ingest
@@ -9170,16 +9308,16 @@ export default function StockChart({
   const _deltaAdvancesTail = !!(data?.delta && Array.isArray(data.bars)
     && typeof idbSinceRef.current === 'number'
     && data.bars.some(b => typeof b?.t === 'number' && b.t > idbSinceRef.current))
-  const _idbHistoryContext = (idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}`)
+  const _idbHistoryContext = (idbBars?.length && idbReadyForRef.current === `${sym}_${_barsTf}`)
     ? idbBars : null
   // ⭐ (2026-11-10) THE DELTA IS MERGED IN RENDER, NOT ONE COMMIT LATER. A `since=` answer
   // that advances a held-back (not-current) cache used to yield `null` here and wait for
   // the merge effect — the BLANK frame between "stale" and "correct". Merge it now onto
   // the base it was asked from (IDB state, or the mem base of a pre-IDB request); the merge
   // effect then adopts this exact array, so the canvas is set once.
-  const _deltaBase = (idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}`)
+  const _deltaBase = (idbBars?.length && idbReadyForRef.current === `${sym}_${_barsTf}`)
     ? idbBars
-    : ((_sinceBaseRef.current?.key === `${sym}_${resolvedTf}` && _sinceBaseRef.current.seq === _loadSeqRef.current)
+    : ((_sinceBaseRef.current?.key === `${sym}_${_barsTf}` && _sinceBaseRef.current.seq === _loadSeqRef.current)
         ? _sinceBaseRef.current.bars : null)
   const _deltaMerged = useMemo(
     () => ((_netMatches && data?.delta && _deltaBase?.length) ? mergeDelta(_deltaBase, data.bars) : null),
@@ -9187,7 +9325,7 @@ export default function StockChart({
   )
   const _deltaMergedRef = useRef(null)
   _deltaMergedRef.current = _deltaMerged ? { data, base: _deltaBase, bars: _deltaMerged } : null
-  const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday && !idbStaleDaily && !_idbDailyLastInsane && !_idbBasisMismatch && !_idbNotCurrent
+  const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${_barsTf}` && !idbStaleIntraday && !idbStaleDaily && !_idbDailyLastInsane && !_idbBasisMismatch && !_idbNotCurrent
   // SPLIT-FETCH deep render. When split-fetch is on, `data.bars` is a fresh SHORT tail
   // (capped to FIRST_PAINT_BARS via _primaryBars) and idbBars is the DEEP sealed+tail
   // merge. The daily STALENESS gates in _idbFresh — chiefly idbStaleDaily, which flags a
@@ -9199,7 +9337,7 @@ export default function StockChart({
   // and last-bar sanity — because a wrong-basis or corrupt deep history CANNOT be healed
   // by merging just the recent tail. Split-gated, so split OFF = identical to before.
   const _splitDeepUsable = _splitOn && idbBars?.length > 0
-    && idbReadyForRef.current === `${sym}_${resolvedTf}`
+    && idbReadyForRef.current === `${sym}_${_barsTf}`
     && !_idbDailyLastInsane && !_idbBasisMismatch
   // ⛔ AND THE PAINTABLE HALF, WHICH IS A DIFFERENT QUESTION. `_splitDeepUsable` is a
   // USEFULNESS verdict — identity, basis, value sanity — and it says nothing about
@@ -9219,7 +9357,7 @@ export default function StockChart({
   // this layer is the one on screen (provisionalStaleRef below), so no phantom
   // developing candle can grow on the stale tail before authoritative bars swap in.
   const _idbProvisionalRaw = (idbStaleIntraday && idbBars?.length
-    && idbReadyForRef.current === `${sym}_${resolvedTf}`) ? idbBars : null
+    && idbReadyForRef.current === `${sym}_${_barsTf}`) ? idbBars : null
   // Part 2 (gated): drop the single frozen-partial developing tail so the provisional first
   // paint is never a misleading candle — the forced full refetch fills the correct current tail.
   // Keep >1 bar (never blank the chart); inert at PCT=0.
@@ -9230,7 +9368,7 @@ export default function StockChart({
   // last fallback (when net+IDB haven't resolved for the current key yet) so a
   // warm switch paints on the first frame instead of flashing the loading
   // overlay. Keyed to the current sym+tf → cannot show another ticker's data.
-  const _memBarsRaw = (!_overrideArr && !barsOverridePending) ? memPeek(sym, resolvedTf) : null
+  const _memBarsRaw = (!_overrideArr && !barsOverridePending) ? memPeek(sym, _barsTf) : null
   // Don't fall back to a stale daily mem entry either (prefetch's _memPromoteFresh
   // always promotes D/W/M, so mem can hold a multi-session-old daily just like IDB).
   // ⛔⛔ (2026-11-10) AND AN INTRADAY MEM ENTRY OBEYS THE SAME PAINT RULE AS IDB. It had
@@ -9305,7 +9443,7 @@ export default function StockChart({
   // %-above-MA can double in a session, so every such day dropped the deep history and
   // the chart "began" at the 600-bar window (May 2024, 2026-10-07).
   const _splitDeepSpliceable = _splitOn && idbBars?.length > 0
-    && idbReadyForRef.current === `${sym}_${resolvedTf}`
+    && idbReadyForRef.current === `${sym}_${_barsTf}`
     && !_idbBasisMismatch
   const _splitDeepBehindFresh = useMemo(
     () => ((_netMatches && !data.delta && _splitDeepSpliceable && !(_idbFresh || _splitDeepPaintable))
@@ -9458,11 +9596,11 @@ export default function StockChart({
   const _basisPurgedRef = useRef(null)
   useEffect(() => {
     if (!_idbBasisMismatch) return
-    const k = `${sym}_${resolvedTf}`
+    const k = `${sym}_${_barsTf}`
     if (_basisPurgedRef.current === k) return
     _basisPurgedRef.current = k
-    idbDelete(sym, resolvedTf)
-  }, [_idbBasisMismatch, sym, resolvedTf])
+    idbDelete(sym, _barsTf)
+  }, [_idbBasisMismatch, sym, resolvedTf, _barsTf])
   // First-bars latch: fire onBarsReady exactly once per mount, on the first
   // render where loading settles false — renderable bars OR fatal error both
   // count, so a dead ticker never starves the grid mount queue waiting on it.
@@ -9522,7 +9660,7 @@ export default function StockChart({
         verifiedThrough: (_respForSym && typeof data?.verified_through === 'number') ? data.verified_through : null,
         serverStatus: _respForSym ? (data?.tail_status ?? null) : null,
         pending: !!isValidating,
-        retriesExhausted: tailRetriesExhausted(_tailCatchupRef.current, `${sym}_${resolvedTf}`),
+        retriesExhausted: tailRetriesExhausted(_tailCatchupRef.current, `${sym}_${_barsTf}`),
         terminalNoData: !!(data?.no_data && !(Array.isArray(bars) && bars.length)),
       })
     : null
@@ -9589,7 +9727,7 @@ export default function StockChart({
         // live feed, and a no-op REPLACE once caught up (the price sits within 2.5
         // intervals of the tail again → this branch stops firing).
         const _sym = sym, _tf = resolvedTf
-        fetch(`/api/bars/${encodeURIComponent(_sym)}?tf=${_tf}&bars=${barCount}`)
+        fetch(`/api/bars/${encodeURIComponent(_sym)}?tf=${_tf}&bars=${barCount}${_sessQ}`)
           .then(r => (r.ok ? r.json() : null))
           .then(payload => {
             // Guard against a ticker/tf switch mid-fetch, and against a stale payload.
@@ -9816,15 +9954,19 @@ export default function StockChart({
 
   // Filter bars to regular session only when extended hours hidden
   const sessionBars = useMemo(() => {
-    if (!bars || !_intradayLike || showExtended) return bars
+    if (!bars || !_intradayLike) return bars
+    // An off-grid bar (trade-time stamped, e.g. 16:35:50 beside 16:35:00) is never its
+    // own candle — folded into its bucket. Same array when the series is clean.
+    const gridBars = isIntraday ? foldOffGridBars(bars, resolvedTf, { showExtended }) : bars
+    if (showExtended) return gridBars
 
-    return bars.filter(b => {
+    return gridBars.filter(b => {
       if (typeof b.t !== 'number') return true
       const mins = etMinutesOfUnix(b.t)
       // All intraday RTH: 9:30 AM (570 min) to 4:00 PM (960 min) ET
       return mins >= 570 && mins < 960
     })
-  }, [bars, _intradayLike, showExtended, resolvedTf])
+  }, [bars, _intradayLike, isIntraday, showExtended, resolvedTf])
 
   // ── Replay / Time Machine state ──
   const [replayMode, setReplayMode] = useState(false)
@@ -10709,6 +10851,18 @@ export default function StockChart({
     return cs.heikinAshi ? toHeikinAshi(sessionAppliedBars) : sessionAppliedBars
   }, [sessionAppliedBars, cs.heikinAshi])
   barCountRef.current = displayBars?.length || 0
+  // ⛔ The drawing overlay maps BY INDEX (future points `bars.length-1+futureBars`,
+  // the nearestIndex→logicalToCoordinate fallback, toChart's logical→bar), so it must
+  // see the exact array the candle series is built from — index-aligned with
+  // `displayBars`, real OHLC for the magnet/measure. The raw `bars` still carry
+  // pre/post-market rows in the RTH-only view, which shifted every index-mapped point
+  // by that many slots.
+  // ⛔ BUT NEVER TRUNCATED: replay (replayIndex), the Custom-Period Sort cutoff and
+  // exact-range framing cut the series' TAIL. A saved point after that cut must keep
+  // its true slot in the right pad, not clamp onto the cursor candle via nearestIndex,
+  // so a truncated view hands the overlay the full session-filtered series — whose
+  // first N indices are the series' own, so the alignment above still holds.
+  const drawingBars = filteredBars === sessionBars ? sessionAppliedBars : sessionBars
 
   // ── Hide price-axis labels when the latest bar is scrolled off-screen ──────
   // When today's / the most-recent bar is not visible, strip ALL right-axis tags
@@ -11341,13 +11495,13 @@ export default function StockChart({
   // tickers are missing." Capped depth + bounded concurrency + one retry.
   const cmpBarCount = Math.min(barCount || 1500, 2000)
   const { data: comparisonsData } = useSWR(
-    comparisonsKey ? ['comparison-bars', comparisonsKey, resolvedTf, cmpBarCount] : null,
+    comparisonsKey ? ['comparison-bars', comparisonsKey, resolvedTf, cmpBarCount, _gridQ] : null,
     async () => {
       const syms = enabledComparisons.map(c => String(c.sym).toUpperCase())
       const fetchOne = async (s) => {
         for (let attempt = 0; attempt < 2; attempt++) {
           try {
-            const r = await fetch(`/api/bars/${encodeURIComponent(s)}?tf=${resolvedTf}&bars=${cmpBarCount}`)
+            const r = await fetch(`/api/bars/${encodeURIComponent(s)}?tf=${resolvedTf}&bars=${cmpBarCount}${_gridQ}`)
             if (r.ok) {
               const j = await r.json()
               const bars = j?.bars || []
@@ -11506,10 +11660,10 @@ export default function StockChart({
   // overlay, this is its own auto-scaled pane (the shape is what matters for
   // spotting relative strength). Indices route through yfinance server-side.
   const { data: indexPaneData } = useSWR(
-    indexPaneSymbol ? ['index-pane-bars', String(indexPaneSymbol).toUpperCase(), resolvedTf, barCount] : null,
+    indexPaneSymbol ? ['index-pane-bars', String(indexPaneSymbol).toUpperCase(), resolvedTf, barCount, _gridQ] : null,
     async () => {
       const s = String(indexPaneSymbol).toUpperCase()
-      const res = await fetch(`/api/bars/${encodeURIComponent(s)}?tf=${resolvedTf}&bars=${barCount}`)
+      const res = await fetch(`/api/bars/${encodeURIComponent(s)}?tf=${resolvedTf}&bars=${barCount}${_gridQ}`)
         .then(r => (r.ok ? r.json() : { bars: [] }))
         .catch(() => ({ bars: [] }))
       return res?.bars || []
@@ -11622,7 +11776,7 @@ export default function StockChart({
     liveBarRef.current = null
     barStartVolRef.current = 0
     latestLiveRef.current = null
-  }, [sym, resolvedTf])
+  }, [sym, resolvedTf, _barsTf])
 
   // Real-time candle updates — tick-by-tick via WebSocket.
   // Detects bar period boundaries and creates NEW candles automatically.
@@ -11759,6 +11913,7 @@ export default function StockChart({
     // means a new D/W/M day with no confirmed session — leave yesterday alone.
     const decision = classifyLiveBar({
       tf: resolvedTf, last, live, tickSec, nowSec: Date.now() / 1000,
+      session: liveStreamSession(showExtendedRef.current),
     })
     const barTime = decision.time != null ? decision.time : last.time
     // D2 arbitration: a fresh registry trade feed (Writer C) owns the same-bucket close.
@@ -12128,7 +12283,7 @@ export default function StockChart({
     // during the disconnect window and we need its authoritative server value.
     if (lastBarT == null || !sym) return
     const sinceMs = Math.max(0, lastBarT - 1)
-    fetch(`/api/bars/${encodeURIComponent(sym)}?tf=${encodeURIComponent(resolvedTf)}&since=${sinceMs}`)
+    fetch(`/api/bars/${encodeURIComponent(sym)}?tf=${encodeURIComponent(resolvedTf)}${barsSessionQuery(resolvedTf, showExtendedRef.current)}&since=${sinceMs}`)
       .then(r => r.ok ? r.json() : null)
       .then(payload => {
         if (!payload?.bars?.length) return
@@ -13471,6 +13626,7 @@ export default function StockChart({
       // prior-session candle. 'skip' = new D/W/M day, session unconfirmed.
       const decision = classifyLiveBar({
         tf: resolvedTf, last, live: liveSnap, tickSec, nowSec: Date.now() / 1000,
+        session: liveStreamSession(showExtendedRef.current),
       })
       const barTime = decision.time != null ? decision.time : last.time
 
@@ -17190,6 +17346,7 @@ export default function StockChart({
       if (!priceData) {
         legendHoveringRef.current = false
         setCrosshairData(offHoverCrosshair())
+        refreshOffHoverEndTags(alwaysShowLegend && !compactLegendRef.current)
         return
       }
 
@@ -17365,6 +17522,7 @@ export default function StockChart({
         crosshairParamRef.current = null
         legendHoveringRef.current = false
         setCrosshairData(offHoverCrosshair())
+        refreshOffHoverEndTags(alwaysShowLegend && !compactLegendRef.current)
         // Tell the sync bus the local user left the chart — but not when this
         // empty event was self-induced by applying an external crosshair.
         if (!applyingExternalRef.current && typeof onCrosshairMoveRef.current === 'function') {
@@ -18872,6 +19030,144 @@ export default function StockChart({
     } catch { /* pane API missing → the CSS default */ }
   }, [])
 
+  /** The top of a renderer pane in the container, and its height: the sum of every
+   *  pane above it plus their separators, read off `chart.panes()` as `pinPaneLegend`
+   *  reads it. `null` when the renderer cannot answer. */
+  const paneBandOf = useCallback((index) => {
+    const chart = chartRef.current
+    if (!chart || !Number.isInteger(index) || index < 0) return null
+    const panes = chart.panes ? chart.panes() : null
+    if (!panes || panes.length <= index) return null
+    let top = 0
+    for (let i = 0; i < index; i++) {
+      const h = panes[i] && panes[i].getHeight ? panes[i].getHeight() : 0
+      top += (Number.isFinite(h) ? h : 0) + SEPARATOR_PX
+    }
+    const height = panes[index] && panes[index].getHeight ? panes[index].getHeight() : 0
+    return { top, height: Number.isFinite(height) ? height : 0 }
+  }, [])
+
+  /**
+   * ⭐ UCT RS split, U2 — THE RANKS STRIP ON THE PRICE PANE (`meta.paneTable` for an
+   * instance drawn with the candles, `placement.target === 'price'`).
+   *
+   * WHERE: on the price legend's first row, right-aligned 6 px left of the price
+   * scale — "to the right of the price legend". The alternatives were measured out
+   * (map §(f) risk 4): the pane's TOP band is the drawing toolbar's (`.toolbar`
+   * spans `left: 12px` to `right: 84px`), and the own-scale band's top edge (62 %
+   * down the pane) floats over the candles and over the RS line's newest bars when
+   * the stock leads. The legend row is the one band that is already legend
+   * furniture, clear of the toolbar, the volume band at the pane's bottom and the
+   * axis' last-value tags (the strip ends left of the axis). When the legend is not
+   * drawn (hover-only, hidden by the host), the row is where it WOULD be: 28 px
+   * under the pane top beneath a toolbar, 2 px without one (`.legend`'s own
+   * offsets).
+   *
+   * COLLISION: `paneTableFits`, the pane version's rule, against the legend's right
+   * edge while the legend's box reaches the strip's row. On a 1536 px desktop the
+   * study stack is a few hundred px wide and the strip fits; on a 390 px phone the
+   * plot is ~286 px and the strip (~230 px) steps aside, as it does in a pane, and
+   * the same numbers stay one tap away in the readout's Rating card.
+   */
+  const pinPriceTable = useCallback((el) => {
+    if (!el) return
+    try {
+      const chart = chartRef.current, host = wrapperRef.current
+      if (!chart || !host) return
+      let idx = 0
+      try { idx = candleSeriesRef.current?.getPane?.()?.paneIndex?.() ?? 0 } catch { idx = 0 }
+      const band = paneBandOf(idx)
+      if (!band) return
+      const hr = host.getBoundingClientRect()
+      const leg = legendRef.current
+      const lr = leg ? leg.getBoundingClientRect() : null
+      const chrome = priceChromeRef.current || {}
+      const rowTop = lr
+        ? lr.top - hr.top
+        : band.top + (chrome.legendFlush || chrome.toolbarCollapsed ? 2 : 28)
+      const want = `${Math.round(rowTop)}px`
+      if (el.style.top !== want) el.style.top = want
+      let axisW = 0
+      try { axisW = chart.priceScale('right').width() || 0 } catch { axisW = 0 }
+      let leftW = 0
+      try { leftW = chart.priceScale('left').width() || 0 } catch { leftW = 0 }
+      let plotW = 0
+      try { plotW = chart.timeScale().width() || 0 } catch { plotW = 0 }
+      const right = `${Math.round(axisW + 6)}px`
+      if (el.style.right !== right) el.style.right = right
+      // The legend counts only while its box reaches the strip's 16 px row.
+      const stripH = el.offsetHeight || 16
+      const reaches = lr ? (lr.top - hr.top) < rowTop + stripH && (lr.bottom - hr.top) > rowTop : false
+      const fits = paneTableFits({
+        plotWidth: leftW + plotW,
+        labelRight: reaches ? lr.right - hr.left : 0,
+        tableWidth: el.offsetWidth || 0,
+      })
+      if (el.hasAttribute('data-collapsed') === fits) {
+        if (fits) { el.removeAttribute('data-collapsed'); el.removeAttribute('aria-hidden') }
+        else { el.setAttribute('data-collapsed', ''); el.setAttribute('aria-hidden', 'true') }
+      }
+    } catch { /* pane API missing → the CSS default */ }
+  }, [paneBandOf])
+
+  /**
+   * ⭐ UCT RS split, U2 — THE LINE-END TAG (`plots[].endLabel`): `RS 96` at the last
+   * finite point of the plot, positioned with the HOST SERIES' OWN
+   * `priceToCoordinate` — which is what makes it land on an `own:` scale in the
+   * price pane (`placement.ownScaleOf`) and in an indicator pane alike — and the
+   * time scale's `timeToCoordinate`, so it rides the line through scroll and zoom.
+   * The geometry is `endLabel.endLabelPlacement`'s: right-aligned a few px left of
+   * the point, centred on it, inside its pane; hidden while the point is off the
+   * plot or the tag would not fit. Called every frame from the sampler and from
+   * the ref callback, like `pinPaneLegend`, so the first painted frame is right.
+   *
+   * ⛔ FAIL CLOSED: no binding, no series, no finite point, no text → hidden.
+   * A `value` tag prints the point's own value; a scalar tag prints what the chip
+   * already resolved (`readout.stampReadout`).
+   */
+  const pinEndLabel = useCallback((el, key, model) => {
+    if (!el) return
+    const hide = () => { if (!el.hasAttribute('data-hidden')) el.setAttribute('data-hidden', '') }
+    try {
+      const chart = chartRef.current, eng = engineRef.current
+      if (!chart || !eng || !eng.binder) { hide(); return }
+      const b = eng.binder.bindings().find((x) => x && x.series && `${x.instanceId}::${x.plotKey}` === key) || null
+      if (!b) { hide(); return }
+      let last = endLabelLastRef.current.get(b)
+      if (last === undefined) {
+        let points = null
+        try { points = typeof b.series.data === 'function' ? b.series.data() : null } catch { points = null }
+        last = lastFinitePoint(points)
+        endLabelLastRef.current.set(b, last)
+      }
+      if (!last) { hide(); return }
+      const text = model && model.fromValue
+        ? endLabelText(model.spec, { value: last.value })
+        : (model && typeof model.text === 'string' ? model.text : null)
+      if (!text) { hide(); return }
+      if (el.textContent !== text) el.textContent = text
+      let x = null, y = null, idx = null
+      try { x = chart.timeScale().timeToCoordinate(last.time) } catch { x = null }
+      try { y = b.series.priceToCoordinate(last.value) } catch { y = null }
+      try { idx = b.series.getPane().paneIndex() } catch { idx = null }
+      const band = paneBandOf(idx)
+      if (x == null || y == null || !band) { hide(); return }
+      let leftW = 0
+      try { leftW = chart.priceScale('left').width() || 0 } catch { leftW = 0 }
+      let plotW = 0
+      try { plotW = chart.timeScale().width() || 0 } catch { plotW = 0 }
+      const place = endLabelPlacement({
+        x, y, plotLeft: leftW, plotWidth: plotW, paneTop: band.top, paneHeight: band.height,
+        width: el.offsetWidth, height: el.offsetHeight,
+      })
+      if (place.hidden) { hide(); return }
+      const left = `${place.left}px`, top = `${place.top}px`
+      if (el.style.left !== left) el.style.left = left
+      if (el.style.top !== top) el.style.top = top
+      if (el.hasAttribute('data-hidden')) el.removeAttribute('data-hidden')
+    } catch { hide() }
+  }, [paneBandOf])
+
   useEffect(() => {
     if ((!showRangeSelector && !showVolLegend && !verticalLegend && !paneLegendKeys.length) || !chartReady) return
     const chart = chartRef.current, container = containerRef.current
@@ -19014,6 +19310,12 @@ export default function StockChart({
           if (paneLegendRefs.current.size) {
             paneLegendRefs.current.forEach(pinPaneLegend)
           }
+          // ⭐ UCT RS split, U2 — the price pane's ranks strip and every line-end
+          // tag, by the same rule, in the same frame.
+          if (priceTableRef.current) pinPriceTable(priceTableRef.current)
+          if (endLabelRefs.current.size) {
+            endLabelRefs.current.forEach((entry, key) => pinEndLabel(entry.el, key, entry.model))
+          }
           // …and the Price pane's own chrome, by the same rule, in the same frame.
           pinPriceChrome()
           // Responsive vertical legend: measure its bottom against the price/volume
@@ -19104,7 +19406,7 @@ export default function StockChart({
       if (ro) ro.disconnect()
       for (const u of unsub) { try { u() } catch { /* already gone */ } }
     }
-  }, [showRangeSelector, showVolLegend, verticalLegend, paneLegendKeys, pinPaneLegend, pinPriceChrome, chartReady])
+  }, [showRangeSelector, showVolLegend, verticalLegend, paneLegendKeys, pinPaneLegend, pinPriceChrome, pinPriceTable, pinEndLabel, chartReady])
 
   useEffect(() => {
     const el = containerRef.current
@@ -20659,6 +20961,7 @@ export default function StockChart({
           onSettings: (id) => { close(); handleChipSettings(id) },
           onToggleHidden: (id) => { close(); handleChipHidden(id) },
           onMove: (id, t) => { close(); handleChipMove(id, t) },
+          onResetPaneSize: (id) => { close(); handleChipResetPaneSize(id) },
           onDuplicate: (id) => { close(); handleChipDuplicate(id) },
           onAlerts: (id) => { close(); handleChipAlerts(id, c.plotKey) },
           onAbout: () => { close(); setChipAbout({ chip: c, anchor: chipMenu.anchor }) },
@@ -20676,6 +20979,12 @@ export default function StockChart({
           alertsRefusal: chipAlertsRefusal,
           displayOptions,
           displayCurrent,
+          // ⭐ RS split U3 — the row exists only when there is something to reset:
+          // the pane this instance draws in has an entry in the member's sizes.
+          paneSizeStored: (() => {
+            const key = inst ? paneOwnerOf(inst, cs) : null
+            return !!key && storedPaneSizes(cs)[key] !== undefined
+          })(),
           definitionKind: defKind,
           canModify: (() => { try { return !!toolbarRef.current?.canModifyWithIntelligence?.() } catch { return false } })(),
           copyRefusal: copyCheck && !copyCheck.ok ? copyCheck.reason : undefined,
@@ -22615,6 +22924,56 @@ export default function StockChart({
         </Fragment>
         )
       })}
+      {/* ⭐ UCT RS split, U2 — WHAT THE PRICE PANE HOSTS BESIDES ITS LEGEND.
+          (a) The ranks strip (`meta.paneTable`) for an instance drawn with the
+              candles — the same `PaneRanksTable`, same markup, same classes as the
+              pane version above, pinned by `pinPriceTable` to the price legend's
+              row, left of the price scale (see that callback for the placement
+              decision). One per chart, like one per pane.
+          (b) Every plot's line-end tag (`plots[].endLabel`), on whichever pane its
+              series draws in, pinned by `pinEndLabel` from the series' own
+              coordinates. Both follow the pane readouts' gates: declutter hides the
+              lines, so it hides their labels too.
+          ⭐ F3 — the tags do NOT follow the legend's persistence: with no readout
+              payload (the phone shell, a legend folded to hover-only) the host
+              reads `offHoverEndTagChips`, which carries tags only, so the strip
+              still waits for a payload. */}
+      {chartReady && !indicatorsHidden && (crosshairData || offHoverEndTagChips.length) ? (() => {
+        priceChromeRef.current = { legendFlush, toolbarCollapsed }
+        const hosted = priceHostChips(crosshairData ? crosshairData.chips : offHoverEndTagChips, chipPaneHost, resolvedTf)
+        // ⛔ one chip carries BOTH the tag and the strip (the RS line's): off the
+        // payload the strip is dropped here, so it keeps the legend's gates.
+        if (!crosshairData) hosted.table = null
+        if (!hosted.table && !hosted.ends.length) return null
+        return (
+          <Fragment>
+            {hosted.table ? (
+              <PaneRanksTable
+                table={hosted.table.paneTable}
+                paneKey="price"
+                host="price"
+                canvas={topCanvasIsLight ? 'light' : 'dark'}
+                ref={(el) => { priceTableRef.current = el; if (el) pinPriceTable(el) }}
+              />
+            ) : null}
+            {hosted.ends.map((c) => {
+              const key = `${c.instanceId}::${c.plotKey}`
+              return (
+                <PlotEndLabel
+                  key={key}
+                  labelKey={key}
+                  text={typeof c.endLabel.text === 'string' ? c.endLabel.text : ''}
+                  color={c.color}
+                  ref={(el) => {
+                    const m = endLabelRefs.current
+                    if (el) { m.set(key, { el, model: c.endLabel }); pinEndLabel(el, key, c.endLabel) } else m.delete(key)
+                  }}
+                />
+              )
+            })}
+          </Fragment>
+        )
+      })() : null}
       {/* ONE pattern engine draws at a time (owner, 2026-11-01): while Chart IQ is drawing this daily chart, Auto Structures'
           overlay steps aside, and it is back the moment Chart IQ is off or the chart leaves 1D. Nothing is retired. */}
       {!disablePatterns && !chartIqActive && bars?.length > 0 && (
@@ -22702,7 +23061,7 @@ export default function StockChart({
             chartRef={chartRef}
             seriesRef={candleSeriesRef}
             volumeSeriesRef={volumeSeriesRef}
-            bars={bars}
+            bars={drawingBars}
             activeTool={null}
             setActiveTool={NOOP}
             color={drawColor}
@@ -22728,7 +23087,7 @@ export default function StockChart({
             chartRef={chartRef}
             seriesRef={candleSeriesRef}
             volumeSeriesRef={volumeSeriesRef}
-            bars={bars}
+            bars={drawingBars}
             activeTool={activeTool}
             setActiveTool={setActiveTool}
             color={drawColor}

@@ -66,7 +66,8 @@ describe('the compute closure (tools/pine_runtime_closure.mjs)', () => {
     expect(closure.unresolved).toEqual([])
     expect(findings(closure)).toEqual([])
     expect([...closure.bare.keys()]).toEqual(['jsep'])
-    for (const m of ['nativeRegistry.js', 'objectColumns.js', 'serverCompute.js', 'runtimeKill.js', 'runtimePaneGate.js', 'lowerTfGate.js']) {
+    // liveTail.js (F2, 2026-11-10): the benchmark tail store; `defSchema.js` reads its grammar from the leaf `liveTailSchema.js`
+    for (const m of ['nativeRegistry.js', 'objectColumns.js', 'serverCompute.js', 'runtimeKill.js', 'runtimePaneGate.js', 'lowerTfGate.js', 'liveTail.js']) {
       expect(closure.modules.has(`app/src/components/chart/engine/${m}`), m).toBe(false)
     }
   })

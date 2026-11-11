@@ -30,6 +30,8 @@ T0 = 1_700_000_000              # 2023 — every bar is closed by the wall clock
 def _rs_alert_flags_lit(monkeypatch):
     from api.services.signature import registry_defs as _rs_flag_defs
     monkeypatch.setattr(_rs_flag_defs, "RS_V2_ENABLED", True)
+    import api.main  # noqa: F401 -- import BEFORE lighting RS_SPLIT_ENABLED: api.main registers providers for the split rows, which registry_defs only built if the flag was on at ITS import
+    monkeypatch.setattr(_rs_flag_defs, "RS_SPLIT_ENABLED", True)  # 2026-11-10 (RS split, S2): the lit shape includes the split alerts
     monkeypatch.setenv("RS_HISTORY_ENABLED", "1")
 
 
@@ -105,12 +107,12 @@ def test_the_frozen_grid_and_every_existing_entry_are_unmoved():
     assert len(ev.INDICATOR_FUNCS) == 28 and "ma_cross" not in ev.INDICATOR_FUNCS
     assert "ma_cross" not in ev.THRESHOLD_ADDRESSES
     # 2026-11-06 (RS 2b-05): the eleven `rs_line.*` addresses are appended AFTER `ma_cross`.
-    assert ev.all_addresses()[31] == "ma_cross" and len(ev.all_addresses()) == 44  # 2026-11-07 (RS 2b-06): +rs_line.rating
+    assert ev.all_addresses()[31] == "ma_cross" and len(ev.all_addresses()) == 48  # 2026-11-10 (RS split, S2): 44 -> 48, +rs_phases.flipBlue/flipRed +rs_vs_ema.crossUp/crossDown; 2026-11-07 (RS 2b-06): +rs_line.rating
     # …every group BEFORE `ma_cross`. 2026-11-06 (RS 2b-05): `rs_line`, after it,
     # declares both keys on every plot too (its columns carry `input_options` and
     # `instance_defs`), by the same rule — only where the column declares them.
     catalog = ev.alert_catalog()
-    assert [e["indicator"] for e in catalog[16:]] == ["ma_cross", "rs_line"]
+    assert [e["indicator"] for e in catalog[16:]] == ["ma_cross", "rs_line", "rs_phases", "rs_vs_ema"]  # 2026-11-10 (RS split, S2)
     for entry in catalog[:16]:
         for plot in entry["plots"]:
             assert "input_options" not in plot and "instance_defs" not in plot, plot["value"]

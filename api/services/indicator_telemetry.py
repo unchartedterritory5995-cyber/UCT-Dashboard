@@ -91,9 +91,11 @@ EVENTS = frozenset({
     "studio_action",     # client: the authoring funnel (opened / preview / saved / ...)
     # ⭐ UCT RELATIVE STRENGTH (plan §13, 2026-11-07) -- counts only, client-fired
     # by `app/src/lib/rsTelemetry.js`; see "the UCT RS counts" below.
+    # ⚰️ `rs_preset` (a preset was picked) RETIRED by the RS split (U9, 2026-11-09):
+    # the slim UCT RS Line has no presets, so the event is refused at the door (400)
+    # like any other unknown event, not left on the list with nothing to count.
     "rs_on",              # an RS copy started drawing on a chart
     "rs_off_within_60s",  # that copy stopped drawing within 60 s
-    "rs_preset",          # a preset was picked
     "rs_benchmark",       # a copy's benchmark changed
     "rs_marker_card",     # a readout card was opened
     "rs_learn",           # a Learn link was followed
@@ -106,9 +108,9 @@ EVENTS = frozenset({
 #: formula was "accepted" or "delivered"; that would let an unaccepted or
 #: unvalidated definition masquerade as a real one in the journey data.
 CLIENT_FIREABLE_EVENTS = frozenset({"import_submitted", "compile_finished", "studio_action",
-                                    # the six UCT RS counts are observations of the
+                                    # the five UCT RS counts are observations of the
                                     # member's own chart, never a server decision
-                                    "rs_on", "rs_off_within_60s", "rs_preset", "rs_benchmark",
+                                    "rs_on", "rs_off_within_60s", "rs_benchmark",
                                     "rs_marker_card", "rs_learn"})
 
 #: Correlation/identity fields every event may carry — the "which journey,
@@ -265,7 +267,7 @@ EVENT_SCHEMAS.update({
 
 # ─── ⭐ THE UCT RS COUNTS (plan §13; client `app/src/lib/rsTelemetry.js`) ────────
 #
-# Six events, each carrying the correlation id the client always sends
+# Five events (six until U9 retired `rs_preset`), each carrying the correlation id the client always sends
 # (`import_id`, a fresh `crypto.randomUUID()` per event, so nothing is folded by
 # the de-dup lookup) and AT MOST ONE prop. ⛔ COUNTS ONLY, NEVER FREE TEXT: every
 # prop is held to a closed set or a strict pattern below, so a legal key cannot
@@ -273,23 +275,21 @@ EVENT_SCHEMAS.update({
 # stored.
 #
 #   rs_on / rs_off_within_60s  symbol   a ticker (`_RS_TICKER`)
-#   rs_preset                  name     a preset id of the definition (`RS_PRESETS`)
 #   rs_benchmark               value    a benchmark code the chart's menu offers
 #                                       (`registry_defs.RS_LINE_BENCHMARKS_V4`, read live:
 #                                       the v4 menu, CUSTOM included, as the JS enum)
 #   rs_marker_card             kind     a readout row key that has a card (`RS_CARD_KINDS`)
 #   rs_learn                   target   a lesson key of the definition (`RS_LEARN_TARGETS`)
 #
-# ⛔ The three closed sets are ONE FACT IN TWO FILES: `RS_LINE_RAW` in
-# `app/src/components/chart/engine/nativeRegistry.js` owns them (`meta.presets[].id`,
-# `meta.learn[].key`, the `readout[]` keys with a `card`), and
-# `tests/test_indicator_telemetry.py` PARSES that file and pins these equal, so a
-# preset, lesson or card added there without a line here reds the rail instead of
-# being silently refused at the door.
+# ⛔ The two closed sets are ONE FACT IN TWO FILES: the `rsLine` definition in
+# `app/src/components/chart/engine/nativeRegistry.js` owns them (`meta.learn[].key`,
+# the `readout[]` keys with a `card`), and `tests/test_rs_telemetry_door.py` PARSES
+# that file and pins these equal, so a lesson or card added there without a line
+# here reds the rail instead of being silently refused at the door. (`RS_PRESETS`,
+# the third set, left with the `rs_preset` event: U9.) `RS_CARD_KINDS` is today's
+# definition's full card list; the slim RS Line (`VITE_RS_SPLIT_ENABLED=1`) fires a
+# subset of it, which the door accepts unchanged.
 
-#: `meta.presets[].id` of the UCT RS definition.
-RS_PRESETS = frozenset({"classic", "classicWeekly", "phase", "trend", "trendWeekly", "stress",
-                        "rotation", "rotationWeekly", "quality", "volAdjusted"})
 #: `meta.learn[].key` of the UCT RS definition.
 RS_LEARN_TARGETS = frozenset({"rsLine", "phase", "newHigh", "beforePrice", "redDay", "fourChecks"})
 #: The `readout[]` keys of the UCT RS definition whose row opens a card.
@@ -318,9 +318,9 @@ def _rs_benchmark_ok(value: str) -> bool:
         return False
 
 
-_RS_PROP = {"rs_on": "symbol", "rs_off_within_60s": "symbol", "rs_preset": "name",
+_RS_PROP = {"rs_on": "symbol", "rs_off_within_60s": "symbol",
             "rs_benchmark": "value", "rs_marker_card": "kind", "rs_learn": "target"}
-_RS_PROP_RULE = {"symbol": _RS_TICKER, "name": RS_PRESETS, "value": _rs_benchmark_ok,
+_RS_PROP_RULE = {"symbol": _RS_TICKER, "value": _rs_benchmark_ok,
                  "kind": RS_CARD_KINDS, "target": RS_LEARN_TARGETS}
 for _event, _prop in _RS_PROP.items():
     EVENT_SCHEMAS[_event] = {"import_id": (str,), _prop: (str,)}

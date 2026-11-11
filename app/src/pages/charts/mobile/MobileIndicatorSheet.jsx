@@ -8,7 +8,9 @@ import { isRowOn, toggledRow, rowVisibility } from '../../../components/chart/In
 import { fieldsForInstance, evalActiveWhen, sectionize, initialCollapsed,
          visiblePresets, textInputCommit, textInputDraft } from '../../../components/chart/indicatorRegistry'
 // ⭐ UCT RS Phase 3, unit 3-02 — what the LIVE server row declares (the gate).
-import { serverDeclares, subscribeServerDefinitions } from '../../../components/chart/engine/serverCompute'
+import { serverDeclares, subscribeServerDefinitions,
+         // ⭐ RS split U1 — the definition-level gate for the sheet's add list.
+         isCatalogRowOffered, serverDefinitionsVersion } from '../../../components/chart/engine/serverCompute'
 import { setInstanceInput, removeInstance, applyPresetInputs,
          presetsOf, detectPreset, CUSTOM_PRESET,
          saveInstanceAsDefault, resetInstanceToUctDefault, memberDefaultState } from '../../../components/chart/engine/instanceControls'
@@ -348,7 +350,6 @@ function SwitchRow({ inputKey, label, labelId, tip, tipId, active = true, value,
 // instance so the switch here and the chart agree.
 import { averageSlotView, writeAverageSlot, MA_DEF_ID } from '../../../components/chart/maAdoption'
 import { safeCssColour } from '../../../components/chart/engine/objectColour'
-import { noteRsPreset } from '../../../lib/rsTelemetry'
 
 const QUICK_STUDY_IDS = ['rsi', 'macd', 'bb', 'vwap', 'atr', 'stoch']
 
@@ -415,16 +416,25 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [generation],
   )
+  // ⭐ RS split U1 — a `meta.requiresServer` definition is OFFERED only once the
+  // live server lists it (`isCatalogRowOffered`, the same fail-closed fetch as
+  // `declared` below); `serverVersion` re-lists the moment the answer lands.
+  // ⛔ THE GATE IS ON THE OFFER, NEVER ON A RUNNING STUDY: `extras` unions in
+  // every study that is ON so the ƒx badge never counts ghosts, and a gated
+  // study a member already placed stays listed exactly as it draws.
+  const serverVersion = useSyncExternalStore(subscribeServerDefinitions, serverDefinitionsVersion, () => 0)
   const studyRows = useMemo(() => {
     const byId = new Map(rows.map((r) => [r.id, r]))
-    const quick = QUICK_STUDY_IDS.map((id) => byId.get(id)).filter(Boolean)
+    const quick = QUICK_STUDY_IDS.map((id) => byId.get(id))
+      .filter((r) => r && (isRowOn(r, cs) || isCatalogRowOffered(r, engineRegistry)))
     // ⛔ NOT THE MOVING AVERAGE. Its instances are listed ABOVE, one switch per
     // average; a per-DEFINITION switch here would tombstone every one of them —
     // the member's default EMA 9 included — with one tap (`toggledRow` turns a
     // definition off by tombstoning ALL its live instances).
     const extras = rows.filter((r) => !QUICK_STUDY_IDS.includes(r.id) && r.id !== MA_DEF_ID && isRowOn(r, cs))
     return [...quick, ...extras]
-  }, [rows, cs])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `serverVersion` IS the gate's version
+  }, [rows, cs, serverVersion])
 
   // ONE write door for a flipped study — the same `toggledRow` the library
   // dialog commits through, so this switch and that checkbox can never disagree
@@ -512,7 +522,7 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
   const applyPreset = (preset) => {
     if (!studyDef || !studyInst || !preset) return
     haptics.tap()
-    noteRsPreset(studyDef, preset)
+    // (the `rs_preset` count was retired with the presets, RS split U9)
     const next = applyPresetInputs(cs, studyInst.instanceId, studyDef, preset, engineRegistry)
     if (next !== cs) onWrite({ ...next, preset: 'custom' })
   }

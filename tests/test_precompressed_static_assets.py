@@ -408,3 +408,66 @@ def test_main_mounts_this_class_on_assets():
     ]
     assert len(mounts) == 1
     assert mounts[0].args[1].func.id == "_ImmutableStaticFiles"
+
+
+# ── ASSETS_NO_TRANSFORM_ENABLED: may Cloudflare compress hashed JS/CSS? (2026-11-10) ──────────────────────
+# With no-transform on, Cloudflare decompresses our precompressed response and is then forbidden to
+# re-compress it, so members got every JS/CSS file uncompressed (main script 573 KB vs 157 KB Brotli).
+# Default stays ON (today's behaviour). 0 drops no-transform from hashed JS/CSS ONLY.
+EDGE = "public, max-age=31536000, immutable"
+
+
+@pytest.mark.parametrize("value", [None, "1", "true", "yes", "anything"])
+def test_no_transform_stays_by_default(client, monkeypatch, value):
+    if value is None:
+        monkeypatch.delenv("ASSETS_NO_TRANSFORM_ENABLED", raising=False)
+    else:
+        monkeypatch.setenv("ASSETS_NO_TRANSFORM_ENABLED", value)
+    for accept in ("br", "gzip", "identity"):
+        r, _ = fetch(client, accept_encoding=accept)
+        assert r.headers["cache-control"] == CACHE
+
+
+@pytest.mark.parametrize("value", ["0", "false", "no", " NO "])
+def test_switched_off_hashed_js_lets_the_edge_compress(client, monkeypatch, value):
+    monkeypatch.setenv("ASSETS_NO_TRANSFORM_ENABLED", value)
+    for accept in ("br", "gzip", "identity"):
+        r, wire = fetch(client, accept_encoding=accept)
+        assert r.status_code == 200
+        assert r.headers["cache-control"] == EDGE
+        assert "no-transform" not in r.headers["cache-control"]
+    # the bytes and the negotiation are unchanged: only the edge permission moved
+    r, wire = fetch(client, accept_encoding="br")
+    assert r.headers["content-encoding"] == "br" and wire == BR
+
+
+def test_switched_off_css_too(client, assets, monkeypatch):
+    monkeypatch.setenv("ASSETS_NO_TRANSFORM_ENABLED", "0")
+    (assets / "app-def456.css").write_bytes(b"body{color:red}" * 100)
+    r, _ = fetch(client, name="app-def456.css", accept_encoding="gzip")
+    assert r.headers["cache-control"] == EDGE
+
+
+def test_switched_off_never_touches_a_font(client, assets, monkeypatch):
+    """Fonts are not negotiated; they keep no-transform whatever the switch says."""
+    monkeypatch.setenv("ASSETS_NO_TRANSFORM_ENABLED", "0")
+    (assets / "inter-v1.woff2").write_bytes(b"wOF2" + b"\0" * 400)
+    r, _ = fetch(client, name="inter-v1.woff2", accept_encoding="br")
+    assert r.status_code == 200
+    assert r.headers["cache-control"] == CACHE
+
+
+def test_the_no_transform_switch_is_read_per_request(client, monkeypatch):
+    monkeypatch.setenv("ASSETS_NO_TRANSFORM_ENABLED", "0")
+    assert fetch(client, accept_encoding="br")[0].headers["cache-control"] == EDGE
+    monkeypatch.setenv("ASSETS_NO_TRANSFORM_ENABLED", "1")
+    assert fetch(client, accept_encoding="br")[0].headers["cache-control"] == CACHE
+
+
+def test_the_no_transform_switch_has_a_ledger_row():
+    import json
+    flags = json.loads((REPO / "docs" / "feature_flags.json").read_text(encoding="utf-8"))["flags"]
+    row = flags.get("ASSETS_NO_TRANSFORM_ENABLED")
+    assert row, "docs/feature_flags.json must carry ASSETS_NO_TRANSFORM_ENABLED"
+    assert row["default"] == "1"
+    assert "zstd" in row["note"] and "purge" in row["note"].lower()

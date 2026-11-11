@@ -48,6 +48,7 @@ import { CalendarRoute, TerminalRoute } from './pages/terminal/TerminalRoutes'
 // Layout.jsx's feedback-FAB gate so the two can never drift (spec v1.5 exception (h)).
 import useHubActive from './hub/useHubActive'
 import { shouldRetryOnErrorAppWide } from './lib/swrRetry'
+import { isAppVisible } from './lib/deskVisibility'
 // /charts is mounted by ChartsDeskHost (inside Layout) so it can outlive a route change while a
 // board is popped out; the route itself renders nothing. Eager and tiny; the page chunk stays lazy.
 import { ChartsRouteSlot } from './pages/charts/ChartsDeskHost'
@@ -335,6 +336,9 @@ const SWR_CONFIG = {
   // No retry on a 4xx except 408 and 429: the rule and its reason live in
   // lib/swrRetry.js, so a hook that adds to it calls the same function.
   shouldRetryOnError: shouldRetryOnErrorAppWide,
+  // Polls pause while nobody can see the app: a hidden browser tab, or a desktop desk whose every
+  // window is hidden or minimized (lib/deskVisibility.js). Live streams and alerts are not SWR polls.
+  isVisible: isAppVisible,
 }
 
 /** Journal 2.0 P4 shell selector — the Task A1 seam (runtime kill-switch).

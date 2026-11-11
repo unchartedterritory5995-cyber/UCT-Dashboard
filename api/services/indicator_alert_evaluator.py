@@ -577,12 +577,33 @@ def rs_rating_offered() -> bool:
         return False
 
 
+def rs_split_offered() -> bool:
+    """2026-11-10 (RS split, lane S2): the two split families' gate -- RS alerts
+    offered AND `RS_SPLIT_ENABLED` (the flag that lights the `rsPhases` /
+    `rsVsEma` chart definitions these alerts bind to), read per call."""
+    if not rs_alerts_offered():
+        return False
+    from api.services.signature import registry_defs
+    return bool(getattr(registry_defs, "RS_SPLIT_ENABLED", False))
+
+
 def rs_address_offered(address: Optional[str]) -> bool:
-    """True for every non-RS address; for an RS address, whether its flag(s) are lit."""
+    """True for every non-RS address; for an RS address, whether it is OFFERED to
+    a new alert: its flag(s) lit, and (2026-11-10, lane S2) not one of the
+    withheld Mansfield addresses.
+
+    OFFERED is not REGISTERED: the withheld three stay in `RS_ADDRESSES`, in
+    `RS_FUNCS` and in `SERIES_FUNCS`, so a stored alert bound to one keeps
+    evaluating, firing and diagnosing (owner decision 2026-11-09). Only the
+    catalog and the create door read this."""
     if address not in RS_ADDRESSES:
         return True
+    if address in alert_rs_series.RS_WITHHELD_ADDRESSES:
+        return False
     if address == alert_rs_series.RS_RATING_ADDRESS:
         return rs_rating_offered()
+    if address in alert_rs_series.RS_SPLIT_ADDRESSES:
+        return rs_split_offered()
     return rs_alerts_offered()
 
 
@@ -666,6 +687,12 @@ THRESHOLD_OPERAND: dict[tuple[str, str], dict] = {
     ("rs_line.newHighRed", "above"): {"kind": "const", "value": 0.5},
     ("rs_line.mansfieldCrossUp", "above"): {"kind": "const", "value": 0.5},
     ("rs_line.mansfieldCrossDown", "above"): {"kind": "const", "value": 0.5},
+    # 2026-11-10 (RS split, lane S2) -- the four split events, {0, 1, None}, the
+    # same 0.5 decoder.
+    ("rs_phases.flipBlue", "above"): {"kind": "const", "value": 0.5},
+    ("rs_phases.flipRed", "above"): {"kind": "const", "value": 0.5},
+    ("rs_vs_ema.crossUp", "above"): {"kind": "const", "value": 0.5},
+    ("rs_vs_ema.crossDown", "above"): {"kind": "const", "value": 0.5},
     # Mansfield RS is a percent whose zero is where the RS line sits exactly on
     # its own long average, so "above zero" / "below zero" are declared STATES
     # beside the unsigned `cross_zero` rule (which needs no operand at all).
@@ -963,6 +990,22 @@ ALERT_CONDITIONS: dict[str, list[dict]] = {
     # refused at the door with the lane's daily-only sentence
     # (`alert_rs_series.timeframe_refusal`, per address since 2b-06).
     "rs_line.rating": _OSCILLATOR_CONDITIONS,
+    # ── 2026-11-10 (RS split, lane S2): UCT RS Phases and UCT RS vs 21 EMA ──
+    # One EVENT rule each, `above` against the declared 0.5 (the `rs_line.crossUp`
+    # shape): the level key makes a run of event bars notify once. Closed daily /
+    # weekly bars only, the lane's own door sentence.
+    "rs_phases.flipBlue": [
+        {"value": "above", "label": "RS Phase turned blue this bar: RS rising while the market falls", "needs_threshold": False},
+    ],
+    "rs_phases.flipRed": [
+        {"value": "above", "label": "RS Phase turned red this bar: RS falling while the market rises", "needs_threshold": False},
+    ],
+    "rs_vs_ema.crossUp": [
+        {"value": "above", "label": "RS line crossed above its 21 EMA this bar", "needs_threshold": False},
+    ],
+    "rs_vs_ema.crossDown": [
+        {"value": "above", "label": "RS line crossed below its 21 EMA this bar", "needs_threshold": False},
+    ],
 }
 
 # ⚠️ NOT DERIVED FROM THE JS CATALOG, ON PURPOSE. These are ALERT-LANE ids — the
@@ -1024,6 +1067,11 @@ ALERT_LABELS: dict[str, str] = {
     # 2026-11-07 (RS 2b-06). The notification reads "<sym> RS rating (IBD-style)
     # cross above 90 — 91" through `_dispatch_delivery`'s one sentence.
     "rs_line.rating": "RS rating (IBD-style)",
+    # 2026-11-10 (RS split, lane S2).
+    "rs_phases.flipBlue": "RS Phase turned blue",
+    "rs_phases.flipRed": "RS Phase turned red",
+    "rs_vs_ema.crossUp": "RS line crossed above its 21 EMA",
+    "rs_vs_ema.crossDown": "RS line crossed below its 21 EMA",
 }
 
 # The GROUP name in the indicator dropdown, for the three bases that are not
@@ -1040,6 +1088,9 @@ ALERT_BASE_LABELS: dict[str, str] = {
     "sar": "Parabolic SAR",
     # 2026-11-06 (RS 2b-05): the chart definition's own `meta.name` (`rsLine`).
     "rs_line": "UCT Relative Strength",
+    # 2026-11-10 (RS split, lane S2): the chart definitions' own names.
+    "rs_phases": "UCT RS Phases",
+    "rs_vs_ema": "UCT RS vs 21 EMA",
 }
 
 _DEFAULT_THRESHOLDS: dict[str, float] = {
