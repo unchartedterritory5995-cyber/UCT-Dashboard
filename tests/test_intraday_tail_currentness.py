@@ -248,7 +248,7 @@ def avgo(monkeypatch):
     # Freeze the router's view of "now" at the production clock.
     real_status = bars_fetch.intraday_tail_status
     monkeypatch.setattr(bars_fetch, "intraday_tail_status",
-                        lambda t, tf, tail, now=None: real_status(t, tf, tail, now=MON_1133))
+                        lambda t, tf, tail, now=None, **kw: real_status(t, tf, tail, now=MON_1133, **kw))
     # Keep the router's unrelated decorations out of the way.
     monkeypatch.setattr(bars_router, "_is_carried", lambda t: True)
     return {"store": store, "mem": mem}
