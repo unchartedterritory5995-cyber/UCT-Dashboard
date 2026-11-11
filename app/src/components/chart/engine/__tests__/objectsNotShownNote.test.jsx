@@ -35,6 +35,8 @@ import { runtimeColumnsFor } from '../runtime/runtimeColumns'
 import { __permitRuntimePaneForTests } from '../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from '../runtimeKill'
 import AttachedPineDisclosures from '../../pane/AttachedPineDisclosures'
+import { evaluateObjects } from '../objectRuntime'
+import { assertObjectProgram } from '../ast/objectProgram'
 
 const LF = String.fromCharCode(10)
 const REPO = path.resolve(process.cwd(), '..')
@@ -263,6 +265,9 @@ describe('⭐⭐ OZ r1 — a STOPPED run draws nothing and says why, on both lan
     expect(why[STOPPED_KEY]).toMatch(/^None of this script's drawings are shown on this chart: it stops with an error here \(.*bar 120/)
     expect(why[STOPPED_KEY]).not.toContain('`')
     expect(why[STOPPED_KEY]).not.toMatch(/captured|—/)
+    // ⭐ OZ r3 (N-2) — the offset as the script writes it, never our placeholder `x`
+    expect(why[STOPPED_KEY]).toContain('a history read [-1] ')
+    expect(why[STOPPED_KEY]).not.toContain('x[')
     expect(m.text).toContain(why[STOPPED_KEY])
     m.binder.teardown()
   })
@@ -460,5 +465,71 @@ describe('OZ — the note says a shared sentence once', () => {
       + 'follow yet, so none are drawn here, though TradingView may draw some.')
     const n = withRenderDrops(null, { dropped: 0, held: 0, why: { line: t, box: t } })
     expect(n.note).toBe(t)
+  })
+})
+
+// ⭐⭐ OZ r3 (review B1) — r2 booked a withhold for a taint as the CLOCK'S whenever no other
+// taint had landed. A getter's history two bars back (C48) is unknown and lands no mark, so
+// on a chart that never read the clock every box was withheld and NOTHING was said.
+describe("⭐⭐ OZ r3 (B1) — a withhold is the clock's only when the clock left a taint", () => {
+  const GET2 = { v: 'get', target: { r: 'reg', id: 'r0' }, prop: 'y', back: 2 }
+  const BOX = { k: 'create', family: 'box', site: 's1', into: null,
+    props: { left: { v: 'bar' }, top: { v: 'const', value: 2 }, right: { v: 'bar' }, bottom: { v: 'const', value: 1 } } }
+  // a label made into r0 every bar; `n0 := label.get_y(r0)[2]`; a box when `n0 > -1`
+  const histProg = (clockLabel) => ({ programVersion: 1,
+    regs: [{ id: 'r0', family: 'label' }, ...(clockLabel ? [{ id: 'r1', family: 'label' }] : [])],
+    colls: [], nums: [{ id: 'n0', init: 0 }],
+    ops: [
+      // the clock's own withhold (a label whose y reads a column only the clock leaves unknown)
+      ...(clockLabel ? [{ k: 'create', family: 'label', site: 's9', into: 'r1', when: null,
+        props: { x: { v: 'bar' }, y: { v: 'graph', node: 0 } } }] : []),
+      { k: 'create', family: 'label', site: 's0', into: 'r0', when: null, props: { x: { v: 'bar' }, y: { v: 'bar' } } },
+      { k: 'setnum', num: 'n0', value: GET2, when: null },
+      { ...BOX, when: { v: 'cmp', op: '>', args: [{ v: 'num', id: 'n0' }, { v: 'const', value: -1 }] } },
+    ] })
+  // CONTROL — the clock alone: a label withheld by the clock into r0, a box guarded by its getter
+  const clockProg = () => ({ programVersion: 1, regs: [{ id: 'r0', family: 'label' }], colls: [], nums: [],
+    ops: [
+      { k: 'create', family: 'label', site: 's0', into: 'r0', when: null, props: { x: { v: 'bar' }, y: { v: 'graph', node: 0 } } },
+      { ...BOX, when: { v: 'cmp', op: '>', args: [{ v: 'get', target: { r: 'reg', id: 'r0' }, prop: 'y' }, { v: 'const', value: -1 }] } },
+    ] })
+  // graph node 0 is unknown on every bar, and only through the chart clock's channel
+  const CLOCK_CTX = { readUnknown: (n) => n === 0, readUnknownOther: () => false }
+  const runIt = (p, ctx = {}) => evaluateObjects(p, { barCount: 12, readNode: () => 1, readTime: (b) => b, ...ctx })
+  const boxes = (r) => r.live.filter((o) => o.family === 'box')
+  const BOX_NOT_COMPUTABLE = notShownSentence(['box'], NOT_SHOWN.NOT_COMPUTABLE)
+
+  it("⭐ the reviewer's program (no clock anywhere): every box is withheld, and the box family is NAMED", () => {
+    expect(() => assertObjectProgram(histProg(false))).not.toThrow()
+    const r = runIt(histProg(false))
+    expect(boxes(r)).toEqual([])
+    expect(r.stats.withheldTainted).toBe(10)
+    expect(r.withheldBy).toEqual({ 'objects:not-computable': ['box'] })
+    expect(r.withheldWhy).toEqual({ box: BOX_NOT_COMPUTABLE })
+    expect(withRenderDrops(null, { dropped: 0, held: 0, why: r.withheldWhy }).note).toBe(BOX_NOT_COMPUTABLE)
+  })
+
+  it('⭐ the same history read beside a genuine clock withhold: the box is still named (the clock did not cause it)', () => {
+    const r = runIt(histProg(true), CLOCK_CTX)
+    expect(boxes(r)).toEqual([])
+    expect(r.stats.withheldTainted).toBe(10)
+    // the clock-withheld label is the clock note's (r0's labels draw, so no label sentence)
+    expect(r.live.filter((o) => o.family === 'label').length).toBe(12)
+    expect(r.withheldBy).toEqual({ 'objects:not-computable': ['box'] })
+    expect(r.withheldWhy).toEqual({ box: BOX_NOT_COMPUTABLE })
+  })
+
+  it("⛔ CONTROL — a box withheld for a taint the clock alone left is the clock note's: no second sentence", () => {
+    const r = runIt(clockProg(), CLOCK_CTX)
+    expect(boxes(r)).toEqual([])
+    expect(r.live).toEqual([])
+    expect(r.stats.withheldTainted).toBe(12)
+    expect(r.withheldBy).toBeUndefined()
+    expect(r.withheldWhy).toBeUndefined()
+  })
+
+  it('⛔ CONTROL — the same program off the clock split (every unknown is "other"): both families are named', () => {
+    const r = runIt(clockProg(), { readUnknown: (n) => n === 0 })
+    expect(r.withheldBy).toEqual({ 'objects:not-computable': ['label', 'box'] })
   })
 })

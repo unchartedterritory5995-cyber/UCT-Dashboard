@@ -23,7 +23,7 @@ import { describe, it, expect } from 'vitest'
 import { translatePine, INPUT_TIMEFRAME_TEXT_WITNESS, inputTimeframeTextWitnessed } from './pine'
 import { evaluateObjects } from '../objectRuntime'
 import { assertObjectProgram } from './objectProgram'
-import { classifyDropKey, LOSS } from './objectLoss'
+import { classifyDropKey, LOSS, withRenderDrops, collectorFamiliesSentence } from './objectLoss'
 
 const LF = String.fromCharCode(10)
 const src = (v, ...lines) => [`//@version=${v}`, 'indicator("t", overlay=true)', ...lines].join(LF)
@@ -72,6 +72,11 @@ function run(t, bars = 12) {
       : x)
   return evaluateObjects(bind(t.objects), { barCount: bars, readNode: (i, bar) => ev(trees[i], bar), readTime: (i) => i })
 }
+/** The member's drawing note for a run, as the binder hands it on (`binder.js` publishDrops). */
+const sayCollector = (r) => withRenderDrops(null, { dropped: 0, held: 0,
+  families: (r.withheldBy || {})['objects:collector'] || [],
+  familiesAll: (r.withheldBy || {})['objects:collector-all'] || [],
+  why: r.withheldWhy || null })
 
 const DRAW_BOX = [
   'draw_box(bool display, float top, string tf_text) =>',
@@ -475,6 +480,30 @@ describe('C33 (8) — a guard with a term nothing reads, gated by an input', () 
     const drawn = r.live.filter((o) => o.family === 'line')
     expect(drawn.map((o) => o.createdBar)).toEqual([18, 19])
     expect(r.withheldBy).toEqual({ 'objects:collector': ['line'] })
+    // ⭐ OZ r3 (N-1) — some lines are drawn, so the member reads C22's PARTIAL sentence
+    expect(sayCollector(r).note).toBe(collectorFamiliesSentence(['line']))
+  })
+
+  it('⛔ OZ r3 (review N-1) — FIVE anchors fill the cap, so NO line is drawn: the member reads the WHOLE sentence, once', () => {
+    // P = 5 registers of the family, cap 5: every slot TradingView spares is an anchor's,
+    // so no other line is certainly kept. ⚰️ The family was published per object, and its
+    // sentence "... The newest ones are drawn." was false, and the member's only note
+    // (the merge's one-note skip suppressed OZ's true sentence).
+    const t = host(['//@version=5', 'indicator("t", overlay=true, max_lines_count=5)',
+      'gate = input.bool(true, "G")',
+      ...[1, 2, 3, 4, 5].map((k) => `var line a${k} = line.new(0, 7.5, 1, 7.5)`),
+      'if gate and dayofweek(time, "GMT+10") == dayofweek.monday',
+      '    line.new(bar_index, low, bar_index + 1, low)',
+      'line.new(bar_index, high, bar_index + 1, high)'].join(LF))
+    const r = run(t, 20)
+    expect(r.live.filter((o) => o.family === 'line')).toEqual([])
+    expect(r.withheld.line).toBeGreaterThan(0)
+    // said under C22's whole wording, and OZ does not name the family a second time
+    expect(r.withheldBy).toEqual({ 'objects:collector-all': ['line'] })
+    expect(r.withheldWhy).toBeUndefined()
+    const whole = collectorFamiliesSentence(['line'], { whole: true })
+    expect(sayCollector(r).note).toBe(whole)
+    expect(sayCollector(r).note).not.toContain('The newest ones are drawn')
   })
 
   it('⛔ W-C22-DEL r5 (N-g) — with a LIST of the family in the program, the maybe-creates withhold the family WHOLE (whether a list member is spared is unmeasured)', () => {

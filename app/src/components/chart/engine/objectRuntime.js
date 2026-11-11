@@ -557,6 +557,24 @@ export function beginObjects(program, ctx) {
   /** ⭐ OZ r2 — whether any taint this run carries came from a reason OTHER than the
    *  chart clock. When none did, a taint-held family (C17) is the clock's to explain. */
   let taintOtherSeen = false
+  /** ⭐⭐ OZ r3 (review B1) — A WITHHOLD IS THE CLOCK'S ONLY WHEN THE CLOCK LEFT A TAINT.
+   *  ⚰️ r2 booked an op withheld for a taint as the clock's whenever no OTHER taint had
+   *  landed (`taintOtherSeen`). But `tainted` also answers true for unknowns that never
+   *  land as a mark: a getter's history two or more bars back (C48), an unread conjunct
+   *  (`{v:'unknown'}`), a held colour (C45), and a scalar a `setnum` fed from one. Such a
+   *  program has `taintSeen` from bar 0, so its first withhold was booked as the clock's on
+   *  a chart that never read the clock: no family name and no clock note — a SILENT zero
+   *  (measured: 10 boxes withheld, 0 drawn, nothing said).
+   *  ⭐ So the clock is a cause that must be PROVED, never the default:
+   *    · `taintClockSeen` — a withhold the clock alone caused actually happened (only then
+   *      is the C36 / `bar-index:window` note on the chart to explain a family);
+   *    · `unknownOtherSeen` — `tainted` answered true from a source the clock never
+   *      produces (the list above). A latch or a crossing can be the clock's or not, and a
+   *      collector-cut getter follows a withhold that landed its own cause, so those are
+   *      left to `taintClockSeen`: booked the clock's only where a clock note exists.
+   *  The worst case is now naming a family the clock note also covers, never silence. */
+  let taintClockSeen = false
+  let unknownOtherSeen = false
   /** ⭐⭐ C9 — every `{v:'at'}` history read an op's values carry (see
    *  `MAX_BARS_BACK_CAP` in objectProgram.js), once per op. */
   const atAtoms = new Map()
@@ -1169,7 +1187,8 @@ export function beginObjects(program, ctx) {
           return 'unknown'
         }
         if (!readable) {
-          runtimeError(`a history read \`x[${back}]\` on bar ${bar} is ${back < 0 ? 'a future bar'
+          // ⭐ OZ r3 (N-2) — the offset as the script writes it, `[n]`: no placeholder name
+          runtimeError(`a history read \`[${back}]\` on bar ${bar} is ${back < 0 ? 'a future bar'
             : !Number.isInteger(back) ? 'not a whole number of bars'
               : `past the script's max_bars_back (${at.limit})`} — TradingView stops the script there`)
           return 'error'
@@ -1315,7 +1334,7 @@ export function beginObjects(program, ctx) {
     const colorTainted = (c, depth) => {
       if (!isObj(c) || depth > 48) return false
       // ⭐ C45 — a colour the translator HELD (`{c:'held'}`) has no value on any bar.
-      if (c.c === 'held') return true
+      if (c.c === 'held') { unknownOtherSeen = true; return true }
       if (c.c === 'if') return tainted(c.cond, depth + 1) || colorTainted(c.then, depth + 1) || colorTainted(c.else, depth + 1)
       if (c.c === 'rt') return tainted(c.v, depth + 1)
       if (c.c === 'new') return colorTainted(c.of, depth + 1) || tainted(c.t, depth + 1)
@@ -1360,10 +1379,12 @@ export function beginObjects(program, ctx) {
           if (bar - v.back < 0) return false
           const h = getHistory.get(v)
           const then = h ? h.get(bar - v.back) : undefined
-          if (then === undefined) return !onceNow
-          return v.back > 1 && !Number.isNaN(then)
+          // ⭐ OZ r3 (B1) — unknown, and never the clock's (`unknownOtherSeen`)
+          const histUnknown = then === undefined ? !onceNow : v.back > 1 && !Number.isNaN(then)
+          if (histUnknown) unknownOtherSeen = true
+          return histUnknown
         }
-        case 'unknown': return true
+        case 'unknown': unknownOtherSeen = true; return true
         case 'text': return textTainted(v.node, depth + 1)
         case 'color': return colorTainted(v.node, depth + 1)
         // ⭐ C11c — an `and` with a KNOWN false operand is known false whatever
@@ -1416,6 +1437,7 @@ export function beginObjects(program, ctx) {
     const taintOutputs = (op) => {
       taintSeen = true
       if (taintCause !== 'clock') taintOtherSeen = true
+      else taintClockSeen = true
       switch (op.k) {
         case 'create':
           if (op.into) regTaint.add(op.into)
@@ -1467,9 +1489,11 @@ export function beginObjects(program, ctx) {
     /** Withhold one op on this bar, marking what it would have written. */
     // ⭐ OZ r2 — an op withheld because it reads a TAINT inherits the taint's cause: when
     // every taint so far came from the chart clock alone, so does this one.
+    // ⭐ OZ r3 (B1) — and the clock must have LEFT one (`taintClockSeen`), with no unknown
+    // the clock never produces read so far (`unknownOtherSeen`); otherwise it is named.
     const withholdTainted = (op) => {
       withheldTainted += 1
-      taintCause = taintOtherSeen ? 'other' : 'clock'
+      taintCause = taintClockSeen && !taintOtherSeen && !unknownOtherSeen ? 'clock' : 'other'
       taintOutputs(op)
       taintCause = 'other'
     }
@@ -2283,15 +2307,25 @@ export function beginObjects(program, ctx) {
   // ⛔ ONLY A FAMILY NOTHING OF WHICH IS DRAWN: naming it hides nothing that was
   // shown (a partly drawn family keeps the translation's "incomplete" note). A
   // family already withheld by name above keeps its own sentence.
+  const drawnFams = new Set(ordered.map((o) => o.family))
+  // ⭐⭐ OZ r3 (review N-1) — A PER-OBJECT COLLECTOR FAMILY OF WHICH NOTHING IS DRAWN IS SAID
+  // WHOLE. C22's per-object sentence ends "The newest ones are drawn.", which is false when
+  // none is (measured: five `var line` anchors under `max_lines_count=5` leave 0 lines drawn,
+  // and that false clause was the member's only note). Such a family is published under
+  // C22's whole wording (`objects:collector-all`, "No lines are shown on this chart: …"),
+  // which is true of it, and OZ does not name it again below: one family, one true note.
+  const collectorNoneDrawn = collectorShown.filter((f) => !drawnFams.has(f))
+  const collectorPartOut = collectorShown.filter((f) => drawnFams.has(f))
+  const collectorWholeOut = [...new Set([...collectorAllShown, ...collectorNoneDrawn])].sort()
   const notShown = { [NOT_SHOWN.NOT_CARRIED]: [], [NOT_SHOWN.NOT_COMPUTABLE]: [] }
   if (!stopped) {
-    const drawnFams = new Set(ordered.map((o) => o.family))
     const taintFams = taintOtherSeen ? new Set([...taintHeld].map((id) => live.get(id).family)) : new Set()
     for (const fam of Object.keys(counts)) {
       if (withheldFams.has(fam) || drawnFams.has(fam)) continue
-      // ⭐ OZ (C22 merge) — a family C22's collector already names, per object or
-      // whole, keeps C22's sentence: one family, one note.
-      if (collectorShown.includes(fam) || collectorAllShown.includes(fam)) continue
+      // ⭐ OZ (C22 merge) — a family C22's collector names keeps C22's sentence (said whole
+      // above, so it is true): one family, one note. (A whole-withheld collector family is
+      // in `withheldFams` and never reaches here.)
+      if (collectorNoneDrawn.includes(fam)) continue
       if (lost.has(fam)) notShown[NOT_SHOWN.NOT_CARRIED].push(fam)
       else if (famUnknownOther.has(fam) || taintFams.has(fam)) notShown[NOT_SHOWN.NOT_COMPUTABLE].push(fam)
     }
@@ -2316,11 +2350,11 @@ export function beginObjects(program, ctx) {
     status,
     reason,
     ...(withheldFams.size || taintHeld.size || collectorHeld.size ? { withheld } : {}),
-    ...(offListingFams.size || ((collectorShown.length || collectorAllShown.length) && !stopped) || cellGuards.size || Object.keys(notShownBy).length ? { withheldBy: {
+    ...(offListingFams.size || ((collectorPartOut.length || collectorWholeOut.length) && !stopped) || cellGuards.size || Object.keys(notShownBy).length ? { withheldBy: {
       ...(offListingFams.size ? { 'objects:off-listing': [...offListingFams] } : {}),
       // ⛔ only a family that held something here: an empty one hides nothing
-      ...(collectorShown.length && !stopped ? { 'objects:collector': collectorShown } : {}),
-      ...(collectorAllShown.length && !stopped ? { 'objects:collector-all': collectorAllShown } : {}),
+      ...(collectorPartOut.length && !stopped ? { 'objects:collector': collectorPartOut } : {}),
+      ...(collectorWholeOut.length && !stopped ? { 'objects:collector-all': collectorWholeOut } : {}),
       // ⭐ DIV-3 r1 — a `table.cell` rewrote a merged head (`objectCells.js`)
       ...Object.fromEntries([...cellGuards].map((g) => [g, ['table']])),
       // ⭐ OZ — a family drawn as none for an engine-side cause (`notShown` above)
