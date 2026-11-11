@@ -43,6 +43,19 @@ describe('perfBeacon: what may leave the page', () => {
     expect(JSON.stringify(r)).not.toMatch(/NVDA/)
   })
 
+  it('with Early Hints the first byte is the real page, not the 103', () => {
+    const nav = { responseStart: 79, finalResponseHeadersStart: 168, domContentLoadedEventEnd: 300, loadEventEnd: 500 }
+    expect(buildReport({ pathname: '/', origin: O, desktop: false, nav, resources: [] }).ttfb).toBe(168)
+    const noHint = { responseStart: 140, finalResponseHeadersStart: 0, domContentLoadedEventEnd: 300, loadEventEnd: 500 }
+    expect(buildReport({ pathname: '/', origin: O, desktop: false, nav: noHint, resources: [] }).ttfb).toBe(140)
+  })
+
+  it('signed out, forbidden or missing is an answer; 5xx, timeout and rate limit are failures', () => {
+    const call = (responseStatus) => ({ name: `${O}/api/auth/me`, initiatorType: 'fetch', duration: 50, responseStatus })
+    const r = buildReport({ pathname: '/', origin: O, desktop: false, resources: [401, 403, 404, 200, undefined, 500, 503, 408, 429].map(call) })
+    expect(r.api.map((a) => a.ok)).toEqual([true, true, true, true, true, false, false, false, false])
+  })
+
   it('caps the API list and clamps absurd numbers', () => {
     const resources = Array.from({ length: MAX_API + 10 }, () => ({ name: `${O}/api/bars`, initiatorType: 'fetch', duration: 10 }))
     const r = buildReport({ pathname: '/', origin: O, desktop: false, nav: { responseStart: -5, domContentLoadedEventEnd: 1e9, loadEventEnd: NaN }, resources })

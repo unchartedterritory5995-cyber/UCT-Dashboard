@@ -35,6 +35,14 @@ export function apiTemplate(url, origin) {
 
 const ms = (v) => (Number.isFinite(v) && v >= 0 ? Math.min(Math.round(v), 120000) : undefined)
 
+// With Early Hints, Chrome's responseStart is the 103's first byte (tens of ms) and the real page's
+// first byte is finalResponseHeadersStart. Reporting responseStart would make the server look instant.
+const pageFirstByte = (nav) => (nav.finalResponseHeadersStart > 0 ? nav.finalResponseHeadersStart : nav.responseStart)
+
+// A failed call is the server or the network failing: 5xx, a timeout, rate limiting. A 401/403/404 is an
+// answer (signed out, not allowed, nothing there), not a reliability failure. 0/undefined = not reported.
+const failedStatus = (status) => status >= 500 || status === 408 || status === 429
+
 /** Build the report from performance entries. Pure: the caller supplies everything it reads. */
 export function buildReport({ pathname, origin, desktop, nav, fcp, lcp, longTasks, resources }) {
   const api = []
@@ -43,14 +51,13 @@ export function buildReport({ pathname, origin, desktop, nav, fcp, lcp, longTask
     if (r.initiatorType !== 'fetch' && r.initiatorType !== 'xmlhttprequest') continue
     const route = apiTemplate(r.name, origin)
     if (!route) continue
-    const status = r.responseStatus
-    api.push({ route, ms: ms(r.duration) ?? 0, ok: !(status >= 400) })
+    api.push({ route, ms: ms(r.duration) ?? 0, ok: !failedStatus(r.responseStatus) })
   }
   const lt = longTasks || []
   return {
     page: pageTemplate(pathname),
     client: desktop ? 'desktop' : 'browser',
-    ttfb: nav ? ms(nav.responseStart) : undefined,
+    ttfb: nav ? ms(pageFirstByte(nav)) : undefined,
     fcp: ms(fcp),
     lcp: ms(lcp),
     dom_ready: nav ? ms(nav.domContentLoadedEventEnd) : undefined,
