@@ -13,8 +13,6 @@ import { createMemoDocJSON } from '../../lib/memoDocJSON'
 import { createMemoStringify, stringifyDraftPayload } from '../../lib/memoStringifyBody'
 import { nodeActiveAtCursor, canBlockquoteFast } from '../../lib/fastToolbarProbes'
 import Toast from '../Toast'
-import DocumentPreviewSheet from './DocumentPreviewSheet'
-import CapturedSourceSheet from './CapturedSourceSheet'
 import { targetFromParams, applyTargetToParams, citationTarget,
          reviewTargetFromParams } from '../../lib/searchNavigation'
 import { openExcerptCitation, openDocumentCitation, openDocumentPage, SOURCE_NOWHERE,
@@ -236,6 +234,21 @@ function HelpfulPromptDoor({ noteId, onDone }) {
 const loadWidgetPalette = () => import('./WidgetPalette')
 const WidgetPalette = lazyChunk(loadWidgetPalette)
 const warmWidgetPalette = () => whenIdle(() => { loadWidgetPalette().catch(() => {}) })
+// Notebook first-open bytes (perf-budgets.md, 2026-11-10): the document preview (with its image and page-text
+// viewers and the PDF boundary) and the captured-passage sheet are drawn only after a press, so each is its own
+// chunk, off the first open. Each mounts on its first open and then stays mounted (the Tier 1a history idiom: a
+// closed Sheet renders nothing either way), and the editor warms both once idle, like the widget palette, so a
+// press opens without a wait and still opens offline once the warm has landed.
+export const sourceSheetLoaders = {
+  documentPreview: () => import('./DocumentPreviewSheet'),
+  capturedSource: () => import('./CapturedSourceSheet'),
+}
+const DocumentPreviewSheet = lazyChunk(() => sourceSheetLoaders.documentPreview())
+const CapturedSourceSheet = lazyChunk(() => sourceSheetLoaders.capturedSource())
+const warmSourceSheets = () => whenIdle(() => {
+  sourceSheetLoaders.documentPreview().catch(() => {})
+  sourceSheetLoaders.capturedSource().catch(() => {})
+})
 // The canvas's link-from-a-thesis offer, shown on the note the member picked:
 // "Add a link to <plan> at the end of this note?" -- nothing is written until
 // the member presses Add (an editor transaction on THIS note's own autosave).
@@ -1270,6 +1283,7 @@ export default function NoteEditorPage({
   // Widget palette (point-and-click inserts) — toggled from the toolbar row.
   const [paletteOpen, setPaletteOpen] = useState(false)
   useEffect(warmWidgetPalette, [])
+  useEffect(warmSourceSheets, [])
   // Wave 5: the text colour + highlight picker, toggled from the toolbar row.
   const [colorOpen, setColorOpen] = useState(false)
   const colorToggleRef = useRef(null)
@@ -2208,6 +2222,11 @@ export default function NoteEditorPage({
   // Wave N §9 — a captured web passage is revisited AS a captured passage,
   // never as a document. See CapturedSourceSheet for what that means.
   const [capturedSource, setCapturedSource] = useState(null)
+  // First-open bytes: each sheet's chunk mounts on its first open and stays (see `sourceSheetLoaders`).
+  const [previewEverOpen, setPreviewEverOpen] = useState(false)
+  if (previewDoc && !previewEverOpen) setPreviewEverOpen(true)
+  const [capturedEverOpen, setCapturedEverOpen] = useState(false)
+  if (capturedSource && !capturedEverOpen) setCapturedEverOpen(true)
   const { documents: noteDocuments, error: documentsError, refresh: refreshDocuments } = useNoteDocuments(noteId)
   // S5 (B4): the images this note's body HOLDS, so DocumentTextStatus speaks only of those (a
   // widget's archived snapshot is an image document too, and is not in the body). Walked only
@@ -5162,38 +5181,46 @@ export default function NoteEditorPage({
         tone={uploadToast?.tone}
         onDismiss={() => setUploadToast(null)}
       />
-      <DocumentPreviewSheet
-        open={!!previewDoc}
-        href={previewDoc?.href}
-        name={previewDoc?.name}
-        page={previewDoc?.page}
-        onClose={() => setPreviewDoc(null)}
-        excerpts={previewExcerpts}
-        onSaveExcerpt={handleSaveExcerpt}
-        emphasizeExcerptId={previewDoc?.emphasizeExcerptId}
-        documentId={previewDoc?.documentId}
-        onInsert={askInsertHere}
-      />
-      <CapturedSourceSheet
-        open={!!capturedSource}
-        excerpt={capturedSource}
-        onClose={() => setCapturedSource(null)}
-        onOpenOwningNote={
-          capturedSource && capturedSource.noteId !== noteId
-            ? () => {
-                // ⛔ The app's ONE routing idiom for a note — the same `?note=`
-                // param NotebookTab owns and Search writes through
-                // `applyTargetToParams`. Never a second route shape.
-                const nid = capturedSource.noteId
-                setCapturedSource(null)
-                setSearchParams((prev) => {
-                  const next = applyTargetToParams(prev, { noteId: nid, depth: 'note' })
-                  return next
-                })
-              }
-            : null
-        }
-      />
+      {previewEverOpen && (
+        <Suspense fallback={null}>
+          <DocumentPreviewSheet
+            open={!!previewDoc}
+            href={previewDoc?.href}
+            name={previewDoc?.name}
+            page={previewDoc?.page}
+            onClose={() => setPreviewDoc(null)}
+            excerpts={previewExcerpts}
+            onSaveExcerpt={handleSaveExcerpt}
+            emphasizeExcerptId={previewDoc?.emphasizeExcerptId}
+            documentId={previewDoc?.documentId}
+            onInsert={askInsertHere}
+          />
+        </Suspense>
+      )}
+      {capturedEverOpen && (
+        <Suspense fallback={null}>
+          <CapturedSourceSheet
+            open={!!capturedSource}
+            excerpt={capturedSource}
+            onClose={() => setCapturedSource(null)}
+            onOpenOwningNote={
+              capturedSource && capturedSource.noteId !== noteId
+                ? () => {
+                    // ⛔ The app's ONE routing idiom for a note — the same `?note=`
+                    // param NotebookTab owns and Search writes through
+                    // `applyTargetToParams`. Never a second route shape.
+                    const nid = capturedSource.noteId
+                    setCapturedSource(null)
+                    setSearchParams((prev) => {
+                      const next = applyTargetToParams(prev, { noteId: nid, depth: 'note' })
+                      return next
+                    })
+                  }
+                : null
+            }
+          />
+        </Suspense>
+      )}
       <div className={styles.chrome} ref={chromeRef}>
       <SkipLinkPortal>
         <a href="#notebook-editor-toolbar" className={styles.skipLink} onClick={skipToToolbar}>
