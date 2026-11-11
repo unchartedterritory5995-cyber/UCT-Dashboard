@@ -1,7 +1,7 @@
 import { render, act, screen } from '@testing-library/react'
 import { useRef, useState } from 'react'
 import { MemoryRouter } from 'react-router-dom'
-import { vi } from 'vitest'
+import { vi, test, expect, beforeEach } from 'vitest'
 import { WorkspaceContext } from '../WorkspaceContext'
 
 // C1-127 · "open chart settings": the Agent opens the chart's OWN Chart Settings dialog — the very
