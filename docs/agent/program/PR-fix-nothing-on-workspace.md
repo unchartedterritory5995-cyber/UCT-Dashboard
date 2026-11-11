@@ -70,3 +70,22 @@ The 2 empty-list rails stay green, as they should. Restored → 9/9 green.
   regenerated, because none pinned the old wording.
 - firstCallRatchet is not on master, so it was not run. ESLint on the changed files: no new findings. The 2 errors in
   `capabilities/chart.js` (lines 967–968, no-useless-escape) were already on master, outside this diff.
+
+## CI fix: F-11 history rail ("decide these: ['refused']")
+
+`test_uct_agent_f11_history_fail_closed.py::test_the_action_less_list_matches_what_the_browser_records` failed on the
+first push. Decision: **(b) reuse the existing kind, no new contract kind, no server change.**
+
+- The row was never a new kind. It is `kind: 'refused'`, the kind every other "refused, nothing ran" row in
+  `useAgent.js` already uses (about 15 call sites), and it **does** carry `actions`. The rail's regex reads
+  `outcomeData: { kind: '…' … }` only up to the first `}`. The inserted `...(why?.missing ? { reason: 'unavailable-here' } : {})`
+  spread came before `actions`, so its `}` cut the match short and the rail took the row for an action-less `refused`.
+- (a) is wrong here. Listing `refused` in `turn.ACTIONLESS_OUTCOME_KINDS` would make any stored `refused` row that
+  lacks `actions` replay instead of failing closed (QA F-11), and every real `refused` row names its actions.
+- Fix: `actions` now comes before the optional `reason` spread. The stored row has the same keys as before, and
+  `reason` is only a label: history (`turn._row_actions` / `history_messages`) never reads it.
+
+Re-verified after merging origin/master (7a24a31edc). Full `tests/test_uct_agent*.py`: 4130 passed, 0 failed.
+agentNoTargetHere rail, the 4 count pins and noRegexLookbehind: all green. Mutant (old sentence for the no-source
+case): 7 of 9 rails fail, as before. Old key order (reason spread before actions): the F-11 rail fails with
+"decide these: ['refused']", so the rail still catches this.

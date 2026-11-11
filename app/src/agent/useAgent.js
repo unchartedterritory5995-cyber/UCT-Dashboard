@@ -2508,10 +2508,12 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           // fix-nothing-on-workspace: a host that does not PROVIDE this kind's source (a page without layouts, charts, …)
           // says the capability is not available HERE; a source that is there but empty names what is empty
           // (capabilities.noTargetSentence). Never "the workspace is empty" — and nothing runs either way.
+          // The row reuses the existing 'refused' kind WITH its actions (named first, so the F-11 rail reads them): no new
+          // outcome kind and no change to turn.ACTIONLESS_OUTCOME_KINDS. reason only says why; history never reads it.
           const why = hidden ? null : noTargetSentence(kind, host)
           const t = hidden ? `I didn't change anything: ${hidden}` : why.text
           push({ role: hidden || why.missing ? 'refusal' : 'agent', text: t })
-          record({ member: text, outcome: t, outcomeData: { kind: 'refused', ...(why?.missing ? { reason: 'unavailable-here' } : {}), actions: fast.ops.map(o => o?.action) }, telemetry: { path: 'fast', refused: true, voice } })
+          record({ member: text, outcome: t, outcomeData: { kind: 'refused', actions: fast.ops.map(o => o?.action), ...(why?.missing ? { reason: 'unavailable-here' } : {}) }, telemetry: { path: 'fast', refused: true, voice } })
           return
         }
         // "both / all" → one op set per target, applied as ONE change with one Undo
