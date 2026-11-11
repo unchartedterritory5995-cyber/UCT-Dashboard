@@ -105,6 +105,9 @@ CONVERTED = {
     # 2026-11-03 — the Chart IQ pack-behind page (api/services/chart_iq/pack.py::alert_if_behind): born on the
     # OPS resolver, never a literal read. Fires after the lab PC's build window when members read an older session.
     "api/services/chart_iq/pack.py",
+    # 2026-11-11 — the chart-data synthetic monitor (P0a) and its web-pod dead-man: born on the
+    # OPS resolver (one poster, api/services/chart_monitor/alerting.py), never a literal read.
+    "api/services/chart_monitor/alerting.py",
     # TERM-011 step 5, 2026-09-27 — the OPS member of D7's nine, converted to the shared
     # resolver rather than its own dedicated variable because it is the OUTAGE ORACLE and
     # must not fail closed. `_post_discord` and the `start_liveflow_monitor` gate both ask
