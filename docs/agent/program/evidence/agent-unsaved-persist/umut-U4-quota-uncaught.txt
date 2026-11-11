@@ -1,0 +1,74 @@
+# pl-widget no lock, BelowNormal, label umut-U4-quota-uncaught 
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+7d1250fb57
+ M src/agent/capabilities/scanRefine.js
+
+ RUN  v4.0.18 C:/w/pl-unsaved/app
+
+stderr | src/agent/agentUnsavedScreen.rail.test.jsx > an unsaved screen survives a reload (exact key uct.agent.unsavedScreens.v1) > starting fresh: a new screen saved after the reload removes this chat's entry only (another chat's stays)
+[uct-agent] screener: this chat's last screen was not saved (HTTP 503); a chat switch or reload starts fresh
+
+ ✓ src/agent/agentScanRefine.test.jsx (11 tests) 117ms
+ ❯ src/agent/agentUnsavedScreen.rail.test.jsx (8 tests | 1 failed) 490ms
+     ✓ failed save, reload, "narrow that to tech": the older server copy is NOT refined, the member is asked, the entry is kept 20ms
+     ✓ "refine it" after the question: this browser's copy is saved again FIRST, then narrowed; the entry is removed by its exact id 15ms
+     ✓ the retry fails too: nothing is refined, the member is told, the entry is kept 15ms
+     ✓ starting fresh: a new screen saved after the reload removes this chat's entry only (another chat's stays) 30ms
+     ✓ capped at 20 chats: the oldest entries go first  374ms
+     ✓ touches ONLY the exact key: no other key is read, written or removed, and storage is never enumerated 16ms
+     ✓ a storage ACCESS error after a reload fails closed: start fresh, the older server copy is never refined 15ms
+     × a QUOTA error on the write is logged and never breaks the answer; in this session the refinement still starts fresh 5ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent/agentUnsavedScreen.rail.test.jsx > an unsaved screen survives a reload (exact key uct.agent.unsavedScreens.v1) > a QUOTA error on the write is logged and never breaks the answer; in this session the refinement still starts fresh
+AssertionError: expected "warn" to be called with arguments: [ StringMatching{…} ]
+
+Number of calls: 0
+
+ ❯ src/agent/agentUnsavedScreen.rail.test.jsx:159:18
+    157|     await flush()
+    158|     expect(typeof first === 'string' && first.startsWith("I didn't run…
+    159|     expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^\[uct-ag…
+       |                  ^
+    160|     noteConversation('ac_2'); await ensureLast(); noteConversation('ac…
+    161|     expect(await run({ mode: 'refine', filters: TECH })).toBe(`I didn'…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯ Unhandled Rejection ⎯⎯⎯⎯⎯
+Error: QuotaExceededError
+ ❯ Proxy.<anonymous> src/agent/agentUnsavedScreen.rail.test.jsx:155:77
+    153|   it('a QUOTA error on the write is logged and never breaks the answer…
+    154|     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    155|     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { …
+       |                                                                             ^
+    156|     const first = await run({ filters: [F('pct_vs_ema20', 'gt', 0)] })
+    157|     await flush()
+ ❯ Proxy.setItem ../../pl-mc-fw/app/node_modules/@vitest/spy/dist/index.js:285:34
+ ❯ keepUnsaved src/agent/capabilities/scanRefine.js:135:13
+ ❯ failed src/agent/capabilities/scanRefine.js:151:5
+ ❯ src/agent/capabilities/scanRefine.js:156:37
+ ❯ runNextTicks node:internal/process/task_queues:65:5
+ ❯ listOnTimeout node:internal/timers:644:9
+ ❯ processTimers node:internal/timers:618:7
+
+This error originated in "src/agent/agentUnsavedScreen.rail.test.jsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "a QUOTA error on the write is logged and never breaks the answer; in this session the refinement still starts fresh". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 18 passed (19)
+     Errors  1 error
+   Start at  21:57:16
+   Duration  7.98s (transform 10.08s, setup 651ms, import 12.90s, tests 608ms, environment 1.14s)
+
+RUN-DONE 

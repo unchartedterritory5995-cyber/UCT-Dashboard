@@ -1,0 +1,6 @@
+{
+ "U1-no-storage-read": [["app/src/agent/capabilities/scanRefine.js", 165, "  const entry = null"]],
+ "U2-prefix-scan": [["app/src/agent/capabilities/scanRefine.js", 117, "    else for (let i = storeOf().length - 1; i >= 0; i--) { const k = storeOf().key(i); if (k && k.startsWith('uct.agent.unsavedScreens')) storeOf().removeItem(k) }"]],
+ "U3-read-error-fails-open": [["app/src/agent/capabilities/scanRefine.js", 112, "  } catch (e) { return { ok: true, map: {} } }"]],
+ "U4-quota-uncaught": [["app/src/agent/capabilities/scanRefine.js", 135, "  storeOf().setItem(UNSAVED_KEY, JSON.stringify(map))"]]
+}
