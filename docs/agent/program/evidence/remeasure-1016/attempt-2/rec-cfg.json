@@ -1,0 +1,28 @@
+{
+ "head": [
+  "# Re-measured coverage ledger, #1016 (LOCAL, src/agent vitest + recount; scripted model, jsdom; 2026-11-11)"
+ ],
+ "legend": [
+  "V/P/I/M/B/U = the doc state; * = re-proved by that tree's src/agent run (every citation matched a passed test); V~ = doc VERIFIED, citation unmatched, its named test files all passed; plain V = doc VERIFIED and NOT re-proved",
+  "N = this re-measurement on the verified install; S = ledger6 master b2300e547d on the stale 11-06 install (AUDIT VOID), same recount.mjs"
+ ],
+ "tail": [],
+ "trees": [
+  {
+   "tag": "N",
+   "label": "master (verified install)",
+   "sha": "75421184a3",
+   "doc": "C:\\w\\pl-auto-remeasure\\docs\\agent\\CHARTS_EXECUTION_STATUS.md",
+   "recount": "C:\\w\\pl-auto-remeasure\\docs\\agent\\program\\evidence\\remeasure-1016\\attempt-2\\recount.json",
+   "vitest": "C:\\w\\pl-auto-remeasure\\docs\\agent\\program\\evidence\\remeasure-1016\\attempt-2\\src-agent\\vitest-agent.json"
+  },
+  {
+   "tag": "S",
+   "label": "master (stale 11-06 install, VOID)",
+   "sha": "b2300e547d",
+   "doc": "C:\\w\\pl-auto-remeasure\\docs\\agent\\program\\evidence\\remeasure-1016\\attempt-2\\tmp\\doc-b2300e547d.md",
+   "recount": "C:\\w\\pl-auto-remeasure\\docs\\agent\\program\\evidence\\remeasure-1016\\old-stale-b2300e547d\\recount.json",
+   "vitest": "C:\\w\\pl-auto-remeasure\\docs\\agent\\program\\evidence\\remeasure-1016\\attempt-2\\tmp\\old-vitest-agent.json"
+  }
+ ]
+}

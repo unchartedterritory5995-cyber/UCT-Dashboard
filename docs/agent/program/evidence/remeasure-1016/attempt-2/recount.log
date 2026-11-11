@@ -1,0 +1,42 @@
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+date -u: 2026-11-11T03:22:18Z
+tree: /c/w/pl-auto-remeasure HEAD 644b6d7188019c6a6d2d0ad4708152ead1c53ebb (measured master 75421184a33c10f42201c43f6bd2d6391594f4c1)
+harness: 6f9abd8515 (6f9abd85155112a64a6bc7facf0e5fc2de31c911) - recount.mjs only; no harness file is in the run tree
+{
+ "execution": {
+  "inScope": 484,
+  "documentVerified": 158,
+  "counted": 188,
+  "raisedByTest": 0,
+  "raisedByBrowser": 0,
+  "notReproved": 37
+ },
+ "browser": {
+  "rows": 0,
+  "p0": 0,
+  "p0Total": 74,
+  "failed": 0
+ },
+ "panelP0": {
+  "verified": 58,
+  "total": 74
+ },
+ "teaching": {
+  "total": 499,
+  "states": {
+   "VERIFIED": 295,
+   "ASSIGNED / NOT REACHED": 60,
+   "NO WALKTHROUGH": 46,
+   "NO ASSIGNED WALKTHROUGH": 75,
+   "ROUTED / BROWSER FAILED": 23
+  }
+ },
+ "tests": {
+  "total": 9883,
+  "passed": 9845,
+  "failed": 0,
+  "skipped": 14,
+  "files": 314
+ }
+}
+# recount exit 0
