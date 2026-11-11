@@ -26,6 +26,7 @@
 // moves `delivering` or the single developing-bar writer. The existing
 // onReconnect gap-backfill is unchanged.
 
+import { registerRecoveryStream } from './recoveryRegistry'
 import { STREAM_RECONNECT_CAP_MS } from '../utils/streamStatus'
 
 export const MAX_BARS_PAIRS = 50   // mirror of api/routers/stream.py MAX_BARS_PAIRS
@@ -368,6 +369,27 @@ if (typeof document !== 'undefined') {
     if (!document.hidden) _watchdogSweep()
   })
 }
+
+// ── recovery (lib/recovery.js) ──────────────────────────────────────────────
+// After a wake or a network return, recovery reconnects every bucket at once instead of waiting for
+// the silence watchdog or a backoff that may already be at its cap, and waits on isConnected().
+
+/** Tear down and reopen every connection now, with the backoff reset. */
+export function reconnectNow() {
+  for (const bucket of _buckets) {
+    _teardownBucket(bucket)
+    bucket.retryDelay = INITIAL_RETRY_MS
+    _connectBucket(bucket)
+  }
+  if (_buckets.length) _notifyAllStatus()
+}
+
+/** True when every open bucket is connected, or there is nothing to connect. */
+export function isConnected() {
+  return _buckets.every((b) => b.connected)
+}
+
+registerRecoveryStream({ name: 'bars', reconnectNow, isConnected })
 
 // ── test hooks ──────────────────────────────────────────────────────────────
 
