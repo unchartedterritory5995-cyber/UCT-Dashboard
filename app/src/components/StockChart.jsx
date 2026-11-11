@@ -10715,7 +10715,12 @@ export default function StockChart({
   // `displayBars`, real OHLC for the magnet/measure. The raw `bars` still carry
   // pre/post-market rows in the RTH-only view, which shifted every index-mapped point
   // by that many slots.
-  const drawingBars = sessionAppliedBars
+  // ⛔ BUT NEVER TRUNCATED: replay (replayIndex), the Custom-Period Sort cutoff and
+  // exact-range framing cut the series' TAIL. A saved point after that cut must keep
+  // its true slot in the right pad, not clamp onto the cursor candle via nearestIndex,
+  // so a truncated view hands the overlay the full session-filtered series — whose
+  // first N indices are the series' own, so the alignment above still holds.
+  const drawingBars = filteredBars === sessionBars ? sessionAppliedBars : sessionBars
 
   // ── Hide price-axis labels when the latest bar is scrolled off-screen ──────
   // When today's / the most-recent bar is not visible, strip ALL right-axis tags

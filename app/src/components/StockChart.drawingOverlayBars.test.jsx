@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
 
 // ─── THE DRAWING OVERLAY SEES THE BARS THE CANDLE SERIES IS BUILT FROM ─────────
@@ -113,6 +113,8 @@ const etMin = (t) => { const d = new Date((t - 5 * 3600) * 1000); return d.getUT
 const RTH = BARS.filter(b => etMin(b.t) >= 570 && etMin(b.t) < 960)
 
 let StockChart
+// cold import of the ~22k-line module: once, with room (a per-test hook hit the 10 s default)
+beforeAll(async () => { StockChart = (await import('./StockChart')).default }, 60000)
 const candle = () => H.series.find(s => s.__ctor === 'CandlestickSeries')
 const lastOverlay = () => H.overlay.at(-1)
 
@@ -123,12 +125,11 @@ beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(Date.UTC(2026, 10, 10, 17, 0, 0))
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) })))
-  StockChart = StockChart || (await import('./StockChart')).default
 })
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals() })
 
-async function mount(forceExtendedHours) {
-  render(<StockChart sym="SYN" tf="5" barsOverride={BARS} forceExtendedHours={forceExtendedHours} showDrawingTools />)
+async function mount(forceExtendedHours, extra = {}) {
+  render(<StockChart sym="SYN" tf="5" barsOverride={extra.bars || BARS} forceExtendedHours={forceExtendedHours} showDrawingTools {...extra.props} />)
   await act(async () => { await Promise.resolve() })
 }
 
@@ -153,5 +154,23 @@ describe('drawing overlay bars == candle series bars', () => {
     const ov = lastOverlay()
     expect(candle().__data.length).toBe(BARS.length)
     expect(ov.bars.length).toBe(BARS.length)
+  })
+
+  it('replay cutoff: a point after the cursor keeps its true slot (no clamp onto the cursor candle)', async () => {
+    // two sessions; the replay cutoff hides the second
+    const DAY = 24 * 3600
+    const two = [...BARS, ...BARS.map(b => ({ ...b, t: b.t + DAY }))]
+    const rth2 = two.filter(b => etMin(b.t) >= 570 && etMin(b.t) < 960)
+    await mount(false, { bars: two, props: { replayCutoff: '2026-11-09' } })
+    const ov = lastOverlay()
+    const series = candle().__data
+    expect(series.length).toBe(RTH.length)                       // the series stops at the cutoff
+    // indices the series has are the series' own (RTH alignment kept) ...
+    expect(ov.bars.slice(0, series.length).map(b => b.t)).toEqual(RTH.map(b => b.t))
+    // ... and a stored time on the hidden day resolves PAST the cursor, at its real slot
+    expect(ov.bars.length).toBe(rth2.length)
+    const after = rth2[RTH.length + 10].t
+    const idx = ov.bars.findIndex(b => b.t === after)
+    expect(idx).toBe(series.length + 10)
   })
 })
