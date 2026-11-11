@@ -17,3 +17,18 @@ run 3: 1 failed, 225 passed, 1 warning in 5.64s FAILED tests/test_uct_agent_know
 run 4: 226 passed, 1 warning in 5.72s 
 run 5: 226 passed, 1 warning in 5.64s 
 Result: 2/5 runs red, each time test_r751_mentions_mode_only_serve_flagged_re_admits (flake rate 40% on master, 0% on branch)
+
+== AUDIT HOLD fix (after 4bdb7d1b86): clock rail ==
+Blocker: test_uct_agent_qa_clock::test_no_agent_test_reads_the_wall_clock_at_import flagged tests/test_uct_agent_policy_cache.py:12 (module-level time.time_ns()).
+Fix: PAST_NS module constant -> per-test pytest fixture past_ns (same value: now - 1 h, read when the test runs). Assertions unchanged; same 5 tests.
+Set (4 files): tests/test_uct_agent_qa_clock.py + the 3 files above, 5 consecutive runs:
+run 1: 247 passed, 1 warning in 7.19s 
+run 2: 247 passed, 1 warning in 6.88s 
+run 3: 247 passed, 1 warning in 6.73s 
+run 4: 247 passed, 1 warning in 6.89s 
+run 5: 247 passed, 1 warning in 6.91s 
+Result: 5/5 green, 247 passed each
+
+Full tests/test_uct_agent*.py (104 files), once:
+4126 passed, 23 warnings in 266.60s (0:04:26)
+0 failed, 0 errors. (test_gate_shards.py is not in the test_uct_agent*.py glob, so it was not part of this run.)
