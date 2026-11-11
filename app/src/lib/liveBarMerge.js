@@ -25,6 +25,14 @@
 //       fetched bar replaces the open and unions H/L with what the live bar observed.
 //       I1/I2 (widen-only, open-once) apply only AMONG authoritative values. The result is
 //       authoritative (`provisional` dropped).
+//   I7  PROVENANCE OF THE EXTREMES. An authoritative bar carries `authHigh`/`authLow` —
+//       the range the AUTHORITATIVE sources (push frames, the fetched bar) have shown.
+//       Fallback writers (foldPrice, Writer A/C) may widen the painted high/low but never
+//       these; the next authoritative push frame rebuilds high/low from them, so a stray
+//       fallback print cannot survive an authoritative frame for the same bucket.
+//   I8  A CLOSED BUCKET IS THE SERVER'S. Once the bucket has ended (its end <= now) the
+//       fetched bar (or a push FINAL) replaces live O/H/L/C/V outright — the H/L union
+//       applies only to the still-forming bucket (audit D5: ghost wicks kept by max/min).
 //
 // Bar shape here is the chart's: { time, open, high, low, close, volume, sym?, tradeTs? }
 // where `time` is the chart-series time (already ET-offset — the caller converts).
@@ -94,7 +102,7 @@ export function mergePushBar(prev, inc, opts = {}) {
   }
   const usable = prev && Number.isFinite(prev.time) && (sym == null || prev.sym == null || prev.sym === sym)
   if (!usable || inc.time > prev.time) {
-    return { kind: 'new', bar: { ...inc, volume: _vol(inc.volume), sym, tradeTs: Number.isFinite(tradeTs) ? tradeTs : null } }
+    return { kind: 'new', bar: { ...inc, volume: _vol(inc.volume), sym, tradeTs: Number.isFinite(tradeTs) ? tradeTs : null, authHigh: inc.high, authLow: inc.low } }
   }
   if (inc.time < prev.time) {
     return final
@@ -107,7 +115,8 @@ export function mergePushBar(prev, inc, opts = {}) {
     // narrower than an unfiltered live print). Keep the open we already hold only if
     // the final carries none usable (it always does, given isCompleteOhlc above).
     return { kind: 'update', bar: { ...prev, open: inc.open, high: inc.high, low: inc.low, close: inc.close,
-      volume: _vol(inc.volume), sym: sym ?? prev.sym ?? null, tradeTs: Number.isFinite(tradeTs) ? tradeTs : (prev.tradeTs ?? null), final: true } }
+      volume: _vol(inc.volume), sym: sym ?? prev.sym ?? null, tradeTs: Number.isFinite(tradeTs) ? tradeTs : (prev.tradeTs ?? null), final: true,
+      authHigh: inc.high, authLow: inc.low } }
   }
   if (prev.final) {
     // Already sealed by a final — a later non-final frame for the same bucket is a
@@ -119,19 +128,24 @@ export function mergePushBar(prev, inc, opts = {}) {
     const { provisional: _p, ...rest } = prev
     return { kind: 'update', bar: { ...rest, open: inc.open, high: inc.high, low: inc.low, close: inc.close,
       volume: Math.max(_vol(prev.volume), _vol(inc.volume)), sym: sym ?? prev.sym ?? null,
-      tradeTs: Number.isFinite(tradeTs) ? tradeTs : (prev.tradeTs ?? null) } }
+      tradeTs: Number.isFinite(tradeTs) ? tradeTs : (prev.tradeTs ?? null), authHigh: inc.high, authLow: inc.low } }
   }
   // Out-of-order frame within the bucket (older trade than the one we already show):
   // it may still widen the range or carry more volume, but must not move the close back.
   const older = Number.isFinite(tradeTs) && Number.isFinite(prev.tradeTs) && tradeTs < prev.tradeTs
   const open = finitePos(prev.open) ? prev.open : inc.open                         // I2
-  const high = Math.max(finitePos(prev.high) ? prev.high : inc.high, inc.high)      // I1
-  const low = Math.min(finitePos(prev.low) ? prev.low : inc.low, inc.low)           // I1
+  // I7: widen from the AUTHORITATIVE extremes, never from a fallback print (a bar with no
+  // provenance — e.g. seeded from the fetched series — is authoritative as a whole).
+  const ph = finitePos(prev.authHigh) ? prev.authHigh : prev.high
+  const pl = finitePos(prev.authLow) ? prev.authLow : prev.low
+  const high = Math.max(finitePos(ph) ? ph : inc.high, inc.high)                    // I1
+  const low = Math.min(finitePos(pl) ? pl : inc.low, inc.low)                       // I1
   const close = older && finitePos(prev.close) ? prev.close : inc.close
+  const hi = Math.max(high, close), lo = Math.min(low, close)
   return {
     kind: 'update',
     bar: {
-      ...prev, open, high: Math.max(high, close), low: Math.min(low, close), close,
+      ...prev, open, high: hi, low: lo, close, authHigh: hi, authLow: lo,
       volume: Math.max(_vol(prev.volume), _vol(inc.volume)),                         // I3
       sym: sym ?? prev.sym ?? null,
       tradeTs: older ? prev.tradeTs : (Number.isFinite(tradeTs) ? tradeTs : (prev.tradeTs ?? null)),
@@ -168,6 +182,11 @@ export function reconcileWithServerTail(live, server, { sym = null, periodSec = 
   }
   if (live.time === server.time) {
     if (live.final) return { bar: { ...live, sym }, ahead: false }
+    // I8: a bucket that has ENDED is the server's — no live extreme survives it.
+    if (Number.isFinite(nowChart) && tf != null && bucketEndTime(live.time, tf, session) <= nowChart) {
+      const { provisional: _p, ...rest } = live
+      return { bar: { ...rest, ...srv, authHigh: srv.high, authLow: srv.low }, ahead: false }
+    }
     if (live.provisional) {
       // I6: only the OPEN of a tick-opened bar is suspect — the fetched bucket-to-date bar
       // replaces it. The highs/lows the live bar OBSERVED after opening are real prints the
@@ -179,7 +198,7 @@ export function reconcileWithServerTail(live, server, { sym = null, periodSec = 
       const ll = finitePos(live.low) ? live.low : server.low
       return {
         bar: { ...rest, open: server.open, high: Math.max(server.high, lh, close), low: Math.min(server.low, ll, close), close,
-          volume: Math.max(srv.volume, _vol(live.volume)), sym },
+          volume: Math.max(srv.volume, _vol(live.volume)), sym, authHigh: server.high, authLow: server.low },
         ahead: false,
       }
     }
@@ -189,9 +208,11 @@ export function reconcileWithServerTail(live, server, { sym = null, periodSec = 
     const high = Math.max(server.high, finitePos(live.high) ? live.high : server.high)
     const low = Math.min(server.low, finitePos(live.low) ? live.low : server.low)
     const close = finitePos(live.close) ? live.close : server.close
+    const ah = Math.max(server.high, finitePos(live.authHigh) ? live.authHigh : server.high)
+    const al = Math.min(server.low, finitePos(live.authLow) ? live.authLow : server.low)
     return {
       bar: { ...live, open: server.open, high: Math.max(high, close), low: Math.min(low, close), close,
-        volume: Math.max(srv.volume, _vol(live.volume)), sym },
+        volume: Math.max(srv.volume, _vol(live.volume)), sym, authHigh: ah, authLow: al },
       ahead: false,
     }
   }
@@ -280,5 +301,8 @@ export function mergeRegistryMinute(known, candle) {
   }
   if (k ? k.provisional : !candleAuth) out.provisional = true
   else delete out.provisional
+  // I7: a registry (fallback) minute never vouches for its extremes — only an authoritative
+  // source does. A minute it OPENED keeps only its open as the authoritative range seed.
+  if (!k) { out.authHigh = open; out.authLow = open }
   return out
 }
