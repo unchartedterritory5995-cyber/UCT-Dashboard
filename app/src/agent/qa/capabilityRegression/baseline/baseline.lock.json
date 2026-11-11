@@ -4137,6 +4137,46 @@
     }
    }
   },
+  "chartMenu.resetWatermark": {
+   "digest": "df220e8af0d696e0",
+   "phrasings": {
+    "reset the watermark on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the watermark back in the center": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "recenter the watermark": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartMenu.askAi": {
+   "digest": "49c7fc65cd5a9fe5",
+   "phrasings": {
+    "ask ai about this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "ask the ai about the stock on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open the ai on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chartSetup.stepBars": {
    "digest": "f1ef323ce91ffc4b",
    "phrasings": {

@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 183,
-  "withProductionKinds": 174,
+  "all": 185,
+  "withProductionKinds": 176,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 183,
-  "withAnyRegressionCase": 131,
+  "capabilities": 185,
+  "withAnyRegressionCase": 133,
   "perProtection": {
    "nl": {
-    "covered": 129,
-    "applicable": 183
+    "covered": 131,
+    "applicable": 185
    },
    "routing": {
-    "covered": 126,
-    "applicable": 183
+    "covered": 128,
+    "applicable": 185
    },
    "args": {
-    "covered": 131,
-    "applicable": 183
+    "covered": 133,
+    "applicable": 185
    },
    "execution": {
-    "covered": 129,
-    "applicable": 183
+    "covered": 131,
+    "applicable": 185
    },
    "receipt": {
-    "covered": 101,
-    "applicable": 183
+    "covered": 103,
+    "applicable": 185
    },
    "refusal": {
     "covered": 33,
-    "applicable": 183
+    "applicable": 185
    },
    "permission": {
-    "covered": 176,
-    "applicable": 183
+    "covered": 178,
+    "applicable": 185
    },
    "undo": {
-    "covered": 58,
-    "applicable": 115
+    "covered": 59,
+    "applicable": 116
    },
    "multiStep": {
     "covered": 36,
-    "applicable": 183
+    "applicable": 185
    },
    "phrasings": {
-    "covered": 125,
-    "applicable": 183
+    "covered": 127,
+    "applicable": 185
    }
   }
  },
@@ -2106,6 +2106,112 @@
      "GW-21.two-charts-side-by-side",
      "GW-24.grid-then-all-weekly"
     ],
+    "phrasings": []
+   }
+  },
+  "chartMenu.askAi": {
+   "domain": "chartMenu",
+   "group": "chartMenu",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "chartMenu.askAi: \"ask ai about this chart\"",
+     "chartMenu.askAi: \"ask the ai about the stock on this chart\"",
+     "chartMenu.askAi: \"open the ai on this chart\""
+    ],
+    "routing": [
+     "chartMenu.askAi: \"ask ai about this chart\"",
+     "chartMenu.askAi: \"ask the ai about the stock on this chart\"",
+     "chartMenu.askAi: \"open the ai on this chart\""
+    ],
+    "args": [
+     "corpus chartMenu.askAi"
+    ],
+    "execution": [
+     "chartMenu.askAi (c)"
+    ],
+    "receipt": [
+     "chartMenu.askAi (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartMenu.resetWatermark": {
+   "domain": "chartMenu",
+   "group": "chartMenu",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "chartMenu.resetWatermark: \"reset the watermark on this chart\"",
+     "chartMenu.resetWatermark: \"put the watermark back in the center\"",
+     "chartMenu.resetWatermark: \"recenter the watermark\""
+    ],
+    "routing": [
+     "chartMenu.resetWatermark: \"reset the watermark on this chart\"",
+     "chartMenu.resetWatermark: \"put the watermark back in the center\"",
+     "chartMenu.resetWatermark: \"recenter the watermark\""
+    ],
+    "args": [
+     "corpus chartMenu.resetWatermark"
+    ],
+    "execution": [
+     "chartMenu.resetWatermark (c)"
+    ],
+    "receipt": [
+     "chartMenu.resetWatermark (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "chartMenu.resetWatermark: undo restores"
+    ],
+    "multiStep": [],
     "phrasings": []
    }
   },
