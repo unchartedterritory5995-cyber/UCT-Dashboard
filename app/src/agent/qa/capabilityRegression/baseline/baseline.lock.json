@@ -787,6 +787,26 @@
     }
    }
   },
+  "compare.group.aiChips": {
+   "digest": "494ad9bbe232a6bb",
+   "phrasings": {
+    "compare this chart against the AI Chips theme": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "overlay the AI Chips group on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "compare NVDA with the AI Chips theme": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "widget.news": {
    "digest": "3ed95be08c5b166b",
    "phrasings": {

@@ -6019,6 +6019,65 @@
    "shape": null
   },
   {
+   "name": "chartSetup.compareGroup",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Compare ONE chart against a whole GROUP (Tools → Compare Symbols → Themes / Sectors / Industries): add every member of a theme, sector or industry as overlay lines, remove a compared group, or put a compared group on the main price scale (\"same\") or its own % scale (\"new\"). For single tickers use chart.compare.",
+   "hints": "action = add | remove | scale. group = the group's name as the member said it (\"semis\", \"AI Chips\", \"Technology\"); UCT matches it itself and asks when it could be more than one, so pass the words, never a guess. groupType = theme | sector | industry when the member said which, else any. scale = same | new for action scale, else null. \"Compare NVDA against the semis group\" = target the NVDA chart, action add, group \"semis\".",
+   "args": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "add",
+       "remove",
+       "scale"
+      ]
+     },
+     "group": {
+      "type": "string"
+     },
+     "groupType": {
+      "type": "string",
+      "enum": [
+       "any",
+       "theme",
+       "sector",
+       "industry"
+      ]
+     },
+     "scale": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "same",
+       "new",
+       null
+      ]
+     }
+    },
+    "required": [
+     "action",
+     "group",
+     "groupType",
+     "scale"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "indicatorStyle.set",
    "domain": "indicatorStyle",
    "target": "indicatorEdits",

@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 176,
-  "withProductionKinds": 167,
+  "all": 177,
+  "withProductionKinds": 168,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 176,
-  "withAnyRegressionCase": 124,
+  "capabilities": 177,
+  "withAnyRegressionCase": 125,
   "perProtection": {
    "nl": {
-    "covered": 124,
-    "applicable": 176
+    "covered": 125,
+    "applicable": 177
    },
    "routing": {
-    "covered": 121,
-    "applicable": 176
+    "covered": 122,
+    "applicable": 177
    },
    "args": {
-    "covered": 124,
-    "applicable": 176
+    "covered": 125,
+    "applicable": 177
    },
    "execution": {
-    "covered": 124,
-    "applicable": 176
+    "covered": 125,
+    "applicable": 177
    },
    "receipt": {
-    "covered": 96,
-    "applicable": 176
+    "covered": 97,
+    "applicable": 177
    },
    "refusal": {
     "covered": 31,
-    "applicable": 176
+    "applicable": 177
    },
    "permission": {
-    "covered": 169,
-    "applicable": 176
+    "covered": 170,
+    "applicable": 177
    },
    "undo": {
-    "covered": 56,
-    "applicable": 111
+    "covered": 57,
+    "applicable": 112
    },
    "multiStep": {
     "covered": 36,
-    "applicable": 176
+    "applicable": 177
    },
    "phrasings": {
-    "covered": 120,
-    "applicable": 176
+    "covered": 121,
+    "applicable": 177
    }
   }
  },
@@ -2142,6 +2142,60 @@
     "refusal": [],
     "permission": [],
     "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartSetup.compareGroup": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "compare.group.aiChips: \"compare this chart against the AI Chips theme\"",
+     "compare.group.aiChips: \"overlay the AI Chips group on this chart\"",
+     "compare.group.aiChips: \"compare NVDA with the AI Chips theme\""
+    ],
+    "routing": [
+     "compare.group.aiChips: \"compare this chart against the AI Chips theme\"",
+     "compare.group.aiChips: \"overlay the AI Chips group on this chart\"",
+     "compare.group.aiChips: \"compare NVDA with the AI Chips theme\""
+    ],
+    "args": [
+     "corpus compare.group.aiChips"
+    ],
+    "execution": [
+     "compare.group.aiChips (c)"
+    ],
+    "receipt": [
+     "compare.group.aiChips (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "compare.group.aiChips: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }
