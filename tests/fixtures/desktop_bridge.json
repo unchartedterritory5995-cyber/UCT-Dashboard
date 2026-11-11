@@ -1,6 +1,6 @@
 {
   "bridgeVersion": 1,
   "properties": ["bridgeVersion", "capabilities"],
-  "methods": ["getInfo", "onWindowState", "onDeskVisibility", "onBeforeQuit", "ackBeforeQuit"],
-  "capabilities": ["window-state", "before-quit", "desk-visibility"]
+  "methods": ["getInfo", "onWindowState", "onDeskVisibility", "onBeforeQuit", "ackBeforeQuit", "reportEvent"],
+  "capabilities": ["window-state", "before-quit", "desk-visibility", "site-events"]
 }

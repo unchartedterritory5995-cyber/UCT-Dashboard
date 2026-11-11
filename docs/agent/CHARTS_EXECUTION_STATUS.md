@@ -8,12 +8,35 @@ Built on `agent/pl/bar-time-coverage` from `agent/pl/integration-1` `b07a97d526`
 
 ## The number
 
+> **Re-measurement 2026-11-11 (owner decision of 2026-11-10).** The 225/484 below was first measured on a stale test installation (the 2026-11-06 `node_modules`; the master ledger run on that install, `b2300e547d`, was voided by AUDIT and is kept at `docs/agent/program/evidence/remeasure-1016/old-stale-b2300e547d/`). By the owner's decision of 2026-11-10 that **original 225/484 result is INVALID** as evidence. **Re-measured with the same method on a verified install: 225 of 484 VERIFIED (46.5%): 188 re-proved by a passed cited test, 37 file-level only (citation not matched, all named test files passed), 0 not re-proved.** The number did not change and no row changed state. See "Re-measurement 2026-11-11" below.
+
+> **Since the re-measure:** it confirmed **225/484** on master `75421184a3`. #1029 (merged as `4dacc81529`) then verified C3-166, giving the **226** below; that one row rests on #1029's own evidence, not on the re-measure run.
+
 **226 of 484 actions, 46.7%, are VERIFIED at panel level with a scripted model** (158 in the 2026-11-05 run, plus 68 on 2026-11-10: 29 from the chart-settings outcome test, 3 from the Multi Chart outcome test, 35 from the cited-test re-run, 1 from the Options Flow chips). A further 9 are PARTIAL (SIMULATED): part of the action passes, part is not covered. See "Update 2026-11-10: combined execution packets (PR #1016)" below. That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
 
 - Production evidence with the real planner covers 13 of those 158 rows, from the 2026-11-03 live run on the older build `463a4bcba5`, read by receipt and some server reads.
 - Real component in a browser, Agent executing: 0 rows. The browser runs in teach-status.md prove walkthroughs, where a person clicks. They never ran an Agent plan.
 - A further 29 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 226. (It was 43 on 2026-11-05; 14 of them were raised on 2026-11-10.)
 - P0 actions: 58 of 74 VERIFIED (as of 2026-11-05; this doc carries no per-row P0 tag, so the 2026-11-10 update did not recount it).
+
+## Re-measurement 2026-11-11 (owner decision 4, 2026-11-10)
+
+Owner decision of 2026-11-10: "Re-measure #1016's execution coverage using a correct, reproducible test installation. Mark the previous 225/484 result as invalid until verified." The previous 225/484 is INVALID (stale install, see "The number"). This is the re-measurement.
+
+- Evidence: `docs/agent/program/evidence/remeasure-1016/attempt-2/` (raw outputs committed before interpretation). Script: `docs/agent/program/evidence/remeasure-1016/remeasure.sh attempt-2`, one run, 2026-11-11 02:50-03:22Z. Attempt-1 (`attempt-1/`) was interrupted by a PC crash after 8 of 12 packet files; it is kept and not used.
+- Tree: `644b6d7188` = master `75421184a3` plus docs only (app/ diff against master empty, nothing uncommitted under app/). Install: `app/node_modules` is a junction to `C:\w\pl-mc-fw\app\node_modules`; every `package-lock.json` pin is installed at its version (539 match, 0 mismatched). Harness: `recount.mjs` from `6f9abd8515`. Scripted model, jsdom; not a real browser and not the real model.
+- #1016's 12 packet files, each run alone: 12 of 12 passed (238 tests passed, 0 failed, 24 todo).
+- `src/agent` (the ledger command): 314 files, 9845 passed, 0 failed, 14 skipped.
+- Recount of the "All actions" table: VERIFIED 225, PARTIAL 9, IMPLEMENTED / UNVERIFIED 69, MISSING 126, BLOCKED 43, UNMAPPED 12; 484 in scope, 19 excluded. Unchanged.
+
+| Part | In scope | OLD doc V | OLD re-proved | OLD file-level | NEW doc V | NEW re-proved | NEW file-level | NEW not re-proved |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| C1 | 168 | 103 | 101 | 2 | 103 | 101 | 2 | 0 |
+| C2 | 100 | 39 | 38 | 1 | 39 | 38 | 1 | 0 |
+| C3 | 216 | 83 | 49 | 34 | 83 | 49 | 34 | 0 |
+| **Total** | 484 | 225 | 188 | 37 | 225 | 188 | 37 | 0 |
+
+OLD = the voided run on the stale install; NEW = this run. Per-area table and per-row ledger: `attempt-2/compare.md`, `attempt-2/ledger.md`. 0 rows differ between OLD and NEW. A weakness the method keeps: 37 VERIFIED rows (34 in C3) are proved only at file level, because their citation names no test the recount can match.
 
 ## Update 2026-11-10 (4): the Options Flow widget's chips, F-16 widened (agent/pl/exec-flow-filters)
 
