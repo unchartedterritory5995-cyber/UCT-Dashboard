@@ -220,6 +220,7 @@ describe('L3 · destructive / permanent changes still need approval', () => {
     expect(caps.filter(c => c.explicitOk).map(c => c.name).sort()).toEqual([...contract.approval.explicitOk].sort())
     const guarded = caps.filter(c => c.risk === 'confirm' || c.reversible === false).map(c => c.name).sort()
     // ⛔ changing this list changes what UCT asks before doing — review it with the owner (and the server mirror)
+    // drawing.setPositionAlerts: added 2026-11-11, AUDIT-reviewed (tightening)
     expect(guarded).toEqual(['alert.create', 'alert.delete', 'chart.applyTemplate', 'chart.resetDefaults', 'chartSetup.copyLook', 'chartSetup.deleteTemplate',
       'definition.delete', 'definition.duplicate', 'drawing.clear', 'drawing.setAlert', 'drawing.setPositionAlerts', 'indicator.discardDraft', 'indicator.remove', 'indicator.saveDraft',
       // W1-B B-03 (owner's Wave 1 directive: create = risk 'confirm'; delete is a hard delete in the product)
