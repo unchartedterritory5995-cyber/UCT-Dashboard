@@ -213,6 +213,20 @@ def _request_is_interactive() -> bool:
     return bool(getattr(_req_ctx, "interactive", False))
 
 
+def set_background_caller(flag: bool) -> None:
+    """Mark the CURRENT thread as an in-process BACKGROUND bars caller (bars_prewarm
+    workers, `warm_bars_async`). Such a caller is not behind the edge (no request
+    budget) yet is not member demand either, so the D/W/M delta pool counts it against
+    the warm share (`_date_delta_warm_sem`) instead of the interactive/in-process
+    branch (review #1034 N1). In-process callers that answer a member (seasonality,
+    data_exports, discord...) never set it and keep their blocking semantics."""
+    _req_ctx.background = bool(flag)
+
+
+def _is_background_caller() -> bool:
+    return bool(getattr(_req_ctx, "background", False))
+
+
 # ── REQUEST WAIT BUDGET (2026-11-10) ─────────────────────────────────────────
 # ⛔⛔ THE EDGE ABORTS THE TIER AT 8 s (edge/bars-edge-router/worker.js
 # BARS_TIMEOUT_MS) AND RE-ASKS WEB_ORIGIN — a different bars.db with a different
@@ -911,6 +925,44 @@ def _ext_session_verified(ticker: str, tf: str, last_ts) -> bool:
     return vt is not None and end is not None and vt >= end
 
 
+#: Seconds after a 5m boundary during which the live stream's proof may trail the new
+#: frontier by its final minute without a request-path provider heal (#1051 note).
+_LIVE_PROOF_BOUNDARY_GRACE_S = 60
+
+
+def _live_proof_in_boundary_grace(ticker: str, tf: str, now: float | None = None) -> bool:
+    """True when a covered 5m series' stream proof trails the newest closed bucket ONLY
+    by that bucket's final minute, and that minute closed less than
+    `_LIVE_PROOF_BOUNDARY_GRACE_S` ago.
+
+    ⭐ WHY THIS IS SAFE. `proven_through_s` is the end of the newest minute the alive
+    stream has delivered for the WHOLE market. Its minute aggregates land 2-5 s after
+    the minute closes, so for those seconds after every 5m boundary the proof reads one
+    minute short of the new bucket's end and a thin covered name fell through to a
+    provider heal on the request path — hundreds of them at once, every 5 minutes.
+    In that window everything up to the final minute IS proven, and the final minute is
+    the one the stream is delivering right now (the provider, asked at the same instant,
+    has no newer data for it). After the grace, a proof that still trails means the
+    stream really is lagging, and the fall-through repairs as before. This only skips
+    the heal: the wire still reports `unverified` (no currentness is claimed), so the
+    client's catch-up poll re-asks and reads the minute the stream has by then written."""
+    if tf != "5":
+        return False
+    try:
+        from api.services import bars_live_store as _bls
+        proven = _bls.proven_through_s(ticker)
+        if proven is None:
+            return False
+        now_ts = float(now if now is not None else _time.time())
+        frontier = expected_completed_ext_bucket(tf, now_ts)
+        if frontier is None:
+            return False
+        end = int(frontier) + 300
+        return proven >= end - 60 and now_ts < end + _LIVE_PROOF_BOUNDARY_GRACE_S
+    except Exception:                      # noqa: BLE001 — abstain: the normal rules run
+        return False
+
+
 def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> bool:
     """True if SQLite data is stale enough to warrant a delta fetch.
 
@@ -933,6 +985,8 @@ def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> boo
                 # fall through so the normal rules (incl. the extended re-ask, which
                 # marks verified) can repair it — e.g. a new epoch with no minute yet.
                 if tf == "D" or intraday_tail_status(ticker, tf, last_ts)["tail_status"] != "unverified":
+                    return False
+                if _live_proof_in_boundary_grace(ticker, tf):
                     return False
         except Exception:
             pass
@@ -3585,6 +3639,8 @@ _DATE_DELTA_SLOT_WAIT_S = 1.0
 #: In-process (non-edge) callers keep the original blocking semantics, with a
 #: generous safety ceiling instead of none.
 _DATE_DELTA_INPROC_CEILING_S = 60.0
+#: How long an in-process BACKGROUND caller may wait for its warm-share slot.
+_DATE_DELTA_BG_SLOT_WAIT_S = 10.0
 
 
 def _bounded_date_delta(ticker_up: str, tf: str, last_ts, deadline: float | None = None) -> bool:
@@ -3593,7 +3649,15 @@ def _bounded_date_delta(ticker_up: str, tf: str, last_ts, deadline: float | None
         deadline = (_DATE_DELTA_DEADLINE_SECONDS if _budget_active()
                     else _DATE_DELTA_INPROC_CEILING_S)
     warm_slot = None
-    if _budget_active() and not _request_is_interactive():
+    if _is_background_caller() and not _budget_active():
+        # in-process BACKGROUND (prewarm / warm_bars_async): counts against the warm
+        # share like warm=1, so it can never hold the slots a click needs (N1). It is
+        # not on a member's clock, so it may wait for its share rather than shed.
+        if not _date_delta_warm_sem.acquire(timeout=_DATE_DELTA_BG_SLOT_WAIT_S):
+            return False
+        warm_slot = _date_delta_warm_sem
+        got = _date_delta_sem.acquire(timeout=_DATE_DELTA_BG_SLOT_WAIT_S)
+    elif _budget_active() and not _request_is_interactive():
         # warm=1 over HTTP: never more than the warm share, never waits for a slot
         if not _date_delta_warm_sem.acquire(blocking=False):
             return False
@@ -3720,7 +3784,14 @@ def _start_tail_gapfill(key) -> bool:
                         _tail_gapfill_at[nk] = now + _TAIL_GAPFILL_RETRY_S
                         k = nk
                         break
-        _tail_gapfill_sem.release()
+                if k is None:
+                    # ⛔ RELEASE UNDER THE LOCK (review #1034 N2). Released after the
+                    # lock, a kick landing in between saw the pool still full, queued
+                    # its key, and this runner then exited without draining it — the
+                    # key waited for some unrelated future kick. `_kick_tail_gapfill`
+                    # acquires under this same lock, so it now sees either a runner
+                    # that will drain its queued key or a free slot.
+                    _tail_gapfill_sem.release()
 
     try:
         _threading.Thread(target=_run, daemon=True,
@@ -3802,10 +3873,13 @@ def warm_bars_async(tickers: list[str], tf: str = "D", bars: int = 8000) -> None
         return
 
     def _warm_one(t: str) -> None:
+        set_background_caller(True)       # warm share of the D/W/M pool (N1)
         try:
             _get_bars_inner(t, tf, bars)
         except Exception:
             pass  # warming is best-effort; don't poison the executor
+        finally:
+            set_background_caller(False)
 
     seen: set[str] = set()
     for t in tickers:

@@ -15,7 +15,13 @@ From the screenshot it finds each line's column (by colour) and each spike's
 column (the highest candle pixels), and reports the line-to-spike distance in
 bars. 0 means the drawing sits on its bar; ~+4 or ~+5 means it renders 4/5 hours late.
 
-Usage: python tools/drawing_dst_harness.py <dist dir> <label> <out dir>
+RTH-only mode (4th arg `rth`, W-H 2026-11-10): the chart opens with `ext=0`, so the
+candle series is session-filtered, and a fourth ORANGE vertical line is seeded as a
+FUTURE point (`time` = the last RTH bar, `futureBars` = 2) — it must land two bar
+spacings right of the last candle. Before the overlay received the series' own bars
+it was offset by the number of pre/post-market bars (far off-screen here).
+
+Usage: python tools/drawing_dst_harness.py <dist dir> <label> <out dir> [rth]
 Prints numbers and booleans only — no market data is involved.
 """
 from __future__ import annotations
@@ -54,6 +60,14 @@ def chart_time(u):   # ET wall clock read as UTC (what the old agent stored)
     d = datetime.fromtimestamp(u, ET)
     return int(datetime(d.year, d.month, d.day, d.hour, d.minute, tzinfo=ZoneInfo("UTC")).timestamp())
 
+RTH_ONLY = len(sys.argv) > 4 and sys.argv[4] == "rth"
+FUTURE = {"rgb": (255, 140, 0), "future_bars": 2}
+
+def is_rth(t):
+    d = datetime.fromtimestamp(t, ET)
+    m = d.hour * 60 + d.minute
+    return 570 <= m < 960
+
 def bars60():
     out = []
     spikes = {v["t"]: v["spike"] for v in TARGETS.values()}
@@ -72,6 +86,11 @@ def drawings():
         t = v["t"] if v["kind"] == "manual" else chart_time(v["t"])
         out.append({"id": f"h-{name}", "type": "vertical", "points": [{"time": t, "price": 120.0}],
                     "color": "#%02x%02x%02x" % v["rgb"], "lineWidth": 3, "lineStyle": "solid"})
+    if RTH_ONLY:
+        last_rth = [b["t"] for b in bars60() if is_rth(b["t"])][-1]
+        out.append({"id": "h-future", "type": "vertical",
+                    "points": [{"time": last_rth, "price": 120.0, "futureBars": FUTURE["future_bars"]}],
+                    "color": "#%02x%02x%02x" % FUTURE["rgb"], "lineWidth": 3, "lineStyle": "solid"})
     return {"AAPL": out}
 
 CLOCK_JS = """
@@ -169,7 +188,8 @@ def main():
             page.evaluate("(d) => localStorage.setItem('uct-chart-drawings', JSON.stringify(d))", drawings())
             errors = []
             page.on("pageerror", lambda e: errors.append(str(e)[:200]))
-            page.goto(f"{base}/r/chart?sym=AAPL&tf=60&w=1200&h=620&ext=1&bars=200", wait_until="domcontentloaded")
+            ext = 0 if RTH_ONLY else 1
+            page.goto(f"{base}/r/chart?sym=AAPL&tf=60&w=1200&h=620&ext={ext}&bars=200", wait_until="domcontentloaded")
             page.wait_for_timeout(6000)
             shot = os.path.join(outdir, f"drawing-dst-{label}.png")
             page.screenshot(path=shot)
@@ -179,6 +199,9 @@ def main():
     finally:
         httpd.shutdown()
     img = Image.open(shot).convert("RGB")
+    if RTH_ONLY:            # the series (and its volume columns) carry RTH bars only
+        bars = [b for b in bars if is_rth(b["t"])]
+        result["rth_bars"] = len(bars)
     # Bar i's x = the i-th volume column (one histogram column per bar, left to right).
     w, h = img.size
     px = img.load()
@@ -212,6 +235,14 @@ def main():
         result[name] = {"kind": v["kind"], "bar_index": i, "bar_x": None if xc is None else round(xc, 1),
                         "line_x": None if lx is None else round(lx, 1), "offset_bars": off,
                         "offset_hours_approx": off, "on_bar": off is not None and abs(off) < 0.5}
+    if RTH_ONLY:
+        lx = cols_of(img, FUTURE["rgb"])
+        xc = (cols[-1] + FUTURE["future_bars"] * spacing) if (cols and spacing) else None
+        off = None if (lx is None or xc is None) else round((lx - xc) / spacing, 2)
+        result["future"] = {"future_bars": FUTURE["future_bars"],
+                            "expected_x": None if xc is None else round(xc, 1),
+                            "line_x": None if lx is None else round(lx, 1), "offset_bars": off,
+                            "on_slot": off is not None and abs(off) < 0.5}
     result["screenshot"] = shot
     print(json.dumps(result, indent=1))
 
