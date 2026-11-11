@@ -93,6 +93,7 @@ Earlier, at ff7eacc221:
 
 - Evidence is SIMULATED: jsdom, a scripted model, the real store and the real panel. The Agent has not run these in a browser, and the real model's choice is not proven.
 - No Undo for a delete. Undo for a create works only while the new board is still empty.
+- After a delete whose save was not confirmed (condition d), the board still exists on the member's other devices and in their account until the change reaches the server. The receipt says it may still be there on another device.
 - The Agent will not create or rename to a name another board already has. The panel allows that, but it would make names ambiguous. Two existing boards with one name are asked about, never picked.
 - An unnamed board's "Board N" number is its place in the list. It moves up after a delete, as it does in the panel.
 - Not covered: board visibility, order and colour (the panel has no controls for them), and the mobile Boards sheet.
