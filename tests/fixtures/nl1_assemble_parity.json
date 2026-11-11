@@ -47,7 +47,7 @@
   "watchlist.setNote": "lists",
   "watchlist.sortColumn": "lists",
   "watchlist.setColumns": "lists",
-  "watchlist.arrangeColumns": "lists",
+  "watchlist.arrangeColumns": "watchlistShow",
   "watchlist.step": "lists",
   "watchlist.readView": "lists",
   "watchlist.setFlag": "lists",
@@ -256,7 +256,7 @@
   },
   {
    "id": "watchlistShow",
-   "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel"
+   "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
   },
   {
    "id": "guide",
@@ -399,7 +399,7 @@
      },
      {
       "id": "watchlistShow",
-      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel"
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -560,7 +560,7 @@
      },
      {
       "id": "watchlistShow",
-      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel"
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -637,7 +637,6 @@
     "watchlist.setNote",
     "watchlist.sortColumn",
     "watchlist.setColumns",
-    "watchlist.arrangeColumns",
     "watchlist.step",
     "watchlist.readView",
     "watchlist.setFlag",
@@ -736,7 +735,7 @@
      },
      {
       "id": "watchlistShow",
-      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel"
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -921,7 +920,7 @@
      },
      {
       "id": "watchlistShow",
-      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel"
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -1078,7 +1077,7 @@
      },
      {
       "id": "watchlistShow",
-      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel"
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
