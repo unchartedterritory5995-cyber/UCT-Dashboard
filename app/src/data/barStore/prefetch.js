@@ -187,9 +187,9 @@ export function createPrefetch(o = {}) {
    */
   async function ensure(key, {
     until = PREPARED, depth = 0, priority = 'urgent', signal = null, session: sess = session(),
-    warm = false, front = false, local = true,
+    warm = false, front = false, local = true, _s0 = null,
   } = {}) {
-    const s0 = await _hydrate(key)
+    const s0 = _s0 ?? await _hydrate(key)   // a caller that already hydrated passes its snapshot
     if (_satisfied(s0, until, depth) && (local || s0.restSeen)) return s0
     if (signal?.aborted) return S().peek(key)
     const a = _noteAsked(key)
@@ -278,7 +278,8 @@ export function createPrefetch(o = {}) {
       const s0 = await _hydrate(key)
       if (_localPaints(s0, fetchTf(String(tf)))) return 'current'   // legacy: no request
       // Otherwise only a SERVER answer prepares it (legacy asks with `&warm=1`).
-      const s = await ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'urgent', signal, warm: true, local: false })
+      // Legacy prepareForDisplay asks with `&warm=1` (`_url(sym, tf)` / `_sinceUrl`) — matched.
+      const s = await ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'urgent', signal, warm: true, local: false, _s0: s0 })
       return _outcome(s, { aborted: !!signal?.aborted, date })
     } catch {
       return 'error'

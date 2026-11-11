@@ -594,25 +594,29 @@ export function barsLaneRequest(url, { priority = 'visible', signal = null, fron
 }
 /**
  * Raise a WAITING lane request of `url` to `priority` (a subscriber joined a warm still in the
- * queue). `visible` leaves the queue at once without a slot, exactly as a visible request
- * would have; a better non-visible rank re-sorts. Returns how many waiters moved; a request
- * already on the network is not waiting (0).
+ * queue). `to`: REWRITE its URL too — a non-warm joiner turns a queued `&warm=1` warm into its
+ * own non-warm request (the server must not shed the chart's answer). `visible` leaves the
+ * queue at once without a slot, exactly as a visible request would have; a better non-visible
+ * rank re-sorts. Returns how many waiters moved; a request already on the network is not
+ * waiting (0) — the caller then asks again behind it.
  */
-export function promoteLaneRequest(url, priority) {
+export function promoteLaneRequest(url, priority, { to = null } = {}) {
   const u = String(url)
   const rank = LANE_RANK[priority] ?? LANE_RANK.background
   let n = 0
   for (let i = 0; i < _laneWaiters.length;) {
     const w = _laneWaiters[i]
-    if (w.url !== u || w.rank <= rank) { i++; continue }
+    if (w.url !== u || (w.rank <= rank && !to)) { i++; continue }
     n++
-    if (rank < 0) {
+    if (to) w.url = String(to)
+    const r = Math.min(w.rank, rank)
+    if (r < 0) {
       _laneWaiters.splice(i, 1)
       w.signal?.removeEventListener?.('abort', w.onAbort)
-      _laneAttach(_laneJoin(u, rank) || _laneFetch(u, false), w.signal).then(w.resolve, w.reject)
+      _laneAttach(_laneJoin(w.url, r) || _laneFetch(w.url, false), w.signal).then(w.resolve, w.reject)
       continue
     }
-    w.rank = rank
+    w.rank = r
     i++
   }
   if (n) _pump()

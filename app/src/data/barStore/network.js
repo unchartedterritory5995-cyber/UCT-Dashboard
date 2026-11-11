@@ -228,12 +228,19 @@ export function createNetwork({
     const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
     r.lastStart = now()
     requests++
+    // Read at failure time: the lane may have rewritten a queued warm into a non-warm request.
+    const rec = { ac, kind, promise: null, url, priority, warm: /[?&]warm=1(?:&|$)/.test(url), followUp: null }
+    // ⛔ A SHED WARM IS NOT THE CHART'S ERROR. A best-effort `&warm=1` that failed while a chart
+    // subscribes to the key says nothing about the chart's data: no REST_ERROR (the chart's own
+    // non-warm request, queued behind it, owns the answer).
+    const quiet = () => rec.warm && r.refs > 0
     const promise = (async () => {
       let json
       try {
         json = await request(url, { priority, signal: ac?.signal ?? null, ...(front ? { front: true } : {}) })
       } catch (e) {
         if (_isAbort(e) || ac?.signal.aborted) return { aborted: true }
+        if (quiet()) return { error: true, warmShed: true, retryAfterMs: e?.retryAfterMs ?? null }
         const gen = registry.getSnapshot(r.key).gen
         if (kind === 'tail') {
           registry.dispatch(r.key, { type: ACTION.REST_ERROR, key: r.key, gen, payload: { error: e?.warming ? 'warming' : String(e?.status || 'network') } })
@@ -241,9 +248,11 @@ export function createNetwork({
         return { error: true, retryAfterMs: e?.retryAfterMs ?? null }
       }
       if (ac?.signal.aborted) return { aborted: true }   // a joined request outlived our abort
+      if (json?.error && !json.no_data && quiet()) return { error: true, warmShed: true, retryAfterSec: json.retry_after ?? null }
       return onJson(json)
     })()
-    r.inflight = { ac, kind, promise, url, priority }
+    rec.promise = promise
+    r.inflight = rec
     promise.finally(() => {
       if (r.inflight?.promise === promise) r.inflight = null
       _drain(r)
@@ -260,22 +269,43 @@ export function createNetwork({
   }
 
   /** A tail request for `r` — joins the one in flight; queued (its `.job`) behind a scroll-back. */
+  function _queueTail(r, priority, opts) {
+    const job = { run: () => _tailJob(r, priority, opts), resolve: null, started: null, waiters: 1 }
+    const out = new Promise((resolve) => { job.resolve = resolve; r.queue.push(job) })
+    out.job = job
+    return out
+  }
+
   function _tail(r, priority = r.priority, opts = {}) {
-    if (r.inflight?.kind === 'tail') {
+    const inf = r.inflight
+    if (inf?.kind === 'tail') {
+      const best = _best(inf.priority, priority)
+      // ⛔ A NON-WARM CALLER NEVER RIDES A `&warm=1` REQUEST (#1118 finding 4): the server may
+      // shed a warm, and the chart would get 'warming' for its own data.
+      if (inf.warm && !opts.warm) {
+        const plain = inf.url.replace(/&warm=1(?=&|$)/, '')
+        let moved = 0
+        try { moved = promote?.(inf.url, best, { to: plain }) || 0 } catch { moved = 0 }
+        if (moved) {
+          // Still queued in the lane: it now IS the caller's non-warm request.
+          inf.url = plain; inf.warm = false; inf.priority = best
+          return inf.promise
+        }
+        // Already on the network: one non-warm tail right behind it (shared by every non-warm
+        // joiner); the warm's answer, if it comes, merges first.
+        if (inf.followUp && r.queue.includes(inf.followUp.job)) { inf.followUp.job.waiters++; return inf.followUp }
+        inf.followUp = _queueTail(r, priority, { ...opts, warm: false })
+        return inf.followUp
+      }
       // Joining a request still WAITING in the lane at a worse rank (a warm, then the chart
       // mounts): it is raised to the joiner's rank — the chart never waits behind the herd.
-      if ((_RANK[priority] ?? 3) < (_RANK[r.inflight.priority] ?? 3)) {
-        r.inflight.priority = priority
-        try { promote?.(r.inflight.url, priority) } catch { /* the lane is best-effort here */ }
+      if (best !== inf.priority) {
+        inf.priority = best
+        try { promote?.(inf.url, best) } catch { /* the lane is best-effort here */ }
       }
-      return r.inflight.promise
+      return inf.promise
     }
-    if (r.inflight) {
-      const job = { run: () => _tailJob(r, priority, opts), resolve: null, started: null }
-      const out = new Promise((resolve) => { job.resolve = resolve; r.queue.push(job) })
-      out.job = job
-      return out
-    }
+    if (inf) return _queueTail(r, priority, opts)
     return _tailJob(r, priority, opts)
   }
 
@@ -382,7 +412,10 @@ export function createNetwork({
         // Still QUEUED (behind a scroll-back): the job is this caller's alone — drop it, so it
         // never reaches the network.
         const qi = out.job ? r.queue.indexOf(out.job) : -1
-        if (qi >= 0) { r.queue.splice(qi, 1); out.job.resolve({ aborted: true }); return }
+        if (qi >= 0) {
+          if (--out.job.waiters > 0) return            // another caller still waits on it
+          r.queue.splice(qi, 1); out.job.resolve({ aborted: true }); return
+        }
         if (r.once > 0 || r.refs > 0) return
         const running = out.job ? out.job.started : out
         if (r.inflight?.kind === 'tail' && r.inflight.promise === running) { r.inflight.ac?.abort(); r.inflight = null }

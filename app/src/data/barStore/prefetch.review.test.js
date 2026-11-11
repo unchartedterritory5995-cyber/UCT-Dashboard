@@ -220,3 +220,55 @@ describe('#5/#6 bookkeeping', () => {
     expect(reads).toBe(1)
   })
 })
+
+describe('re-review: a non-warm caller never rides a &warm=1 request (#1118 finding 4)', () => {
+  it('a warm still QUEUED in the lane becomes the chart\'s own non-warm request when the chart joins', async () => {
+    const w = await boot()
+    w.legacy.barsLaneRequest('/api/bars/F1?tf=D&bars=1', { priority: 'urgent' }).catch(() => {})
+    w.legacy.barsLaneRequest('/api/bars/F2?tf=D&bars=1', { priority: 'urgent' }).catch(() => {})
+    await w.server.flush()
+    const key = w.k('QW', '5')
+    w.store.network.fetchOnce(key, { priority: 'background', warm: true })
+    await w.server.flush(40)
+    expect(w.server.calls.filter((c) => c.q.sym === 'QW').length).toBe(0)   // waiting in the lane
+    const off = w.store.subscribe(key, () => {}, { priority: 'visible' })
+    await tick(0); await w.server.flush(40)
+    const mine = w.server.calls.filter((c) => c.q.sym === 'QW')
+    expect(mine.length).toBe(1)
+    expect(mine[0].q.warm).toBe(false)                                      // rewritten, and sent now (visible)
+    await settle(w)
+    expect(w.server.calls.filter((c) => c.q.sym === 'QW').every((c) => !c.q.warm)).toBe(true)
+    off()
+  })
+
+  it('a warm already IN FLIGHT: the chart asks again without warm right behind it; the warm\'s shed never reaches the chart', async () => {
+    const w = await boot({ modeFor: (q) => (q.warm ? 'shed' : 'ok') })
+    const key = w.k('FW', '5')
+    const seen = []
+    w.store.network.fetchOnce(key, { priority: 'background', warm: true })
+    await w.server.flush(40)
+    expect(w.server.open().map((c) => c.q.warm)).toEqual([true])            // on the network
+    const off = w.store.subscribe(key, (s) => seen.push(s), { priority: 'visible' })
+    await tick(0); await w.server.flush(40)
+    expect(w.server.calls.length).toBe(1)                                   // queued behind, ≤1 in flight
+    w.server.open()[0].respond()                                            // the warm is SHED (503)
+    await w.server.flush(60)
+    const plain = w.server.calls.filter((c) => !c.q.warm)
+    expect(plain.length).toBe(1)                                            // the chart's own request
+    plain[0].respond(); await w.server.flush(60)
+    expect(seen.some((s) => s.error)).toBe(false)                           // no 'warming' ever surfaced
+    expect(w.store.peek(key).restSeen).toBe(true)
+    off()
+  })
+
+  it('legacy parity: prepareForDisplay asks with &warm=1 (legacy _url / _sinceUrl), the handoff\'s cold key hydrated once', async () => {
+    const real = await import('../../utils/barsIDB')
+    let reads = 0
+    const w = await boot({ io: { idbGet: async (...a) => { reads++; return real.idbGet(...a) } } })
+    const p = w.pf.prepareForDisplay('PFW', '5')
+    await settle(w)
+    await expect(p).resolves.toBe('current')
+    expect(w.server.calls.map((c) => c.q.warm)).toEqual([true])
+    expect(reads).toBe(1)
+  })
+})
