@@ -17,6 +17,13 @@
 //   I4  A bar/tick for a LATER bucket never fuses into the current candle, and a late
 //       bar/tick for an EARLIER bucket never touches it either (bucket by trade time).
 //   I5  A bar never merges across symbols.
+//   I6  AUTHORITY. A bucket opened from the first tick/quote a writer happened to see
+//       (a mid-bucket mount / tf or symbol switch, a quote-synthesised open) is
+//       PROVISIONAL (`provisional: true`): it shows the best value we have, but none of
+//       its O/H/L may LOCK. The first AUTHORITATIVE bucket-to-date observation (a push
+//       frame / its subscribe seed, the fetched server bar) REPLACES its open, high and
+//       low; I1/I2 (widen-only, open-once) apply only AMONG authoritative values. The
+//       result is authoritative (`provisional` dropped).
 //
 // Bar shape here is the chart's: { time, open, high, low, close, volume, sym?, tradeTs? }
 // where `time` is the chart-series time (already ET-offset — the caller converts).
@@ -106,6 +113,13 @@ export function mergePushBar(prev, inc, opts = {}) {
     // straggler; keep the sealed bar.
     return { kind: 'update', bar: { ...prev } }
   }
+  if (prev.provisional) {
+    // I6: the push frame is the bucket-to-date truth; the provisional open/H/L do not lock.
+    const { provisional: _p, ...rest } = prev
+    return { kind: 'update', bar: { ...rest, open: inc.open, high: inc.high, low: inc.low, close: inc.close,
+      volume: Math.max(_vol(prev.volume), _vol(inc.volume)), sym: sym ?? prev.sym ?? null,
+      tradeTs: Number.isFinite(tradeTs) ? tradeTs : (prev.tradeTs ?? null) } }
+  }
   // Out-of-order frame within the bucket (older trade than the one we already show):
   // it may still widen the range or carry more volume, but must not move the close back.
   const older = Number.isFinite(tradeTs) && Number.isFinite(prev.tradeTs) && tradeTs < prev.tradeTs
@@ -153,6 +167,17 @@ export function reconcileWithServerTail(live, server, { sym = null, periodSec = 
   }
   if (live.time === server.time) {
     if (live.final) return { bar: { ...live, sym }, ahead: false }
+    if (live.provisional) {
+      // I6: the fetched bucket-to-date bar replaces the provisional open/H/L; the live
+      // close (newer than the server snapshot) stands and may only widen the range.
+      const { provisional: _p, ...rest } = live
+      const close = finitePos(live.close) ? live.close : server.close
+      return {
+        bar: { ...rest, open: server.open, high: Math.max(server.high, close), low: Math.min(server.low, close), close,
+          volume: Math.max(srv.volume, _vol(live.volume)), sym },
+        ahead: false,
+      }
+    }
     // I2: the server open is the true bucket open. I1: H/L keep what live showed.
     // The developing close tracks the tape — the server snapshot lags it by up to a
     // poll interval, so the live close stands. I3: volume = max.
@@ -183,6 +208,13 @@ export function reconcileWithServerTail(live, server, { sym = null, periodSec = 
   }
   // Server is newer (or the live bar is detached by >1 bucket): server wins.
   return { bar: srv, ahead: false }
+}
+
+/** I6: a bucket opened from the first price a writer happened to see (Writer A's quote,
+ *  a registry minute it joined mid-way). Shown at once, replaced by the first
+ *  authoritative bucket-to-date value (mergePushBar / reconcileWithServerTail). */
+export function provisionalOpen(time, price) {
+  return { time, open: price, high: price, low: price, close: price, provisional: true }
 }
 
 /**
@@ -226,11 +258,22 @@ export function foldPrice(bar, price, tickTime, tf, session = 'rth') {
 export function mergeRegistryMinute(known, candle) {
   if (!candle || !isCompleteOhlc({ open: candle.o, high: candle.h, low: candle.l, close: candle.c })) return null
   const k = known && known.time === candle.time ? known : null
+  // I6: the registry minute is authoritative only when the registry was already tracking
+  // the symbol when the minute opened (`partial` false); a held PROVISIONAL bar yields to it.
+  const candleAuth = !candle.partial
+  if (k && k.provisional && candleAuth) {
+    const { provisional: _p, ...rest } = k
+    return { ...rest, time: candle.time, open: candle.o, high: Math.max(candle.h, candle.c), low: Math.min(candle.l, candle.c),
+      close: candle.c, volume: Math.max(_vol(candle.v), _vol(k.volume)) }
+  }
   const open = k && finitePos(k.open) ? k.open : candle.o
   const high = Math.max(candle.h, k && finitePos(k.high) ? k.high : candle.h, candle.c)
   const low = Math.min(candle.l, k && finitePos(k.low) ? k.low : candle.l, candle.c)
-  return {
+  const out = {
     ...(k || {}), time: candle.time, open, high, low, close: candle.c,
     volume: Math.max(_vol(candle.v), _vol(k?.volume)),
   }
+  if (k ? k.provisional : !candleAuth) out.provisional = true
+  else delete out.provisional
+  return out
 }

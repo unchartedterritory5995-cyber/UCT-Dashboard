@@ -337,3 +337,45 @@ describe('N2: 60m push opt-in only when the fetched series is on the TradingView
     expect(H.pushSymbol).toBeNull()
   })
 })
+
+describe('W-O I6: a developing bar opened from a mid-bucket tick never locks its open', () => {
+  it('REST tail lacks the current bucket; Writer A opens it from a quote; the push seed (bucket-to-date) then REPLACES open/H/L', async () => {
+    H.delivering = false
+    vi.setSystemTime((T1400 + 120) * 1000)              // 14:02 ET, mid 14:00 bucket
+    const bars = mkBars({ o: 20, h: 20.3, l: 19.7, c: 20, v: 1000 }).slice(0, -1)   // tail = 13:55
+    const view = render(<StockChart sym="SYN" tf="5" barsOverride={bars} />)
+    await act(async () => { await Promise.resolve() })
+    const offset = tail().time - (T1400 - 300)
+    // First thing we see of the 14:00 bucket: a quote mid-way through it.
+    H.prices = { SYN: { price: 20.4, updated_at: T1400 + 100 } }
+    view.rerender(<StockChart sym="SYN" tf="5" barsOverride={bars} />)
+    await act(async () => { await Promise.resolve() })
+    expect(tail()).toMatchObject({ time: T1400 + offset, open: 20.4, close: 20.4 })
+    // The push stream starts delivering: its subscribe seed is the bucket to date.
+    H.delivering = true
+    view.rerender(<StockChart sym="SYN" tf="5" barsOverride={bars} />)
+    await act(async () => { await Promise.resolve() })
+    push(T1400, 19.9, 20.6, 19.8, 20.45, 3000)
+    expect(tail()).toMatchObject({ time: T1400 + offset, open: 19.9, high: 20.6, low: 19.8, close: 20.45 })
+    // Now authoritative: open is set once, H/L only widen.
+    push(T1400, 20.1, 20.5, 19.85, 20.3, 3100)
+    expect(tail()).toMatchObject({ open: 19.9, high: 20.6, low: 19.8, close: 20.3 })
+  })
+
+  it('a poll whose tail HAS the bucket replaces the provisional open/H/L (live close stands)', async () => {
+    H.delivering = false
+    vi.setSystemTime((T1400 + 120) * 1000)
+    const bars = mkBars({ o: 20, h: 20.3, l: 19.7, c: 20, v: 1000 }).slice(0, -1)
+    const view = render(<StockChart sym="SYN" tf="5" barsOverride={bars} />)
+    await act(async () => { await Promise.resolve() })
+    const offset = tail().time - (T1400 - 300)
+    H.prices = { SYN: { price: 20.9, updated_at: T1400 + 100 } }
+    view.rerender(<StockChart sym="SYN" tf="5" barsOverride={bars} />)
+    await act(async () => { await Promise.resolve() })
+    expect(tail()).toMatchObject({ time: T1400 + offset, open: 20.9, low: 20.9 })
+    // The poll lands with the 14:00 bucket to date.
+    view.rerender(<StockChart sym="SYN" tf="5" barsOverride={mkBars({ o: 19.9, h: 20.95, l: 19.6, c: 20.8, v: 4000 })} />)
+    await act(async () => { await Promise.resolve() })
+    expect(tail()).toMatchObject({ time: T1400 + offset, open: 19.9, high: 20.95, low: 19.6, close: 20.9 })
+  })
+})

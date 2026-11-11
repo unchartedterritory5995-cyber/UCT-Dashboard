@@ -75,7 +75,11 @@ export function applyTick(sym, price, vol, ts) {
   if (prev && Number.isFinite(prev.t) && t < prev.t) return;
   _lastTickAt.set(sym, Date.now());
   if (!prev || prev.t !== t) {
-    symState["1"] = { t, o: price, h: price, l: price, c: price, v: vol || 0 };
+    // `partial`: the registry joined this minute mid-way (no tick seen for the symbol
+    // before it opened), so its o/h/l are only "since we subscribed" — the chart treats
+    // such a minute as PROVISIONAL (lib/liveBarMerge I6). A minute opened by the first
+    // tick AFTER a prior minute was tracked is the real first trade.
+    symState["1"] = { t, o: price, h: price, l: price, c: price, v: vol || 0, partial: !prev };
   } else {
     symState["1"] = {
       ...prev,
@@ -114,6 +118,8 @@ export function applyBarClose(sym, tf, bar) {
   const l = fin(bar.l) ? bar.l : Math.min(fin(same?.l) ? same.l : c, c);
   const v = Number.isFinite(bar.v) ? bar.v : (Number.isFinite(same?.v) ? same.v : 0);
   symState[tf] = { ...(same || {}), ...bar, t: bar.t, o, h: Math.max(h, o, c), l: Math.min(l, o, c), c, v };
+  // A server bar carrying its own o/h/l is the minute's truth, never partial.
+  if (fin(bar.o) && fin(bar.h) && fin(bar.l)) symState[tf].partial = false;
   _state.set(sym, symState);
   _notify(sym);
 }
