@@ -1,0 +1,73 @@
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+date -u: 2026-11-11T03:02:44Z
+tree: /c/w/pl-auto-remeasure HEAD 644b6d7188019c6a6d2d0ad4708152ead1c53ebb (measured master 75421184a33c10f42201c43f6bd2d6391594f4c1)
+harness: 6f9abd8515 (6f9abd85155112a64a6bc7facf0e5fc2de31c911) - recount.mjs only; no harness file is in the run tree
+# cmd: vitest run src/agent/qa/chartsOutcome/widgetControls.outcome.test.jsx --reporter=default --reporter=json
+[bn] free memory GB: 41
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/w/pl-auto-remeasure/app[39m
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/widgetControls.outcome.test.jsx[2m > [22m[2mIndexes (C3-183): hide or restore an index — the tile goes, the board keeps it, Undo brings it back[2m > [22m[2m"remove the dow from the indexes": DIA's tile is gone, the rest stay; undo restores it
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/widgetControls.outcome.test.jsx[2m > [22m[2mIndexes (C3-183): hide or restore an index — the tile goes, the board keeps it, Undo brings it back[2m > [22m[2m"put the dow back on the indexes" (+, by the tile's own name): the tile returns
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/widgetControls.outcome.test.jsx[2m > [22m[2mNew Highs / Lows (C3-187, C3-188): add or remove a universe, switch the tab — the widget's own tabs[2m > [22m[2m"add the S&P 500 to new highs lows", then "switch new highs lows to it", then remove it; each read off the tabs
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/widgetControls.outcome.test.jsx[2m > [22m[2mNew Highs / Lows (C3-187, C3-188): add or remove a universe, switch the tab — the widget's own tabs[2m > [22m[2m"add the S&P 500 to new highs lows", then "switch new highs lows to it", then remove it; each read off the tabs
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/agent/qa/chartsOutcome/widgetControls.outcome.test.jsx [2m([22m[2m7 tests[22m[2m)[22m[33m 7919[2mms[22m[39m
+     [33m[2m✓[22m[39m "remove the dow from the indexes": DIA's tile is gone, the rest stay; undo restores it [33m 1420[2mms[22m[39m
+     [33m[2m✓[22m[39m "put the dow back on the indexes" (+, by the tile's own name): the tile returns [33m 1021[2mms[22m[39m
+     [33m[2m✓[22m[39m NEGATIVE: an index the widget does not have is refused with its own list; no tile moves [33m 981[2mms[22m[39m
+     [33m[2m✓[22m[39m "show tomorrow on the terminal": the widget shows the next day; Undo goes back [33m 1130[2mms[22m[39m
+     [33m[2m✓[22m[39m "expand the time tbd list on the terminal": the TBD rows are drawn; collapse hides them again [33m 1142[2mms[22m[39m
+     [33m[2m✓[22m[39m "add the S&P 500 to new highs lows", then "switch new highs lows to it", then remove it; each read off the tabs [33m 1256[2mms[22m[39m
+     [33m[2m✓[22m[39m NEGATIVE: the last universe stays (the widget keeps at least one), nothing changes [33m 966[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m7 passed[39m[22m[90m (7)[39m
+[2m   Start at [22m 22:02:46
+[2m   Duration [22m 13.70s[2m (transform 3.94s, setup 235ms, import 5.01s, tests 7.92s, environment 410ms)[22m
+
+JSON report written to C:/w/pl-auto-remeasure/docs/agent/program/evidence/remeasure-1016/attempt-2/packet/widgetControls.outcome.test.json
+# exit=0 end 03:03:00Z
