@@ -36,7 +36,8 @@ import {
   constantTestValue, STRATEGY_ORDER_CALLS, PINE_SHORT_FORM, positionaliseSecurityArgs, strippedForScan,
   OUTPUT_CALLS as PINE_OUTPUT_CALLS, BAR_SERIES_DEFAULTS, paramDefaultShapeOk,
   declarationWordsOf, pineConstIntValue, constIntWritesOf, pineTupleBuiltinCallParts, pineNamespacedName,
-  legacyBarsSignUnstated, LEGACY_BARS_SIGN_SENTENCE, REFUSALS, naSeededSelfReferenceSentence,
+  legacyBarsSignUnstated, LEGACY_BARS_SIGN_SENTENCE, REFUSALS, selfReferenceSentence,
+  selfReferencingDeclaration,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
@@ -12807,12 +12808,30 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // ⭐ W6-T10 — an enum initialiser is admitted here (`admitEnumBinding`).
         admitEnumBinding(value, scope, toks, eq)
         const mutable = mut.mutated.has(nameTok.value)
+        // ⭐⭐ ENGINE 49 — the host's v3+ `pine:cycle` refusal of a declaration that reads its own
+        // history (`pine.js::selfReferencingDeclaration`), with its one sentence. This lane binds
+        // the name itself (an `env` macro, or a slot declared before its initialiser is lowered),
+        // so the host's mark never reaches it: asked here, before the env/slot decision and
+        // before the initialiser is lowered, so no later wall of this lane speaks first. "Declared
+        // before" is this lane's scope chain, its env (a parameter of an inlined body is there),
+        // and the root scope a function body reads through (`guardOuter`).
+        // ⚠️ Asked at the STATEMENT, so it also refuses shapes the host draws (it refuses only what
+        // its `Resolver` resolves): an unread declaration, one read only through `color=`, and a
+        // name an earlier user function holds (review ENG49-1122 notes 1-3; none compiles in v3+).
+        if (!listingSeedIsUnpinned(pineVersion) && selfReferencingDeclaration(value, nameTok.value,
+          scope.lookup(nameTok.value) !== null || env.has(nameTok.value)
+            || (guardOuter && guardOuter.lookup(nameTok.value) !== null))) {
+          throw new PineRefusal('pine:cycle',
+            `${REFUSALS['pine:cycle']} — ${selfReferenceSentence(nameTok.value, pineVersion)}`,
+            locate(nameTok))
+        }
         // ⭐⭐ ENGINE 48 (review N1) — the host's `pine:cycle` refusal, with its one sentence, for the
         // bindings this lane would make a slot and so never send to the `Resolver` (see
         // `naSeededSelfDeclaration`). Asked before the env/slot decision so both paths agree.
+        // Since engine 49 only v1/v2 and no pragma reach it (v3+ refuses just above).
         if (!mutable && naSeededSelfDeclaration(value, nameTok.value)) {
           throw new PineRefusal('pine:cycle',
-            `${REFUSALS['pine:cycle']} — ${naSeededSelfReferenceSentence(nameTok.value, pineVersion)}`,
+            `${REFUSALS['pine:cycle']} — ${selfReferenceSentence(nameTok.value, pineVersion)}`,
             locate(nameTok))
         }
         // ⛔⛔ A COLLECTION BINDING IS ALWAYS A SLOT, NEVER AN `env` MACRO. A
