@@ -47,7 +47,7 @@ const pine = (lines) => ['//@version=5', 'indicator("c12w")', ...lines].join('\n
 // folds to an `na` history seed (`varSeedOf`), and an unmarked `na` seed is a history
 // seed whose bar 0 runs the update (`interpret.js::historySeedReading`): bar 0 is
 // Pine's 3, served, where it was withheld. The self-reference spelling whose bar 0
-// IS an `na` seed is translated as the constant `na` (`pine.js::naSeededSelfReference`).
+// IS an `na` seed refuses `pine:cycle` by name (`pine.js::naSeededSelfReference`, engine 48).
 const WITHHELD_AT_START = {}
 
 const REFERENCE = {

@@ -576,7 +576,10 @@ def _apply_overlay(lists):
         if nm == _LIQUID_NAME and liquid:
             l["tickers"] = liquid
         elif nm in index_ov and index_ov[nm]:
-            l["tickers"] = [str(t).upper() for t in index_ov[nm] if t]
+            # Same door as the fetch: an overlay written before when-issued lines were
+            # mapped (HONAV) still serves the regular listing (HONA).
+            from api.services.index_constituents import normalize_members
+            l["tickers"] = normalize_members(str(t) for t in index_ov[nm] if t)
         if delisted:
             # A synthetic pseudo-ticker is never in grouped-daily, so a stale/poisoned
             # overlay may list it as 'delisted' — keep it regardless (recovers the

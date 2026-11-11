@@ -5,10 +5,12 @@
 // Intraday chart times are ET-offset unix seconds (barTime.toChartTime, offset
 // resolved per instant), so reading them via UTC getters yields the Eastern clock.
 
+import { rthCloseMinuteOfChartTime } from './barTime'
+
 const PRE_START = 4 * 60          // 04:00
 const RTH_START = 9 * 60 + 30     // 09:30
-const RTH_END = 16 * 60          // 16:00
 const POST_END = 20 * 60          // 20:00
+// The regular close is the DAY's close (13:00 on an NYSE half-day) — barTime owns it.
 
 // Classify a bar's session from its ET-offset unix-seconds timestamp.
 // Returns 'pre' | 'post' | null (null = regular hours or closed = unshaded).
@@ -25,7 +27,7 @@ export function classifySession(tSec) {
   const secOfDay = ((Math.floor(tSec) % 86400) + 86400) % 86400
   const m = Math.floor(secOfDay / 60)
   if (m >= PRE_START && m < RTH_START) return 'pre'
-  if (m >= RTH_END && m < POST_END) return 'post'
+  if (m >= RTH_START && m < POST_END && m >= rthCloseMinuteOfChartTime(tSec)) return 'post'
   return null
 }
 

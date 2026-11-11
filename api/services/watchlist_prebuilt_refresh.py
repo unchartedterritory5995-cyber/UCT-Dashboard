@@ -151,6 +151,10 @@ def refresh_prebuilt_lists(apply=True):
     new_idx = {}
     try:
         for name, ticks in ic.fetch_index_lists().items():
+            # A member must TRADE to paint: drop what no recent session printed (a stale
+            # holdings row, a symbol the provider does not know). Class shares are
+            # hyphenated here and dotted in grouped-daily (BRK-B / BRK.B).
+            ticks = [t for t in ticks if t.upper() in alive or t.upper().replace("-", ".") in alive]
             ticks = sorted(ticks, key=lambda t: latest_dvol.get(t.upper(), 0), reverse=True)
             new_idx[name.strip().lower()] = ticks
     except Exception as e:
