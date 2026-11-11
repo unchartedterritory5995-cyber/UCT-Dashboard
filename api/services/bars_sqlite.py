@@ -264,6 +264,7 @@ _META_DDL = (
     " sealed_through REAL,"
     " sealed_checked_at REAL,"
     " unsealed_from INTEGER,"
+    " covered_at REAL,"
     " proof_floor REAL,"
     " PRIMARY KEY (ticker, tf)) WITHOUT ROWID",
     "CREATE TABLE IF NOT EXISTS store_meta (k TEXT PRIMARY KEY, v REAL)",
@@ -301,28 +302,13 @@ _VERIFIED_UPSERT_SQL = (
 #: STARTS at or before the current value (a contiguous proof), to its instant minus the
 #: seal lag (`record_sealed`). A series with no value yet trusts the rows below the
 #: window: they are the repair's own "already-final history" (`_DELTA_HEAL_WINDOW_SECONDS`).
-#: When a seal applies (same rule as `_apply_seal`): its check is newer than the last
-#: delete and than the current seal's check, and its rewritten window starts at or before
-#: the current seal — or, with no seal, at or before the oldest row deleted since
-#: (`unsealed_from`; NULL = nothing was deleted, so the rows below the window are the
-#: repair's own already-final history).
-_SEAL_OK = (
-    "(:checked > COALESCE(series_meta.proof_floor, 0) "
-    " AND :checked >= COALESCE(series_meta.sealed_checked_at, 0) "
-    " AND ((series_meta.sealed_through IS NOT NULL AND :wstart <= series_meta.sealed_through) "
-    "   OR (series_meta.sealed_through IS NULL AND (series_meta.unsealed_from IS NULL "
-    "       OR :wstart <= series_meta.unsealed_from))))")
-_SEAL_UPSERT_SQL = (
-    "INSERT INTO series_meta(ticker, tf, rev, sealed_through, sealed_checked_at) "
-    "VALUES (:t, :tf, 0, :sealed, :checked) "
-    "ON CONFLICT(ticker, tf) DO UPDATE SET "
-    f"sealed_through = CASE WHEN {_SEAL_OK} "
-    "  THEN max(COALESCE(series_meta.sealed_through, 0), :sealed) ELSE series_meta.sealed_through END, "
-    f"sealed_checked_at = CASE WHEN {_SEAL_OK} THEN :checked ELSE series_meta.sealed_checked_at END, "
-    f"unsealed_from = CASE WHEN {_SEAL_OK} THEN NULL ELSE series_meta.unsealed_from END")
 #: store_meta keys: wholesale-change floors (see `bump_store_floor`).
 REV_FLOOR_KEY = "rev_floor_ms"
 PROOF_FLOOR_KEY = "proof_floor_s"
+#: A wholesale DELETE (the boot heals) leaves holes in every series: the oldest deleted
+#: key and when — a series that has not been covered since must reach back to it.
+GLOBAL_UNSEALED_FROM_KEY = "unsealed_from_ts"
+GLOBAL_UNSEALED_AT_KEY = "unsealed_at_s"
 
 
 def _create_meta_tables(c: sqlite3.Connection) -> None:
@@ -332,7 +318,7 @@ def _create_meta_tables(c: sqlite3.Connection) -> None:
     if "history_rev" not in cols:      # a pre-release dev store
         c.execute("ALTER TABLE series_meta ADD COLUMN history_rev INTEGER NOT NULL DEFAULT 0")
     for col, typ in (("sealed_through", "REAL"), ("sealed_checked_at", "REAL"),
-                     ("unsealed_from", "INTEGER")):
+                     ("unsealed_from", "INTEGER"), ("covered_at", "REAL")):
         if col not in cols:
             c.execute(f"ALTER TABLE series_meta ADD COLUMN {col} {typ}")
 
@@ -418,21 +404,23 @@ def _sealed_through_many(c: sqlite3.Connection, tf: str, tickers: list) -> dict:
         chunk = tickers[i:i + 400]
         qs = ",".join("?" for _ in chunk)
         try:
-            for t, sealed, ck, uns, pf in c.execute(
-                    f"SELECT ticker, sealed_through, sealed_checked_at, unsealed_from, proof_floor "
-                    f"FROM series_meta WHERE tf=? AND ticker IN ({qs})", [tf, *chunk]).fetchall():
-                rows[t] = (sealed, ck, uns, max(store_pfloor, float(pf or 0)))
+            for t, sealed, ck, uns, cov, pf in c.execute(
+                    f"SELECT ticker, sealed_through, sealed_checked_at, unsealed_from, covered_at, "
+                    f"proof_floor FROM series_meta WHERE tf=? AND ticker IN ({qs})",
+                    [tf, *chunk]).fetchall():
+                rows[t] = ((sealed, ck, uns, cov), max(store_pfloor, float(pf or 0)))
         except sqlite3.OperationalError:
             break
     with _pending_lock:
         pend = {t: list(_pending_seals.get((t, tf), ())) for t in tickers
                 if (t, tf) in _pending_seals}
+    glob = _store_unsealed(c)
     out = {}
     for t in set(rows) | set(pend):
-        sealed, ck, uns, pf = rows.get(t, (None, None, None, store_pfloor))
-        s, _ck = _seal_state(sealed, ck, uns, pend.get(t, ()), pf)
-        if s is not None:
-            out[t] = s
+        base, pf = rows.get(t, ((None, None, None, None), store_pfloor))
+        st = _seal_state(base, pend.get(t, ()), pf, glob)
+        if st[0] is not None:
+            out[t] = st[0]
     return out
 
 
@@ -480,21 +468,30 @@ def _history_keys(c: sqlite3.Connection, tf: str, written, *, replace: bool = Tr
 # Process-local view of the store floors (also persisted to store_meta by the flusher,
 # so a restart or another process reading this store sees them).
 _floor_lock = threading.Lock()
-_mem_floors = {"rev_floor_ms": 0.0, "proof_floor_s": 0.0}
+_mem_floors = {"rev_floor_ms": 0.0, "proof_floor_s": 0.0}   # + global unsealed keys
 _pending_floors: dict = {}
 
 
-def bump_store_floor(reason: str = "") -> None:
+def bump_store_floor(reason: str = "", deleted_from: int | None = None) -> None:
     """A WHOLESALE change (bars.db replaced by a snapshot, a bulk delete across many
     series): every series' served rev becomes >= now_ms and every proof taken before
     now is void. Lock-free for the caller (persisted by the meta flusher) so it is safe
-    to call from any writer, including one holding its own connection or the lock."""
+    to call from any writer, including one holding its own connection or the lock.
+    `deleted_from` = the oldest key a bulk DELETE removed (every series may now have a
+    hole from there): no series is sealed again until a repair / fill reaches back to it."""
     now_ms, now_s = float(_now_ms()), time.time()
     with _floor_lock:
         _mem_floors[REV_FLOOR_KEY] = max(_mem_floors[REV_FLOOR_KEY], now_ms)
         _mem_floors[PROOF_FLOOR_KEY] = max(_mem_floors[PROOF_FLOOR_KEY], now_s)
         _pending_floors[REV_FLOOR_KEY] = _mem_floors[REV_FLOOR_KEY]
         _pending_floors[PROOF_FLOOR_KEY] = _mem_floors[PROOF_FLOOR_KEY]
+        if deleted_from is not None:
+            prev = _mem_floors.get(GLOBAL_UNSEALED_FROM_KEY)
+            _mem_floors[GLOBAL_UNSEALED_FROM_KEY] = (float(deleted_from) if not prev
+                                                     else min(prev, float(deleted_from)))
+            _mem_floors[GLOBAL_UNSEALED_AT_KEY] = now_s
+            _pending_floors[GLOBAL_UNSEALED_FROM_KEY] = _mem_floors[GLOBAL_UNSEALED_FROM_KEY]
+            _pending_floors[GLOBAL_UNSEALED_AT_KEY] = now_s
     with _pending_lock:
         _pending_verified.clear()       # every queued proof predates the floor
         _pending_seals.clear()
@@ -521,12 +518,7 @@ def _drop_pending_verified(keys) -> None:
             _pending_seals.pop(k, None)
 
 
-def record_sealed(ticker: str, tf: str, sealed: float, window_start: float,
-                  checked_at: float) -> None:
-    """Queue a seal: a provider answer at `checked_at` rewrote the series from
-    `window_start`, so every bucket that ended by `sealed` is final (see
-    `_SEAL_UPSERT_SQL`). Visible in-process at once, other processes after a flush."""
-    key = (ticker.upper(), str(tf))
+def _queue_seal_op(key, op: tuple) -> None:
     with _pending_lock:
         lst = _pending_seals.setdefault(key, [])
         if len(lst) >= 256:
@@ -536,35 +528,76 @@ def record_sealed(ticker: str, tf: str, sealed: float, window_start: float,
             # losing proofs only weakens what is claimed.
             lst.clear()
             return
-        lst.append((float(sealed), float(window_start), float(checked_at)))
+        lst.append(op)
     _ensure_meta_flusher()
 
 
-def _apply_seal(state: tuple, sealed: float, wstart: float, checked: float,
-                pfloor: float) -> tuple:
-    """The `_SEAL_UPSERT_SQL` rule in Python (the unflushed buffer).
-    state = (sealed_through, sealed_checked_at, unsealed_from)."""
-    cur, cur_ck, unsealed = state
-    ok = (checked > pfloor and checked >= (cur_ck or 0.0)
-          and ((cur is not None and wstart <= cur)
-               or (cur is None and (unsealed is None or wstart <= unsealed))))
-    if not ok:
+def record_sealed(ticker: str, tf: str, sealed: float, window_start: float,
+                  checked_at: float, covers_from: float | None = None) -> None:
+    """Queue a seal: a provider answer at `checked_at` rewrote the series from
+    `window_start` (and, a gap-fill, restored missing rows from `covers_from`), so every
+    bucket that ended by `sealed` is final — under `_apply_seal`'s rule. Visible
+    in-process at once, other processes after a flush."""
+    cov = float(window_start) if covers_from is None else min(float(window_start), float(covers_from))
+    _queue_seal_op((ticker.upper(), str(tf)),
+                   ("seal", float(sealed), float(window_start), float(checked_at), cov))
+
+
+def record_cover(ticker: str, tf: str, covers_from: float, checked_at: float) -> None:
+    """A provider answer at `checked_at` re-supplied the series from `covers_from` (a full
+    / deep fetch): rows deleted at or after it are restored, so the series no longer has
+    to reach back to its delete point to be sealed again (review #1098 F4 follow-up)."""
+    _queue_seal_op((ticker.upper(), str(tf)),
+                   ("cover", None, None, float(checked_at), float(covers_from)))
+
+
+def _apply_seal(state: tuple, op: tuple, pfloor: float, glob: tuple) -> tuple:
+    """THE seal rule (the only implementation — the flush persists what this returns).
+
+    state = (sealed_through, sealed_checked_at, unsealed_from, covered_at)
+    op    = ("seal", sealed, window_start, checked, covers_from)
+          | ("cover", None, None, checked, covers_from)
+    glob  = (global unsealed_from, its instant) from a bulk delete, or (None, None).
+
+    A seal applies when its check is newer than the last delete / wholesale change and
+    not older than the current seal's check, and EITHER its rewritten window starts at or
+    before the current seal (contiguous proof) OR, with no seal, the answer reaches back
+    to the oldest row deleted since (`unsealed_from`, and the bulk-delete point while
+    this series has not been covered since it). With nothing deleted, the rows below the
+    window are the repair's own already-final history."""
+    cur, cur_ck, uns, cov = state
+    kind, sealed, wstart, checked, covers = op
+    if checked <= pfloor:
         return state
-    return (sealed if cur is None else max(cur, sealed)), checked, None
+    eff = uns
+    g_from, g_at = glob
+    if g_from is not None and (cov is None or cov < g_at):
+        eff = g_from if eff is None else min(eff, g_from)
+    reaches = eff is None or covers <= eff
+    if kind == "cover":
+        if cur is None and reaches:
+            return cur, cur_ck, None, checked
+        return state
+    if checked < (cur_ck or 0.0):
+        return state
+    if cur is not None:
+        return (max(cur, sealed), checked, uns, cov) if wstart <= cur else state
+    if reaches:
+        return sealed, checked, None, checked
+    return state
 
 
-def _seal_state(row_sealed, row_ck, row_unsealed, pending, pfloor: float) -> tuple:
-    """(sealed_through, sealed_checked_at) as this store states it: the persisted seal
-    (void when its CHECK predates the floor — a delete or a wholesale change) with this
-    process's unflushed seals applied in order."""
-    state = (None if row_sealed is None else float(row_sealed),
-             None if row_ck is None else float(row_ck),
-             None if row_unsealed is None else int(row_unsealed))
-    if state[0] is not None and (state[1] is None or state[1] <= pfloor):
-        state = (None, None, state[2])
-    for s_, w, ck in pending:
-        state = _apply_seal(state, s_, w, ck, pfloor)
-    return state[0], state[1]
+def _seal_state(row: tuple, pending, pfloor: float, glob: tuple) -> tuple:
+    """(sealed_through, sealed_checked_at, unsealed_from, covered_at) as this store states
+    it: the persisted state (a seal is void when its CHECK predates the floor — a delete
+    or a wholesale change) with this process's unflushed ops applied in order."""
+    sealed, ck, uns, cov = (None if x is None else float(x) for x in row)
+    if sealed is not None and (ck is None or ck <= pfloor):
+        sealed, ck = None, None
+    state = (sealed, ck, uns, cov)
+    for op in pending:
+        state = _apply_seal(state, op, pfloor, glob)
+    return state
 
 
 def record_verified(ticker: str, tf: str, checked_at: float) -> None:
@@ -592,20 +625,23 @@ def flush_meta() -> int:
         pfloor = _mem_floors[PROOF_FLOOR_KEY]
     if not batch and not floors and not seals:
         return 0
-    seal_params = [{"t": t, "tf": tf, "sealed": s_, "wstart": w, "checked": ck}
-                   for (t, tf), lst in seals.items() for (s_, w, ck) in lst if ck > pfloor]
+    seal_params = sum(len(v) for v in seals.values())
 
     def _write(c):
         if floors:
             c.executemany(
                 "INSERT INTO store_meta(k, v) VALUES (?, ?) "
                 "ON CONFLICT(k) DO UPDATE SET v = max(store_meta.v, excluded.v)",
-                list(floors.items()))
+                [kv for kv in floors.items() if kv[0] != GLOBAL_UNSEALED_FROM_KEY])
+            if GLOBAL_UNSEALED_FROM_KEY in floors:
+                c.execute("INSERT INTO store_meta(k, v) VALUES (?, ?) "
+                          "ON CONFLICT(k) DO UPDATE SET v = min(store_meta.v, excluded.v)",
+                          (GLOBAL_UNSEALED_FROM_KEY, floors[GLOBAL_UNSEALED_FROM_KEY]))
         if batch:
             c.executemany(_VERIFIED_UPSERT_SQL,
                           [(t, tf, vt) for (t, tf), vt in batch.items()])
-        if seal_params:
-            c.executemany(_SEAL_UPSERT_SQL, seal_params)
+        if seals:
+            _persist_seals(c, seals)
 
     try:
         t0 = time.perf_counter()
@@ -623,7 +659,7 @@ def flush_meta() -> int:
             c.commit()
         held = (time.perf_counter() - t0) * 1000.0
         _meta_flush_stats["flushes"] += 1
-        n = len(batch) + len(floors) + len(seal_params)
+        n = len(batch) + len(floors) + seal_params
         _meta_flush_stats["rows"] += n
         _meta_flush_stats["lock_ms_total"] += held
         _meta_flush_stats["lock_ms_max"] = max(_meta_flush_stats["lock_ms_max"], held)
@@ -647,6 +683,25 @@ def flush_meta() -> int:
         return 0
 
 
+def _persist_seals(c: sqlite3.Connection, seals: dict) -> None:
+    """Apply queued seal ops to the persisted state with `_apply_seal` (read-modify-write
+    under the caller's write transaction — the rule exists once, in Python)."""
+    rev_floor, store_pfloor = _store_floors(c)
+    glob = _store_unsealed(c)
+    for (t, tf), ops in seals.items():
+        row = c.execute("SELECT sealed_through, sealed_checked_at, unsealed_from, covered_at, "
+                        "proof_floor FROM series_meta WHERE ticker=? AND tf=?", (t, tf)).fetchone()
+        base = row[:4] if row else (None, None, None, None)
+        pf = max(store_pfloor, float(row[4] or 0)) if row else store_pfloor
+        st = _seal_state(base, ops, pf, glob)
+        c.execute("INSERT INTO series_meta(ticker, tf, rev, sealed_through, sealed_checked_at, "
+                  "unsealed_from, covered_at) VALUES (?, ?, 0, ?, ?, ?, ?) "
+                  "ON CONFLICT(ticker, tf) DO UPDATE SET sealed_through = excluded.sealed_through, "
+                  "sealed_checked_at = excluded.sealed_checked_at, "
+                  "unsealed_from = excluded.unsealed_from, covered_at = excluded.covered_at",
+                  (t, tf, st[0], st[1], None if st[2] is None else int(st[2]), st[3]))
+
+
 def reset_meta_state_for_tests() -> None:
     """Test-only: forget every unflushed proof / seal / floor and cached floor read
     (what a process restart forgets). The persisted store is untouched."""
@@ -655,8 +710,11 @@ def reset_meta_state_for_tests() -> None:
         _pending_seals.clear()
     with _floor_lock:
         _pending_floors.clear()
-        for k in _mem_floors:
-            _mem_floors[k] = 0.0
+        for k in list(_mem_floors):
+            if k in (GLOBAL_UNSEALED_FROM_KEY, GLOBAL_UNSEALED_AT_KEY):
+                del _mem_floors[k]
+            else:
+                _mem_floors[k] = 0.0
     _floors_cache.clear()
 
 
@@ -690,28 +748,38 @@ _FLOORS_TTL_S = 1.0
 _floors_cache: dict = {}        # db path -> (monotonic read time, epoch, rev_floor, proof_floor)
 
 
-def _store_floors(c: sqlite3.Connection) -> tuple[float, float]:
-    """The store-wide floors (persisted; another process may have raised them) merged
-    with this process's. The persisted pair is re-read at most once a second (and after
-    every epoch bump): they move only on wholesale changes."""
+def _store_meta_cached(c: sqlite3.Connection) -> dict:
+    """store_meta, re-read at most once a second (and after every epoch bump): it moves
+    only on wholesale changes."""
     now = time.monotonic()
     hit = _floors_cache.get(_DB_PATH)
     if hit is not None and hit[1] == _db_epoch and now - hit[0] < _FLOORS_TTL_S:
-        db_rev, db_proof = hit[2], hit[3]
-    else:
-        db_rev = db_proof = 0.0
-        try:
-            for k, v in c.execute("SELECT k, v FROM store_meta WHERE k IN (?, ?)",
-                                  (REV_FLOOR_KEY, PROOF_FLOOR_KEY)).fetchall():
-                if k == REV_FLOOR_KEY:
-                    db_rev = float(v or 0)
-                else:
-                    db_proof = float(v or 0)
-        except sqlite3.OperationalError:
-            pass
-        _floors_cache[_DB_PATH] = (now, _db_epoch, db_rev, db_proof)
-    return (max(_mem_floors[REV_FLOOR_KEY], db_rev),
-            max(_mem_floors[PROOF_FLOOR_KEY], db_proof))
+        return hit[2]
+    vals: dict = {}
+    try:
+        vals = {k: float(v) for k, v in c.execute("SELECT k, v FROM store_meta").fetchall()
+                if v is not None}
+    except sqlite3.OperationalError:
+        pass
+    _floors_cache[_DB_PATH] = (now, _db_epoch, vals)
+    return vals
+
+
+def _store_floors(c: sqlite3.Connection) -> tuple[float, float]:
+    """The store-wide floors (persisted; another process may have raised them) merged
+    with this process's."""
+    vals = _store_meta_cached(c)
+    return (max(_mem_floors[REV_FLOOR_KEY], vals.get(REV_FLOOR_KEY, 0.0)),
+            max(_mem_floors[PROOF_FLOOR_KEY], vals.get(PROOF_FLOOR_KEY, 0.0)))
+
+
+def _store_unsealed(c: sqlite3.Connection) -> tuple:
+    """(oldest bulk-deleted key, when) — persisted merged with this process's — or (None, None)."""
+    vals = _store_meta_cached(c)
+    frm = [x for x in (vals.get(GLOBAL_UNSEALED_FROM_KEY), _mem_floors.get(GLOBAL_UNSEALED_FROM_KEY))
+           if x]
+    at = [x for x in (vals.get(GLOBAL_UNSEALED_AT_KEY), _mem_floors.get(GLOBAL_UNSEALED_AT_KEY)) if x]
+    return (min(frm), max(at)) if frm and at else (None, None)
 
 
 def series_meta(ticker: str, tf: str, _conn_override=None) -> dict:
@@ -721,14 +789,15 @@ def series_meta(ticker: str, tf: str, _conn_override=None) -> dict:
     only grows). Never raises: an unreadable store answers rev 0 / no proof."""
     key = (ticker.upper(), str(tf))
     rev, hrev, vt, pfloor = 0, 0, None, _mem_floors[PROOF_FLOOR_KEY]
-    row_sealed = row_ck = row_uns = None
+    seal_row = (None, None, None, None)
+    glob = (None, None)
     try:
         c = _conn_override if _conn_override is not None else _conn()
         rev_floor, store_pfloor = _store_floors(c)
         try:
             row = c.execute(
                 "SELECT rev, history_rev, verified_through, proof_floor, sealed_through, "
-                "sealed_checked_at, unsealed_from FROM series_meta "
+                "sealed_checked_at, unsealed_from, covered_at FROM series_meta "
                 "WHERE ticker=? AND tf=?", key).fetchone()
         except sqlite3.OperationalError:
             row = None
@@ -737,10 +806,11 @@ def series_meta(ticker: str, tf: str, _conn_override=None) -> dict:
             hrev = int(row[1] or 0)
             vt = float(row[2]) if row[2] is not None else None
             pfloor = max(pfloor, float(row[3] or 0))
-            row_sealed, row_ck, row_uns = row[4], row[5], row[6]
+            seal_row = (row[4], row[5], row[6], row[7])
         rev = max(rev, int(rev_floor))
         hrev = max(hrev, int(rev_floor))
         pfloor = max(pfloor, store_pfloor)
+        glob = _store_unsealed(c)
     except Exception:                                    # noqa: BLE001
         pass
     with _pending_lock:
@@ -750,7 +820,7 @@ def series_meta(ticker: str, tf: str, _conn_override=None) -> dict:
         vt = pend
     if vt is not None and vt <= pfloor:
         vt = None
-    sealed, sealed_ck = _seal_state(row_sealed, row_ck, row_uns, seals, pfloor)
+    sealed, sealed_ck, _uns, _cov = _seal_state(seal_row, seals, pfloor, glob)
     return {"rev": rev, "history_rev": hrev, "verified_through": vt,
             "sealed_through": sealed, "sealed_checked_at": sealed_ck}
 

@@ -5655,7 +5655,7 @@ async def lifespan(app: FastAPI):
                     try:
                         from api.services import bars_sqlite as _heal_bs
                         _heal_bs.bump_db_epoch()
-                        _heal_bs.bump_store_floor("bulk delete")
+                        _heal_bs.bump_store_floor("bulk delete", deleted_from=cutoff + 1)
                     except Exception:
                         pass
                     # Also clear in-memory + disk JSON cache for intraday so they
@@ -5727,7 +5727,7 @@ async def lifespan(app: FastAPI):
                     try:
                         from api.services import bars_sqlite as _heal_bs_v2
                         _heal_bs_v2.bump_db_epoch()
-                        _heal_bs_v2.bump_store_floor("bulk delete")
+                        _heal_bs_v2.bump_store_floor("bulk delete", deleted_from=cutoff_v2)
                     except Exception:
                         pass
                     try:
@@ -5796,7 +5796,7 @@ async def lifespan(app: FastAPI):
                     try:
                         from api.services import bars_sqlite as _heal_bs_v3
                         _heal_bs_v3.bump_db_epoch()
-                        _heal_bs_v3.bump_store_floor("bulk delete")
+                        _heal_bs_v3.bump_store_floor("bulk delete", deleted_from=cutoff_v3)
                     except Exception:
                         pass
                     try:

@@ -362,6 +362,7 @@ def _deepfill_once(ticker: str, tf: str, bars: int) -> int:
     concurrency bound + the daemon thread. Massive is authoritative, so a bar it
     omits (real no-trade) is never fabricated."""
     ticker_up = ticker.upper()
+    _t0 = _time.time()                    # this fetch's provider check instant
     raw = _fetch_intraday(ticker_up, tf, bars)
     fetched = [b for b in (raw or []) if isinstance(b.get("t"), (int, float))]
     if not fetched or _is_intraday_stale(raw):
@@ -370,7 +371,9 @@ def _deepfill_once(ticker: str, tf: str, bars: int) -> int:
     stored_ts = {int(r[0]) for r in _sqlite.get_bars_since(ticker_up, tf, oldest - 1)}
     missing = [b for b in fetched if int(b["t"]) not in stored_ts]
     if missing:
-        _sqlite.put_bars(ticker_up, tf, missing, date_tf=False)
+        with _provider_write(_t0):
+            _sqlite.put_bars(ticker_up, tf, missing, date_tf=False)
+        _record_full_cover(ticker_up, tf, fetched, _t0)
         cache.delete_prefix(f"bars_{ticker_up}_{tf}_")  # bust stale gappy payloads
     return len(missing)
 
@@ -818,6 +821,25 @@ class _NullCheck:
         return False
 
 
+def _provider_write(checked_at: float):
+    """`bars_sqlite.provider_check(checked_at)`: the writes inside persist a provider
+    answer taken at `checked_at` and cannot overwrite rows a NEWER check sealed. Every
+    provider fetch → persist site opens one with the instant taken BEFORE its fetch."""
+    return getattr(_sqlite, "provider_check", _NullCheck)(checked_at)
+
+
+def _record_full_cover(ticker_up: str, tf: str, rows, checked_at: float) -> None:
+    """A full / deep provider fetch re-supplied the series from its oldest row: deleted
+    rows from there are restored (bar contract `record_cover`, review #1098 F4)."""
+    try:
+        ts = [int(b["t"]) for b in (rows or []) if isinstance(b.get("t"), (int, float))]
+        fn = getattr(_sqlite, "record_cover", None)
+        if ts and fn is not None:
+            fn(ticker_up, tf, min(ts), checked_at)
+    except Exception:                      # noqa: BLE001 — a cover only widens what may seal
+        pass
+
+
 def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool = False) -> list:
     """The ONE intraday tail repair: provider delta → persist → record verification.
 
@@ -841,7 +863,7 @@ def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool =
     status: dict = {}
     # Every write of this answer (incl. a derived tf's 15m base) carries its check instant:
     # it can never overwrite rows a NEWER check has sealed (`bars_sqlite.provider_check`).
-    with getattr(_sqlite, "provider_check", _NullCheck)(checked_at):
+    with _provider_write(checked_at):
         new = _delta_intraday(ticker_up, tf, last_ts, status=status, tail_only=tail_only)
         persisted = not new
         if new and not _is_intraday_stale(new):
@@ -855,7 +877,8 @@ def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool =
         if persisted and status.get("window_start") is not None:
             from api.services.bar_contract import SEAL_LAG_S
             _sqlite.record_sealed(ticker_up, tf, checked_at - SEAL_LAG_S,
-                                  status["window_start"], checked_at)
+                                  status["window_start"], checked_at,
+                                  covers_from=status.get("fill_from"))
     return new
 
 
@@ -2716,8 +2739,14 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = 
         # later (conservative) reading of the provider's date bound.
         try:
             _fd = datetime.strptime(from_date, "%Y-%m-%d")
-            status["window_start"] = max(heal_floor, int(datetime(
-                _fd.year, _fd.month, _fd.day, tzinfo=_ZI("America/New_York")).timestamp()))
+            _fd_start = int(datetime(_fd.year, _fd.month, _fd.day,
+                                     tzinfo=_ZI("America/New_York")).timestamp())
+            status["window_start"] = max(heal_floor, _fd_start)
+            if gapfill_on:
+                # The gap-fill restores every MISSING row from `from_date` on (rows the
+                # store lacks are re-emitted below the heal floor too): deleted rows
+                # from there are back, so a seal may reach past an old delete point.
+                status["fill_from"] = _fd_start
         except Exception:                 # noqa: BLE001 — no window, no seal
             status.pop("window_start", None)
 
@@ -3443,11 +3472,13 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                 if got_slot:
                     def _replay_job(_ev=ev, _key=cold_key):
                         try:
+                            _t0 = _time.time()    # this fetch's provider check instant
                             deep = [b for b in _fetch_intraday_range(ticker_up, tf, from_ymd, str(to_str))
                                     if int(b.get("t", 0)) <= to_key]
                             if deep:
                                 try:
-                                    _sqlite.put_bars(ticker_up, tf, deep, date_tf=False)
+                                    with _provider_write(_t0):
+                                        _sqlite.put_bars(ticker_up, tf, deep, date_tf=False)
                                 except Exception:
                                     pass
                         except Exception:     # noqa: BLE001 — background
@@ -3789,6 +3820,7 @@ def _do_cold_fetch(ticker_up: str, tf: str, bars: int, date_tf: bool) -> None:
     _lg = _log.getLogger(__name__)
     try:
         _deep = _is_deep_request(bars)
+        _t0 = _time.time()                # this fetch's provider check instant
         with _provider_fault_scope.scope() as _faults:
             if tf in ("1", "5", "15", "30", "60"):
                 raw = _fetch_intraday(ticker_up, tf, bars)
@@ -3802,7 +3834,9 @@ def _do_cold_fetch(ticker_up: str, tf: str, bars: int, date_tf: bool) -> None:
             if date_tf:
                 _sqlite.put_bars(ticker_up, tf, raw, date_tf=date_tf)
             else:
-                _put_fetched_intraday(ticker_up, tf, raw)   # fallback = add-only
+                with _provider_write(_t0):
+                    _put_fetched_intraday(ticker_up, tf, raw)   # fallback = add-only
+                _record_full_cover(ticker_up, tf, raw, _t0)
             if _deep:
                 _mark_history_complete(ticker_up, tf)
         elif not raw and _faults.clean:
@@ -4186,9 +4220,12 @@ def _start_bounded_fetch_intraday(ticker_up: str, tf: str, bars: int):
 
     def _job():
         try:
+            _t0 = _time.time()            # this fetch's provider check instant
             raw = _fetch_intraday(ticker_up, tf, bars)
             if raw and not _is_intraday_stale(raw):
-                _put_fetched_intraday(ticker_up, tf, raw)   # fallback = add-only
+                with _provider_write(_t0):
+                    _put_fetched_intraday(ticker_up, tf, raw)   # fallback = add-only
+                _record_full_cover(ticker_up, tf, raw, _t0)
                 _mark_history_complete(ticker_up, tf)       # refuses a fallback answer
         except Exception as _e:           # noqa: BLE001
             import logging as _log_bf
@@ -4877,8 +4914,9 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                                 if _dtf:
                                     _sqlite.put_bars(_sym, _tf, new, date_tf=_dtf)
                                 else:
-                                    with getattr(_sqlite, "provider_check", _NullCheck)(_fetch_t0):
+                                    with _provider_write(_fetch_t0):
                                         _put_fetched_intraday(_sym, _tf, new)   # fallback = add-only
+                                    _record_full_cover(_sym, _tf, new, _fetch_t0)
                                 # Mark full history loaded so a request larger
                                 # than the stock's lifetime doesn't re-fetch every
                                 # poll (the len>=bars*0.9 gate would never pass).

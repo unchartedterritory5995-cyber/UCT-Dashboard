@@ -135,7 +135,16 @@ store. Persisted in `series_meta.sealed_through` (write-behind with the proofs).
 - A series with no seal yet trusts the rows below the first repair's window (that
   repair's own "already-final history", `_DELTA_HEAL_WINDOW_SECONDS`, 8 h) — UNLESS rows
   were deleted since: a delete records the oldest deleted key (`unsealed_from`) and the
-  next seal must reach back to it (review #1098 F4).
+  next seal must reach back to it (review #1098 F4). A bulk delete (the boot heals,
+  `bump_store_floor(deleted_from=)`) records a store-wide point that applies to every
+  series not covered since. A gap-fill (`covers_from`: it restores missing rows from its
+  `from_date`) or a full / deep fetch (`record_cover`, from its oldest row) clears the
+  point, so a series never loses `complete_through` permanently.
+- Every provider fetch -> persist site writes under `provider_check(t0)` with `t0`
+  taken before its fetch: the tail repair, the background full fetch, the cold fetch,
+  the deep fetch and deep-fill, the replay cold window, the alert-bars refresh and the
+  live-store backfill. The seal rule exists once (`bars_sqlite._apply_seal`); the flush
+  persists what it returns.
 - Voided by deletes and wholesale changes by its CHECK instant (`sealed_checked_at` <=
   floor), not by an approximation of the sealed instant (review #1098 F3).
 - `null` until the first repair after deploy (cold fetches do not seal; D/W/M are not

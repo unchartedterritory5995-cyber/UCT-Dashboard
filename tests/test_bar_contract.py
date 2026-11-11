@@ -563,12 +563,18 @@ def _writer_sites():
             continue
         tree = ast.parse(src)
         module_accounts = any(a in src for a in _ACCOUNTS)
-        funcs = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+        lines = src.splitlines()
+        fn_types = (ast.FunctionDef, ast.AsyncFunctionDef)
+        funcs = [n for n in ast.walk(tree) if isinstance(n, fn_types)]
         for n in funcs:
-            body = ast.get_source_segment(src, n) or ""
-            inner = [m for m in ast.walk(n) if m is not n and isinstance(m, (ast.FunctionDef, ast.AsyncFunctionDef))]
-            for m in inner:
-                body = body.replace(ast.get_source_segment(src, m) or "", "")
+            # Line ranges, not ast.get_source_segment (O(file) per call: 30 s on main.py).
+            if not _WRITE_SQL.search(chr(10).join(lines[n.lineno - 1:n.end_lineno])):
+                continue
+            own = set(range(n.lineno - 1, n.end_lineno))
+            for m in ast.walk(n):
+                if m is not n and isinstance(m, fn_types):
+                    own -= set(range(m.lineno - 1, m.end_lineno))
+            body = "\n".join(lines[i] for i in sorted(own))
             if _WRITE_SQL.search(body):
                 yield rel, n.name, any(a in body for a in _ACCOUNTS), module_accounts
 
@@ -675,3 +681,93 @@ def test_F4_after_a_row_delete_a_seal_must_reach_back_to_the_deleted_point(store
     bs.flush_meta()
     bs.reset_meta_state_for_tests()
     assert bs.series_meta("AAA", "5")["sealed_through"] == float(t[5])   # SQL agrees
+
+
+# ── re-review follow-ups ─────────────────────────────────────────────────────
+
+def _spy_check_instants(monkeypatch):
+    seen = []
+    real = bs.put_bars
+
+    def spy(*a, **k):
+        seen.append(getattr(bs._check_ctx, "at", None))
+        return real(*a, **k)
+
+    monkeypatch.setattr(bs, "put_bars", spy)
+    return seen
+
+
+@pytest.mark.parametrize("site", ["cold", "deepfill"])
+def test_untimed_provider_writes_now_carry_their_check_instant(store, monkeypatch, site):
+    """The cold fetch and the deep-fill persist under `provider_check(t0)` (t0 taken
+    BEFORE the fetch), so an older full fetch cannot overwrite rows a newer check sealed;
+    and a full fetch COVERS the series from its oldest row (`record_cover`)."""
+    seen = _spy_check_instants(monkeypatch)
+    clock = _Clock(et(*WED, 10, 7))
+    monkeypatch.setattr(bf, "_time", clock)
+    rows = [bar(et(*WED, 10, m)) for m in (0, 5)]
+    monkeypatch.setattr(bf, "_fetch_intraday", lambda *a, **k: list(rows))
+    monkeypatch.setattr(bf, "_is_intraday_stale", lambda raw: False)
+    covered = []
+    monkeypatch.setattr(bs, "record_cover", lambda t, tf, frm, ck: covered.append((frm, ck)))
+    if site == "cold":
+        bf._do_cold_fetch("AAA", "5", 200, False)
+    else:
+        bf._deepfill_once("AAA", "5", 200)
+    assert seen and all(x == clock.now for x in seen)
+    assert covered == [(rows[0]["t"], clock.now)]
+
+
+def test_alert_and_live_store_backfill_write_inside_provider_check():
+    """Source rail: the two out-of-module provider writers persist inside a
+    `provider_check(...)` block."""
+    for rel, call in (("api/services/alert_bars_freshness.py", "rows = _sqlite.put_bars(sym_up"),
+                      ("api/services/bars_live_store.py", 'bars_sqlite.put_bars(sym, "5", closed)')):
+        src = (ROOT / rel).read_text(encoding="utf-8")
+        i = src.index(call)
+        assert "provider_check" in src[max(0, i - 300):i], rel
+
+
+def test_bulk_delete_point_blocks_sealing_until_a_repair_reaches_back(store):
+    t = [et(*WED, 10, m) for m in range(0, 30, 5)]
+    bs.put_bars("AAA", "5", [bar(x) for x in t])
+    bs.bump_store_floor("boot heal", deleted_from=t[1])
+    ck = time.time() + 1
+    bs.record_sealed("AAA", "5", float(t[5]), float(t[3]), ck)        # does not reach back
+    assert bs.series_meta("AAA", "5")["sealed_through"] is None
+    bs.record_sealed("AAA", "5", float(t[5]), float(t[1]), ck + 1)    # reaches the point
+    assert bs.series_meta("AAA", "5")["sealed_through"] == float(t[5])
+    bs.flush_meta()
+    bs.reset_meta_state_for_tests()                                   # persisted, SQL path
+    assert bs.series_meta("AAA", "5")["sealed_through"] == float(t[5])
+    # another series has not been covered since the bulk delete: still blocked
+    bs.record_sealed("BBB", "5", float(t[5]), float(t[3]), ck + 2)
+    assert bs.series_meta("BBB", "5")["sealed_through"] is None
+
+
+def test_a_full_fetch_or_gap_fill_clears_the_delete_point(store):
+    """F4 follow-up: a series must not lose complete_through forever after a delete —
+    a full fetch (`record_cover`) or a gap-fill (`covers_from`) that restores rows from
+    at or before the delete point clears it; the tail repair's 8 h window then seals."""
+    t = [et(*WED, 10, m) for m in range(0, 30, 5)]
+    bs.put_bars("AAA", "5", [bar(x) for x in t])
+    c = bs._conn()
+    with bs._WRITE_LOCK:
+        c.execute("DELETE FROM ohlcv WHERE ticker='AAA' AND tf='5' AND ts=?", (t[1],))
+        bs.bump_series_revs(c, [("AAA", "5")], deleted=True, deleted_from=t[1])
+        c.commit()
+    ck = time.time() + 1
+    bs.record_cover("AAA", "5", float(t[0]), ck)
+    bs.record_sealed("AAA", "5", float(t[5]), float(t[4]), ck + 1)
+    assert bs.series_meta("AAA", "5")["sealed_through"] == float(t[5])
+    # the same through a gap-fill seal (covers_from below the delete, window above it)
+    with bs._WRITE_LOCK:
+        c.execute("DELETE FROM ohlcv WHERE ticker='AAA' AND tf='5' AND ts=?", (t[2],))
+        bs.bump_series_revs(c, [("AAA", "5")], deleted=True, deleted_from=t[2])
+        c.commit()
+    ck2 = time.time() + 5
+    bs.record_sealed("AAA", "5", float(t[5]), float(t[4]), ck2, covers_from=float(t[0]))
+    assert bs.series_meta("AAA", "5")["sealed_through"] == float(t[5])
+    bs.flush_meta()
+    bs.reset_meta_state_for_tests()
+    assert bs.series_meta("AAA", "5")["sealed_through"] == float(t[5])
