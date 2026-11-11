@@ -5236,6 +5236,7 @@ export default function StockChart({
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
   const liveBarRef = useRef(null)     // Developing bar OHLCV tracked tick-by-tick (survives setData)
   const lastServerCloseRef = useRef(null)  // Last close from CLEAN server bars — poison-proof live-tick baseline
+  const lastServerCloseSymRef = useRef(null)  // the symbol lastServerCloseRef belongs to
   // ── colorByNetChange (TC2000/StockCharts coloring) ── Track the closes needed to
   // color the DEVELOPING bar on live ticks: netPrevCloseRef = close of the bar BEFORE
   // the current last bar (the developing bar's reference); lastNetCloseRef/lastNetTimeRef
@@ -8525,13 +8526,28 @@ export default function StockChart({
       const _sess = getExtSessionCached()
       if (_sess && (_sess.session === 'pre' || _sess.session === 'post')) return null
     } catch { /* fall through — the per-source ext guards below still hold */ }
+    // ⛔⛔ THE SANITY BASELINES MUST BE *THIS* SYMBOL'S (2026-11-11). This runs in the
+    // render that first carries the new symbol, when `lastBarRef` / `lastServerCloseRef`
+    // still hold the PREVIOUS ticker's close (the reset is an effect; the server close is
+    // only replaced when the new symbol paints). So every switch between two names more
+    // than 50% apart in price — META → GOOGL, NFLX → AMD, MU → INTC — rejected the new
+    // name's own seed as a "phantom", refused its cache, and waited a round trip for
+    // /api/bars: the "sometimes ~0.5 s even for liquid tickers" web report. A baseline
+    // that belongs to another symbol is no baseline; fall back to this symbol's own
+    // cached close (the IDB set for this key, else the mem cache), which still catches
+    // the 100x phantom the guard exists for.
+    const _ownCached = (idbBars?.length && idbReadyForRef.current === `${sym}_${_barsTf}`)
+      ? idbBars : memPeek(sym, _barsTf)
+    const _ownClose = _ownCached?.length ? +(_ownCached[_ownCached.length - 1]?.c) : null
+    const _seedLastClose = lastBarSymRef.current === sym ? lastBarRef.current?.close : null
+    const _seedSrvClose = lastServerCloseSymRef.current === sym ? lastServerCloseRef.current : _ownClose
     // 1) Live-price store — the same `day.h`/`day.l` aggregate, at the freshest cadence
     //    UCT has (15s server TTL behind a 2s client poll), and it carries the vendor's
     //    own `observed_at` so the age we report is not a guess.
     try {
       const _snap = (typeof getLivePriceStoreSnapshot === 'function') ? getLivePriceStoreSnapshot()[sym] : null
       const _px = _snap ? _effLivePrice(_snap) : null
-      if (_px && !_snap.ext_session && isSaneLivePrice(_px, lastBarRef.current?.close, lastServerCloseRef.current)
+      if (_px && !_snap.ext_session && isSaneLivePrice(_px, _seedLastClose, _seedSrvClose)
           && _snap.day_open > 0 && _snap.day_high > 0 && _snap.day_low > 0) {
         const _obs = Number(_snap.observed_at)
         return {
@@ -8550,7 +8566,7 @@ export default function StockChart({
     try {
       if (todayPackUsable()) {
         const _tb = getTodayBar(sym)
-        if (_tb && isSaneLivePrice(_tb.c, lastBarRef.current?.close, lastServerCloseRef.current)) {
+        if (_tb && isSaneLivePrice(_tb.c, _seedLastClose, _seedSrvClose)) {
           return { t: _dev, o: _tb.o, h: _tb.h, l: _tb.l, c: _tb.c, src: 'today-pack', ageMs: null }
         }
       }
@@ -13494,7 +13510,7 @@ export default function StockChart({
       // lastBarRef (which a bad tick can bake bad, then good ticks get
       // rejected and the phantom sticks — DDOG 20798 = 100x lock-in),
       // this is ONLY ever set from server data and can't be poisoned.
-      if (Number.isFinite(last.c) && last.c > 0) lastServerCloseRef.current = last.c
+      if (Number.isFinite(last.c) && last.c > 0) { lastServerCloseRef.current = last.c; lastServerCloseSymRef.current = sym }
       // Seed/merge liveBarRef (the ref the push re-top / Writer D re-applies from) with
       // the FETCHED partial bar's FULL open+high+low. Without this, the re-top re-paints
       // the developing bar from a WS rollup that only accumulated since we subscribed,

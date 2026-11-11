@@ -64,6 +64,8 @@ CLOCK_JS = """
   FakeDate.UTC = RealDate.UTC;
   window.Date = FakeDate;
   window.__clockBump = (ms) => { OFFSET += ms };
+  // No intro film (it plays once per day per browser).
+  try { localStorage.setItem('uct_intro_seen_v1', '1'); localStorage.setItem('uct_intro_last_full_et_day', '2026-11-11'); sessionStorage.setItem('uct_intro_seen_session', '1') } catch {}
   // Enter time, captured before any app handler runs.
   window.__enterAt = [];
   window.addEventListener('keydown', (e) => {
@@ -153,7 +155,7 @@ class Fixture:
         if "/api/bars-history/" in path:
             return send({"ticker": "X", "tf": qs.get("tf", "D"), "bars": [], "sealed": True})
         if "/api/auth/me" in path:
-            return send({"user": {"id": 1, "email": "bench@local", "role": "user", "name": "Bench"},
+            return send({"user": {"id": 1, "email": "bench@local", "role": "user", "name": "Bench", "email_verified": True},
                          "plan": "pro"})
         if "/api/maintenance" in path:
             return send({"maintenance": False})
