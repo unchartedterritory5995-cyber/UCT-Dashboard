@@ -29,7 +29,8 @@ export function intradayRows(tf, now, { since = null, from = OPEN } = {}) {
   return out
 }
 
-/** The server's answer for a parsed request at Date.now(). `mode`: ok | behind | nodata | shed | fail */
+/** The server's answer for a parsed request at Date.now().
+ *  `mode`: ok | behind (legacy, 09:40) | behind-unsealed (contract, 09:40, no seal) | nodata | shed | fail */
 export function serverAnswer(q, mode = 'ok') {
   if (mode === 'nodata') return { body: { bars: [], no_data: true } }
   if (mode === 'shed') return { body: { error: 'warming' }, status: 503, headers: { 'Retry-After': '3' } }
@@ -42,6 +43,16 @@ export function serverAnswer(q, mode = 'ok') {
   if (mode === 'behind') {
     // A legacy answer (no contract fields) whose newest row is 09:40: a halt.
     return { body: { ticker: q.sym, tf: q.tf, bars: intradayRows(tf, OPEN + 600, { since: q.since }) } }
+  }
+  if (mode === 'behind-unsealed') {
+    // A contract answer that seals nothing and whose newest row is 09:40 (the server lags).
+    return {
+      body: {
+        ticker: q.sym, tf: q.tf, bars: intradayRows(tf, OPEN + 600, { since: q.since }), contract: 1,
+        grid: 'eth-clock', session: 'rth', cache_key: `b1:${q.sym}:${q.tf}:eth-clock`, series_rev: Date.now(),
+        history_rev: 1, verified_through: null, complete_through: null, tail_status: 'unverified', developing: null,
+      },
+    }
   }
   const bars = intradayRows(tf, now, { since: q.since })
   let C = null

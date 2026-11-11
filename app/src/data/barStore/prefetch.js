@@ -16,14 +16,36 @@
 // invalidate resets it). A request that got no answer (aborted, shed, failed) gives its
 // slot back; the lane's 503 backoff is what paces a shedding server.
 //
+// ⭐ PERSISTED, LIKE THE LEGACY DURABLE WARM. Every answer a warm or prepare gets is written
+// to mem + IDB by persist.js (store.ensure → persist.writeOnce when nobody subscribes), and a
+// hydrate promotes an IDB copy into mem — so legacy synchronous readers (memPeek: the handoff's
+// daily fast path, useDayFacts) see what the facade fetched, and a warm survives the
+// registry's LRU (200 keys) for lists of 500. The cooldown only holds while the key's answer
+// is still held — in the store, or re-hydrated from what persist wrote.
+//
+// ⭐ THE LEGACY WIRE SHAPE. `&warm=1` exactly where legacy sends it (prefetchBars non-urgent,
+// prefetchBar, the durable / deep / replay warms, prepareForDisplay), never on urgent rows,
+// intent, typed or daily-prepare requests; `priority: true` puts a job at the FRONT of its
+// lane rank (barsLaneRequest `front`).
+//
 // ⭐ THE HANDOFF (useSymbolHandoff's contract, unchanged outcomes):
 //   peekDisplayable(sym, tf)   SYNCHRONOUS: peek()?.status ∈ {context, current}. The mem half
 //                              of a hydrate is synchronous, so a neighbour the warmer left in
 //                              memory commits in the same tick, exactly as before.
 //   prepareForDisplay(sym, tf, {signal})  ensure(until context | current | unavailable) →
-//                              'current' | 'authoritative' | 'nodata' | 'error'
+//                              'current' | 'authoritative' | 'nodata' | 'error'. A LOCAL copy
+//                              (no server answer yet) is 'current' only when the legacy paint
+//                              rule accepts it (`isCacheCurrentForView` with the view's session
+//                              — legacy `_paintCurrent`); otherwise the server is asked.
 //   prepareDailyForDisplay(sym, tf, {signal})  D/W/M: any held set paints → 'current' |
-//                              'nodata' | 'error'
+//                              'nodata' | 'error'. Legacy also offered the answer to SWR
+//                              (`preload` of the chart URL); the store has no SWR key — under
+//                              BARSTORE the chart (S1) reads the store key `keyOf({sym, tf})`
+//                              through useBarSnapshot, and mem / IDB via persist.
+//   warmTypedSymbol            legacy `_typedCachePaints` decides 'cache' (with the hydrated
+//                              record's savedAt). S1 ADAPTER ITEM: 'stale-answer' is never
+//                              returned — a late answer is merged monotonically by the reducer,
+//                              so it reports 'network' (pinned by a test).
 //   A prepare OWNS its key while it runs: a facade prefetch of the same key (the handoff's own
 //   `prefetchBarsToIDB(..., {immediate})`) does not add a second waiter, so aborting the
 //   prepare on a symbol switch really cancels the request (network.fetchOnce ref-counts its
@@ -34,14 +56,15 @@
 // parameter shapes (prefetch.facade.test.js derives the list from the app's import graph).
 
 import { getBarStore } from './index'
-import { keyOf, normTf, isIntradayTf, isDateTf, PERIOD_SEC, STATUS } from './types'
+import { keyOf, normTf, isIntradayTf, isDateTf, PERIOD_SEC, STATUS, unixToDateLabel } from './types'
 import { DAILY_POLL_MS } from './network'
 import { fullBarsFor } from '../../utils/barsBackfill'
 import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
+import { isCacheCurrentForView } from '../../utils/marketSession'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
 import {
-  _packStillIngesting, URGENT_MAX_PER_CALL, GRID_WARM_TFS, listPrewarmDisabled,
+  _packStillIngesting, URGENT_MAX_PER_CALL, GRID_WARM_TFS, listPrewarmDisabled, _typedCachePaints,
 } from '../../utils/prefetchBars'
 
 // Lane plumbing the chart imports from the same module — re-exported unchanged so one import
@@ -118,40 +141,63 @@ export function createPrefetch(o = {}) {
 
   /** Hydrate a key nothing has loaded yet (mem part synchronous, IDB part async). */
   function _hydrate(key) {
-    const s = S().peek(key)
+    const st = S()
+    const s = st.peek(key)
     if (s && (s.depth || s.restSeen || s.developing)) return Promise.resolve(s)
-    return S().persist.hydrate(key).catch(() => null).then(() => S().peek(key))
+    // Pinned while it reads, so a herd hydrating more keys than the LRU holds cannot evict
+    // the entry between its cache read and the verdict taken on it.
+    st.registry.acquire(key)
+    return st.persist.hydrate(key).catch(() => null)
+      .then(() => st.peek(key))
+      .finally(() => st.registry.release(key))
   }
 
+  /**
+   * Is `key` inside its re-ask cooldown? Only while its last ANSWER is still held: in the
+   * store (restSeen), or re-hydrated from the copy persist wrote (rows held). A key the LRU
+   * evicted before anything was persisted holds nothing — it is re-asked.
+   */
   function _cooling(key, s) {
     const a = asked.get(key)
     if (!a) return false
-    if (a.gen !== s?.gen || now() - a.at >= cooldownMs(s?.tf ?? key.split('_')[1])) { asked.delete(key); return false }
+    // An INVALIDATE since the answer resets it (gen moved on an entry that says so); a fresh
+    // entry re-hydrated after an LRU eviction has a new gen but was never invalidated.
+    const invalidated = s?.invalidatedFor != null && s.gen !== a.gen
+    const expired = invalidated || now() - a.at >= cooldownMs(s?.tf ?? key.split('_')[1])
+    if (expired || !s || !(s.restSeen || s.depth > 0)) { asked.delete(key); return false }
     return true
   }
   function _noteAsked(key) {
     const a = { at: now(), gen: S().peek(key)?.gen ?? 0 }
+    asked.delete(key)
     asked.set(key, a)
     if (asked.size > COOLDOWN_MAX_KEYS) {
       for (const [k, x] of asked) if (now() - x.at >= DAILY_POLL_MS) asked.delete(k)
+      // …and by SIZE: the oldest entries go first (Map order = insertion order).
+      for (const k of asked.keys()) { if (asked.size <= COOLDOWN_MAX_KEYS) break; asked.delete(k) }
     }
     return a
   }
 
   /**
    * Make `key` reach a status in `until` (default: context | current | unavailable): a held
-   * or hydrated snapshot that already does costs nothing; otherwise ONE request through the
-   * store (joined with any request of the key in flight). Never rejects.
+   * or hydrated snapshot that already does costs nothing (`local: false` — a local copy
+   * never satisfies, only a server answer); otherwise ONE request through the store (joined
+   * with any request of the key in flight), hydrated ONCE (here). Never rejects.
    */
-  async function ensure(key, { until = PREPARED, depth = 0, priority = 'urgent', signal = null, session: sess = session() } = {}) {
+  async function ensure(key, {
+    until = PREPARED, depth = 0, priority = 'urgent', signal = null, session: sess = session(),
+    warm = false, front = false, local = true,
+  } = {}) {
     const s0 = await _hydrate(key)
-    if (_satisfied(s0, until, depth)) return s0
+    if (_satisfied(s0, until, depth) && (local || s0.restSeen)) return s0
     if (signal?.aborted) return S().peek(key)
     const a = _noteAsked(key)
-    const s = await S().ensure(key, { until, depth, priority, signal, session: sess })
+    const s = await S().ensure(key, { until, depth, priority, signal, session: sess, hydrated: true, warm, front })
     // Only an ANSWER starts the cooldown: an aborted request or a shed / failed one gives
     // the slot back (the lane's 503 backoff is what paces a shedding server).
     if ((signal?.aborted || (s?.error && s.error !== 'no_data')) && asked.get(key) === a) asked.delete(key)
+    else if (s) a.gen = s.gen   // the gen the answer landed under
     return s
   }
 
@@ -159,34 +205,34 @@ export function createPrefetch(o = {}) {
    * Warm `keys` to DISPLAYABLE at `priority` (default background). Deduped within a tick,
    * skips keys a prepare owns, respects the re-ask cooldown. Resolves when every warm settles.
    */
-  function prefetch(keys, { priority = 'background', depth = 0, signal = null } = {}) {
+  function prefetch(keys, { priority = 'background', depth = 0, signal = null, warm = false, front = false } = {}) {
     return Promise.all((keys || []).filter(Boolean).map(async (key) => {
       const s0 = await _hydrate(key)
       if (_satisfied(s0, DISPLAYABLE, depth)) return s0
-      if (preparing.get(key) || _cooling(key, S().peek(key))) return S().peek(key)
-      return ensure(key, { until: DISPLAYABLE, depth, priority, signal })
+      if (preparing.get(key) || _cooling(key, s0)) return S().peek(key) ?? s0   // s0: the LRU may have evicted it since
+      return ensure(key, { until: DISPLAYABLE, depth, priority, signal, warm, front })
     }))
   }
 
-  /** Queue warms for the next microtask: one ensure per key, the best priority / depth wins. */
+  /** Queue warms for the next microtask: one ensure per key; the best priority / depth, front
+   *  if any asker wanted it, warm only if every asker sent warm (a non-warm ask is not shed). */
   const RANK = { visible: 0, urgent: 1, grid: 2, background: 3 }
-  function _defer(key, priority, depth = 0, signal = null) {
+  function _defer(key, priority, { depth = 0, warm = false, front = false } = {}) {
     if (!key) return
     if (!batch) {
       batch = new Map()
       queueMicrotask(() => {
         const b = batch
         batch = null
-        for (const [k, j] of b) {
-          prefetch([k], { priority: j.priority, depth: j.depth, signal: j.signal })
-        }
+        for (const [k, j] of b) prefetch([k], j)
       })
     }
     const have = batch.get(key)
-    if (!have) { batch.set(key, { priority, depth, signal }); return }
+    if (!have) { batch.set(key, { priority, depth, warm, front }); return }
     if (RANK[priority] < RANK[have.priority]) have.priority = priority
     have.depth = Math.max(have.depth, depth)
-    if (!signal) have.signal = null   // an unsignalled warm keeps the request alive
+    have.warm = have.warm && warm
+    have.front = have.front || front
   }
 
   // ── the handoff ─────────────────────────────────────────────────────────────
@@ -215,13 +261,24 @@ export function createPrefetch(o = {}) {
     return date ? 'current' : 'authoritative'
   }
 
+  /** Legacy `_paintCurrent`: would the chart paint this LOCAL copy as current for the view? */
+  function _localPaints(s, tf) {
+    if (!s || s.restSeen || !isIntradayTf(normTf(tf))) return false
+    const rows = s.developing ? [...s.bars, s.developing] : s.bars
+    const lastT = rows.length ? rows[rows.length - 1].t : null
+    return isCacheCurrentForView(rows, lastT, normTf(tf), { session: extended() ? 'extended' : 'rth', nowMs: now() })
+  }
+
   async function prepareForDisplay(sym, tf, { signal = null } = {}) {
     const key = keyFor(sym, tf)
     if (!key) return 'error'
     _own(key)
     try {
       const date = isDateTf(normTf(tf) ?? fetchTf(String(tf)))
-      const s = await ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'urgent', signal })
+      const s0 = await _hydrate(key)
+      if (_localPaints(s0, fetchTf(String(tf)))) return 'current'   // legacy: no request
+      // Otherwise only a SERVER answer prepares it (legacy asks with `&warm=1`).
+      const s = await ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'urgent', signal, warm: true, local: false })
       return _outcome(s, { aborted: !!signal?.aborted, date })
     } catch {
       return 'error'
@@ -246,13 +303,12 @@ export function createPrefetch(o = {}) {
   }
 
   // ── the legacy warmers, as store prefetches ────────────────────────────────
-  function _many(tickers, tf, priority, depth = 0) {
-    for (const sym of tickers) { _defer(keyFor(sym, tf), priority, depth); tickerMeta(sym) }
+  function _many(tickers, tf, priority, opts = {}) {
+    for (const sym of tickers) { _defer(keyFor(sym, tf), priority, opts); tickerMeta(sym) }
   }
 
   function prefetchBars(tickers, tf = 'D', { priority = false, urgent = false } = {}) {
     if (!tickers?.length) return
-    void priority   // legacy queue order only; the lane orders by rank, then arrival
     const syms = tickers.filter(Boolean)
     const nUrgent = urgent ? Math.min(URGENT_MAX_PER_CALL, syms.length) : 0
     if (urgent) {
@@ -265,22 +321,22 @@ export function createPrefetch(o = {}) {
         if (!k) continue
         if (!urgentCtl.has(k)) urgentCtl.set(k, new AbortController())
         const c = urgentCtl.get(k)
-        prefetch([k], { priority: 'urgent', signal: c.signal }).finally(() => { if (urgentCtl.get(k) === c) urgentCtl.delete(k) })
+        // Legacy: the chart's own URL (no `&warm`), at the head of the queue.
+        prefetch([k], { priority: 'urgent', signal: c.signal, front: true }).finally(() => { if (urgentCtl.get(k) === c) urgentCtl.delete(k) })
         tickerMeta(sym)
       }
     }
-    _many(syms.slice(nUrgent), tf, 'background')
+    _many(syms.slice(nUrgent), tf, 'background', { warm: true, front: !!priority })
   }
 
   function prefetchBar(sym, tf = 'D') {
     if (!sym) return
-    _many([sym], tf, 'background')
+    _many([sym], tf, 'background', { warm: true })
   }
 
   function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immediate = false, visible = false } = {}) {
     if (!tickers?.length) return
-    void priority
-    _many(tickers.filter(Boolean), tf, immediate ? 'urgent' : (visible ? 'grid' : 'background'))
+    _many(tickers.filter(Boolean), tf, immediate ? 'urgent' : (visible ? 'grid' : 'background'), { warm: true, front: !!priority })
   }
 
   function prefetchAllTimeframes(sym) {
@@ -298,7 +354,7 @@ export function createPrefetch(o = {}) {
   function prefetchGridWarm(tickers) {
     if (!tickers?.length) return
     const list = [...new Set(tickers.filter(Boolean))].slice(0, SCAN_WARM_CAP)
-    for (const tf of GRID_WARM_TFS) _many(list, tf, 'grid')
+    for (const tf of GRID_WARM_TFS) _many(list, tf, 'grid', { warm: true })
   }
 
   /** IDB → store, no network (the legacy IDB → mem promotion). */
@@ -325,7 +381,7 @@ export function createPrefetch(o = {}) {
     if (!tickers?.length) return
     const list = [...new Set(tickers.filter(Boolean))].slice(0, cap)
     for (const tf of tfs) {
-      for (const sym of list) _defer(keyFor(sym, tf), priority ? 'grid' : 'background', fullBarsFor(tf) || 0)
+      for (const sym of list) _defer(keyFor(sym, tf), 'background', { depth: fullBarsFor(tf) || 0, warm: true, front: !!priority })
     }
     for (const sym of list) tickerMeta(sym)
   }
@@ -335,7 +391,7 @@ export function createPrefetch(o = {}) {
     if (!sym || !cutoffIso || !/^\d{4}-\d{2}-\d{2}$/.test(String(cutoffIso))) return
     const [y, m, d] = String(cutoffIso).split('-').map(Number)
     const to = Date.UTC(y, m - 1, d, 17) / 1000   // 12:00/13:00 ET: its ET date is the cutoff
-    for (const tf of REPLAY_WARM_TFS) _defer(keyFor(sym, tf, { window: { to } }), 'background', bars)
+    for (const tf of REPLAY_WARM_TFS) _defer(keyFor(sym, tf, { window: { to } }), 'background', { depth: bars, warm: true })
   }
 
   function prefetchBarOnIntent(sym, tf = 'D', { delay = 120 } = {}) {
@@ -369,10 +425,14 @@ export function createPrefetch(o = {}) {
     return (async () => {
       const s0 = await _hydrate(key)
       if (typed !== mine) return 'superseded'
-      if (s0?.depth && DISPLAYABLE.includes(s0.status)) return 'cache'
+      // Legacy `_typedCachePaints`: the chart's daily paint authority, with the record's savedAt.
+      if (s0?.depth) {
+        const last = s0.developing ? s0.developing.t : s0.bars[s0.bars.length - 1].t
+        if (_typedCachePaints(key.split('_')[0], String(tf), unixToDateLabel(last), S().persist.savedAtOf?.(key) ?? null)) return 'cache'
+      }
       // ⛔ A PREFIX IS NOT A TICKER: with the pack held, uncached text is a partial word.
       if (!s0?.depth && !packIngesting()) return 'unknown'
-      const s = await ensure(key, { until: DISPLAYABLE, priority: 'urgent', signal: ctl.signal })
+      const s = await ensure(key, { until: DISPLAYABLE, priority: 'urgent', signal: ctl.signal, local: false })
       if (ctl.signal.aborted && !mine.kept) return false
       return s?.restSeen && !s.error && s.depth ? 'network' : false
     })().catch(() => false).finally(() => { if (typed === mine) typed = null })

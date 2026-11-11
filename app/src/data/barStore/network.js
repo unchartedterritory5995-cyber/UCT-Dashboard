@@ -37,7 +37,7 @@
 // ⭐ THE ONE /api/bars URL BUILDER of the BarStore is `barsUrl` below (rails: one-url census
 // owner). No other barStore file spells the endpoint.
 
-import { barsLaneRequest, barsBeforeUrl } from '../../utils/prefetchBars'
+import { barsLaneRequest, barsBeforeUrl, promoteLaneRequest } from '../../utils/prefetchBars'
 import { historyWindowUrl, prependOlder, etDateOf, HISTORY_WINDOW_BARS } from '../../utils/historyPrepend'
 import {
   nextTailPollMs, createTailPollState, intradayDedupMs, INTRADAY_POLL_MS, REPAIR_DEDUP_MS,
@@ -155,7 +155,7 @@ const _isAbort = (e) => e?.name === 'AbortError'
  * @param {(url:string, opts:{priority:string, signal:AbortSignal}) => Promise<object>} [o.request]
  */
 export function createNetwork({
-  registry, request = barsLaneRequest,
+  registry, request = barsLaneRequest, promote = promoteLaneRequest,
   setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (h) => clearTimeout(h),
   now = () => Date.now(), isHidden = _defaultHidden, onVisible = _defaultOnVisible,
   dailyPollMs = DAILY_POLL_MS,
@@ -181,7 +181,7 @@ export function createNetwork({
   const _session = (r) => ([...r.sessions.keys()].includes('eth') ? 'eth' : 'rth')
 
   // ── one request ───────────────────────────────────────────────────────────
-  function _tailJob(r, priority) {
+  function _tailJob(r, priority, { warm = false, front = false } = {}) {
     const s = registry.getSnapshot(r.key)
     const p = parseKey(r.key)
     const gen = s.gen
@@ -189,7 +189,9 @@ export function createNetwork({
     const bars = barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session })
     const from = deltaStartFor(s, p)
     const delta = from != null && deltaWithinBudget(p.tf, from, now(), bars)
-    const url = barsUrl(r.key, { bars, since: delta ? from - 1 : null, session })
+    // `&warm=1` (a best-effort warm the server may skip / shed under load) exactly where the
+    // legacy warmers send it; never on a subscriber's own poll.
+    const url = barsUrl(r.key, { bars, since: delta ? from - 1 : null, session }) + (warm ? '&warm=1' : '')
     return _send(r, 'tail', url, priority, async (json) => {
       if (json?.no_data) {
         registry.dispatch(r.key, { type: ACTION.REST_ERROR, key: r.key, gen, payload: { error: 'no_data', terminal: true } })
@@ -202,7 +204,7 @@ export function createNetwork({
       const type = delta ? ACTION.REST_DELTA : ACTION.REST_FULL
       registry.dispatch(r.key, { type, key: r.key, gen, payload: delta ? { ...json, since: from } : json })
       return { ok: true, delta, retryAfterSec: json.retry_after ?? null }
-    }, gen)
+    }, { front })
   }
 
   function _scrollJob(r, opts) {
@@ -219,17 +221,17 @@ export function createNetwork({
       if (prependOlder(before.bars, json.bars) === before.bars) return { ok: true, added: 0, refused: true }
       const after = registry.dispatch(r.key, { type: ACTION.SCROLL_BACK, key: r.key, gen, payload: json })
       return { ok: true, added: after.depth - before.depth }
-    }, gen)
+    })
   }
 
-  function _send(r, kind, url, priority, onJson) {
+  function _send(r, kind, url, priority, onJson, { front = false } = {}) {
     const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
     r.lastStart = now()
     requests++
     const promise = (async () => {
       let json
       try {
-        json = await request(url, { priority, signal: ac?.signal ?? null })
+        json = await request(url, { priority, signal: ac?.signal ?? null, ...(front ? { front: true } : {}) })
       } catch (e) {
         if (_isAbort(e) || ac?.signal.aborted) return { aborted: true }
         const gen = registry.getSnapshot(r.key).gen
@@ -241,7 +243,7 @@ export function createNetwork({
       if (ac?.signal.aborted) return { aborted: true }   // a joined request outlived our abort
       return onJson(json)
     })()
-    r.inflight = { ac, kind, promise }
+    r.inflight = { ac, kind, promise, url, priority }
     promise.finally(() => {
       if (r.inflight?.promise === promise) r.inflight = null
       _drain(r)
@@ -253,16 +255,28 @@ export function createNetwork({
   function _drain(r) {
     if (r.inflight || !r.queue.length) return
     const job = r.queue.shift()
-    job.run().then(job.resolve, job.resolve)
+    job.started = job.run()
+    job.started.then(job.resolve, job.resolve)
   }
 
-  /** A tail request for `r` — joins the one in flight. */
-  function _tail(r, priority = r.priority) {
-    if (r.inflight?.kind === 'tail') return r.inflight.promise
-    if (r.inflight) {
-      return new Promise((resolve) => { r.queue.push({ run: () => _tailJob(r, priority), resolve }) })
+  /** A tail request for `r` — joins the one in flight; queued (its `.job`) behind a scroll-back. */
+  function _tail(r, priority = r.priority, opts = {}) {
+    if (r.inflight?.kind === 'tail') {
+      // Joining a request still WAITING in the lane at a worse rank (a warm, then the chart
+      // mounts): it is raised to the joiner's rank — the chart never waits behind the herd.
+      if ((_RANK[priority] ?? 3) < (_RANK[r.inflight.priority] ?? 3)) {
+        r.inflight.priority = priority
+        try { promote?.(r.inflight.url, priority) } catch { /* the lane is best-effort here */ }
+      }
+      return r.inflight.promise
     }
-    return _tailJob(r, priority)
+    if (r.inflight) {
+      const job = { run: () => _tailJob(r, priority, opts), resolve: null, started: null }
+      const out = new Promise((resolve) => { job.resolve = resolve; r.queue.push(job) })
+      out.job = job
+      return out
+    }
+    return _tailJob(r, priority, opts)
   }
 
   // ── the loop ──────────────────────────────────────────────────────────────
@@ -351,19 +365,27 @@ export function createNetwork({
      * flight is aborted only when the last one-shot waiter has left AND no subscriber holds
      * the key — a prefetch or a mounted chart riding the same request never loses it.
      */
-    fetchOnce(key, { priority = 'urgent', depth = 0, session = 'rth', signal = null } = {}) {
+    fetchOnce(key, { priority = 'urgent', depth = 0, session = 'rth', signal = null, warm = false, front = false } = {}) {
       if (signal?.aborted) return Promise.resolve({ aborted: true })
       const r = _rec(key)
       r.depth = Math.max(r.depth, depth || 0)
       if (!r.sessions.size) r.sessions.set(session, 0)
-      const out = _tail(r, priority)
+      // A key a chart is subscribed to is LIVE: a one-shot ask of it rides the chart's rank and
+      // never goes out as a shed-able `&warm=1` warm.
+      const live = r.refs > 0
+      const out = _tail(r, live ? _best(r.priority, priority) : priority, live ? { front } : { warm, front })
       r.once = (r.once || 0) + 1
       let left = false
       const leave = () => { if (!left) { left = true; r.once-- } }
       const onAbort = () => {
         leave()
+        // Still QUEUED (behind a scroll-back): the job is this caller's alone — drop it, so it
+        // never reaches the network.
+        const qi = out.job ? r.queue.indexOf(out.job) : -1
+        if (qi >= 0) { r.queue.splice(qi, 1); out.job.resolve({ aborted: true }); return }
         if (r.once > 0 || r.refs > 0) return
-        if (r.inflight?.kind === 'tail' && r.inflight.promise === out) { r.inflight.ac?.abort(); r.inflight = null }
+        const running = out.job ? out.job.started : out
+        if (r.inflight?.kind === 'tail' && r.inflight.promise === running) { r.inflight.ac?.abort(); r.inflight = null }
       }
       signal?.addEventListener?.('abort', onAbort, { once: true })
       out.finally(() => { signal?.removeEventListener?.('abort', onAbort); leave(); _gc(r) })
