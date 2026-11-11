@@ -863,7 +863,7 @@
   "drawing.favoriteTool": {
    "domain": "drawing",
    "group": "drawingExtras",
-   "target": "drawToolFavorites",
+   "target": "chart",
    "risk": "local",
    "reversible": true,
    "undo": "exact",
