@@ -13,11 +13,18 @@ const preloadMock = vi.fn()
 vi.mock('swr', () => ({ preload: (...a) => preloadMock(...a) }))
 
 const idbState = { entry: undefined, put: vi.fn(async () => {}) }
-vi.mock('./barsIDB', () => ({
+vi.mock('./barsIDB', async () => { const { mergeMonotonic } = await vi.importActual('./barsMerge'); return {
   idbGet: vi.fn(async () => idbState.entry),
   idbPut: (...a) => idbState.put(...a),
+  // The monotonic compare-and-write merges into the entry held NOW (review #1095).
+  idbPutMonotonic: async (sym, tf, bars, opts) => {
+    const next = mergeMonotonic(idbState.entry?.bars ?? null, bars, opts)
+    if (!next?.length) return null
+    await idbState.put(sym, tf, next)
+    return next
+  },
   mergeDelta: (a, b) => [...a, ...b],
-}))
+} })
 vi.mock('../hooks/useTickerMeta', () => ({ prefetchTickerMeta: vi.fn() }))
 
 import { prepareForDisplay, prepareDailyForDisplay, _isAuthoritativeAnswer, _noteWarmResult } from './prefetchBars'

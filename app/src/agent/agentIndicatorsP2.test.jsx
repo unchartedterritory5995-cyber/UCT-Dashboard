@@ -14,7 +14,7 @@ import { decideMode } from './policy'
 import { commitPlan, undoEntry } from './runtime'
 import { fastParse } from './fastPath'
 import { setOwnedDefinitionSource, _resetProposedPlans } from './capabilities/indicatorEdits'
-import { setDefinitionDeps } from './capabilities/definitions'
+import { setDefinitionDeps, definitionLibraryKind } from './capabilities/definitions'
 import { AuthContext } from '../context/AuthContext'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { adoptOverlayAverages } from '../components/chart/maAdoption'
@@ -231,6 +231,56 @@ describe('definition.* — uct.indicators.definitions/1', () => {
     const b = board()
     expect((await plan(b.host, [{ action: 'definition.delete', target: 'definitions', args: { defId: 'rsi' } }], lib)).p.refusals[0].reason).toMatch(/Built-in indicators cannot be deleted/)
     expect((await plan(b.host, [{ action: 'definition.delete', target: 'definitions', args: { defId: 'u_ffffffffffff' } }], lib)).p.refusals[0].reason).toMatch(/don’t know that indicator/)
+  })
+  // ⛔ F-15 follow-up — the member must READ the true sentence. A refusal Indicators returns as
+  // `unconfirmed` reached the member as "could not read it back" + "some changes could not be
+  // reversed"; a restore refusal's own reason was replaced by "something already holds it again".
+  it('F-15: deleting a copy installed from a share is refused in its own words, and nothing is left changed', async () => {
+    const srv = server()
+    const row = srv.rows.get(MINE)
+    row.definition = { ...row.definition, meta: { ...(row.definition.meta || {}), engineVersion: 1 },
+      origin: { author_id: 'author-1', def_id: 'u_dddddddddddd', version: 3, ast_hash: 'h', table_version: 1 } }
+    row.has_pine_source = false
+    setDefinitionDeps(srv)
+    const b = board()
+    const { p, env } = await plan(b.host, [{ action: 'definition.delete', target: 'definitions', args: { defId: MINE } }], lib)
+    expect(p.ok, JSON.stringify(p.refusals)).toBe(true)
+    const res = await commitPlan(b.host, p, { env, ctx: CTX })
+    expect(res.ok).toBe(false)
+    // ⛔ THE EXACT TEXT THE MEMBER READS (useAgent: `${label} ${reason}` inside "Some of that didn't
+    // take effect: …."), each fact once: no "nothing was deleted" beside "nothing was left changed".
+    expect(`${res.failed[0].label} ${res.failed[0].reason}`).toBe('Your indicators failed (That can’t be done: this indicator is a copy shared with you, and a shared copy never carries the author’s Pine script, so a delete could not be undone exactly) — nothing was left changed')
+    expect(srv.rows.get(MINE).live).toBe(true)
+  })
+  it('F-15: an Undo that cannot be exact says WHY, each fact once (the exact text the member reads)', async () => {
+    const srv = server()
+    const row = srv.rows.get(MINE)
+    // a stamped Pine import WITH its script deletes; its Undo record then loses the script (a record
+    // made before F-15), so the Undo is refused before anything is written
+    row.definition = { ...row.definition, meta: { ...(row.definition.meta || {}), engineVersion: 1 } }
+    row.pine_source = '//@version=5\nindicator("x")\nplot(close)'
+    row.has_pine_source = true
+    setDefinitionDeps(srv)
+    const b = board()
+    const { res } = await run(b.host, [{ action: 'definition.delete', target: 'definitions', args: { defId: MINE } }], lib)
+    expect(srv.rows.get(MINE).live).toBe(false)
+    delete res.undo.items[0].undoData.pineSource
+    const back = await undoEntry(b.host, res.undo)
+    expect(back.ok).toBe(false)
+    expect(back.reason).toBe('Your indicators could not be undone (It can’t be restored exactly: the indicator’s saved script was not kept). Nothing was undone.')
+    expect(srv.rows.get(MINE).live).toBe(false)
+  })
+  it('F-15: the other Undo refusal reads once too (legacy import record)', async () => {
+    const srv = server()
+    const row = srv.rows.get(MINE)
+    row.live = false
+    setDefinitionDeps(srv)
+    const b = board()
+    const legacy = { ...row.definition, meta: { ...(row.definition.meta || {}), recurrenceOrigin: R.PINE_RECURRENCE_ORIGIN } }
+    const record = { contract: 'uct.indicators.definitions/1', kind: 'undo', op: 'delete', defId: MINE, name: 'My Breakout Dots', definition: legacy, repaint: false }
+    await expect(definitionLibraryKind.commit(b.host, 'definitions', { undo: record }))
+      .rejects.toThrow(/^It can’t be restored exactly: it was imported from Pine before its script was kept$/)
+    expect(srv.rows.get(MINE).live).toBe(false)
   })
 })
 
