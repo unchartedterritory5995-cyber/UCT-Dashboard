@@ -200,13 +200,19 @@ def test_every_manifest_capability_is_inside_the_server_schema_subset():
     assert _outside_subset(CAPS) == {}, "these actions would be dropped by the server (bounds belong in code)"
 
 
-def test_control_a_planted_minitems_capability_fails_the_rail_and_is_dropped_loudly(caplog):
-    base = BY["agent.capabilities"]
-    planted = json.loads(json.dumps(base))
-    planted["name"] = "drawing.plantedControl"
+def _planted(name="drawing.plantedControl"):
+    planted = json.loads(json.dumps(BY["agent.capabilities"]))
+    planted["name"] = name
     planted["args"] = {"type": "object", "additionalProperties": False, "required": ["levels"],
                        "properties": {"levels": {"type": "array", "minItems": 1, "maxItems": 3,
                                                  "items": {"type": "string", "enum": ["stop", "target"]}}}}
+    return planted
+
+
+def test_control_a_planted_minitems_capability_fails_the_rail_and_is_dropped_loudly(caplog, monkeypatch):
+    monkeypatch.setattr(turn, "_SCHEMA_DROP_LOGGED", set())
+    base = BY["agent.capabilities"]
+    planted = _planted()
     assert _outside_subset(CAPS + [planted]) == {
         "drawing.plantedControl": ["args.levels: unsupported keyword(s) maxItems, minItems"]}
     with caplog.at_level("ERROR", logger=turn.__name__):
@@ -226,3 +232,14 @@ def test_schema_problems_names_each_kind_of_violation():
     assert turn.schema_problems({"type": "object", "properties": {"x": {"anyOf": [{"type": "null"}, {"type": "string", "pattern": "^a"}]}},
                                  "required": ["x"], "additionalProperties": False}) == [
         "args.x.anyOf[1]: unsupported keyword(s) pattern"]
+
+
+def test_a_dropped_capability_is_logged_once_per_process_but_dropped_every_turn(caplog, monkeypatch):
+    monkeypatch.setattr(turn, "_SCHEMA_DROP_LOGGED", set())
+    base, planted = BY["agent.capabilities"], _planted("drawing.plantedOnce")
+    with caplog.at_level("ERROR", logger=turn.__name__):
+        first = turn.validate_manifest([base, planted])
+        second = turn.validate_manifest([base, planted])
+    assert [c["name"] for c in first] == [c["name"] for c in second] == [base["name"]]
+    errors = [r for r in caplog.records if r.levelname == "ERROR" and "drawing.plantedOnce" in r.getMessage()]
+    assert len(errors) == 1

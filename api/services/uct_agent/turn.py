@@ -177,6 +177,10 @@ def nl1_stable_names(routing: Any, capabilities: Any) -> set[str]:
         return set()
     return {str(c.get("name")) for c in capabilities[:n] if isinstance(c, dict) and c.get("name")}
 
+#: (capability name, reason) pairs already logged by validate_manifest's schema drop — one ERROR each per process
+_SCHEMA_DROP_LOGGED: set[tuple[str, str]] = set()
+
+
 def schema_problems(node: Any, path: str = "args", depth: int = 0) -> list[str]:
     """Why a capability's args schema is outside the structured-output-safe subset (every object closed and fully
     required; only the _SCHEMA_KEYS keywords). Empty = accepted. Each problem names the path and the keyword, so a
@@ -241,10 +245,13 @@ def validate_manifest(caps: Any, limit: int = MAX_CAPABILITIES) -> list[dict]:
         problems = (["args: not an object schema"] if not (isinstance(args, dict) and args.get("type") == "object")
                     else schema_problems(args))
         if problems:
-            # ⛔ NEVER A SILENT DROP: the action is left out (the model can't call it), so say which and why. The
-            # contract rail (tests/test_uct_agent_contract.py) fails CI before a shipped manifest can get here.
-            log.error("[uct-agent] capability %s left out: args schema outside the server's subset: %s",
-                      name, "; ".join(problems[:5]))
+            # ⛔ NEVER A SILENT DROP: the action is left out (the model can't call it), so say which and why — ONCE
+            # per capability and reason per process (this runs on every turn). The contract rail
+            # (tests/test_uct_agent_contract.py) fails CI before a shipped manifest can get here.
+            reason = "; ".join(problems[:5])
+            if (name, reason) not in _SCHEMA_DROP_LOGGED:
+                _SCHEMA_DROP_LOGGED.add((name, reason))
+                log.error("[uct-agent] capability %s left out: args schema outside the server's subset: %s", name, reason)
             continue
         if len(json.dumps(c)) > MAX_CAP_BYTES:
             log.warning("[uct-agent] capability %s is over %d bytes and was left out", name, MAX_CAP_BYTES)
