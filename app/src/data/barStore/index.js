@@ -120,7 +120,8 @@ export function createBarStore(o = {}) {
       }
     },
     prefetch(keys, { priority = 'background', depth = 0 } = {}) {
-      return Promise.all((keys || []).map((k) => api.ensure(k, { priority, depth }).catch(() => null)))
+      // ensure never rejects (network.js turns every failure into a REST_ERROR action)
+      return Promise.all((keys || []).map((k) => api.ensure(k, { priority, depth })))
     },
     invalidate(keyOrPred, reason = 'invalidate') {
       const match = typeof keyOrPred === 'function' ? keyOrPred : (k) => k === keyOrPred
