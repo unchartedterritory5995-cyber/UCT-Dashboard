@@ -147,6 +147,8 @@ const createdIds = (item) => {
 
 export const workspaceKind = {
   name: 'workspace',
+  source: 'widgets',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Board widgets aren't available on this page — open the Charts board to change its widgets.",
   list: (host) => (host?.widgets ? [host.widgets.snapshot()] : []),
   read: (host, ref) => (host?.widgets && ref === 'workspace' ? host.widgets.snapshot() : null),
   stateOf: (snap) => ({ creates: [], ids: snap.widgets.map(w => w.id) }),

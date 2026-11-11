@@ -398,6 +398,9 @@ const fail = (msg, { unreverted = false } = {}) => Object.assign(new Error(msg),
 
 export const indicatorEditsKind = {
   name: 'indicatorEdits',
+  source: 'charts',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Indicators aren't available on this page — open Charts to change a chart's indicators.",
+  empty: "There are no charts on this board yet.",
   noun: 'chart',                 // what a local "which one?" asks for
   // Its target IS a chart: the mutation policy counts "this chart's indicators" and "this chart" as one.
   groupOf: (ref) => chartRefOf(ref) ?? ref,
