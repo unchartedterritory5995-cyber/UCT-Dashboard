@@ -110,7 +110,8 @@ const stem = (w) => w.replace(/ies$/, 'y').replace(/([^s])s$/, '$1').replace(/(i
 /** The concepts these words carry → Set of concept ids (and, for a word no concept knows, `~stem`). */
 export function conceptsOf(text) {
   // a key chord names keys, not things ("Alt+Shift+W" moves nothing)
-  const q = ` ${String(text || '').toLowerCase().replace(/[’']/g, "'").replace(/\b(?:ctrl|alt|shift|cmd|meta)(?:\s*\+\s*[\w-]+)+/g, ' ').replace(ASKING, ' ')} `
+  // and "right-click" is a click, not the word "right" (which the watermark's Alignment reads)
+  const q = ` ${String(text || '').toLowerCase().replace(/[’']/g, "'").replace(/\b(?:ctrl|alt|shift|cmd|meta)(?:\s*\+\s*[\w-]+)+/g, ' ').replace(/\bright[- ]?(click\w*)/g, '$1').replace(ASKING, ' ')} `
   const out = new Set()
   for (const c of CONCEPTS) if (c.re.test(q)) out.add(c.id)
   // the words no concept took: the product's own names ("heikin", "watermark") match only themselves

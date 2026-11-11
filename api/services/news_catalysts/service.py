@@ -13,6 +13,7 @@ Unified event: {date, type:'catalyst'|'earnings'|'breaking', direction:'up'|'dow
 |'neutral', title, description, move_pct?, source, url?, ts}.
 """
 from __future__ import annotations
+from api.services import llm_models
 
 import json
 import logging
@@ -32,7 +33,7 @@ _logger = logging.getLogger(__name__)
 HIST_PERIOD = "ytd2026_v10"  # v10 = drop vague 'moved on optimism' non-catalysts
 YTD_LO = "2026-01-01"
 
-_MODEL = os.environ.get("NEWS_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
+_MODEL = os.environ.get("NEWS_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", llm_models.SONNET)
 _TWEET_HOURS = int(os.environ.get("NEWS_TWEET_WINDOW_HOURS", "48") or 48)
 # Only the real news WIRES carry breaking catalysts — not the lower-signal
 # aggregator/retail accounts the tweet store also ingests (AIStockSavvy,

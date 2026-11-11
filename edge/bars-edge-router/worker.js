@@ -21,7 +21,10 @@
  *   /api/bars/US:*  → WEB_ORIGIN   (and every other namespaced breadth identity)
  *   /api/bars/<sym> → BARS_ORIGIN  (the bars-api tier)
  *   anything else   → pass through to the zone's default origin (web)
- *   BARS_ORIGIN >=500 or timeout → fall back to WEB_ORIGIN
+ *   BARS_ORIGIN network error / timeout / 502 / 504 / any NON-deliberate 5xx
+ *                   → fall back to WEB_ORIGIN
+ *   BARS_ORIGIN DELIBERATE 503 (warming / warm-shed + Retry-After) → straight to
+ *                   the browser, X-Bars-Edge: tier (see `isDeliberateTierShed`)
  *
  * ⛔ NOTE WHAT THE FALLBACK DOES **NOT** COVER: 401/403 pass straight through to
  * the member. That single line is why the 2026-09-13 tier gate was a visible
@@ -53,6 +56,33 @@ const BARS_TIMEOUT_MS = 8000;
 const MARKET_INDICATOR_SYMBOLS = new Set([
   "VIX9D", "VIX3M", "VIX6M", "VVIX", "VXN", "RVX", "SKEW", "NAAIM",
 ]);
+
+// ── tier 5xx classification (2026-11-10) ────────────────────────────────────
+// ⛔⛔ A DELIBERATE 503 IS AN ANSWER, NOT A FAILURE. bars-api answers 503 +
+// Retry-After on purpose when it has STARTED a bounded cold fetch (`warming`) or
+// shed a best-effort `warm=1` prefetch under load (`warm-shed`): "re-poll in ~3s,
+// the rows are landing HERE". Re-asking WEB_ORIGIN for it was strictly worse: a
+// different bars.db and a different per-process verified_through, so the member
+// got a second cold fetch (or an older tail) instead of the tier's rows on the
+// re-poll, and the tier's shed protection was defeated by doubling the load.
+// ⭐ Only a real tier failure falls back: network error / timeout / 502 / 504, or
+// a 5xx that does NOT identify itself as a deliberate shed (crash, fault 503s).
+export const TIER_SHED_HEADER = "X-Bars-Shed";
+const DELIBERATE_SHED_REASONS = new Set(["warming", "warm-shed"]);
+
+export async function isDeliberateTierShed(r) {
+  if (!r || r.status !== 503) return false;
+  if (!r.headers.get("Retry-After")) return false;
+  const tag = (r.headers.get(TIER_SHED_HEADER) || "").trim().toLowerCase();
+  if (tag) return DELIBERATE_SHED_REASONS.has(tag);
+  // A tier that predates the header: recognise the warming body by name (tiny JSON).
+  try {
+    const body = await r.clone().json();
+    return !!body && (body.warming === true || body.error === "warming");
+  } catch (_e) {
+    return false;
+  }
+}
 
 // ── chart edge entitlement (shadow) ─────────────────────────────────────────
 // Mirrors api/chart_edge_token.py. The two are proven equal by
@@ -280,7 +310,7 @@ export default {
       const t = setTimeout(() => ac.abort(), BARS_TIMEOUT_MS);
       const r = await fetch(target(BARS_ORIGIN), { ...opts, signal: ac.signal });
       clearTimeout(t);
-      if (r.status >= 500) throw new Error("bars-api " + r.status);
+      if (r.status >= 500 && !(await isDeliberateTierShed(r))) throw new Error("bars-api " + r.status);
       const out = new Response(r.body, r); out.headers.set("X-Bars-Edge", "tier"); return out;
     } catch (_e) {
       const r = await fetch(target(WEB_ORIGIN), opts);

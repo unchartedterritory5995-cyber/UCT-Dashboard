@@ -9,7 +9,6 @@ import { commitPlan, undoEntry } from './runtime'
 import { buildDrawingSource } from './host'
 import { _resetAlertCache } from './capabilities/alert'
 import * as store from '../components/chart/drawingsStore'
-import { ET_OFFSET } from '../components/chart/barTime'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -25,7 +24,7 @@ async function run(h, ops) {
   return { p, env, res: p.ok ? await commitPlan(h, p, { env }) : null }
 }
 const peek = () => store.peekDrawings(SYM)
-const open930 = (y, m, d) => Date.UTC(y, m - 1, d, 13, 30) / 1000 + ET_OFFSET    // October: 09:30 EDT
+const open930 = (y, m, d) => Date.UTC(y, m - 1, d, 13, 30) / 1000    // October: 09:30 EDT, RAW unix (drawingTimeBase.js)
 const ADD = (tool, points) => op('drawing.add', { tool, points, color: null, style: null })
 const pt = (date, price) => ({ date, price })
 

@@ -140,6 +140,23 @@ def stream_alive() -> bool:
     return t is not None and (_now_mono() - t) <= STREAM_ALIVE_S
 
 
+def proven_through_s(ticker: str) -> Optional[int]:
+    """Unix seconds through which the universe stream PROVES `ticker`'s 5m series
+    complete: the end of the newest minute the (alive) stream has delivered for the
+    whole market, for a ticker covered in this epoch. A thin name that printed
+    nothing since its tail has, by this proof, nothing newer. None = no proof (flag
+    off, not covered, stream silent, or no minute delivered yet this epoch)."""
+    if not enabled():
+        return None
+    sym = (ticker or "").upper()
+    if sym not in _covered5 or not stream_alive():
+        return None
+    wm = _state["watermark_ms"]
+    if not wm:
+        return None
+    return int(wm) // 1000 + 60
+
+
 def daily_alive() -> bool:
     t = _state["daily_last_ok_mono"]
     return t is not None and (_now_mono() - t) <= DAILY_ALIVE_S

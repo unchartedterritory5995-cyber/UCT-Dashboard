@@ -5346,7 +5346,8 @@ export default function OptionsFlowDashboard() {
     // Fetch AI narrative
     setNarrativeLoading(true);
     try {
-      const resp = await fetch(API_BASE+"/api/schwab/market-narrative");
+      // Bounded, as in OptionsFlow.jsx: the loading dot pulses while this is pending.
+      const resp = await fetch(API_BASE+"/api/schwab/market-narrative", { signal: AbortSignal.timeout(15000) });
       if (resp.ok) {
         const data = await resp.json();
         setMarketNarrative(data.narrative || null);
