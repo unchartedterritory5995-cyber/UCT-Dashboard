@@ -6952,6 +6952,25 @@ export default function StockChart({
   const resetViewRef = useRef(null)
   resetViewRef.current = doResetView
 
+  // The price axis menu's Auto-scale, lifted to the component body so the menu row AND the UCT Agent
+  // (chartSetup.autoScale, through onDateNavApi) share ONE writer. It fits the price scale only: the time window stays.
+  const doAutoScale = () => {
+    try {
+      // Clear any locked vertical placement and restore the default candle band.
+      vertMarginsRef.current = null
+      // Also release a manual price-axis drag pin (see resetView) — otherwise its
+      // autoscaleInfoProvider forces the dragged range back and autoScale is a no-op.
+      priceManualRef.current = false
+      priceManualRangeRef.current = null
+      mainPriceScale()?.applyOptions({
+        autoScale: true,
+        scaleMargins: _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volumePaneExists ? priceScaleBottomMargin : null),
+      })
+    } catch {}
+  }
+  const autoScaleRef = useRef(null)
+  autoScaleRef.current = doAutoScale
+
   // Position the floating "scroll to present" button JUST ABOVE the grey upcoming-
   // earnings badge (which pins to the right edge at the bottom of the price pane when
   // today is off-screen). Uses the badge primitive's live pixel rect; falls back to
@@ -7040,20 +7059,8 @@ export default function StockChart({
     // Same implementation as the floating "scroll to present" button (doResetView,
     // lifted to the component body so both share ONE reset).
     const resetView = () => resetViewRef.current?.()
-    const autoScale = () => {
-      try {
-        // Clear any locked vertical placement and restore the default candle band.
-        vertMarginsRef.current = null
-        // Also release a manual price-axis drag pin (see resetView) — otherwise its
-        // autoscaleInfoProvider forces the dragged range back and autoScale is a no-op.
-        priceManualRef.current = false
-        priceManualRangeRef.current = null
-        mainPriceScale()?.applyOptions({
-          autoScale: true,
-          scaleMargins: _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volumePaneExists ? priceScaleBottomMargin : null),
-        })
-      } catch {}
-    }
+    // one writer with the UCT Agent's chartSetup.autoScale (doAutoScale, in the component body)
+    const autoScale = () => autoScaleRef.current?.()
     const settingsLink = (id, label) =>
       showDrawingTools ? [{ id, label, onSelect: openSettings }] : []
     // ⭐ THE THIRD ENTRY POINT ONTO THE LIBRARY (spec §6: *labelled toolbar
@@ -20694,8 +20701,15 @@ export default function StockChart({
           locked: !!userViewLockedRef.current, lock: userLockedViewRef.current ? { ...userLockedViewRef.current } : null }
       }
     } catch { /* noop */ }
+    // ⭐ UCT Agent's Auto-scale read-back: the price scale fits the bars only when no hand-set pin, no locked vertical
+    // placement, and the scale itself is on autoScale. Unreadable → left out (the Agent reports it unavailable).
+    let priceAuto
+    try {
+      const o = mainPriceScale()?.options?.()
+      if (o && typeof o.autoScale === 'boolean') priceAuto = o.autoScale && !priceManualRef.current && vertMarginsRef.current == null
+    } catch { /* disposed */ }
     return {
-      firstMs, lastMs, rightMs, activeRange, atDefaultView, frame,
+      firstMs, lastMs, rightMs, activeRange, atDefaultView, frame, priceAuto,
       indicatorsHidden: !!indicatorsHiddenRef.current,
       firstYear: Number.isFinite(firstMs) ? new Date(firstMs).getUTCFullYear() : null,
       lastYear: Number.isFinite(lastMs) ? new Date(lastMs).getUTCFullYear() : null,
@@ -20718,7 +20732,7 @@ export default function StockChart({
   }
   useEffect(() => {
     if (typeof onDateNavApi !== 'function') return undefined
-    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden })
+    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden, autoScale: () => autoScaleRef.current?.() })
     return () => onDateNavApi(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onDateNavApi, barCount, isValidating, fetchDepth, originLoading])

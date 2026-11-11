@@ -252,15 +252,25 @@ function fastSetting(text) {
 // ── the date view (chart.goToDate) ──
 const DAY_MS = 86400000
 // Did the chart's own view control land? Read from getDateMeta, which asks the time scale.
-export function viewDone(meta, { op, arg }) {
+export function viewDone(meta, { op, arg, want }) {
   if (!meta) return false
   if (op === 'applyRange') return meta.activeRange === arg
   if (op === 'resetView') return meta.atDefaultView === true
   if (op === 'restoreView') return sameFrame(meta.frame, arg)
+  // the ◀ / ▶ step: the window moved by exactly the bars asked (right-relative, within a bar), never just "it moved"
+  if (op === 'stepBar') return !!meta.frame && !!want && Math.abs(meta.frame.fromRight - want.fromRight) < 0.6 && Math.abs(meta.frame.toRight - want.toRight) < 0.6
+  // Auto-scale: the price scale itself says it fits the bars (unreadable is never "done")
+  if (op === 'autoScale') return meta.priceAuto === true
   return meta.indicatorsHidden === arg
 }
 // The window (right-relative, within a bar: the tolerance of the range read-back) and the view lock, as a range button found them.
-const sameFrame = (a, b) => !!a && !!b && Math.abs(a.fromRight - b.fromRight) < 0.6 && Math.abs(a.toRight - b.toRight) < 0.6 && !!a.locked === !!b.locked
+// What a view change's Undo is pinned to: the range shown, the window a step left (to a tenth of a bar), or hide-all.
+const viewFp = (snap, op) => {
+  if (op === 'applyRange') return snap.view?.activeRange ?? null
+  if (op === 'stepBar') { const f = snap.view?.frame; return f ? `${f.fromRight.toFixed(1)}|${f.toRight.toFixed(1)}` : null }
+  return !!snap.view?.indicatorsHidden
+}
+const sameFrame = (a, b) =>!!a && !!b && Math.abs(a.fromRight - b.fromRight) < 0.6 && Math.abs(a.toRight - b.toRight) < 0.6 && !!a.locked === !!b.locked
 // Did the view arrive? The Time Navigator puts the LAST BAR ON OR BEFORE the date at the right
 // edge (clamped to the first bar before inception, and to the last bar for a future date).
 export function viewAt(meta, target) {
@@ -401,7 +411,7 @@ export const chartKind = {
     if ('viewDo' in item.patch) {
       const { op } = item.patch.viewDo
       if (op === 'setIndicatorsHidden') p.viewDo = { op, arg: !!item.before.view?.indicatorsHidden }
-      else if (op === 'applyRange' && item.before.view?.frame) p.viewDo = { op: 'restoreView', arg: item.before.view.frame }
+      else if ((op === 'applyRange' || op === 'stepBar') && item.before.view?.frame) p.viewDo = { op: 'restoreView', arg: item.before.view.frame }
       else return null
     }
     return p
@@ -432,7 +442,8 @@ export const chartKind = {
     ...('watermarkPos' in (item?.patch || {}) ? [watermarkSpot(snap.watermarkPos)] : []),
     ...('volPanePref' in (item?.patch || {}) ? [snap.volPanePref ?? null] : []),
     // a range's Undo is stale once the member panned or zoomed off it
-    ...('viewDo' in (item?.patch || {}) ? [item.patch.viewDo.op === 'applyRange' ? (snap.view?.activeRange ?? null) : !!snap.view?.indicatorsHidden] : [])]),
+    // a step's Undo is stale once the member moved the window themselves (pan, zoom, another step)
+    ...('viewDo' in (item?.patch || {}) ? [viewFp(snap, item.patch.viewDo.op)] : [])]),
   // ⛔ APPROVAL BINDING: before an approved chart change re-plans, the server's copy of this chart must
   // equal this tab's (another tab may have changed its settings — boardInSync does not see settings).
   // Unreadable, or no way to check → the approval fails closed.
