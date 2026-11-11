@@ -11213,6 +11213,10 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -11533,6 +11537,10 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -11849,6 +11857,10 @@
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
      },
      {
       "id": "lists",
@@ -12175,6 +12187,10 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -12490,6 +12506,10 @@
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
      },
      {
       "id": "lists",
@@ -12810,6 +12830,10 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -13126,6 +13150,10 @@
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
      },
      {
       "id": "lists",
@@ -13713,6 +13741,10 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -14032,6 +14064,10 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -14347,6 +14383,10 @@
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
      },
      {
       "id": "lists",
@@ -14927,6 +14967,10 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -15243,6 +15287,10 @@
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
      },
      {
       "id": "lists",
@@ -15830,6 +15878,10 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -16407,6 +16459,10 @@
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
      },
      {
       "id": "lists",
@@ -16988,6 +17044,10 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -17304,6 +17364,10 @@
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
      },
      {
       "id": "lists",
@@ -17891,6 +17955,10 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -18207,6 +18275,10 @@
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
      },
      {
       "id": "lists",
@@ -18533,6 +18605,10 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -18855,6 +18931,10 @@
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
      },
      {
       "id": "lists",
@@ -19181,6 +19261,10 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -19497,6 +19581,10 @@
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
      },
      {
       "id": "lists",
@@ -19817,6 +19905,10 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -20132,6 +20224,10 @@
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
      },
      {
       "id": "lists",
@@ -20450,6 +20546,10 @@
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
      },
      {
       "id": "lists",
@@ -21028,6 +21128,10 @@
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
      },
      {
       "id": "lists",
@@ -21610,6 +21714,10 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -22187,6 +22295,10 @@
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
      },
      {
       "id": "lists",
@@ -22768,6 +22880,10 @@
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
      },
      {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
       "id": "lists",
       "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
@@ -23083,6 +23199,10 @@
      {
       "id": "drawings",
       "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
      },
      {
       "id": "lists",
