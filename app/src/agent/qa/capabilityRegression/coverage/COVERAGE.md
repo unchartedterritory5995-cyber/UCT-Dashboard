@@ -177,7 +177,7 @@ Catalog: **180** capabilities (every server-gated kind on; 171 with production's
 | stock.themes | data | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | volume.setState | charts | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | watchlist.add | lists | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ |
-| watchlist.arrangeColumns | lists | local | exact | ✗ | ✗ | ✓ | ✗ | ✗ | ✓ | ✓ | ✗ | ✗ | ✗ |
+| watchlist.arrangeColumns | watchlistShow | local | exact | ✗ | ✗ | ✓ | ✗ | ✗ | ✓ | ✓ | ✗ | ✗ | ✗ |
 | watchlist.clear | lists | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✗ | ✓ |
 | watchlist.create | lists | confirm | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | · | ✓ | ✓ |
 | watchlist.delete | lists | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | · | ✗ | ✓ |

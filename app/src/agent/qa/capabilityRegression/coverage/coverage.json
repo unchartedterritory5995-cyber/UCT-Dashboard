@@ -7816,7 +7816,7 @@
   },
   "watchlist.arrangeColumns": {
    "domain": "watchlist",
-   "group": "lists",
+   "group": "watchlistShow",
    "target": "listView",
    "risk": "local",
    "reversible": true,
