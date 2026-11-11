@@ -104,4 +104,38 @@ describe('barsLaneRequest — the BarStore uses the existing gate', () => {
     await flush()
     expect(pending.map((p) => p.url)).toContain('/x/bg')
   })
+  it("one caller's abort never aborts another: the request is cancelled only when the LAST joiner leaves", async () => {
+    const a1 = new AbortController(), a2 = new AbortController()
+    const p1 = lane.barsLaneRequest('/x/shared', { priority: 'visible', signal: a1.signal })
+    const p2 = lane.barsLaneRequest('/x/shared', { priority: 'urgent', signal: a2.signal })
+    await flush()
+    expect(pending.length).toBe(1)
+    a1.abort()
+    await expect(p1).rejects.toMatchObject({ name: 'AbortError' })
+    expect(pending[0].opts.signal.aborted).toBe(false)          // p2 still holds it
+    pending[0].resolve({ bars: [7] })
+    expect(await p2).toEqual({ bars: [7] })
+    const a3 = new AbortController()
+    const p3 = lane.barsLaneRequest('/x/solo', { priority: 'visible', signal: a3.signal })
+    await flush()
+    a3.abort()
+    await expect(p3).rejects.toMatchObject({ name: 'AbortError' })
+    expect(pending.at(-1).opts.signal.aborted).toBe(true)        // last one out cancels
+  })
+
+  it('a lane abort never cancels a legacy request it joined (the symbol handoff keeps its answer)', async () => {
+    const legacy = lane.prepareDailyForDisplay('LEG', 'D')        // the symbol handoff owns the URL
+    for (let i = 0; i < 50 && !pending.length; i++) await flush()
+    expect(pending.length).toBe(1)
+    const url = pending[0].url
+    const ac = new AbortController()
+    const mine = lane.barsLaneRequest(url, { priority: 'visible', signal: ac.signal })
+    ac.abort()
+    await expect(mine).rejects.toMatchObject({ name: 'AbortError' })
+    expect(pending.length).toBe(1)
+    expect(pending[0].opts?.signal?.aborted ?? false).toBe(false)
+    pending[0].resolve({ bars: [{ t: '2026-11-10', o: 1, h: 1, l: 1, c: 1, v: 1 }] })
+    expect(await legacy).not.toBe('error')
+  })
+
 })

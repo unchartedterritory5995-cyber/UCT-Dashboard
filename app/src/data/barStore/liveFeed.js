@@ -17,10 +17,15 @@
 // symbol: a store never sees another symbol's closes).
 //
 // ⭐ D/W/M FOLD THE 1m STREAM (Writer E moves here). The store keeps the server's developing
-// period bar as the BASE and folds every RTH 1m frame since the base's rev into it: open =
-// the base's, high/low = the union, close = the newest minute's, volume = base + the
-// minutes that STARTED after the base was read (the minute in progress at the base's rev is
-// already partly inside it — it is never counted twice; the next REST answer settles it).
+// period bar as the BASE (authoritative) and folds RTH 1m frames into it: open = the base's,
+// high/low = the union, close = the newest minute's.
+// ⛔ VOLUME IS NEVER COUNTED TWICE. The contract says nothing about how far the base's volume
+// reaches: `developing.rev` is the series' last WRITE (hours old on a daily series) or null
+// when not store-backed — it is not a read time. The only sound anchor the client has is
+// when the answer ARRIVED: the server read it no later than that. So only minutes that
+// START after the arrival minute plus one minute of clock-skew margin
+// (`FOLD_SKEW_MARGIN_S`) add volume; every earlier minute contributes H/L/C only. The
+// result can only under-count (v ≤ the true sum) until the next REST answer settles it.
 // The folded bar goes to the reducer as a `push-bar` for the period (rev-gated, I1–I3).
 
 import * as barsStream from '../../lib/barsStreamManager'
@@ -28,6 +33,14 @@ import * as candleFeed from '../../lib/realtimeCandle'
 import * as priceStream from '../../lib/priceStreamManager'
 import { isRthBar, computeBarTime } from '../../components/chart/barTime'
 import { ACTION, parseKey, isDateTf, isIntradayTf, DEV_SRC, dateLabelToUnix } from './types'
+
+/** Client↔exchange clock margin for the fold's volume anchor (one minute). */
+export const FOLD_SKEW_MARGIN_S = 60
+
+/** The first minute start whose volume may be added to a base that arrived at `arrivedMs`. */
+export function foldAnchor(arrivedMs) {
+  return Math.floor(arrivedMs / 60000) * 60 + 60 + FOLD_SKEW_MARGIN_S
+}
 
 /** The trade feed counts as "ticking" for a symbol within this window; else livePrices. */
 export const CANDLE_ACTIVE_MS = 10_000
@@ -39,8 +52,8 @@ const tMs = (t) => (t > 1e11 ? t : t * 1000)
 function periodOf(tf, sec) { return dateLabelToUnix(computeBarTime(tf, sec)) }
 
 /**
- * Pure D/W/M fold step. `st` = {base, minutes: Map<t, {h,l,c,v}>, rev}; returns the frame to
- * dispatch (or null) and mutates `st`.
+ * Pure D/W/M fold step. `st` = {base, anchor, minutes: Map<t, {h,l,c,v}>, rev}; `anchor` =
+ * foldAnchor(arrival of the base). Returns the frame to dispatch (or null); mutates `st`.
  * @param {object} st
  * @param {{t:number,o:number,h:number,l:number,c:number,v:number}} m   a 1m bar (unix s)
  * @param {string} tf
@@ -49,15 +62,17 @@ export function foldMinute(st, m, tf, rev) {
   if (!st.base || !m || !finite(m.t) || !finite(m.c)) return null
   if (!isRthBar(m.t)) return null                       // the period bar is RTH (TradingView)
   if (periodOf(tf, m.t) !== st.base.t) return null      // another period: the next REST opens it
-  const baseMin = finite(st.base.rev) ? Math.floor(st.base.rev / 60000) * 60 : -Infinity
-  if (m.t + 60 <= baseMin) return null                  // fully inside the base already
-  st.minutes.set(m.t, { h: m.h, l: m.l, c: m.c, v: m.v, counted: m.t > baseMin })
+  const anchor = finite(st.anchor) ? st.anchor : Infinity   // no anchor ⇒ never add volume
+  // A minute that ended before the base arrived adds nothing the base lacks except, at
+  // most, an extreme the cache missed — H/L only; its close is older than the base's.
+  const closeFrom = anchor - 60 - FOLD_SKEW_MARGIN_S
+  st.minutes.set(m.t, { h: m.h, l: m.l, c: m.c, v: m.v, counted: m.t >= anchor, closes: m.t >= closeFrom })
   let h = st.base.h, l = st.base.l, v = st.base.v, c = st.base.c, lastT = -Infinity
   for (const [t, x] of st.minutes) {
     if (finite(x.h)) h = Math.max(h, x.h)
     if (finite(x.l)) l = Math.min(l, x.l)
     if (x.counted && finite(x.v)) v += x.v
-    if (t > lastT) { lastT = t; c = x.c }
+    if (x.closes && t > lastT) { lastT = t; c = x.c }
   }
   st.rev = Math.max(st.rev ?? -Infinity, finite(rev) ? rev : -Infinity)
   return { t_s: st.base.t, bar: { t: st.base.t * 1000, o: st.base.o, h: Math.max(h, c), l: Math.min(l, c), c, v, final: false }, rev: finite(st.rev) ? st.rev : null }
@@ -108,17 +123,16 @@ export function createLiveFeed({
 
     if (isIntradayTf(p.tf) || isDateTf(p.tf)) {
       if (isDateTf(p.tf)) {
-        a.fold = { base: null, minutes: new Map(), rev: null }
-        // Track the SERVER's developing period bar as the fold base.
+        a.fold = { base: null, anchor: null, minutes: new Map(), rev: null }
+        // Track the SERVER's developing period bar as the fold base; anchor = its arrival.
+        const rebase = (d) => { a.fold.base = d; a.fold.anchor = foldAnchor(now()); a.fold.minutes = new Map() }
         off.push(registry.subscribe(key, (s) => {
           const d = s.developing
-          if (d && d.src === DEV_SRC.SERVER && (!a.fold.base || a.fold.base.t !== d.t || a.fold.base.rev !== d.rev)) {
-            a.fold.base = d
-            a.fold.minutes = new Map()
-          } else if (!d) { a.fold.base = null; a.fold.minutes = new Map() }
+          if (d && d.src === DEV_SRC.SERVER && d !== a.fold.base) rebase(d)
+          else if (!d) { a.fold.base = null; a.fold.minutes = new Map() }
         }))
         const d0 = registry.getSnapshot(key).developing
-        if (d0 && d0.src === DEV_SRC.SERVER) a.fold.base = d0
+        if (d0 && d0.src === DEV_SRC.SERVER) rebase(d0)
       }
       off.push(stream.subscribe(p.sym, sTf, {
         session: sSess,

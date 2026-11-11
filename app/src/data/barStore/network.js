@@ -43,7 +43,7 @@ import {
 import { classifyIntradayTail } from '../../utils/marketSession'
 import { firstPaintBarsFor, fullBarsFor, FIRST_PAINT_BARS } from '../../utils/barsBackfill'
 import { barsSessionQuery } from '../../components/chart/barTime'
-import { ACTION, parseKey, isIntradayTf } from './types'
+import { ACTION, parseKey, isIntradayTf, PERIOD_SEC } from './types'
 
 /** The D/W/M refresh cadence (StockChart's daily `refreshInterval`). */
 export const DAILY_POLL_MS = 300_000
@@ -74,6 +74,18 @@ export function barsCountFor(key, { depth = 0, session = 'rth' } = {}) {
   const base = isIntradayTf(p.tf) ? firstPaintBarsFor(p.tf, eth) : FIRST_PAINT_BARS
   const want = Math.max(base, Math.floor(Number(depth) || 0))
   return Math.min(want, fullBarsFor(p.tf) || want)
+}
+
+/**
+ * Is a since= delta from `deltaFrom` still smaller than the full read it replaces? A seal
+ * restored from a copy days old would otherwise ask the server for every bucket since then;
+ * past the full read's own bar count (wall-clock buckets — an over-estimate across nights,
+ * so the cut errs toward the bounded full read) the full read is asked instead.
+ */
+export function deltaWithinBudget(tf, deltaFrom, nowMs, bars) {
+  const period = PERIOD_SEC[String(tf)]
+  if (!period || !finite(deltaFrom)) return false
+  return (nowMs / 1000 - deltaFrom) / period <= bars
 }
 
 /** THE BarStore /api/bars URL. `session` applies to intraday; a 60m key carries its own. */
@@ -140,9 +152,11 @@ export function createNetwork({
     const s = registry.getSnapshot(r.key)
     const p = parseKey(r.key)
     const gen = s.gen
-    const delta = isIntradayTf(p.tf) && !p.window && !s.needsFull && s.deltaFrom != null && s.sealedSpans.length > 0
     const session = _session(r)
-    const url = barsUrl(r.key, { bars: barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session }), since: delta ? s.deltaFrom - 1 : null, session })
+    const bars = barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session })
+    const delta = isIntradayTf(p.tf) && !p.window && !s.needsFull && s.deltaFrom != null && s.sealedSpans.length > 0 &&
+      deltaWithinBudget(p.tf, s.deltaFrom, now(), bars)
+    const url = barsUrl(r.key, { bars, since: delta ? s.deltaFrom - 1 : null, session })
     return _send(r, 'tail', url, priority, async (json) => {
       if (json?.no_data) {
         registry.dispatch(r.key, { type: ACTION.REST_ERROR, key: r.key, gen, payload: { error: 'no_data', terminal: true } })

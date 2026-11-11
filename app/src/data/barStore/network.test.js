@@ -4,7 +4,7 @@
 // Fake timers + a mocked request; the server answers from the simulated clock.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createRegistry } from './registry'
-import { createNetwork, barsUrl, DAILY_POLL_MS } from './network'
+import { createNetwork, barsUrl, DAILY_POLL_MS, deltaWithinBudget, barsCountFor } from './network'
 import { keyOf } from './types'
 import { bucketStartUnix } from '../../components/chart/barTime'
 import { bucketEndUnix } from '../../components/chart/liveBuckets'
@@ -244,6 +244,27 @@ describe('what is asked', () => {
     expect(s.sealedSpans.length).toBeGreaterThan(0)
     await vi.advanceTimersByTimeAsync(INTRADAY_POLL_MS + 10)
     expect(rec.calls[1].url).toMatch(new RegExp(`since=${s.deltaFrom - 1}(&|$)`))
+  })
+
+  it('a seal older than one full read asks the FULL read, never a huge since=', async () => {
+    const key = keyOf({ sym: 'SIM', tf: '5' })
+    const n = barsCountFor(key)
+    const nowMs = Date.now()
+    expect(deltaWithinBudget('5', nowMs / 1000 - 300 * (n - 1), nowMs, n)).toBe(true)
+    expect(deltaWithinBudget('5', nowMs / 1000 - 300 * (n + 1), nowMs, n)).toBe(false)
+    // a store restored from a copy sealed long ago: the loop's first request is full
+    const rec = recorder(async () => answer(key))
+    const w = world({ request: rec.fn })
+    const old = Math.floor(nowMs / 1000) - 300 * (n + 10)
+    w.registry.dispatch(key, { type: 'idb-hit', payload: {
+      bars: [{ t: old, o: 1, h: 1, l: 1, c: 1, v: 1 }, { t: old + 300, o: 1, h: 1, l: 1, c: 1, v: 1 }],
+      cache_key: 'b1:SIM:5:eth-clock', history_rev: 1, series_rev: 1, sealed_spans: [[old, old + 600]], complete_through: old + 600,
+    } })
+    const h = w.registry.getSnapshot(key)
+    expect(h.needsFull).toBe(false)
+    w.net.start(key)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(rec.calls[0].url).not.toMatch(/since=/)
   })
 
   it('a delta that reveals a NEW history triggers the full read at once', async () => {

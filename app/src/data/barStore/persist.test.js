@@ -154,6 +154,67 @@ describe('S8 invalidation rules of the provenance envelope', () => {
     expect(h).toBe(inv)
   })
 
+  describe('a restored seal must be re-proven by the first server answer', () => {
+    const restored = () => hydrate({ bars: toCacheRows(sealedState()), meta: encodeMeta(sealedState()) })
+    const answer = (extra = {}) => ({
+      bars: [bar(T(20), 120), bar(T(25), 125)], contract: 1, grid: 'eth-clock', cache_key: 'b1:SIM:5:eth-clock',
+      series_rev: 12, history_rev: 3, complete_through: T(25), since: T(20), ...extra,
+    })
+    const unsealed = (s) => s.sealedSpans.length === 0 && s.completeThrough == null && s.bars.every((b) => b.src !== 'rest' || !isSealedRow(s, b))
+    const cases = {
+      'a legacy delta (no contract fields)': { contract: undefined, complete_through: undefined, history_rev: undefined, cache_key: undefined },
+      'a delta with a null history_rev': { history_rev: null },
+      'a delta with another history_rev': { history_rev: 4 },
+      'a delta with another cache_key': { cache_key: 'b1:SIM:5:rth-tv' },
+    }
+    for (const [name, extra] of Object.entries(cases)) {
+      it(`${name} voids the restored seals, is refused, and demands a full read`, () => {
+        const h = restored()
+        expect(sealedOf(h).length).toBe(4)
+        const p = answer(extra)
+        for (const k of Object.keys(p)) if (p[k] === undefined) delete p[k]
+        const s = reduce(h, { type: 'rest-delta', payload: p }, { nowMs })
+        expect(unsealed(s)).toBe(true)
+        expect(s.needsFull).toBe(true)
+        expect(s.gen).toBe(h.gen + 1)
+        expect(s.bars.find((b) => b.t === T(25))).toBeUndefined()     // the delta's rows were not applied
+      })
+    }
+    it('a legacy FULL answer voids them too, then applies as an ordinary answer', () => {
+      const s = reduce(restored(), { type: 'rest-full', payload: { bars: [bar(T(0), 100), bar(T(5), 105)] } }, { nowMs })
+      expect(s.sealedSpans.every(([a]) => a >= T(0))).toBe(true)
+      expect(s.bars.filter((b) => b.t >= T(10)).every((b) => b.src === 'local')).toBe(true)
+    })
+    it('a delta that proves them (contract, same cache_key + history_rev) keeps them and lands', () => {
+      const h = restored()
+      const s = reduce(h, { type: 'rest-delta', payload: answer() }, { nowMs })
+      expect(sealedOf(s).length).toBeGreaterThanOrEqual(4)
+      expect(s.bars.find((b) => b.t === T(25))).toBeTruthy()
+      expect(s.needsFull).toBe(false)
+    })
+    it('an IDB copy of a NEWER history replaces a mem copy (its rows and seals) — never merged', () => {
+      const memState = sealedState()
+      const h = hydrate({ bars: toCacheRows(memState), meta: encodeMeta(memState) })
+      const newer = reduce(initialState(key, { nowMs }), { type: 'rest-full', payload: {
+        bars: [10, 15].map((m) => bar(T(m), 200 + m)), contract: 1, grid: 'eth-clock', cache_key: 'b1:SIM:5:eth-clock',
+        series_rev: 20, history_rev: 4, complete_through: T(20), verified_through: T(25), developing: null,
+      } }, { nowMs })
+      const s = reduce(h, { type: 'idb-hit', payload: decodeEntry(key, { bars: toCacheRows(newer), meta: encodeMeta(newer) }) }, { nowMs })
+      expect(s.historyRev).toBe(4)
+      expect(s.bars.map((b) => b.t)).toEqual([T(10), T(15)])
+      expect(s.sealedSpans).toEqual(newer.sealedSpans)
+    })
+    it('an IDB copy with an OLDER series_rev than the mem copy adds only deeper rows, never its seals or tail', () => {
+      const memState = sealedState()
+      const h = hydrate({ bars: toCacheRows(memState).slice(2), meta: encodeMeta(memState) })
+      const older = { ...encodeMeta(memState), seriesRev: 5 }
+      const rows = toCacheRows(memState).map((r) => ({ ...r, c: r.c - 0.5, l: r.l - 0.5 }))
+      const s = reduce(h, { type: 'idb-hit', payload: decodeEntry(key, { bars: rows, meta: older }) }, { nowMs })
+      expect(s.bars.filter((b) => b.t >= T(10)).map((b) => b.c)).toEqual(h.bars.filter((b) => b.t >= T(10)).map((b) => b.c))
+      expect(s.bars.filter((b) => b.t < T(10)).every((b) => b.src === 'local')).toBe(true)
+    })
+  })
+
   it('rowHash fingerprints values, not time', () => {
     expect(rowHash({ o: 1, h: 2, l: 0.5, c: 1.5, v: 3 })).toBe(rowHash({ o: 1, h: 2, l: 0.5, c: 1.5, v: 3, t: 99 }))
     expect(rowHash({ o: 1, h: 2, l: 0.5, c: 1.5, v: 3 })).not.toBe(rowHash({ o: 1, h: 2, l: 0.5, c: 1.5, v: 4 }))

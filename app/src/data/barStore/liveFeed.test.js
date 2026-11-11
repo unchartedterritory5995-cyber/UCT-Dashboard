@@ -3,10 +3,9 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { reduce, initialState, isSealedRow, bucketEnd, inSealedSpan } from './reducer'
 import { createRegistry } from './registry'
-import { createLiveFeed, foldMinute, CANDLE_ACTIVE_MS } from './liveFeed'
+import { createLiveFeed, foldMinute, foldAnchor, CANDLE_ACTIVE_MS } from './liveFeed'
 import { forSeeds, simulateIntraday, withDuplicates, shuffled, etUnix, rng } from './__fixtures__/seededSeries'
 import { keyOf } from './types'
-import { bucketStartUnix } from '../../components/chart/barTime'
 
 const N = Number(globalThis.process?.env?.BARSTORE_SEEDS || 300)
 afterEach(() => { vi.useRealTimers() })
@@ -124,86 +123,130 @@ describe('liveFeed ordering — push final vs poll vs tick (seeded)', () => {
 })
 
 describe('D/W/M fold of the 1m stream', () => {
+  const NF = Math.max(40, Math.floor(N / 5))   // each seed is a whole trading stretch through the feed
   const day = '2026-11-10'
   const dayT = Date.UTC(2026, 10, 10) / 1000
   const minute = (m) => etUnix(day, m)
 
-  it(`property: folded period bar keeps open, H↑ L↓ V↑, and equals base ∪ minutes since the base (${N} seeds)`, () => {
-    forSeeds(N, 160000, (r) => {
-      const baseMin = r.int(575, 900)                       // base read mid-session
-      const base = { t: dayT, o: 100, h: 102, l: 98, c: 101, v: 5000, rev: minute(baseMin) * 1000 + r.int(0, 59_000), src: 'server' }
-      const st = { base, minutes: new Map(), rev: null }
-      let px = 101, prev = null
-      const finalMin = new Map()
-      const n = r.int(1, 40)
-      for (let i = 0; i < n; i++) {
-        const m = r.int(baseMin - 3, Math.min(baseMin + 60, 959))
-        const t = minute(m)
-        px = Math.max(1, px * (1 + r.float(-0.003, 0.003)))
-        const cur = finalMin.get(t) || { h: px, l: px, v: 0 }
-        const b = { t, o: px, h: Math.max(cur.h, px), l: Math.min(cur.l, px), c: Math.round(px * 100) / 100, v: cur.v + r.int(1, 50) }
-        finalMin.set(t, b)
-        const f = foldMinute(st, b, 'D', b.t * 1000)
-        if (!f) continue
-        const fb = f.bar
-        check(fb.o === base.o, 'fold moved the open')
-        check(fb.h >= base.h && fb.l <= base.l, 'fold shrank the base range')
-        if (prev) {
-          check(fb.h >= prev.h && fb.l <= prev.l, 'fold H/L not monotone')
-          check(fb.v >= prev.v, 'fold volume fell')
+  /**
+   * One seeded day: trades every few seconds; the server answers (arriving at `arr`) carry a
+   * developing bar read at some instant <= arr (fresh, lagged, or a stale cache copy) with a
+   * `rev` that says nothing about the read (null, an old write, or arr); 1m frames arrive with
+   * delivery delay and duplicates. Everything is applied in ARRIVAL order through the feed.
+   */
+  function simulateDay(r) {
+    const trades = []
+    let px = r.float(20, 300)
+    const t0 = minute(570) * 1000, t1 = minute(570 + r.int(20, 120)) * 1000
+    for (let ms = t0 + r.int(0, 3000); ms < t1; ms += r.int(500, 9000)) {
+      px = Math.max(1, px * (1 + r.float(-0.003, 0.003)))
+      trades.push({ ms, p: Math.round(px * 100) / 100, s: r.int(1, 900) })
+    }
+    // prefix aggregates (the test must stay O(n))
+    const pre = []
+    for (const x of trades) { const p = pre.at(-1); pre.push(p ? { o: p.o, h: Math.max(p.h, x.p), l: Math.min(p.l, x.p), c: x.p, v: p.v + x.s, ms: x.ms } : { o: x.p, h: x.p, l: x.p, c: x.p, v: x.s, ms: x.ms }) }
+    const aggAt = (ms) => { let lo = 0, hi = pre.length; while (lo < hi) { const m = (lo + hi) >> 1; if (pre[m].ms <= ms) lo = m + 1; else hi = m } return lo ? pre[lo - 1] : null }
+    const events = []
+    let mt0 = null, cur = null
+    for (const x of trades) {
+      const mt = Math.floor(x.ms / 60000) * 60
+      if (mt !== mt0) { mt0 = mt; cur = { o: x.p, h: x.p, l: x.p, c: x.p, v: 0 } }
+      cur = { o: cur.o, h: Math.max(cur.h, x.p), l: Math.min(cur.l, x.p), c: x.p, v: cur.v + x.s }
+      const frame = { sym: 'SIM', tf: '1', t_s: mt, bar: { t: mt * 1000, ...cur, final: false, trade_ts: x.ms }, rev: x.ms }
+      const arr = x.ms + r.int(0, 4000)
+      events.push({ arr, kind: 'frame', frame })
+      if (r.chance(0.1)) events.push({ arr: arr + r.int(0, 8000), kind: 'frame', frame })
+    }
+    for (let i = r.int(1, 6); i > 0; i--) {
+      const arr = r.int(t0 + 1000, t1 + 60_000)
+      const read = r.chance(0.2) ? r.int(t0, arr) : arr - r.int(0, 5000)   // stale cache or lagged read
+      const d = aggAt(read)
+      if (!d) continue
+      const rev = r.pick([null, t0 - 3_600_000, arr, read])
+      events.push({ arr, kind: 'rest', d, rev })
+    }
+    events.sort((a, b) => a.arr - b.arr)
+    return { trades, events, aggAt }
+  }
+
+  it(`property: any interleaving of server developing answers and 1m frames never over-counts volume (v <= the true sum) (${NF} seeds)`, () => {
+    forSeeds(NF, 160000, (r, seed) => {
+      const sim = simulateDay(r)
+      let clock = minute(570) * 1000
+      vi.setSystemTime(clock)
+      const key = keyOf({ sym: 'SIM', tf: 'D' })
+      const registry = createRegistry({ ctx: () => ({ nowMs: clock }) })
+      const stream = fakeStream()
+      createLiveFeed({ registry, stream, candle: fakeCandle(), prices: fakePrices(), now: () => clock }).attach(key)
+      for (const e of sim.events) {
+        clock = e.arr
+        vi.setSystemTime(clock)
+        if (e.kind === 'frame') stream.emit('SIM', '1', e.frame)
+        else {
+          registry.dispatch(key, { type: 'rest-full', payload: {
+            bars: [{ t: '2026-11-09', o: 90, h: 95, l: 89, c: 94, v: 9000 }, { t: day, o: e.d.o, h: e.d.h, l: e.d.l, c: e.d.c, v: e.d.v }],
+            contract: 1, grid: 'plain', cache_key: 'b1:SIM:D:plain', series_rev: e.rev, history_rev: 1,
+            complete_through: null, developing: { t: day, o: e.d.o, h: e.d.h, l: e.d.l, c: e.d.c, v: e.d.v, rev: e.rev },
+          } }, { nowMs: clock })
         }
-        check(fb.l <= fb.c && fb.c <= fb.h, 'fold OHLC inconsistent')
-        prev = fb
-      }
-      if (prev) {
-        const baseMinStart = Math.floor(base.rev / 60000) * 60
-        let v = base.v
-        for (const [t, b] of finalMin) if (t > baseMinStart && t >= minute(570) && t < minute(960)) v += b.v
-        check(prev.v === v, () => `fold volume ${prev.v} != base + minutes since ${v}`)
+        const dv = registry.getSnapshot(key).developing
+        if (!dv) continue
+        const truth = sim.aggAt(clock)
+        check(truth && dv.v <= truth.v, () => `seed ${seed}: folded v ${dv.v} > true ${truth?.v}`)
+        check(dv.h <= truth.h + 1e-9 && dv.l >= truth.l - 1e-9, () => `seed ${seed}: H/L outside the traded range`)
       }
     })
   })
 
-  it('ignores extended-hours minutes, other periods, and minutes wholly inside the base', () => {
-    const base = { t: dayT, o: 100, h: 102, l: 98, c: 101, v: 5000, rev: minute(700) * 1000 + 30_000, src: 'server' }
-    const st = { base, minutes: new Map(), rev: null }
-    expect(foldMinute(st, { t: minute(500), o: 1, h: 200, l: 1, c: 150, v: 9 }, 'D', 1)).toBe(null)     // pre-market
-    expect(foldMinute(st, { t: minute(600) + 86400, o: 1, h: 200, l: 1, c: 150, v: 9 }, 'D', 1)).toBe(null)   // tomorrow
-    expect(foldMinute(st, { t: minute(650), o: 1, h: 200, l: 1, c: 150, v: 9 }, 'D', 1)).toBe(null)     // before the base
-    const f = foldMinute(st, { t: minute(700), o: 101, h: 103, l: 100, c: 102, v: 40 }, 'D', 2)        // the base's own minute
-    expect(f.bar.h).toBe(103)
-    expect(f.bar.v).toBe(5000)                                                                       // never counted twice
+  it('pure step: volume only from minutes that start after the arrival minute + the skew margin; earlier minutes H/L only', () => {
+    const arrived = (minute(700) + 30) * 1000
+    const base = { t: dayT, o: 100, h: 102, l: 98, c: 101, v: 5000, rev: null, src: 'server' }
+    const st = { base, anchor: foldAnchor(arrived), minutes: new Map(), rev: null }
+    expect(st.anchor).toBe(minute(702))
+    expect(foldMinute(st, { t: minute(500), o: 1, h: 200, l: 1, c: 150, v: 9 }, 'D', 1)).toBe(null)          // pre-market
+    expect(foldMinute(st, { t: minute(600) + 86400, o: 1, h: 200, l: 1, c: 150, v: 9 }, 'D', 1)).toBe(null)  // tomorrow
+    let f = foldMinute(st, { t: minute(650), o: 101, h: 103, l: 100, c: 99, v: 40 }, 'D', 2)                 // long before arrival
+    expect([f.bar.h, f.bar.c, f.bar.v]).toEqual([103, 101, 5000])
+    f = foldMinute(st, { t: minute(700), o: 101, h: 101, l: 100, c: 100.5, v: 40 }, 'D', 3)                // the arrival minute
+    expect([f.bar.c, f.bar.v]).toEqual([100.5, 5000])
+    f = foldMinute(st, { t: minute(701), o: 101, h: 101, l: 100, c: 100.7, v: 40 }, 'D', 4)                // skew margin
+    expect(f.bar.v).toBe(5000)
+    f = foldMinute(st, { t: minute(702), o: 101, h: 101, l: 100, c: 100.9, v: 25 }, 'D', 5)
+    expect([f.bar.c, f.bar.v]).toEqual([100.9, 5025])
+    f = foldMinute(st, { t: minute(702), o: 101, h: 101, l: 100, c: 101.1, v: 30 }, 'D', 6)                // same minute grows: replaced
+    expect(f.bar.v).toBe(5030)
+    expect(f.bar.o).toBe(100)
   })
 
-  it('through the feed: a D store folds 1m frames onto the SERVER developing bar and rebases on each REST answer', () => {
+  it('a base with no anchor never adds volume', () => {
+    const st = { base: { t: dayT, o: 100, h: 102, l: 98, c: 101, v: 5000, rev: null }, anchor: null, minutes: new Map() }
+    expect(foldMinute(st, { t: minute(800), o: 1, h: 101, l: 99, c: 100, v: 70 }, 'D', 1).bar.v).toBe(5000)
+  })
+
+  it('through the feed: rebased on each REST answer, volume anchored on its arrival', () => {
     const key = keyOf({ sym: 'SIM', tf: 'D' })
-    const nowMs = (minute(720) + 30) * 1000
+    let nowMs = (minute(720) + 30) * 1000
     vi.setSystemTime(nowMs)
     const registry = createRegistry({ ctx: () => ({ nowMs }) })
-    const stream = fakeStream(), candle = fakeCandle(), prices = fakePrices()
-    const live = createLiveFeed({ registry, stream, candle, prices, now: () => nowMs })
-    live.attach(key)
+    const stream = fakeStream()
+    createLiveFeed({ registry, stream, candle: fakeCandle(), prices: fakePrices(), now: () => nowMs }).attach(key)
     const rest = (h, v, rev) => registry.dispatch(key, { type: 'rest-full', payload: {
       bars: [{ t: '2026-11-09', o: 90, h: 95, l: 89, c: 94, v: 9000 }, { t: day, o: 100, h, l: 98, c: 101, v }],
       contract: 1, grid: 'plain', cache_key: 'b1:SIM:D:plain', series_rev: rev, history_rev: 1, complete_through: null,
       developing: { t: day, o: 100, h, l: 98, c: 101, v, rev },
     } })
-    rest(102, 5000, minute(719) * 1000)
+    rest(102, 5000, null)
     const emit = (m, h, c, v) => stream.emit('SIM', '1', { sym: 'SIM', tf: '1', t_s: minute(m), bar: { t: minute(m) * 1000, o: c, h, l: c, c, v, final: false }, rev: minute(m) * 1000 + 999 })
-    emit(720, 103.5, 103, 70)
-    let s = registry.getSnapshot(key)
-    expect(s.developing.h).toBe(103.5)
-    expect(s.developing.o).toBe(100)
-    expect(s.developing.v).toBe(5070)
-    emit(721, 104, 103.8, 20)
-    expect(registry.getSnapshot(key).developing.v).toBe(5090)
-    // a newer REST answer is the new base: the minutes it already holds are not re-added
-    rest(104, 5100, minute(722) * 1000)
-    emit(722, 104, 103.9, 15)
-    s = registry.getSnapshot(key)
-    expect(s.developing.v).toBe(5100)
-    emit(723, 104.2, 104.1, 10)
+    emit(720, 103.5, 103, 70)                       // already (partly) inside the base: H only
+    const s = registry.getSnapshot(key)
+    expect([s.developing.h, s.developing.o, s.developing.v]).toEqual([103.5, 100, 5000])
+    emit(722, 104, 103.8, 20)
+    expect(registry.getSnapshot(key).developing.v).toBe(5020)
+    nowMs = (minute(725) + 10) * 1000
+    rest(104, 5100, nowMs)                          // a newer answer: the new base, anchor 727
+    emit(726, 104, 103.9, 15)
+    expect(registry.getSnapshot(key).developing.v).toBe(5100)
+    emit(727, 104.2, 104.1, 10)
     expect(registry.getSnapshot(key).developing.v).toBe(5110)
-    expect(bucketStartUnix(minute(723), 1)).toBe(minute(723))
   })
 })
