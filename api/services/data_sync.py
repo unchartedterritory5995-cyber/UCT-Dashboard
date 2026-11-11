@@ -426,6 +426,82 @@ def _backup_sqlite_db(src_path: str, dst_path: str) -> None:
         src.close()
 
 
+#: Build the snapshot's bars.db in the clustered layout (bars_cluster). `0` ships the
+#: rowid copy unchanged -- the pre-2026-11-11 behaviour, and the rollback lever.
+SNAPSHOT_CLUSTER = os.environ.get("SNAPSHOT_CLUSTER", "1") != "0"
+#: Free space the conversion needs beside the copy (the clustered file is ~half the
+#: rowid file; 0.8x + 1 GB is the margin).
+_CLUSTER_DISK_FACTOR = 0.8
+
+
+def _cluster_snapshot_copy(path: str) -> bool:
+    """Replace the private snapshot copy at `path` with its clustered conversion.
+    Returns True when the shipped file is clustered. Never raises: on any failure the
+    copy ships exactly as it was built."""
+    from api.services import bars_cluster, bars_sqlite
+    try:
+        c = sqlite3.connect(path)
+        try:
+            layout = bars_sqlite.ohlcv_layout(c)
+        finally:
+            c.close()
+        if layout == "clustered":
+            return True
+        if not SNAPSHOT_CLUSTER or layout != "rowid":
+            return False
+        need = int(os.path.getsize(path) * _CLUSTER_DISK_FACTOR) + (1 << 30)
+        free = shutil.disk_usage(os.path.dirname(path)).free
+        if free < need:
+            logger.warning(f"[data_sync] snapshot NOT clustered: {free >> 20} MB free < "
+                           f"{need >> 20} MB needed")
+            return False
+        dst = path + ".clustered"
+        stats = bars_cluster.cluster_copy(path, dst)
+        os.replace(dst, path)
+        logger.info(f"[data_sync] snapshot clustered (WITHOUT ROWID): {stats}")
+        return True
+    except Exception as e:  # noqa: BLE001 -- fail safe: ship the unconverted copy
+        logger.warning(f"[data_sync] snapshot NOT clustered (shipping rowid copy): {e}")
+        return False
+
+
+def adopt_clustered_if_requested(data_dir: Optional[str] = None) -> bool:
+    """⭐ HOW A SERVING POD ADOPTS THE CLUSTERED LAYOUT (bars_cluster module doc).
+
+    With `BARS_ADOPT_CLUSTERED=1`, at BOOT, before anything installs or serves: if the local
+    bars.db is still the rowid layout, remove it WITH its -wal/-shm sidecars, so the
+    ordinary cold-start path performs a wholesale install of the latest (clustered)
+    snapshot -- extract on the same volume, integrity check, atomic rename. The sidecars
+    must go too: a stale WAL replayed onto a different main file corrupts it. A clustered
+    or absent store is left alone, so the flag is idempotent and safe to leave set.
+    Returns True when the local store was removed."""
+    if os.environ.get("BARS_ADOPT_CLUSTERED") != "1":
+        return False
+    from api.services import bars_sqlite
+    p = os.path.join(data_dir or _DATA_DIR, "bars.db")
+    if not os.path.exists(p):
+        return False
+    try:
+        c = sqlite3.connect(p, timeout=5)
+        try:
+            layout = bars_sqlite.ohlcv_layout(c)
+        finally:
+            c.close()
+    except Exception as e:  # noqa: BLE001 -- unreadable: let the normal boot path decide
+        logger.warning(f"[data_sync] adopt-clustered: layout probe failed: {e}")
+        return False
+    if layout != "rowid":
+        return False
+    for f in (p, p + "-wal", p + "-shm"):
+        try:
+            os.remove(f)
+        except FileNotFoundError:
+            pass
+    logger.info("[data_sync] adopt-clustered: removed rowid bars.db (+sidecars) for a "
+                "wholesale snapshot install")
+    return True
+
+
 def _make_tarball() -> str:
     """Tar a consistent snapshot of /data/bars.db + /data/bars_cache/.
 
@@ -469,6 +545,9 @@ def _make_tarball() -> str:
         if has_db:
             snap_db_path = os.path.join(tmpdir, "bars.db")
             _backup_sqlite_db(db_path, snap_db_path)
+            # ⭐ Ship the CLUSTERED layout (bars_cluster module doc): rebuilt OFFLINE on
+            # this private copy, fully verified; any failure ships the copy unchanged.
+            _cluster_snapshot_copy(snap_db_path)
             # ⛔⛔ THE SNAPSHOT CARRIES EVERY INDEX THE WEB EXPECTS (incident
             # 2026-10-02). The backup copies the WORKER's bars.db, which never
             # had the web-only `idx_ohlcv_daily_bydate`; installed on web, the
@@ -1285,11 +1364,8 @@ def _export_delta_db(out_path: str, now: Optional[int] = None) -> int:
     try:
         out = sqlite3.connect(out_path)
         try:
-            out.execute(
-                "CREATE TABLE IF NOT EXISTS ohlcv (ticker TEXT NOT NULL, tf TEXT NOT NULL, "
-                "ts INTEGER NOT NULL, o REAL, h REAL, l REAL, c REAL, v INTEGER, "
-                "PRIMARY KEY (ticker, tf, ts))"
-            )
+            from api.services.bars_sqlite import ohlcv_ddl
+            out.execute(ohlcv_ddl())
             # ⚰️ A `bars_provenance` table was created in the delta here (and
             # filled from a source table that was always empty) until
             # 2026-08-09. See the note in `_merge_snapshot_db` above.

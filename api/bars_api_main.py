@@ -103,6 +103,12 @@ def _ensure_local_db_installed() -> None:
     except Exception as e:  # noqa: BLE001
         _log.warning("[bars-api] temp cleanup failed (non-fatal): %s", e)
     try:
+        # Clustered-layout adoption (BARS_ADOPT_CLUSTERED=1): a rowid store is removed
+        # here so the cold-start install below lays down the clustered snapshot.
+        data_sync.adopt_clustered_if_requested(_DATA_DIR)
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] adopt-clustered check failed (non-fatal): %s", e)
+    try:
         populated = False
         if os.path.exists(p):
             c = sqlite3.connect(p, timeout=5)
@@ -225,13 +231,6 @@ async def _lifespan(app: FastAPI):
     except Exception as e:  # noqa: BLE001
         _log.warning("[bars-api] WAL checkpointer start failed: %s", e)
     try:
-        # Clustered (WITHOUT ROWID) bar layout: converts this tier's store in place,
-        # in quiet windows only -- the fix for cold first reads at the open (bars_cluster).
-        from api.services import bars_cluster
-        bars_cluster.start()
-    except Exception as e:  # noqa: BLE001
-        _log.warning("[bars-api] bars-cluster driver start failed: %s", e)
-    try:
         if os.environ.get("BARSPACK_WEB_INGEST_ENABLED") == "1":
             from api.services import barspack_web_ingest as _bpwi
             _bpwi.start_web_ingest()
@@ -302,14 +301,8 @@ def _build_app() -> FastAPI:
     from api.bars_auth import require_bars_service
 
     def _health():
-        try:
-            from api.services import bars_cluster
-            cluster = bars_cluster.status()
-        except Exception:  # noqa: BLE001 -- health never fails on a diagnostic
-            cluster = None
         return {"alive": True, "service": "bars-api",
-                "threads": threading.active_count(), "rss_mb": _rss_mb(),
-                "bars_cluster": cluster}
+                "threads": threading.active_count(), "rss_mb": _rss_mb()}
 
     @app.get("/api/health")
     def health():
