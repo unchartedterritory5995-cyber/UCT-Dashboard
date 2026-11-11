@@ -23,9 +23,11 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import path from 'node:path'
 
 import { gradeCapture, loadCapture, HARNESS_DIR } from './harness'
-import { runOurSide, enterMemberDoor, toProductBars, HARNESS_DEF_ID } from './ourSide'
+import { runOurSide, enterMemberDoor, toProductBars, warmBarsSupply, HARNESS_DEF_ID } from './ourSide'
 import * as registry from '../../nativeRegistry'
 import { probeRuntimeProgram, runtimeObjectValues } from '../../runtime/runtimeColumns'
+import { objectReaderFor } from '../../objectColumns'
+import { evaluateObjects } from '../../objectRuntime'
 
 afterEach(() => { vi.unstubAllEnvs() })
 const T = 600000
@@ -70,15 +72,6 @@ const ourObjects = (o) => (o.objects.held || []).filter((h) => ['line', 'label',
   return { f: 'box', id: h.id, y: [p.top, p.bottom], x: [p.left, p.right], t: String(p.text ?? '') }
 }).sort((a, b) => a.id - b.id)
 const key = (o) => `${o.f}|${o.t}|${o.y.map(r4).join(',')}`
-const windowRange = (c) => {
-  const lo = c.bars.fields.indexOf('low')
-  const hi = c.bars.fields.indexOf('high')
-  return { minLow: Math.min(...c.bars.rows.map((r) => r[lo])), maxHigh: Math.max(...c.bars.rows.map((r) => r[hi])) }
-}
-const outsideWindow = (v, { minLow, maxHigh }) => {
-  const ys = v.y.filter((y) => y !== null && y !== undefined && !Number.isNaN(y))
-  return ys.length > 0 && (Math.max(...ys) < minLow || Math.min(...ys) > maxHigh)
-}
 /** Pine's collector on one family that creates `k` objects, none spared
  *  (`objectRuntime.js::collect`, triage C7; F4 uses the same). */
 const heldAfter = (k, cap5) => (k <= cap5 + 5 ? k : cap5 + ((k - cap5 - 6) % 6))
@@ -257,59 +250,106 @@ function pivotCentres(c, depth) {
 }
 const doubledBars = (P) => [...new Set(P.map((p) => p.bar))].filter((b) => P.filter((p) => p.bar === b).length === 2)
 
-// ⛔⛔ DIV-1 RE-PIN (2026-11-09): PRODUCT DEFECT, fix lane W-C22-DEL — NOT an explained difference.
-// Graded cold, this block proved "lines 504/272, labels 129/23 are the WINDOW plus two
-// withheld zig-zag spans" and "nothing we draw is wrong" (295 of 295 ours were TradingView's).
-// The harness now replays SPY's proved history from its 1993 listing — the series a
-// member's daily chart computes (DIV-1) — and the truth it shows is a defect the member
-// sees: counts are close (lines 504 vs 500, labels 129 = 129), 581 of our 629 objects are
-// TradingView's in order, but
-//   · ours holds 48 zig-zag LINES TradingView does not: their pivots sit at absolute bars
-//     5649..5948 (2015-16, before the window) — stale lines TradingView deleted;
-//   · TradingView holds 52 in-window lines (prices 322..697.84, 2020 onward) that we lack.
-// Suspected cause (not yet proved): the C22 window-ambiguity withholding (doubled 9-bar
-// pivots at absolute bars 7025 / 8231 = window 348 / 1554) withholds the program's
-// DELETES as well as its creates, so pre-window lines survive that TradingView removed.
-// These rails pin the defect AS IT IS, so the fix (lane W-C22-DEL) flips them.
-describe('F6 — vdubus SPY (DIV-1, product defect W-C22-DEL): replayed from the listing we hold 48 stale pre-window lines and lack 52 in-window lines', () => {
+/** ⭐ W-C22-DEL — the object lane STEPPED over [listing prehistory + window], the
+ *  series `runOurSide` replays (DIV-1), with the runtime's own trace. */
+function steppedReplay(c) {
+  objectsPane()
+  const door = enterMemberDoor(c.source.text)
+  try {
+    const sup = warmBarsSupply(c)
+    expect(sup.kind).toBe('warm')
+    const bars = toProductBars({ ...c, bars: { ...c.bars, rows: sup.rows.concat(c.bars.rows) } })
+    const reader = objectReaderFor(door.def, bars, { tf: 'D', symbol: { ticker: 'SPY', exchange: 'AMEX' },
+      newestBarIsForming: c.newestBarIsForming ?? null, historyFromListing: sup.historyFromListing === true })
+    const run = evaluateObjects(reader.program, { barCount: bars.length, readNode: reader.readNode,
+      readTime: reader.readTime, readUnknown: reader.readUnknown, offListing: reader.historyFromListing !== true, trace: true })
+    return { pre: sup.bars, program: reader.program, def: door.def, run }
+  } finally {
+    registry.uninstallUserDefinition(HARNESS_DEF_ID)
+  }
+}
+
+// ⭐⭐ W-C22-DEL (2026-11-09) — FIXED: no line TradingView removed is drawn.
+// DIV-1 (replayed from SPY's 1993 listing, the series a member's daily chart computes)
+// showed ours holding 48 zig-zag LINES TradingView does not (pivots at absolute bars
+// 5649..5948, before the window) and lacking 52 in-window lines it holds. The lane's
+// suspicion was withheld DELETES. ⚰️ PROVED WRONG by the stepped replay below: the
+// script deletes NOTHING (`line.delete` appears nowhere; the program carries no
+// delete op). Its lines leave only by Pine's collector (max_lines_count=500). The
+// C22 window-ambiguity withholding (doubled 9-bar pivots at window 348 / 1554)
+// withheld CREATES on bars where Pine ran them, so this run made fewer objects than
+// TradingView (its creation counter reads 2907, ours 2831), its collector lagged
+// TradingView's, and the oldest lines TradingView had already collected survived
+// here, DRAWN. The fix is C33's existing collector rule (`noteUnknownCreate` →
+// `collectorUnknown`, one authority): a create withheld by `op.withhold` is one Pine
+// MAY have made, so once ours plus those can pass the trigger, every line TradingView
+// may already have collected is held back (r3/r4; r1/r2 held the family whole), by
+// name (`withheldBy['objects:collector']`, the member's drawing note). A
+// bar the guard's MEASURED conjuncts are false (`withholdRuns`) is a certain skip, so
+// only the 20 bars Pine may really have drawn on count: labels stay drawn.
+describe('F6 — vdubus SPY (DIV-1, W-C22-DEL fixed): the lines TradingView\'s collector removed are never drawn; older lines are held back by name, labels match', () => {
   const ID = 'vdubus-pattern-gen-v2-restored-refined-spy-1d-2026-10-03'
 
-  it('⛔ DEFECT: 581 of our 629 objects are TradingView\'s in order; the 48 we hold that it does not are LINES whose pivots lie before the window (absolute bars 5649..5948)', () => {
+  it('⭐ the cause, stepped: the program deletes nothing, lines leave only by the collector, and creates Pine may have made were withheld (TradingView\'s counter is past ours)', () => {
     const c = cap(ID)
-    const V = vendorObjects(c)
-    const O = ourObjects(ours(ID))
-    const { pairs, unO } = inOrderPairing(V, O)
-    expect([V.length, O.length, pairs.length]).toEqual([633, 629, 581])
-    expect(unO.length).toBe(48)
-    expect(new Set(unO.map((o) => o.f))).toEqual(new Set(['line']))
-    // our x is the absolute bar index of the replayed series: the window starts at 6677
-    const xs = unO.flatMap((o) => o.x).filter(Number.isFinite)
-    expect([Math.min(...xs), Math.max(...xs)]).toEqual([5649, 5948])
-    expect(Math.max(...xs)).toBeLessThan(6677)
-    expect(graded(ID).objects.verdict).toBe('DIVERGE')
+    const { pre, program, run } = steppedReplay(c)
+    const ev = run.events
+    const every = (list, fn) => { for (const o of list) { fn(o); if (o.k === 'loop') every(o.body || [], fn) } }
+    const kinds = new Set()
+    every(program.ops, (o) => kinds.add(o.k))
+    expect(kinds.has('delete')).toBe(false)
+    expect(ev.filter((e) => e.k === 'delete')).toEqual([])
+    const evicts = ev.filter((e) => e.k === 'evict')
+    expect(evicts.length).toBeGreaterThan(0)
+    expect(new Set(evicts.map((e) => e.family))).toEqual(new Set(['line']))
+    // the creates withheld on a bar Pine may have run them: every one in the window,
+    // on or after the first doubled pivot's bar (window 348 + the 9-bar confirmation)
+    const withheld = ev.filter((e) => e.k === 'withheld')
+    expect(withheld.length).toBeGreaterThan(0)
+    expect(Math.min(...withheld.map((e) => e.bar))).toBeGreaterThanOrEqual(pre + 348)
+    // TradingView made more objects than this run did: its collector is further on
+    const vendorMaxId = Math.max(...c.objects.records.lines.map((l) => l.id))
+    expect(vendorMaxId).toBe(2907)
+    expect(run.stats.nextId - 1).toBe(2831)
+    expect(vendorMaxId).toBeGreaterThan(run.stats.nextId - 1)
   }, T)
 
-  it('the cause: SPY has two bars that are BOTH a 9-bar pivot high and a pivot low (348, 1554); RDDT has none, which is why RDDT MATCHES', () => {
+  it('⭐ FIXED (r3): every object we draw is TradingView\'s, in order; only the lines it certainly still keeps are drawn, the older ones held back BY NAME', () => {
+    const c = cap(ID)
+    const o = ours(ID)
+    const O = ourObjects(o)
+    const { pairs, unO } = inOrderPairing(vendorObjects(c), O)
+    // ⛔ THE HONESTY PROPERTY: nothing we draw is an object TradingView does not hold
+    expect(unO).toEqual([])
+    expect(pairs.length).toBe(O.length)
+    // ⭐ r4 — 364 of our 500 lines are certainly still kept by TradingView (rank <= 1 +
+    // later creates + creates Pine may have made later + one slot per line register,
+    // objectPool.js C7); the 136 older ones, and the fills on them, are held back.
+    // ⚰️ r1/r2 held back all 500 (the family whole); r3 drew 412 (no register slots).
+    expect(O.filter((x) => x.f === 'line').length).toBe(364)
+    // a fill spans two lines: every fill we draw joins two lines we draw
+    const drawnLines = new Set(o.objects.held.filter((x) => x.family === 'line').map((x) => x.id))
+    const fills = o.objects.held.filter((x) => x.family === 'linefill')
+    expect(fills.length).toBeGreaterThan(0)
+    for (const f of fills) expect([drawnLines.has(f.props.line1.__ref), drawnLines.has(f.props.line2.__ref)], `fill #${f.id}`).toEqual([true, true])
+    expect(O.filter((x) => x.f === 'label').length).toBe(129)
+    expect(o.objects.withheldFamilies).toEqual(['line', 'linefill'])
+    const v = graded(ID)
+    expect(v.objects.verdict).toBe('INCONCLUSIVE')
+    expect(v.objects.withheld).toBe('objects:collector')
+    expect(family(v, 'lines')).toMatchObject({ vendor: 504, ours: null, withheld: true })
+    expect(family(v, 'labels')).toMatchObject({ vendor: 129, ours: 129, agree: true })
+  }, T)
+
+  it('the trigger: SPY has two bars that are BOTH a 9-bar pivot high and a pivot low (348, 1554); RDDT has none, which is why RDDT MATCHES', () => {
     expect(doubledBars(pivotCentres(cap(ID), 9))).toEqual([348, 1554])
     expect(doubledBars(pivotCentres(cap('vdubus-pattern-gen-v2-restored-refined-rddt-1d-2026-09-28'), 9))).toEqual([])
     expect(graded('vdubus-pattern-gen-v2-restored-refined-rddt-1d-2026-09-28').objects.verdict).toBe('MATCH')
     // on such a bar the fast engine's zig-zag arrays take TWO `array.unshift`s;
     // the host object lane cannot say which is newest per bar, so every drawing
-    // step that reads those arrays is withheld while either value is among the
-    // ten it keeps (`Resolver.windowAmbiguity`, C22) — withheld, never guessed
+    // step whose guard reads those arrays is withheld while either value is among
+    // the ten it keeps (`Resolver.windowAmbiguity`, C22) — withheld, never guessed
     expect(doorDiagnostics(cap(ID)).windowAmbiguousSteps).toBeGreaterThan(0)
-  }, T)
-
-  it('⛔ DEFECT: the 52 objects TradingView holds that we lack are LINES inside the window\'s prices (322..697.84, 2020 onward)', () => {
-    const c = cap(ID)
-    const { unV } = inOrderPairing(vendorObjects(c), ourObjects(ours(ID)))
-    expect(unV.length).toBe(52)
-    expect(new Set(unV.map((v) => v.f))).toEqual(new Set(['line']))
-    const range = windowRange(c)
-    expect(unV.filter((v) => outsideWindow(v, range))).toEqual([])
-    const ys = unV.flatMap((v) => v.y).filter(Number.isFinite)
-    expect(Math.min(...ys)).toBeGreaterThanOrEqual(322)
-    expect(Math.max(...ys)).toBe(697.84)
   }, T)
 })
 
@@ -388,7 +428,11 @@ describe('F6 — what is not drawn on the SPY captures, why, and whose it is', (
       expect(d.unsupported).toEqual([])
       expect(d.dropReasons).toEqual({})
       const v = graded(id)
-      expect([family(v, 'lines').ours, family(v, 'labels').ours]).toEqual([2, 0])
+      // ⭐ OZ RE-PIN (2026-11-09): the 40 labels are now withheld BY NAME
+      // (`objects:not-computable`, every one carries a value the run could not compute)
+      // rather than counted as 0 — a stated refusal, not a silent zero.
+      expect([family(v, 'lines').ours, family(v, 'labels').ours]).toEqual([2, null])
+      expect(family(v, 'labels').withheld).toBe(true)
       // ⭐ P2b — and the RENDER state draws them (the grade counts what the script holds)
       const o = ours(id)
       expect(o.objects.drawn.lines, id).toBe(2)
@@ -409,7 +453,10 @@ describe('F6 — what is not drawn on the SPY captures, why, and whose it is', (
       const o = ours(id)
       expect(o.notes.some((n) => /other symbol XAUUSD: refused \(other-symbol:bare\)/.test(n)), id).toBe(true)
       const v = graded(id)
-      expect([family(v, 'lines').ours, family(v, 'labels').ours]).toEqual([0, 0])
+      // ⭐ OZ RE-PIN (2026-11-09): nothing of either is drawn, now withheld BY NAME
+      // (every create the refused symbol reaches is withheld: `objects:not-computable`).
+      expect([family(v, 'lines').ours, family(v, 'labels').ours]).toEqual([null, null])
+      expect([family(v, 'lines').withheld, family(v, 'labels').withheld]).toEqual([true, true])
     }
   }, T)
 

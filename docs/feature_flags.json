@@ -3211,7 +3211,7 @@
       "where": [],
       "default": "1",
       "values": ["0", "1"],
-      "note": "DEFAULT ON (today's behaviour): unset or 1 keeps Cache-Control no-transform on every /assets response. 0 drops no-transform from hashed JS/CSS ONLY so Cloudflare may compress them: with it on, Cloudflare decompresses our precompressed response and may not re-compress it, so members got every JS/CSS file uncompressed (measured 2026-11-10: main script 573 KB vs 157 KB Brotli). Safe only while the zone's Compression Rule limits /assets/* to brotli or gzip, never zstd (zstd truncated the ECharts chunk, 72f1c438f8), and only after every hashed asset is verified byte-for-byte through the edge. Read per request in api/services/static_assets.py (no_transform_enabled). Rails: tests/test_precompressed_static_assets.py. Rollback: railway variables --service web --set ASSETS_NO_TRANSFORM_ENABLED=1 (a delete stages but does not restart: redeploy), then PURGE /assets AT CLOUDFLARE."
+      "note": "DEFAULT ON (today's behaviour): unset or 1 keeps Cache-Control no-transform on every /assets response. 0 drops no-transform from hashed JS/CSS ONLY so Cloudflare may compress them: with it on, Cloudflare decompresses our precompressed response and may not re-compress it, so members got every JS/CSS file uncompressed (measured 2026-11-10: main script 573 KB vs 157 KB Brotli). Safe only while the zone's Compression Rule limits /assets/* to brotli or gzip, never zstd (zstd truncated the ECharts chunk, 72f1c438f8), and only after every hashed asset is verified byte-for-byte through the edge. Read per request in api/services/static_assets.py (no_transform_enabled). Rails: tests/test_precompressed_static_assets.py. LIVE VALUE 0 ON web SINCE 2026-11-10 22:06 CT (fresh boot confirmed by uptime): tools/cdn_asset_integrity.py 1,118/1,118 intact, all Brotli, with AND without an Origin header; a real Chrome first visit to /charts fell from 6.75 MB to 2.42 MB of JS/CSS. ⛔ CLOUDFLARE KEEPS A SEPARATE CACHE OBJECT FOR REQUESTS WITH AN Origin HEADER (every browser module script sends one): a plain URL purge left that variant stale and uncompressed while header-less checks were all Brotli. Every purge must name both: files [{url}, {url, headers: {Origin: https://uctintelligence.com}}]. Rollback: railway variables --service web --set ASSETS_NO_TRANSFORM_ENABLED=1 (a delete stages but does not restart: redeploy), then PURGE every /assets URL at Cloudflare, both variants."
     },
     "DESKTOP_TELEMETRY_ENABLED": {
       "status": "dark",
@@ -3591,11 +3591,11 @@
         "web"
       ],
       "owner": "pine parity programme",
-      "owner_decision": "owner ruling 2026-11-01: saved scripts pick up engine accuracy fixes automatically (PR #610); default ON",
-      "railway_value": "UNSET on every service (unset = ON; only the literal '0' disables)",
-      "baked_value": "undefined, which the read treats as ON",
-      "baked_measured_on": "2026-11-01, from Dockerfile.web's ARG list (declared in this commit; #610 shipped the read without it and the master deploy gate held production)",
-      "last_changed": "2026-11-01T00:00:00Z",
+      "owner_decision": "owner ruling 2026-11-01: saved scripts pick up engine accuracy fixes automatically (PR #610); default ON. Same day the owner set '0' on Railway web as a HOLD before the build-arg fix (recorded in e2fe145fcb on fix/pine-610-build-flag, which never reached master). The hold is lifted by REMOVING the variable (unset = ON) once F-15 (#617) is live: F-15 is the defect that bites once the upgrade is ON (an Agent delete -> Undo restored a saved Pine indicator without its stored script and engine stamp, and reported it confirmed, so that indicator silently stopped picking up engine upgrades).",
+      "railway_value": "'0' on web (owner hold since 2026-11-01); removal follows this PR's deploy (#617, F-15). Unset on every other service.",
+      "baked_value": "'0' expected in the live bundle (set on web and declared as a Dockerfile.web ARG by f7c55f0383); NOT re-measured by #617 - measure the served JS after the variable is removed",
+      "baked_measured_on": "not measured since the 2026-11-01 hold; the 2026-11-01 entry was read from Dockerfile.web's ARG list, not the served bundle",
+      "last_changed": "2026-11-01 (owner set '0' on web as a hold; ledger corrected 2026-11-10 in #617)",
       "note": "Kill switch for saved-script auto-upgrade, read in ONE place: app/src/components/chart/builder/memberPane/savedScriptUpgrade.js::savedScriptUpgradeEnabled as `(env.VITE_SAVED_SCRIPT_UPGRADE ?? '1') !== '0'`. ON (unset): a saved Pine doc whose meta.engineVersion is older than SCRIPT_ENGINE_VERSION and that carries its stored source is re-translated after first paint and written back once. Rollback: set the variable to 0 on web and redeploy (build constant). Declared as a build ARG in Dockerfile.web because Railway drops undeclared build args silently."
     }
   },

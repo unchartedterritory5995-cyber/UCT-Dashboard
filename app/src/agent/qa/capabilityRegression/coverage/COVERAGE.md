@@ -22,7 +22,7 @@ Catalog: **179** capabilities (every server-gated kind on; 170 with production's
 
 | id | level | intent | phrasing | owner | reason |
 |---|---|---|---|---|---|
-| GAP-WIDGET-READ-ROUTE | a | widget.readOptions | "how is that one set right now" | agent-lead | boardEdit has no words of its own and phrase rules are frozen: a message reaches this action through the model's need_groups reroute (the group title names it) until description-driven discovery lands |
+| GAP-WIDGET-READ-ROUTE | a | widget.readOptions | "how is that one set right now" | agent-lead | a BUDGET CUT under routing v2 (production): the message wants boardEdit, but charts 21 + workspace 13 + lists 17 + agent 1 = 52 leave no room for boardEdit (5) under the 55-action budget (routeReachability.test.js). Under v1 (the kill-switch fallback, which this level runs) boardEdit has no words of its own; the model can still ask for the group (need_groups) |
 | CG-13 | collision | routing data | "how does NVDA stack up against AMD" | nlfix builder (routing.js) | the charts compare words select 'against' |
 | CG-4 | collision | routing indicators | "add the relative strength index" | nlfix builder (routing.js) | 'relative strength' is a screener strength word (SUBTRACTIVE: indicators not named) |
 

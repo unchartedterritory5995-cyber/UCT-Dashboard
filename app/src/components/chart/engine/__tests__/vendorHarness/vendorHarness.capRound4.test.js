@@ -60,14 +60,14 @@ describe('Q-H1b — ratchet stops, RDDT from the listing', () => {
       expect(p.stats.compared).toBe(636)
     })
 
-  it.fails('⛔ door: R03_trend KNOWN DIVERGE on bar 0 only (ours na, TradingView 1) — the Q-NA rule', () => {
-    expect(item(grade(RATCHET_RDDT), 'R03_trend').verdict).toBe('MATCH')
-  })
-
-  it('control: R03_trend diverges on exactly one bar, bar 0', () => {
+  // ⭐⭐ LANE B0 (2026-11-09) — `trend = 1` / `trend := nz(trend[1], trend)` folds to
+  // `accum(na, …)` (the plain spelling's history seed), and from the listing bar 0 now
+  // runs the update (`interpret.js::historySeedReading`) instead of also keeping "bar 0
+  // IS the seed (`na`)" as a candidate and withholding the bar where the two differed.
+  it('⭐ door: R03_trend MATCH on all 636 bars, bar 0 included (was: na there, TradingView 1)', () => {
     const p = item(grade(RATCHET_RDDT), 'R03_trend')
-    expect(p.stats.steady.divergent).toBe(1)
-    expect(p.stats.steady.first.bar).toBe(0)
+    expect(p.verdict, p.reason).toBe('MATCH')
+    expect(p.stats.compared).toBe(636)
   })
 })
 

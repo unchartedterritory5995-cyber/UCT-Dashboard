@@ -132,3 +132,38 @@ test('the four always-on surfaces fixed on 2026-11-10 stay off the list', () => 
   expect(now).not.toMatch(/voice\/FloatingOrb\.module\.css::\.orb\b/)
   expect(now).not.toMatch(/ModelBook\.module\.css::\.hub/)
 })
+
+// ---- SVG SMIL (`<animate>`, `<animateTransform>`, `<animateMotion>`, `<set>`) that never ends ----
+// Invisible to document.getAnimations(), so the motion sweep and the CSS scan above cannot see it,
+// yet Blink services it every frame: on 2026-11-10 one `repeatCount="indefinite"` gradient sweep in
+// the Dashboard's Journal tile cost 60 layouts and 60 style recalcs a second while the page sat idle.
+// None is allowed: sweep a few times and rest (repeatCount="2"), or ride a CSS animation that rests.
+const SMIL_RE = /\b(?:repeatCount|repeatDur)\s*=\s*\{?\s*["'`]indefinite["'`]/g
+
+export function scanSmilEndless(root = ROOT) {
+  const hits = []
+  for (const file of codeFiles(root)) {
+    const n = (fs.readFileSync(file, 'utf8').match(SMIL_RE) || []).length
+    if (n) hits.push(`${path.relative(root, file).split(path.sep).join('/')}: ${n}`)
+  }
+  for (const file of fs.readdirSync(path.join(ROOT, '..', 'public'), { recursive: true })) {
+    if (!String(file).endsWith('.svg')) continue
+    const full = path.join(ROOT, '..', 'public', String(file))
+    const n = (fs.readFileSync(full, 'utf8').match(SMIL_RE) || []).length
+    if (n) hits.push(`public/${String(file).split(path.sep).join('/')}: ${n}`)
+  }
+  return hits.sort()
+}
+
+test('no SVG SMIL animation repeats forever', () => {
+  expect(scanSmilEndless(), 'An endless SMIL animation re-lays-out the page every frame. Let it run a few times and rest.').toEqual([])
+})
+
+test('the SMIL scan can see one at all (control)', () => {
+  const dir = fs.mkdtempSync(path.join(globalThis.process.env.TEMP || '/tmp', 'endless-smil-'))
+  fs.writeFileSync(path.join(dir, 'A.jsx'), ['<animateTransform dur="3s" repeatCount="indefinite" />', '<animate repeatCount={"indefinite"} />', '<animate repeatCount="2" />'].join('\n'))
+  const hits = []
+  for (const file of codeFiles(dir)) hits.push((fs.readFileSync(file, 'utf8').match(SMIL_RE) || []).length)
+  expect(hits).toEqual([2])
+  fs.rmSync(dir, { recursive: true, force: true })
+})

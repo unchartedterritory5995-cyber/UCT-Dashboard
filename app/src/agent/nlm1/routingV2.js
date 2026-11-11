@@ -26,7 +26,7 @@
 // registry in the browser and against the sent manifest on the server; approvals and protected layouts apply as
 // before. The `routing` object sent to the server has v1's exact shape.
 
-import { GROUPS, ROUTING_VERSION, groupOfAction, selectGroups, wordsSelect, routeManifest } from '../routing'
+import { GROUPS, ROUTING_VERSION, groupOfAction, selectGroups, wordsSelect, routeManifest, warnBudgetCut } from '../routing'
 import { manifestFor } from '../capabilities'
 import { buildIndex, lexicalScores, tokens, stem, entityTokens, tickerWordsOf, vocabularyHits, ENTITY_W, ENTITY_GROUPS, RELATED } from './capabilityIndex'
 
@@ -263,6 +263,7 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
     if ((used + n > budget || usedBytes + b > cap) && want.size >= always.length) { if (needed.includes(id)) over.push(id); continue }
     want.add(id); used += n; usedBytes += b
   }
+  warnBudgetCut(manifest, groupOfAction, over)          // a needed group the budget cut is never silent (routing.js)
   const sentWith = sel.undoSignal ? [] : SENT_WITH_GROUP.filter(id => id === 'calendar' || (scoreOf.get(id) || 0) >= k.EVID_FLOOR)
   const present = GROUPS.filter(g => counts.has(g.id))
   const routed = manifest.filter(c => want.has(groupOfAction(c.name)) || groupOfAction(c.name) === null)

@@ -90,4 +90,7 @@ it('strict census', () => {
   for (const r of lenientButNotStrict.slice(0, 12)) console.log(`   ${r.corpus}/${r.name}  outputs=${r.outs} null=${r.nulls}`)
   console.log('\n-- runtime ok but DROPPED plots, first 12 --')
   for (const r of rtPartial.slice(0, 12)) console.log(`   ${r.corpus}/${r.name}  declared=${r.declared} emitted=${r.rtOuts}`)
-})
+  // ⏱️ LANE B0 r1 (2026-11-09) — MEASURED, not guessed: on an idle box this census takes
+  // 12.1-15.0 s (12.1 / 13.5 s here; 13.4-15.0 s in the lane review), and the 15 s default
+  // timed it out under a full ast+runtime run. 60 s is 4x the slowest idle measurement.
+}, 60000)

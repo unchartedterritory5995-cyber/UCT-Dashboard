@@ -463,7 +463,12 @@ export function execute(program, ctx, limits, opts) {
   // that, so a skip window keeps its OWN ring of finite values — exactly n
   // cells, appended only when a finite value arrives. Bounded by construction:
   // the gap between observations can be arbitrary, the STORAGE cannot.
-  const winObs = winPlan.map((w) => (FINITE_WINDOW[w.fn].na === 'skip' ? new Float64Array(w.span) : null))
+  // ⭐⭐ LANE B0 — `ffill` (`wma`) keeps a ring too: the last `w.span` FILLED values
+  // (each bar's own value, or the last finite one before it), right-aligned; its
+  // newest cell IS the carry, so no state beyond the ring (resume / rollback copy it
+  // already). `winObsN` counts its FINITE observations (capped at `w.span`): the warm-up.
+  const winObs = winPlan.map((w) => (FINITE_WINDOW[w.fn].na === 'skip' ? new Float64Array(w.span)
+    : FINITE_WINDOW[w.fn].na === 'ffill' ? new Float64Array(w.span).fill(NaN) : null))
   const winObsN = new Int32Array(winPlan.length)
   const winReduce = winPlan.map((w) => {
     const spec = FINITE_WINDOW[w.fn]
@@ -510,24 +515,29 @@ export function execute(program, ctx, limits, opts) {
   const heldNow = () => {
     const vars = new Set()
     const containers = new Set()
-    const seen = new Set()
-    const inside = (v, depth) => {
-      if (depth > 32 || v === null || typeof v !== 'object' || seen.has(v)) return
-      if (isDrawingHandle(v)) { containers.add(v.id); return }
-      seen.add(v)
-      if (Array.isArray(v)) { for (const x of v) inside(x, depth + 1); return }
+    // ⭐ W-C22-DEL r6 — a drawing reached through ARRAYS only (`arrays`) is told apart
+    // from one a map, a matrix or a UDT field holds (`containers`): for boxes the
+    // array case is WITNESSED (objectPool.js C7, sonarlab-order-blocks-spy-1d).
+    const arrays = new Set()
+    const seen = [new Set(), new Set()]
+    const inside = (v, depth, pure) => {
+      const s = seen[pure ? 1 : 0]
+      if (depth > 32 || v === null || typeof v !== 'object' || s.has(v)) return
+      if (isDrawingHandle(v)) { (pure ? arrays : containers).add(v.id); return }
+      s.add(v)
+      if (Array.isArray(v)) { for (const x of v) inside(x, depth + 1, pure); return }
       // ⭐ W6-T7 — a matrix's cells hold drawings too (`matrix<pivotGraphic>`)
-      if (isMatrix(v)) { for (const row of v.cells) inside(row, depth + 1); return }
-      if (isUdtRecord(v)) for (const x of Object.values(v.f)) inside(x, depth + 1)
-      if (isMap(v)) for (const x of v.m.values()) inside(x, depth + 1)
+      if (isMatrix(v)) { for (const row of v.cells) inside(row, depth + 1, false); return }
+      if (isUdtRecord(v)) for (const x of Object.values(v.f)) inside(x, depth + 1, false)
+      if (isMap(v)) for (const x of v.m.values()) inside(x, depth + 1, false)
     }
     const top = (v) => {
       if (isDrawingHandle(v)) vars.add(v.id)
-      else inside(v, 0)
+      else inside(v, 0, Array.isArray(v))
     }
     for (let i = 0; i < persist.length; i += 1) top(persist[i])
     for (let i = 0; i < heldTop; i += 1) top(locals[i])
-    return { vars, containers }
+    return { vars, containers, arrays }
   }
 
   // ⭐ RT7 — read once: a budget's limits are fixed for its life (`limits.js`), and
@@ -1212,6 +1222,26 @@ export function execute(program, ctx, limits, opts) {
             }
             if ((cWin += span) > capWin) { bc.WINDOW_CELLS = cWin - span; budget.charge('WINDOW_CELLS', span) }
             stack[sp++] = winObsN[wi] < span ? NaN : winReduce[wi](obs, 0, span - 1)
+            break
+          }
+
+          if (policy === 'ffill') {
+            // ⭐⭐ LANE B0 (2026-11-09) — `ta.wma`, THE COLUMNAR LANE'S RULE
+            // (`interpret.js::rolling`): an `na` in the lookback is the last finite
+            // value before it (vendor-pinned 2026-09-08), the bar being asked about
+            // must itself be finite, and the window answers only once `span` FINITE
+            // values have arrived — WITNESSED from the listing on
+            // `trend-targets-algoalpha-rddt-1d-2026-10-02` (first answer on the bar
+            // holding the 40th finite value). ⚰️ This lane read `ffill` as
+            // `propagate`: any `na` in the window answered `na`, so it disagreed with
+            // the columnar lane on every hole and started `ta.ema(ta.wma(…))` late.
+            const obs = winObs[wi]
+            const filled = Number.isFinite(live) ? live : obs[w.span - 1]
+            if (Number.isFinite(live) && winObsN[wi] < w.span) winObsN[wi] += 1
+            obs.copyWithin(0, 1)
+            obs[w.span - 1] = filled
+            if ((cWin += span) > capWin) { bc.WINDOW_CELLS = cWin - span; budget.charge('WINDOW_CELLS', span) }
+            stack[sp++] = !Number.isFinite(live) || winObsN[wi] < span ? NaN : winReduce[wi](obs, w.span - span, w.span - 1)
             break
           }
 

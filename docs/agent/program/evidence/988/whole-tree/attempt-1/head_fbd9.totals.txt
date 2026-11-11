@@ -1,0 +1,9 @@
+whole tree head_fbd9 (npx vitest run, no filter), LOCK --who pl-exec, BelowNormal
+node_modules: LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+start (date -u): Wed Nov 11 04:45:30 UTC 2026
+worktree /c/w/pl-exec-dev/app commit fbd9b12e98e4b849ff7d30578b02f2ee8b0b49e3 tree a094b18093c6302085082515d12b76e7fcab7232
+tracked-dirty: 0; untracked zzAudit files: 25
+ Test Files  46 failed | 4594 passed | 34 skipped (4674)
+      Tests  53 failed | 75481 passed | 247 skipped | 24 todo (75805)
+     Errors  1 error
+   Duration  2177.47s (transform 117.92s, setup 782.98s, import 2099.13s, tests 11155.12s, environment 2688.57s)
