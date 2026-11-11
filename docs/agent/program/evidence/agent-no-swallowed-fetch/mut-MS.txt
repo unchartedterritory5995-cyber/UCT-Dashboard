@@ -1,0 +1,47 @@
+# pl-widget no lock, BelowNormal, label mut-MS 
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+6a1bd84649
+ M src/agent/capabilities/stock.js
+
+ RUN  v4.0.18 C:/w/pl-nsf/app
+
+ ❯ src/agent/agentNoSwallowedFetch.test.js (2 tests | 1 failed) 10ms
+     × the read throws: the profile says the statements could not be read, states no statement figure, and logs the cause 8ms
+     ✓ the kind is not served (null, no failure): the profile carries its snapshot fields alone and logs nothing, as before 1ms
+ ✓ src/agent/agentScanRefine.test.jsx (11 tests) 108ms
+ ✓ src/agent/agentPageCalendar.test.jsx (6 tests) 292ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent/agentNoSwallowedFetch.test.js > stock.profile: a FAILED statements read is said, never dropped as if it were absent > the read throws: the profile says the statements could not be read, states no statement figure, and logs the cause
+AssertionError: expected 'NVDA — NVIDIA Corporation · Technolog…' to match /\nFinancial statements: I couldn't re…/
+
+- Expected: 
+/\nFinancial statements: I couldn't read NVDA's financial statements from UCT's data gateway right now; no statement figure is stated\.\n/
+
++ Received: 
+"NVDA — NVIDIA Corporation · Technology
+Price $233.49 (from the fundamentals snapshot — a current quote wasn't available through the Agent's data gateway)
+Market cap $5.64T · P/E not available trailing, not available forward
+52-week range not available – not available
+Revenue (trailing 12 months) not available
+Next earnings: not available
+Source: UCT fundamentals (data vendor snapshot, refreshed about every 30 minutes); no current quote was available through the Agent's data gateway."
+
+ ❯ src/agent/agentNoSwallowedFetch.test.js:38:20
+     36|     const p = await profile()
+     37|     expect(p.text).toMatch(/^NVDA — NVIDIA Corporation · Technology/) …
+     38|     expect(p.text).toMatch(/\nFinancial statements: I couldn't read NV…
+       |                    ^
+     39|     expect(p.text).not.toMatch(/Income statement|Net income|newest per…
+     40|     expect(p.present.items.map(i => i.label)).not.toContain('Net incom…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 18 passed (19)
+   Start at  21:42:57
+   Duration  6.84s (transform 12.31s, setup 770ms, import 16.59s, tests 411ms, environment 1.33s)
+
+RUN-DONE 

@@ -51,6 +51,25 @@ All runs used `python ../tools/agent_suite_lock.py run --who pl-grid -- powershe
   - Set A was MS, MC and MR1, run together over three separate files: `Tests 3 failed | 16 passed (19)`.
   - MR2: a failed read returns `null`. `Tests 1 failed | 10 passed (11)`, the "server unreachable" case.
 
+## Re-check after merging origin/master `75421184a3` (head `84cdd31037`, pl-widget)
+
+The merge was clean. Runs were vitest under node, BelowNormal, ≤25 files, **no lock**. Each log prints the `node_modules` LinkType (a Junction to `C:\w\pl-mc-fw\app\node_modules`), the SHA and the tree state first. The logs are in `docs/agent/program/evidence/agent-no-swallowed-fetch/`.
+
+- **Focused, 23 files:** `agentNoSwallowedFetch`, `agentScanRefine`, `agentPageCalendar`, the census, and 19 stock / screener tests that import the changed capabilities. Result: `Test Files 1 failed | 22 passed (23)`, `Tests 1 failed | 431 passed | 1 skipped (433)`. The one failure is the census (`focused-head.txt`).
+- **Census offenders, head vs master at the same SHA** (`census-print.test.js.txt`, the census's own regex and comment strip, copied into the tree for the run only):
+  - master `75421184a3`, 7 files: `agent/capabilities/calendar.js 0->1`, `agent/capabilities/scanRefine.js 0->2`, `agent/capabilities/stock.js 0->1`, `components/StockChart.jsx 0->1`, `pages/breadth/drill/longHistory.js 0->1`, `pages/journal-2-0/tabs/NotebookTab.jsx 0->1`, `testing/agent/acceptance/lib.mjs 0->2`.
+  - this head, 3 files: `components/StockChart.jsx 0->1`, `pages/breadth/drill/longHistory.js 0->1`, `pages/journal-2-0/tabs/NotebookTab.jsx 0->1`. All three are on master's list, and this PR touches none of them. `StockChart.jsx` is NEW on master since `292983f4bc` (it came with the merge). It is not an Agent file.
+- **No new swallow in the diff:** `git diff origin/master...HEAD` has 0 added CODE lines matching `.catch(() => null | undefined | {})`. The 6 added lines that match are comments or this doc. The two added `.catch(` lines are `catch(e => fundamentalsUnread(sym, e))` and `catch(() => PASS_THROUGH)`.
+- **Mutants, re-run** (`mutants.json`, each a whole-line replace applied alone, then `git checkout`). Kill set: `agentNoSwallowedFetch`, `agentScanRefine` and `agentPageCalendar`, 19 tests. **5 of 5 killed:**
+
+| mutant | change | result | killed by |
+|---|---|---|---|
+| MS | `stock.js`: `.catch(() => null)` again | 1 failed / 19 | the stock "read throws" case |
+| MC | `calendar.js`: a failed week returns `{ days: {} }` | 1 failed / 19 | the calendar UNAVAILABLE case |
+| MR1 | `scanRefine.js`: the write ends in `.catch(() => null)` | 2 failed / 19 | "server unreachable", "a FAILED write is not silently lost" |
+| MR2 | `scanRefine.js`: a failed read returns `null` | 1 failed / 19 | "server unreachable" |
+| MA (AUDIT's) | `restoreLastScreen` returns `null` in place of `LAST_SCREEN_FAILED` (both returns) | 2 failed / 19, agentScanRefine red | "server unreachable", "a FAILED write is not silently lost" |
+
 ## Notes for AUDIT
 
 1. **One existing test was rewritten.** The `agentScanRefine` test "the server unreachable" asserted the swallowed outcome: after a 500, it expected "Which screen should I narrow?". It now asserts the starting-fresh sentence, both logs, and that no scan ran on a guess.

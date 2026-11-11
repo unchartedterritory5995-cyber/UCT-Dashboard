@@ -1,0 +1,19 @@
+# pl-widget no lock, BelowNormal, label census-head 
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+6a1bd84649
+?? src/lib/zzCensusPrint.test.js
+
+ RUN  v4.0.18 C:/w/pl-nsf/app
+
+stdout | src/lib/zzCensusPrint.test.js > print census offenders
+CENSUS-OFFENDERS 3 :: components/StockChart.jsx 0->1 | pages/breadth/drill/longHistory.js 0->1 | pages/journal-2-0/tabs/NotebookTab.jsx 0->1
+
+ ✓ src/lib/zzCensusPrint.test.js (1 test) 709ms
+   ✓ print census offenders  709ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  21:41:43
+   Duration  1.45s (transform 120ms, setup 227ms, import 11ms, tests 709ms, environment 388ms)
+
+RUN-DONE 

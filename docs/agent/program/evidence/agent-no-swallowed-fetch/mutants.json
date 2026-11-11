@@ -1,0 +1,7 @@
+{
+ "MS":  [["app/src/agent/capabilities/stock.js", 82, "    readFundamentalsFacts(sym).catch(() => null),"]],
+ "MC":  [["app/src/agent/capabilities/calendar.js", 95, "  if (!res.ok) return { days: {}, from: 'server' }"]],
+ "MR1": [["app/src/agent/capabilities/scanRefine.js", 106, "    .catch(() => null)"]],
+ "MR2": [["app/src/agent/capabilities/scanRefine.js", 115, "  if (!r?.ok) return null"]],
+ "MA":  [["app/src/agent/capabilities/scanRefine.js", 113, "  if (unsaved.has(id)) return null"], ["app/src/agent/capabilities/scanRefine.js", 115, "  if (!r?.ok) return null"]]
+}

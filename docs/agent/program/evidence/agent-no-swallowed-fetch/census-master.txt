@@ -1,0 +1,15 @@
+# master 75421184a3 no lock
+
+ RUN  v4.0.18 C:/w/pl-widget-pre3/app
+
+stdout | src/lib/zzCensusPrint.test.js > print census offenders
+CENSUS-OFFENDERS 7 :: agent/capabilities/calendar.js 0->1 | agent/capabilities/scanRefine.js 0->2 | agent/capabilities/stock.js 0->1 | components/StockChart.jsx 0->1 | pages/breadth/drill/longHistory.js 0->1 | pages/journal-2-0/tabs/NotebookTab.jsx 0->1 | testing/agent/acceptance/lib.mjs 0->2
+
+ ✓ src/lib/zzCensusPrint.test.js (1 test) 1666ms
+   ✓ print census offenders  1665ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  21:41:55
+   Duration  2.44s (transform 137ms, setup 251ms, import 14ms, tests 1.67s, environment 395ms)
+
