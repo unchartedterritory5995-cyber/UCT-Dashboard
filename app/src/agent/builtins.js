@@ -4,6 +4,7 @@
 import { registerChartCapabilities } from './capabilities/chart'
 import { registerWorkspaceCapabilities } from './capabilities/workspace'
 import { registerLayoutCapabilities } from './capabilities/layout'
+import { registerLayoutBarCapabilities } from './capabilities/layoutBar'
 import { registerWatchlistCapabilities } from './capabilities/watchlist'
 import { registerListViewCapabilities } from './capabilities/listView'
 import { registerScreenerCapabilities } from './capabilities/screener'
@@ -49,6 +50,7 @@ export function registerBuiltins() {
   registerChartCapabilities()
   registerWorkspaceCapabilities()
   registerLayoutCapabilities()
+  registerLayoutBarCapabilities()
   registerWatchlistCapabilities()
   registerListViewCapabilities()
   registerScreenerCapabilities()

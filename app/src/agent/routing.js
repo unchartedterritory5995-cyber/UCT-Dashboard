@@ -106,9 +106,11 @@ export const GROUPS = [
       MULTI_CHARTS, GRID_CELLS, /\b(2 ?x ?2|[2-4] by [2-4])\b/] },
   // Split from 'workspace' (2026-10-09): a whole-group packer packs better with smaller groups, and
   // saved layouts are their own concept ("open my Swing layout", "save this").
-  { id: 'layouts', title: 'Saved layouts (open, save, create, copy, rename, delete)', domains: ['layout'],
+  { id: 'layouts', title: 'Saved layouts (open, save, create, copy, rename, delete; the layout bar: pin a layout, take it off, reorder)', domains: ['layout'],
     // W1.1 R-03 (LT-9): "rename <X> to <Y>" names a layout as often as a tab or a list — the group rides along (routing only ADDS)
-    words: [/\blayouts?\b/, /\bworkspaces?\b/, /\bsave\b.*\b(changes|this|it|layout|arrangement|board)\b/, /\brename\b(?!.*\b(?:watch ?lists?|lists?|tabs?|screens?|scans?|indicators?|drafts?|alerts?)\b).*\bto\b/] },
+    words: [/\blayouts?\b/, /\bworkspaces?\b/, /\bsave\b.*\b(changes|this|it|layout|arrangement|board)\b/, /\brename\b(?!.*\b(?:watch ?lists?|lists?|tabs?|screens?|scans?|indicators?|drafts?|alerts?)\b).*\bto\b/,
+      // C3-037..039: the Layout Dock's bar ("take Swing off the bar", "pin my Momentum layout", "move Swing to the left on the bar")
+      /\b(?:off|from|to|on|onto|of|in) (?:the |my )?(?:layouts? )?(?:bar|dock)\b/, /\bunpin\b/, /\bpin\b.*\blayout/] },
   // INDICATORS M1 (agreed with Indicators, AGENT-INTEGRATION-HANDOFF §11). A message matching an
   // indicators word AND a charts word routes BOTH; the hints decide.
   { id: 'indicators', title: 'Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)', domains: ['indicator'],
