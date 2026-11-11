@@ -43,3 +43,7 @@ drawing.setPositionAlerts was in `alerts` and drawing.duplicate was in `drawings
 - SAT-1: 6 scan requests lost `screener` from the first call.
 
 The cause was one more action in a non-fillLast fill group, while the nothing-recognised fill sits exactly at the 55-action budget.
+
+## Measured head
+
+The first-call dumps and the controls were measured on the tree committed as `523eed87a1`. `c96e2e5953` adds only the SAT-1 capture, which no JS reads. Master is `64421f770d`.
