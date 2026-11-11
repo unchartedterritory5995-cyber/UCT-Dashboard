@@ -274,3 +274,32 @@ describe('barsStreamManager — protocol v2 per-key t ordering', () => {
     expect(got.map(b => [b.t, !!b.final])).toEqual([[600, false], [300, true]])
   })
 })
+
+describe('recovery: reconnectNow and isConnected', () => {
+  it('reopens every bucket at once and the reopen gap-backfills each chart', () => {
+    vi.useFakeTimers()
+    const reconnects = []
+    bars.subscribe('AAPL', '5', { onReconnect: (t) => reconnects.push(t) })
+    flush()
+    const first = MockES.instances[0]
+    first._open()
+    first._error()
+    expect(bars.isConnected()).toBe(false)
+    bars.reconnectNow()
+    const open = MockES.instances.filter((es) => !es.closed)
+    expect(open).toHaveLength(1)
+    expect(open[0]).not.toBe(first)
+    vi.advanceTimersByTime(20000) // past the 20 s backoff cap: the old backoff timer must not open a second connection
+    const still = MockES.instances.filter((es) => !es.closed)
+    expect(still).toHaveLength(1)
+    expect(still[0]).toBe(open[0])
+    still[0]._open()
+    expect(bars.isConnected()).toBe(true)
+    expect(reconnects.length).toBe(2) // first open, then the recovery reopen
+    vi.useRealTimers()
+  })
+
+  it('with nothing subscribed there is nothing to wait for', () => {
+    expect(bars.isConnected()).toBe(true)
+  })
+})

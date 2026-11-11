@@ -35,7 +35,7 @@ def _body(resp):
 
 
 def test_intraday_since_reads_only_new_rows(fresh_db):
-    now = int(time.time())
+    now = int(time.time()) // 60 * 60   # 1m bucket starts (the store's grid invariant)
     step = 60
     bars = [{"t": now - (100 - i) * step, "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 10}
             for i in range(100)]

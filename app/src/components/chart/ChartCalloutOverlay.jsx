@@ -1,4 +1,5 @@
 import { useRef, useEffect, useCallback } from 'react'
+import { watchChartView } from './chartViewWatcher'
 
 // Renders text callouts (Model Book catalysts) AmiBroker-style: each label sits
 // in open space above its candle with a thin diagonal leader line back to the
@@ -479,52 +480,33 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     // (child effects run before the parent effect that creates the chart) or
     // when the series was later recreated. See the matching fix in
     // ChartDrawingOverlay (the "trendline doesn't stay put" bug).
-    const onRange = () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
-      rafRef.current = requestAnimationFrame(() => trackedRef.current?.())
-    }
-    let subscribedChart = null
-
-    let loopRaf = null
+    // watchChartView samples the view every frame while it moves and rests when it is still
+    // (2026-11-10: the unconditional loop cost every chart 60 ticks a second all day).
     let lastSig = ''
     let stable = 0
-    const tick = () => {
-      const chart = chartRef?.current
-      const series = seriesRef?.current
-      if (chart !== subscribedChart) {
-        try { subscribedChart?.timeScale().unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* gone */ }
-        subscribedChart = null
-        if (chart) {
-          try { chart.timeScale().subscribeVisibleLogicalRangeChange(onRange); subscribedChart = chart } catch { /* older API */ }
+    const watcher = watchChartView({
+      chartRef,
+      seriesRef,
+      onRange: () => {
+        if (rafRef.current) cancelAnimationFrame(rafRef.current)
+        rafRef.current = requestAnimationFrame(() => trackedRef.current?.())
+      },
+      sample: ({ key }) => {
+        if (key !== lastSig) {
+          // Pan/zoom/focus animation: ride the cached offsets so labels glide smoothly WITH their
+          // candles: NO re-search here, so a label keeps the same pixel offset from its candle at
+          // every zoom level.
+          lastSig = key; stable = 0; trackedRef.current?.()
+        } else if (pendingReplaceRef.current && ++stable > 10) {
+          // Re-search ONCE the view settles AFTER a stock/catalyst change, so the designated
+          // placement is computed at the real (settled) full-year frame, NOT after every zoom.
+          pendingReplaceRef.current = false; redrawRef.current?.()
         }
-      }
-      if (chart) {
-        try {
-          const r = chart.timeScale().getVisibleLogicalRange()
-          let y0 = null, y1 = null
-          try { y0 = series?.priceToCoordinate(1); y1 = series?.priceToCoordinate(100) } catch { /* disposed series */ }
-          const sig = `${r ? `${r.from.toFixed(2)}_${r.to.toFixed(2)}` : ''}|${y0 ?? ''}|${y1 ?? ''}`
-          if (sig !== lastSig) {
-            // Pan/zoom/focus animation: ride the cached offsets so labels glide
-            // smoothly WITH their candles — NO re-search here, so a label keeps the
-            // same pixel offset from its candle at every zoom level.
-            lastSig = sig; stable = 0; trackedRef.current?.()
-          } else if (pendingReplaceRef.current && ++stable > 10) {
-            // Re-search ONCE the view settles AFTER a stock/catalyst change, so the
-            // designated placement is computed at the real (settled) full-year frame
-            // — NOT after every zoom (that would re-lock labels far at the new zoom).
-            pendingReplaceRef.current = false; redrawRef.current?.()
-          }
-        } catch { /* chart torn down mid-frame */ }
-      }
-      loopRaf = requestAnimationFrame(tick)
-    }
-    loopRaf = requestAnimationFrame(tick)
-
-    return () => {
-      if (loopRaf) cancelAnimationFrame(loopRaf)
-      try { subscribedChart?.timeScale().unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* already removed */ }
-    }
+        // A pending re-search keeps the watcher on every frame until it has run.
+        return pendingReplaceRef.current ? null : undefined
+      },
+    })
+    return () => watcher.stop()
   }, [chartRef, seriesRef])
 
   return <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />

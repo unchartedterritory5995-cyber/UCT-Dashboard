@@ -27,6 +27,7 @@
 // follows is merged exactly like any other. The declaration is recorded
 // (getLastResume) and changes nothing else.
 
+import { registerRecoveryStream } from './recoveryRegistry'
 import * as realtimeCandle from './realtimeCandle'
 import {
   STREAM_WATCHDOG_MS, STREAM_WATCHDOG_TICK_MS, STREAM_RECONNECT_CAP_MS, LIVE_UI_CADENCE_MS,
@@ -312,6 +313,27 @@ if (typeof document !== 'undefined') {
     if (!document.hidden) _watchdogSweep()
   })
 }
+
+// ── recovery (lib/recovery.js) ──────────────────────────────────────────────
+// After a wake or a network return, recovery reconnects every bucket at once instead of waiting for
+// the silence watchdog or a backoff that may already be at its cap, and waits on isConnected().
+
+/** Tear down and reopen every connection now, with the backoff reset. */
+export function reconnectNow() {
+  for (const bucket of _buckets) {
+    _teardownBucket(bucket)
+    bucket.retryDelay = INITIAL_RETRY_MS
+    _connectBucket(bucket)
+  }
+  if (_buckets.length) _publish()
+}
+
+/** True when every open bucket is connected, or there is nothing to connect. */
+export function isConnected() {
+  return _buckets.every((b) => b.connected)
+}
+
+registerRecoveryStream({ name: 'prices', reconnectNow, isConnected })
 
 // ── test hooks ──────────────────────────────────────────────────────────────
 
