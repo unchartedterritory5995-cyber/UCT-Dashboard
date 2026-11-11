@@ -232,7 +232,8 @@ details p, details div { margin: 6px 0; }
     var suggest = null;
     if (call && call.c === 'look') {
       suggest = call.p;
-      h += '<div class="flag"><b>Claude flagged this one.</b> ' + esc(cap(call.r)) + '. Claude suggests: <b>' + esc(VLABEL[call.p]) + '</b>.</div>';
+      if (call.k === 'changed') h += '<div class="flag"><b>Claude changed this one.</b> ' + esc(call.r) + ' Read the new version below. If it is right, press Good as is.</div>';
+      else h += '<div class="flag"><b>Claude flagged this one.</b> ' + esc(cap(call.r)) + '. Claude suggests: <b>' + esc(VLABEL[call.p]) + '</b>.</div>';
     } else if (call && call.c === 'confirm') {
       h += '<p class="fyi">The question is fine. It teaches a rule that is still only a proposal: ' + esc(call.r) + '.</p>';
     }

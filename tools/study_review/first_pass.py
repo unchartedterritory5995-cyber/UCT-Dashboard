@@ -129,7 +129,7 @@ def main():
                 confirm.append(f"the unit's notes say this touches {ids}")
             done = resolved.get(u + "#" + q["key"])
             if done:
-                c, p, r = "look", "keep", "I changed this one: " + done + " Please check the new version."
+                c, p, r = "look", "keep", done
             elif look:
                 c, p, r = "look", proposed, "; ".join(look)
             elif confirm:
@@ -137,6 +137,8 @@ def main():
             else:
                 c, p, r = "keep", "keep", "passed the second reader's cold check; no duplicate, no length tell, no unruled rule"
             calls[q["id"]] = {"c": c, "p": p, "r": r}
+            if done:
+                calls[q["id"]]["k"] = "changed"
             stats[c] += 1
     with open(DATA + "/calls.json", "w", encoding="utf-8", newline="\n") as fh:
         json.dump(calls, fh, ensure_ascii=False, separators=(",", ":"))

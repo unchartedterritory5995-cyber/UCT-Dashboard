@@ -11,8 +11,10 @@ TO REVIEW
         Change it      (or press C)        something is wrong. Type what, in plain words.
         Remove it      (or press X)        it should go. Say why if you like.
    Back and Skip are small links under the buttons.
-4. Part 1 is the 111 questions Claude is unsure about. Each shows what worried
-   Claude and which button Claude suggests. Do these first.
+4. Part 1 is the 100 questions Claude changed on its own (it fixed answers that gave
+   themselves away by length, and reworded near-copies). Each shows what Claude
+   changed. Read the new version and press Good as is, or Change it / Remove it.
+   11 near-copies were cut; the list is in the repo: docs/study/library/FIRST_PASS_FIXES_2026-11-11.md
    Part 2 is every question in order. It picks up where you stopped.
 5. Stop whenever you like: close the browser tab, then the black window.
    Next time it opens at the first question you have not decided.
