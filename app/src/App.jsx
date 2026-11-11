@@ -300,7 +300,7 @@ function GlobalVoiceGateForUser() {
 function PublicOnly({ children }) {
   const { user, isPaid, loading } = useAuth()
   if (loading) return null
-  if (user) return <Navigate to={isPaid ? '/dashboard' : UPGRADE_PATH} replace />
+  if (user) return <Navigate to={isPaid ? '/charts' : UPGRADE_PATH} replace />
   return children
 }
 
@@ -316,7 +316,7 @@ function PreLaunchGate({ children }) {
   // ruling 2026-10-02), so their home IS the upgrade screen. Render it here
   // rather than redirect: redirecting /subscribe to /subscribe never settles.
   if (user && !isPaid && location.pathname === UPGRADE_PATH) return children
-  if (user) return <Navigate to={isPaid ? '/dashboard' : UPGRADE_PATH} replace />
+  if (user) return <Navigate to={isPaid ? '/charts' : UPGRADE_PATH} replace />
   return <Navigate to="/" replace />
 }
 
@@ -638,7 +638,9 @@ export default function App() {
                   a console whose every request 403s. */}
               <Route path="/alert-tester" element={<AlertTester />} />
               <Route element={<Layout />}>
-                <Route path="/dashboard" element={<Dashboard />} />
+                {/* ⚰️ Dashboard HIDDEN (owner 2026-11-11): Charts is the home now. The page is
+                    kept (the `Dashboard` lazy import above) — restore by rendering it here again. */}
+                <Route path="/dashboard" element={<Navigate to="/charts" replace />} />
                 <Route path="/morning-wire" element={<MorningWire />} />
                 <Route path="/uct-20" element={<UCT20 />} />
                 <Route path="/breadth" element={<Breadth />} />

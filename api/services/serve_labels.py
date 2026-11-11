@@ -46,6 +46,7 @@ _LABELS: dict[str, tuple[str, str]] = {
     "sd-partial":       ("deadline", "same-day tail fetch returned partial coverage"),
     "stale-swr":        ("stale",    "stale-while-revalidate: cached rows served, refresh behind"),
     "replay-warming":   ("deadline", "replay window still warming"),
+    "to-filling":       ("deadline", "to= window shorter than asked: stored part served (filling), the older stretch is landing"),
     "fetch":            ("cold",     "this request is the designated upstream fetcher"),
     "inflight-wait":    ("cold",     "waited on another request's in-flight fetch"),
     "cold-bg":          ("cold",     "cold symbol: background fetch spawned, empty/no_data answered"),

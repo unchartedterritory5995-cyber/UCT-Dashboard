@@ -273,8 +273,12 @@ def test_rank_1m_does_not_claim_the_rating_weights_21_sessions():
     d = _desc("rs_rating_1m")
     assert "one of the four windows" not in d
     assert "does not weight" in d
-    # the 6M and 12M windows ARE weighted, and keep saying so
-    assert "one of the four windows" in _desc("rs_rating_6m")
+    # 6M, 9M and 12M ARE recency-weighted blends (2026-11-11), and say so in the rating's own words
+    for col in ("rs_rating_6m", "rs_rating_9m", "rs_rating_12m"):
+        assert "recency-weighted" in _desc(col), col
+        assert "63-session close ratio counts double" in _desc(col), col
+    assert "recency-weighted" not in d and "counts double" not in d, "1M and 3M stay plain returns"
+    assert "plain 63-session" in _desc("rs_rating_3m")
 
 
 def test_no_unmeasured_frequency_claims_on_the_rs_highs():

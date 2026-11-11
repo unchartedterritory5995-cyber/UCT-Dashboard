@@ -276,6 +276,7 @@ const sameAlert = (a, c) => a.sym === c.sym && a.indicator === c.indicator && a.
 
 export const indicatorAlertKind = {
   name: 'indicatorAlert',
+  empty: "You have no indicator alerts yet.",
   boardScoped: false,
   selfDescribing: true,
   list: () => rows().map(a => ({ ...a, ref: a.id, label: phrase(a) })),

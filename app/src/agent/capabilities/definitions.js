@@ -47,6 +47,8 @@ function snap(host) {
 
 export const definitionLibraryKind = {
   name: 'definitionLibrary',
+  source: 'charts',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Indicator definitions aren't available on this page — open Charts to work with indicators.",
   boardScoped: false,                 // a saved indicator is the member's in every layout
   selfDescribing: true,
   list: (host) => (host?.charts ? [snap(host)] : []),
