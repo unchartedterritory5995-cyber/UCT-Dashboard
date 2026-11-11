@@ -19,6 +19,14 @@ createRoot(document.getElementById('root')).render(
   </StrictMode>,
 )
 
+// Real-user speed measurement (desktop speed plan 10.1): loaded only after the page's own load event, so
+// it is never part of first-open bytes. One anonymous report per page load (lib/perfBeacon.js).
+if (import.meta.env.PROD) {
+  const startBeacon = () => setTimeout(() => { import('./lib/perfBeacon').then((m) => m.startPerfBeacon()).catch(() => {}) }, 0)
+  if (document.readyState === 'complete') startBeacon()
+  else window.addEventListener('load', startBeacon, { once: true })
+}
+
 // We no longer register a service worker — the previous SW used cache-first
 // for static assets, making bundle updates invisible until users manually
 // cleared site data. Browser HTTP cache + Cache-Control headers handle this

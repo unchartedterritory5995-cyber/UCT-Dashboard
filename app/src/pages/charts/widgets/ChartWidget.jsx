@@ -12,6 +12,9 @@ import UIcon from '../../../components/ui/UIcon'
 import LeverageInverseControl from './LeverageInverseControl'
 import ViewHoldingsControl from './ViewHoldingsControl'
 import ChartDateNav from './ChartDateNav'
+import { WidgetChromeContext } from '../widgetChromeContext'
+import useSingleStockEtfs from '../../../hooks/useSingleStockEtfs'
+import useEtfSymbols from '../../../hooks/useEtfSymbols'
 import AdjustmentLabel from '../../../components/chart/AdjustmentLabel'
 import ChartDetailDock from './ChartDetailDock'
 import { normalizeDock } from './chartDock'
@@ -56,6 +59,8 @@ const ADD_WIDGET_LABELS = labelMap('menu')
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
   const { groupSyms, setGroupSym, setGroupTf, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, canOpenCompare } = useWorkspace()
   const navigate = useNavigate()
+  // T3 integrated header: non-null only for a single chart on the /charts board grid.
+  const widgetChrome = useContext(WidgetChromeContext)
   const { createAlert } = useWatchlistAlerts()
   // Imperative handle on the pane: the right-click menu opens its settings
   // modal, and the leverage picker routes its symbol change through it so the
@@ -146,6 +151,11 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // pane owns): a synthetic index has no leveraged/inverse family, so that
   // control is hidden for one.
   const isThemeIndex = typeof sym === 'string' && sym.startsWith('$IDX:')
+  // Which context actions this symbol has — the chart widget's symbol menu (▾) rows.
+  // SWR / the module cache dedupe these with the controls' own lookups.
+  const { hasFamily: symHasLeverage } = useSingleStockEtfs(widgetChrome && !isThemeIndex ? sym : null)
+  const { isEtf } = useEtfSymbols()
+  const symIsFund = !!sym && (isEtf(sym) || String(sym).startsWith('$IDX:'))
 
   // Replay Mode: the moment a cutoff is set, warm every intraday timeframe for THIS chart's
   // symbol at that date in the background, so switching to 5m/1m is instant (the backend
@@ -633,6 +643,30 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     navigate(`/research/${sym}?section=ai`)
   }, [sym, navigate, closeCtx])
 
+  // Leverage (Stock / 2x up / 2x down) + ETF holdings, at the right of the timeframe row.
+  // The /charts integrated header shows only the holdings button (see tfBarRight).
+  const symbolActionsEl = (
+    <>
+    {!isThemeIndex && (
+      <LeverageInverseControl
+        sym={sym}
+        onSelect={(s) => paneRef.current?.changeSymbol(s)}
+        themeVars={menuVars}
+        /* From master fec7c5e4: the LONG/SHORT headers + factor badges
+           follow the chart's candle up/down colors. Carried across the
+           ChartPane extraction by hand — the merge could not do it, since
+           master added this prop to the pre-extraction inline render. */
+        candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }}
+      />
+    )}
+    {/* ETF or UCT thematic index ($IDX:): opens a floating live watchlist of
+        the fund/index constituents (a thematic index lists the theme's merged
+        basket, which tracks the Theme Tracker). ViewHoldingsControl decides
+        whether to render based on the symbol. */}
+    <ViewHoldingsControl sym={sym} doorRef={holdingsRef} candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }} />
+    </>
+  )
+
   return (
     <>
       <ChartDetailDock sym={sym} dock={dock} setDock={setDock} onPickSymbol={handleSymbolChange} chartSettings={activeStoredSettings}>
@@ -711,6 +745,33 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           highlightBodyOnly: startMarker && startMarkerStyle === 'candle' ? true : undefined,
         }}
         slots={{
+          // T3 integrated header (/charts board only): the identity row becomes this
+          // widget's title bar — link dot left, window controls right, drag handle.
+          headerLeft: widgetChrome?.left ?? null,
+          headerRight: widgetChrome?.right ?? null,
+          symbolActions: widgetChrome && (symHasLeverage || symIsFund) ? (
+            <>
+              {symHasLeverage && !isThemeIndex && (
+                <div className={styles.symActRow}>
+                  <span className={styles.symActLabel}>Leveraged ETFs</span>
+                  <LeverageInverseControl
+                    variant="tabs"
+                    sym={sym}
+                    onSelect={(s) => paneRef.current?.changeSymbol(s)}
+                    themeVars={menuVars}
+                    candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }}
+                  />
+                </div>
+              )}
+              {symIsFund && (
+                <div className={styles.symActRow}>
+                  <span className={styles.symActLabel}>Top holdings</span>
+                  <ViewHoldingsControl sym={sym} doorRef={holdingsRef} candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }} />
+                </div>
+              )}
+            </>
+          ) : null,
+          identityDragClass: widgetChrome?.dragHandleClass ?? null,
           /* Chart tab strip — renders only once ≥1 extra tab exists, so a
              single-chart widget is visually unchanged. Each tab is an
              independent chart profile. */
@@ -734,26 +795,14 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
               {/* TERM-055: says when prices are split-adjusted (splits only; renders nothing
                   unless the adjustment-basis endpoint knows a split was applied). */}
               {!isThemeIndex && <AdjustmentLabel sym={sym} tf={tf} className={styles.adjustmentLabel} />}
-              {!isThemeIndex && (
-                <LeverageInverseControl
-                  sym={sym}
-                  onSelect={(s) => paneRef.current?.changeSymbol(s)}
-                  themeVars={menuVars}
-                  /* From master fec7c5e4: the LONG/SHORT headers + factor badges
-                     follow the chart's candle up/down colors. Carried across the
-                     ChartPane extraction by hand — the merge could not do it, since
-                     master added this prop to the pre-extraction inline render. */
-                  candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }}
-                />
-              )}
-              {/* ETF or UCT thematic index ($IDX:): opens a floating live watchlist of
-                  the fund/index constituents (a thematic index lists the theme's merged
-                  basket, which tracks the Theme Tracker). ViewHoldingsControl decides
-                  whether to render based on the symbol. */}
-              <ViewHoldingsControl sym={sym} doorRef={holdingsRef} candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }} />
+              {/* /charts integrated header (owner 11-11): no leveraged-ETF switcher; the
+                  ETF holdings button keeps its seat. Elsewhere: both, unchanged. */}
+              {/* /charts chart widget: leverage + holdings live in the symbol menu (▾). */}
+              {!widgetChrome && symbolActionsEl}
               {/* Add-tab entry point — only when the strip isn't showing yet (0
                   extra tabs). Once a tab exists, the strip's own + button takes over. */}
-              {extraTabs.length === 0 && (
+              {/* Integrated /charts header (owner 11-11): no New-chart-tab button here. */}
+              {extraTabs.length === 0 && !widgetChrome && (
                 <button
                   type="button"
                   className={styles.chartSettingsBtn}
@@ -769,7 +818,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           ),
           /* The slot after the gear (Share-to-Floor's, then the Company and
              Earnings toggles'). It holds the one Add to Chart door now. */
-          tfBarEnd: (
+          // Integrated /charts header (owner 11-11): no Add-to-chart button — the same
+          // surface stays one click away through the settings gear.
+          tfBarEnd: widgetChrome ? null : (
             <>
               {/* ⭐ ADD TO CHART — the ONE door to everything a chart can carry
                   (indicators, symbols, breadth, fundamentals, Research). Opens
@@ -976,6 +1027,14 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 <button type="button" className={styles.chartCtxItem} data-menu-id="add-widget" onClick={() => setCtxSub('add')}>
                   <UIcon name="plus" size={14} className={styles.chartCtxIcon} />Add widget ▸
                 </button>
+                {/* /charts integrated header has no New-chart-tab button (owner 11-11) — the
+                    door lives here instead, so chart tabs stay creatable. Once a tab exists
+                    the tab strip's own + takes over, exactly as before. */}
+                {widgetChrome && extraTabs.length === 0 && (
+                  <button type="button" className={styles.chartCtxItem} data-menu-id="new-chart-tab" onClick={() => { handleAddTab(); closeCtx() }}>
+                    <UIcon name="plus" size={14} className={styles.chartCtxIcon} />New chart tab
+                  </button>
+                )}
                 {/* ── Drawings ── */}
                 {ctxMenu.hasDrawings && (
                   <>

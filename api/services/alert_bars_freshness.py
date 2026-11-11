@@ -461,6 +461,7 @@ def _refresh_one_owned(sym_up: str, tf: str, key: tuple[str, str],
     last_err: Optional[str] = None
     for i in range(max(1, n_attempts)):
         try:
+            _t0 = time.time()             # this fetch's provider check instant
             new = _delta_for(sym_up, tf, last_ts or 0) or []
         except Exception as e:  # noqa: BLE001 — a fetch failure is a data event
             last_err = f"{type(e).__name__}: {e}"
@@ -485,7 +486,8 @@ def _refresh_one_owned(sym_up: str, tf: str, key: tuple[str, str],
         # ⛔ `put_bars` IS THE WRITE. It is the subsystem's one upsert, keyed on
         # (ticker, tf, ts), so the newest fetch of a bar wins and nothing is
         # ever deleted. This module issues no SQL of its own.
-        rows = _sqlite.put_bars(sym_up, tf, new, date_tf=(tf in DATE_TFS))
+        with getattr(_sqlite, "provider_check", lambda _t: __import__("contextlib").nullcontext())(_t0):
+            rows = _sqlite.put_bars(sym_up, tf, new, date_tf=(tf in DATE_TFS))
     except Exception as e:
         _logger.exception("[alert-bars] put_bars failed %s/%s", sym_up, tf)
         return {"sym": sym_up, "tf": tf, "status": "error", "rows": 0,

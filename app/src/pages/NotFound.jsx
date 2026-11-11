@@ -36,7 +36,7 @@ export default function NotFound() {
 
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
         <Link
-          to="/dashboard"
+          to="/charts"
           style={{
             display: 'inline-block',
             padding: '10px 28px',
@@ -49,7 +49,7 @@ export default function NotFound() {
             letterSpacing: '0.5px',
           }}
         >
-          Go to Dashboard
+          Go to Charts
         </Link>
 
         <Link

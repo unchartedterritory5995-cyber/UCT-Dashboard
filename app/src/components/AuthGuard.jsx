@@ -159,7 +159,7 @@ export default function AuthGuard() {
     || location.pathname === '/alert-tester'
   if (isAdminOnly && user.role !== 'admin') {
     // A PAID non-admin is not sent to the upgrade screen: they already paid.
-    return <Navigate to={isPaid ? '/dashboard' : FREE_HOME} replace />
+    return <Navigate to={isPaid ? '/charts' : FREE_HOME} replace />
   }
 
   // Settings is paid/admin-only too (2026-07-19). Free users upgrade via

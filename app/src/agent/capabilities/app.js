@@ -41,6 +41,8 @@ const appSnap = (host) => ({ ref: 'app', label: 'UCT', here: host?.location?.() 
 export const pageLabel = (path) => Object.values(DESTINATIONS).find(d => d.to === String(path || '').split('?')[0])?.label || 'Charts'
 export const appKind = {
   name: 'app',
+  source: 'navigate',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Opening other pages isn't available here.",
   undoable: false,                      // navigation: no Undo (agentContracts.test.js rails its capabilities)
   boardScoped: false,
   selfDescribing: true,

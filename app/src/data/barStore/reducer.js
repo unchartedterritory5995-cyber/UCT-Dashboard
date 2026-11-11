@@ -166,7 +166,9 @@ function fromChartDev(cb, rev, src, ticked = false) {
 /** The developing bar as a CLOSED row (its bucket ended without a seal/final). */
 function devToRow(d) {
   // A bar a tick has touched (or opened) ranks as a tick: its values are not the server's.
-  const rank = d.src === DEV_SRC.TICK || d.provisional || d.ticked ? 'tick' : (d.src === DEV_SRC.SERVER ? 'rest' : 'push')
+  // A forming row restored from the caches (LOCAL) closes as a local row: it never ranks 'rest'.
+  const rank = d.src === DEV_SRC.TICK || d.provisional || d.ticked ? 'tick'
+    : (d.src === DEV_SRC.SERVER ? 'rest' : (d.src === DEV_SRC.LOCAL ? 'local' : 'push'))
   return freezeBar({ t: d.t, o: d.o, h: d.h, l: d.l, c: d.c, v: d.v, rev: d.rev ?? null, fin: false, src: rank })
 }
 
@@ -392,6 +394,22 @@ function applyRest(state, action, ctx, kind) {
   const inSeries = numOrNull(p.series_rev)
   const inGrid = p.grid ?? null
 
+  // S8: seals RESTORED from a persisted copy (spans held before any server answer) are only
+  // as good as the identity they were proven under. An answer that cannot confirm it — legacy
+  // (no contract), a null history_rev / cache_key, or a different one — voids them: the rows
+  // drop to local, a delta (asked on the strength of those seals) is refused and a full read
+  // is required.
+  if (!state.restSeen && state.sealedSpans.length) {
+    const proven = contract && inHist != null && inCk != null && inHist === state.historyRev && inCk === state.cacheKey
+    if (!proven) {
+      const demoted = _unseal(state)
+      if (kind === 'delta') {
+        return finalize(state, { ...demoted, needsFull: true, invalidatedFor: 'restored_seal', gen: state.gen + 1 }, ctx)
+      }
+      state = Object.freeze({ ...state, ...demoted, baseRev: state.baseRev + 1, invalidatedFor: 'restored_seal' })
+    }
+  }
+
   // Identity / history change.
   const ckChanged = inCk != null && state.cacheKey != null && inCk !== state.cacheKey
   const histRose = inHist != null && state.historyRev != null && inHist > state.historyRev
@@ -480,11 +498,13 @@ function applyRest(state, action, ctx, kind) {
       if (devIn.legacy && !finite(dev.rev)) {
         // Writer D's rule (no revs to order by): server open, H/L union, live close stands.
         const r = reconcileWithServerTail(toChartBar(dev, state.sym), toChartBar(devIn, state.sym), { sym: state.sym })
-        dev = fromChartDev(r.bar, dev.rev, dev.src === DEV_SRC.TICK ? DEV_SRC.SERVER : dev.src)
+        dev = fromChartDev(r.bar, dev.rev, dev.src === DEV_SRC.TICK || dev.src === DEV_SRC.LOCAL ? DEV_SRC.SERVER : dev.src)
       } else if (dev.provisional || dev.ticked || revOf(devIn.rev) > revOf(dev.rev)) {
         const m = mergePushBar(toChartBar(dev, state.sym), toChartBar(devIn, state.sym), { sym: state.sym })
         if (m.kind === 'update') dev = fromChartDev(m.bar, Math.max(revOf(dev.rev), revOf(devIn.rev)), DEV_SRC.SERVER)
       }
+      // The server answered for this very bucket: a restored (LOCAL) forming bar is now its.
+      if (dev && dev.src === DEV_SRC.LOCAL) dev = Object.freeze({ ...dev, src: DEV_SRC.SERVER })
     } else {
       // The push feed is already on a later bucket: the answer's forming bar is closed.
       bars = mergeRows(st, [{ ...devIn, src: 'rest', fin: false, legacy: undefined }].map(_clean))
@@ -509,6 +529,12 @@ function applyRest(state, action, ctx, kind) {
   }, ctx)
 }
 
+/** The fields of `state` without any seal: spans, claim and server provenance dropped. */
+function _unseal(state) {
+  const bars = Object.freeze(state.bars.map((b) => (b.src === 'rest' ? freezeBar({ ...b, src: 'local' }) : b)))
+  return { bars, sealedSpans: EMPTY_SPANS, completeThrough: null, restFrom: null }
+}
+
 function _clean(r) { const { legacy: _legacy, ...b } = r; return b }
 const _maxOrKeep = (held, inc) => (inc == null ? held : (held == null ? inc : Math.max(held, inc)))
 
@@ -523,12 +549,36 @@ function applyLocal(state, action, ctx, source) {
   if (ck != null && state.cacheKey != null && ck !== state.cacheKey) return state
   if (staleReason(state, p, action)) return state
   const rev = numOrNull(p.series_rev ?? p.seriesRev)
+  // Two local copies (mem, then IDB) before any server answer: one of a NEWER history replaces
+  // the entry — the other's rows and seals belong to the history it superseded.
+  if (!state.restSeen && hist != null && state.historyRev != null && hist > state.historyRev) {
+    state = Object.freeze({ ...initialState(state.key, ctx), baseRev: state.baseRev + 1, devRev: state.devRev + 1,
+      gen: state.gen, depthFloor: state.depthFloor, invalidatedFor: 'history_rev' })
+  }
+  // ... and one of the same history but an OLDER series_rev is an older snapshot: it may only
+  // add deeper rows (never its seals, never its tail).
+  const olderCopy = !state.restSeen && rev != null && state.seriesRev != null && rev < state.seriesRev
   const working = { ...state, grid: p.grid ?? state.grid }
   let rows = ingestRows(p.bars, working, { rev, fin: false, src: 'local' })
   if (!rows.length) return state
 
-  if (state.restSeen) {
-    // A server answer is held: a local copy only adds DEEPER history (left prepend).
+  // S8 PROVENANCE: a persisted copy (persist.js) may carry the seals it held. They are
+  // restored only before any server answer, only with the row-series identity and history
+  // they were proven under (cache_key + history_rev; a mismatch was refused above), and
+  // persist.js has already cut every span whose stored rows are not identical to the rows
+  // the store sealed. A restored span means what a server span means: its rows are final,
+  // absences inside it are the server's, and the next request can be a since= delta.
+  const seals = !state.restSeen && !olderCopy && Array.isArray(p.sealed_spans) && ck != null && hist != null
+    ? p.sealed_spans : null
+  let spans = state.sealedSpans
+  if (seals) {
+    for (const sp of seals) if (Array.isArray(sp)) spans = addSpan(spans, Number(sp[0]), Number(sp[1]))
+    const sealedSt = { ...working, sealedSpans: spans }
+    for (const r of rows) if (_inSpans(sealedSt, r.t)) { r.src = 'rest'; r._sealed = true }
+  }
+
+  if (state.restSeen || olderCopy) {
+    // A server answer (or a newer copy) is held: a local copy only adds DEEPER history.
     const first = Math.min(state.restFrom ?? Infinity, state.bars[0]?.t ?? Infinity, state.developing?.t ?? Infinity)
     rows = rows.filter((r) => r.t < first)
     if (!rows.length) return state
@@ -539,13 +589,17 @@ function applyLocal(state, action, ctx, source) {
   const nowSec = Math.floor((ctx.nowMs ?? Date.now()) / 1000)
   let devIn = null
   const lastRow = rows[rows.length - 1]
-  if (bucketEnd(lastRow.t, working) > nowSec) { devIn = lastRow; rows = rows.slice(0, -1) }
+  if (!lastRow._sealed && bucketEnd(lastRow.t, working) > nowSec) { devIn = lastRow; rows = rows.slice(0, -1) }
   let bars = mergeRows(working, rows)
+  if (spans !== state.sealedSpans) {
+    // Absences inside a restored span are the server's: drop earlier local-only rows there.
+    for (const sp of spans) bars = mergeRows({ ...working, bars, sealedSpans: spans }, [], sp)
+  }
   let dev = state.developing
-  let st = { ...working, bars }
+  let st = { ...working, bars, sealedSpans: spans }
   if (devIn && (!dev || devIn.t > dev.t)) {
     if (dev) { ({ bars } = closeDeveloping(st, bars)); st = { ...st, bars } }
-    dev = fromChartDev(mergePushBar(null, toChartBar(devIn, state.sym), { sym: state.sym }).bar, devIn.rev, DEV_SRC.SERVER)
+    dev = fromChartDev(mergePushBar(null, toChartBar(devIn, state.sym), { sym: state.sym }).bar, devIn.rev, DEV_SRC.LOCAL)
   }
   ;({ bars, developing: dev } = settleDeveloping(st, bars, dev))
   // A persisted contract (hydrate ∘ persist = base, S8) restores its claims.
@@ -558,6 +612,9 @@ function applyLocal(state, action, ctx, source) {
     seriesRev: rev != null ? Math.max(rev, state.seriesRev ?? -Infinity) : state.seriesRev,
     historyRev: hist ?? state.historyRev,
     cacheKey: ck ?? state.cacheKey,
+    sealedSpans: spans,
+    // Restored seals make a since= delta sound (deltaFrom starts after the newest seal).
+    ...(spans !== state.sealedSpans ? { needsFull: false } : {}),
     source,
   }, ctx)
 }
