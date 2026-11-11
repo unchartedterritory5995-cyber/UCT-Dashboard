@@ -12,7 +12,7 @@ export default function AppErrorFallback({ error }) {
   const isDev = import.meta.env.DEV
   const errorName = error?.name || 'Error'
 
-  const goHome = () => { window.location.href = '/dashboard' }
+  const goHome = () => { window.location.href = '/charts' }
   const reload = () => { window.location.reload() }
 
   return (
