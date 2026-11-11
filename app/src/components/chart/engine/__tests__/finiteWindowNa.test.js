@@ -183,8 +183,12 @@ describe('⚰️ what PART Z could not settle, and what settled it', () => {
     // One hand-checkable row from the capture: values 58, 95, na, 68 with
     // weights 1,2,3,4 read 80.5 — which is (58·1 + 95·2 + 95·3 + 68·4)/10, the
     // hole carrying the previous value FORWARD at its own bar's weight.
-    const src = Float64Array.from([58, 95, NaN, 68])
-    expect(FN.wma(src, 4)[3]).toBeCloseTo(80.5, 12)
+    // ⛔ The capture observed STEADY STATE only (fixture _coverage WARMUP "NOT
+    // OBSERVED"), so the row is replayed with finite history in front of it: a
+    // 4-bar cold start holding 3 finite values is WARM-UP, where LANE2's
+    // finite-observation warm-up (witnessed by its own captures) answers na.
+    const src = Float64Array.from([40, 58, 95, NaN, 68])
+    expect(FN.wma(src, 4)[4]).toBeCloseTo(80.5, 12)
   })
 
   it('⭐⭐ wma answers `na` on the bar it is ASKED about, and fills only what it looks BACK at', () => {
