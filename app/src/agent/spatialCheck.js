@@ -583,6 +583,53 @@ export function spatialConstraints(text, charts = [], sel = null) {
   return out
 }
 
+// (#988, AUDIT ruling option 2) EVERY CHART EXCEPT …: a quantifier ("every chart", "all the charts", "everything", "all of them")
+// followed by an exclusion (a chart, a line, a side, a ticker, the click, or a RELATION to the click) names a SET: the quantified
+// charts minus what the exclusion places. A relation inside the exclusion ("except the one diagonally across from this") makes the
+// click that relation's anchor, but the click is still one of "every chart": it is in the set. It is in the set when, and only
+// when, the quantifier covers it — an UNSCOPED quantifier. A quantifier scoped by a relation or a line ("every chart below this
+// one …") covers only that scope, and the click, its anchor, is never in it. → { refs, excluded } or null (not this family, or an
+// exclusion the board cannot place).
+const EVERY_Q = /\b(?:every(?:\s+single)?\s+(?:chart|one|panel|pane|cell|graph)|everything|each\s+(?:chart|one)|all\s+(?:of\s+)?(?:the\s+|my\s+|these\s+|those\s+)?(?:charts|ones|panels|panes|graphs|cells)|all\s+of\s+them|all\s+(?:\d|two|three|four|five|six|seven|eight|nine)(?:\s+charts|\s+of\s+them)?)\b/i
+const EXCEPT_WORD = /\b(?:except(?:\s+for)?|but\s+not|other\s+than|apart\s+from|aside\s+from|excluding|save\s+for|minus|besides)\b/i
+const BOARD_PP = /\b(?:on|in|across)\s+(?:the|my|this)\s+(?:board|screen|layout|grid|page|workspace|dashboard)\b/gi
+const SCOPE_WORD = /\b(?:above|below|under|over|beneath|underneath|left|right|next|beside|near|row|column|side|other|others|else|around|across|opposite|diagonal\w*|top|bottom|upper|lower|middle|cent(?:er|re)|corner|this|that|it|these|those)\b/i
+const REL_TO_CLICK = /\b(?:above|below|under|over|beneath|underneath|left|right|next|beside|near|nearest|closest|adjacent|across|opposite|diagonal\w*|corner|around|surrounding|kitty|catty)\b/i
+const CLICK_WORD = new RegExp('\\b(?:this|it|its|here)\\b|' + CLICK_ACT_NP, 'i')
+export const quantifierCoversClick = (scoped) => !scoped
+export function everyExceptSet(text, charts = [], sel = null) {
+  const t = exceptForm(text)
+  const q = EVERY_Q.exec(t)
+  if (!q) return null
+  const after = q.index + q[0].length
+  const ex = EXCEPT_WORD.exec(t.slice(after))
+  if (!ex) return null
+  const seg = t.slice(after, after + ex.index).replace(BOARD_PP, ' ')
+  const phrase = t.slice(after + ex.index).split(/[,;.!?]|\s+(?:and|then)\s+/i)[0]
+  const excluded = new Set(excludedCharts(text, charts, sel))
+  if (sel && negatedClick(text).excludes) excluded.add(sel)
+  // a RELATION to the click inside the exclusion ("except the one diagonally across from this"): its target is excluded; a
+  // relation the board cannot place is no reading of this family (null: the gates ask as before)
+  if (sel && REL_TO_CLICK.test(phrase) && CLICK_WORD.test(phrase)) {
+    const rel = relativeChart(phrase, charts, sel)
+    const hits = ((rel?.negated ? rel.excluded : rel?.hits) || []).map(c => c.ref).filter(r => r !== sel)
+    if (!hits.length) return null
+    for (const r of hits) excluded.add(r)
+  }
+  if (!excluded.size || excluded.has(UNPLACED)) return null
+  const scoped = SCOPE_WORD.test(seg)
+  let pool = charts
+  if (scoped) {
+    const sc = spatialConstraints(t.slice(0, after + ex.index), charts, sel)
+    if (!sc.allowed?.size) return null
+    pool = charts.filter(c => sc.allowed.has(c.ref))
+  }
+  const covers = quantifierCoversClick(scoped)
+  const set = pool.filter(c => !excluded.has(c.ref) && (covers || c.ref !== sel))
+  if (!set.length || set.length === charts.length) return null
+  return { refs: set.map(c => c.ref), excluded: [...excluded] }
+}
+
 /**
  * The plan without its chart-backed ops on a chart the words EXCLUDE (each text read on its own: the request, and a question's
  * own request on its answer) → { ops, dropped }. An exclusion the board cannot place is the constraint check's (asked), not this.

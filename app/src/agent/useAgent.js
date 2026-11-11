@@ -26,7 +26,7 @@ import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSa
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts } from './deixis'
-import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts } from './spatialCheck'
+import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts, everyExceptSet } from './spatialCheck'
 import { groundSymbols } from './nl/tickers'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
@@ -368,6 +368,42 @@ export function isNewRequest(text, question = null) {
 // the groups a question is ABOUT: those its request's own words named (never the always-on / budget fill)
 const questionGroups = (words) => ROUTE_GROUPS.filter(g => !g.always && wordsSelect(g.id, words)).map(g => g.id)
 const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
+// ⭐ #988 (AUDIT ruling, option 2): "every chart except …" (spatialCheck.everyExceptSet) is asked about with the WHOLE set as ONE
+// choice that names every chart — never one chart of it, so a partial set can't be picked. Only where a gate was about to ask
+// (an ask is never added). The plan must be one uniform change (the same ops on each of its charts), so the set's ops are that
+// change on each chart of the set, nothing else. → { text, choice: { ref, label, ops } } or null.
+function everyExceptQuestion(host, ops, text) {
+  try {
+    const live = host?.charts?.list?.() || []
+    const ev = everyExceptSet(text, live, selectedChart(host))
+    if (!ev || !ops?.length) return null
+    const kinds = kindsOf(ops)
+    if (kinds.length !== 1) return null
+    const k = getTargetKind(kinds[0])
+    const list = k?.list(host) || []
+    const sig = (o) => JSON.stringify([o.action, o.args || {}])
+    const byChart = new Map()
+    for (const o of ops) {
+      const snap = list.find(x => x.ref === o.target)
+      const c = snap ? chartRefOf(k, snap) : null
+      if (!c) return null
+      byChart.set(c, [...(byChart.get(c) || []), o])
+    }
+    const shapes = [...byChart.values()].map(os => os.map(sig).sort().join('|'))
+    if (new Set(shapes).size !== 1) return null
+    const tpl = [...byChart.values()][0]
+    const set = live.filter(c => ev.refs.includes(c.ref))
+    const out = []
+    for (const c of set) {
+      const snap = list.find(x => chartRefOf(k, x) === c.ref)
+      if (!snap) return null
+      for (const o of tpl) out.push({ ...o, target: snap.ref })
+    }
+    const labels = set.map(c => c.label || c.symbol || c.ref)
+    const label = labels.length === 1 ? labels[0] : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`
+    return { text: `Did you mean these ${set.length} charts: ${label}? Nothing has changed yet.`, choice: { ref: `set:${set.map(c => c.ref).join(',')}`, label, ops: out } }
+  } catch { return null }
+}
 // GATE C: a committed plan → session memory, every target as its CHART ref (a kind's `groupOf`), with
 // the chart's symbol after the change. Never throws (memory is a convenience, not a gate).
 // ⭐ W2 (context across turns): `created` = the commit's alias → real ref map. A widget this change CREATED is what its ops
@@ -1885,6 +1921,12 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       push({ role: 'refusal', text: "A different layout is open now, so I didn't change anything. Ask again." })
       return
     }
+    if (p.setChoice) {
+      // #988 (option 2): the whole "every chart except …" set, exactly — or nothing
+      if (ref !== p.setChoice.ref) return
+      lastActionsRef.current = p.setChoice.ops.map(o => o.action)
+      return await execute(p.setChoice.ops, { path: p.path, mode: p.mode === 'propose' ? 'propose' : 'apply', member: `${p.member || ''} → ${label}`, voice: p.voice })
+    }
     if (p.gridChoice) {
       // live train 4: the member's pick — replace the charts (a card: it removes charts) or add these beside them
       const ops = ref === 'grid:replace' ? p.gridChoice.replace : ref === 'grid:add' ? p.gridChoice.add : null
@@ -2960,6 +3002,15 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         record({ member: null, outcome: said, outcomeData: { kind: 'refused', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', refused: true, voice } })
         return
       }
+      const askEveryExcept = (mode) => {
+        const q = everyExceptQuestion(host, screened.ops, text)
+        if (!q) return false
+        pendingRef.current = { kind: 'target', ops: [], path: 'model', mode, member: text, voice, epoch: epochOf(host), setChoice: q.choice }
+        push({ role: 'question', text: q.text, choices: [{ ref: q.choice.ref, label: q.choice.label }, { label: 'Cancel', cancel: true }], local: true })
+        record({ member: null, outcome: q.text, outcomeData: { kind: 'clarify-every-except', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+        return true
+      }
+      if (deictic?.ask && askEveryExcept(env.disposition)) return
       if (deictic?.ask) {
         const kinds = kindsOf(screened.ops)
         if (kinds.length === 1) {
@@ -2982,6 +3033,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       if (!nl1 && disposition === 'propose' && explicitIndicatorCreate(screened.ops)) { mark('deescalate', 'explicit-create'); disposition = 'apply' }
       const unnamed = onSubject ? null : screenUnnamedTargets({ host, ops: screened.ops, text, context: askedFor, pickedRefs: answeredRefs, getTargetKind, getCapability })
       if (unnamed?.ask) unnamed.ask = dropExcluded(unnamed.ask)
+      if (unnamed?.ask && askEveryExcept(disposition)) return
       if (unnamed?.ask) {
         const kinds = kindsOf(screened.ops)
         if (kinds.length === 1) {
@@ -2997,6 +3049,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // place, a relation from a named anchor or the click, a count), checked on the plan's own targets. A violation is asked
       // (only the cells that satisfy them are offered, never an anchor) and nothing runs. spatialCheck.js
       const spatial = onSubject ? null : checkSpatialConstraints({ host, ops: screened.ops, text, pickedRefs: answeredRefs, getTargetKind, getCapability })
+      if (spatial?.ask && askEveryExcept(disposition)) return
       if (spatial?.ask) {
         const kinds = kindsOf(screened.ops)
         if (kinds.length === 1 && spatial.ask.choices.length) {
