@@ -6064,6 +6064,64 @@
    "shape": null
   },
   {
+   "name": "chartSetup.stepBars",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Step ONE chart's view back (older bars) or forward (newer bars) by whole bars: the Time Navigator's ◀ / ▶ buttons, one bar per click, up to 100 bars at once. A view change: nothing is drawn, removed or saved. Undo puts the previous view back.",
+   "hints": "direction = back | forward; bars = how many bars, 1 to 100 (\"a bar\" = 1). For a date use chart.goToDate; for a span, chartSetup.setRange. Not Replay Mode's cutoff (chart.replay).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "direction": {
+      "type": "string",
+      "enum": [
+       "back",
+       "forward"
+      ]
+     },
+     "bars": {
+      "type": "integer"
+     }
+    },
+    "required": [
+     "direction",
+     "bars"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartSetup.autoScale",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Put ONE chart's price scale back on auto-scale so it fits the bars again (the price axis menu → Auto-scale; double-clicking the price numbers does the same), after the scale was dragged or squeezed by hand. Only the price scale: the time window, settings, drawings and indicators are untouched. No Undo.",
+   "hints": "target = the chart. Log / percent / arithmetic is chart.setScale; to also reset the time window use chartSetup.resetView.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "chartSetup.setIndicatorsHidden",
    "domain": "chartSetup",
    "target": "chart",

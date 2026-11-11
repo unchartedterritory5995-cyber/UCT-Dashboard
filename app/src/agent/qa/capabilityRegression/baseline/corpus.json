@@ -10268,6 +10268,95 @@
       ]
     },
     {
+      "id": "chartSetup.stepBars",
+      "source": "C1-032 (pl-exec4): the Time Navigator's one-bar step buttons",
+      "capabilities": [
+        "chartSetup.stepBars"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartSetup.stepBars"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.stepBars",
+            "target": "$charts[0]",
+            "args": {
+              "direction": "back",
+              "bars": 5
+            }
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "frame": {
+            "fromRight": 125,
+            "toRight": -3,
+            "activeRange": null,
+            "locked": false,
+            "lock": null
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "view": {
+            "frame": {
+              "fromRight": 120,
+              "toRight": -8,
+              "activeRange": null,
+              "locked": false,
+              "lock": null
+            }
+          }
+        }
+      },
+      "phrasings": [
+        "step this chart back 5 bars",
+        "go back five bars on the chart",
+        "scroll the chart back 5 bars",
+        "move the chart back 5 bars"
+      ]
+    },
+    {
+      "id": "chartSetup.autoScale",
+      "source": "C1-025 (pl-exec4): the price axis menu's Auto-scale",
+      "capabilities": [
+        "chartSetup.autoScale"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartSetup.autoScale"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.autoScale",
+            "target": "$charts[0]",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "priceAuto": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "auto scale this chart",
+        "auto-scale the price axis",
+        "fit the price scale to the bars again",
+        "put the price axis back on auto"
+      ]
+    },
+    {
       "id": "chartSetup.setIndicatorsHidden",
       "source": "PR #825 (11-05): the chart's own view controls and Ctrl+M",
       "capabilities": [

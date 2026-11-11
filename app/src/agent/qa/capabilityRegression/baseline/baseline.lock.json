@@ -4117,6 +4117,56 @@
     }
    }
   },
+  "chartSetup.stepBars": {
+   "digest": "f1ef323ce91ffc4b",
+   "phrasings": {
+    "step this chart back 5 bars": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "go back five bars on the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "scroll the chart back 5 bars": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move the chart back 5 bars": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartSetup.autoScale": {
+   "digest": "b25c76554b8fddc2",
+   "phrasings": {
+    "auto scale this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "auto-scale the price axis": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "fit the price scale to the bars again": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the price axis back on auto": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chartSetup.setIndicatorsHidden": {
    "digest": "6a2ae0ff5a8652e0",
    "phrasings": {

@@ -94,10 +94,15 @@ export const GROUPS = [
       MULTI_CHARTS, EQUAL_SIZE, GRID_CELLS] },
   // ⭐ PHASE 3: two widgets trading places, a chart duplicated into half its cell — their OWN small group (as chartGrid), so
   // neither the NL-1 core nor the workspace group grows past the per-request budget
-  { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal', domains: ['board'], fillLast: true,
+  { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale', domains: ['board'], fillLast: true,
     // W1-B B-05: widget.setOption here by action name — the workspace group was exactly at the NL-1 reroute budget
-    actions: ['widget.setOption', 'widget.readOptions', 'widget.sendToJournal'],
-    words: [/\b(swap|switch places|trade places|exchange)\b/, /\b(duplicate|clone)\b/, /\b(a |another )?(copy|duplicate) of\b/, /\bmove\b.*\bto the (left|right|top|bottom)\b/, /\bother side\b/] },
+    // pl-exec4 (C1-025/C1-032): a chart's ◀ / ▶ step and Auto-scale here by action name too — chartSetup at 18 would pack
+    // after the lists group and be cut beside indicators + workspace; a new group would change every unmatched routing
+    actions: ['widget.setOption', 'widget.readOptions', 'widget.sendToJournal', 'chartSetup.stepBars', 'chartSetup.autoScale'],
+    words: [/\b(swap|switch places|trade places|exchange)\b/, /\b(duplicate|clone)\b/, /\b(a |another )?(copy|duplicate) of\b/, /\bmove\b.*\bto the (left|right|top|bottom)\b/, /\bother side\b/,
+      // "go back 5 bars", "nudge it forward a bar", "auto scale", "fit the price axis"
+      /\b(?:step|go|move|scroll|nudge|shift|pan)\b.*\b(?:back|backwards?|forwards?|ahead|left|right)\b.*\bbars?\b|\b(?:back|forwards?|ahead)\b.*\b(?:a|one|\d{1,3}|two|three|four|five|ten) (?:more )?bars?\b/,
+      /\bauto[- ]?scal\w*\b|\b(?:re-?)?fit\b.*\bprice (?:scale|axis)\b|\bprice (?:scale|axis)\b.*\b(?:fit|auto)\b/] },
   { id: 'workspace', title: 'Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)', domains: ['widget'],
     // CG-14 / CG-16 (corpus #769): "get rid of the AMD chart", "give me new charts for AAPL and MSFT" (widget.addCharts — the
     // existing charts stay; chartGrid.set only with a count, grid or equal-size words, or a replace)

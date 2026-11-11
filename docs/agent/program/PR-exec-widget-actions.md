@@ -621,3 +621,21 @@ Attribution: "copy … CSV / Excel" is #1027 group D (`59c6383b0a`), which chang
 | B: the 116 set (watchlistTarget.rail 10, widgetActionKeys 5, agentWatchlistShow 35, agentWatchlistOut 29, widgetActions.outcome 24, settingsLiveness 13 = **116/116**), the which-widget rails (agentWhichWidget.rail, whichWidget.rules.rail, agentWhichWidget), whichWatchlist / listColsUndo / listControl / watchlistLook / widgetJournal outcomes, agentWidgetOptions, agentWidgetControls, agentExecReach, agentNotDoneExport.rail, Watchlists.columnDrag.parity (4/4), columnDrag, listout, the 4 held-out files | 25 | 25 passed, 468/468 |
 
 `[routing] 43/43 routed; mean 23.5 of 161 capabilities; 0 full`. Real pytest (pl-grid venv, no lock), the same 23 reader files as the post-#1080 run (golden, parity fixture, capreg lock / corpus, `section_b_requests.json`, including `test_uct_agent_scan_sat_section_b.py` and `test_uct_agent_capreg_baseline.py`): **`980 passed, 1 warning`**.
+
+### Re-merged onto 24a4b8350b (#1077)
+
+Evidence class: LOCAL, vitest (jsdom / node) and real pytest, scripted plans, invented fixture data. Not a real browser and not the real model. Logs: `evidence/exec-widget-actions/post1077-runA.txt`, `post1077-runB.txt`, `pytest-post1077.txt`.
+
+- **Conflicts (4):** agentRouting.test.jsx, agentScreener.test.jsx, capreg COVERAGE.md and coverage.json. Everything else auto-merged.
+- **Count pins = master's + #1027's 3** (watchlist.showList, watchlist.exportList, watchlist.arrangeColumns): agentRouting `FULL.length` 160 → **163**; agentScreener `manifestFor(CTX).length` 154 → **157**. Both comments state the arithmetic. agentNl1Selection and agentIndicatorsM2 merged byte-identical to both parents and pass.
+- **Generated files, each regenerated in its own run (none hand-merged):**
+  - `manifest.golden.json` (`UPDATE_AGENT_GOLDEN=1`, agentContracts 14/14): no change from the auto-merge.
+  - `nl1_assemble_parity.json` (`UPDATE_NL1_PARITY=1`, agentNl1Selection 13/13): no change from the auto-merge.
+  - `tests/test_uct_agent_capreg_baseline.py --update`: "locked 170 intents, 42 refusals, 31 workflows".
+  - `UPDATE_CAPREG=1` inventory.test.js 691/691. COVERAGE.md / coverage.json taken from master, then regenerated. This PR's delta against master is the same size as before: lock +30, contract.json +39, COVERAGE.md +14/-11, coverage.json +158/-22. The catalog moves 179 → 182.
+- **SAT-1 `section_b_requests.json`:** it auto-merged and is green as merged (agentScanSat1Requests passes). It was not regenerated, so there is no separate SAT-1 commit. I checked it line by line. The merged file minus master is exactly #1027's own delta against `7cd14dca6f` (its watchlistShow group entries and title, unchanged). The merged file minus #1027's head is exactly #1077's own delta: one boardEdit title line (a single old/new pair) repeated on its rows. There is no other hunk.
+- **NL-1 selection (agentNl1SelectionCoverage, budget 55):** corpus.json first call **174/182 (95.6%)**, +reroute 8 → 100%, 0 not reachable. dev-nl1 43/43, heldout-v1 164/165. Nothing was lost against either parent (both had 174/182). The router was not changed.
+- **agentNoLookbehindEquivalence:** 6/6. The test file is byte-identical to both parents. `__fixtures__/noLookbehind/baseline.json` is byte-identical to #1027's head (#1077 did not touch it), so its only change against master is #1027's own `digests.routing` line, which was already attributed above. No other frozen row changed.
+- **Run A (15 files, no lock):** the 4 pins, agentNl1SelectionCoverage, agentScanSat1Requests, routeReachability, agentNoLookbehindEquivalence, noRegexLookbehind, capreg corpus.routing / corpus.routingV2 / inventory / golden, agentContracts, and #1077's agentChartViewNudges. Result: **15 passed, 2265/2265**. `[routing] 43/43 routed; mean 23.8 of 163 capabilities; 0 full`.
+- **Run B (23 files, no lock):** every test file #1027 changes against master, including the held-out files, the outcome files, the which-widget rails and Watchlists.columnDrag.parity. Result: **23 passed, 378/378**.
+- **Real pytest** (pl-grid venv, no lock) on the same 23 reader files as the post-#1080 run (master added no `tests/*.py` since `7cd14dca6f`): **`984 passed, 1 warning`**. test_gate_shards was not run because its read-set is a known red on master.
