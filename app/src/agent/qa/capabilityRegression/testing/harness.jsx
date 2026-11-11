@@ -379,7 +379,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     // viewDo(ref, op, arg) is the chart's own view control (range bar, Reset view, Alt+Shift+I), read back from the view
     const views = {}
     const viewOf = (ref) => views[ref] || (views[ref] = { firstMs: BAR_DAYS[0], lastMs: BAR_DAYS.at(-1), rightMs: BAR_DAYS.at(-1), fullyLoaded: true,
-      activeRange: null, atDefaultView: false, indicatorsHidden: false, frame: { fromRight: 120, toRight: -8, activeRange: null, locked: false, lock: null } })
+      activeRange: null, atDefaultView: false, indicatorsHidden: false, priceAuto: false, frame: { fromRight: 120, toRight: -8, activeRange: null, locked: false, lock: null } })
     st.replay = null
     const charts = mounted.h.charts
     // C1-127: the chart's own Chart Settings door (ChartWidget adapter → ChartPane.openSettings), read back as open
@@ -394,6 +394,9 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
         if (op === 'restoreView') Object.assign(v, { activeRange: arg.activeRange, atDefaultView: false, frame: { ...arg } })
         if (op === 'resetView') Object.assign(v, { activeRange: null, atDefaultView: true, frame: { fromRight: 150, toRight: -8, activeRange: null, locked: false, lock: null } })
         if (op === 'setIndicatorsHidden') v.indicatorsHidden = arg
+        // the ◀ / ▶ step (stepBar(n): the logical window + n, so right-relative − n) and the price axis menu's Auto-scale
+        if (op === 'stepBar') v.frame = { ...v.frame, fromRight: v.frame.fromRight - arg, toRight: v.frame.toRight - arg, activeRange: null }
+        if (op === 'autoScale') v.priceAuto = true
         return true
       },
       setReplay: (iso) => { st.replay = iso ?? null; return true },

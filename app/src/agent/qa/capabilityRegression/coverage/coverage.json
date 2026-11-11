@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 177,
-  "withProductionKinds": 168,
+  "all": 179,
+  "withProductionKinds": 170,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 177,
-  "withAnyRegressionCase": 125,
+  "capabilities": 179,
+  "withAnyRegressionCase": 127,
   "perProtection": {
    "nl": {
-    "covered": 125,
-    "applicable": 177
+    "covered": 127,
+    "applicable": 179
    },
    "routing": {
-    "covered": 122,
-    "applicable": 177
+    "covered": 124,
+    "applicable": 179
    },
    "args": {
-    "covered": 125,
-    "applicable": 177
+    "covered": 127,
+    "applicable": 179
    },
    "execution": {
-    "covered": 125,
-    "applicable": 177
+    "covered": 127,
+    "applicable": 179
    },
    "receipt": {
-    "covered": 97,
-    "applicable": 177
+    "covered": 99,
+    "applicable": 179
    },
    "refusal": {
     "covered": 31,
-    "applicable": 177
+    "applicable": 179
    },
    "permission": {
-    "covered": 170,
-    "applicable": 177
+    "covered": 172,
+    "applicable": 179
    },
    "undo": {
-    "covered": 56,
-    "applicable": 111
+    "covered": 57,
+    "applicable": 112
    },
    "multiStep": {
     "covered": 36,
-    "applicable": 177
+    "applicable": 179
    },
    "phrasings": {
-    "covered": 121,
-    "applicable": 177
+    "covered": 123,
+    "applicable": 179
    }
   }
  },
@@ -2109,6 +2109,60 @@
     "phrasings": []
    }
   },
+  "chartSetup.autoScale": {
+   "domain": "chartSetup",
+   "group": "boardEdit",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "chartSetup.autoScale: \"auto scale this chart\"",
+     "chartSetup.autoScale: \"auto-scale the price axis\"",
+     "chartSetup.autoScale: \"fit the price scale to the bars again\"",
+     "chartSetup.autoScale: \"put the price axis back on auto\""
+    ],
+    "routing": [
+     "chartSetup.autoScale: \"auto scale this chart\"",
+     "chartSetup.autoScale: \"auto-scale the price axis\"",
+     "chartSetup.autoScale: \"fit the price scale to the bars again\"",
+     "chartSetup.autoScale: \"put the price axis back on auto\""
+    ],
+    "args": [
+     "corpus chartSetup.autoScale"
+    ],
+    "execution": [
+     "chartSetup.autoScale (c)"
+    ],
+    "receipt": [
+     "chartSetup.autoScale (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "chartSetup.compareDisplay": {
    "domain": "chartSetup",
    "group": "chartSetup",
@@ -2647,6 +2701,62 @@
     "permission": [],
     "undo": [
      "chartSetup.setRange: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartSetup.stepBars": {
+   "domain": "chartSetup",
+   "group": "boardEdit",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "chartSetup.stepBars: \"step this chart back 5 bars\"",
+     "chartSetup.stepBars: \"go back five bars on the chart\"",
+     "chartSetup.stepBars: \"scroll the chart back 5 bars\"",
+     "chartSetup.stepBars: \"move the chart back 5 bars\""
+    ],
+    "routing": [
+     "chartSetup.stepBars: \"step this chart back 5 bars\"",
+     "chartSetup.stepBars: \"go back five bars on the chart\"",
+     "chartSetup.stepBars: \"scroll the chart back 5 bars\"",
+     "chartSetup.stepBars: \"move the chart back 5 bars\""
+    ],
+    "args": [
+     "corpus chartSetup.stepBars"
+    ],
+    "execution": [
+     "chartSetup.stepBars (c)"
+    ],
+    "receipt": [
+     "chartSetup.stepBars (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "chartSetup.stepBars: undo restores"
     ],
     "multiStep": [],
     "phrasings": []
