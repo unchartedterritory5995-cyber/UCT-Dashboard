@@ -8,12 +8,19 @@ Built on `agent/pl/bar-time-coverage` from `agent/pl/integration-1` `b07a97d526`
 
 ## The number
 
-**226 of 484 actions, 46.7%, are VERIFIED at panel level with a scripted model** (158 in the 2026-11-05 run, plus 68 on 2026-11-10: 29 from the chart-settings outcome test, 3 from the Multi Chart outcome test, 35 from the cited-test re-run, 1 from the Options Flow chips). A further 9 are PARTIAL (SIMULATED): part of the action passes, part is not covered. See "Update 2026-11-10: combined execution packets (PR #1016)" below. That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
+**230 of 484 actions, 47.5%, are VERIFIED at panel level with a scripted model** (158 in the 2026-11-05 run, plus 68 on 2026-11-10: 29 from the chart-settings outcome test, 3 from the Multi Chart outcome test, 35 from the cited-test re-run, 1 from the Options Flow chips; plus 4 on 2026-11-11 from Drawing Boards). A further 9 are PARTIAL (SIMULATED): part of the action passes, part is not covered. See "Update 2026-11-10: combined execution packets (PR #1016)" below. That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
 
 - Production evidence with the real planner covers 13 of those 158 rows, from the 2026-11-03 live run on the older build `463a4bcba5`, read by receipt and some server reads.
 - Real component in a browser, Agent executing: 0 rows. The browser runs in teach-status.md prove walkthroughs, where a person clicks. They never ran an Agent plan.
-- A further 29 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 226. (It was 43 on 2026-11-05; 14 of them were raised on 2026-11-10.)
+- A further 29 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 230. (It was 43 on 2026-11-05; 14 of them were raised on 2026-11-10.)
 - P0 actions: 58 of 74 VERIFIED (as of 2026-11-05; this doc carries no per-row P0 tag, so the 2026-11-10 update did not recount it).
+
+## Update 2026-11-11: Drawing Boards execution (agent/pl/drawing-boards-exec)
+
+The Agent switches, creates, renames and deletes Drawing Boards through the Boards panel's own store writers (drawingsStore setActiveTracing / createTracing / renameTracing / deleteTracing, via host.drawingBoards), reads the result back and waits for the server's tracings_doc. Delete is always a confirmation card that names the board and its drawing count, with no Undo. An unnamed or ambiguous board is asked about. A board request aimed at one chart is answered and not run. Test: `app/src/agent/qa/chartsOutcome/drawingBoards.outcome.test.jsx` (real panel, scripted model, jsdom, SIMULATED), plus `app/src/agent/agentDrawingBoards.test.jsx` (runtime). PR doc: `docs/agent/program/PR-exec-drawing-boards.md`.
+
+- VERIFIED (4): C1-167, C1-168, C1-169, C1-170; was MISSING (4): C1-167, C1-168, C1-169, C1-170.
+- Counts changed by hand for these four rows only: Boards 0/4 MISSING → 4 VERIFIED; C1 all and Total move by 4.
 
 ## Update 2026-11-10 (4): the Options Flow widget's chips, F-16 widened (agent/pl/exec-flow-filters)
 
@@ -61,6 +68,7 @@ The 10 non-held-out test files named by 40 NOT VERIFIED rows (ledger `docs/agent
 | 2026-11-05 | 158 | 0 | 112 | 154 | 47 | 13 | 484 | 19 |
 | after chart settings + multichart + cited re-run | 225 | 9 | 69 | 126 | 43 | 12 | 484 | 19 |
 | after the Options Flow chips (agent/pl/exec-flow-filters) | 226 | 9 | 69 | 125 | 43 | 12 | 484 | 19 |
+| after Drawing Boards (agent/pl/drawing-boards-exec) | 230 | 9 | 69 | 121 | 43 | 12 | 484 | 19 |
 
 - VERIFIED 225 of 484, 46.5%. PARTIAL is in scope but never VERIFIED (the PARTIAL column PR #1016 introduced).
 - Re-run on the combined branch (after both merges): all 12 test files of the three packets were run once each, single-file, under the suite lock, and all passed (chartSettings.outcome 40 passed + 5 known-gap (pinned) + 7 todo; multiChart.outcome 8 passed + 17 todo; the 10 cited files as in EXEC-CITED-RERUN.md). Totals lines: `docs/agent/program/PR-exec-chart-settings.md`.
@@ -163,7 +171,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1 | Right-click | 1 | 0 | 1 | 4 | 0 | 0 | 6 | 3 |
 | C1 | Settings door | 0 | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
 | C1 | Drawing | 27 | 1 | 2 | 3 | 3 | 2 | 38 | 1 |
-| C1 | Boards | 0 | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
+| C1 | Boards | 4 | 0 | 0 | 0 | 0 | 0 | 4 | 0 |
 | C1 | Keyboard | 2 | 0 | 0 | 0 | 1 | 2 | 5 | 0 |
 | C2 | Picker | 0 | 0 | 2 | 1 | 0 | 0 | 3 | 0 |
 | C2 | Add | 4 | 0 | 2 | 2 | 0 | 2 | 10 | 0 |
@@ -217,10 +225,10 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3 | Review | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 3 |
 | C3 | Company dock | 3 | 0 | 2 | 0 | 0 | 0 | 5 | 0 |
 | C3 | Workspace | 0 | 0 | 0 | 1 | 1 | 1 | 3 | 0 |
-| C1 | **all** | 103 | 4 | 17 | 28 | 11 | 5 | 168 | 11 |
+| C1 | **all** | 107 | 4 | 17 | 24 | 11 | 5 | 168 | 11 |
 | C2 | **all** | 39 | 0 | 32 | 20 | 5 | 4 | 100 | 1 |
 | C3 | **all** | 84 | 5 | 20 | 77 | 27 | 3 | 216 | 7 |
-| | **Total** | 226 | 9 | 69 | 125 | 43 | 12 | 484 | 19 |
+| | **Total** | 230 | 9 | 69 | 121 | 43 | 12 | 484 | 19 |
 
 ## Raised to VERIFIED (47)
 
@@ -516,10 +524,10 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-164 | Drawing | Repeat drawing mode | BLOCKED | none | n/a | none |
 | C1-165 | Drawing | Customise tool favourites | MISSING | none | n/a | none |
 | C1-166 | Drawing | Nudge selected with arrows | BLOCKED | none | n/a | none |
-| C1-167 | Boards | Switch drawing board | MISSING | agentDrawings.test.jsx | pass 13/13 | none |
-| C1-168 | Boards | Create a board | MISSING | none | n/a | none |
-| C1-169 | Boards | Rename a board | MISSING | none | n/a | none |
-| C1-170 | Boards | Delete a board | MISSING | none | n/a | none |
+| C1-167 | Boards | Switch drawing board | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | drawingBoards.outcome.test.jsx: "switch to my Earnings board" | pass 6/6 | panel, scripted model |
+| C1-168 | Boards | Create a board | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | drawingBoards.outcome.test.jsx: a planned new board called Breakouts | pass 6/6 | panel, scripted model |
+| C1-169 | Boards | Rename a board | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | drawingBoards.outcome.test.jsx: "rename my Earnings board to Gaps" | pass 6/6 | panel, scripted model |
+| C1-170 | Boards | Delete a board | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | drawingBoards.outcome.test.jsx: the card, Dismiss, Apply; "delete my board" asks | pass 6/6 | panel, scripted model |
 | C1-171 | Keyboard | Add ticker to watchlist (Alt+Q) | VERIFIED | c:watchlist.add | pass 5/5 | panel, scripted model |
 | C1-172 | Keyboard | Add indicator dialog (Alt+Shift+A) | VERIFIED | c:indicator.rsi | pass 5/5 | panel, scripted model |
 | C1-173 | Keyboard | Cycle grid layout (Alt+\\) | UNMAPPED | none | n/a | none |
