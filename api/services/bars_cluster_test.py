@@ -280,20 +280,25 @@ def test_reader_latency_is_bounded_under_writer_load(store):
     bs, bc, path = store
     bs.init_db()
     tickers = [f"S{i:03d}" for i in range(200)]
-    bs.put_bars_many("D", {t: [{"t": 20200101 + i, "o": 10, "h": 11, "l": 9, "c": 10.5, "v": 5}
-                               for i in range(700)] for t in tickers})
+    from datetime import date, timedelta
+    days = [int(d.strftime("%Y%m%d")) for d in (date(2020, 1, 1) + timedelta(days=i) for i in range(4000))
+            if d.weekday() < 5]          # the store keeps trading days only
+    bs.put_bars_many("D", {t: [{"t": d, "o": 10, "h": 11, "l": 9, "c": 10.5, "v": 5}
+                               for d in days[:800]] for t in tickers})
+    assert len(bs.get_bars(tickers[0], "D", 600)) == 600       # the fixture really holds 600
     stop = threading.Event()
     errors: list = []
 
     def universe_writer():
-        d = 20300101
+        i = 800
         while not stop.is_set():
+            d = days[i % len(days)]
             try:
                 bs.put_bars_many("D", {t: [{"t": d, "o": 10, "h": 11, "l": 9, "c": 10.5, "v": 5}]
                                        for t in tickers})
             except Exception as e:  # noqa: BLE001
                 errors.append(e)
-            d += 1
+            i += 1
             time.sleep(0.01)
 
     def held_transaction():
