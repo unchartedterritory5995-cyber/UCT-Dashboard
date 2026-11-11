@@ -509,7 +509,7 @@ function applyRest(state, action, ctx, kind) {
   }, ctx)
 }
 
-function _clean(r) { const { legacy, ...b } = r; return b }
+function _clean(r) { const { legacy: _legacy, ...b } = r; return b }
 const _maxOrKeep = (held, inc) => (inc == null ? held : (held == null ? inc : Math.max(held, inc)))
 
 // ── local hits (pack / IDB / mem) ────────────────────────────────────────────

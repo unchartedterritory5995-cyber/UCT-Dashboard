@@ -9,7 +9,7 @@ import { bucketStartUnix } from '../../components/chart/barTime'
 import { forSeeds, simulateIntraday, withDuplicates, shuffled, INTRADAY, DATES, etUnix } from './__fixtures__/seededSeries'
 import { keyOf, dateLabelToUnix } from './types'
 
-const N = Number(process.env.BARSTORE_SEEDS || 300)
+const N = Number(globalThis.process?.env?.BARSTORE_SEEDS || 300)
 
 beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }) })
 afterEach(() => { vi.useRealTimers() })
