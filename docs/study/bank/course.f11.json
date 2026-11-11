@@ -3103,18 +3103,18 @@
  },
  {
   "answer_json": {
-   "answer": "Buy stop over opening range, hold days"
+   "answer": "Enter in the first 30 minutes, then hold"
   },
   "difficulty": 3,
   "id": "si_d4ede7c31b2e",
   "lesson_origin": "session",
-  "lesson_text": "A buy stop over the opening range, held for days. You park the order while you can watch, stop and all. Scalping and VWAP trading need your eyes on the screen all session. Pick an entry you can place and walk away from.",
+  "lesson_text": "Enter in the first 30 minutes while you can watch, with a market order and your stop in, then hold for days. Scalping and VWAP trading need your eyes on the screen all session. Pick an entry you can make in the time you have, then walk away.",
   "module": "F11",
   "prompt_json": {
    "choices": [
     "Scalp the 1-minute chart all day",
     "Trade VWAP bounces into the close",
-    "Buy stop over opening range, hold days"
+    "Enter in the first 30 minutes, then hold"
    ],
    "kind": "mcq",
    "q": "Which plan fits your day?",
@@ -3126,17 +3126,10 @@
     "sources": [
      {
       "accessed": "2026-11-09",
-      "name": "StockCharts.com: ChartSchool: Gap Trading Strategies",
-      "quote": "revisit the 1-minute chart after 10:30 AM and set a long (buy) stop two ticks above the high achieved in the first hour of trading.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/trading-strategies-and-models/trading-strategies/gap-trading-strategies"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Frequent Intraday Trading: Understanding the Basics (published 2026-06-04)",
-      "quote": "trading throughout the day is time-intensive and requires that you pay continuous attention to your holdings and the market as a whole.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/frequent-intraday-trading"
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Entries are market orders.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
@@ -3147,20 +3140,27 @@
      },
      {
       "accessed": "2026-11-09",
+      "name": "FINRA: Frequent Intraday Trading: Understanding the Basics (published 2026-06-04)",
+      "quote": "trading throughout the day is time-intensive and requires that you pay continuous attention to your holdings and the market as a whole.",
+      "tier": 1,
+      "url": "https://www.finra.org/investors/insights/frequent-intraday-trading"
+     },
+     {
+      "accessed": "2026-11-09",
       "name": "SEC (sec.gov): Day Trading: Your Dollars at Risk (page last reviewed 2005-04-20)",
       "quote": "Day traders must watch the market continuously during the day at their computer terminals.",
       "tier": 1,
       "url": "https://www.sec.gov/about/reports-publications/investorpubsdaytipshtm"
      }
     ],
-    "summary": "One entry: after the first hour, park a buy stop just above that hour's high. Trading through the day takes a lot of time and constant attention. A swing trader may find the setup on the daily chart and time the entry on an hourly chart. Day trading means watching the market all session long."
+    "summary": "Our entries are market orders. A swing trader may find the setup on the daily chart and time the entry on an hourly chart. Trading through the day takes a lot of time and constant attention. Day trading means watching the market all session long."
    },
    "facts": {
-    "given": "Which plan fits your day? You can watch the first 30 minutes of the session. Then you're in meetings until the close. Buy stop over opening range, hold days Scalp the 1-minute chart all day Trade VWAP bounces into the close"
+    "given": "Which plan fits your day? You can watch the first 30 minutes of the session. Then you're in meetings until the close. Enter in the first 30 minutes, then hold Scalp the 1-minute chart all day Trade VWAP bounces into the close"
    },
-   "lesson_line": "Pick an entry you can place and walk away from.",
+   "lesson_line": "Pick an entry you can make in the time you have, then walk away.",
    "unit": "F11.02",
-   "why": "A buy stop over the opening range, held for days. You park the order while you can watch, stop and all. Scalping and VWAP trading need your eyes on the screen all session.",
+   "why": "Enter in the first 30 minutes while you can watch, with a market order and your stop in, then hold for days. Scalping and VWAP trading need your eyes on the screen all session.",
    "wrong": {
     "Scalp the 1-minute chart all day": "Scalping needs you at the screen all session. You're in meetings.",
     "Trade VWAP bounces into the close": "VWAP bounces happen all session long, and you're in meetings for nearly all of it."

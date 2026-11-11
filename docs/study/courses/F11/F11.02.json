@@ -640,6 +640,12 @@
    "source": "s23",
    "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
    "claim": "After the first third at 3R, we sell another third at 5R and trail the last third."
+  },
+  {
+   "id": "h9",
+   "source": "s23",
+   "quote": "Entries are market orders.",
+   "claim": "Our entries are market orders."
   }
  ],
  "walkthroughs": [
@@ -1186,17 +1192,17 @@
    "story": "You can watch the first 30 minutes of the session. Then you're in meetings until the close.",
    "q": "Which plan fits your day?",
    "choices": [
-    "Buy stop over opening range, hold days",
+    "Enter in the first 30 minutes, then hold",
     "Scalp the 1-minute chart all day",
     "Trade VWAP bounces into the close"
    ],
-   "answer": "Buy stop over opening range, hold days",
-   "why": "A buy stop over the opening range, held for days. You park the order while you can watch, stop and all. Scalping and VWAP trading need your eyes on the screen all session.",
-   "lesson_line": "Pick an entry you can place and walk away from.",
+   "answer": "Enter in the first 30 minutes, then hold",
+   "why": "Enter in the first 30 minutes while you can watch, with a market order and your stop in, then hold for days. Scalping and VWAP trading need your eyes on the screen all session.",
+   "lesson_line": "Pick an entry you can make in the time you have, then walk away.",
    "facts": [
-    "f22",
-    "f05",
+    "h9",
     "f36",
+    "f05",
     "f03"
    ],
    "wrong": {
@@ -1388,9 +1394,9 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "f22 ChartSchool (buy stop over the first-hour high; page trails an 8% stop, a multi-day hold), f36, f05 FINRA and f03 SEC (continuous attention). Key unambiguous; range length deliberately unstated.",
-   "fixed": false,
-   "by": "checker"
+   "by": "writer",
+   "fixed": true,
+   "notes": "Rewritten 2026-11-11 to the account rulebook E57 (entries are market orders, h9): the old key taught parking a buy stop over the opening range. The two wrong choices and their explanations are unchanged. Awaiting a cold re-read."
   },
   "q22": {
    "status": "pass",
