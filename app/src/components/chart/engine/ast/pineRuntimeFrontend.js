@@ -925,33 +925,6 @@ export function scanMutability(stmts, out) {
   return acc
 }
 
-/** ⭐⭐ W34-I4 — A v1/v2 SELF-REFERENCING DEFINITION, READ BY THE RUN AS PINE RUNS IT.
- *
- *  Before v3, Pine let a definition read its own past: `i1 = c1*src + c2*nz(i1[1])`.
- *  The script is a SERIES `i1`, assigned once per bar, whose `i1[1]` is last bar's
- *  value and, on bar 0, the history operator's `na` (there is no earlier bar). That
- *  is exactly the v4 spelling `i1 = na` + `i1 := c1*src + c2*nz(i1[1])`, which this
- *  lane already runs as a slot. So the statement is rewritten to that pair and the
- *  run computes the reference's arithmetic from bar 0: no re-seeded window, no
- *  curtain and no lookback budget (the host lane's `accum`, which refused the shape
- *  named on `coral-trend-indicator-lazybear`: a fixed-coefficient recurrence whose
- *  input is ANOTHER recurrence, `pine:state` on `i2`/`i4`/`i6`).
- *
- *  ⛔⛔ ONLY WHEN EVERY SELF READ IS THE ONE-ARGUMENT `nz(name[k])`, `k` a whole
- *  literal >= 1. Its bar-0 value is 0 under EITHER v1/v2 seed rule (`nz(na)` and
- *  `nz(0)` are both 0), so no unstated rule reaches an output. ⛔ NOT
- *  `nz(name[k], fill)`: that reads `fill` if the series starts at `na` and 0 if it
- *  starts at 0, the question row W34-I4-S1 leaves open, so it is not rewritten and
- *  keeps master's answer (the host `accum`, which withholds the seed's window, or
- *  its `pine:state` refusal by name when the update never forgets). A bare self read
- *  (`col[1] == 1`, `a*close + b*x[1]`) leaves bar 0 to a rule the reference does
- *  not state for v1/v2 (does `na` propagate, or does the series start at 0?), so
- *  it is NOT rewritten: it keeps the host lane's `pine:state` refusal by name, and
- *  the capture-queue row W34-I4-S1 asks TradingView (named on
- *  `thelark-lma-v2-laguerre`, `col`, line 43). Never a guessed seed.
- *  ⛔ Top-level, single-line definitions of a name nothing else declares or
- *  reassigns; v1 (no pragma) and v2 only (v3 removed self-reference). The C18
- *  object door never calls this (master's answer stands there). */
 /** ⭐⭐ ENGINE 48 (review N1) — `x = na(x[k]) ? na : U` as THIS lane's parser spells it (`ternary`,
  *  or `iff(…)`, with `na` or `float(na)`/`int(na)` as the seed), for the declaration of `name`. The
  *  host refuses it `pine:cycle` at the `Resolver` (`pine.js::naSeededSelfReference`), but a binding
@@ -983,6 +956,33 @@ export function naSeededSelfDeclaration(value, name) {
   return bare && isNa(seed) && reads(update)
 }
 
+/** ⭐⭐ W34-I4 — A v1/v2 SELF-REFERENCING DEFINITION, READ BY THE RUN AS PINE RUNS IT.
+ *
+ *  Before v3, Pine let a definition read its own past: `i1 = c1*src + c2*nz(i1[1])`.
+ *  The script is a SERIES `i1`, assigned once per bar, whose `i1[1]` is last bar's
+ *  value and, on bar 0, the history operator's `na` (there is no earlier bar). That
+ *  is exactly the v4 spelling `i1 = na` + `i1 := c1*src + c2*nz(i1[1])`, which this
+ *  lane already runs as a slot. So the statement is rewritten to that pair and the
+ *  run computes the reference's arithmetic from bar 0: no re-seeded window, no
+ *  curtain and no lookback budget (the host lane's `accum`, which refused the shape
+ *  named on `coral-trend-indicator-lazybear`: a fixed-coefficient recurrence whose
+ *  input is ANOTHER recurrence, `pine:state` on `i2`/`i4`/`i6`).
+ *
+ *  ⛔⛔ ONLY WHEN EVERY SELF READ IS THE ONE-ARGUMENT `nz(name[k])`, `k` a whole
+ *  literal >= 1. Its bar-0 value is 0 under EITHER v1/v2 seed rule (`nz(na)` and
+ *  `nz(0)` are both 0), so no unstated rule reaches an output. ⛔ NOT
+ *  `nz(name[k], fill)`: that reads `fill` if the series starts at `na` and 0 if it
+ *  starts at 0, the question row W34-I4-S1 leaves open, so it is not rewritten and
+ *  keeps master's answer (the host `accum`, which withholds the seed's window, or
+ *  its `pine:state` refusal by name when the update never forgets). A bare self read
+ *  (`col[1] == 1`, `a*close + b*x[1]`) leaves bar 0 to a rule the reference does
+ *  not state for v1/v2 (does `na` propagate, or does the series start at 0?), so
+ *  it is NOT rewritten: it keeps the host lane's `pine:state` refusal by name, and
+ *  the capture-queue row W34-I4-S1 asks TradingView (named on
+ *  `thelark-lma-v2-laguerre`, `col`, line 43). Never a guessed seed.
+ *  ⛔ Top-level, single-line definitions of a name nothing else declares or
+ *  reassigns; v1 (no pragma) and v2 only (v3 removed self-reference). The C18
+ *  object door never calls this (master's answer stands there). */
 export function v2SelfReferenceStatements(stmts, version) {
   if (!Array.isArray(stmts) || (version != null && version > 2)) return stmts
   const mut = scanMutability(stmts)
