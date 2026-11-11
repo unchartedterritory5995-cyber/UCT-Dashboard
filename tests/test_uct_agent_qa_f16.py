@@ -147,7 +147,10 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 # Re-pinned 2026-11-10 (live screener): 1a26d4ea00 changes live_tier.py, technicals.py and snapshot_db.py on
 # purpose (five more live columns, and the four live_base_* columns the nightly build now stores for them). It is
 # the only Screener commit since 54dabb6cb4; re-pinned in the same PR so master's deploy gate never goes red.
-SCREENER_PIN = "1a26d4ea00224d20cdf52e4f3ead41c0c2bab318"
+# Re-pinned 2026-11-11 (UCT RS split, PR #1021): the RS work changes filters.py, snapshot_db.py, snapshot_builder.py,
+# methodology.py, identities.py and rs_history.py on purpose (Rank 9M column, picker-hidden RS columns, one RS Rating
+# everywhere). Every Screener commit since 1a26d4ea00 is that PR; pinned at its merge so master's deploy gate goes green.
+SCREENER_PIN = "7c09a4d303a5a584ad725e576dfc3b5a36fbe64b"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 
 
@@ -196,7 +199,7 @@ def test_the_guard_can_say_no():
         pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
     r = _screener_diff(SCREENER_PIN + "~1", SCREENER_PIN)
     assert r.returncode == 0, r.stderr
-    assert "api/services/screener/live_tier.py" in r.stdout.split()  # a file the pinned commit changed (the live screener)
+    assert "api/services/screener/filters.py" in r.stdout.split()  # a file the pinned commit changed (RS split: Rank 9M column)
 
 
 def test_no_UCT_weight_or_formula_is_named_in_the_models_instructions():
