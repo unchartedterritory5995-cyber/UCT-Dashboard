@@ -39,6 +39,39 @@ _RECOVERY_COOLDOWN_SECONDS = 60.0
 # Per-process (web and worker are separate processes / separate DBs).
 _WRITE_LOCK = threading.Lock()
 
+#: Held by whoever REPLACES bars.db wholesale (snapshot install, clustered adoption)
+#: across the rename + `bump_db_epoch`, and by any long-lived connection that is not
+#: `_conn()` (the WAL checkpointer) around its epoch check + use. A connection still on
+#: the OLD inode can then never checkpoint/truncate the -wal/-shm the new file now shares.
+DB_SWAP_LOCK = threading.Lock()
+
+#: (ticker, tf) pairs written through put_bars/put_bars_many while tracking is on -- lets
+#: a store adoption re-carry ONLY what changed during its long unlocked pass.
+_tracked_writes: set | None = None
+_tracked_lock = threading.Lock()
+
+
+def start_write_tracking() -> None:
+    global _tracked_writes
+    with _tracked_lock:
+        _tracked_writes = set()
+
+
+def stop_write_tracking() -> set:
+    """Stop tracking; return the pairs written since `start_write_tracking`."""
+    global _tracked_writes
+    with _tracked_lock:
+        out, _tracked_writes = (_tracked_writes or set()), None
+    return out
+
+
+def _track(pairs) -> None:
+    if _tracked_writes is None:
+        return
+    with _tracked_lock:
+        if _tracked_writes is not None:
+            _tracked_writes.update(pairs)
+
 # Connection epoch — bumped whenever /data/bars.db is replaced wholesale
 # (currently: data_sync.download_snapshot when the web pulls a fresh
 # snapshot from R2). Each thread caches its own (conn, epoch) pair in
@@ -157,6 +190,43 @@ BARS_INDEX_DDL = {
     ),
 }
 
+def ohlcv_ddl(name: str = "ohlcv") -> str:
+    """⭐ THE ONE DDL for the bar table: CLUSTERED (WITHOUT ROWID) on its primary key.
+
+    Rows are stored in (ticker, tf, ts) order, so a series' newest N bars are a handful of
+    ADJACENT pages however their writes were interleaved -- the universe live store writes
+    every ticker's bucket every few seconds, which in a rowid table put each of a ticker's
+    600 newest 5m bars on a different page (0.05-1.4 s cold reads at the open, measured
+    2026-11-11). The PK b-tree IS the table: no `idx_ohlcv_lookup` is needed on it.
+
+    An EXISTING rowid store is never altered in place: the worker's snapshot pipeline
+    builds a clustered copy offline (`bars_cluster.cluster_copy`, called by
+    `data_sync._make_tarball`) and serving pods adopt it through the ordinary
+    wholesale snapshot install."""
+    return (f"CREATE TABLE IF NOT EXISTS {name} ("
+            "ticker TEXT NOT NULL, tf TEXT NOT NULL, ts INTEGER NOT NULL, "
+            "o REAL, h REAL, l REAL, c REAL, v INTEGER, "
+            "PRIMARY KEY (ticker, tf, ts)) WITHOUT ROWID")
+
+
+def expected_index_ddl(conn: sqlite3.Connection) -> dict:
+    """`BARS_INDEX_DDL` as it applies to THIS store's `ohlcv` layout: a clustered table's
+    primary key already is the (ticker, tf, ts) b-tree, so `LOOKUP_INDEX` would only be
+    a redundant second copy of every key (and a third b-tree on every write)."""
+    if ohlcv_layout(conn) == "clustered":
+        return {k: v for k, v in BARS_INDEX_DDL.items() if k != LOOKUP_INDEX}
+    return dict(BARS_INDEX_DDL)
+
+
+def ohlcv_layout(conn: sqlite3.Connection, schema: str = "main") -> str:
+    """'clustered' | 'rowid' | 'absent' for `ohlcv` in `schema` of `conn`."""
+    row = conn.execute(f"SELECT sql FROM {schema}.sqlite_master WHERE type='table' AND name='ohlcv'"
+                       ).fetchone()
+    if not row:
+        return "absent"
+    return "clustered" if "WITHOUT ROWID" in " ".join(str(row[0]).upper().split()) else "rowid"
+
+
 # One-time migrations: (name, sql_to_run). Runs once per name. Add a new entry
 # whenever the upstream intraday fetch path changes so existing cached rows get
 # re-fetched through the corrected code path.
@@ -173,16 +243,9 @@ MIGRATION_NAMES = tuple(name for name, _sql in _MIGRATIONS)
 
 def init_db() -> None:
     c = _conn()
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS ohlcv (
-            ticker TEXT NOT NULL,
-            tf     TEXT NOT NULL,
-            ts     INTEGER NOT NULL,
-            o REAL, h REAL, l REAL, c REAL, v INTEGER,
-            PRIMARY KEY (ticker, tf, ts)
-        )
-    """)
-    c.execute(BARS_INDEX_DDL[LOOKUP_INDEX])
+    c.execute(ohlcv_ddl())   # a no-op on an existing store (see ohlcv_ddl for how rowid stores convert)
+    if LOOKUP_INDEX in expected_index_ddl(c):
+        c.execute(BARS_INDEX_DDL[LOOKUP_INDEX])
     # ⚰️ `bars_provenance` LIVED HERE UNTIL 2026-08-09 AND ITS COMMENT PROMISED
     # A DEBUGGING AFFORDANCE THAT NEVER EXISTED. It said future audit logic
     # "joins ohlcv ⨝ bars_provenance to report 'this bad bar came from yfinance
@@ -230,7 +293,7 @@ def daily_bydate_index_ready() -> bool:
     """True if the by-date daily index exists — a cheap catalog check (no build)."""
     try:
         return _conn().execute(
-            "SELECT 1 FROM sqlite_master WHERE type='index' AND name=?",
+            "SELECT 1 FROM sqlite_master WHERE type='index' AND name=? AND tbl_name='ohlcv'",
             (DAILY_BYDATE_INDEX,),
         ).fetchone() is not None
     except Exception:
@@ -351,7 +414,7 @@ def ensure_indexes_at(db_path: str) -> list[str]:
         present = {r[0] for r in c.execute(
             "SELECT name FROM sqlite_master WHERE type='index'").fetchall()}
         created = []
-        for name, ddl in BARS_INDEX_DDL.items():
+        for name, ddl in expected_index_ddl(c).items():
             if name in present:
                 continue
             c.execute(ddl)
@@ -1660,6 +1723,7 @@ def put_bars_many(tf: str, bars_by_ticker: dict[str, list[dict]]) -> int:
                         snapped_rows,
                     )
                 c.commit()
+            _track({(r[0], tf) for r in rows} | {(r[0], tf) for r in snapped_rows})
             return len(rows) + len(snapped_rows)
         except sqlite3.OperationalError as e:
             if "locked" not in str(e).lower():
@@ -1727,6 +1791,7 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
                         snapped_rows,
                     )
                 c.commit()
+            _track(((ticker, tf),))
             return len(rows) + len(snapped_rows)
         except sqlite3.OperationalError as e:
             # OperationalError covers "locked" (contention) and a few non-
