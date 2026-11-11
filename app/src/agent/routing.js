@@ -440,12 +440,20 @@ export function selectGroups(message, { pendingActions = [], recentActions = [],
  * ROUTE REACHABILITY guard: a group a request needed that the per-request budget could not carry is never cut SILENTLY —
  * one console line names the groups and their actions (names only, never the message). Nothing member-visible changes:
  * the cut groups stay named to the model (need_groups), as before. Pinned by qa/capabilityRegression/routeReachability.test.js.
+ * Rate-limited: ONCE per distinct set of cut groups per page session (bounded), so a busy console is not flooded.
  */
+const CUT_SEEN = new Set()
+const CUT_SEEN_MAX = 256
+export const _resetBudgetCutLog = () => CUT_SEEN.clear()
 export function warnBudgetCut(manifest, groupOf, ids) {
   if (!ids || !ids.length) return
-  const names = manifest.filter(c => ids.includes(groupOf(c.name))).map(c => c.name)
-  if (!names.length) return
-  try { console.warn(`[uct-agent] routing budget cut: ${ids.join(', ')} not sent (${names.join(', ')})`) } catch { /* no console */ }
+  const cut = ids.filter(id => manifest.some(c => groupOf(c.name) === id))
+  if (!cut.length) return
+  const key = [...cut].sort().join(',')
+  if (CUT_SEEN.has(key) || CUT_SEEN.size >= CUT_SEEN_MAX) return
+  CUT_SEEN.add(key)
+  const names = manifest.filter(c => cut.includes(groupOf(c.name))).map(c => c.name)
+  try { console.warn(`[uct-agent] routing budget cut: ${cut.join(', ')} not sent (${names.join(', ')})`) } catch { /* no console */ }
 }
 
 /**

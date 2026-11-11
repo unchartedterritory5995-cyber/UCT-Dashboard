@@ -14,7 +14,7 @@
 // UNREACHABLE is FROZEN at master's known cases (below, by name, with the cause): SHRINK-ONLY like the other ratchets. An
 // action leaving the list is allowed (remove it); a NEW unreachable action fails, named, with its group and whether the
 // budget cut it. Deterministic (no model call).
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { registerCatalog, PROD_KINDS, isDark } from './testing/registry'
@@ -22,7 +22,7 @@ import { corpus, golden, phrasingsOf } from './testing/corpus'
 import { routedNames } from './testing/route'
 import { panelHost } from './testing/harness'
 import { pinClock } from './testing/clock'
-import { groupOfAction } from '../../routing'
+import { groupOfAction, warnBudgetCut, _resetBudgetCutLog } from '../../routing'
 import { SETS } from '../../testing/sets'
 import extra from './baseline/reachPhrasings.json'
 
@@ -131,4 +131,62 @@ describe('route reachability (every registered action, production kinds)', () =>
       if (fixed.length) console.info(`[route reachability] ${v}: reachable now, remove from UNREACHABLE.${v}: ${fixed.join(', ')}`)
     })
   }
+})
+
+/** The v2 budget-cut rate over every DISTINCT phrasing (text, board, surface, recent): how much pressure the budget is under. */
+export function cutRate() {
+  const seen = new Set()
+  const hosts = new Map()
+  const hostOf = (b) => { if (!b) return null; if (!hosts.has(b)) hosts.set(b, panelHost(b)); return hosts.get(b) }
+  const groups = {}
+  let n = 0, cut = 0
+  for (const r of reachPhrasings()) {
+    const key = JSON.stringify([r.text, r.board, r.surface, r.recent])
+    if (seen.has(key)) continue
+    seen.add(key)
+    n++
+    const res = routedNames(r.text, { host: hostOf(r.board), recentActions: r.recent, v2: true, surface: r.surface })
+    if (res.overBudget.length) cut++
+    for (const g of res.overBudget) groups[g] = (groups[g] || 0) + 1
+  }
+  return { n, cut, groups: Object.entries(groups).sort((a, b) => b[1] - a[1]) }
+}
+
+describe('the budget-cut log (routing.js warnBudgetCut)', () => {
+  const M = [{ name: 'a.one' }, { name: 'a.two' }, { name: 'b.one' }]
+  const gOf = (n) => n.split('.')[0]
+  it('warns once per distinct set of cut groups (order-free), names the actions, and never for a group with no actions here', () => {
+    _resetBudgetCutLog()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    warnBudgetCut(M, gOf, ['b', 'a'])
+    warnBudgetCut(M, gOf, ['a', 'b'])                 // the same set: no second line
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0][0]).toContain('a.one, a.two, b.one')
+    warnBudgetCut(M, gOf, ['a'])                      // a different set: a second line
+    expect(warn).toHaveBeenCalledTimes(2)
+    warnBudgetCut(M, gOf, ['zzz'])                    // nothing of it in this manifest: silent
+    warnBudgetCut(M, gOf, [])
+    expect(warn).toHaveBeenCalledTimes(2)
+    warn.mockRestore()
+  })
+  it('through the real v2 routing: two identical cut routings → one warn, a different cut set → a second; the selection is unchanged', () => {
+    _resetBudgetCutLog()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const host = panelHost('ONE')
+    const first = routedNames('how is that one set right now', { host, v2: true })
+    const again = routedNames('how is that one set right now', { host, v2: true })
+    expect(first.overBudget.length).toBeGreaterThan(0)
+    expect(again.names).toEqual(first.names)
+    expect(again.overBudget).toEqual(first.overBudget)
+    expect(warn).toHaveBeenCalledTimes(1)
+    const other = routedNames('set the theme tracker widget to the 1 week period', { host, v2: true })
+    expect([...other.overBudget].sort()).not.toEqual([...first.overBudget].sort())
+    expect(warn).toHaveBeenCalledTimes(2)
+    warn.mockRestore()
+  })
+  it('reports the v2 budget-cut rate over the corpus phrasings', () => {
+    const r = cutRate()
+    expect(r.n).toBeGreaterThan(500)
+    console.info(`[route reachability] v2 budget cut on ${r.cut}/${r.n} distinct phrasings (${((100 * r.cut) / r.n).toFixed(1)}%); groups cut: ${r.groups.map(([g, k]) => `${g} ${k}`).join(', ')}`)
+  })
 })

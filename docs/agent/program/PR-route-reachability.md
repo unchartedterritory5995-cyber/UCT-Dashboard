@@ -36,13 +36,18 @@ Results:
    - v1 needed groups: pinned, the message's own groups, a carried answer, soft vocabulary. Fallback fill groups are not logged, because past the catalog size they are expected not to fit.
    - v2 needed groups: its existing `overBudget` list.
    - No lookbehind regex. The output is unchanged.
+   - Rate-limited: one line per distinct set of cut groups per page session (a module-level Set keyed on the sorted group names, capped at 256). Tests: the same set twice gives one warn, a different set gives a second, and the selection is unchanged. This is checked both directly and through the real v2 routing.
 5. `baseline/corpus.json`: the GAP-WIDGET-READ-ROUTE reason is corrected. Under v2 this is the budget cut (52 used), not "no words of its own". The v1 wording is kept for the level that runs v1. Coverage was regenerated with `UPDATE_CAPREG=1`.
 
 ## Evidence (LOCAL, native Windows Node, vitest)
 
-- Focused set, 17 files: **2375 passed**. The files: routeReachability, inventory, golden, corpus.routing, corpus.routingV2, routingCollision(V2), agentRouting, agentRoutingS6, nlm1Routing, routingV1Identity, agentNl1Selection(+Coverage), agentIsolationL5, qa/isolationLayers, agentNoLookbehindStrings, agentManifestCaps.
+- Focused set, 17 files: **2378 passed**. The files: routeReachability, inventory, golden, corpus.routing, corpus.routingV2, routingCollision(V2), agentRouting, agentRoutingS6, nlm1Routing, routingV1Identity, agentNl1Selection(+Coverage), agentIsolationL5, qa/isolationLayers, agentNoLookbehindStrings, agentManifestCaps.
 - **Mutant:** `routingThreshold` 55 → 50 turns the rail red under v2 with `widget.setOption [boardEdit] CUT BY THE BUDGET`. v1 stayed green (no v1 phrasing loses an action at 50). Restored afterwards; the diff is empty.
 - **Scale-step branch** (`agent/pl/scale-step-exec` `3cae4f658c`, adds `chartSetup.stepBars` and `chartSetup.autoScale` to boardEdit, so boardEdit becomes 7 and the registry 169): the rail is green both on that branch as it stands and merged onto this head (with inventory: 684 passed). The unreachable set stays within master's; nothing is added.
+
+## Measured budget pressure (routing v2, master + this branch's phrasings)
+
+Over every distinct corpus phrasing the rail reads (text, board, surface and recent actions; 1081 in all), **97 (9.0%)** have their v2 routing cut by the budget: the router wanted at least one group it could not carry. The groups cut most often are chartSetup 30, lists 19, indicators 15, charts 15, workspace 7, then data, layouts, screener and indicatorAlerts at 5 each, indicatorSetup and boardEdit at 4, breadth 3, drawingTools and definitions at 2, and alerts, drawings and settings at 1. The rail prints this line on every run.
 
 ## Group sizes against the 55 budget (production kinds, charts surface, master)
 
