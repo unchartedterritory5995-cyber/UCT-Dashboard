@@ -37,6 +37,7 @@ import { kindOf, copyVerdict, createCustomCopy } from './definitionActions'
 import { canon } from '../engine/settingsRecord'
 import { REASONS } from './agentMutations'
 import { engineStampOf } from '../engine/scriptEngineVersion'
+import { isScriptDocument } from './memberPane/savedScriptUpgrade'
 
 export { discardDraft } from './agentAuthoring'
 
@@ -256,6 +257,16 @@ export async function executeDefinitionAction(plan, ctx = {}, deps = {}) {
   if ((before.row.has_pine_source === true || engineStampOf(before.row.definition) !== null) && !pineSource) {
     return { status: REASONS.UNCONFIRMED, reason: REASONS.UNCONFIRMED, receipt: receiptOf(plan, REASONS.UNCONFIRMED),
       error: 'Could not read this indicator’s saved script, so it could not be restored exactly after a delete; nothing was deleted.' }
+  }
+  // ⛔ F-15 (ruling 2026-11-10) — A LEGACY PINE IMPORT: script-shaped (`isScriptDocument`)
+  // with no stored script and, past the check above, no engine stamp. Its Undo could only
+  // save it back WITHOUT a script, and the save door then marks it `meta.scriptEdited` (L2):
+  // a different document, never offered its upgrade again. That restore cannot be exact, so
+  // it is not deleted. One ALREADY marked `scriptEdited` comes back unchanged, and a
+  // document that is not script-shaped is never marked, so both delete exactly as before.
+  if (!pineSource && isScriptDocument(before.row.definition) && before.row.definition.meta.scriptEdited !== true) {
+    return { status: REASONS.UNCONFIRMED, reason: REASONS.UNCONFIRMED, receipt: receiptOf(plan, REASONS.UNCONFIRMED),
+      error: 'This indicator was imported from Pine before its script was kept, so a delete could not be undone exactly; nothing was deleted.' }
   }
   const remove = deps.remove || deleteUserDefinition
   const gone = await remove(plan.defId)

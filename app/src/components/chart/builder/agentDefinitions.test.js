@@ -202,8 +202,9 @@ describe('I-13 — a colour input takes only a colour the chart can draw', () =>
 //     script-shaped document saved without its script `scriptEdited` (L2), and
 //     stores whatever script it was given (null when none).
 const SCRIPT = '//@version=5\nindicator("x")\nplot(ta.sma(close, 20))'
-function pineServer({ hasScript = true, stamp = true, dropScriptOnSave = false } = {}) {
-  const meta = { ...(FIX.styled_markers.meta || {}), name: 'My Breakout Dots', ...(stamp ? { engineVersion: 1 } : {}) }
+function pineServer({ hasScript = true, stamp = true, dropScriptOnSave = false, scriptShaped = false, scriptEdited = false } = {}) {
+  const meta = { ...(FIX.styled_markers.meta || {}), name: 'My Breakout Dots', ...(stamp ? { engineVersion: 1 } : {}),
+    ...(scriptShaped ? { recurrenceOrigin: registry.PINE_RECURRENCE_ORIGIN } : {}), ...(scriptEdited ? { scriptEdited: true } : {}) }
   const definition = { ...FIX.styled_markers, id: MINE, meta }
   const rows = new Map([[MINE, { def_id: MINE, version: 2, definition, repaint: null, live: true, pine_source: hasScript ? SCRIPT : null }]])
   const calls = []
@@ -309,6 +310,40 @@ describe('F-15 — deleting and undoing a saved Pine indicator is exact or refus
     expect(done.undo.pineSource).toBe(undefined)
     expect(undone.status).toBe('confirmed')
     expect(srv.calls.filter((c) => c[0] === 'save')).toEqual([['save', MINE, null]])
+  })
+
+  // ⛔ Ruling 2026-11-10: a LEGACY Pine import (script-shaped, no stored script, no stamp)
+  // could only come back marked `scriptEdited` by the save door, so it is not deleted.
+  it('a legacy Pine import (script-shaped, no script, no stamp) is refused, and nothing is deleted', async () => {
+    const srv = pineServer({ hasScript: false, stamp: false, scriptShaped: true })
+    expect(isScriptDocument(srv.original)).toBe(true) // the fixture IS what the save door would mark
+    const { done } = await deleteThenUndo(srv)
+    expect(done).toMatchObject({ status: 'unconfirmed', reason: 'unconfirmed' })
+    expect(done.error).toMatch(/imported from Pine before its script was kept/)
+    expect(done.error).toMatch(/nothing was deleted/)
+    expect(done.undo).toBe(undefined)
+    expect(srv.calls.some((c) => c[0] === 'delete')).toBe(false)
+    expect(srv.rows.get(MINE).live).toBe(true)
+    expect(srv.rows.get(MINE).definition).toEqual(srv.original)
+  })
+
+  it('control: an unstamped document that is NOT script-shaped still deletes and comes back EXACTLY', async () => {
+    const srv = pineServer({ hasScript: false, stamp: false })
+    expect(isScriptDocument(srv.original)).toBe(false)
+    const { done, undone } = await deleteThenUndo(srv)
+    expect(done.status).toBe('confirmed')
+    expect(undone.status).toBe('confirmed')
+    expect(srv.rows.get(MINE).live).toBe(true)
+    expect(srv.rows.get(MINE).definition).toEqual(srv.original)
+    expect(srv.rows.get(MINE).definition.meta.scriptEdited).toBe(undefined)
+  })
+
+  it('control: a script-shaped document ALREADY marked scriptEdited deletes and comes back EXACTLY', async () => {
+    const srv = pineServer({ hasScript: false, stamp: false, scriptShaped: true, scriptEdited: true })
+    const { done, undone } = await deleteThenUndo(srv)
+    expect(done.status).toBe('confirmed')
+    expect(undone.status).toBe('confirmed')
+    expect(srv.rows.get(MINE).definition).toEqual(srv.original)
   })
 })
 
