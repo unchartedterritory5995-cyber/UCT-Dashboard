@@ -103,11 +103,17 @@ const CONTROL_WORDS = ['tab', 'axis', 'filter', 'sort', 'order', 'rank', 'view',
 // a control that takes a DAY is named by the words a day is said in
 const DAY_WORDS = ['today', 'tomorrow', 'yesterday', 'next', 'last', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'jump', 'go']
 const camel = (k) => String(k).replace(/([a-z])([A-Z])/g, '$1 $2')
+// AUDIT #1027 (NL-1 first-call coverage): a control's KEY is a storage name, not something a person says. A key-derived word that is
+// a generic request verb must not re-admit what CONTROL_WORDS leaves out on purpose ('hide' is there, 'show' is not: "show my
+// momentum watchlist" is a list request). The Watchlist's `showLogos` row made every "show … watchlist" route boardEdit, which then
+// crowded the lists group out of the request. The row's own words ('logo' is a CONTROL_WORD) still name it.
+const KEY_GENERIC = new Set(['show'])
+const keyWords = (k) => nameWords(camel(k)).filter(w => !KEY_GENERIC.has(w))
 const VOCAB = new Map()
 function controlVocab(type, surfaceWord) {
   if (VOCAB.has(type)) return VOCAB.get(type)
   const own = new Set(widgetNamesOf(type, surfaceWord).flat())
-  const words = new Set([...CONTROL_WORDS, ...widgetControls(type).flatMap(f => [camel(f.key), ...(f.type === 'day' ? DAY_WORDS : []), ...(f.options || []).map(o => (o && typeof o === 'object' ? `${o.value} ${o.label}` : String(o))), ...Object.values(f.labels || {}), ...Object.values(f.also || {}).flat(), ...(f.words || [])])]
+  const words = new Set([...CONTROL_WORDS, ...widgetControls(type).flatMap(f => [...keyWords(f.key),...(f.type === 'day' ? DAY_WORDS : []), ...(f.options || []).map(o => (o && typeof o === 'object' ? `${o.value} ${o.label}` : String(o))), ...Object.values(f.labels || {}), ...Object.values(f.also || {}).flat(), ...(f.words || [])])]
     .flatMap(nameWords).filter(w => w.length >= 2 && !own.has(w)))
   VOCAB.set(type, words)
   return words
