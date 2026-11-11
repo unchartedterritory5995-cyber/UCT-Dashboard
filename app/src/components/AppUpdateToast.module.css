@@ -1,0 +1,42 @@
+/* Same look as UpdateReadyToast, one row higher so both can show at once without overlapping. */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 64px;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(560px, calc(100vw - 24px));
+  padding: 10px 14px;
+  background: var(--bg-elevated, var(--bg));
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.btn {
+  flex: none;
+  min-height: 32px;
+  padding: 0 14px;
+  background: var(--accent);
+  border: 0;
+  border-radius: 6px;
+  color: #0b0b0b;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.later {
+  flex: none;
+  min-height: 32px;
+  padding: 0 12px;
+  background: transparent;
+  border: 1px solid var(--border, var(--text-muted));
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+}

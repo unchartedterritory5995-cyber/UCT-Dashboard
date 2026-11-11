@@ -10,6 +10,7 @@ const FEATURE_METHODS = {
   'desk-visibility': ['onDeskVisibility'],
   'before-quit': ['onBeforeQuit', 'ackBeforeQuit'],
   'site-events': ['reportEvent'],
+  'app-update': ['getAppUpdate', 'onAppUpdate', 'restartToUpdate'],
 }
 
 const noop = () => {}
@@ -70,6 +71,27 @@ export function ackBeforeQuit() {
 export function reportDesktopEvent(name) {
   if (!hasDesktopFeature('site-events')) return
   try { getBridge().reportEvent(name) } catch { /* telemetry never breaks the page */ }
+}
+
+const asUpdate = (u) => (u && typeof u.version === 'string' && /^\d+\.\d+\.\d+$/.test(u.version) ? { version: u.version } : null)
+
+/** The desktop app update downloaded and waiting to install ({ version }), or null. */
+export async function getAppUpdate() {
+  if (!hasDesktopFeature('app-update')) return null
+  try {
+    return asUpdate(await getBridge().getAppUpdate())
+  } catch {
+    return null
+  }
+}
+
+/** Called with { version } when an app update is ready, and null when it is withdrawn. */
+export function onAppUpdate(cb) { return subscribe('app-update', (b) => b.onAppUpdate((u) => cb(asUpdate(u)))) }
+
+/** "Restart to update": the shell runs its normal quit (unsaved-text prompt included), installs, reopens. */
+export function restartToUpdate() {
+  if (!hasDesktopFeature('app-update')) return
+  try { getBridge().restartToUpdate() } catch { /* the shell installs on the next quit anyway */ }
 }
 
 /** { appVersion, platform }, or null outside the app or if the shell cannot answer. */
