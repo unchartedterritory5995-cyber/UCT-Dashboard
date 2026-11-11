@@ -383,10 +383,10 @@ def test_property_complete_through_is_bounded_monotonic_and_final(store, monkeyp
         # I4 (integrator rule): a claim never outruns the rows it is attached to. Every
         # stored row inside the claimed-verified region is IN this payload with the
         # store's values — even when the payload began as an older cache snapshot — and
-        # the claim is net of the provider settle lag.
+        # the claim is the raw proof (finality is sealed_through).
         vt = c["verified_through"]
         if vt is not None:
-            assert vt <= last_check - bc.SEAL_LAG_S + 1e-6
+            assert vt <= last_check + 1e-6
             by_t = {r["t"]: (r["c"], r["v"]) for r in served}
             for r in stored:
                 if r[0] + step <= vt:
@@ -477,7 +477,7 @@ def test_a_cached_payload_never_carries_a_newer_claim_than_its_rows(store, monke
         content={"ticker": "AAA", "tf": "5", "bars": cached}))
     body = _body(br._serve_bars_impl("AAA", "5", 200))
     assert [b["t"] for b in body["bars"]] == t and body["bars"][1]["c"] == 12
-    assert body["verified_through"] <= time.time() - bc.SEAL_LAG_S
+    assert body["verified_through"] <= time.time()
     assert body["tail_status"] in ("current", "verified", "unverified")
 
 
@@ -586,3 +586,92 @@ def test_the_retired_freshness_duplicates_stay_retired():
     for name in ("intraday_session_complete", "intraday_ext_session_complete",
                  "_ext_session_verified", "_ext_session_end_ts"):
         assert not hasattr(bf, name), name
+
+
+# ── review #1098 fixes ───────────────────────────────────────────────────────
+
+def test_F1_currentness_is_judged_on_the_RAW_proof(store):
+    """A thin covered name proven 1 s after the 10:05 boundary is `verified` at once —
+    the settle lag applies to finality (sealed_through), never to currentness."""
+    t_old = et(*WED, 9, 30)
+    bs.put_bars("AAA", "5", [bar(t_old)])
+    proof = float(et(*WED, 10, 5, 1))
+    bf._mark_tail_verified("AAA", "5", proof)
+    now = et(*WED, 10, 5, 3)
+    c = bc.compute("AAA", "5", None, bf._fmt_sqlite_bars(_store_rows("AAA", "5"), "5"), now=now)
+    assert c["verified_through"] == proof
+    st = bf.intraday_tail_status("AAA", "5", t_old, now=now, verified_through=c["verified_through"])
+    assert st["tail_status"] == "verified"
+
+
+def _seal(t, sealed, wstart, checked):
+    bs.record_sealed("AAA", "5", float(sealed), float(wstart), float(checked))
+
+
+def test_F2_an_older_check_never_overwrites_rows_a_newer_check_sealed(store):
+    t = [et(*WED, 10, m) for m in (0, 5, 10)]
+    bs.put_bars("AAA", "5", [bar(x, v=500) for x in t])              # final rows
+    _seal(t, t[2], t[0], et(*WED, 10, 11))                           # check C2
+    older = et(*WED, 10, 9)                                         # C1 < C2
+    bs.put_bars("AAA", "5", [bar(t[0], v=10), bar(t[1], v=10), bar(t[2], v=10)],
+                checked_at=older)
+    vols = {r[0]: r[5] for r in _store_rows("AAA", "5")}
+    assert vols[t[0]] == 500 and vols[t[1]] == 500                  # sealed span kept
+    assert vols[t[2]] == 10                                          # beyond the seal: written
+    with bs.provider_check(older):                                   # the repair's context
+        bs.put_bars("AAA", "5", [bar(t[0], v=11)])
+    assert {r[0]: r[5] for r in _store_rows("AAA", "5")}[t[0]] == 500
+    bs.put_bars("AAA", "5", [bar(t[0], v=600)], checked_at=et(*WED, 10, 12))   # newer check
+    assert {r[0]: r[5] for r in _store_rows("AAA", "5")}[t[0]] == 600
+
+
+def test_F2_the_repair_writes_under_its_own_check_instant(store, monkeypatch):
+    """`_heal_intraday_tail` persists inside `provider_check(checked_at)`."""
+    seen = []
+    real = bs.put_bars
+
+    def spy(*a, **k):
+        seen.append(getattr(bs._check_ctx, "at", None))
+        return real(*a, **k)
+
+    monkeypatch.setattr(bs, "put_bars", spy)
+    clock = _Clock(et(*WED, 10, 7))
+    monkeypatch.setattr(bf, "_time", clock)
+    _fake_provider(monkeypatch, lambda last: ([bar(et(*WED, 10, 0))], et(*WED, 10, 0)))
+    bf._heal_intraday_tail("AAA", "5", et(*WED, 10, 0))
+    assert seen == [clock.now]
+
+
+def test_F2_seal_lag_default_covers_late_minute_aggregates():
+    assert bc.SEAL_LAG_S >= 30
+
+
+def test_F3_a_seal_checked_before_a_wholesale_change_is_void(store):
+    t0 = et(*WED, 10, 0)
+    bs.put_bars("AAA", "5", [bar(t0)])
+    now = time.time()
+    bs.record_sealed("AAA", "5", now - 50, float(t0), now - 1)       # checked BEFORE the floor
+    bs.flush_meta()
+    bs.bump_store_floor("test")
+    assert bs.series_meta("AAA", "5")["sealed_through"] is None
+    later = time.time() + 1
+    bs.record_sealed("AAA", "5", later - 45, float(t0), later)        # checked AFTER it
+    assert bs.series_meta("AAA", "5")["sealed_through"] == later - 45
+
+
+def test_F4_after_a_row_delete_a_seal_must_reach_back_to_the_deleted_point(store):
+    t = [et(*WED, 10, m) for m in range(0, 30, 5)]
+    bs.put_bars("AAA", "5", [bar(x) for x in t])
+    c = bs._conn()
+    with bs._WRITE_LOCK:
+        c.execute("DELETE FROM ohlcv WHERE ticker='AAA' AND tf='5' AND ts=?", (t[1],))
+        bs.bump_series_revs(c, [("AAA", "5")], deleted=True, deleted_from=t[1])
+        c.commit()
+    ck = time.time() + 1
+    bs.record_sealed("AAA", "5", float(t[5]), float(t[3]), ck)        # window starts past the hole
+    assert bs.series_meta("AAA", "5")["sealed_through"] is None
+    bs.record_sealed("AAA", "5", float(t[5]), float(t[1]), ck + 1)    # reaches back to it
+    assert bs.series_meta("AAA", "5")["sealed_through"] == float(t[5])
+    bs.flush_meta()
+    bs.reset_meta_state_for_tests()
+    assert bs.series_meta("AAA", "5")["sealed_through"] == float(t[5])   # SQL agrees

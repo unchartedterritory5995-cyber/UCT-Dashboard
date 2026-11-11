@@ -31,7 +31,14 @@ CONTRACT_VERSION = 1
 #: just-closed bucket's final aggregate lands seconds after its end (a bucket stored
 #: while forming carries the same `ts` as the finished one). The ONE seal-lag value:
 #: any server rule about "is this closed bucket final" reads this constant.
-SEAL_LAG_S = float(os.environ.get("BARS_SEAL_LAG_SECONDS", "5"))
+SEAL_LAG_S = float(os.environ.get("BARS_SEAL_LAG_SECONDS", "45"))
+# ⚖️ 45 s (review #1098 F2): a minute aggregate is not final when its minute ends — late
+# SIP trade reports (up to ~10 s), the provider's own aggregation/publish delay (the
+# live AM lands 2-5 s after the minute) and REST aggregate re-publication after
+# corrections stack up; a REST answer taken seconds after a boundary routinely holds the
+# just-closed bucket partial. 45 s covers that with margin while costing only a later
+# seal (complete_through trails real time by < 1 min; currentness is unaffected — it is
+# judged on the raw proof).
 INTRADAY_TFS = ("1", "5", "15", "30", "60")
 DATE_TFS = ("D", "W", "M")
 _ET = ZoneInfo("America/New_York")
@@ -216,14 +223,14 @@ def compute(ticker: str, tf: str, session, rows: list, *, delta: bool = False,
     # ONCE, HERE, before the rows the answer will carry are (re)read from the store
     # below — so every row the proof covers is in this payload as the store held it
     # after the proof (a memory-cache payload, or rows read before a repair landed, are
-    # reconciled to the store first). And it is stated minus the provider settle lag:
-    # a check at X proves only buckets whose final aggregate had landed, i.e. that
-    # ended by X - SEAL_LAG_S. The router's `tail_status` judges THIS value (it never
-    # re-reads a newer one), so the status and the number agree with the payload.
+    # reconciled to the store first). It is the RAW proof ("nothing newer existed at X",
+    # the currentness question; review #1098 F1 — a lagged value read every thin covered
+    # 5m name `unverified` for a minute after each boundary). The settle lag applies only
+    # to FINALITY: `sealed_through` / `complete_through`. The router's `tail_status`
+    # judges THIS value (it never re-reads a newer one).
     raw_vt = (_bf.tail_verified_through(tkr, src) if src in INTRADAY_TFS
               else meta.get("verified_through"))
-    out["verified_through"] = (None if raw_vt is None
-                               else float(min(float(raw_vt), now)) - SEAL_LAG_S)
+    out["verified_through"] = None if raw_vt is None else float(min(float(raw_vt), now))
     if store_rows is None:
         try:
             store_rows = _bs.get_bars(tkr, src, 2)

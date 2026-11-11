@@ -706,8 +706,10 @@ def session_end_ts(last_ts, session: str = "eth") -> int | None:
 
 
 def session_complete(tf: str, last_ts, session: str = "eth") -> bool:
-    """True when an intraday tail reaches the FINAL bucket of its own day's `session`
-    (within one bucket). A tail past the session close is complete by construction; a
+    """True when an intraday tail holds the FINAL bucket of its own day's `session`
+    (EXACTLY — review #1098 F5: after the close a missing final bucket, 15:55 5m / 15:59
+    1m / the 15:30 hour, is a hole to repair; the one-bucket tolerance is for intraday
+    CURRENTNESS against a moving frontier, `tail_within_one_bucket`). A tail past the session close is complete by construction; a
     tail that stops earlier is an artifact of when we last fetched, not of trading —
     the distinction a DATE compare cannot make (PLTR 5m ended 15:15, measured
     2026-09-20). ⚠️ ABSTAINS RATHER THAN GUESSING: a non-intraday tf or an unparseable
@@ -718,7 +720,7 @@ def session_complete(tf: str, last_ts, session: str = "eth") -> bool:
         end = session_end_ts(last_ts, session)
         if end is None:
             return True
-        return tail_within_one_bucket(tf, last_ts, _ext_bucket_start(tf, end - 1))
+        return int(last_ts) >= _ext_bucket_start(tf, end - 1)
     except Exception:                      # noqa: BLE001
         return True
 
@@ -804,6 +806,18 @@ def tail_verified_through(ticker: str, tf: str):
     return vt
 
 
+class _NullCheck:
+    """`provider_check` stand-in for a store double without one (tests)."""
+    def __init__(self, *_a):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_exc):
+        return False
+
+
 def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool = False) -> list:
     """The ONE intraday tail repair: provider delta → persist → record verification.
 
@@ -825,11 +839,14 @@ def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool =
             last_ts = _lt[0]              # provider fetches only what is still missing
     checked_at = _time.time()
     status: dict = {}
-    new = _delta_intraday(ticker_up, tf, last_ts, status=status, tail_only=tail_only)
-    persisted = not new
-    if new and not _is_intraday_stale(new):
-        _sqlite.put_bars(ticker_up, tf, new, date_tf=False)
-        persisted = True
+    # Every write of this answer (incl. a derived tf's 15m base) carries its check instant:
+    # it can never overwrite rows a NEWER check has sealed (`bars_sqlite.provider_check`).
+    with getattr(_sqlite, "provider_check", _NullCheck)(checked_at):
+        new = _delta_intraday(ticker_up, tf, last_ts, status=status, tail_only=tail_only)
+        persisted = not new
+        if new and not _is_intraday_stale(new):
+            _sqlite.put_bars(ticker_up, tf, new, date_tf=False)
+            persisted = True
     if status.get("ok"):
         _mark_tail_verified(ticker_up, tf, checked_at)
         # ⭐ BAR CONTRACT seal: the provider rewrote the series from `window_start`
@@ -986,6 +1003,12 @@ def _local_tail_repair(ticker_up: str, tf: str, last_ts: int):
     are exactly as proven as the rows they were built from — and only after the write
     reached SQLite (a failed write verifies nothing)."""
     try:
+        # Bar contract (review #1098 F4): the base's seal is read BEFORE the derived rows
+        # are built from the base, so the rows can only be as final as (or more than) it.
+        try:
+            _bm = _sqlite.series_meta(ticker_up, _DERIVED_BASE_TF)
+        except Exception:                 # noqa: BLE001
+            _bm = {}
         d = _local_derived_tail(ticker_up, tf, last_ts)
         if not d:
             return None
@@ -999,11 +1022,14 @@ def _local_tail_repair(ticker_up: str, tf: str, last_ts: int):
         if d.get("complete"):
             # Bar contract seal, inherited the same way: a derived bucket that ended by
             # the base's seal is built only from final base buckets. The derived window
-            # rewritten here starts at its first row (contiguity: `record_sealed`).
-            _base_seal = _sqlite.series_meta(ticker_up, d["src"]).get("sealed_through")
-            if _base_seal is not None:
-                _sqlite.record_sealed(ticker_up, tf, _base_seal, int(d["rows"][0]["t"]),
-                                      _time.time())
+            # starts where the derivation started reading the base — the bucket of the
+            # target's stored tail — not at the first row it kept; its check instant is
+            # the base seal's own (`record_sealed` contiguity + check-instant rules).
+            _base_seal = _bm.get("sealed_through")
+            if _base_seal is not None and d.get("src") == _DERIVED_BASE_TF:
+                _sqlite.record_sealed(ticker_up, tf, _base_seal,
+                                      _derived_bucket_start(tf, int(last_ts)),
+                                      _bm.get("sealed_checked_at") or _time.time())
         new_last = max(int(b["t"]) for b in d["rows"])
         current = (not _needs_fresh(new_last, tf)
                    and intraday_tail_status(ticker_up, tf, new_last)["tail_status"] != "unverified")
@@ -4835,6 +4861,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                             # A deep backfill (bars above the first-paint window)
                             # pulls the yfinance pre-2003 IPO tail for D/W/M.
                             _deep = _is_deep_request(_bars)
+                            _fetch_t0 = _time.time()      # this fetch's check instant
                             if _tf in ("1", "5", "15", "30", "60"):
                                 new = _fetch_intraday(_sym, _tf, _bars)
                             elif _tf == "W":
@@ -4850,7 +4877,8 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                                 if _dtf:
                                     _sqlite.put_bars(_sym, _tf, new, date_tf=_dtf)
                                 else:
-                                    _put_fetched_intraday(_sym, _tf, new)   # fallback = add-only
+                                    with getattr(_sqlite, "provider_check", _NullCheck)(_fetch_t0):
+                                        _put_fetched_intraday(_sym, _tf, new)   # fallback = add-only
                                 # Mark full history loaded so a request larger
                                 # than the stock's lifetime doesn't re-fetch every
                                 # poll (the len>=bars*0.9 gate would never pass).

@@ -102,8 +102,10 @@ from every process on that store.
 - **A claim never outruns the rows it is attached to.** The value on the wire is read
   ONCE, before the answer's rows are (re)read from the store (full intraday answers
   are reconciled to the store over the heal window; `since=` deltas are re-read), and
-  is stated as `min(proof, now) - SEAL_LAG_S`: a check at X only proves buckets whose
-  final aggregate had landed. `tail_status` judges that same number. So a cached payload
+  is the RAW proof `min(proof, now)` — currentness ("nothing newer existed at X"); the
+  settle lag applies only to finality (`sealed_through`), never here (review #1098 F1:
+  a lagged value kept thin covered 5m names `unverified` for a minute after every
+  boundary). `tail_status` judges that same number. So a cached payload
   never carries a newer claim than its rows: every stored row whose bucket ended by
   `verified_through` is in the payload with the store's values (railed: I4 in the
   property test, and a router-level stale-cache test).
@@ -116,15 +118,26 @@ Unix seconds: every bucket of the series that ENDED at or before it is final in 
 store. Persisted in `series_meta.sealed_through` (write-behind with the proofs).
 - Advanced only by THE intraday tail repair (`bars_fetch._heal_intraday_tail`) after a
   provider answer that did not raise and whose rows were persisted: to
-  `checked_at - SEAL_LAG_S` (`BARS_SEAL_LAG_SECONDS`, default 5 — a provider asked at X
-  has the final aggregate only of buckets that ended a few seconds before X; the same
-  knob as the request path's sealed-bucket rule), and only when the answer's rewritten
-  window (`_delta_intraday` reports `window_start`) starts at or before the current
-  value — a contiguous proof. A repair that starts past the seal (rows written in
-  between by the live feed, a cold fetch, a merge) cannot extend it.
-- A series with no seal yet trusts the rows below the first repair's window: they are
-  that repair's own "already-final history" (`_DELTA_HEAL_WINDOW_SECONDS`, 8 h).
-- Voided like `verified_through` (deletes, wholesale changes).
+  `checked_at - SEAL_LAG_S` (`BARS_SEAL_LAG_SECONDS`, default 45 — late SIP reports,
+  the provider's aggregation/publish delay and aggregate re-publication mean a REST
+  answer seconds after a boundary routinely holds the just-closed bucket partial), and
+  only when the answer's rewritten window (`_delta_intraday` reports `window_start`)
+  starts at or before the current value — a contiguous proof — and its check is not
+  older than the current seal's check (`sealed_checked_at`). A repair that starts past
+  the seal (rows written in between by the live feed, a cold fetch, a merge) cannot
+  extend it.
+- **An older check never overwrites sealed rows** (review #1098 F2). Concurrent repairs
+  of one series each persist what the provider said at THEIR check; every repair write
+  carries its check instant (`put_bars(checked_at=)` / the `provider_check` context
+  `_heal_intraday_tail` and the background full fetch open), and rows inside a span a
+  NEWER check sealed are not replaced by it. Writes without a check instant (split
+  repair, merges, rebuilds) are corrections and move `history_rev`.
+- A series with no seal yet trusts the rows below the first repair's window (that
+  repair's own "already-final history", `_DELTA_HEAL_WINDOW_SECONDS`, 8 h) — UNLESS rows
+  were deleted since: a delete records the oldest deleted key (`unsealed_from`) and the
+  next seal must reach back to it (review #1098 F4).
+- Voided by deletes and wholesale changes by its CHECK instant (`sealed_checked_at` <=
+  floor), not by an approximation of the sealed instant (review #1098 F3).
 - `null` until the first repair after deploy (cold fetches do not seal; D/W/M are not
   sealed yet — section 8).
 
@@ -244,7 +257,10 @@ Consistency with REST:
 the three `expected_completed_*bucket` names are readings of these; the former
 `intraday_session_complete` (zero tolerance), `intraday_ext_session_complete`
 (one-bucket tolerance), `_ext_session_end_ts` and `_ext_session_verified` were removed.
-Tolerance is ONE bucket everywhere.
+Currentness (`intraday_tail_status`) tolerates ONE bucket against the moving frontier;
+session COMPLETENESS after the close (`session_complete`) requires the final bucket
+exactly, so a background repair still fills a missing 15:55 5m / 15:59 1m / 15:30 hour
+(review #1098 F5).
 
 ## 7. Write-lock cost
 

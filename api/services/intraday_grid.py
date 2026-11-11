@@ -358,7 +358,8 @@ def repair_pair(ticker: str, tf, lo: int = 0) -> dict:
                           "VALUES(?,?,?,?,?,?,?,?)", inserts)
         c.executemany("DELETE FROM ohlcv WHERE ticker=? AND tf=? AND ts=?",
                       [(ticker, tf, r[0]) for r in bad])
-        bars_sqlite.bump_series_revs(c, [(ticker, tf)], deleted=True)
+        bars_sqlite.bump_series_revs(c, [(ticker, tf)], deleted=True,
+                                     deleted_from=min(int(r[0]) for r in bad))
         c.commit()
     res["deleted"] = len(bad)
     res["snapped"] = len(inserts)
