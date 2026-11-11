@@ -628,7 +628,7 @@
    "steps": [
     "ACN, 2006. A three-week drift, 5.0% off its high, down to the 21-day EMA. Yesterday's close is the line.",
     "2006-10-23: it opens under the prior close, trades 0.73% under the prior low, then reclaims the close.",
-    "Buy at market as it trades back over the prior close, 31.51. Stop a few cents under the low, 31.12, 1.24% away.",
+    "Our scans buy as it trades back over the prior close: 31.51. Stop a few cents under the low, 31.12, 1.24% away.",
     "Failure mode: a close back under the prior close. Instead it closed over the prior high. 3R took 3 days."
    ],
    "facts": [
@@ -648,7 +648,7 @@
    "steps": [
     "ADBE, 2018. A leader drifts three weeks, 5.2% off its high, onto the 21-day EMA and the 50-day.",
     "2018-05-03: it opens under the prior close and undercuts the prior low by 0.82%, tagging both averages.",
-    "Buy at market as price trades back over the prior close, 221.11. Stop a few cents under the low, 218.69.",
+    "Our scans buy as price trades back over the prior close: 221.11. Stop a few cents under the low, 218.69.",
     "Failure mode: a close back under the prior close. Instead it closed over the prior high. 3R came the next day."
    ],
    "facts": [
@@ -668,8 +668,8 @@
    "steps": [
     "DELL, 2026. A two-week drift to the 21-day EMA after a 200-day reclaim, 5.4% off its high.",
     "2026-03-19: a deeper undercut, 1.58% under the prior low, then a close at 0.97 of its range.",
-    "Buy at market, 149.22. Stop a few cents under the low, 146.52, 1.81% away: the widest stop of the ten.",
-    "Failure mode: a close back under the prior close. Instead it closed over the prior high, and 3R came on day 1."
+    "Our scans buy at market, 149.22, as it reclaims the close. Stop a few cents under the low, 146.52, 1.81% away.",
+    "Failure mode: a close back under the prior close. Instead it closed over the prior high, and 3R came the next day."
    ],
    "facts": [
     "dDELL",
@@ -842,16 +842,16 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "oops.inv_no_reclaim",
-   "q": "When is the Oops a buy?",
+   "q": "In our scans, when does the Oops buy fill?",
    "choices": [
-    "After it trades back over the close",
+    "As it trades back over the close",
     "As soon as it opens under the close",
     "At the open, before the undercut",
     "At the next day's open"
    ],
-   "answer": "After it trades back over the close",
-   "why": "After it trades back over the prior close, once the day has traded under the prior low. No reclaim, no trade.",
-   "lesson_line": "Undercut first, then reclaim the close. That is the buy.",
+   "answer": "As it trades back over the close",
+   "why": "In our scans it fills as price trades back over the prior close, once the day has traded under the prior low. No reclaim, no trade.",
+   "lesson_line": "Undercut first, then the reclaim of the close. That is our scans' buy.",
    "facts": [
     "o_inv",
     "o_main",
@@ -860,7 +860,7 @@
    "wrong": {
     "As soon as it opens under the close": "An open under the close is only the first test. The undercut and the reclaim must follow.",
     "At the open, before the undercut": "A buy at the open can fill before the undercut.",
-    "At the next day's open": "The Oops is judged on one candle. The buy is during the Oops day."
+    "At the next day's open": "Our scans buy on the Oops day itself, not at the next open."
    },
    "house": true
   },
@@ -1048,7 +1048,7 @@
     },
     "round": 2
    },
-   "why": "157.32. One R is the fill minus the stop. Add three of those to the fill. This is the DELL trade, 3R on day 1.",
+   "why": "157.32. One R is the fill minus the stop. Add three of those to the fill. This is the DELL trade, 3R the next day.",
    "lesson_line": "Know your 3R before the open. The first third comes off there.",
    "facts": [
     "h05",
@@ -1184,7 +1184,7 @@
     },
     "round": 1
    },
-   "why": "8.5%. That is inside the 3% to 12% band, a real pullback to reverse from.",
+   "why": "8.5%. That is inside the 3% to 12% range, a real pullback to reverse from.",
    "lesson_line": "Measure the pullback from the 20-day high. Inside 3% to 12%.",
    "facts": [
     "o_pull"
@@ -1282,7 +1282,7 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "oops.order_market",
-   "q": "Which touch is the trigger?",
+   "q": "In our scans, which touch of the prior close fills the buy?",
    "choices": [
     "The one at 11:00, after the undercut",
     "The 9:40 touch of the prior close",
@@ -1301,7 +1301,7 @@
    "wrong": {
     "The 9:40 touch of the prior close": "That touch came before the undercut. A touch of the prior close before the undercut is not a trigger.",
     "Either one": "Only the touch after the undercut counts.",
-    "Neither; wait for the close": "The buy is during the day, as a market order when the trigger prints."
+    "Neither; wait for the close": "Our scans buy during the day, as a market order when the trigger prints."
    },
    "house": true
   },
@@ -1402,7 +1402,7 @@
     "Add on the dip",
     "Move the stop under 31.30"
    ],
-   "story": "You bought the reclaim of the 31.50 prior close at 31.52 with the stop at 31.12. The day closes at 31.30, back under the prior close, above your stop.",
+   "story": "You bought the reclaim of the 31.50 prior close at 31.52, the way our scans do, with the stop at 31.12. The day closes at 31.30, back under the prior close, above your stop.",
    "answer": "Hold to the stop; do not add",
    "why": "Hold to the stop and do not add. The day closed back under the prior close, so the trade is wrong as an Oops. The stop is the exit.",
    "lesson_line": "A close back under the prior close is a warning. The stop does the rest.",
@@ -1794,13 +1794,13 @@
    "criterion": "oops.scanner_oops",
    "q": "Oops or U&R?",
    "choices": [
-    "A U&R, the level is bigger",
+    "A U&R, the level is an average",
     "An Oops, it reclaimed fast",
     "A Kicker"
    ],
-   "story": "The stock undercuts a six-week-old base low and closes back above it the next day. It never traded under the prior day's low on the reclaim day.",
-   "answer": "A U&R, the level is bigger",
-   "why": "A U&R. A U&R needs a bigger level than yesterday's low, and its reclaim may take up to 3 sessions. An Oops is one candle.",
+   "story": "The stock dips under its rising 50-day average and closes back above it the next day. It never traded under the prior day's low on the reclaim day.",
+   "answer": "A U&R, the level is an average",
+   "why": "A U&R. The level is a rising average, not yesterday's low, and a U&R's reclaim may take up to 3 sessions. An Oops is one candle.",
    "lesson_line": "A bigger level and a few days: U&R. Yesterday's low in one day: Oops.",
    "facts": [
     "l_ur1",
@@ -1809,7 +1809,7 @@
    ],
    "wrong": {
     "An Oops, it reclaimed fast": "An Oops needs a trade under the prior day's low in one candle.",
-    "A Kicker": "A Kicker gaps up. This is an undercut of a base low."
+    "A Kicker": "A Kicker gaps up. This is a dip under an average."
    },
    "house": true
   },
@@ -2052,15 +2052,16 @@
    ],
    "story": "A Williams open after a red day, an 8.7% pullback to the 21-day. You bought at 74.97 with the stop at 73.73. The next day it is stopped as the index makes a lower low.",
    "answer": "The market was not Green",
-   "why": "The market was not Green. UBER reclaimed on 2025-03-07 and was stopped the next day as SPY made a lower low. Orange allows an A+ only.",
+   "why": "The market was not Green. UBER reclaimed on 2025-03-07 and was stopped the next day as SPY made a lower low.",
    "lesson_line": "The chart looks fine. The reading is the filter.",
    "facts": [
     "dUBER",
     "dUBERn",
-    "o_mktr"
+    "o_mktr",
+    "o_pull"
    ],
    "wrong": {
-    "The pullback was too shallow": "An 8.7% pullback is well inside the band.",
+    "The pullback was too shallow": "An 8.7% pullback is well inside the 3% to 12% range.",
     "The close was too weak": "The close was strong.",
     "The stop was too wide": "The stop was 1.65%."
    },
@@ -2168,10 +2169,11 @@
    "facts": [
     "dADBE",
     "dADBEn",
-    "o_loc"
+    "o_loc",
+    "o_pull"
    ],
    "wrong": {
-    "Pass; there is no pullback": "It drifted 5.2% off its high, inside the band.",
+    "Pass; there is no pullback": "It drifted 5.2% off its high, inside the 3% to 12% range.",
     "Pass; a news bar came first": "The drift was orderly. No news bar."
    },
    "house": true,
@@ -2257,7 +2259,405 @@
   "The dossier's example numbers (d1) are read off our own daily bars by the research scan, not a public page: the fill is the prior close plus a cent, the stop 5 cents under the Oops-day low. The scan is a look-ahead version (a close over the prior close is required); q40 and the walk-throughs never quote a base rate.",
   "UNITS-method SET.25 reads 'the gap-open 2B: gap below the prior low, close back above it; same entry and stop logic' and teaches 'place the stop under the gap low'. This unit follows the criteria card (D-004: the main Oops need not gap below the low); the unit id SET.25 comes from the brief.",
   "The chart questions (q60 ADBE asof 2018-05-02, q61 HD asof 2025-09-12) show the member's own chart up to the day before the Oops day (the decision is made during the next session). The keys rest on the dossier's reads (dADBE, dADBEn, dHD, dHDn), not on the picture. HD is a near-miss that fails exactly one gate, the pullback.",
-  "Radge's two posts refused the research's first pass and loaded in its cold check; the quote checker may report them unreachable."
+  "Radge's two posts refused the research's first pass and loaded in its cold check; the quote checker may report them unreachable.",
+  "Cold check 2026-11-10: 60 pass (9 fixed), 0 fix, 6 cut (counting the 3 walk-throughs). The three things the owner should look at first: (1) the Oops entry (oops.trigger, D-003 pending): the walk-throughs, q08, q27 and q31 now say 'our scans buy as it trades back over the prior close' and no question marks the close or the next open as wrong because of when you buy; if he picks the close they need a second look. (2) the card's grading contradicts its own market gate: Orange or Red is listed as B- (and an A+ needs Green) while the gate says 'Green or Yellow, Orange only for an A+'; q38 and q41 follow the gate and F65. (3) the dossier says V 2019-08-13 'never traded above the entry'; the bars show 178.92 on the entry day, so that line is wrong (q59 cut). The card also puts a swing low bounced 5% under U&R while the 2B card calls it a 2B; q47 now uses a rising 50-day average, which both cards call a U&R. Cuts: q07 (same as q41), q11 (same as q10), q52 (same as q61), q58 (same as q55), q59 (same as q42 and wrong), q62 (same as q49). Stays consistent with SET.44 q64 (same three tests) and SET.24 q46 to q48. Chart bars: ADBE 2018-05-02 has 5,859 daily bars up to it and HD 2025-09-12 has 7,710, well over 120. Pending-owner criteria stay out of every key (williams_open, timeframe_daily, above_200 beyond B26, leader, liquidity beyond B23, trigger, stop_width, breakeven, low_never_breaks)."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Step 3 said 'Buy at market as it trades back over the prior close' as if it were the ruled trigger; oops.trigger is pending (D-003, close or reclaim). Now 'Our scans buy ...'. Re-derived from bars: ACN 2006-10-23 opens 31.17 under the 31.50 close, low 31.17 is 0.73% under the 31.40 prior low, close 32.07 over the 31.79 prior high; buy 31.51, stop 31.12 (1.24%); 3R = 32.68 first reached 10-26, day 3.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "Same rewording as w1 (oops.trigger pending, D-003). Bars: ADBE 2018-05-03 opens 220.01 under the 221.10 close, low 218.74 (0.82% under 220.55), close 226.05 over the 224.50 prior high; buy 221.11, stop 218.69 (1.09%); 3R = 228.37 hit 05-04, the next day.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Entry reworded as the scans' default (oops.trigger pending, D-003). 'The widest stop of the ten' dropped (members cannot see the ten). '3R on day 1' is the NEXT session (bars: R = 2.70, 3R = 157.32; 03-19 high 157.07, 03-20 high 169.90), now says so. DELL 2026-03-19: open 146.59, low 146.57 (1.58% under 148.93), close 156.76 (97% of range) matches.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "oops.scanner_oops settled; cp and o_main verbatim on the card. Matches SET.44 q64's three tests.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "oops.scanner_oops settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "oops.scanner_oops settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "oops.super_oops settled (a close over the prior high; the app's stage 6 counts a high, noted on the card).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Radge, Unger and Deepvue quotes (w1, w2, w3) all say the open is under the prior low; oops.williams_open is pending but only the originator's definition is keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "oops.stop settled (F62).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "cut",
+   "notes": "Same fact as q41 (Red market: mostly cash); q41 is the decision version.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Asked 'When is the Oops a buy?' and marked 'at the next day's open' wrong with 'the buy is during the Oops day' as if ruled. oops.trigger is pending (D-003: the reclaim, the close or the next day). Now asks what our scans do; the settled parts kept (order_market: not a resting stop at the open; inv_no_reclaim proposed: no reclaim, no trade).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "oops.order_market settled: not a resting buy-stop placed at the open.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "oops.pullback proposed (3% to 12% of the 20-day high).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "cut",
+   "notes": "Same fact as q10 (a real pullback first; a dip at the highs is not one) and the HD example is q61's.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "oops.location proposed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "oops.prior_day_red proposed ('preferred, not required').",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "oops.day_size proposed (under 3 ATR).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "oops.volume proposed ('no volume requirement').",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "B19/E51 settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "'3R on day 1' reads as the entry day; bars show 3R (157.32) was reached the next session (03-19 high 157.07, 03-20 high 169.90). Arithmetic: 149.22 + 3 x 2.70 = 157.32.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "D41 settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "B23 settled; oops.liquidity itself is pending (D-030) but only B23 is keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "oops.no_chase / C28 settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "oops.stop settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "oops.super_oops settled: a close over the prior high.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "drawdown_pct 100.00 to 91.50 = 8.5%. oops.pullback proposed. Voice: 'the band' (a house word) replaced by 'the 3% to 12% range'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "Arithmetic: (31.51 - 31.12) / 31.51 = 1.238%, shown 1.24. No sizing claim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Re-derived: open 49.70 under the 50.00 close, low 49.10 under 49.40, close 50.30 over 50.00, under the 50.60 prior high so not a Super.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "Close 50.80 over the 50.60 prior high = Super; open 49.70 over the 49.40 prior low = not Williams.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "Asked 'Which touch is the trigger?' as a ruled trigger and called waiting for the close wrong. oops.trigger is pending (D-003). Now asks about our scans; the key rests on the card's named mistake (buying the touch before the undercut) and the settled oops.order_market.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "C28 settled: 52.30 / 50.00 = +4.6%, over 4%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "B22 settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "oops.orderly proposed; the card lists a random big red bar as off the list.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "Story narrated the reclaim entry as the rule; now 'the way our scans do' (oops.trigger pending, D-003). Key is the settled oops.failed_reclaim: hold to the stop, do not add.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "Bars: ADBE 2014-03-13 opens 68.48, low 66.63, close 67.08; stop 66.70 traded. Matches the card failure.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "B20 settled. R = 0.40; loss at 30.85 = 0.67 = 1.7R, inside the 2R ceiling.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "B19 / tp2 settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "F63 settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "C33 settled (the tighter time stop, D-019, is pending and not keyed).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "w5 verbatim on Radge's page; E51 settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "oops.market_reading settled (F65). OWNER: the card's grading lists Orange or Red as B- while an A+ needs Green, so an Orange Oops can never be an A+.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "E52 settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "o_after is on the card (settled criterion, the 75% data line); oops.low_never_breaks (pending) is not keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "F65 / D46 settled. OWNER: the card's grading puts a Red market at B-, not no-trade, which conflicts with the gate 'Green or Yellow'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "B21 settled. V 2019-08-13: buy 176.35, stop 174.16; next day low 173.16 under the stop.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "Card mistake (m_targets); the card says TRADE_PLANS.md's 2R/3R row is the detector's, not the owner's.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "oops.ma200_rising proposed; B26 settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "Lookalike tell (2B) on the card; consistent with SET.24 q46.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "Lookalike tell (2B) on the card; consistent with SET.24.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "Level was 'a six-week-old base low', which the 2B card (SET.24) teaches as a 2B (a swing low at least 5 sessions old), so the two units disagreed; this card's U&R tell lists 'a swing low bounced 5%' as a U&R level. Changed the level to a rising 50-day average, which both cards call a U&R.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "Lookalike tell (Kicker) on the card.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "Bars: GOOGL 2026-02-27 opens 304.14 under 307.38, low 303.80 held above the 302.35 prior low (0.48%), close 311.76.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "Lookalike tell (Go Signal) on the card.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "oops.orderly / o_earn_day proposed; prior day fell 6.71% per dossier.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "cut",
+   "notes": "Same HD 2025-09-15 example and same fact (no pullback) as q61, the chart version.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "B26 settled (the pending oops.above_200 wording is not keyed).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "Williams' definition from the three public sources; the story's open 49.70 is over the prior low 49.40.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "Bars: AMAT 2022-01-14 close 167.00 over the 166.53 prior high; 01-18 opens 165.36, low 151.52. Matches the story.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "Why ended 'Orange allows an A+ only', which implies the reading was Orange; the scan has no market reading (card limits) and the dossier says only 'not Green'. Removed. Bars: SPY 2025-03-10 low 555.59 is under the 570.12 20-session low, so the index was making a lower low on the day UBER was stopped. Voice: 'the band' (a house word) replaced by 'the 3% to 12% range'. Unger quote w2 (used by q05, q26, q54) confirmed on the live page (curly apostrophe only).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "Card mistake (m_good); the owner's own wording on WFRD and SEI.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "cut",
+   "notes": "Same fact as q55 (a Super close is a grade mark, not a guarantee); q55 keeps it with the AMAT numbers (bars: next open 165.36, low 151.52).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "cut",
+   "notes": "Same V trade and the same fact as q42, and the story's 'without trading above your entry' is false on the bars: V traded to 178.92 on the entry day (2019-08-13) and 177.25 on 08-14 before the stop traded at 173.16 (the dossier's 'never traded above the entry' is wrong too).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "Chart ADBE asof 2018-05-02 (the day before the Oops day 05-03): 5,859 bars before it. The premise 'tomorrow it undercuts and reclaims' is stated. Voice: 'the band' (a house word) replaced by 'the 3% to 12% range'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "Chart HD asof 2025-09-12 (the day before): 7,710 bars before it. Bars: prior close 422.69 vs the 425.22 high of 09-11 = 0.6% under. A near-miss that fails only the pullback.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "cut",
+   "notes": "Same fact as q49 (every Oops is a red to green, not the reverse); q49 keeps it with the GOOGL example.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "o_mktr / best_conditions, part of the settled oops.market_reading line.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
 }

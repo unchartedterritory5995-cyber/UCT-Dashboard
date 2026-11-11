@@ -100,3 +100,16 @@ against the bars and the earnings table corrected some earlier text:
 - **Near-miss scans that found nothing:** the AVWAP U&R look-alike (3 hits in 1,162 names), Wick Play's day-1 wick and no-chase gates, Opening Drive's late trigger, Red to Green's gap ceiling; the Holy Grail's long pullback fails two gates at once, so the trigger was used instead.
 - **Intraday windows:** 40, 41 and 44 could not spread failures over different years (one 12-week window); different weeks were used.
 - **Coverage:** most near-miss scans covered the full 2,630-name universe; 06, 09, 18 and the reversal family ran on budgets or subsets (stated in each section). Enough for examples, not for a base rate.
+
+## 9. Findings from the unit cold checks (2026-11-10)
+
+Building and checking the Setup-track units from the cards turned up problems in the research data and the cards themselves. None is fixed yet; each needs a decision or a rescan.
+
+- **Same-day fills are the open, before the undercut (2B, and likely U&R, Oops, Spring).** For MKSI 2025-11-21, NVDA and TSLA, the dossier's "same-day reclaim" buy is the day's open, but the undercut happened later that day, so no live trader could have bought there. The 2B stop widths and base rates measured from those fills are too tight and too good. A rescan should fill at the reclaim, not the open.
+- **Market reading contradicts itself on the Kicker and Oops cards.** Grading puts Orange or Red at B-, while the gate says Orange is "A+ only" and an A+ needs Green, so an Orange or Red trade can never qualify. The units follow the gate and F65.
+- **Dossier examples that are earnings-window violations or stop-width failures were used as by-the-rules losses:** Slingshot FSLR and BIIB, Trendline IFF, Capitulation WDC (relabelled in the failures sections), HVE NAVN, MBX, KOD and PRTA (stops too wide), AVWAP DIS.
+- **Sizing answers over the 40% position cap (A7)** were found and fixed in SET.07, SET.14, SET.16, SET.19, SET.20, SET.29, SET.44, SET.46 and SET.54: a risk of 1% on a stop under about 3% always hits the cap, so the sizing lessons should say the smaller of the risk size and the cap wins (A5, A7).
+- **Chart questions:** the SPOT IPO chart in SET.10 has only 21 bars and was cut. The daily-only chart item cannot show an hourly or 5-minute setup, so SET.34, SET.48 (partly), SET.53 and SET.54 have daily-context charts or none.
+- **Bulkowski:** his site bars use of its content to train AI; his quotes were removed from SET.22 and not used in SET.20 and SET.47. SET.24 cites Sperandeo only through Bulkowski's page, which is a reading, not a training use.
+- **Same trade as walk-through and chart (SET.10 KRMN, SET.15 UAA):** the hidden-ticker chart tests less when it is also a walk-through; swapping the chart ticker is the fix.
+- **Held for the owner's rulings (verify status fix):** SET.07 q57 (D-006), SET.13 q55 (D-048), SET.14 q51 (D-036, D-003), SET.16 q45 (D-006), SET.19 q32 and SET.20 q51 (D-025), SET.20 q31 (D-086), SET.22 q18, q26, q55 (D-013), SET.29 q13, q42, q44, q62 (D-109, D-002, D-110, D-003), SET.10 q46 (D-005), SET.47 q45 (D-087).
