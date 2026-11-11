@@ -1028,79 +1028,6 @@
   50% { box-shadow: 0 0 14px rgba(220, 187, 94, 0.55); }
 }
 
-/* Stale-feed indicator (P2-7): pulses amber when SSE backend reports the
-   ticker's tick stream has paused beyond the freshness threshold. */
-.staleIndicator {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 100;
-  background: rgba(217, 119, 6, 0.9);
-  color: var(--text-bright);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
-  letter-spacing: 1px;
-  animation: stale-pulse 2s ease-in-out infinite;
-  pointer-events: none;
-}
-
-@keyframes stale-pulse {
-  0%, 100% { opacity: 0.85; }
-  50% { opacity: 0.4; }
-}
-
-.liveIndicator {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 100;
-  background: rgba(22, 163, 74, 0.9);
-  color: var(--text-bright);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
-  letter-spacing: 1px;
-  animation: liveIndicatorPulse 2s ease-in-out infinite;
-}
-@keyframes liveIndicatorPulse {
-  0%, 100% { opacity: 0.8; }
-  50% { opacity: 1; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .liveIndicator { animation: none; }
-}
-
-/* Bar-correction flash (P4-7): briefly pulses when minute-close reconciliation
-   overrides the WS-built bar. Positioned to the LEFT of the stale indicator
-   (right: 8px) so the two never overlap. */
-.correctionFlash {
-  position: absolute;
-  top: 8px;
-  right: 150px;
-  z-index: 100;
-  background: rgba(217, 119, 6, 0.85);
-  color: var(--text-bright);
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
-  letter-spacing: 1px;
-  animation: correction-fade 2s ease-in-out forwards;
-  pointer-events: none;
-}
-
-@keyframes correction-fade {
-  0% { opacity: 0; transform: translateY(-4px); }
-  10% { opacity: 1; transform: translateY(0); }
-  70% { opacity: 1; }
-  100% { opacity: 0; }
-}
-
 /* Countdown timer overlay — positioned bottom-right of the chart */
 .countdownPosition {
   position: absolute;
@@ -1404,7 +1331,7 @@
 
 /* Phase 11 discovery — the clean canvas holds in LANDSCAPE too (the first
    pass was portrait-width-only, so a rotated phone got the desktop chips
-   back), and the always-on "● LIVE" pill joins the furniture list: on a
+   back), and the (since-removed, 2026-11-11) "● LIVE" pill was on the furniture list: on a
    phone the strip's tick-flash already says the feed is alive, so the badge
    earns its place only when something is WRONG — STALE / RECONNECTING keep
    rendering through .staleIndicator, untouched. */
@@ -1414,8 +1341,7 @@
   /* Same reasoning as `.volLegend`: on a 393 px canvas these cover candles to
      answer a question the phone legend's own chips already answer. */
   :global(html[data-mobile-chart-shell]) .paneLegend,
-  :global(html[data-mobile-chart-shell]) .scaleToggle,
-  :global(html[data-mobile-chart-shell]) .liveIndicator {
+  :global(html[data-mobile-chart-shell]) .scaleToggle {
     display: none;
   }
 }

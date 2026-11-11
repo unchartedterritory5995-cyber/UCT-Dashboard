@@ -9774,11 +9774,6 @@ export default function StockChart({
     }
   }, [livePrices, sym])
 
-  // Bar-correction flash (P4-7): pulses briefly when SSE bar_correction event
-  // fires for the current symbol, signaling minute-close reconciliation
-  // overrode the WS-built bar.
-  const [correctionFlash, setCorrectionFlash] = useState(false)
-
   // ── Memoized data transforms (only recompute when bars change) ─────────────
 
   // Offset intraday timestamps from UTC → ET so chart axis shows Eastern Time
@@ -20190,18 +20185,6 @@ export default function StockChart({
     setSelectedId(null)
   }, [sym, resolvedTf])
 
-  // ── Bar-correction flash subscription (P4-7) ──
-  // Fires the visible "Bar corrected" pill for 2s when minute-close
-  // reconciliation overrides the WS-built bar for this symbol.
-  useEffect(() => {
-    if (!sym) return
-    const unsub = realtimeCandle.onCorrection(sym, () => {
-      setCorrectionFlash(true)
-      setTimeout(() => setCorrectionFlash(false), 2000)
-    })
-    return unsub
-  }, [sym])
-
   // ── Tick-by-tick developing-candle update via realtimeCandle registry ──
   // (Plan 4 / Goal 3) — drive series.update() on every SSE tick instead of
   // waiting for the 2s REST poll cycle. Coexists with the REST-driven live-
@@ -20749,36 +20732,10 @@ export default function StockChart({
           <UIcon name="skipBack" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />REPLAY {Math.round(((replayIndex ?? 0) / Math.max(1, sessionBars.length - 1)) * 100)}%
         </div>
       )}
-      {liveUpdates && realtimeTfEligible && (
-        // ⛔ ● LIVE requires the feed AND the candles. A connected feed over bars that
-        // fail the currentness contract reads UPDATING (repair in progress) or DELAYED
-        // (fast retries spent, still retrying) — never LIVE.
-        <div
-          className={liveBadge === 'live' ? styles.liveIndicator : styles.staleIndicator}
-          data-testid="chart-live-state"
-          data-live-badge={liveBadge}
-          title={
-            liveBadge === 'reconnecting' ? 'Reconnecting to the live feed…'
-            : liveBadge === 'stale' ? 'Live feed has paused — last tick is older than expected'
-            : liveBadge === 'delayed' ? 'Chart data is delayed — the newest bars have not arrived yet. Retrying automatically.'
-            : liveBadge === 'unavailable' ? 'No current bars are available for this symbol.'
-            : liveBadge === 'updating' ? 'Updating — fetching the newest bars for this session.'
-            : 'Live feed connected'
-          }
-        >
-          {liveBadge === 'live' ? '● LIVE'
-            : liveBadge === 'updating' ? '⟳ UPDATING'
-            : liveBadge === 'delayed' ? <><UIcon name="pause" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />DELAYED</>
-            : liveBadge === 'unavailable' ? 'NO DATA'
-            : liveBadge === 'reconnecting' ? '⟳ RECONNECTING'
-            : <><UIcon name="pause" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />STALE</>}
-        </div>
-      )}
-      {correctionFlash && (
-        <div className={styles.correctionFlash} title="Server corrected this bar after reconciliation">
-          ↻ Bar corrected
-        </div>
-      )}
+      {/* Owner 2026-11-11: the top-right status pill (● LIVE / UPDATING / DELAYED / NO DATA /
+          RECONNECTING / STALE) and the "↻ Bar corrected" flash are intentionally NOT rendered.
+          The currentness state stays exposed as data-bar-currentness / data-bar-tail /
+          data-live-badge on the wrapper for tests, the Agent and the harnesses. */}
       {cs.countdown && !hideCountdown && countdownTfSec && currentBarStart && (
         <div className={styles.countdownPosition}>
           <CountdownTimer barStartTime={currentBarStart} tfSeconds={countdownTfSec} />

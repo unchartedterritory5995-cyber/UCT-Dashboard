@@ -274,6 +274,8 @@ def main():
             # the badge never renders here and `data-live-badge` reads the FEED state
             # ('reconnecting'). Badge-vs-currentness is railed by `liveBadgeState`
             # (intradayCatchupPoll.test.js); this harness proves the currentness input.
+            # (2026-11-11: the visible pill was removed everywhere; `badge` is always None
+            # now — read `liveBadge` / `currentness` from the wrapper data attributes.)
             if (last["tail"] or 0) < int(datetime(2026, 9, 28, 11, 25, tzinfo=ET).timestamp()):
                 problems.append(f"HEAL: rendered tail did not advance ({fmt(last['tail'])})")
             if (idb_tail or 0) < int(datetime(2026, 9, 28, 11, 25, tzinfo=ET).timestamp()):
