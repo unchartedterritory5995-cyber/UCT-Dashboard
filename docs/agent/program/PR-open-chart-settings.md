@@ -86,6 +86,42 @@ and the Agent's door to its "do it" line. No further tutorial work was done.
 * `chartSettings.outcome.test.jsx`'s C1-127 `it.todo` is deliberately left alone (#1059 rewrites that line). Drop it
   after both merge.
 
+## Count pins that every new action must update
+
+Census of hard-coded registry/manifest/action-count assertions, taken on master `4257661f2e`
+(grep of `app/src/agent/**` for `.length/.size … toBe(N)` / `toHaveLength(N)` and of `tests/*.py` for
+`len(...) == N`, then filtered to the ones that count registered Agent actions). The Agent's full registry on
+master is 157 actions (`contract/manifest.golden.json`).
+
+| # | file:line | what it counts | master 4257661f2e | moves when a new action is… |
+|---|---|---|---|---|
+| 1 | `app/src/agent/agentRouting.test.jsx:203` | `FULL.length`: every registered action (the whole manifest, = golden manifest names) | **157** | ALWAYS (+1 per action) |
+| 2 | `app/src/agent/agentScreener.test.jsx:133` | `manifestFor(CTX).length`: the manifest the Screener test's member context sees (admin, no Create Indicator access) | **151** | almost always: +1 unless the action is gated out of that CTX (e.g. needs Create Indicator access) |
+| 3 | `app/src/agent/agentNl1Selection.test.js:55` | NL-1 core size: actions whose `groupOfAction` is `charts`, `indicators`, `screener` or `agent` (minus `NL1_MOVED_FROM_CORE`) | **37** (charts 16 + indicators 12 + screener 8 + agent 1) | only if the action routes to a core group (domain `chart`/`volume`/`indicator`/`screener`/`agent`, or a group `actions:` list moves it in); must stay <= `NL1_CORE_MAX` 45 |
+| 4 | `app/src/agent/agentIndicatorsM2.test.jsx:394` | `FULL.filter(groupOfAction === 'indicators')` | **12** | only if the action routes to the `indicators` group (domain `indicator`) |
+
+Not hand-edited pins, but regenerated per action and checked byte-for-byte by
+`app/src/agent/qa/capabilityRegression/inventory.test.js` (run with `UPDATE_CAPREG=1`):
+
+| file | what it counts | master 4257661f2e |
+|---|---|---|
+| `app/src/agent/qa/capabilityRegression/coverage/coverage.json` (`all`, `capabilities`, `applicable`) | capreg catalog (registry incl. dark/gated capabilities) | 176 (`withProductionKinds` 167) |
+| `app/src/agent/qa/capabilityRegression/coverage/COVERAGE.md` | rendered from coverage.json | same |
+| `app/src/agent/qa/capabilityRegression/coverage/contract.json` | one entry per capability (no count, but a new action must be pinned) | — |
+| `app/src/agent/contract/manifest.golden.json` | one entry per action (no count; agentContracts rail) | 157 entries |
+
+Looked at and NOT registry pins (do not move with a new action): `agentNl1Selection.test.js:163-165`
+(`NL1_LIMIT` 60 / `NL1_BUDGET` 55 / `NL1_CORE_MAX` 45 constants), `tests/test_uct_agent_nl1.py:184` and
+`tests/test_uct_agent_nl1_selection.py:58` (`MAX_CAPABILITIES` 60), `tests/test_uct_agent_v2_corpus_cost.py:27`
+(`intents == 158`, the v2 cost corpus `tests/fixtures/agent_v2_corpus_requests.json`, not the registry),
+`agentIndicatorsM1.test.jsx:94` (12 indicator instances), `agentCoachVocab.test.js` / `test_uct_agent_coach_vocab.py`
+(coach vocab), `qa/f16Rails.test.jsx:71`, `test_uct_agent_qa_f16.py:38` (QA vocab). No server-side (`tests/*.py`)
+test pins the Agent action count.
+
+This PR adds one action (`chartSetup.openSettings`), a non-core `chartSetup`-group action visible in the Screener CTX:
+pin 1 157 -> 158, pin 2 151 -> 152 (missed at first; failed on AUDIT's merge as `expected 152 to be 151`), pins 3/4 unchanged;
+coverage.json 176 -> 177 (regenerated).
+
 ## Files (git diff --stat origin/master...HEAD)
 
      app/src/agent/agentOpenChartSettings.test.jsx                            |  203 ++++++++++++
