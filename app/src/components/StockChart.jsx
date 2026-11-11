@@ -1,6 +1,7 @@
 // app/src/components/StockChart.jsx — TradingView Lightweight Charts v5 wrapper
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
+import { computeBarTime, toChartTime, fromChartTime, liveStreamSession, isOnSixtyMinGrid } from './chart/barTime'
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
 import { markChartLayoutPresentational } from '../utils/chartLayoutTable'
 import { Fragment, useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo, useId, useSyncExternalStore } from 'react'
@@ -1557,6 +1558,8 @@ import { observationReadout, economicStatusLine } from './chart/economic/econUi'
 import { runtimePaneEnabled } from './chart/engine/runtimePaneGate'
 import { readSuccessBody } from '../lib/responseBody'
 import { archiveHref } from '../utils/traderArchive'
+import { createAdaptiveFrameLoop } from './chart/adaptiveFrameLoop'
+import { markFirstChartPaint } from '../lib/barsPackClient'
 
 // ⭐ RT1 — HOW A SAVED RUNTIME-LANE DOCUMENT GETS ITS LANE on a chart that never
 // opened the member door. The registry asks this loader only when it meets a
@@ -1777,7 +1780,10 @@ function opaqueColor(c) {
  * which is the off-by-one this repo has paid for elsewhere.
  */
 const _BAR_INFO_MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
-function formatBarInfoDate(time) {
+// ⛔ A NUMERIC `time` HERE IS CHART TIME (ET wall clock read as UTC — what the
+// crosshair's param.time carries), so it is printed in UTC. Printing it in
+// America/New_York shifted the hovered intraday time a SECOND time (10:30 → 06:30).
+export function formatBarInfoDate(time) {
   if (typeof time === 'string') {
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(time)
     if (!m) return time
@@ -1787,21 +1793,21 @@ function formatBarInfoDate(time) {
   if (!Number.isFinite(time)) return ''
   const d = new Date(time * 1000)
   const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York', month: 'short', day: 'numeric',
+    timeZone: 'UTC', month: 'short', day: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: false,
   }).formatToParts(d).reduce((a, p) => { a[p.type] = p.value; return a }, {})
   if (!parts.month) return ''
   return `${String(parts.month).toUpperCase()} ${parts.day} ${parts.hour}:${parts.minute}`
 }
 
-function formatLegendTime(time) {
+export function formatLegendTime(time) {   // numeric `time` is chart time — see formatBarInfoDate
   if (typeof time === 'string') return time
   const d = new Date(time * 1000)
-  return d.toLocaleString('en-US', { timeZone: 'America/New_York', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+  return d.toLocaleString('en-US', { timeZone: 'UTC', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
 // ─── Time-axis formatting ───────────────────────────────────────────────────
-// Intraday bar times are pre-shifted to ET (adjustTime adds _ET_OFFSET), so we
+// Intraday bar times are pre-shifted to ET (adjustTime = barTime.toChartTime), so we
 // read the UTC parts of the shifted value to get ET wall-clock. Daily+ times are
 // 'YYYY-MM-DD' strings (or business-day objects) with no time-of-day.
 const _WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -2062,16 +2068,9 @@ function computeHVC(bars) {
 
 // ─── ET timezone offset for intraday charts ─────────────────────────────────
 // LW Charts displays unix timestamps as UTC. We offset intraday timestamps
-// so the chart axis shows Eastern Time (handles EDT/EST automatically).
-
-function getETOffset() {
-  const now = new Date()
-  const utc = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }))
-  const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }))
-  return Math.round((et - utc) / 1000) // -14400 for EDT, -18000 for EST
-}
-
-const _ET_OFFSET = getETOffset()
+// so the chart axis shows Eastern Time. ⛔ The offset is resolved PER BAR
+// (chart/barTime.js toChartTime / fromChartTime) — a page-load constant put
+// every bar from the other side of a DST change an hour off.
 
 // Phase C single-writer ENABLE gate. Resolves per browser: explicit localStorage
 // 'uct.barsPush.enabled'='1' (force on) / '0' (force off — instant per-browser revert), else a
@@ -2541,31 +2540,8 @@ function _etPeriodStartISO(tf) {
 
 const PERIOD_SECONDS = { '1': 60, '5': 300, '15': 900, '30': 1800, '60': 3600 }
 
-function computeBarTime(tf, tickTimeSec) {
-  if (tf === 'D') {
-    // Daily: ET date string "YYYY-MM-DD" (matches LW Charts BusinessDay format)
-    return new Date(tickTimeSec * 1000)
-      .toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
-  }
-  if (tf === 'W') {
-    // Weekly: Friday (close) of current week in ET — matches the backend
-    // resample + chart/barTime.js. Walk to Monday, then +4 days = Friday.
-    const d = new Date(tickTimeSec * 1000)
-    const et = new Date(d.toLocaleString('en-US', { timeZone: 'America/New_York' }))
-    const day = et.getDay()
-    et.setDate(et.getDate() - day + (day === 0 ? -6 : 1) + 4)
-    return et.toISOString().split('T')[0]
-  }
-  if (tf === 'M') {
-    // Monthly: first of current month in ET
-    const d = new Date(tickTimeSec * 1000)
-    const et = new Date(d.toLocaleString('en-US', { timeZone: 'America/New_York' }))
-    return `${et.getFullYear()}-${String(et.getMonth() + 1).padStart(2, '0')}-01`
-  }
-  // Intraday: floor to period boundary in UTC, then offset to ET for display
-  const period = PERIOD_SECONDS[tf] || 300
-  return Math.floor(tickTimeSec / period) * period + _ET_OFFSET
-}
+// computeBarTime: the shared chart/barTime.js one (imported above) — this file's
+// duplicate floored 60m to clock hours, off the server's session grid.
 
 // ─── Future-axis extension (TradingView / TC2000 style) ──────────────────────
 // Every chart reserves empty space to the RIGHT of the newest candle so upcoming
@@ -4080,7 +4056,7 @@ export default function StockChart({
       if (isDailyWeekly) {
         time = new Date(tsRaw * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
       } else {
-        time = tsRaw + _ET_OFFSET
+        time = toChartTime(tsRaw)
       }
       return {
         time,
@@ -5825,7 +5801,8 @@ export default function StockChart({
     })
     const vma = volMaDataRef.current
     return {
-      time: last.t, open: o, high: h, low: l, close: c, volume: vol,
+      // Chart time, like the hover path's param.time (legend formatters read it as such).
+      time: typeof last.t === 'number' ? toChartTime(last.t) : last.t, open: o, high: h, low: l, close: c, volume: vol,
       change: change.toFixed(2), changePct: changePct == null ? '' : changePct.toFixed(2),
       volAvg: (vma && vma.length) ? vma[vma.length - 1].value : null,
       volMaPeriod: volMaPeriodEff || null,
@@ -7630,7 +7607,7 @@ export default function StockChart({
   // and a copy on the drawing would go stale AND would mean a style write every
   // time an alert was set.
   const boundAlerts = useBoundDrawingAlerts({
-    sym, drawings, tf: resolvedTf, etOffset: _ET_OFFSET,
+    sym, drawings, tf: resolvedTf, etOffset: fromChartTime,
     getBars: useCallback(() => drawBarsRef.current || [], []),
   })
 
@@ -7643,7 +7620,7 @@ export default function StockChart({
     // the path every other drawing alert already takes.
     const level = opts?.level
     const geom = anchorsForDrawing(drawing, {
-      bars: drawBarsRef.current || [], tf: resolvedTf, etOffset: _ET_OFFSET, level,
+      bars: drawBarsRef.current || [], tf: resolvedTf, etOffset: fromChartTime, level,
     })
     if (!geom) return
     // FT-032: a position ENTRY alert points toward the entry from wherever
@@ -9594,9 +9571,9 @@ export default function StockChart({
         const tail = lastBarRef.current
         if (!lp || !Number.isFinite(lp.updated_at) || !tail || !Number.isFinite(tail.time)) return
         const period = PERIOD_SECONDS[resolvedTf] || 300
-        // tail.time is (server unix seconds + _ET_OFFSET); lp.updated_at is raw unix
-        // seconds — undo the offset to compare like-for-like.
-        const tailServerSec = tail.time - _ET_OFFSET
+        // tail.time is chart time (toChartTime of server unix seconds); lp.updated_at
+        // is raw unix seconds — undo the shift to compare like-for-like.
+        const tailServerSec = fromChartTime(tail.time)
         if (lp.updated_at - tailServerSec <= 2.5 * period) { watchdogTriesRef.current = 0; return }
         const nowMs = Date.now()
         // ⛔ BACKOFF, NOT A HAMMER (2026-09-28): 6 s, 12 s, 24 s, 48 s, then once a
@@ -9661,7 +9638,7 @@ export default function StockChart({
 
   // Offset intraday timestamps from UTC → ET so chart axis shows Eastern Time
   const adjustTime = useCallback(
-    (t) => typeof t === 'number' ? t + _ET_OFFSET : t,
+    (t) => typeof t === 'number' ? toChartTime(t) : t,
     []
   )
 
@@ -11872,8 +11849,8 @@ export default function StockChart({
           // before this candle's start) is 'earlier' and must not snap the close back
           // or stretch the wick of the candle that's forming now.
           if (Number.isFinite(tickSec)) {
-            const _fA = foldPrice(_lbU || last, price, tickSec + _ET_OFFSET, resolvedTf,
-              showExtendedRef.current ? 'eth' : 'rth')
+            const _fA = foldPrice(_lbU || last, price, toChartTime(tickSec), resolvedTf,
+              liveStreamSession(showExtendedRef.current))
             if (_fA.kind !== 'update') return
           }
         }
@@ -11967,19 +11944,20 @@ export default function StockChart({
     // Session the server aligned this frame to (60m only: RTH 9:30-aligned vs ETH clock
     // hours). A frame tagged for the OTHER mode is a straggler from before an RTH/ETH
     // toggle re-subscribed — its bucket times don't belong on this series.
-    const _barSession = showExtendedRef.current ? 'eth' : 'rth'
+    // Wire session from the 60m GRID policy, not the view (see barTime.liveStreamSession).
+    const _barSession = liveStreamSession(showExtendedRef.current)
     // The server puts `session` on the MESSAGE (bar_broadcaster._msg); accept it on the
     // bar too in case that ever moves.
     const _frameSession = typeof data?.session === 'string' ? data.session
       : (typeof data?.bar?.session === 'string' ? data.bar.session : null)
     if (String(resolvedTf) === '60' && _frameSession != null
         && _frameSession.toLowerCase() !== _barSession) return
-    // AM `t` is bucket-start in ms. Convert to seconds AND add _ET_OFFSET so
+    // AM `t` is bucket-start in ms. Convert to seconds AND shift to chart time so
     // the time matches the rest of the chart series — REST bars stored via
-    // setData(ohlcData) where ohlcData uses adjustTime(b.t) = b.t + _ET_OFFSET.
+    // setData(ohlcData) where ohlcData uses adjustTime(b.t) = toChartTime(b.t).
     // Without this offset, Phase 4 update() lands at a time that conflicts
     // with the series and is silently dropped by lightweight-charts.
-    const tSec = Math.floor(data.bar.t / 1000) + _ET_OFFSET
+    const tSec = toChartTime(Math.floor(data.bar.t / 1000))
     const useOhlc = isOhlcType(cs.chartType)
 
     // RTH-only intraday (EXT/RTH toolbar toggle = off): drop live pre/post-market
@@ -12060,7 +12038,7 @@ export default function StockChart({
       : (lastBarRef.current ? { ...lastBarRef.current, sym } : null)
     const _mB = mergePushBar(_prevB, { time: tSec, open: o, high: h, low: l, close: c, volume: Number(data.bar.v) || 0 }, {
       sym, final: data.bar.final === true, tradeTs: Number.isFinite(data.bar.trade_ts) ? data.bar.trade_ts : null,
-      tf: resolvedTf, timeOffsetSec: _ET_OFFSET, session: _barSession,
+      tf: resolvedTf, toChart: toChartTime, session: _barSession,
     })
     if (_mB.kind === 'correct') {
       // The server's late FINAL correction of an already-closed bucket (older t than the
@@ -12219,12 +12197,12 @@ export default function StockChart({
   // don't opt in — the fallback writers keep the candle on the series' own buckets.
   const _sixtyOffGrid = useMemo(() => {
     if (resolvedTf !== '60' || !Array.isArray(filteredBars) || !filteredBars.length) return false
-    const eth = !!showExtended
+    // On-grid = a bucket start on the grid this view's stream session uses (half-day
+    // aware: 13:00/14:00 post-close bars on a 13:00 close day are legitimately on it).
     for (let i = Math.max(0, filteredBars.length - 60); i < filteredBars.length; i++) {
       const t = filteredBars[i]?.t
       if (typeof t !== 'number') continue
-      const m = etMinutes(t)
-      if (eth ? (m % 60 !== 0) : (m >= 570 && m < 960 && m % 60 !== 30)) return true
+      if (!isOnSixtyMinGrid(t, !!showExtended)) return true
     }
     return false
   }, [resolvedTf, filteredBars, showExtended])
@@ -12234,7 +12212,7 @@ export default function StockChart({
     tf: _pushOptIn ? resolvedTf : null,
     // 60m bucket alignment follows the chart's session mode (server: RTH 9:30-aligned,
     // ETH clock hours) so pushed buckets land on the fetched series' bucket times.
-    session: showExtended ? 'eth' : 'rth',
+    session: liveStreamSession(showExtended),
     onBar: onRealtimeBar,
     onReconnect: onRealtimeReconnect,
   })
@@ -12856,6 +12834,9 @@ export default function StockChart({
         () => (engineRef.current ? engineRef.current.binder.bindings() : []),
       )
       setChartReady(true)
+      // The page's first chart exists (it is created only once its bars are in): the background
+      // pack ingests may start now. Once per page; see `afterFirstChartPaint` in barsPackClient.
+      markFirstChartPaint()
     } else {
       // Re-apply cosmetic/config options on an EXISTING chart, but NOT the
       // view-scroll options (rightOffset / rightBarStaysOnScroll /
@@ -13375,8 +13356,8 @@ export default function StockChart({
         const _rec = reconcileWithServerTail(_lb ? { ..._lb, sym: _lb.sym ?? _lbOwnerSym } : null,
           { time: _lt, open: last.o, high: last.h, low: last.l, close: last.c, volume: last.v || 0 },
           { sym, periodSec: LIVE_PERIOD_SECONDS[resolvedTf] || 300,
-            nowChart: Date.now() / 1000 + _ET_OFFSET, tf: resolvedTf,
-            session: showExtendedRef.current ? 'eth' : 'rth' })
+            nowChart: toChartTime(Date.now() / 1000), tf: resolvedTf,
+            session: liveStreamSession(showExtendedRef.current) })
         {
           // Reconcile the developing bar's H/L against the server bucket, PRESERVING
           // the accumulated live high/low. The live push feed IS the real-time tape
@@ -16019,8 +16000,9 @@ export default function StockChart({
   // price, so this loop must stay off.
   useEffect(() => {
     if (!sessionTagsIntraday || !showExtended) return
-    let raf = 0
     let lastPx = null
+    // Adaptive, not every frame forever (see createAdaptiveFrameLoop): the candle's own
+    // data-change event wakes it, so the chip still moves on the frame the candle does.
     const tick = () => {
       const line = sessionTagRefs.current?.[0]
       const px = liveBarRef.current?.close
@@ -16028,10 +16010,15 @@ export default function StockChart({
         lastPx = px
         try { line.applyOptions({ price: px }) } catch { /* series gone */ }
       }
-      raf = requestAnimationFrame(tick)
+      return String(px)
     }
-    raf = requestAnimationFrame(tick)
-    return () => { if (raf) cancelAnimationFrame(raf) }
+    const loop = createAdaptiveFrameLoop({ tick })
+    loop.start()
+    const wake = () => loop.wake()
+    const s = candleSeriesRef.current
+    let unsub = null
+    try { if (s && typeof s.subscribeDataChanged === 'function') { s.subscribeDataChanged(wake); unsub = () => s.unsubscribeDataChanged(wake) } } catch { /* the safety pass covers it */ }
+    return () => { loop.stop(); try { unsub?.() } catch { /* already gone */ } }
   }, [sessionTagsIntraday, showExtended])
 
   // ── The "Pre"/"Post" word, stacked ABOVE the orange price label, ON the scale ──
@@ -16051,15 +16038,15 @@ export default function StockChart({
   const sessionExtChipOn = chartReady && sessionExtTagIdx >= 0 && !extTagInline
   useEffect(() => {
     if (!sessionExtChipOn) return undefined
-    let raf = 0
     let last = ''
+    // Adaptive, not every frame forever (see createAdaptiveFrameLoop): returns the chip's
+    // placement key; crosshair, range, resize and candle-data events wake it.
     const tick = () => {
-      raf = requestAnimationFrame(tick)
       const el = sessionExtChipRef.current
       const chart = chartRef.current
       const series = candleSeriesRef.current
       const line = sessionTagRefs.current?.[sessionExtTagIdx]
-      if (!el || !chart || !series || !line) return
+      if (!el || !chart || !series || !line) return null
       let key = 'hide'
       let style = null
       try {
@@ -16113,18 +16100,40 @@ export default function StockChart({
           key = `${style.top}|${style.left}|${style.width}|${style.height}`
         }
       } catch { /* chart mid-swap */ }
-      if (key === last) return
+      if (key === last) return key
       last = key
-      if (!style) { el.style.display = 'none'; return }
+      if (!style) { el.style.display = 'none'; return key }
       el.style.display = 'block'
       el.style.top = `${style.top}px`
       el.style.left = `${style.left}px`
       el.style.width = `${style.width}px`
       el.style.height = `${style.height}px`
       el.style.lineHeight = `${style.height}px`
+      return key
     }
-    raf = requestAnimationFrame(tick)
-    return () => { if (raf) cancelAnimationFrame(raf) }
+    const loop = createAdaptiveFrameLoop({ tick })
+    loop.start()
+    const wake = () => loop.wake()
+    const chart = chartRef.current
+    const container = containerRef.current
+    const unsub = []
+    const sub = (fn) => { try { fn() } catch { /* API missing: the safety pass covers it */ } }
+    // No crosshair subscription (the chart keeps exactly two; see the chrome-placement loop):
+    // the chip's place depends on the price line and the scale, not the crosshair.
+    if (chart) {
+      sub(() => { const ts = chart.timeScale(); ts.subscribeVisibleLogicalRangeChange(wake); unsub.push(() => ts.unsubscribeVisibleLogicalRangeChange(wake)) })
+    }
+    sub(() => { const s = candleSeriesRef.current; if (s && typeof s.subscribeDataChanged === 'function') { s.subscribeDataChanged(wake); unsub.push(() => s.unsubscribeDataChanged(wake)) } })
+    let ro = null
+    if (container) {
+      sub(() => { ro = new ResizeObserver(wake); ro.observe(container) })
+      for (const ev of ['pointerdown', 'pointermove', 'wheel']) { container.addEventListener(ev, wake, { passive: true }); unsub.push(() => container.removeEventListener(ev, wake)) }
+    }
+    return () => {
+      loop.stop()
+      if (ro) ro.disconnect()
+      for (const u of unsub) { try { u() } catch { /* already gone */ } }
+    }
   }, [sessionExtChipOn, sessionExtTagIdx, overlayBounds, cs.textSize])
 
   // ── Writer F of the single-writer invariant (index @ barsPushActiveRef decl):
@@ -17732,8 +17741,8 @@ export default function StockChart({
       // uniformly.
       let tUtcSec
       if (typeof priceData.time === 'number') {
-        // Intraday: data was fed with +_ET_OFFSET; undo it.
-        tUtcSec = priceData.time - _ET_OFFSET
+        // Intraday: data was fed as toChartTime(t); undo it.
+        tUtcSec = fromChartTime(priceData.time)
       } else if (typeof priceData.time === 'string') {
         // "YYYY-MM-DD" — midnight UTC
         tUtcSec = Math.floor(new Date(priceData.time + 'T00:00:00Z').getTime() / 1000)
@@ -18872,13 +18881,31 @@ export default function StockChart({
     // falls back to the CSS default and lands INSIDE the volume pane). A value-only
     // guard would skip re-writing the new node because the computed value didn't
     // change; keying on the element as well re-pins it immediately after a remount.
-    let raf = null, lastBottom = -1, lastTop = -1, lastRb = null, lastVl = null
+    let lastBottom = -1, lastTop = -1, lastRb = null, lastVl = null
     // The lookback bar is hidden (CSS: `.rangeBar:not([data-placed])`) until it sits at the anchor it
     // will keep -- see `lookbackPlacementSettled`. `rbSeen*` times each bar NODE, so a remount (a
     // symbol flip) waits again, and the time limit can never leave it hidden.
     let rbSeenNode = null, rbSeenAt = 0
     const revealRangeBar = (rb) => { if (!rb.hasAttribute('data-placed')) rb.setAttribute('data-placed', '') }
+    // ⭐ ADAPTIVE, NOT EVERY FRAME FOREVER (2026-11-10, measured). This loop used to re-arm
+    // requestAnimationFrame unconditionally: ~44 runs a second per chart, each forcing style and
+    // layout reads, on a chart nobody had touched for an hour. `tick` now returns a SIGNATURE of what
+    // it measured (or null while something is still settling); `createAdaptiveFrameLoop` keeps it
+    // every frame while the signature changes and drops to a 250 ms safety pass once it holds still.
+    // Pointer, wheel, resize, crosshair, visible-range and data events wake it back to every frame,
+    // so a divider drag still tracks the pointer frame by frame. Element identity is part of the
+    // signature: a remounted legend node (a symbol flip) counts as a change.
+    const nodeIds = new WeakMap()
+    let nextNodeId = 1
+    const idOf = (node) => {
+      if (!node) return 0
+      let i = nodeIds.get(node)
+      if (!i) { i = nextNodeId++; nodeIds.set(node, i) }
+      return i
+    }
     const tick = () => {
+      let settled = true
+      let sig = ''
       try {
         const rbNow = rangeBarRef.current
         if (rbNow && rbNow !== rbSeenNode) { rbSeenNode = rbNow; rbSeenAt = performance.now() }
@@ -18927,6 +18954,16 @@ export default function StockChart({
           separatorPx: SEPARATOR_PX,
         })
         const priceH = plan.priceHeight
+        // Everything this pass reads that can move a surface: sizes, the plan's edges, and which
+        // DOM nodes are mounted (a remount must be re-pinned). Price-chrome widths are covered by
+        // the data-change wake and the safety pass.
+        sig = [
+          H, axisH, paneHeights.join(','), plan.lookbackBottom, plan.volumeLegendTop, plan.collapseThresholdPx,
+          idOf(rbNow), idOf(volLegendRef.current), idOf(wrapperRef.current), idOf(studyStackRef.current),
+          idOf(legendRef.current), paneLegendRefs.current.size, compactLegendRef.current ? 1 : 0,
+          container.clientWidth || 0,
+        ].join('|')
+        if (rbNow && !rbNow.hasAttribute('data-placed')) settled = false // waiting to reveal: keep measuring
         if (priceH > 0 && H > 0) {
           const rb = rangeBarRef.current
           if (rb) {
@@ -19034,13 +19071,39 @@ export default function StockChart({
             const nextCompact = nextCompactLegend(compactLegendRef.current, lastFullBottomRef.current,
               plan.collapseThresholdPx, foldSettled)
             if (nextCompact !== null) setCompactLegend(nextCompact)
+            // A budget or compact state just changed: the next frames must measure the result.
+            if (!foldSettled || nextCompact !== null) settled = false
           }
         }
-      } catch { /* pane API missing → CSS fallback */ }
-      raf = requestAnimationFrame(tick)
+      } catch { return null /* pane API missing → CSS fallback; keep measuring */ }
+      return settled ? sig : null
     }
-    tick()
-    return () => { if (raf) cancelAnimationFrame(raf) }
+    const loop = createAdaptiveFrameLoop({ tick })
+    loop.start()
+    const wake = () => loop.wake()
+    // Anything that can move a surface wakes the loop back to every frame.
+    const pointerEvents = ['pointerdown', 'pointermove', 'pointerup', 'wheel']
+    for (const ev of pointerEvents) container.addEventListener(ev, wake, { passive: true })
+    window.addEventListener('resize', wake)
+    let ro = null
+    try { ro = new ResizeObserver(wake); ro.observe(container) } catch { /* no ResizeObserver: the safety pass covers it */ }
+    const unsub = []
+    const sub = (fn) => { try { fn() } catch { /* API missing: the safety pass covers it */ } }
+    // ⛔ NO crosshair subscription here: the chart has exactly TWO crosshair subscribers (the
+    // legend's and the hovered-bar recorder's) and legendFromDefinitions.test.jsx pins that count.
+    // A hand-moved crosshair arrives as pointer movement on the container, which wakes this loop.
+    sub(() => { const ts = chart.timeScale(); ts.subscribeVisibleLogicalRangeChange(wake); unsub.push(() => ts.unsubscribeVisibleLogicalRangeChange(wake)) })
+    sub(() => {
+      const s = candleSeriesRef.current
+      if (s && typeof s.subscribeDataChanged === 'function') { s.subscribeDataChanged(wake); unsub.push(() => s.unsubscribeDataChanged(wake)) }
+    })
+    return () => {
+      loop.stop()
+      for (const ev of pointerEvents) container.removeEventListener(ev, wake)
+      window.removeEventListener('resize', wake)
+      if (ro) ro.disconnect()
+      for (const u of unsub) { try { u() } catch { /* already gone */ } }
+    }
   }, [showRangeSelector, showVolLegend, verticalLegend, paneLegendKeys, pinPaneLegend, pinPriceChrome, chartReady])
 
   useEffect(() => {
@@ -19880,7 +19943,7 @@ export default function StockChart({
         if (resolvedTf === '1') {
           // Registry's 1m candle IS the developing bar. Apply it directly,
           // but offset to ET like all other series timestamps.
-          const tSec = candle.t + _ET_OFFSET
+          const tSec = toChartTime(candle.t)
           // Never apply a BACKWARDS update. The SSE tick feed and the 30s REST/SWR
           // poll have different latencies, so at a minute rollover the registry can
           // momentarily lag the series' newest bar; a stale/lagged tick applied at an
@@ -19954,7 +20017,7 @@ export default function StockChart({
           // D3: bucket the registry candle by ITS OWN minute (candle.t), not "whatever bar is
           // developing now" — a tick from the NEXT bucket fused into the old candle, and a late
           // tick from the previous bucket stretched the new one. Only fold a same-bucket print.
-          const _fC = foldPrice(lb, price, candle.t + _ET_OFFSET, resolvedTf, showExtendedRef.current ? 'eth' : 'rth')
+          const _fC = foldPrice(lb, price, toChartTime(candle.t), resolvedTf, liveStreamSession(showExtendedRef.current))
           if (_fC.kind !== 'update') return
           const newHigh = _fC.bar.high
           const newLow = _fC.bar.low

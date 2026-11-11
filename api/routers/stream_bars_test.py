@@ -40,7 +40,17 @@ import api.services.bar_broadcaster as bar_broadcaster
 def _make_app() -> FastAPI:
     app = FastAPI()
     app.include_router(stream_router.router)
+    # The paid-member gate is tested in its own files; these tests are about the
+    # stream. Without the override every request here answered 401 (red on master).
+    from api.bars_auth import require_bars_access
+    app.dependency_overrides[require_bars_access] = lambda: {"test": True}
     return app
+
+
+@pytest.fixture(autouse=True)
+def _no_network_seed(monkeypatch):
+    """D8 seeding fetches the day's minute bars from the provider; never from a test."""
+    monkeypatch.setattr(bar_broadcaster, "_default_seed_fetcher", lambda sym: [])
 
 
 def _free_port() -> int:
@@ -289,3 +299,52 @@ def test_stream_bars_caps_at_50_pairs(monkeypatch):
             )
         finally:
             resp.close()
+
+
+def test_stream_bars_400_for_an_unknown_session(monkeypatch):
+    monkeypatch.setenv("STREAM_BARS_ENABLED", "1")
+    bar_broadcaster.init_broadcaster()
+    client = TestClient(_make_app(), raise_server_exceptions=False)
+    assert client.get("/api/stream/bars?bars=AAPL:60&session=overnight").status_code == 400
+
+
+def test_stream_bars_eth_session_subscribes_the_eth_60m_view_and_kicks_a_seed(monkeypatch):
+    monkeypatch.setenv("STREAM_BARS_ENABLED", "1")
+    seeded = []
+    monkeypatch.setattr(bar_broadcaster, "_default_seed_fetcher",
+                        lambda sym: seeded.append(sym) or [])
+    bb = bar_broadcaster.init_broadcaster()
+    with _serve(_make_app()) as base:
+        resp = requests.get(f"{base}/api/stream/bars?bars=AAPL:60,AAPL:5&session=eth",
+                            stream=True, timeout=5)
+        try:
+            assert resp.status_code == 200
+            deadline = time.time() + 3.0
+            while time.time() < deadline and (bb.get_status()["subscriber_pairs"] < 2 or not seeded):
+                time.sleep(0.05)
+            with bb._lock:
+                keys = set(bb._subscribers)
+            assert keys == {("AAPL", "60e"), ("AAPL", "5")}
+            assert seeded == ["AAPL"]          # one seed per symbol, not per pair
+        finally:
+            resp.close()
+
+
+def test_stream_bars_v2_opts_in_to_corrections(monkeypatch):
+    monkeypatch.setenv("STREAM_BARS_ENABLED", "1")
+    bb = bar_broadcaster.init_broadcaster()
+    with _serve(_make_app()) as base:
+        r1 = requests.get(f"{base}/api/stream/bars?bars=AAPL:5", stream=True, timeout=5)
+        r2 = requests.get(f"{base}/api/stream/bars?bars=AAPL:5&v=2", stream=True, timeout=5)
+        try:
+            deadline = time.time() + 3.0
+            while time.time() < deadline:
+                with bb._lock:
+                    flags = sorted(t[2] for t in bb._subscribers.get(("AAPL", "5"), ()))
+                if len(flags) == 2:
+                    break
+                time.sleep(0.05)
+            assert flags == [False, True]
+        finally:
+            r1.close()
+            r2.close()

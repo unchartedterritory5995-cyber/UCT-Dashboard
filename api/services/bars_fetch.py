@@ -597,6 +597,98 @@ def intraday_session_complete(tf: str, last_ts: int | None) -> bool:
         return True
 
 
+# ── EXTENDED-HOURS TAIL (2026-11-11) ─────────────────────────────────────────
+# ⛔⛔ THE SERVED SERIES CARRIES EXTENDED HOURS (04:00-20:00 ET), BUT EVERY
+# "IS THIS TAIL DONE?" RULE MEASURED IT AGAINST THE 16:00 CLOSE. Measured on
+# production 2026-11-11 01:22Z (20:22 ET): AAPL / TSLA / SOFI tf=1 first answers
+# ended at 16:53 ET — three hours of post-market missing — served `sqlite` with
+# `tail_status: current` and no Retry-After, because (a) after 20:00 ET
+# `_needs_fresh` only asks "does the tail reach the REGULAR close?" (16:53 >= 15:59:
+# yes) and (b) `intraday_tail_status` judged it against the final RTH bucket. So the
+# store was never re-asked and the client was told it was current.
+# The extended session ends four hours after the regular close (20:00, or 17:00 on
+# an early-close day) and opens at 04:00.
+_EXT_OPEN_MINUTES_SERVER = 4 * 60
+_EXT_AFTER_CLOSE_MINUTES = 4 * 60
+
+
+def _ext_close_minutes(ymd: int) -> int:
+    """ET minutes-from-midnight when the EXTENDED session for `ymd` ends."""
+    return _session_close_minutes(ymd) + _EXT_AFTER_CLOSE_MINUTES
+
+
+def _is_trading_day_ymd(d) -> bool:
+    return d.weekday() < 5 and not _is_nyse_holiday(int(d.strftime("%Y%m%d")))
+
+
+def _ext_bucket_start(tf: str, t: int) -> int:
+    if tf == "60":
+        return bucket_60_et_unix_seconds(int(t))
+    step = int(tf) * 60
+    return int(t) // step * step
+
+
+def expected_completed_ext_bucket(tf: str, now: float | None = None):
+    """Start (unix s) of the latest EXTENDED-session bucket (04:00-20:00 ET, early-close
+    aware) that has CLOSED — on today's session once its first bucket has closed, else
+    the FINAL bucket of the previous trading session. None only for a non-intraday tf
+    or an unreadable clock. During RTH this equals `expected_completed_bucket`."""
+    if tf not in ("1", "5", "15", "30", "60"):
+        return None
+    try:
+        et = _ZI("America/New_York")
+        now_ts = float(now if now is not None else _time.time())
+        now_dt = datetime.fromtimestamp(now_ts, et)
+        day = now_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+        if _is_trading_day_ymd(now_dt):
+            ymd = int(now_dt.strftime("%Y%m%d"))
+            ext_open = int(day.timestamp()) + _EXT_OPEN_MINUTES_SERVER * 60
+            ext_close = int(day.timestamp()) + _ext_close_minutes(ymd) * 60
+            if now_ts >= ext_close:
+                return _ext_bucket_start(tf, ext_close - 1)
+            cur = _ext_bucket_start(tf, int(now_ts))
+            prev = _ext_bucket_start(tf, cur - 1)
+            if prev >= ext_open:
+                return prev
+        d = day - timedelta(days=1)
+        for _ in range(14):
+            if _is_trading_day_ymd(d):
+                ymd = int(d.strftime("%Y%m%d"))
+                midnight = int(datetime(d.year, d.month, d.day, tzinfo=et).timestamp())
+                return _ext_bucket_start(tf, midnight + _ext_close_minutes(ymd) * 60 - 1)
+            d -= timedelta(days=1)
+        return None
+    except Exception:                      # noqa: BLE001 — abstain, never guess
+        return None
+
+
+def intraday_ext_session_complete(tf: str, last_ts) -> bool:
+    """True when an intraday tail reaches the FINAL bucket of its EXTENDED session."""
+    if tf not in ("1", "5", "15", "30", "60") or last_ts is None:
+        return True
+    try:
+        et = _ZI("America/New_York")
+        dt = datetime.fromtimestamp(int(last_ts), et)
+        ymd = int(dt.strftime("%Y%m%d"))
+        midnight = int(datetime(dt.year, dt.month, dt.day, tzinfo=et).timestamp())
+        final = _ext_bucket_start(tf, midnight + _ext_close_minutes(ymd) * 60 - 1)
+        # same one-bucket tolerance as the RTH rule (`close - tf`)
+        return int(last_ts) >= _ext_bucket_start(tf, final - 1)
+    except Exception:                      # noqa: BLE001
+        return True
+
+
+def _ext_session_end_ts(last_ts) -> int | None:
+    try:
+        et = _ZI("America/New_York")
+        dt = datetime.fromtimestamp(int(last_ts), et)
+        ymd = int(dt.strftime("%Y%m%d"))
+        midnight = int(datetime(dt.year, dt.month, dt.day, tzinfo=et).timestamp())
+        return midnight + _ext_close_minutes(ymd) * 60
+    except Exception:                      # noqa: BLE001
+        return None
+
+
 # ── TAIL CURRENTNESS: OBSERVED vs VERIFIED (2026-09-28) ──────────────────────
 # ⛔⛔ "THE STORE HOLDS ROWS" IS NOT "THE CHART IS CURRENT". On 2026-09-28 the server
 # KNEW AVGO 5m was a whole session stale (`_needs_fresh` and
@@ -633,7 +725,20 @@ def _mark_tail_verified(ticker: str, tf: str, checked_at: float) -> None:
 
 def tail_verified_through(ticker: str, tf: str):
     with _tail_verified_lock:
-        return _tail_verified.get((ticker.upper(), tf))
+        vt = _tail_verified.get((ticker.upper(), tf))
+    # ⭐ A 5m series the universe live stream covers is VERIFIED by the stream itself
+    # through its newest delivered minute (review #1051 F1): a thin covered name never
+    # takes the provider-heal path that writes `_tail_verified`, so without this its
+    # off-hours tail would read `unverified` forever.
+    if tf == "5":
+        try:
+            from api.services import bars_live_store as _bls
+            lv = _bls.proven_through_s(ticker)
+            if lv is not None and (vt is None or lv > vt):
+                vt = lv
+        except Exception:                  # noqa: BLE001
+            pass
+    return vt
 
 
 def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool = False) -> list:
@@ -711,34 +816,25 @@ def intraday_tail_status(ticker: str, tf: str, tail_ts, now: float | None = None
         tail = int(tail_ts) if tail_ts is not None else None
     except (TypeError, ValueError):
         tail = None
-    frontier = expected_completed_bucket(tf, now)
     step = int(tf) * 60 if tf in ("1", "5", "15", "30") else 3600
-    if frontier is not None:
-        if tf == "60":
-            tolerance_floor = bucket_60_et_unix_seconds(frontier - 1)
-        else:
-            tolerance_floor = frontier - step
+    # ⭐ EXTENDED FRONTIER FIRST (2026-11-11): the served series carries 04:00-20:00
+    # ET, so its tail is judged against the latest closed EXTENDED bucket — during
+    # RTH that is the same bucket as before; pre-market, post-market and after 20:00
+    # it is the bucket the RTH-only rule could not see (a 16:53 tail at 20:22 was
+    # `current`). Same one-bucket tolerance; beyond it only provider proof counts.
+    ext_frontier = expected_completed_ext_bucket(tf, now)
+    if ext_frontier is not None:
+        tolerance_floor = _ext_bucket_start(tf, ext_frontier - 1)
         if tail is not None and tail >= tolerance_floor:
             out["tail_status"] = "current"
-        elif vt is not None and tail is not None and vt >= _bucket_end(tf, frontier, step):
+        elif vt is not None and tail is not None and vt >= _bucket_end(tf, ext_frontier, step):
             out["tail_status"] = "verified"
         return out
-    # No bucket of today is expected: the tail must carry the last session to its close.
-    if (tail is not None and not _is_cold_stale_intraday(tf, tail)
-            and intraday_session_complete(tf, tail)):
-        out["tail_status"] = "current"
-    elif tail is not None and vt is not None and vt > tail:
-        # The provider was asked after the tail and had nothing newer (a genuinely thin
-        # name that stopped printing early) — proven, not assumed.
-        try:
-            _ymd = _expected_latest_session_yyyymmdd()
-            et = _ZI("America/New_York")
-            _d = datetime.strptime(str(_ymd), "%Y%m%d").replace(tzinfo=et)
-            _close = int(_d.timestamp()) + _session_close_minutes(_ymd) * 60
-            if vt >= _close:
-                out["tail_status"] = "verified"
-        except Exception:                  # noqa: BLE001
-            pass
+    # The extended frontier exists for every intraday tf at every instant (it falls
+    # back to the previous session's final bucket), so the old RTH-frontier and
+    # "no bucket of today is expected" branches are unreachable and were removed
+    # (review #1051 F4). Reaching here means the clock or calendar was unreadable:
+    # abstain as `unverified` — never claim currentness we could not compute.
     return out
 
 
@@ -746,14 +842,15 @@ _RTH_OPEN_MINUTES_SERVER = 9 * 60 + 30
 
 
 def _bucket_end(tf: str, start: int, step: int) -> int:
-    """End instant of the bucket starting at `start`. ⚠️ On 1h the 09:30 bucket is
-    THIRTY minutes (it ends at 10:00), so `start + 3600` would demand a provider check
-    that cannot happen until the NEXT bucket has closed."""
+    """End instant of the bucket starting at `start`. ⚠️ On 1h the grid is not
+    uniform (TradingView: the 09:00 pre-market stub and the 15:30 half bar are
+    THIRTY minutes), so `start + 3600` would demand a provider check that cannot
+    happen until the NEXT bucket has closed. Read off the shared bucket helper."""
     if tf == "60":
         try:
-            d = datetime.fromtimestamp(int(start), _ZI("America/New_York"))
-            if d.hour * 60 + d.minute == _RTH_OPEN_MINUTES_SERVER:
-                return int(start) + 1800
+            from api.services.bar_rollup import tv_bucket_bounds
+            session = _GRID_TO_SESSION.get(SIXTY_MIN_GRID, "rth")
+            return tv_bucket_bounds(int(start) * 1000, "60", session)[1] // 1000
         except Exception:                  # noqa: BLE001
             pass
     return int(start) + step
@@ -788,6 +885,32 @@ def _completeness_heal_allowed(ticker: str, tf: str, last_ts: int) -> bool:
     return True
 
 
+_EXT_COMPLETENESS_COOLDOWN = float(
+    _os.environ.get("BARS_EXT_COMPLETENESS_COOLDOWN_SECONDS", "120"))
+_ext_completeness_attempt: dict[str, float] = {}
+
+
+def _ext_completeness_heal_allowed(ticker: str, tf: str, last_ts: int) -> bool:
+    """At most once per (ticker, tf, tail instant) per `_EXT_COMPLETENESS_COOLDOWN`."""
+    key = f"{ticker}_{tf}_{int(last_ts)}"
+    now = _time.time()
+    with _completeness_lock:
+        prev = _ext_completeness_attempt.get(key)
+        if prev is not None and (now - prev) < _EXT_COMPLETENESS_COOLDOWN:
+            return False
+        if len(_ext_completeness_attempt) >= _COMPLETENESS_MAX_KEYS:
+            _ext_completeness_attempt.clear()
+        _ext_completeness_attempt[key] = now
+    return True
+
+
+def _ext_session_verified(ticker: str, tf: str, last_ts) -> bool:
+    """The provider was asked after the tail's EXTENDED session ended (nothing newer)."""
+    vt = tail_verified_through(ticker, tf)
+    end = _ext_session_end_ts(last_ts)
+    return vt is not None and end is not None and vt >= end
+
+
 def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> bool:
     """True if SQLite data is stale enough to warrant a delta fetch.
 
@@ -805,7 +928,12 @@ def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> boo
         try:
             from api.services import bars_live_store as _bls
             if _bls.covered(ticker, tf):
-                return False
+                # ⛔ 5m: "covered" is not proof by itself (review #1051 F1). Fresh only
+                # while the stream's proof makes the tail current/verified; otherwise
+                # fall through so the normal rules (incl. the extended re-ask, which
+                # marks verified) can repair it — e.g. a new epoch with no minute yet.
+                if tf == "D" or intraday_tail_status(ticker, tf, last_ts)["tail_status"] != "unverified":
+                    return False
         except Exception:
             pass
     if tf == "W":
@@ -906,6 +1034,19 @@ def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> boo
                 and _os.environ.get("BARS_SESSION_COMPLETENESS", "1") == "1"
                 and not intraday_session_complete(tf, last_ts)
                 and _completeness_heal_allowed(ticker, tf, last_ts)):
+            return True
+        # ⭐ EXTENDED completeness (2026-11-11): a tail that reaches the 16:00 close but
+        # not the 20:00 extended close is missing the post-market the series carries
+        # (AAPL 1m at 20:22 ET ended 16:53). Re-ask for it — but only for a member's
+        # INTERACTIVE request (never the prewarm/crawler universe sweep: thousands of
+        # names print nothing after 16:00 and would each cost a provider call), only
+        # while nobody has verified the session through its extended close, and at
+        # most once per tail instant per `_EXT_COMPLETENESS_COOLDOWN` (short, so a
+        # failed attempt is retried on the client's catch-up poll, not hours later).
+        if (ticker and _request_is_interactive()
+                and not intraday_ext_session_complete(tf, last_ts)
+                and not _ext_session_verified(ticker, tf, last_ts)
+                and _ext_completeness_heal_allowed(ticker, tf, last_ts)):
             return True
         return False
     return age > 30 * 3600
@@ -1446,7 +1587,10 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
     # Raised 30/60 to 3200d so the frontend's deeper hourly target (fullBarsFor 60
     # → ~8yr) isn't clipped — the provider has the history; these are only ceilings.
     bars_per_day = (16 * 60) // multiplier
-    max_lookback = {1: 60, 5: 365, 15: 1000, 30: 3200, 60: 3200}.get(multiplier, 2200)
+    # 15m is the SOURCE of the 30m and 60m resamples (src = 2x / 4x bars), so its
+    # ceiling must reach their depth; a plain 15m chart (fullBarsFor 15 ≈ 700 days)
+    # never asks for that much, so the raise only changes the resample paths.
+    max_lookback = {1: 60, 5: 365, 15: 3200, 30: 3200, 60: 3200}.get(multiplier, 2200)
     lookback_days = min(max_lookback, max(10, int(max_bars / max(bars_per_day, 1) * 1.5) + 5))
     to_date = datetime.utcnow().strftime("%Y-%m-%d")
     from_date = (datetime.utcnow() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
@@ -1506,7 +1650,7 @@ def _fetch_intraday_range(ticker: str, tf: str, from_ymd: str, to_ymd: str,
     lookback ceiling — the date range IS the bound — so Replay Mode can reach the provider's
     intraday floor (~2003-09-10). `adjusted=true` means 2008 AAPL comes back at its ~$7
     split-adjusted level (matching the daily charts). tf='60' is resampled from 15-min via the
-    canonical session-anchored bucketer (9:30-10:00 first candle), exactly like the live path —
+    canonical session-anchored bucketer (TradingView 9:30, 10:30 … grid), exactly like the live path —
     a direct /range/60/minute call would clock-hour-align and mismatch the rest of the app.
     Returns [] on error; the caller persists to SQLite + serves. Note: bars are adjusted AS OF
     FETCH TIME — a future split on the ticker would make cached pre-split intraday stale until
@@ -1514,6 +1658,9 @@ def _fetch_intraday_range(ticker: str, tf: str, from_ymd: str, to_ymd: str,
     if tf == "60":
         src = _fetch_intraday_range(ticker, "15", from_ymd, to_ymd, raise_errors)   # 15m base, session-anchored
         return _session_resample_hourly(src) if src else []
+    if tf == "30":
+        src = _fetch_intraday_range(ticker, "15", from_ymd, to_ymd, raise_errors)   # 15m base (native 30m is sparse)
+        return _resample_minutes(src, 30) if src else []
     multiplier = int(tf)
     try:
         client = _get_client()
@@ -1805,9 +1952,9 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
     through ``fetch_with_validation`` so corrupt primary payloads automatically
     fall through to the next source instead of being persisted.
 
-    tf='60' is special: internally uses 30-min bars resampled to session-aligned
-    hourly (9:30-10:00 first candle, then 10:00-11:00 ... 15:00-16:00) so the
-    chart matches TC2000 / ThinkorSwim behaviour in RTH mode. We still resample
+    tf='60' is special: internally uses 15-min bars resampled to the
+    ``SIXTY_MIN_GRID`` (TradingView: 9:30-10:30 ... 15:30-16:00) so the chart
+    matches TradingView in RTH mode. tf='30' is likewise resampled from 15-min. We still resample
     here, but the underlying 30-min fetch goes through fetch_with_validation
     (which itself iterates Massive → FMP → yfinance with per-bar validation).
     """
@@ -1853,7 +2000,20 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
         )
         return []
 
-    # 1/5/15/30-min: validating fetch chain
+    if tf == "30":
+        # Resampled from 15-MINUTE bars for the same reason as tf=60 above:
+        # Massive's native 30-min aggregate is intermittently sparse (it drops
+        # half-hour bars the 15m feed carries). 30 divides the 09:30 open, so the
+        # clock floor IS TradingView's 30m grid on both session views.
+        bars_src = fetch_with_validation(ticker, "15", max_bars * 2, prior_close=prior_close, expected_session=expected_session)
+        if bars_src and not _is_intraday_stale(bars_src):
+            return _resample_minutes(bars_src, 30)[-max_bars:]
+        _logger.warning(
+            "[bars] %s 15m(for 30m): all sources failed validation, returning empty", ticker
+        )
+        return []
+
+    # 1/5/15-min: validating fetch chain
     validated = fetch_with_validation(ticker, tf, max_bars, prior_close=prior_close, expected_session=expected_session)
     if validated and not _is_intraday_stale(validated):
         return validated
@@ -1979,53 +2139,56 @@ def _delta_monthly(ticker: str, last_ts: int) -> list[dict]:
     return [b for b in _resample_monthly_iso(daily) if int(b["t"].replace("-", "")) >= last_ts]
 
 
-def bucket_60_et_unix_seconds(t_utc: int) -> int:
+#: ⭐ THE 60-MINUTE GRID POLICY — the one server-side switch (client twin:
+#: ``app/src/components/chart/barTime.js`` ``SIXTY_MIN_GRID_BY_SESSION``).
+#: TradingView builds intraday bars from the SESSION START (vendor captures:
+#: ``tests/fixtures/vendor/harness/vw-time-session-spy-60-{rth,ext}-2026-09-28.json``):
+#:   "rth" — RTH anchors at the 09:30 open: 09:30, 10:30 … 15:30 (a 30-min last
+#:           bar; 12:30 on a 13:00 half-day). Pre-market is clock hours with the
+#:           09:00 bar cut at 09:30; post-market is clock hours. RTH-only view ==
+#:           TradingView RTH, bar for bar. (Client name: 'session'.)
+#:   "eth" — plain ET clock hours 04:00 … 19:00 == TradingView's 04:00-20:00
+#:           extended-hours chart (the 09:00 bar spans the open). (Client: 'clock'.)
+#: The bucket rule itself lives in ``bar_rollup.tv_bucket_bounds`` — the live
+#: stream's helper — so REST and stream are one function. The stored tf=60
+#: series is ONE grid (this one); ``_session_resample_hourly(.., grid="eth")``
+#: builds the other from the same 15m source on demand.
+SIXTY_MIN_GRID = "rth"
+_GRID_TO_SESSION = {"rth": "rth", "eth": "eth", "session": "rth", "clock": "eth"}
+
+
+def bucket_60_et_unix_seconds(t_utc: int, grid: str | None = None) -> int:
     """Canonical ET-anchored 60-min bucket function. Returns the unix-seconds
     timestamp of the hourly bucket that contains ``t_utc``.
 
-    Public + top-level on purpose: BOTH the REST resample path here AND the
-    WebSocket rollup path in ``api/services/bar_rollup.py`` must produce
-    bit-identical bucket timestamps for the same minute. Sharing one function
-    eliminates the drift-class bug that would otherwise plant duplicate
-    candles in SQLite at neighboring ``ts`` values (the same shape as the
-    FMP timezone bug — different primary keys, ``INSERT OR REPLACE`` can't
-    heal it, chart breaks until a manual wipe).
-
-    Bucket rules:
-      - 9:30-9:59 ET: anchor at 9:30 ET (the special "clean open" 30-min bar)
-      - All other times (RTH 10-15 ET + extended pre/post): floor to clock-hour ET
-
-    DST is handled transparently via ``ZoneInfo("America/New_York")``.
-    """
-    et = _ZI("America/New_York")
-    dt = datetime.fromtimestamp(t_utc, tz=et)
-    h, m = dt.hour, dt.minute
-    if h == 9 and m >= 30:
-        return int(datetime(dt.year, dt.month, dt.day, 9, 30, tzinfo=et).timestamp())
-    return int(datetime(dt.year, dt.month, dt.day, h, 0, tzinfo=et).timestamp())
+    Public + top-level on purpose: the REST resample/delta/heal paths here, the
+    WebSocket rollup (``bar_rollup``), the reconciliation companion heal, the
+    alert bar-close lane and the gap audit all call it, so none can drift and
+    plant duplicate candles at neighbouring ``ts`` (``INSERT OR REPLACE`` can't
+    heal that). It DELEGATES to ``bar_rollup.tv_bucket_start`` — the live
+    stream's TradingView helper — with ``grid`` (default ``SIXTY_MIN_GRID``):
+      rth — 09:30 <= t < close: 09:30 + whole hours (last bar 15:30-16:00, or
+            12:30-13:00 on a half-day); before 09:30 the clock hour (09:00-09:29
+            ends at the open); from the close, clock hours.
+      eth — the ET clock hour.
+    DST-safe: the zone is resolved per instant (``ZoneInfo``)."""
+    from api.services.bar_rollup import tv_bucket_start
+    session = _GRID_TO_SESSION.get(grid or SIXTY_MIN_GRID, "rth")
+    return tv_bucket_start(int(t_utc) * 1000, "60", session) // 1000
 
 
-def _session_resample_hourly(bars_src: list[dict]) -> list[dict]:
-    """Resample sub-hourly bars (5/15/30-min) to session-aligned 60-min bars.
+def _resample_minutes(bars_src: list[dict], minutes: int) -> list[dict]:
+    """Aggregate finer bars into ``minutes``-wide buckets floored on the ET clock
+    (whole-hour ET offsets make the UTC floor the ET floor; 30 divides the
+    09:30 open, so this IS the TradingView 30m grid on every session view)."""
+    step = int(minutes) * 60
+    return _aggregate_buckets(bars_src, lambda t: int(t) // step * step)
 
-    Source-granularity-agnostic: every bar is placed by
-    ``bucket_60_et_unix_seconds(bar["t"])``, so feeding 15-min bars yields the
-    SAME hourly candles as feeding 30-min bars — but without the gaps Massive's
-    native 30-min aggregate intermittently leaves (see the tf=="60" fetch path).
-    Bars must be ascending; unordered input still works (each bucket re-sorts).
 
-    Regular session (9:30-16:00 ET):
-      - First bar: 9:30-10:00 (the clean "open" bucket, anchored at 9:30)
-      - Remaining: 10:00-11:00, 11:00-12:00, ..., 15:00-16:00
-    Extended hours: clock-aligned 60-min groupings.
-    """
-    _bucket = bucket_60_et_unix_seconds  # use the canonical function
-
+def _aggregate_buckets(bars_src: list[dict], bucket) -> list[dict]:
     groups: dict[int, list[dict]] = {}
     for bar in bars_src:
-        bkt = _bucket(bar["t"])
-        groups.setdefault(bkt, []).append(bar)
-
+        groups.setdefault(bucket(bar["t"]), []).append(bar)
     result = []
     for bkt_t in sorted(groups):
         grp = sorted(groups[bkt_t], key=lambda b: b["t"])
@@ -2035,9 +2198,74 @@ def _session_resample_hourly(bars_src: list[dict]) -> list[dict]:
             "h": max(b["h"] for b in grp),
             "l": min(b["l"] for b in grp),
             "c": grp[-1]["c"],
-            "v": sum(b["v"] for b in grp),
+            "v": sum(int(b.get("v") or 0) for b in grp),
         })
     return result
+
+
+def _session_resample_hourly(bars_src: list[dict], grid: str | None = None) -> list[dict]:
+    """Resample sub-hourly bars (5/15/30-min) to 60-min bars on ``grid``
+    (default ``SIXTY_MIN_GRID`` — see ``bucket_60_et_unix_seconds``).
+
+    Source-granularity-agnostic: every bar is placed by
+    ``bucket_60_et_unix_seconds(bar["t"])``, so feeding 15-min bars yields the
+    SAME hourly candles as feeding 30-min bars — but without the gaps Massive's
+    native 30-min aggregate intermittently leaves (see the tf=="60" fetch path).
+    Bars must be ascending; unordered input still works (each bucket re-sorts).
+
+    "rth" grid, regular day: 04:00 … 08:00, 09:00 (30 min), 09:30, 10:30 …
+    15:30 (30 min), 16:00 … 19:00. A null source volume counts as 0.
+    """
+    return _aggregate_buckets(bars_src, lambda t: bucket_60_et_unix_seconds(t, grid))
+
+
+def rebuild_sixty_min_grid(ticker: str) -> dict:
+    """Re-derive ``ticker``'s stored 60m series on the TradingView grid from its OWN
+    stored 15m / 30m rows — in process, NO provider call (2026-11-10 grid move).
+
+    Per ET day that the old 60m series covered, the finer source with more coverage
+    wins (15m, else 30m: native 30m is :00/:30-aligned, so pairing it onto the
+    09:30/10:30 grid is exact; a half-hour it dropped thins that hour, never deletes
+    it). A day neither source covers is dropped from 60m — it is the wrong grid and
+    cannot be split — and is refilled by the ordinary partial-depth fetch the next
+    time a chart asks for that depth (lazy, per viewed ticker, never a herd).
+    Atomic: readers see the old set or the rebuilt one."""
+    tkr = ticker.upper()
+    et = _ZI("America/New_York")
+    rows60 = _sqlite.get_bars_since(tkr, "60", -(1 << 62))
+    if not rows60:
+        return {"days": 0, "rebuilt": 0, "dropped_days": 0}
+
+    def _day(ts: int) -> int:
+        d = datetime.fromtimestamp(int(ts), et)
+        return d.year * 10000 + d.month * 100 + d.day
+
+    days = {_day(r[0]) for r in rows60}
+    lo = int(rows60[0][0]) - 86400
+
+    def _by_day(tf: str) -> dict:
+        out: dict[int, list[dict]] = {}
+        for ts, o, h, l, c, v in _sqlite.get_bars_since(tkr, tf, lo):
+            if o is None or h is None or l is None or c is None:
+                continue
+            dd = _day(ts)
+            if dd in days:
+                out.setdefault(dd, []).append({"t": int(ts), "o": o, "h": h, "l": l, "c": c, "v": v})
+        return out
+
+    src15, src30 = _by_day("15"), _by_day("30")
+    rebuilt: list[dict] = []
+    dropped = 0
+    for dd in sorted(days):
+        a, b = src15.get(dd, []), src30.get(dd, [])
+        src = a if len(a) * 15 >= len(b) * 30 and a else b
+        if not src:
+            dropped += 1
+            continue
+        rebuilt.extend(_session_resample_hourly(src))
+    _sqlite.replace_ticker_tf_rows(tkr, "60", rebuilt)
+    _sqlite._invalidate_60m_caches(tkr)
+    return {"days": len(days), "rebuilt": len(rebuilt), "dropped_days": dropped}
 
 
 # Trailing re-aggregation window for intraday delta fetches (seconds). The old
@@ -2158,7 +2386,7 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = 
     # 30m) because Massive's native 30-min aggregate intermittently drops interior
     # half-hour bars, which silently deletes whole hourly candles on resample; 15m
     # carries them. Mirrors the cold-fetch tf=="60" path above — keep both in sync.
-    if tf == "60":
+    if tf in ("30", "60"):
         try:
             client = _get_client()
             url = (
@@ -2170,6 +2398,8 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = 
             # the WHOLE 60m delta (see `_safe_volume`).
             bars_src = [r for r in map(_massive_bar_row, _paginate_massive_aggs(client, url))
                         if r is not None]
+            resampled = (_session_resample_hourly(bars_src) if tf == "60"
+                         else _resample_minutes(bars_src, 30))
             # Filter shifted from strict > to >= on 2026-05-23. Original concern
             # was REST stepping on the WS-painted live bar; that's now mooted by
             # Phase 4's bar_broadcaster owning the developing-bar timeline AND
@@ -2179,7 +2409,7 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = 
             # "stored partial in-progress bar" bug where a chart loaded mid-hour
             # froze the bucket at half-bar values that the prior > filter could
             # never update (Step 4).
-            out = [b for b in _session_resample_hourly(bars_src)
+            out = [b for b in resampled
                    if _delta_keep_bar(b["t"], heal_floor, stored_ts)]
             if status is not None:
                 status["ok"] = True   # the provider ANSWERED (an empty answer included)
@@ -2187,7 +2417,7 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = 
         except Exception as _e:
             import logging as _log
             _log.getLogger(__name__).error(
-                f"[bars] _delta_intraday(60-min) {ticker} failed: {type(_e).__name__}: {_redact_log(str(_e))}"
+                f"[bars] _delta_intraday({tf}-min from 15m) {ticker} failed: {type(_e).__name__}: {_redact_log(str(_e))}"
             )
             return []
 
@@ -3922,6 +4152,17 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     _time_ck("last_ts")
     stored_rows = _sqlite.get_bars(ticker_up, tf, bars) if last_ts is not None else []
     _time_ck("get_bars")
+    # 60m grid migration, serve-time half (the bounded boot sweep is the other):
+    # rows in the pre-2026-11-10 clock-hour layout are never served. The ticker's
+    # 60m is REBUILT locally from its stored 15m/30m (no provider call) and re-read;
+    # depth the finer stores lack is refilled by the normal partial-depth path.
+    if tf == "60" and stored_rows and any(_sqlite.is_old_grid_60m_ts(r[0]) for r in stored_rows):
+        try:
+            rebuild_sixty_min_grid(ticker_up)
+            last_ts = _sqlite.get_last_ts(ticker_up, tf)
+            stored_rows = _sqlite.get_bars(ticker_up, tf, bars) if last_ts is not None else []
+        except Exception:  # noqa: BLE001 — never serve the old grid: go cold instead
+            last_ts, stored_rows = None, []
 
     # SQLite has fresh data AND enough rows for this request count.
     # The "len(stored_rows) >= bars * 0.9" check catches the case where SQLite

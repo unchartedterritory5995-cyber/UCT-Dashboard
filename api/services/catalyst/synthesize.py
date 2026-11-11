@@ -88,6 +88,22 @@ Output ONLY the JSON object — no markdown fences, no commentary, no
 "Rationale" section before or after it."""
 
 
+def _bucket(value, *, step: float | None = None, rel: float | None = None):
+    """A number reduced to its band for the skip hash; non-numbers pass through."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return value
+    if v != v:  # NaN
+        return None
+    import math
+    if rel is not None:
+        if v <= 0:
+            return 0
+        return round(math.log(v) / math.log(1 + rel))
+    return math.floor(v / step)
+
+
 def compute_signals_hash(candidate: dict) -> str:
     """SHA1 of a stable JSON serialization of the candidate's source signals.
     Used to skip re-synthesizing when nothing has changed."""
@@ -99,6 +115,13 @@ def compute_signals_hash(candidate: dict) -> str:
                    "gap_pct", "vol_x", "price", "hunter_headline",
                    "brain_grade", "av_news")
     payload = {k: candidate.get(k) for k in signal_keys}
+    # ⛔ The three live numbers move on every tick, so hashing them raw made "skip if
+    # nothing changed" never skip: ~22 ticks x top 12 names re-synthesized on Opus each
+    # weekday, held only by the dollar cap (2026-11-10 cost audit). Hash them BUCKETED,
+    # so a thesis refreshes when the move is material, not when the tape ticks.
+    payload["price"] = _bucket(candidate.get("price"), rel=0.02)     # 2% price bands
+    payload["gap_pct"] = _bucket(candidate.get("gap_pct"), step=2.0)  # 2-point gap bands
+    payload["vol_x"] = _bucket(candidate.get("vol_x"), step=0.5)      # 0.5x volume bands
     blob = json.dumps(payload, sort_keys=True, default=str)
     return hashlib.sha1(blob.encode("utf-8")).hexdigest()
 

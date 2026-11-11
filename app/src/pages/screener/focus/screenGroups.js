@@ -20,6 +20,7 @@ export const FALLBACK_GROUP = {
   starter_momentum_leaders: 'momentum',
   starter_pullback_20ema: 'momentum',
   starter_power_play: 'momentum',
+  starter_anticipation: 'momentum',
   starter_gap_movers: 'momentum',
   starter_volume_surge_now: 'momentum',
   starter_gap_up_volume: 'momentum',

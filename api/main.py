@@ -1208,6 +1208,16 @@ def _llm_budget_watch() -> None:
         logging.getLogger(__name__).warning("[llm-budget] watch failed", exc_info=True)
 
 
+def _llm_spend_digest() -> None:
+    """Daily AI-spend digest to the ops channel (llm_budget.digest): the whole day's
+    bill by feature and segment vs yesterday and the trailing week. Never raises."""
+    try:
+        from api.services import llm_budget
+        llm_budget.digest()
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).warning("[llm-budget] digest failed", exc_info=True)
+
+
 def _tsdr_lessons_tick() -> None:
     """One #tsdr video-lessons pass (scan → recap/post → YouTube). Never raises."""
     log = logging.getLogger(__name__)
@@ -4106,9 +4116,13 @@ def register_pattern_vision_jobs(scheduler):
                     "ticker": _sym, "tf": "D", "setup": None, "asof_date": None,
                     "path": "truncated",
                     "message": f"beyond PATTERN_VISION_MAX_PER_RUN={cap}"})
+            # Batch lane (half price): judgements queue here and the reaper job
+            # stores each verdict when its batch lands. PATTERN_VISION_BATCH=0 = live.
+            pv_batch = (pv_orch.JudgeBatch()
+                        if pv_orch.batch_enabled() else None)
             for t in active:
                 cur = t
-                r = pv_orch.judge_ticker(t) or {}
+                r = pv_orch.judge_ticker(t, batch=pv_batch) or {}
                 agg["judged"] += r.get("judged", 0)
                 agg["skipped"] += r.get("skipped", 0)
                 agg["capped"] += 1 if r.get("cost_capped") else 0
@@ -4117,6 +4131,8 @@ def register_pattern_vision_jobs(scheduler):
                 problems.extend(r.get("problems") or [])
                 asofs.extend(r.get("asof_dates") or [])
             cur = None
+            if pv_batch is not None and pv_batch.items:
+                print(f"[scheduler] pattern_vision batch {pv_batch.submit()}")
         except Exception as e:
             err = e
             print(f"[scheduler] pattern_vision job error: {e}")
@@ -4166,6 +4182,27 @@ def register_pattern_vision_jobs(scheduler):
                       id="pattern_vision_judge", max_instances=1,
                       replace_existing=True)
     return True
+
+
+def register_pattern_vision_batch_reaper(scheduler) -> None:
+    """The pattern-vision Batch lane's collector: stores each batched verdict when its
+    batch lands. A no-op when nothing is pending; reaping is idempotent. Registered
+    whenever the judge is, so a batch queued before a PATTERN_VISION_BATCH=0 rollback
+    is still collected."""
+    from apscheduler.triggers.cron import CronTrigger
+    from api.services.pattern_vision import orchestrator as pv_orch
+
+    def _reap():
+        try:
+            out = pv_orch.reap_batches()
+            if out.get("batches"):
+                print(f"[scheduler] pattern_vision reaped {out}")
+        except Exception as e:
+            print(f"[scheduler] pattern_vision reaper error: {e}")
+
+    scheduler.add_job(_reap, trigger=CronTrigger(minute="*/10", timezone=_ET),
+                      id="pattern_vision_batch_reap", max_instances=1,
+                      replace_existing=True)
 
 
 def idb_cache_logic_version(src_path: str | None = None) -> int | None:
@@ -5756,7 +5793,7 @@ async def lifespan(app: FastAPI):
         "fmp_tz_fix=on yfinance_tz_fix=on heal_v1=ran-once heal_v2=ran-once heal_v3_60day=ran-once "
         "needs_fresh_post_market=on "
         "swr_refresh_interval=30s_intraday "
-        "tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds "
+        "tf60_ws_streaming=on bucket_canonical=bar_rollup.tv_bucket_bounds(via bars_fetch.bucket_60_et_unix_seconds,grid=rth) "
         f"delta_intraday_filter=>= idb_cache_logic_version={_idb_ver if _idb_ver is not None else 'unreadable'} "
         "weekly_dating=friday-close heal_weekly_close=ran-once "
         f"reconciliation_worker={'on' if os.environ.get('RECONCILE_ENABLED', '1') != '0' else 'off'}"
@@ -8186,6 +8223,12 @@ async def lifespan(app: FastAPI):
                 misfire_grace_time=300, max_instances=1, coalesce=True,
             )
             print("[startup] AI-spend budget watchdog scheduled (every 15 min)")
+            _scheduler.add_job(
+                _llm_spend_digest,
+                trigger=CronTrigger(hour=23, minute=55, timezone=_ET),
+                id="llm_spend_digest", replace_existing=True,
+                misfire_grace_time=3600, max_instances=1, coalesce=True,
+            )
         except Exception as e:
             print(f"[scheduler] tsdr lessons registration error: {e}")
         if os.environ.get("THEME_INDEX_PREWARM_ENABLED", "1") != "0":
@@ -8202,6 +8245,7 @@ async def lifespan(app: FastAPI):
         # -- Opus-vision pattern judge (spec 2026-06-19) -------------------
         try:
             if register_pattern_vision_jobs(_scheduler):
+                register_pattern_vision_batch_reaper(_scheduler)
                 # ⛔⛔ THE STEP THAT HELD THE BOOT, incident 2026-10-02. The contract
                 # line resolves the active set, which reads bars.db
                 # (`_resolve_active_set_for_patterns` -> `nth_recent_trading_date`, a
@@ -8476,6 +8520,20 @@ async def lifespan(app: FastAPI):
             _scheduler.add_job(_earn_analysis_warm,
                 trigger=CronTrigger(day_of_week="mon-fri", hour="8,9,11,16,17,20", minute=35, timezone=_ET),
                 id="earnings_analysis_warm", max_instances=1, replace_existing=True)
+            # The preview warm's Batch lane collector (half-price previews). A no-op
+            # while nothing is pending; reaping is idempotent (the ledger row drops
+            # once collected), and every 10 min puts a result close to its finish.
+            def _reap_earnings_preview_batches():
+                try:
+                    from api.services import earnings_preview_warm as _epw
+                    out = _epw.reap_preview_batches()
+                    if out.get("batches"):
+                        print(f"[earn-warm] batch reaper {out}")
+                except Exception as exc:
+                    print(f"[earn-warm] batch reaper failed: {exc}")
+            _scheduler.add_job(_reap_earnings_preview_batches,
+                trigger=CronTrigger(minute="*/10", timezone=_ET),
+                id="earnings_preview_batch_reap", max_instances=1, replace_existing=True)
 
         # -- AI Search member briefings (2026-08-28) ------------------------
         # Standing questions ("brief me on CRM every morning") answered through

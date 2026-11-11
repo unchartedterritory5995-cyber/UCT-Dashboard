@@ -176,7 +176,10 @@ COLUMNS = [
     "run_ema9_ema20", "run_sma20_sma50", "run_sma50_sma200", "sma20_rising", "sma50_rising",
     "sma200_rising", "avg_volume_10d", "avg_volume_50d", "vol_trend_pct", "vol_up_run",
     "vol_down_run", "new_high_lookback", "new_low_lookback", "breakout_20d_age", "high_52w_age",
-    "low_52w_age",
+    "low_52w_age", "min_volume_3d_prior",
+    # live-tier bases (`technicals.scan_primitives`): not filters, the levels `live_tier` restates the
+    # 5-day/1-month/1-year change and MINV3.1 from during the next session. NULL until the next build.
+    "live_base_close_1w", "live_base_close_1m", "live_base_close_1y", "live_base_min_volume_3d",
     # ⭐ UCT RELATIVE STRENGTH, bar-derived (Phase 2a, unit 2a-05). ONE writer,
     # `rs_columns.collect_one` (the builder's `_step("bars_rs")`), from the same
     # `relative_strength` functions the chart's rsLine draws, so a scan and a

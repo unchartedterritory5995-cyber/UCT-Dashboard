@@ -1,4 +1,4 @@
-import { ET_OFFSET } from '../../components/chart/barTime'
+import { toChartTime as unixToChart } from '../../components/chart/barTime'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderWithProviders, screen, fireEvent, waitFor, within } from '../../test-utils'
 import PatternReview from './PatternReview'
@@ -232,7 +232,7 @@ describe('StudyReview card', () => {
     const chart = screen.getByTestId('stock-chart')
     expect(chart).toHaveTextContent('highlight:-')
     expect(chart).toHaveTextContent('markers:the open: first 3 hours dotted|||')
-    expect(chart).toHaveTextContent('dots:' + [1793107800, 1793111400, 1793115000].map((t) => t + ET_OFFSET).join('|') + '@#ffffff')
+    expect(chart).toHaveTextContent('dots:' + [1793107800, 1793111400, 1793115000].map((t) => unixToChart(t)).join('|') + '@#ffffff')
     expect(screen.getByTestId('study-closeup')).toHaveTextContent('Open close-up')
   })
 
