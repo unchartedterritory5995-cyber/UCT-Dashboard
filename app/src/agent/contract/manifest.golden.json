@@ -6384,9 +6384,9 @@
   {
    "name": "drawing.favoriteTool",
    "domain": "drawing",
-   "target": "drawToolFavorites",
+   "target": "chart",
    "summary": "Star or unstar a DRAWING TOOL as a favourite (the ★ in the drawing toolbar's tools menu): starred tools sit on the floating favourites bar on every chart in this browser. Undo puts the favourites back.",
-   "hints": "target = the drawToolFavorites entry; tool = the toolbar tool's id; favorite = true to star, false to unstar. Only for a drawing TOOL — flagging or starring a ticker is the watchlist's flag (watchlist.setFlag), never this.",
+   "hints": "target = the chart whose toolbar they mean (the selected one; the list is the same on every chart); tool = the toolbar tool's id; favorite = true to star, false to unstar. Only for a drawing TOOL — flagging or starring a ticker is the watchlist's flag (watchlist.setFlag), never this.",
    "args": {
     "type": "object",
     "properties": {
