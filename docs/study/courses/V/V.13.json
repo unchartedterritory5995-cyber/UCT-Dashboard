@@ -415,6 +415,12 @@
    "claim": "Set the process before you trade, so you aren't making spur-of-the-moment choices."
   },
   {
+   "id": "f04b",
+   "source": "s1",
+   "quote": "You'll also want to determine what percentage of your investable funds will be devoted to each asset type.",
+   "claim": "A trading plan also settles how much of your money goes into each kind of asset."
+  },
+  {
    "id": "f05",
    "source": "s1",
    "quote": "You shouldn't alter a trading plan as a knee-jerk reaction to temporary market events, like when stock prices take a dive.",
@@ -2665,6 +2671,73 @@
     "f93",
     "f93c"
    ]
+  },
+  {
+   "key": "q65",
+   "skill": "vocab.process_terms",
+   "rung": 2,
+   "format": "tf",
+   "term": "Trading plan",
+   "q": "A trading plan settles what to trade, how much, when to get in and when to get out.",
+   "answer": "True",
+   "why": "True. Schwab says a trade boils down to four decisions: what to trade, how much, when to enter and when to exit. A plan answers them before you trade.",
+   "lesson_line": "A plan decides what, how much, when in and when out, before you trade.",
+   "facts": [
+    "f08",
+    "f03",
+    "f04b",
+    "f20"
+   ]
+  },
+  {
+   "key": "q66",
+   "skill": "vocab.process_terms",
+   "rung": 3,
+   "format": "tf",
+   "term": "Paper trading",
+   "q": "A paper trade does not actually execute on any exchange.",
+   "answer": "True",
+   "why": "True. Interactive Brokers says paper trades won't actually execute on any exchange. Fills are simulated from the top of the book.",
+   "lesson_line": "Paper fills are simulated, so real fills can differ.",
+   "facts": [
+    "f98",
+    "f98b",
+    "f97",
+    "f21"
+   ]
+  },
+  {
+   "key": "q67",
+   "skill": "vocab.process_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "Profit factor",
+   "q": "A profit factor of 2.5 means your winners added up to 2.5 times what your losers lost.",
+   "answer": "True",
+   "why": "True. Profit factor is total profit from winners divided by total loss from losers. StockCharts: 2.5 means $2.5 of profit for every $1 of loss.",
+   "lesson_line": "Profit factor compares money won to money lost. Over 1 means ahead.",
+   "facts": [
+    "f40",
+    "f39",
+    "f39b",
+    "f29"
+   ]
+  },
+  {
+   "key": "q68",
+   "skill": "vocab.process_terms",
+   "rung": 6,
+   "format": "tf",
+   "term": "Outcome bias",
+   "q": "Outcome bias means letting how a trade turned out sway how you judge the decision.",
+   "answer": "True",
+   "why": "True. Outcome bias is judging a decision by its results instead of its process. Luck sits between a decision and its outcome.",
+   "lesson_line": "Judge the decision, not the result. Luck sits in between.",
+   "facts": [
+    "f107",
+    "f91",
+    "f87"
+   ]
   }
  ],
  "conflicts": [
@@ -3082,6 +3155,30 @@
    "notes": "Still cut (duplicate). Text updated 2026-11-09 so the dead item no longer carries the old 2R / 3R targets (account rulebook B19, E51). duplicate of V.06#q10. Track audit 2026-11-09: both key the same house fact, our trade plans put the targets at 2R and 3R (TRADE_PLANS.md, make_levels). V.06 asks it as a choice whose wrong answers teach. V.05 also uses the 2R and 3R targets in q30, q43, q46 and q56.",
    "fixed": false,
    "by": "track-auditor"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: added Fidelity fact f04b (how much) and f03 (when in/out) so two publishers back the four decisions",
+   "by": "checker",
+   "fixed": true
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: 'never sent to an exchange' (an absolute word on a true statement) now follows IBKR's wording",
+   "by": "checker",
+   "fixed": true
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: 'made 2.5 dollars for every dollar you lost' blurred gross and net; now winners total over losers total (f39, f29)",
+   "by": "checker",
+   "fixed": true
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
   }
  }
 }

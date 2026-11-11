@@ -838,6 +838,12 @@
    "source": "c1",
    "quote": "RED TO GREEN or PREV LOW RECLAIM on the hold session: buy at market as the intraday turn trades",
    "claim": "The 20 EMA Pullback buy is the intraday turn on the hold session, such as red to green."
+  },
+  {
+   "id": "h19",
+   "source": "h1",
+   "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+   "claim": "D42: never own more than 1% of a stock's average daily volume."
   }
  ],
  "walkthroughs": [
@@ -2547,6 +2553,74 @@
     "h02"
    ],
    "house": true
+  },
+  {
+   "key": "q68",
+   "skill": "setup.ema20_pullback",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "e20.position_adv",
+   "q": "A pullback stock trades 2,500,000 shares a day on average. What is the most shares our volume rule lets us hold?",
+   "answer": 25000,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "adv * 0.01",
+     "adv": 2500000
+    },
+    "round": 0
+   },
+   "suffix": "shares",
+   "why": "25,000 shares. We never own more than 1% of a stock's average daily volume, whatever the risk math allows.",
+   "lesson_line": "One percent of the average daily volume is the ceiling.",
+   "facts": [
+    "h19"
+   ],
+   "house": true
+  },
+  {
+   "key": "q69",
+   "skill": "setup.ema20_pullback",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "e20.position_adv",
+   "q": "A clean 20 EMA pullback in a leader still caps our position at 1% of its average daily volume.",
+   "answer": "True",
+   "why": "True. The ceiling is 1% of average daily volume, and illiquid stocks are not even watched.",
+   "lesson_line": "A clean chart does not lift the volume ceiling.",
+   "facts": [
+    "h19"
+   ],
+   "house": true
+  },
+  {
+   "key": "q70",
+   "skill": "setup.ema20_pullback",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "e20.inv_50_break",
+   "q": "What do you do with the buy alert?",
+   "story": "Monday held the 20 EMA, and your buy is a cent over Monday's high. Tuesday the stock sinks instead, and its low breaks the 50-day SMA without trading over Monday's high.",
+   "choices": [
+    "Cancel it; the 20 EMA setup is off",
+    "Keep it; Monday's hold still counts",
+    "Keep it, with the stop under the 50-day",
+    "Raise it above Tuesday's high instead"
+   ],
+   "answer": "Cancel it; the 20 EMA setup is off",
+   "why": "Cancel it. On our card, a low that breaks the 50-day before entry ends the 20 EMA pullback. It is the 50-day pullback, if anything.",
+   "lesson_line": "Lose the 50-day before the buy and the 20 EMA pullback is off.",
+   "facts": [
+    "c17",
+    "c01",
+    "c11"
+   ],
+   "wrong": {
+    "Keep it; Monday's hold still counts": "Monday held, but the break before the entry ends the setup. The 50-day pullback is a different card.",
+    "Keep it, with the stop under the 50-day": "The stop sits a few cents under the hold session's low, and the setup is already off.",
+    "Raise it above Tuesday's high instead": "A new buy level does not repair the break. The setup is off until it sets up again."
+   },
+   "house": true
   }
  ],
  "conflicts": [
@@ -2991,6 +3065,24 @@
    "status": "cut",
    "notes": "duplicate of q23 and q56 (a stop-out is the plan working), and the why says 'the failures in our data' were all stopped with 1.3% to 2.5% stops while the card's own CAT failure had a 3.1% stop; d20 covers only the four charted failures.",
    "fixed": false,
+   "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Fixed: the question now names the volume rule, since the risk size and the 40% cap could also bind. 2,500,000 x 1% = 25,000 (D42).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. D42 settled; True, no absolute word marking a false statement.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Fixed: the right choice carried a hedge (\"at most\"); now \"Cancel it; the 20 EMA setup is off\". The why said the proposed e20.inv_50_break line as flat fact; it now reads \"On our card\". Quote c17 verbatim. Not a repeat of q08 (the hold session's low) or the cut q30: this is a break after the hold session, before the buy.",
+   "fixed": true,
    "by": "checker"
   }
  }

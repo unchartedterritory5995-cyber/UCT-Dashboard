@@ -710,6 +710,60 @@
    "source": "s2",
    "quote": "the way is clear for a sustained advance",
    "claim": "Pruden: light volume on the break means the way is clear for a sustained advance."
+  },
+  {
+   "id": "f08",
+   "source": "s4",
+   "quote": "The BUEC is a classic place to add to the position.",
+   "claim": "Fraser: the BUEC (back-up) is a classic place to add to the position."
+  },
+  {
+   "id": "t07",
+   "source": "s1",
+   "quote": "LPSs in this phase are generally excellent places to initiate or add to profitable long positions.",
+   "claim": "ChartSchool: a last point of support (LPS) is a good place to start or add to a long position."
+  },
+  {
+   "id": "t08",
+   "source": "s1",
+   "quote": "Price targets derived from Wyckoff P&F counts represent points where you should stop, look and listen. These targets should never be looked upon as exact points of where a trend will change.",
+   "claim": "ChartSchool: targets from the point-and-figure count are points to stop, look and listen, not exact turns."
+  },
+  {
+   "id": "t09",
+   "source": "s1",
+   "quote": "Wyckoff's cause can be measured by the horizontal point count in a Point and Figure chart.",
+   "claim": "ChartSchool: Wyckoff's cause is measured by the horizontal point count in a Point and Figure chart."
+  },
+  {
+   "id": "h41",
+   "source": "h1",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "D41: every position has a real stop order with the broker."
+  },
+  {
+   "id": "c36",
+   "source": "c1",
+   "quote": "Option C, the back-up (LPS or BUEC): after the push to the top of the range, the first light-volume pullback that holds the old top. The add or the second chance; it overlaps the flat-base breakout.",
+   "claim": "Card: the back-up is the first light-volume pullback that holds the old top after the push; the school's add or second chance."
+  },
+  {
+   "id": "c37",
+   "source": "c1",
+   "quote": "The Wyckoff point-and-figure count may be shown as a stop, look and listen level, not taught as a rule.",
+   "claim": "Card: the point-and-figure count may be shown as a stop, look and listen level, not taught as a rule."
+  },
+  {
+   "id": "c38",
+   "source": "c1",
+   "quote": "Never lower it; a real stop order with the broker.",
+   "claim": "Card: the stop is never lowered, and it is a real stop order with the broker."
+  },
+  {
+   "id": "c39",
+   "source": "c1",
+   "quote": "The app's target of twice the range height is in no source.",
+   "claim": "Card: a target of twice the range height is in no source."
   }
  ],
  "walkthroughs": [
@@ -2436,6 +2490,295 @@
     "AAPL; the index failed": "QQQ sprang the same day and failed too, a warning sign.",
     "TSLA; a tall range after a run": "A 17.9% range after a 73% run was a warning sign."
    }
+  },
+  {
+   "key": "q66",
+   "skill": "setup.wyckoff_spring",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "spr.entry_backup",
+   "q": "After the push to the top of the range, what is the back-up?",
+   "choices": [
+    "A light dip that holds the old top",
+    "A heavy drop back under the floor",
+    "The first dip under the range floor",
+    "A gap through the top of the range"
+   ],
+   "answer": "A light dip that holds the old top",
+   "why": "A light pullback that holds the old top. The first one after the push is the back-up, the school's add or second chance.",
+   "lesson_line": "The back-up is the first light pullback after the push that holds the old top.",
+   "facts": [
+    "c36",
+    "t07",
+    "f08"
+   ],
+   "wrong": {
+    "A heavy drop back under the floor": "That is a breakdown, not a back-up. A back-up is light and holds the old top.",
+    "The first dip under the range floor": "That is the spring itself. The back-up comes later, after the push to the top.",
+    "A gap through the top of the range": "That is the push. The back-up is the pullback after it."
+   },
+   "house": true
+  },
+  {
+   "key": "q67",
+   "skill": "setup.wyckoff_spring",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "spr.entry_backup",
+   "q": "Fraser calls this a classic place to add. What do we do?",
+   "choices": [
+    "No add; one price, one stop",
+    "Add half the size, same stop",
+    "Double up and raise the stop"
+   ],
+   "answer": "No add; one price, one stop",
+   "why": "No add. Fraser calls the back-up a classic place to add, but our rule is the full size at one price with one stop.",
+   "lesson_line": "Wyckoff adds at the back-up. We buy once and do not add.",
+   "facts": [
+    "f08",
+    "h28b",
+    "c36"
+   ],
+   "wrong": {
+    "Add half the size, same stop": "No adding. The plan is the full size at one price with one stop.",
+    "Double up and raise the stop": "The plan has no adds, however the stop moves."
+   },
+   "house": true,
+   "story": "You hold a long from the spring. The stock has pushed to the top of the range and now pulls back on light volume, holding the old top."
+  },
+  {
+   "key": "q68",
+   "skill": "setup.wyckoff_spring",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "spr.liquidity",
+   "q": "Does it pass our floors?",
+   "choices": [
+    "No; the price is under 10",
+    "Yes; the dollar volume is big",
+    "Half size, if the range is tight"
+   ],
+   "answer": "No; the price is under 10",
+   "why": "No. We trade only stocks at $10 or more that trade at least $20 million a day. Volume is fine, but the price is not.",
+   "lesson_line": "Two floors: $10 a share and $20 million a day. Miss either and it is a pass.",
+   "facts": [
+    "h09",
+    "c03"
+   ],
+   "wrong": {
+    "Yes; the dollar volume is big": "Both floors must pass. The price is under $10.",
+    "Half size, if the range is tight": "A tight range does not waive a floor, and half size does not either."
+   },
+   "house": true,
+   "story": "A clean spring shows up in a 9.40 stock that trades about 60 million dollars a day."
+  },
+  {
+   "key": "q69",
+   "skill": "setup.wyckoff_spring",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "spr.liquidity",
+   "q": "A stock trades 750,000 shares a day at 24.00. How many dollars a day is that?",
+   "answer": 18000000,
+   "calc": {
+    "fn": "dollar_volume",
+    "args": {
+     "shares": 750000,
+     "price": 24.0
+    },
+    "round": 0
+   },
+   "why": "$18 million a day. That is under the $20 million floor, so the spring is off the list.",
+   "lesson_line": "Check the dollar volume before the pattern. The floor is $20 million a day.",
+   "facts": [
+    "h09",
+    "c03"
+   ],
+   "house": true,
+   "prefix": "$"
+  },
+  {
+   "key": "q70",
+   "skill": "setup.wyckoff_spring",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "spr.stop_never_lower",
+   "q": "Apart from the gap rule, a stop set under the spring low can move up but never lower.",
+   "answer": "True",
+   "why": "True. The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule.",
+   "lesson_line": "A stop only moves up. The gap rule is the one exception.",
+   "facts": [
+    "h02",
+    "c38"
+   ],
+   "house": true
+  },
+  {
+   "key": "q71",
+   "skill": "setup.wyckoff_spring",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "spr.stop_never_lower",
+   "q": "What do you do with the stop?",
+   "choices": [
+    "Leave it; the stop never goes lower",
+    "Drop it to 50.20 to give it room",
+    "Cancel the order and watch the close"
+   ],
+   "answer": "Leave it; the stop never goes lower",
+   "why": "Leave it. The stop is the exit and it never goes lower. It stays a real order with the broker.",
+   "lesson_line": "Leave the stop alone. It moves up, never lower.",
+   "facts": [
+    "h02",
+    "h41",
+    "c38"
+   ],
+   "wrong": {
+    "Drop it to 50.20 to give it room": "A stop does not go lower or wider. The size already came from the stop.",
+    "Cancel the order and watch the close": "The stop is a real order with the broker, not a watch of the close."
+   },
+   "house": true,
+   "story": "You bought a spring at 52.40 with a real stop order at 51.10. The stock sags to 51.60 and you feel like dropping the stop to 50.20."
+  },
+  {
+   "key": "q72",
+   "skill": "setup.wyckoff_spring",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "spr.breakeven",
+   "q": "On a spring, the stop can move to breakeven when the first third comes off at 3R.",
+   "answer": "True",
+   "why": "True. Breakeven sits between 2R and 5R, and by default it comes at the first trim, here 3R.",
+   "lesson_line": "Breakeven comes between 2R and 5R, by default at the first trim.",
+   "facts": [
+    "h05",
+    "c18"
+   ],
+   "house": true
+  },
+  {
+   "key": "q73",
+   "skill": "setup.wyckoff_spring",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "spr.breakeven",
+   "q": "Bought at 52.40 with the stop at 51.10. At what price is 2R, where the breakeven window opens?",
+   "answer": 55.0,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 2 * (a - b)",
+     "a": 52.4,
+     "b": 51.1
+    },
+    "round": 2
+   },
+   "why": "55. One R is the buy minus the stop, so 2R is the buy plus two of those. The window runs from 2R to 5R.",
+   "lesson_line": "Know your 2R before the open. The breakeven window starts there.",
+   "facts": [
+    "h05",
+    "c18"
+   ],
+   "house": true,
+   "prefix": "$"
+  },
+  {
+   "key": "q74",
+   "skill": "setup.wyckoff_spring",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "spr.trim_2",
+   "q": "A spring position is 900 shares. You sell a third of them at 3R and another third at 5R. How many are left to trail?",
+   "answer": 300,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a - 2 * a / 3",
+     "a": 900
+    },
+    "round": 0
+   },
+   "why": "300. A third at 3R and a third at 5R leaves the last third, which is trailed.",
+   "lesson_line": "Thirds at 3R and 5R, then trail the last third.",
+   "facts": [
+    "h20",
+    "c19"
+   ],
+   "house": true,
+   "suffix": " shares"
+  },
+  {
+   "key": "q75",
+   "skill": "setup.wyckoff_spring",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "spr.trim_2",
+   "q": "What does the plan do at 5R?",
+   "choices": [
+    "Sell a third more; trail the rest",
+    "Sell everything and lock the gain in",
+    "Add a third back on the strength"
+   ],
+   "answer": "Sell a third more; trail the rest",
+   "why": "Sell another third. After the first third at 3R comes a third at 5R, then the last third is trailed.",
+   "lesson_line": "Third at 3R, third at 5R, trail the last third.",
+   "facts": [
+    "h20",
+    "c19",
+    "h28b"
+   ],
+   "wrong": {
+    "Sell everything and lock the gain in": "The plan sells in thirds and trails the last one.",
+    "Add a third back on the strength": "No adds. The full size is one price with one stop."
+   },
+   "house": true,
+   "story": "Your spring buy sold its first third at 3R. Price now touches 5R and the stop is at breakeven."
+  },
+  {
+   "key": "q76",
+   "skill": "setup.wyckoff_spring",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "spr.pf_count",
+   "q": "Our card teaches the Wyckoff point-and-figure count as the target rule for a spring.",
+   "answer": "False",
+   "why": "False. Wyckoff's count gives points to stop, look and listen, not exact turns. Our plan trims at 3R and 5R.",
+   "lesson_line": "The count is a place to look and listen. It is not a rule for the exit.",
+   "facts": [
+    "t08",
+    "c37",
+    "h20"
+   ],
+   "house": true
+  },
+  {
+   "key": "q77",
+   "skill": "setup.wyckoff_spring",
+   "rung": 7,
+   "format": "mcq",
+   "criterion": "spr.pf_count",
+   "q": "In the Wyckoff school, how are price objectives measured?",
+   "choices": [
+    "By the point-and-figure count",
+    "By twice the height of the range",
+    "By a fixed 3R on every trade",
+    "By the prior all-time high"
+   ],
+   "answer": "By the point-and-figure count",
+   "why": "By the point-and-figure count. Wyckoff's cause is measured by the horizontal point count in a Point and Figure chart.",
+   "lesson_line": "Wyckoff objectives come from the point-and-figure count.",
+   "facts": [
+    "t08",
+    "t09",
+    "c37",
+    "c39"
+   ],
+   "wrong": {
+    "By twice the height of the range": "No source behind this card uses that target.",
+    "By a fixed 3R on every trade": "3R is our own first trim, not Wyckoff's objective.",
+    "By the prior all-time high": "Wyckoff's objectives come from the count, not from a prior high."
+   },
+   "house": true
   }
  ],
  "conflicts": [
@@ -2853,6 +3196,78 @@
    "notes": "Cut: asks which of four named examples had no warning sign, but the stem gives no facts about them; the member can only recall earlier screens. GOOGL 'weak market' also overstates the dossier ('not a Green market').",
    "fixed": false,
    "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: right choice was the odd one out in opening (No against two Add); BUEC replaced by 'back-up' in the why (untaught term)",
+   "by": "checker",
+   "fixed": true
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: right choice was the only No",
+   "by": "checker",
+   "fixed": true
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: 'never lower' left out the gap rule (B20), which A4 names as the one exception",
+   "by": "checker",
+   "fixed": true
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q74": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: 'a third ... another third' could be read as a third of what is left; now a third of the 900",
+   "by": "checker",
+   "fixed": true
+  },
+  "q75": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q76": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q77": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
   }
  }
 }

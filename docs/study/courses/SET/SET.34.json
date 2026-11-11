@@ -619,6 +619,12 @@
    "source": "h1",
    "quote": "Max position 40% of the account",
    "claim": "A7: the maximum position is 40% of the account."
+  },
+  {
+   "id": "h09",
+   "source": "h1",
+   "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+   "claim": "B23: only stocks at $10 or more trading at least $20 million a day."
   }
  ],
  "walkthroughs": [
@@ -2309,6 +2315,265 @@
     "h03"
    ],
    "house": true
+  },
+  {
+   "key": "q66",
+   "skill": "setup.go_signal",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "go.reclaim_candle_green",
+   "q": "Our card wants the reclaiming hourly candle to be green: a close above its own open.",
+   "answer": "True",
+   "why": "True. Our card asks for a green reclaim candle, one that closes above its own open.",
+   "lesson_line": "Our card wants a green reclaim candle: it closes above its own open.",
+   "facts": [
+    "g20"
+   ],
+   "house": true
+  },
+  {
+   "key": "q67",
+   "skill": "setup.go_signal",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "go.reclaim_candle_green",
+   "q": "What should the reclaiming hourly candle look like on our card?",
+   "choices": [
+    "Green, closing above its open",
+    "Red, closing under its own open",
+    "A doji, closing right at its open",
+    "Any color, if the volume is high"
+   ],
+   "answer": "Green, closing above its open",
+   "why": "Green. Our card wants the reclaim candle to close above its own open. It treats volume as a plus, not a rule.",
+   "lesson_line": "Our card wants the reclaim candle green: a close above its open.",
+   "facts": [
+    "g20",
+    "g21"
+   ],
+   "wrong": {
+    "Red, closing under its own open": "A red candle ends the hour under its open. Our card wants the close above it.",
+    "A doji, closing right at its open": "A doji shows no push. Our card wants the close above the open.",
+    "Any color, if the volume is high": "Our card treats volume as a plus for grading, not a rule, and it asks for a green candle."
+   },
+   "house": true
+  },
+  {
+   "key": "q68",
+   "skill": "setup.go_signal",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "go.liquidity",
+   "q": "A stock trades 600,000 shares a day at about 24 dollars. How many millions of dollars trade a day?",
+   "answer": 14.4,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "shares * price / 1000000",
+     "shares": 600000,
+     "price": 24
+    },
+    "round": 1
+   },
+   "suffix": "million",
+   "why": "14.4 million a day. We trade only stocks at $10 or more that trade at least $20 million a day, so this one fails.",
+   "lesson_line": "Dollar volume is shares times price. Under $20 million a day, pass.",
+   "facts": [
+    "h09"
+   ],
+   "house": true
+  },
+  {
+   "key": "q69",
+   "skill": "setup.go_signal",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "go.liquidity",
+   "q": "Our floors pass a $9 stock that trades $30 million a day.",
+   "answer": "False",
+   "why": "False. The floors are $10 a share and $20 million a day. Both must hold, and $9 fails the first.",
+   "lesson_line": "Two floors: $10 a share and $20 million a day.",
+   "facts": [
+    "h09"
+   ],
+   "house": true
+  },
+  {
+   "key": "q70",
+   "skill": "setup.go_signal",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "go.stop_broker",
+   "q": "How do you hold that stop?",
+   "story": "You buy a Go Signal at 26.43. The session low so far is 25.69, so the stop belongs a few cents under it.",
+   "choices": [
+    "A real stop order with the broker",
+    "A mental stop; you watch the screen",
+    "An alert that pings you under the low",
+    "A stop you place after the first trim"
+   ],
+   "answer": "A real stop order with the broker",
+   "why": "A real stop order with the broker. Every position has one, not a stop kept in your head.",
+   "lesson_line": "The stop goes in with the fill. Your head is not a broker.",
+   "facts": [
+    "h18",
+    "d04"
+   ],
+   "wrong": {
+    "A mental stop; you watch the screen": "A stop kept in your head is a debate, not a stop order.",
+    "An alert that pings you under the low": "An alert only tells you. A stop order with the broker acts.",
+    "A stop you place after the first trim": "Every position has its stop order from the fill, not from the first trim."
+   },
+   "house": true
+  },
+  {
+   "key": "q71",
+   "skill": "setup.go_signal",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "go.stop_broker",
+   "q": "Once set with the broker, the stop only moves up, apart from the gap rule.",
+   "answer": "True",
+   "why": "True. The stop is the exit and it only moves up, never down or wider. The gap rule is the one exception.",
+   "lesson_line": "Set the stop at the fill. It only goes up from there.",
+   "facts": [
+    "h02",
+    "h18"
+   ],
+   "house": true
+  },
+  {
+   "key": "q72",
+   "skill": "setup.go_signal",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "go.breakeven",
+   "q": "Bought at 24.48, stop 24.01. At what price may the stop first go to breakeven?",
+   "answer": 25.42,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 2 * (a - b)",
+     "a": 24.48,
+     "b": 24.01
+    },
+    "round": 2
+   },
+   "prefix": "$",
+   "why": "25.42. Breakeven starts at 2R: the fill plus two times the distance to the stop. The rule runs from 2R to 5R.",
+   "lesson_line": "Breakeven starts at 2R and runs to 5R.",
+   "facts": [
+    "h05",
+    "d06"
+   ],
+   "house": true
+  },
+  {
+   "key": "q73",
+   "skill": "setup.go_signal",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "go.breakeven",
+   "q": "Can the stop go to breakeven now?",
+   "story": "You bought a Go Signal at 26.43 with the stop at 25.66. It trades to 27.00 and holds, up less than 1R. You want the stop at your entry.",
+   "choices": [
+    "Not yet; breakeven starts at 2R",
+    "Yes; 1R is enough to move it up",
+    "Move it once the day closes green"
+   ],
+   "answer": "Not yet; breakeven starts at 2R",
+   "why": "Not yet. The stop moves to breakeven between 2R and 5R, and this trade is not at 2R yet.",
+   "lesson_line": "Breakeven is earned in R, not by a green day.",
+   "facts": [
+    "h05",
+    "d04"
+   ],
+   "wrong": {
+    "Yes; 1R is enough to move it up": "Too soon, and it is not even at 1R. The rule starts at 2R.",
+    "Move it once the day closes green": "A green day is not a measure of R. The move is set in R, from 2R."
+   },
+   "house": true
+  },
+  {
+   "key": "q74",
+   "skill": "setup.go_signal",
+   "rung": 6,
+   "format": "numeric",
+   "criterion": "go.trim_2",
+   "q": "Bought at 26.43, stop 25.66. At what price does the second third come off?",
+   "answer": 30.28,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 5 * (a - b)",
+     "a": 26.43,
+     "b": 25.66
+    },
+    "round": 2
+   },
+   "prefix": "$",
+   "why": "30.28. The second third comes off at 5R: the fill plus five times the distance to the stop.",
+   "lesson_line": "Know your 5R before the open. The second third comes off there.",
+   "facts": [
+    "h20",
+    "d04"
+   ],
+   "house": true
+  },
+  {
+   "key": "q75",
+   "skill": "setup.go_signal",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "go.trim_2",
+   "q": "What comes next?",
+   "story": "You sold the first third of a Go Signal at 3R. Now the stock trades through 5R.",
+   "choices": [
+    "Sell a third more; trail the rest",
+    "Sell everything that is left now",
+    "Add a third while it is working",
+    "Hold all of it until the stop hits"
+   ],
+   "answer": "Sell a third more; trail the rest",
+   "why": "Sell another third and trail the rest. After the first third at 3R, another third comes off at 5R.",
+   "lesson_line": "3R for the first third, 5R for the second, then trail.",
+   "facts": [
+    "h20",
+    "h05",
+    "g18"
+   ],
+   "wrong": {
+    "Sell everything that is left now": "The plan trails the last third. It does not sell everything at 5R.",
+    "Add a third while it is working": "We buy full size at one price with one stop, so there is nothing to add. The plan sells at 5R.",
+    "Hold all of it until the stop hits": "The second third comes off at 5R. Holding it all skips that trim."
+   },
+   "house": true
+  },
+  {
+   "key": "q76",
+   "skill": "setup.go_signal",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "go.inv_no_reclaim",
+   "q": "What is the plan now?",
+   "story": "You planned a Go Signal buy on a reclaim of the prior close. By the end of the second hourly candle, there is still no hourly close back over it.",
+   "choices": [
+    "Drop it; a later turn is a pivot",
+    "Keep waiting; any hour will still do",
+    "Buy now; the dip is deep enough"
+   ],
+   "answer": "Drop it; a later turn is a pivot",
+   "why": "Drop it. With no hourly close back over the prior close by candle two, there is no entry. A later turn is a pivot, not a Go Signal.",
+   "lesson_line": "Miss the first two hourly candles and the Go Signal is gone. Treat a later turn as a pivot.",
+   "facts": [
+    "g05",
+    "g04"
+   ],
+   "wrong": {
+    "Keep waiting; any hour will still do": "The reclaim has to come by the end of the second hourly candle. After that it is a pivot.",
+    "Buy now; the dip is deep enough": "Depth is not the test. The close back over the prior close is, and it has not come."
+   },
+   "house": true
   }
  ],
  "conflicts": [
@@ -2730,6 +2995,72 @@
   "q65": {
    "status": "pass",
    "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g18, A5. | variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Fixed: the lesson line stated the proposed go.reclaim_candle_green line flat; it now reads as the card's stance (\"Our card wants...\"). Key follows quote g20 (proposed, gate and grade cue).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Fixed: why and lesson line stated the proposed green-candle and volume lines as flat fact; now \"our card\". Key follows g20 and g21 (both proposed).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. B23 settled. 600,000 x 24 = 14,400,000 = 14.4 million, under 20 million.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. B23 settled; $9 fails the $10 floor.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. D41 settled; VIAV numbers match the dossier row d04.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. A4 settled, the gap rule (B20) is its one exception.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Fixed: it asked \"where is 2R\" (the price arithmetic, a neighbour); re-aimed at the breakeven price so it tests go.breakeven (B19). 24.48 + 2 x (24.48 - 24.01) = 25.42.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Fixed: the right choice was the odd one out in opening (\"Later\" against two \"Now\"); the choices now open \"Not yet\", \"Yes\", \"Move it\". Story: 27.00 is about 0.74R over a 0.77 risk, under 1R. B19 settled.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q74": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Fixed: it asked \"where is 5R\" (price arithmetic, a neighbour); re-aimed at the second-trim price so it tests go.trim_2 (E51). 26.43 + 5 x (26.43 - 25.66) = 30.28.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q75": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Fixed: the \"never add\" note had no cited fact; it now rests on card line g18 (full size at once, one price, one stop), added to facts; the \"gives the plan away\" note made plain. E51 settled.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q76": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Settled invalidation (D-145); the story uses the card's own \"hourly close back above\" wording, so D-129 (touch against close) is not asked. Not a repeat of q44 (classify a third-candle turn): this asks the plan when the window passes.",
    "fixed": false,
    "by": "checker"
   }

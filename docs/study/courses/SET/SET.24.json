@@ -648,6 +648,36 @@
    "source": "d2",
    "quote": "PLTR | 2025-03-10, 74.57 | 2025-04-04 | 66.12 (4/7) | 11.3% | 2025-04-07 (1 session)",
    "claim": "PLTR: prior swing low 74.57 (2025-03-10); first break 2025-04-04; lowest low 66.12, 11.3% under; first close back above 2025-04-07."
+  },
+  {
+   "id": "t_adv",
+   "source": "c1",
+   "quote": "The position is at most 1% of average daily volume.",
+   "claim": "The card: the position is at most 1% of average daily volume."
+  },
+  {
+   "id": "t_str",
+   "source": "c1",
+   "quote": "At entry, no more than 10% above the 10-day average.",
+   "claim": "The card: at entry, no more than 10% above the 10-day average."
+  },
+  {
+   "id": "t_be",
+   "source": "c1",
+   "quote": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "claim": "The card: the stop moves to breakeven between 2R and 5R, at the first trim by default."
+  },
+  {
+   "id": "t_res",
+   "source": "c1",
+   "quote": "The first resistance is often the rally high between the two lows",
+   "claim": "The card's lesson note: the first resistance is often the rally high between the two lows."
+  },
+  {
+   "id": "h13",
+   "source": "h1",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
+   "claim": "C29: skip a long more than 10% above its 10-day average."
   }
  ],
  "walkthroughs": [
@@ -2373,6 +2403,175 @@
     "Move the stop down to give room": "A stop never moves down or wider."
    },
    "house": true
+  },
+  {
+   "key": "q66",
+   "skill": "setup.two_b_reversal",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "tb.position_adv",
+   "q": "A stock averages 120,000 shares a day. Under our volume rule, what is the most shares we may own?",
+   "answer": 1200,
+   "why": "1,200 shares. We never own more than 1% of a stock's average daily volume. One percent of 120,000 is 1,200.",
+   "lesson_line": "Cap every position at 1% of average daily volume.",
+   "facts": [
+    "h19",
+    "t_adv"
+   ],
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a / 100",
+     "a": 120000
+    },
+    "round": 0
+   },
+   "house": true,
+   "suffix": " shares"
+  },
+  {
+   "key": "q67",
+   "skill": "setup.two_b_reversal",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "tb.position_adv",
+   "q": "A stock that clears the $20 million a day floor is exempt from the 1% of average daily volume limit.",
+   "answer": "False",
+   "why": "False. The 1% limit applies to every position, liquid or not. The $20 million floor is a separate test.",
+   "lesson_line": "Two tests apply: the $20 million floor and the 1% volume cap.",
+   "facts": [
+    "h19",
+    "h09",
+    "t_adv"
+   ],
+   "house": true
+  },
+  {
+   "key": "q68",
+   "skill": "setup.two_b_reversal",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "tb.not_stretched",
+   "q": "Entry 41.50, 10-day average 38.20. How far above the 10-day average is the entry, in percent?",
+   "answer": 8.6,
+   "why": "8.6%. That is under 10% above the 10-day average, so the stretch test passes.",
+   "lesson_line": "Check the stretch: no more than 10% over the 10-day.",
+   "facts": [
+    "h13",
+    "t_str"
+   ],
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a / b - 1) * 100",
+     "a": 41.5,
+     "b": 38.2
+    },
+    "round": 1
+   },
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q69",
+   "skill": "setup.two_b_reversal",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "tb.not_stretched",
+   "q": "Which of our rules stops this buy?",
+   "story": "A leader undercuts its 51.00 low by 2% and reclaims it the same day. The buy is 52.00. The 10-day average is 46.00.",
+   "choices": [
+    "No more than 10% over the 10-day",
+    "No more than 4% over the broken low",
+    "The undercut stays within 3%",
+    "Reclaim within 3 sessions"
+   ],
+   "wrong": {
+    "No more than 4% over the broken low": "52.00 is under 4% above the 51.00 low, so that test passes.",
+    "The undercut stays within 3%": "A 2% undercut is inside the 3% limit, so that test passes.",
+    "Reclaim within 3 sessions": "A same-day reclaim is inside 3 sessions, so that test passes."
+   },
+   "answer": "No more than 10% over the 10-day",
+   "why": "No more than 10% over the 10-day. At 52.00 the buy sits more than 10% above the 46.00 average. The other three tests pass.",
+   "lesson_line": "A 2B can still be stretched after a hard bounce. Check the 10-day.",
+   "facts": [
+    "h13",
+    "t_str",
+    "t_chase",
+    "t_depth",
+    "t_inv"
+   ],
+   "house": true
+  },
+  {
+   "key": "q70",
+   "skill": "setup.two_b_reversal",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "tb.breakeven",
+   "q": "Bought at 42.89 with the stop at 42.37. At what price is 2R, where the breakeven window opens?",
+   "answer": 43.93,
+   "why": "43.93, the fill plus two R. Our rule moves the stop to breakeven anywhere from 2R to 5R, ideally.",
+   "lesson_line": "Breakeven comes between 2R and 5R, by default at the first trim.",
+   "facts": [
+    "h05",
+    "t_be",
+    "dDINO"
+   ],
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 2 * (a - b)",
+     "a": 42.89,
+     "b": 42.37
+    },
+    "round": 2
+   },
+   "house": true,
+   "prefix": "$"
+  },
+  {
+   "key": "q71",
+   "skill": "setup.two_b_reversal",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "tb.breakeven",
+   "q": "Our rule lets the stop move to breakeven at 2R, before the first trim at 3R.",
+   "answer": "True",
+   "why": "True. Breakeven comes anywhere from 2R to 5R, ideally, and by default at the first trim. Moving at 2R is allowed.",
+   "lesson_line": "Breakeven is allowed from 2R. The default is the first trim.",
+   "facts": [
+    "h05",
+    "t_be",
+    "tp2"
+   ],
+   "house": true
+  },
+  {
+   "key": "q72",
+   "skill": "setup.two_b_reversal",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "tb.first_resistance",
+   "q": "What does our card's note name as the first resistance after a 2B reclaim?",
+   "choices": [
+    "At the rally high between the lows",
+    "At the bottom of the undercut low",
+    "At the 200-day moving average line",
+    "At the prior all-time high price"
+   ],
+   "wrong": {
+    "At the bottom of the undercut low": "That is where your stop sits, below you. Sellers wait overhead.",
+    "At the 200-day moving average line": "The card's note does not name the 200-day line. It names the rally high between the two lows.",
+    "At the prior all-time high price": "The card's note names the rally high between the two lows, not the all-time high."
+   },
+   "answer": "At the rally high between the lows",
+   "why": "At the rally high between the two lows. Our card's note: the first resistance is often that high. It is a lesson note, not a rule.",
+   "lesson_line": "Look for the first sellers at the rally high between the two lows.",
+   "facts": [
+    "t_res"
+   ],
+   "house": true
   }
  ],
  "conflicts": [
@@ -2798,6 +2997,48 @@
    "notes": "E51/E52 settled. Kept over q41.",
    "fixed": false,
    "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: why no longer calls the bare entry 'this reclaim' (a real 2B entry cannot sit 8.6% over its 10-day)",
+   "by": "checker",
+   "fixed": true
+  },
+  "q69": {
+   "status": "cut",
+   "notes": "cut: the story is impossible. A first-break 2B has had no session under its low, so the 10-day average cannot be 46.00 when the undercut low was 49.98; the lesson 'a 2B can be stretched after a hard bounce' does not hold. tb.not_stretched stays covered by q68",
+   "by": "checker",
+   "fixed": false
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: 'the earliest the stop moves' overstated B19 (2R to 5R, ideally); now 'where the breakeven window opens'",
+   "by": "checker",
+   "fixed": true
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: question now asks what the card's note names, so the 200-day and all-time-high choices are no longer arguably right",
+   "by": "checker",
+   "fixed": true
   }
  }
 }

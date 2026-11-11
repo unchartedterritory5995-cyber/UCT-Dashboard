@@ -921,6 +921,12 @@
    "source": "h1",
    "quote": "Max position 40% of the account",
    "claim": "A7: the maximum position is 40% of the account."
+  },
+  {
+   "id": "c50",
+   "source": "c1",
+   "quote": "If a session makes a lower low and does not trigger, the next trigger is that session's high, while the setup is still alive.",
+   "claim": "Card: after a lower low with no trigger, the next trigger is that session's high, while the setup is alive."
   }
  ],
  "walkthroughs": [
@@ -2586,6 +2592,49 @@
     "r31"
    ],
    "house": true
+  },
+  {
+   "key": "q66",
+   "skill": "setup.holy_grail",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "hg.trigger_rolls",
+   "q": "By our card, where does the buy stop sit for Wednesday?",
+   "choices": [
+    "Just over 52.00, Tuesday's high",
+    "Still over 52.40, Monday's high",
+    "Cancel it; a lower low ends the setup"
+   ],
+   "answer": "Just over 52.00, Tuesday's high",
+   "why": "Just over 52.00. Raschke puts the buy stop above the previous bar's high, and our card rolls it down while the setup is alive.",
+   "lesson_line": "The buy stop follows the latest high down.",
+   "facts": [
+    "c50",
+    "r03",
+    "c14"
+   ],
+   "wrong": {
+    "Still over 52.40, Monday's high": "Monday's level is stale. The buy stop follows the latest bar's high while the setup is alive.",
+    "Cancel it; a lower low ends the setup": "A lower low does not end it. A close under the 50-day does, or 5 sessions from the first touch with no trigger."
+   },
+   "house": true,
+   "story": "Monday touched the 20 EMA. Your buy stop for Tuesday sat over Monday's high of 52.40. Tuesday made a lower low and traded up to 52.00 without a trigger. The setup is still alive."
+  },
+  {
+   "key": "q67",
+   "skill": "setup.holy_grail",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "hg.trigger_rolls",
+   "q": "By our card, after a lower low with no trigger, the buy stop stays over the touch day's high until it fills.",
+   "answer": "False",
+   "why": "False. The next trigger is that session's high, while the setup is still alive. The setup voids after 5 sessions from the first touch with no trigger.",
+   "lesson_line": "The trigger rolls to the latest session's high.",
+   "facts": [
+    "c50",
+    "c14"
+   ],
+   "house": true
   }
  ],
  "conflicts": [
@@ -2606,7 +2655,8 @@
   "The criteria card (c1) is cited as a Tier 3 repo source for its proposed criteria (the 150-session ADX history, direction from price, the momentum-high test, the 2 to 10 session length, the 50-day floor under the touch, the setup-void rule, the failed-Grail re-arm, the 10-day trail, the lookalike tells). Those statements are the dossier's proposals built on the sources it names, not owner rulings; every question keyed on them carries house: true and the owner's review is the gate.",
   "Walk-through fills: the scan filled a market order 2 cents over the high of the most recent completed session (CI 36.72, EXPD 38.93, LITE 91.78) and stopped 5 cents under the lowest low from the touch through the trigger; a live market order fills a little differently.",
   "Scope: the short mirror (dossier 8.6) is not taught here (D-001). Raschke's 15 to 120-minute uses are not taught (C35, D-035).",
-  "Cold check 2026-11-10: 55 pass (24 fixed), 1 fix, 9 cut (3 walk-throughs pass). Cut as duplicates: q32 (q21 kept), q49 (q01), q50 (q02), q52 (q15), q54 (q05), q55 (q09), q57 (q08), q58 (q18/q51), q65 (q14). Held as fix: q62 (RIG buy-day chart, the touch sits only 2.6% under the 200-day). Numbers corrected: q36 (1% risk gave 632 shares = 49% of the account, over A7's 40% cap; now 0.5% risk, 316 shares, about 25%), q60 (prices removed, the story could not give them), q61 (stem no longer states the 200-day). q64 confirmed against the Oops card (oops.scanner_oops). Rungs moved q10, q16, q17, q21 to balance the spread (19 Learn, 22 Practise, 15 Prove among the passes). Look first at: (1) q21 and the 5-session void (hg.setup_void is the dossier's own proposal and COST reached 4.4R), (2) q61 and q62 on the real chart, (3) the unit's place (D-002) and the prior-day-high trigger (D-003) that the walk-throughs and q60 narrate."
+  "Cold check 2026-11-10: 55 pass (24 fixed), 1 fix, 9 cut (3 walk-throughs pass). Cut as duplicates: q32 (q21 kept), q49 (q01), q50 (q02), q52 (q15), q54 (q05), q55 (q09), q57 (q08), q58 (q18/q51), q65 (q14). Held as fix: q62 (RIG buy-day chart, the touch sits only 2.6% under the 200-day). Numbers corrected: q36 (1% risk gave 632 shares = 49% of the account, over A7's 40% cap; now 0.5% risk, 316 shares, about 25%), q60 (prices removed, the story could not give them), q61 (stem no longer states the 200-day). q64 confirmed against the Oops card (oops.scanner_oops). Rungs moved q10, q16, q17, q21 to balance the spread (19 Learn, 22 Practise, 15 Prove among the passes). Look first at: (1) q21 and the 5-session void (hg.setup_void is the dossier's own proposal and COST reached 4.4R), (2) q61 and q62 on the real chart, (3) the unit's place (D-002) and the prior-day-high trigger (D-003) that the walk-throughs and q60 narrate.",
+  "Coverage questions 2026-11-10 (hg.trigger_rolls, proposed): the two new questions follow the card's trigger, Raschke's buy stop over the previous bar's high (r03), as the walk-throughs do. They rest on the same default as hg.trigger (D-003) and are re-keyed or cut if the owner picks the intraday turn."
  ],
  "verify": {
   "w1": {
@@ -3015,6 +3065,18 @@
    "status": "cut",
    "notes": "Cut as a duplicate of q14: same fact (length 2 to 10 sessions; a one-session dip is too short). 'A wobble, not a rest' was unsourced.",
    "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: question now says 'by our card' so it reads as the card's trigger (D-003 held); story says the 52.40 stop was Tuesday's; why names the card; a wrong note gives the 5 sessions as 'from the first touch' as the card does",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: question now says 'by our card' (reads as the card's trigger, D-003 held); the 5-session void now reads 'from the first touch' as the card does",
+   "fixed": true,
    "by": "checker"
   }
  }

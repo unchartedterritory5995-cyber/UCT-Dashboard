@@ -23722,6 +23722,228 @@
  },
  {
   "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 1,
+  "id": "si_a23f5be30528",
+  "lesson_origin": "session",
+  "lesson_text": "True. The SEC says a trailing stop is set a defined percentage or dollar amount from the market price. A trailing stop sits a set percent or dollar amount from the price.",
+  "module": "V",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "A trailing stop can be set a fixed percent or a dollar amount away from the price.",
+   "subject": "Trailing stop"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "SEC, Investor.gov: Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin (July 13, 2017, updated August 18, 2026)",
+      "quote": "the stop price is either a defined percentage or dollar amount, above or below the current market price of the security",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "SEC, Investor.gov: Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin (July 13, 2017, updated August 18, 2026)",
+      "quote": "As the price of the security moves in a favorable direction the trailing stop price adjusts or “trails” the market price of the security by the specified amount.",
+      "tier": 1,
+      "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop"
+     }
+    ],
+    "summary": "A trailing stop is set a percent or dollar amount away from the market price. When price moves your way, a trailing stop follows it by the set amount."
+   },
+   "facts": {
+    "given": "A trailing stop can be set a fixed percent or a dollar amount away from the price."
+   },
+   "lesson_line": "A trailing stop sits a set percent or dollar amount from the price.",
+   "unit": "V.06",
+   "why": "True. The SEC says a trailing stop is set a defined percentage or dollar amount from the market price."
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.risk_terms",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/V/V.06.json#q67",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 2,
+  "id": "si_e1326e420def",
+  "lesson_origin": "session",
+  "lesson_text": "True. A high win rate still loses when the losers are much bigger than the winners. Occasional large losses can sink a system that wins often. Win rate alone proves nothing. The size of the losses matters too.",
+  "module": "V",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "A trader can win most of their trades and still lose money overall.",
+   "subject": "Win rate"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "Investopedia: Understanding Trading Win/Loss Ratio: Definition, Formula, and Examples (Will Kenton, updated February 25, 2026)",
+      "quote": "Sounds good, but if the losing trades have dollar losses three times as large as the dollar gains of the winning trades, the trader has a losing strategy.",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/w/win-loss-ratio.asp"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Van Tharp Institute: Glossary: Negative Expectancy System",
+      "quote": "Negative expectancy systems also include some highly reliable systems (that is, those with a high hit rate) that tend to have occasional large losses.",
+      "tier": 2,
+      "url": "https://vantharpinstitute.com/glossary/negative-expectancy-system"
+     }
+    ],
+    "summary": "More wins than losses can still lose money if the losses are much bigger. Some systems that win often still lose money because of occasional large losses."
+   },
+   "facts": {
+    "given": "A trader can win most of their trades and still lose money overall."
+   },
+   "lesson_line": "Win rate alone proves nothing. The size of the losses matters too.",
+   "unit": "V.06",
+   "why": "True. A high win rate still loses when the losers are much bigger than the winners. Occasional large losses can sink a system that wins often."
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.risk_terms",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/V/V.06.json#q69",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 2,
+  "id": "si_1a17b33ff954",
+  "lesson_origin": "session",
+  "lesson_text": "True. TradeStation's breakeven stop sits at your entry price, but only after the set profit is reached. It may never take effect. A breakeven stop waits for a set profit before it moves to entry.",
+  "module": "V",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "TradeStation's breakeven stop only takes effect once the trade reaches a set profit.",
+   "subject": "Breakeven stop"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "TradeStation: Breakeven Stop (Strategy), TradeStation 10 Help",
+      "quote": "The BreakEven Stop strategy only takes effect once a certain level of profit is reached, so it is possible that in a given position, it may never take effect.",
+      "tier": 2,
+      "url": "https://help.tradestation.com/10_00/eng/TradeStationHelp/elanalysis/signal/breakeven_stop_signal_.htm"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "TradeStation: Breakeven Stop (Strategy), TradeStation 10 Help",
+      "quote": "When the profit (for the position or per contract/share) exceeds the breakeven profit floor, a stop exit order is generated at the average entry price of the position.",
+      "tier": 2,
+      "url": "https://help.tradestation.com/10_00/eng/TradeStationHelp/elanalysis/signal/breakeven_stop_signal_.htm"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "AAII: Sell Rules to Build Your Stock Investing Performance (William J. O'Neil, AAII Journal, September 1999)",
+      "quote": "If you do not take a worthwhile profit when you have it, do not let a stock fall back below your purchase price. One should sell and avoid the loss.",
+      "tier": 2,
+      "url": "https://www.aaii.com/journal/article/sell-rules-to-build-your-stock-investing-performance"
+     }
+    ],
+    "summary": "A breakeven stop only goes in after a set profit. A breakeven stop is a stop at your entry price, placed once a set profit is reached. O'Neil: don't let a worthwhile profit turn into a loss."
+   },
+   "facts": {
+    "given": "TradeStation's breakeven stop only takes effect once the trade reaches a set profit."
+   },
+   "lesson_line": "A breakeven stop waits for a set profit before it moves to entry.",
+   "unit": "V.06",
+   "why": "True. TradeStation's breakeven stop sits at your entry price, but only after the set profit is reached. It may never take effect."
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.risk_terms",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/V/V.06.json#q70",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 2,
+  "id": "si_8b49410dff76",
+  "lesson_origin": "session",
+  "lesson_text": "True. A high-low range alone fails to capture gap moves. True range adds the distance from the prior close. True range includes the gap from the prior close, so gaps count.",
+  "module": "V",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "True range counts the gap from the prior close, which the day's high-to-low range misses.",
+   "subject": "True range"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "StockCharts.com: ChartSchool: Average True Range (ATR)",
+      "quote": "A volatility formula based only on the high-low range would fail to capture volatility from gap or limit moves. Wilder created the Average True Range to capture this “missing” volatility.",
+      "tier": 2,
+      "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/average-true-range-atr-and-average-true-range-percent-atrp"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "StockCharts.com: ChartSchool: Average True Range (ATR)",
+      "quote": "Method 1. Current High less the current Low Method 2. Current High less the previous Close (absolute value) Method 3. Current Low less the previous Close (absolute value)",
+      "tier": 2,
+      "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/average-true-range-atr-and-average-true-range-percent-atrp"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Investopedia: Average True Range (ATR) Formula, What It Means, and How to Use It (Adam Hayes, updated February 18, 2026)",
+      "quote": "the greatest of the following: The current high less the current low The absolute value of the current high less the previous close and The absolute value of the current low less the previous close",
+      "tier": 2,
+      "url": "https://www.investopedia.com/terms/a/atr.asp"
+     }
+    ],
+    "summary": "True range exists to capture the volatility of gaps that the high-low range misses. The three true range measures: high-low, high to prior close, low to prior close. True range is the largest of high minus low, high to prior close, and low to prior close."
+   },
+   "facts": {
+    "given": "True range counts the gap from the prior close, which the day's high-to-low range misses."
+   },
+   "lesson_line": "True range includes the gap from the prior close, so gaps count.",
+   "unit": "V.06",
+   "why": "True. A high-low range alone fails to capture gap moves. True range adds the distance from the prior close."
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.risk_terms",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/V/V.06.json#q71",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "unscored": true
   },
   "difficulty": 1,
@@ -56206,6 +56428,263 @@
   "source_kind": "course",
   "source_ref": "docs/study/courses/V/V.13.json#q62",
   "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 1,
+  "id": "si_7b360dce2ac4",
+  "lesson_origin": "session",
+  "lesson_text": "True. Schwab says a trade boils down to four decisions: what to trade, how much, when to enter and when to exit. A plan answers them before you trade. A plan decides what, how much, when in and when out, before you trade.",
+  "module": "V",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "A trading plan settles what to trade, how much, when to get in and when to get out.",
+   "subject": "Trading plan"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "Charles Schwab: 5 Elements of a Smart Trade Plan",
+      "quote": "A trade boils down to a series of decisions about what to trade, how much to trade, when to enter, and when to exit.",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Fidelity Investments: Trading plan (Fidelity Learning Center)",
+      "quote": "Once you've finalized what investments you want to buy, you have to decide when to buy and sell. In trading terms, these are known as your entry and exit strategies.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/smart-money/trading-plan"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Fidelity Investments: Trading plan (Fidelity Learning Center)",
+      "quote": "You'll also want to determine what percentage of your investable funds will be devoted to each asset type.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/smart-money/trading-plan"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Charles Schwab: Skills for successful retail traders",
+      "quote": "Working with a trading plan helps retail and professional traders consider every aspect of a trade before they place it.",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/3-smart-skills-informed-trading"
+     }
+    ],
+    "summary": "Every trade comes down to four decisions: what, how much, when to enter, when to exit. Deciding when to buy and sell is called your entry and exit strategy. A trading plan also settles how much of your money goes into each kind of asset. A trading plan makes you think through every part of a trade before you place it."
+   },
+   "facts": {
+    "given": "A trading plan settles what to trade, how much, when to get in and when to get out."
+   },
+   "lesson_line": "A plan decides what, how much, when in and when out, before you trade.",
+   "unit": "V.13",
+   "why": "True. Schwab says a trade boils down to four decisions: what to trade, how much, when to enter and when to exit. A plan answers them before you trade."
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.process_terms",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/V/V.13.json#q65",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 1,
+  "id": "si_478ee7b96609",
+  "lesson_origin": "session",
+  "lesson_text": "True. Interactive Brokers says paper trades won't actually execute on any exchange. Fills are simulated from the top of the book. Paper fills are simulated, so real fills can differ.",
+  "module": "V",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "A paper trade does not actually execute on any exchange.",
+   "subject": "Paper trading"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "Interactive Brokers (IBKR Campus): Paper Trading vs Live Trading: What's the Difference?",
+      "quote": "in a safe, simulated trading environment; this means trades won’t actually execute on any exchange or settle at a clearing house.",
+      "tier": 2,
+      "url": "https://www.interactivebrokers.com/campus/trading-lessons/paper-trading-vs-live-trading-whats-the-difference/"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Interactive Brokers (IBKR Campus): Paper Trading vs Live Trading: What's the Difference?",
+      "quote": "Fills are simulated from the top of the book; no deep book access.",
+      "tier": 2,
+      "url": "https://www.interactivebrokers.com/campus/trading-lessons/paper-trading-vs-live-trading-whats-the-difference/"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Interactive Brokers (IBKR Campus): Paper Trading vs Live Trading: What's the Difference?",
+      "quote": "Paper trading is realistic, flexible, and financially risk-free, but it’s not exactly the same as live trading.",
+      "tier": 2,
+      "url": "https://www.interactivebrokers.com/campus/trading-lessons/paper-trading-vs-live-trading-whats-the-difference/"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Charles Schwab: Skills for successful retail traders",
+      "quote": "allows users to engage in simulated trading with hypothetical funds using live market data.",
+      "tier": 2,
+      "url": "https://www.schwab.com/learn/story/3-smart-skills-informed-trading"
+     }
+    ],
+    "summary": "Paper trades don't execute on an exchange. Paper fills are simulated from the top of the book. Paper trading is risk-free but not the same as live trading. Schwab's paper trading tool is simulated trading with hypothetical money and live data."
+   },
+   "facts": {
+    "given": "A paper trade does not actually execute on any exchange."
+   },
+   "lesson_line": "Paper fills are simulated, so real fills can differ.",
+   "unit": "V.13",
+   "why": "True. Interactive Brokers says paper trades won't actually execute on any exchange. Fills are simulated from the top of the book."
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.process_terms",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/V/V.13.json#q66",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 2,
+  "id": "si_b3dd1d2bee1c",
+  "lesson_origin": "session",
+  "lesson_text": "True. Profit factor is total profit from winners divided by total loss from losers. StockCharts: 2.5 means $2.5 of profit for every $1 of loss. Profit factor compares money won to money lost. Over 1 means ahead.",
+  "module": "V",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "A profit factor of 2.5 means your winners added up to 2.5 times what your losers lost.",
+   "subject": "Profit factor"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "StockCharts.com: SystemTrader: Key Performance Metrics, Quantifying the Golden Cross for the S&P 500 (Arthur Hill, 2016)",
+      "quote": "Anything over 1 shows a profitable trading strategy. A Profit Factor of 2.5 means we made a $2.5 profit for every $1 of loss.",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/articles-arthurhill-2016-06-trading-strategy---crossing-to-the-dark-side---quantifying-the-golden-cross-for-the-sp-500/"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "StockCharts.com: SystemTrader: Key Performance Metrics, Quantifying the Golden Cross for the S&P 500 (Arthur Hill, 2016)",
+      "quote": "The total profit ($) from the winners divided by the total losses ($) from the losers.",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/articles-arthurhill-2016-06-trading-strategy---crossing-to-the-dark-side---quantifying-the-golden-cross-for-the-sp-500/"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "StockCharts.com: SystemTrader: Key Performance Metrics, Quantifying the Golden Cross for the S&P 500 (Arthur Hill, 2016)",
+      "quote": "This is like an after the fact reward-to-risk ratio. It tells us how much we made relative to each loss.",
+      "tier": 2,
+      "url": "https://articles.stockcharts.com/article/articles-arthurhill-2016-06-trading-strategy---crossing-to-the-dark-side---quantifying-the-golden-cross-for-the-sp-500/"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Fidelity Investments: About Strategy Testing (backtesting glossary)",
+      "quote": "Profit Factor is the system's Gross Profit divided by Gross Loss.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/research/backtesting/glossary.html"
+     }
+    ],
+    "summary": "A profit factor over 1 means the strategy made money overall. Profit factor is total profit from winners divided by total loss from losers. Profit factor works like an after-the-fact reward-to-risk ratio. Profit factor is gross profit divided by gross loss."
+   },
+   "facts": {
+    "given": "A profit factor of 2.5 means your winners added up to 2.5 times what your losers lost."
+   },
+   "lesson_line": "Profit factor compares money won to money lost. Over 1 means ahead.",
+   "unit": "V.13",
+   "why": "True. Profit factor is total profit from winners divided by total loss from losers. StockCharts: 2.5 means $2.5 of profit for every $1 of loss."
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.process_terms",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/V/V.13.json#q67",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 2,
+  "id": "si_fb40256c536e",
+  "lesson_origin": "session",
+  "lesson_text": "True. Outcome bias is judging a decision by its results instead of its process. Luck sits between a decision and its outcome. Judge the decision, not the result. Luck sits in between.",
+  "module": "V",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "Outcome bias means letting how a trade turned out sway how you judge the decision.",
+   "subject": "Outcome bias"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "Journal of Personality and Social Psychology (Jonathan Baron and John C. Hershey): Outcome Bias in Decision Evaluation (1988, Vol. 54, No. 4, 569-579)",
+      "quote": "At issue here is whether there is an outcome bias, in which people take outcomes into account in a way that is irrelevant to the true quality of the decision.",
+      "tier": 2,
+      "url": "https://www.sas.upenn.edu/~baron/papers/outcomebias.pdf"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Annie Duke (annieduke.com), reposting The Learner Lab: Overcoming Outcome Bias: How to Improve Learning & Decision Making (The Learner Lab episode page, host Trevor Ragan, 2023-06-06)",
+      "quote": "Outcome Bias is a common trap we all fall into, when we judge a decision based on the results, instead of looking at the process itself.",
+      "tier": 2,
+      "url": "https://www.annieduke.com/overcoming-outcome-bias-how-to-improve-learning-decision-making-ft-annie-duke-ovul-sezer/"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "The Philadelphia Inquirer: Annie Duke, former World Poker champ, says it's ok to say 'I don't know' (Erin Arvedlund, 2018-05-29; reprinted on annieduke.com)",
+      "quote": "judging the quality of a decision by relying on the quality of its outcome, despite the significant intervening element of luck in the way any decision turns out.",
+      "tier": 2,
+      "url": "https://www.annieduke.com/annie-duke-former-world-poker-champ-says-its-ok-to-say-i-dont-know/"
+     }
+    ],
+    "summary": "Outcome bias is letting an outcome sway how you judge a decision, beyond what it says about the decision's quality. The Learner Lab's show with Annie Duke: outcome bias is judging a decision by its results instead of its process. A common decision trap is judging a decision by its outcome, ignoring luck."
+   },
+   "facts": {
+    "given": "Outcome bias means letting how a trade turned out sway how you judge the decision."
+   },
+   "lesson_line": "Judge the decision, not the result. Luck sits in between.",
+   "unit": "V.13",
+   "why": "True. Outcome bias is judging a decision by its results instead of its process. Luck sits between a decision and its outcome."
+  },
+  "review_status": "draft",
+  "skill_id": "vocab.process_terms",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/V/V.13.json#q68",
+  "type": "recall",
   "version": 1
  },
  {

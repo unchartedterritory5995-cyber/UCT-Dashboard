@@ -3126,6 +3126,83 @@
     "Same share count on every trade": "That ignores both the stop and the swing.",
     "Size set by your win rate": "Win rate doesn't measure how much a stock moves."
    }
+  },
+  {
+   "key": "q67",
+   "skill": "vocab.risk_terms",
+   "rung": 2,
+   "format": "tf",
+   "term": "Trailing stop",
+   "q": "A trailing stop can be set a fixed percent or a dollar amount away from the price.",
+   "answer": "True",
+   "why": "True. The SEC says a trailing stop is set a defined percentage or dollar amount from the market price.",
+   "lesson_line": "A trailing stop sits a set percent or dollar amount from the price.",
+   "facts": [
+    "f06",
+    "f07"
+   ]
+  },
+  {
+   "key": "q68",
+   "skill": "vocab.risk_terms",
+   "rung": 3,
+   "format": "tf",
+   "term": "Drawdown",
+   "q": "After a 10% loss, you need an 11% gain to get back to even.",
+   "answer": "True",
+   "why": "True. Every loss needs a bigger gain to repair it. Down 10% needs 11%, and down 50% needs 100%.",
+   "lesson_line": "Losses are repaired by bigger gains. Down 10% needs 11%.",
+   "facts": [
+    "f144",
+    "f142"
+   ]
+  },
+  {
+   "key": "q69",
+   "skill": "vocab.risk_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "Win rate",
+   "q": "A trader can win most of their trades and still lose money overall.",
+   "answer": "True",
+   "why": "True. A high win rate still loses when the losers are much bigger than the winners. Occasional large losses can sink a system that wins often.",
+   "lesson_line": "Win rate alone proves nothing. The size of the losses matters too.",
+   "facts": [
+    "f96",
+    "f56"
+   ]
+  },
+  {
+   "key": "q70",
+   "skill": "vocab.risk_terms",
+   "rung": 5,
+   "format": "tf",
+   "term": "Breakeven stop",
+   "q": "TradeStation's breakeven stop only takes effect once the trade reaches a set profit.",
+   "answer": "True",
+   "why": "True. TradeStation's breakeven stop sits at your entry price, but only after the set profit is reached. It may never take effect.",
+   "lesson_line": "A breakeven stop waits for a set profit before it moves to entry.",
+   "facts": [
+    "f138",
+    "f135",
+    "f139"
+   ]
+  },
+  {
+   "key": "q71",
+   "skill": "vocab.risk_terms",
+   "rung": 6,
+   "format": "tf",
+   "term": "True range",
+   "q": "True range counts the gap from the prior close, which the day's high-to-low range misses.",
+   "answer": "True",
+   "why": "True. A high-low range alone fails to capture gap moves. True range adds the distance from the prior close.",
+   "lesson_line": "True range includes the gap from the prior close, so gaps count.",
+   "facts": [
+    "f104",
+    "f108",
+    "f82"
+   ]
   }
  ],
  "conflicts": [
@@ -3558,6 +3635,31 @@
    "status": "pass",
    "notes": "VTI percent volatility model f55 and Investopedia 2% rule page f101 (in context: volatility-based position sizing). Wrong choices really wrong.",
    "fixed": false,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10 (SEC (Tier 1) quote f06 verbatim; True)",
+   "by": "checker"
+  },
+  "q68": {
+   "status": "cut",
+   "notes": "coverage question checked 2026-11-10: CUT. Same fact in the same true/false form as q33 (and q34): a loss needs a bigger gain to repair it. Only the numbers differ (10% to 11% against 50% to 100%), and the single quote for 10% to 11% is one Tier 2 publisher.",
+   "by": "checker"
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10 (why dropped 'three times as big is a losing strategy': it holds only at some win rates, not at every high one; the fact is backed by f56 (Van Tharp) and f96 (Investopedia, unreachable to the quote checker, also cited by the passed q16))",
+   "by": "checker"
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10 (the claim rests on TradeStation alone, so the question now names TradeStation instead of stating it as every breakeven stop)",
+   "by": "checker"
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10 (f104 and f108 (StockCharts) found; f82 (Investopedia) unreachable to the checker but cited by the passed q62)",
    "by": "checker"
   }
  }

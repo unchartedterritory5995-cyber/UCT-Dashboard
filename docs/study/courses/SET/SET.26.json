@@ -688,6 +688,18 @@
    "source": "d1",
    "quote": "an undercut within 3% of L beat a deeper one (51.1% to 3R and 40.5% to 5R against 37.8% and 22.3%",
    "claim": "Scan: an undercut within 3% of the level reached 3R 51.1% and 5R 40.5% of the time, against 37.8% and 22.3% for a deeper one (to 6%)."
+  },
+  {
+   "id": "h18",
+   "source": "h1",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "D41: a real stop order with the broker, not a mental stop."
+  },
+  {
+   "id": "cB",
+   "source": "c1",
+   "quote": "A real stop order with the broker. It only moves up.",
+   "claim": "Our card: a real stop order with the broker; it only moves up."
   }
  ],
  "walkthroughs": [
@@ -2318,6 +2330,51 @@
     },
     "round": 0
    }
+  },
+  {
+   "key": "q63",
+   "skill": "setup.undercut_rally",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "ur.stop_broker",
+   "q": "A stop written in your trading journal counts as a real stop.",
+   "answer": "False",
+   "why": "False. Every position has a real stop order with the broker. A note in a journal is not an order.",
+   "lesson_line": "A stop is an order with the broker, not a line in a notebook.",
+   "facts": [
+    "h18",
+    "cB"
+   ],
+   "house": true
+  },
+  {
+   "key": "q64",
+   "skill": "setup.undercut_rally",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "ur.stop_broker",
+   "q": "When does the stop order go in?",
+   "story": "You buy the reclaim at 47.60. The undercut low is 46.90. You plan to place the stop order after lunch, once the market settles.",
+   "choices": [
+    "Now, with the broker, as you buy",
+    "After lunch, once the market settles",
+    "Only if the stock falls near 47.00",
+    "Never, the undercut low is the stop"
+   ],
+   "answer": "Now, with the broker, as you buy",
+   "why": "Now, with the broker. Every position has a real stop order, so it goes in when you buy, not after lunch.",
+   "lesson_line": "The stop goes in with the buy, not after lunch.",
+   "facts": [
+    "h18",
+    "cB",
+    "c06"
+   ],
+   "wrong": {
+    "After lunch, once the market settles": "A gap or a flush before lunch finds you with no stop. The order goes in with the buy.",
+    "Only if the stock falls near 47.00": "By then it may be too late. The stop order is in from the start.",
+    "Never, the undercut low is the stop": "The low is only the level. The stop is a real order with the broker."
+   },
+   "house": true
   }
  ],
  "conflicts": [
@@ -2727,6 +2784,18 @@
    "notes": "Rescan 2026-11-10: LULU now buys at L plus a cent, 242.18 (was 245.39, the open), stop 235.64 = 2.70% from the buy (d26 verbatim), no longer over the 3% line. Re-derived: risk 250 / (242.18-235.64) = 250/6.54 = 38.2 -> 38 shares. A7 check: 38 x 242.18 = $9,203, about 9% of the account, far under the 40% cap (h30), so the risk-based size is the smaller.",
    "fixed": true,
    "by": "refresher"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; why said a journal note 'is a stop kept in your head'; now says it is not an order",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; why claimed a stop is 'not placed later' as if quoted; reworded to follow from 'every position has a real stop order'",
+   "fixed": true,
+   "by": "checker"
   }
  }
 }

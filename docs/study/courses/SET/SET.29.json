@@ -1051,6 +1051,12 @@
    "source": "d1",
    "quote": "Long A: breakdown never came, close over the right shoulder | 32,514 | +0.04 (+0.02 to +0.07) | 29% | 26% | 1.9% | 74% | 75% above",
    "claim": "The run: version A averaged +0.04R, less than version B."
+  },
+  {
+   "id": "c58",
+   "source": "c1",
+   "quote": "Before the trigger: a close under the 200-day.",
+   "claim": "The card: a close under the 200-day before the trigger ends the setup."
   }
  ],
  "walkthroughs": [
@@ -2782,6 +2788,108 @@
     "The 200-day caught it": "The 200-day is the context test, not the reason the squeeze runs."
    },
    "house": true
+  },
+  {
+   "key": "q66",
+   "skill": "setup.failed_hs",
+   "rung": 3,
+   "format": "fill",
+   "criterion": "fh.inv_200",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "Before the trigger, a close under the ___-day line takes the failed top off the list.",
+   "bank": [
+    "200",
+    "50",
+    "21",
+    "10",
+    "100"
+   ],
+   "answer": "200",
+   "why": "200. Our card drops the failed top if the stock closes under its 200-day before the trigger. Our rulebook bars longs below the 200-day.",
+   "lesson_line": "Under the 200-day, no failed-top long.",
+   "facts": [
+    "c58",
+    "h10"
+   ],
+   "house": true
+  },
+  {
+   "key": "q67",
+   "skill": "setup.failed_hs",
+   "rung": 6,
+   "format": "mcq",
+   "criterion": "fh.inv_200",
+   "q": "Which of these ends a failed-top setup before the trigger?",
+   "choices": [
+    "A close under the 200-day",
+    "A close under the 50-day",
+    "A fall 6% under the neckline",
+    "A report 5 sessions away"
+   ],
+   "wrong": {
+    "A close under the 50-day": "Our card checks the 50-day on the trigger day. A close under it earlier does not end the setup.",
+    "A fall 6% under the neckline": "A 6% fall only grades lower. A fall of more than 10% under the neckline ends it.",
+    "A report 5 sessions away": "The wait applies within 3 sessions of a report. Five sessions out is clear."
+   },
+   "answer": "A close under the 200-day",
+   "why": "A close under the 200-day. Our card drops the setup if the stock closes under it before the trigger. The other three do not end it.",
+   "lesson_line": "Lose the 200-day and the failed top is off the list.",
+   "facts": [
+    "c58",
+    "h10",
+    "c05",
+    "c07",
+    "c39",
+    "c09"
+   ],
+   "house": true
+  },
+  {
+   "key": "q68",
+   "skill": "setup.failed_hs",
+   "rung": 5,
+   "format": "tf",
+   "criterion": "fh.inv_after_buy",
+   "q": "After you buy, a close back under the neckline means the failure itself has failed.",
+   "answer": "True",
+   "why": "True. A close back under the neckline is the failure of the failure. The top works after all, and your stop should already have fired.",
+   "lesson_line": "A close under the neckline after the buy means the failure failed.",
+   "facts": [
+    "c12",
+    "c36"
+   ],
+   "house": true
+  },
+  {
+   "key": "q69",
+   "skill": "setup.failed_hs",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "fh.inv_after_buy",
+   "q": "Where does that close leave you?",
+   "story": "You bought a failed top over the 120.00 right-shoulder high and filled at 120.02. The neckline is 112.00. The trigger day's low was 118.50, so your stop is 118.45. Weeks later the stock closes at 111.00.",
+   "choices": [
+    "Out; the stop sat above the neckline",
+    "Still in; the neckline is your stop",
+    "Still in; wait for a bounce back up",
+    "Out at 112.00, as price hit the neckline"
+   ],
+   "wrong": {
+    "Still in; the neckline is your stop": "The stop is a few cents under the trigger day's low, not the neckline.",
+    "Still in; wait for a bounce back up": "Holding past the stop breaks the rule. The stop is the exit.",
+    "Out at 112.00, as price hit the neckline": "The stop at 118.45 would have filled on the way down, well before 112.00."
+   },
+   "answer": "Out; the stop sat above the neckline",
+   "why": "Out already. Your stop sat a few cents under the trigger day's low, above the neckline. A close under the neckline is the failure of the failure.",
+   "lesson_line": "The stop under the trigger day's low sits above the neckline, so it exits first.",
+   "facts": [
+    "c12",
+    "c36",
+    "c03",
+    "h24",
+    "h02"
+   ],
+   "house": true
   }
  ],
  "conflicts": [
@@ -3212,6 +3320,30 @@
    "notes": "a leading question with a thin source: 'trapped sellers have to buy back' is a market mechanism no cited source states (c01 is the card's own wording, the squeeze claim is not measured), 'The 200-day caught it' is not a real misunderstanding, and the key rests on fh.direction (pending, D-001). Bracco's and Brandt's lines are used in q01 instead.",
    "fixed": false,
    "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: 50-day wrong note leaned on an unsourced 'failed tops often dip under the 50-day'; now the card's trigger-day test (c09 added)",
+   "by": "checker",
+   "fixed": true
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
   }
  }
 }

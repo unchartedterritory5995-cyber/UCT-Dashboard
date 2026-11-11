@@ -628,6 +628,48 @@
    "source": "h1",
    "quote": "Never raise risk past the rules after a run of winners.",
    "claim": "D45: never raise risk past the rules after a run of winners."
+  },
+  {
+   "id": "hE51",
+   "source": "h1",
+   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+   "claim": "E51: after the first third at 3R, another third at 5R, then trail the last third."
+  },
+  {
+   "id": "hF63",
+   "source": "h1",
+   "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+   "claim": "F63: a trim level the day opens past is taken at the open."
+  },
+  {
+   "id": "hD47",
+   "source": "h1",
+   "quote": "A parabolic short's stop sits above the day's high and its target is the 9-day average (Bracco's post).",
+   "claim": "D47: a parabolic short's target is the 9-day average."
+  },
+  {
+   "id": "n23",
+   "source": "c1",
+   "quote": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "claim": "Card: the stop goes to breakeven between 2R and 5R, at the first trim by default."
+  },
+  {
+   "id": "n24",
+   "source": "c1",
+   "quote": "Sell (or cover) a third at 5R.",
+   "claim": "Card: sell, or cover, a third at 5R."
+  },
+  {
+   "id": "n25",
+   "source": "c1",
+   "quote": "If it opens past a trim level, take that trim at the open.",
+   "claim": "Card: if it opens past a trim level, take that trim at the open."
+  },
+  {
+   "id": "n26",
+   "source": "c1",
+   "quote": "If the short qualifies as a parabolic short, use Bracco's 9 EMA target instead of the trims.",
+   "claim": "Card: a short that qualifies as a parabolic short uses Bracco's 9 EMA target instead of the trims."
   }
  ],
  "walkthroughs": [
@@ -2300,6 +2342,177 @@
    ],
    "house": true,
    "suffix": "%"
+  },
+  {
+   "key": "q65",
+   "skill": "setup.news_failure",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "nf.breakeven",
+   "q": "Between which two R levels does the stop move to breakeven?",
+   "choices": [
+    "Between 2R and 5R",
+    "Between 0.5R and 1R",
+    "Between 1R and 1.5R",
+    "Between 6R and 8R"
+   ],
+   "answer": "Between 2R and 5R",
+   "why": "Between 2R and 5R, at the first trim by default. Breakeven means the stop sits at your entry price.",
+   "lesson_line": "Breakeven comes between 2R and 5R, at the first trim.",
+   "facts": [
+    "hB19",
+    "n23"
+   ],
+   "wrong": {
+    "Between 0.5R and 1R": "That is far too early. The window is 2R to 5R.",
+    "Between 1R and 1.5R": "Still too early. Breakeven comes between 2R and 5R.",
+    "Between 6R and 8R": "That is past the window. Breakeven comes between 2R and 5R."
+   },
+   "house": true
+  },
+  {
+   "key": "q66",
+   "skill": "setup.news_failure",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "nf.breakeven",
+   "q": "Where does the stop go by default?",
+   "choices": [
+    "Up to breakeven, at 31.83",
+    "Stays at 30.23 until it hits 5R",
+    "Up under the 10-day average",
+    "Wider, so a pullback can breathe"
+   ],
+   "answer": "Up to breakeven, at 31.83",
+   "why": "Up to breakeven, 31.83. The stop moves to breakeven between 2R and 5R, at the first trim by default.",
+   "lesson_line": "First trim off, stop up to your entry.",
+   "facts": [
+    "hB19",
+    "n23",
+    "hA4"
+   ],
+   "wrong": {
+    "Stays at 30.23 until it hits 5R": "Breakeven comes between 2R and 5R, at the first trim by default. Do not wait for 5R.",
+    "Up under the 10-day average": "The 10-day is the trail for the last third. The stop moves to breakeven first.",
+    "Wider, so a pullback can breathe": "The stop only moves up, never wider."
+   },
+   "house": true,
+   "story": "You bought a News Failure long at 31.83 with the stop at 30.23. The stock reaches 3R at 36.63 and you sell the first third."
+  },
+  {
+   "key": "q67",
+   "skill": "setup.news_failure",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "nf.trim_2",
+   "q": "Bought at 86.36 with the stop at 81.48. Where is 5R?",
+   "answer": 110.76,
+   "why": "110.76. One R is the fill minus the stop. Add five of those to the fill. A third comes off there.",
+   "lesson_line": "Know your 5R before the open. The second third comes off there.",
+   "facts": [
+    "hE51",
+    "n24",
+    "dAAOIb"
+   ],
+   "house": true,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 5 * (a - b)",
+     "a": 86.36,
+     "b": 81.48
+    },
+    "round": 2
+   },
+   "prefix": "$"
+  },
+  {
+   "key": "q68",
+   "skill": "setup.news_failure",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "nf.trim_2",
+   "q": "A News Failure sells half the position at 5R.",
+   "answer": "False",
+   "why": "False. We sell, or cover, a third at 5R. The last third trails.",
+   "lesson_line": "A third at 3R, a third at 5R, the rest on the trail.",
+   "facts": [
+    "hE51",
+    "n24"
+   ],
+   "house": true
+  },
+  {
+   "key": "q69",
+   "skill": "setup.news_failure",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "nf.trim_gap_open",
+   "q": "What do you do at the open?",
+   "choices": [
+    "Sell the first third at the open",
+    "Wait for a dip back to 36.63",
+    "Sell half now and half at 5R",
+    "Hold it all and move the stop up"
+   ],
+   "answer": "Sell the first third at the open",
+   "why": "Sell the first third at the open. If a stock opens past a trim level, take that trim at the open.",
+   "lesson_line": "Gap past a trim level: take it at the open.",
+   "facts": [
+    "hF63",
+    "n25",
+    "hB19"
+   ],
+   "wrong": {
+    "Wait for a dip back to 36.63": "A dip may never come. A trim level the day opens past is taken at the open.",
+    "Sell half now and half at 5R": "The plan is a third at 3R and another third at 5R, not halves.",
+    "Hold it all and move the stop up": "The stop can follow after the trim. The trim itself comes off at the open."
+   },
+   "house": true,
+   "story": "You bought a News Failure long at 31.83 with the stop at 30.23. Your 3R level is 36.63. Next morning it opens at 38.10, and you have sold nothing."
+  },
+  {
+   "key": "q70",
+   "skill": "setup.news_failure",
+   "rung": 6,
+   "format": "tf",
+   "criterion": "nf.trim_gap_open",
+   "q": "A News Failure short that gaps down past a trim level covers that trim at the open.",
+   "answer": "True",
+   "why": "True. If it opens past a trim level, take that trim at the open. For a short, past means lower.",
+   "lesson_line": "Gap past a trim level: take the trim at the open, long or short.",
+   "facts": [
+    "n25",
+    "hF63"
+   ],
+   "house": true
+  },
+  {
+   "key": "q71",
+   "skill": "setup.news_failure",
+   "rung": 7,
+   "format": "mcq",
+   "criterion": "nf.parabolic_target",
+   "q": "Your News Failure short also qualifies as a parabolic short. Where is the cover target?",
+   "choices": [
+    "At the daily 9 EMA",
+    "At the daily 21 EMA",
+    "At the 50-day SMA",
+    "At the 200-day SMA"
+   ],
+   "answer": "At the daily 9 EMA",
+   "why": "At the daily 9 EMA. A parabolic short uses Bracco's 9 EMA target instead of the trims.",
+   "lesson_line": "A parabolic short covers at the 9 EMA, not on the trims.",
+   "facts": [
+    "n26",
+    "hD47"
+   ],
+   "wrong": {
+    "At the daily 21 EMA": "The 21-day is a trail for a steadier mover. Bracco's parabolic target is the 9 EMA.",
+    "At the 50-day SMA": "The 50-day is not the target. Bracco's target for a parabolic short is the 9 EMA.",
+    "At the 200-day SMA": "The 200-day is the line for the side rule, not the cover target."
+   },
+   "house": true
   }
  ],
  "conflicts": [
@@ -2312,14 +2525,20 @@
   "'3R in N days' in the walk-throughs reads the examples table's last column, headed 'Best R (days to 3R)' (dHead). The fills are the research scan's: a market order one cent through the prior close and the stop three cents beyond the news day's extreme; a live order fills a little differently. The three walk-through stops (5.7%, 5.0%, 5.2%) are all wider than the usual 3%, which is the card's own warning (the median is 7%); the unit shows that with the A3 and A13 lines rather than a tighter example, because none of the dossier's 3,456 events had a stop within 3%.",
   "The chart questions (q57 AAOI asof 2026-04-02, q58 TSLA asof 2025-04-02) show the member's own chart with their averages; the asof is the news day itself, because the failure is only visible at that close; at that close the price is far past the trigger, so q57 asks only whether the day held a valid red-to-green long (not whether to buy then) and q58 whether the close is above the 200-day. The keys rest on the dossier's reads (dAAOI, dAAOIw, dTSLAn, dTSLAw). The importer resolves the bars from our own history. The q58 gap between the close and the 200-day is 5.3 points, so the 200-day line must be drawn on the member's chart for the question to read.",
   "Near-misses q32 to q34 rest on the dossier's statement that each fails exactly one gate (dNear). q34 (STX) keys the proposed 4% gap stand-in; q32 (TSLA) the settled long rule; q33 (UNH) the settled B26 for shorts. The criterion field names the card's gate each item tests; q56 (the base rate) is filed under nf.trim_1 and q60 (the mistake of treating one failure as proof) under nf.inv_no_crowding.",
-  "Trims and trail: with stops near 10%, 3R is a 30% move (the card says so), so the unit's trim and trail items (q17, q20, q42) teach the rules and q42 shows how far 3R sits for a wide stop. The parabolic-short 9 EMA target (nf.parabolic_target, settled) is not taught; no item is a parabolic short.",
+  "Trims and trail: with stops near 10%, 3R is a 30% move (the card says so), so the unit's trim and trail items (q17, q20, q42) teach the rules and q42 shows how far 3R sits for a wide stop. The parabolic-short 9 EMA target (nf.parabolic_target, settled) is taught as recognition only by q71 (the target is the 9 EMA, instead of the trims); no item gives a parabolic short's stop, entry or size.",
   "Cold check, read vs setup: the dossier's finding is 'no stand-alone edge' (section 8.0, 4.4) and its recommendation (nf.read_not_setup, D-002, pending) is to teach the News Failure as a read that confirms another setup. The unit still teaches the stand-alone trade the card describes; q56 now states the finding plainly, and nothing in the unit says the trade has an edge. The owner should rule D-002 before this unit goes live.",
   "Traded shorts (q09, q38, q50, q52, q54, w3) rest on the card's proposed short entry and the settled F65 and B26; D-001's default is to show most short mirrors as recognition only. The keys are right either way, but the owner may want fewer of them.",
   "Cold check 2026-11-10: 53 pass (11 fixed), 1 fix, 13 cut. Look first at: (1) D-002, whether the News Failure is a setup at all: the dossier found no stand-alone edge, q56 now says so and the three walk-throughs are hand-picked winners; (2) q45 held, the card's B- cue 'closing on the news side' contradicts its own failure test (D-087); (3) q27 and q38/q50/q52/q54 and w3 lean on D-032 (what counts as news) and D-001 (traded shorts). 13 items cut as duplicates (q25, q26, q28, q29, q32, q36, q37, q43, q46, q48, q53, q62, q64).",
-  "q45 cut 2026-11-10: the card's B- cue g3 ('a partial fade ... still closing on the news side') contradicts its own failure test (the close is on the failure side of the prior close, D-087), so the cue is left out of the unit; the card needs the cue reworded or removed."
+  "q45 cut 2026-11-10: the card's B- cue g3 ('a partial fade ... still closing on the news side') contradicts its own failure test (the close is on the failure side of the prior close, D-087), so the cue is left out of the unit; the card needs the cue reworded or removed.",
+  "Coverage job 2026-11-10: no question for nf.inv_takeover (single outside source (Bulkowski), whose pages carry a no-AI-training notice; the unit's conflicts say no item uses it; the card marks it 'one outside source, not a consensus')."
  ],
  "verify": {
-  "q01": {"status": "pass", "notes": "l2b/n6/n1 verbatim. Key is bad-news gap down, then back over the prior close. Wrong notes true. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q01": {
+   "status": "pass",
+   "notes": "l2b/n6/n1 verbatim. Key is bad-news gap down, then back over the prior close. Wrong notes true. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
   "q02": {
    "status": "pass",
    "notes": "S1 (found by the quote checker) and S4 verbatim. Shapiro's test: the move fails and closes the other way by the end of the day. Cited as his words, not our rule.",
@@ -2350,9 +2569,24 @@
    "fixed": true,
    "by": "checker"
   },
-  "q07": {"status": "pass", "notes": "l1 verbatim: good news gaps up and closes red under the prior close. Holds whether D-087 is the same-day close or up to 3 sessions, since this one closes under on the day. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
-  "q08": {"status": "pass", "notes": "l2/m2 verbatim: bad news that gaps down and stays down is the earnings breakdown or the bear gap. Wrong notes true. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
-  "q09": {"status": "pass", "notes": "n7 (nf.entry_short, proposed) and E57 verbatim. One wrong note called the prior high 'a long's trigger'; the trigger is the prior close, so it is rewritten. variety rewrite checked 2026-11-10: shortened both wrong choices (the right choice was the shortest, 34 against 40 and 37).", "fixed": true, "by": "checker"},
+  "q07": {
+   "status": "pass",
+   "notes": "l1 verbatim: good news gaps up and closes red under the prior close. Holds whether D-087 is the same-day close or up to 3 sessions, since this one closes under on the day. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "l2/m2 verbatim: bad news that gaps down and stays down is the earnings breakdown or the bear gap. Wrong notes true. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "n7 (nf.entry_short, proposed) and E57 verbatim. One wrong note called the prior high 'a long's trigger'; the trigger is the prior close, so it is rewritten. variety rewrite checked 2026-11-10: shortened both wrong choices (the right choice was the shortest, 34 against 40 and 37).",
+   "fixed": true,
+   "by": "checker"
+  },
   "q10": {
    "status": "pass",
    "notes": "n5 (nf.not_market_wide, proposed) and the dossier's cluster line verbatim. True.",
@@ -2371,14 +2605,24 @@
    "fixed": false,
    "by": "checker"
   },
-  "q13": {"status": "pass", "notes": "n2/g1 (nf.grade_shape, proposed grade cue) verbatim: top 25% of the range after undercutting the prior low. Wrong notes true. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q13": {
+   "status": "pass",
+   "notes": "n2/g1 (nf.grade_shape, proposed grade cue) verbatim: top 25% of the range after undercutting the prior low. Wrong notes true. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
   "q14": {
    "status": "pass",
    "notes": "S3 (found) and S2 verbatim: positioning alone is not enough, you also need market confirmation. False.",
    "fixed": false,
    "by": "checker"
   },
-  "q15": {"status": "pass", "notes": "n8/C28 (nf.no_chase, settled) verbatim: skip past 4% beyond the trigger. S5 verbatim ('I miss a trade, I miss it'). variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q15": {
+   "status": "pass",
+   "notes": "n8/C28 (nf.no_chase, settled) verbatim: skip past 4% beyond the trigger. S5 verbatim ('I miss a trade, I miss it'). variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
   "q16": {
    "status": "pass",
    "notes": "calc re-derived: (86.36 - 81.48) / 86.36 = 4.88 / 86.36 = 5.65%, rounds to 5.7 (the dossier's 5.7%). A13/A3 verbatim.",
@@ -2403,11 +2647,36 @@
    "fixed": false,
    "by": "checker"
   },
-  "q20": {"status": "pass", "notes": "n16/E52 (nf.trail, settled) verbatim. variety rewrite checked 2026-11-10: shortened a wrong choice (the wrong choice was the unique longest on nearly every edited question of the unit).", "fixed": false, "by": "checker"},
-  "q21": {"status": "pass", "notes": "n13/B20 (nf.stop_gap, settled) verbatim: first 30-minute extreme, out past 2R. variety rewrite checked 2026-11-10: lengthened the right choice (it was the shortest, 27 against 33 and 30).", "fixed": false, "by": "checker"},
-  "q22": {"status": "pass", "notes": "n17/C33 (nf.time_stop, settled) verbatim. True. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
-  "q23": {"status": "pass", "notes": "calc re-derived: 47.80 / 50.00 = 0.956, a 4.4% gap down (over 4%); 2.4 / 1.0 = 2.4x (over 2x). The question said 'the scanner stand-in'; now 'the gap-and-volume test'. variety rewrite checked 2026-11-10: shortened a wrong choice (the wrong choice was the unique longest on nearly every edited question of the unit).", "fixed": true, "by": "checker"},
-  "q24": {"status": "pass", "notes": "l4 verbatim: the News Failure is the Red to Green trigger on a 4% news gap with a named catalyst and twice the volume; a 1% gap on normal volume is a plain Red to Green. One wrong note said 'the house' trigger; now 'our'. variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
+  "q20": {
+   "status": "pass",
+   "notes": "n16/E52 (nf.trail, settled) verbatim. variety rewrite checked 2026-11-10: shortened a wrong choice (the wrong choice was the unique longest on nearly every edited question of the unit).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "n13/B20 (nf.stop_gap, settled) verbatim: first 30-minute extreme, out past 2R. variety rewrite checked 2026-11-10: lengthened the right choice (it was the shortest, 27 against 33 and 30).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "n17/C33 (nf.time_stop, settled) verbatim. True. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "calc re-derived: 47.80 / 50.00 = 0.956, a 4.4% gap down (over 4%); 2.4 / 1.0 = 2.4x (over 2x). The question said 'the scanner stand-in'; now 'the gap-and-volume test'. variety rewrite checked 2026-11-10: shortened a wrong choice (the wrong choice was the unique longest on nearly every edited question of the unit).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "l4 verbatim: the News Failure is the Red to Green trigger on a 4% news gap with a named catalyst and twice the volume; a 1% gap on normal volume is a plain Red to Green. One wrong note said 'the house' trigger; now 'our'. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
   "q25": {
    "status": "cut",
    "notes": "cut: the same fact the same way as q07 (good news gaps up and closes under the prior close is the News Failure mirror, l1). q07 kept.",
@@ -2438,7 +2707,12 @@
    "fixed": false,
    "by": "checker"
   },
-  "q30": {"status": "pass", "notes": "calc re-derived: 90.50 / 86.35 = 1.0481, 4.8% past the prior close, over C28's 4%. n8 verbatim. The 86.35 prior close is consistent with AAOI's 86.36 trigger. variety rewrite checked 2026-11-10: shortened a wrong choice (the wrong choice was the unique longest on nearly every edited question of the unit).", "fixed": false, "by": "checker"},
+  "q30": {
+   "status": "pass",
+   "notes": "calc re-derived: 90.50 / 86.35 = 1.0481, 4.8% past the prior close, over C28's 4%. n8 verbatim. The 86.35 prior close is consistent with AAOI's 86.36 trigger. variety rewrite checked 2026-11-10: shortened a wrong choice (the wrong choice was the unique longest on nearly every edited question of the unit).",
+   "fixed": false,
+   "by": "checker"
+  },
   "q31": {
    "status": "pass",
    "notes": "n9/B22 verbatim: a report 2 sessions away is inside the 3-session window. Wrong notes true.",
@@ -2451,8 +2725,18 @@
    "fixed": false,
    "by": "checker"
   },
-  "q33": {"status": "pass", "notes": "UNH 2026-10-13 near-miss: gap +5.0% on 2.7x, closed -0.2% in the bottom 18% of the range at 377.76, above the 200-day at 358.04. Key rests on B26 (settled: no shorts above the 200-day unless parabolic); D-009 only asks about a mean-reversion exception. The first choice read 'shorts need the 200-day above', unclear; now 'shorts must be under the 200-day'. variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
-  "q34": {"status": "pass", "notes": "STX 2026-10-28 near-miss: open 3.1% under the prior close, 2.5x volume, closed +4.5% in the top 1% after a 34% fall; one gate fails (the 4% gap, nf.scan_standin, proposed). 'The stand-in' in a wrong note is now 'the test'. variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
+  "q33": {
+   "status": "pass",
+   "notes": "UNH 2026-10-13 near-miss: gap +5.0% on 2.7x, closed -0.2% in the bottom 18% of the range at 377.76, above the 200-day at 358.04. Key rests on B26 (settled: no shorts above the 200-day unless parabolic); D-009 only asks about a mean-reversion exception. The first choice read 'shorts need the 200-day above', unclear; now 'shorts must be under the 200-day'. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "STX 2026-10-28 near-miss: open 3.1% under the prior close, 2.5x volume, closed +4.5% in the top 1% after a 34% fall; one gate fails (the 4% gap, nf.scan_standin, proposed). 'The stand-in' in a wrong note is now 'the test'. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
   "q35": {
    "status": "pass",
    "notes": "The old story called a close 3.9% up 'off its high' a partial fade 'still closing on the news side'. That is MSFT's good-news gap that still closed up (a short-side note), not a bad-news gap that closed green, so the B- wrong note was false for the story. Now it compares the SEDG top-5% close with a mid-range close; g1/n2 verbatim.",
@@ -2489,7 +2773,12 @@
    "fixed": false,
    "by": "checker"
   },
-  "q41": {"status": "pass", "notes": "HIMS 2025-05-06 row: gap -8.5%, 5.2x, +18.1%, buy 41.89, stop 38.18 (8.9%). g4, A13 verbatim: past about 3% the size comes down, or skip (A3, settled). nf.stop_width (D-005) is pending but the key is A3. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q41": {
+   "status": "pass",
+   "notes": "HIMS 2025-05-06 row: gap -8.5%, 5.2x, +18.1%, buy 41.89, stop 38.18 (8.9%). g4, A13 verbatim: past about 3% the size comes down, or skip (A3, settled). nf.stop_width (D-005) is pending but the key is A3. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
   "q42": {
    "status": "pass",
    "notes": "calc re-derived: 3 x (41.89 - 38.18) / 41.89 = 11.13 / 41.89 = 26.57%, rounds to 26.6. B19/n15 verbatim.",
@@ -2502,7 +2791,12 @@
    "fixed": false,
    "by": "checker"
   },
-  "q44": {"status": "pass", "notes": "n18/A4 (nf.inv_extreme, settled) verbatim: price taking out the news day's extreme is the stop. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q44": {
+   "status": "pass",
+   "notes": "n18/A4 (nf.inv_extreme, settled) verbatim: price taking out the news day's extreme is the stop. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
   "q45": {
    "status": "cut",
    "notes": "The failure test holds and the B- cue does not: the card and the passing items q02 and q07 define a News Failure as closing on the failure side of the prior close, and MSFT 2025-07-31 (gap up, faded, still closed up 3.9%) is therefore not a News Failure at all, so 'grades B- or lower' has no coherent key under either D-087 option. A rewrite onto the failure test would duplicate q02 and q07. The card's g3 B- cue needs a fix on the owner's side.",
@@ -2515,7 +2809,12 @@
    "fixed": false,
    "by": "checker"
   },
-  "q47": {"status": "pass", "notes": "SEDG 2025-11-05 row: gap -4.1%, 3.8x, 0.95 of range, +28.9%, buy 31.83, 3R the next day. n6/E57 verbatim. Wrong notes true. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q47": {
+   "status": "pass",
+   "notes": "SEDG 2025-11-05 row: gap -4.1%, 3.8x, 0.95 of range, +28.9%, buy 31.83, 3R the next day. n6/E57 verbatim. Wrong notes true. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
   "q48": {
    "status": "cut",
    "notes": "cut: the same story, numbers and key as q41 (HIMS, 8.9% stop, size down or skip). q41 kept.",
@@ -2528,8 +2827,18 @@
    "fixed": false,
    "by": "checker"
   },
-  "q50": {"status": "pass", "notes": "SKIN 2022-08-09 row: gap +4.8%, 3.7x, closed at 0.01 of range, -16.2%, run 54%, under the 200-day. n2b verbatim: bottom 25%. Short side, see conflicts (D-001). variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
-  "q51": {"status": "pass", "notes": "MRVL 2026-06-04 row: gap -6.2%, 2.7x, +4.9%, top 12%, fall 7%, stop 8.0% hit next session at 0.0R. A4, n20 verbatim. Loss framed as the plan working; the thin idea is the dossier's reading. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q50": {
+   "status": "pass",
+   "notes": "SKIN 2022-08-09 row: gap +4.8%, 3.7x, closed at 0.01 of range, -16.2%, run 54%, under the 200-day. n2b verbatim: bottom 25%. Short side, see conflicts (D-001). variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "MRVL 2026-06-04 row: gap -6.2%, 2.7x, +4.9%, top 12%, fall 7%, stop 8.0% hit next session at 0.0R. A4, n20 verbatim. Loss framed as the plan working; the thin idea is the dossier's reading. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
   "q52": {
    "status": "pass",
    "notes": "ZTS 2025-08-05 row: short, gap +5.4%, 2.3x, -3.7%, bottom 10%, run 5%, best 0.91R, then reversed through the news day's high. n18/n19 verbatim.",
@@ -2542,7 +2851,12 @@
    "fixed": false,
    "by": "checker"
   },
-  "q54": {"status": "pass", "notes": "UAL 2020-05-19 row: short, gap +6.2%, 2.2x, -1.9%, bottom 15%, stopped day 2 at 0.0R in a Green market. n21/F65 verbatim. Same example as q38 from the outcome side (kept: one reads the setup, one reviews the loss). variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q54": {
+   "status": "pass",
+   "notes": "UAL 2020-05-19 row: short, gap +6.2%, 2.2x, -1.9%, bottom 15%, stopped day 2 at 0.0R in a Green market. n21/F65 verbatim. Same example as q38 from the outcome side (kept: one reads the setup, one reviews the loss). variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
   "q55": {
    "status": "pass",
    "notes": "AMAT and DAL 2025-04-08 row: both gapped up 4.2% on 2.2x, closed in the bottom 11% under the 200-day, stopped the next day (the 2025-04-09 rally). The story said only two names, which is not a cluster (n5 needs five or more); it now says 56 stocks showed the shape that day (dApr8, verbatim from the dossier). The why had the rally the wrong way round ('the day before'); fixed.",
@@ -2561,7 +2875,12 @@
    "fixed": false,
    "by": "checker"
   },
-  "q58": {"status": "pass", "notes": "Chart TSLA asof 2025-04-02 (the news day), ticker not in the question. TSLA near-miss: -5.2% gap on 2.1x, closed 282.76 under the 200-day at 288.05. The question asked 'Is the close above the 200-day?', naming the test; now 'Take the long or pass?'. The 200-day must be on the member's chart (5.3 points gap). variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
+  "q58": {
+   "status": "pass",
+   "notes": "Chart TSLA asof 2025-04-02 (the news day), ticker not in the question. TSLA near-miss: -5.2% gap on 2.1x, closed 282.76 under the 200-day at 288.05. The question asked 'Is the close above the 200-day?', naming the test; now 'Take the long or pass?'. The 200-day must be on the member's chart (5.3 points gap). variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
   "q59": {
    "status": "pass",
    "notes": "n22 (nf.market_long, proposed grade cue) verbatim: the long comes after a correction, near washed-out breadth. The dossier notes the bearish read in a washed-out market was a poor sell signal; this item is the long side only.",
@@ -2574,7 +2893,12 @@
    "fixed": false,
    "by": "checker"
   },
-  "q61": {"status": "pass", "notes": "n10/F62 verbatim: over the news day's high for a short. True. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q61": {
+   "status": "pass",
+   "notes": "n10/F62 verbatim: over the news day's high for a short. True. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
   "q62": {
    "status": "cut",
    "notes": "cut: the same fact the same way as q03 and q47 (the long is bought as price trades back over the prior close on the news day, not at the open, n6). q03 and q47 kept.",
@@ -2610,6 +2934,48 @@
    "notes": "dSKIN/dSKINb/dSKINw verbatim (SKIN 2022-08-09 short: gap +4.8%, 3.7x, closed at the low, -16.2%, run 54%, under the 200-day, short 15.26, stop 16.05 = 5.2%, 3R in 6 days). A traded short, see conflicts (D-001).",
    "fixed": false,
    "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10 (conflicts note updated: q71 teaches the 9 EMA target as recognition only)",
+   "by": "checker",
+   "fixed": false
   }
  }
 }

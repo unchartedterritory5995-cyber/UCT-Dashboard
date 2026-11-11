@@ -740,6 +740,12 @@
    "source": "d1",
    "quote": "a below-200 flush that is not a parabolic long (no burst, no 40% fall), so B26 says watch only. Stopped on day 2.",
    "claim": "LLY: a below-200 flush that is not a parabolic long; B26 says watch only."
+  },
+  {
+   "id": "h33",
+   "source": "h1",
+   "quote": "Leveraged ETFs are preferred; no extra rules.",
+   "claim": "E54: leveraged ETFs are preferred, with no extra rules."
   }
  ],
  "walkthroughs": [
@@ -2337,6 +2343,96 @@
     "window": 120,
     "forward": 20
    }
+  },
+  {
+   "key": "q64",
+   "skill": "setup.mean_reversion",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "mr.trim_2",
+   "q": "Bought at 109.13 with the stop at 106.88. Where is 5R, where the second third comes off?",
+   "answer": 120.38,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 5 * (a - b)",
+     "a": 109.13,
+     "b": 106.88
+    },
+    "round": 2
+   },
+   "why": "120.38. One R is the fill minus the stop. Add five of them to the fill. In our plan a third comes off there.",
+   "lesson_line": "Know your 5R price before the fill. The second third comes off there.",
+   "facts": [
+    "h20",
+    "dKR"
+   ],
+   "prefix": "$",
+   "house": true
+  },
+  {
+   "key": "q65",
+   "skill": "setup.mean_reversion",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "mr.trim_2",
+   "q": "Our plan sells the last third at 5R.",
+   "answer": "False",
+   "why": "False. After the first third at 3R, we sell another third at 5R, then trail the last third.",
+   "lesson_line": "Two thirds come off by 5R. The last third trails.",
+   "facts": [
+    "h20"
+   ],
+   "house": true
+  },
+  {
+   "key": "q66",
+   "skill": "setup.mean_reversion",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "mr.leveraged_etf",
+   "q": "What do our rules say about 3x ETFs?",
+   "choices": [
+    "Preferred, with no extra rules",
+    "Not allowed for swing trades",
+    "Allowed at half the usual size"
+   ],
+   "answer": "Preferred, with no extra rules",
+   "why": "Preferred, with no extra rules. Our rulebook prefers ETFs that multiply the market, 3x ETFs among them.",
+   "lesson_line": "3x ETFs are preferred, and they carry no extra rules.",
+   "facts": [
+    "h33"
+   ],
+   "wrong": {
+    "Not allowed for swing trades": "Our rulebook prefers them. There is no ban.",
+    "Allowed at half the usual size": "The rulebook adds no extra rules for them, so there is no special size cut."
+   },
+   "house": true
+  },
+  {
+   "key": "q67",
+   "skill": "setup.mean_reversion",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "mr.leveraged_etf",
+   "q": "Which vehicle do our rules prefer for it?",
+   "story": "A fast market-wide flush has the Nasdaq stretched far under its averages. You decide to trade the bounce with one position.",
+   "choices": [
+    "A 3x ETF that tracks the index",
+    "The index's biggest single stock",
+    "Index options held to expiry"
+   ],
+   "answer": "A 3x ETF that tracks the index",
+   "why": "A 3x ETF that tracks the index. Our rulebook prefers ETFs that multiply the market and adds no extra rules for them.",
+   "lesson_line": "For an index bounce, the preferred vehicle is a 3x ETF.",
+   "facts": [
+    "h33"
+   ],
+   "wrong": {
+    "The index's biggest single stock": "Nothing in our rules points there. ETFs that multiply the market are the preferred vehicles.",
+    "Index options held to expiry": "The rulebook prefers ETFs that multiply the market, not options held to expiry."
+   },
+   "house": true
   }
  ],
  "conflicts": [
@@ -2752,6 +2848,30 @@
    "notes": "dAC/dAC1/dAC2 verbatim; bars: buy 20.00 = the 09-09 open, stop 19.29 = 5 cents under the 09-09 low 19.34. The stop is 3.55%, a bit past A13's about 3%, and the step gave it with no comment; it now says the size shrinks (A5). The best 8.1R is the dossier's.",
    "fixed": true,
    "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: why wording (matches q25); 109.13 - 106.88 = 2.25 R, 109.13 + 5 x 2.25 = 120.38 recomputed; KRYS numbers from dKR",
+   "by": "checker",
+   "fixed": true
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: 'everything' was an absolute word marking the false statement; now 'the last third at 5R' (False, the last third trails)",
+   "by": "checker",
+   "fixed": true
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; no 'leverage' in any member-facing text; E54 is settled; the quote may carry the word",
+   "by": "checker",
+   "fixed": false
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: the right choice was the single longest and 'chosen by feel' was an obviously silly wrong choice; the story names no form (D-002 held)",
+   "by": "checker",
+   "fixed": true
   }
  }
 }

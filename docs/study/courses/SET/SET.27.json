@@ -2561,6 +2561,61 @@
    },
    "house": true,
    "story": "Earnings season, and the reading is Green. Your list shows no Slingshot that passes every gate. One is close, but its trigger closed mid-range."
+  },
+  {
+   "key": "q68",
+   "skill": "setup.slingshot",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "ss.trim_2",
+   "q": "You bought the trigger close at 66.08 with the stop at 64.04. Where is 5R?",
+   "answer": 76.28,
+   "why": "76.28. One R is the fill minus the stop; add five of those to the fill. The second third comes off there.",
+   "lesson_line": "Know your 5R before the open. The second third comes off there.",
+   "facts": [
+    "c34",
+    "h20",
+    "d07"
+   ],
+   "house": true,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 5 * (a - b)",
+     "a": 66.08,
+     "b": 64.04
+    },
+    "round": 2
+   },
+   "prefix": "$"
+  },
+  {
+   "key": "q69",
+   "skill": "setup.slingshot",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "ss.trim_2",
+   "q": "What comes off now?",
+   "choices": [
+    "Another 30; trail the last 30",
+    "Another 45; trail the last 15",
+    "The last 60 shares, all of it",
+    "Nothing; wait for the 21-day"
+   ],
+   "answer": "Another 30; trail the last 30",
+   "why": "Another 30, a third of the position. The first third came off at 3R, the second comes off at 5R, and you trail the last third.",
+   "lesson_line": "A third at 3R, a third at 5R, then trail the rest.",
+   "facts": [
+    "c34",
+    "h20"
+   ],
+   "wrong": {
+    "Another 45; trail the last 15": "A third of 90 is 30, not 45. The last third, 30 shares, trails.",
+    "The last 60 shares, all of it": "The plan keeps the last third on the trail, not out at 5R.",
+    "Nothing; wait for the 21-day": "The trail starts after both trims. At 5R the second third comes off."
+   },
+   "house": true,
+   "story": "You bought 90 shares of a Slingshot at the trigger close. You sold 30 at 3R. Today the stock reaches 5R."
   }
  ],
  "conflicts": [
@@ -2601,7 +2656,12 @@
    "fixed": false,
    "by": "checker"
   },
-  "q01": {"status": "pass", "notes": "c01 (ss.line, settled), o04, a03, v01 found. Three Tier 2 publishers agree on the idea; wrong notes true (Oops and gap tells are the card lookalikes). variety rewrite checked 2026-11-10: shortened a wrong choice (the wrong choice was the unique longest on every edited choice question).", "fixed": false, "by": "checker"},
+  "q01": {
+   "status": "pass",
+   "notes": "c01 (ss.line, settled), o04, a03, v01 found. Three Tier 2 publishers agree on the idea; wrong notes true (Oops and gap tells are the card lookalikes). variety rewrite checked 2026-11-10: shortened a wrong choice (the wrong choice was the unique longest on every edited choice question).",
+   "fixed": false,
+   "by": "checker"
+  },
   "q02": {
    "status": "pass",
    "notes": "c01, o02, t01 found. Fill bank fine.",
@@ -2614,9 +2674,24 @@
    "fixed": false,
    "by": "checker"
   },
-  "q04": {"status": "pass", "notes": "c02 (ss.drive_not_trigger, settled), c18. Kept over q18, which asks the same fact as a story. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
-  "q05": {"status": "pass", "notes": "c07 (settled), h24 (F62), t04, a01 found. Kept; q11 asks where the stop lives (D41), a different fact. variety rewrite checked 2026-11-10: the old statement (pullback's low) was not plainly false: Scot1and (t04) allows 'at most, the bottom of the consolidation period'. The drive day's low is plainly not the stop (trigger day's low, c07).", "fixed": false, "by": "checker"},
-  "q06": {"status": "pass", "notes": "c44, o04, t05, t02 found. Keys only that a strong move comes first, which Scot1and's own words (t05) and every D-106 option keep. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q04": {
+   "status": "pass",
+   "notes": "c02 (ss.drive_not_trigger, settled), c18. Kept over q18, which asks the same fact as a story. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "c07 (settled), h24 (F62), t04, a01 found. Kept; q11 asks where the stop lives (D41), a different fact. variety rewrite checked 2026-11-10: the old statement (pullback's low) was not plainly false: Scot1and (t04) allows 'at most, the bottom of the consolidation period'. The drive day's low is plainly not the stop (trigger day's low, c07).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "c44, o04, t05, t02 found. Keys only that a strong move comes first, which Scot1and's own words (t05) and every D-106 option keep. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
   "q07": {
    "status": "pass",
    "notes": "h14 (C31), c28 (settled), o06 found.",
@@ -2629,14 +2704,24 @@
    "fixed": false,
    "by": "checker"
   },
-  "q09": {"status": "pass", "notes": "h26 (F65), c43 verbatim. Wrong notes true. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q09": {
+   "status": "pass",
+   "notes": "h26 (F65), c43 verbatim. Wrong notes true. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
   "q10": {
    "status": "pass",
    "notes": "h11, h12 (C28), c35 verbatim.",
    "fixed": false,
    "by": "checker"
   },
-  "q11": {"status": "pass", "notes": "h18 (D41), c07 verbatim. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q11": {
+   "status": "pass",
+   "notes": "h18 (D41), c07 verbatim. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
   "q12": {
    "status": "pass",
    "notes": "c09 (ss.inv_both_falling, proposed), t02 found.",
@@ -2667,7 +2752,12 @@
    "fixed": false,
    "by": "checker"
   },
-  "q17": {"status": "pass", "notes": "c06 (proposed numbers), c25 verbatim; t03 found. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q17": {
+   "status": "pass",
+   "notes": "c06 (proposed numbers), c25 verbatim; t03 found. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
   "q18": {
    "status": "cut",
    "notes": "Duplicate of q04: the same fact (the gap day is the drive, never the trigger) on the same kind of case. q04 kept.",
@@ -2680,7 +2770,12 @@
    "fixed": false,
    "by": "checker"
   },
-  "q20": {"status": "pass", "notes": "h05 (B19), h20 (E51), c33, c34 verbatim. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q20": {
+   "status": "pass",
+   "notes": "h05 (B19), h20 (E51), c33, c34 verbatim. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
   "q21": {
    "status": "pass",
    "notes": "c13, c14, c01, c16 verbatim (lookalike tells).",
@@ -2735,7 +2830,12 @@
    "fixed": false,
    "by": "checker"
   },
-  "q30": {"status": "pass", "notes": "c11 (ss.reentry, settled), h28 (B21), c22 verbatim. 'At least 3 closes' rests on the settled re-entry statement. variety rewrite checked 2026-11-10: shortened a wrong choice (inverted-tell fix).", "fixed": false, "by": "checker"},
+  "q30": {
+   "status": "pass",
+   "notes": "c11 (ss.reentry, settled), h28 (B21), c22 verbatim. 'At least 3 closes' rests on the settled re-entry statement. variety rewrite checked 2026-11-10: shortened a wrong choice (inverted-tell fix).",
+   "fixed": false,
+   "by": "checker"
+  },
   "q31": {
    "status": "pass",
    "notes": "h13 (C29), c36 verbatim.",
@@ -2754,14 +2854,24 @@
    "fixed": false,
    "by": "checker"
   },
-  "q34": {"status": "pass", "notes": "h05 (B19), c32 verbatim. Lesson said 'later is giving it back', against B19's allowed 2R to 5R; reworded. variety rewrite checked 2026-11-10", "fixed": true, "by": "checker"},
+  "q34": {
+   "status": "pass",
+   "notes": "h05 (B19), c32 verbatim. Lesson said 'later is giving it back', against B19's allowed 2R to 5R; reworded. variety rewrite checked 2026-11-10",
+   "fixed": true,
+   "by": "checker"
+  },
   "q35": {
    "status": "pass",
    "notes": "d12, d13, d21 verbatim (SRPT: buy 122.76, stop 119.10 = 3.0%, open 121.51, low 115.90, 3R level 4 sessions later); c11. Loss framed as planned.",
    "fixed": false,
    "by": "checker"
   },
-  "q36": {"status": "pass", "notes": "h26 (F65), c43 verbatim. The wrong note said 'The rule is no new longs'; F65 is 'mostly cash and shorts', a guide (A10); reworded. variety rewrite checked 2026-11-10: shortened a wrong choice (inverted-tell fix).", "fixed": true, "by": "checker"},
+  "q36": {
+   "status": "pass",
+   "notes": "h26 (F65), c43 verbatim. The wrong note said 'The rule is no new longs'; F65 is 'mostly cash and shorts', a guide (A10); reworded. variety rewrite checked 2026-11-10: shortened a wrong choice (inverted-tell fix).",
+   "fixed": true,
+   "by": "checker"
+  },
   "q37": {
    "status": "pass",
    "notes": "h21 (E52), c40 verbatim; o07 found (Scot1and's own trail, named as his).",
@@ -2798,7 +2908,12 @@
    "fixed": false,
    "by": "checker"
   },
-  "q43": {"status": "pass", "notes": "h25 (F63), c31 verbatim. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q43": {
+   "status": "pass",
+   "notes": "h25 (F63), c31 verbatim. variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
   "q44": {
    "status": "cut",
    "notes": "The story gives nothing about the stock's RS or group, and the dossier says the bars cannot tell whether PSX was a leader that day (d17). Adding leader facts to a real loss would invent them. The leadership rule is already keyed on a story that states the facts in q07.",
@@ -2829,7 +2944,12 @@
    "fixed": false,
    "by": "checker"
   },
-  "q49": {"status": "pass", "notes": "c17 verbatim (the Oops tell: at least three closes, every D-107 option starts at 3). variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q49": {
+   "status": "pass",
+   "notes": "c17 verbatim (the Oops tell: at least three closes, every D-107 option starts at 3). variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
   "q50": {
    "status": "cut",
    "notes": "Duplicate of q08: the same fact (no volume surge needed on the trigger day). q08 kept.",
@@ -2842,7 +2962,12 @@
    "fixed": false,
    "by": "checker"
   },
-  "q52": {"status": "pass", "notes": "h21 (E52), h17 (C35), c40, d07, d08 verbatim (GRMN 50% higher in two months). variety rewrite checked 2026-11-10: shortened a wrong choice (inverted-tell fix).", "fixed": false, "by": "checker"},
+  "q52": {
+   "status": "pass",
+   "notes": "h21 (E52), h17 (C35), c40, d07, d08 verbatim (GRMN 50% higher in two months). variety rewrite checked 2026-11-10: shortened a wrong choice (inverted-tell fix).",
+   "fixed": false,
+   "by": "checker"
+  },
   "q53": {
    "status": "pass",
    "notes": "c21, c01 verbatim; v02 found (the Deepvue dissent, not keyed).",
@@ -2867,7 +2992,12 @@
    "fixed": false,
    "by": "checker"
   },
-  "q57": {"status": "pass", "notes": "h08 (B22), c37 verbatim. Different fact from q32 (holding through, not buying into). variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
+  "q57": {
+   "status": "pass",
+   "notes": "h08 (B22), c37 verbatim. Different fact from q32 (holding through, not buying into). variety rewrite checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
   "q59": {
    "status": "pass",
    "notes": "calc r_multiple (15.50 - 13.94) / 0.52 = 3.0 recomputed; d10, d11 verbatim (FRO 3R in 7 sessions).",
@@ -2927,6 +3057,18 @@
    "notes": "h32 (D44), c04 verbatim. The choice 'Buy the close one' read as 'buy at the close'; now 'the near one'.",
    "fixed": true,
    "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
   }
  }
 }

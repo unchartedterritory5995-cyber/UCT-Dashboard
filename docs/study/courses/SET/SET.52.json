@@ -571,6 +571,12 @@
    "source": "d1",
    "quote": "a stop is a stop",
    "claim": "ANET: a stop is a stop."
+  },
+  {
+   "id": "cNoTrig",
+   "source": "c1",
+   "quote": "Strict form: the trigger does not come on day 3. The setup is over unless day 3 is itself an inside day in the same wick, in which case it rolls forward one day.",
+   "claim": "Card: in the strict form the setup is over if the trigger misses day 3, unless day 3 is an inside day in the same wick, which rolls it forward one day."
   }
  ],
  "walkthroughs": [
@@ -2177,6 +2183,49 @@
     "cTrig"
    ],
    "house": true
+  },
+  {
+   "key": "q64",
+   "skill": "setup.wick_play",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "wk.inv_no_trigger",
+   "q": "On our card, what happens to the setup?",
+   "choices": [
+    "It rolls forward by one day",
+    "It is over; day 3 had no trigger",
+    "Buy the close to catch the move"
+   ],
+   "answer": "It rolls forward by one day",
+   "why": "It rolls forward one day. Our card's strict form buys on day 3. An inside day 3 in the same wick rolls it forward, as the card proposes.",
+   "lesson_line": "On our card, a strict-form day 3 that stays in the wick rolls the setup forward one day.",
+   "facts": [
+    "cNoTrig",
+    "tp4",
+    "cOrder"
+   ],
+   "wrong": {
+    "It is over; day 3 had no trigger": "Day 3 is itself an inside day in the same wick, so our card rolls the setup forward instead of ending it.",
+    "Buy the close to catch the move": "The buy is a market order as price trades over the high. A close is not the trigger."
+   },
+   "house": true,
+   "story": "Strict form. Day 2 sat inside day 1's wick. Day 3 stays inside day 2's range and the same wick, and never trades over day 2's high."
+  },
+  {
+   "key": "q65",
+   "skill": "setup.wick_play",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "wk.inv_no_trigger",
+   "q": "Strict form, our card: day 3 misses the trigger and is not an inside day in the wick. The setup is over.",
+   "answer": "True",
+   "why": "True. Our card's strict form puts the trigger on day 3. Without it, and without an inside day 3 in the wick, the setup is over.",
+   "lesson_line": "Our card, strict form: trigger on day 3, or an inside day 3 that rolls it. Otherwise it is over.",
+   "facts": [
+    "cNoTrig",
+    "tp4"
+   ],
+   "house": true
   }
  ],
  "conflicts": [
@@ -2589,6 +2638,18 @@
    "status": "pass",
    "notes": "new 2026-11-10 variety question, awaiting second reader Overlaps q06 (fill: market order) on the same fact in another format; kept because the unit needs True statements. variety rewrite checked 2026-11-10.",
    "by": "writer"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: reads as the card's proposal (stem, why, lesson, wrong note say 'our card'); added cOrder for the market-order wrong note",
+   "by": "checker",
+   "fixed": true
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: reads as the card's stance, not a ruling",
+   "by": "checker",
+   "fixed": true
   }
  }
 }

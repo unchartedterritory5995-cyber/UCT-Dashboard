@@ -779,6 +779,30 @@
    "source": "d1",
    "quote": "Three of the four reclaims came on day 4, the earliest the rule allows after a two-session pullback",
    "claim": "Three of the four losing reclaims came on day 4, the earliest after a two-session pullback."
+  },
+  {
+   "id": "h32",
+   "source": "h1",
+   "quote": "A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop.",
+   "claim": "B20: after a gap against the stop, the low of the first 30-minute bar is the new stop."
+  },
+  {
+   "id": "h33",
+   "source": "h1",
+   "quote": "With a ceiling: if the first 30 minutes take the loss past 2R, get out.",
+   "claim": "B20: if the first 30 minutes take the loss past 2R, get out."
+  },
+  {
+   "id": "c53",
+   "source": "c1",
+   "quote": "A gap through the stop: the first 30-minute low is the new stop; out if that is past 2R. News stocks gap again on follow-up news.",
+   "claim": "Card: after a gap through the stop, the first 30-minute low is the new stop; out if past 2R; news stocks gap again."
+  },
+  {
+   "id": "c54",
+   "source": "c1",
+   "quote": "Prefer a gap out of a base: an open above the top of a base of 4 weeks or more, or out of a quiet range where the prior 60 sessions' high is no more than 35% above their low.",
+   "claim": "Card: prefer a gap out of a base or a quiet range, the prior 60 sessions' high no more than 35% above their low."
   }
  ],
  "walkthroughs": [
@@ -2594,6 +2618,153 @@
     "Skipping every pullback buy": "The pullback buy is part of the plan, not the problem."
    },
    "house": true
+  },
+  {
+   "key": "q68",
+   "skill": "setup.news_gapper",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "ng.base_before",
+   "q": "In the 60 sessions before a gap, the high was 58.00 and the low was 46.00. How far is the high above the low, in percent?",
+   "answer": 26.1,
+   "calc": {
+    "fn": "pct_change",
+    "args": {
+     "start": 46.0,
+     "end": 58.0
+    },
+    "round": 1
+   },
+   "why": "26.1%. That is under the 35% line, so the 60 sessions were a quiet range, the setting our card prefers.",
+   "lesson_line": "Quiet means the 60-session high is within 35% of the low.",
+   "facts": [
+    "c54",
+    "c45"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q69",
+   "skill": "setup.news_gapper",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "ng.base_before",
+   "q": "Which gap has the better setting?",
+   "choices": [
+    "The flat base; it was quiet first",
+    "The swinger; it already has momentum",
+    "Equal; only the catalyst matters here"
+   ],
+   "answer": "The flat base; it was quiet first",
+   "why": "The flat base. On our card a gap out of a base or a quiet range is preferred. The 20.00 to 31.00 swing is wider than the 35% line.",
+   "lesson_line": "Prefer a gap out of a base or a quiet range.",
+   "facts": [
+    "c54",
+    "c45"
+   ],
+   "wrong": {
+    "The swinger; it already has momentum": "Our card prefers a quiet range first. A wide swing is not quiet.",
+    "Equal; only the catalyst matters here": "The catalyst comes first, but the setting still moves the grade."
+   },
+   "house": true,
+   "story": "Two stocks gap 12% on the same kind of news. One opens above a flat 5-month base. The other has swung between 20.00 and 31.00 over the last 60 sessions."
+  },
+  {
+   "key": "q70",
+   "skill": "setup.news_gapper",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "ng.position_adv",
+   "q": "How many shares may you own?",
+   "choices": [
+    "3,000; 1% of the average volume",
+    "20,000, since today is heavy volume",
+    "60,000, 1% of today's volume"
+   ],
+   "answer": "3,000; 1% of the average volume",
+   "why": "3,000. The cap is 1% of average daily volume, not of today's surge. That is under the 20,000 from the stop math.",
+   "lesson_line": "Cap the size at 1% of average daily volume.",
+   "facts": [
+    "h19",
+    "h03"
+   ],
+   "wrong": {
+    "20,000, since today is heavy volume": "A one-day surge does not lift the cap. It uses the average.",
+    "60,000, 1% of today's volume": "The cap is 1% of the average daily volume, not of today's."
+   },
+   "house": true,
+   "story": "A news gapper averages 300,000 shares a day but trades 6 million today. Your stop math says 20,000 shares."
+  },
+  {
+   "key": "q71",
+   "skill": "setup.news_gapper",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "ng.position_adv",
+   "q": "We never own more than 1% of a stock's average daily volume.",
+   "answer": "True",
+   "why": "True. Our size cap is 1% of average daily volume, and illiquid stocks are not even watched.",
+   "lesson_line": "One percent of average volume is the most we own.",
+   "facts": [
+    "h19"
+   ],
+   "house": true
+  },
+  {
+   "key": "q72",
+   "skill": "setup.news_gapper",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "ng.stop_gap",
+   "q": "You bought at 80.00 with the stop at 77.00. A gap-down day's first 30-minute low is 71.00. What is the loss, in R?",
+   "answer": 3,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - c) / (a - b)",
+     "a": 80.0,
+     "b": 77.0,
+     "c": 71.0
+    },
+    "round": 1
+   },
+   "why": "3R. That is past the 2R ceiling, so you get out.",
+   "lesson_line": "First 30 minutes past 2R: get out.",
+   "facts": [
+    "h33",
+    "c53"
+   ],
+   "house": true,
+   "suffix": "R"
+  },
+  {
+   "key": "q73",
+   "skill": "setup.news_gapper",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "ng.stop_gap",
+   "q": "What do you do?",
+   "choices": [
+    "Make 75.50 the stop and stay in",
+    "Sell at once; news gappers gap again",
+    "Drop the stop to 74.00 to give it room"
+   ],
+   "answer": "Make 75.50 the stop and stay in",
+   "why": "Make 75.50 the stop and stay in. The first 30 minutes decide, and the loss at that low is under the 2R ceiling.",
+   "lesson_line": "News stocks gap again. The first 30 minutes decide.",
+   "facts": [
+    "h32",
+    "h33",
+    "c53",
+    "h02"
+   ],
+   "wrong": {
+    "Sell at once; news gappers gap again": "You get out only if the first 30 minutes take the loss past 2R. Here they do not.",
+    "Drop the stop to 74.00 to give it room": "The stop moves only by the gap rule: the first 30-minute low, 75.50, not a level picked for room."
+   },
+   "house": true,
+   "story": "You bought at 80.00 with the stop at 77.00. Follow-up news gaps the stock open at 75.80. The first 30-minute low is 75.50, a loss of 1.5R."
   }
  ],
  "conflicts": [
@@ -3030,6 +3201,42 @@
   "q67": {
    "status": "pass",
    "notes": "d29 verbatim (29.5% to 3R, 19.5% to 5R, fixed stop, 60 sessions, 1,491 hits). The story said 'most buys end at the stop', a figure the news-gapper dossier does not give (the 80.7% stopped is the PEG's); now 'the rest do not' reach 3R, and the lesson line follows. variety rewrite checked 2026-11-10.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: why said the gap 'came out of a base'; a quiet range is the card's other option, so it now says quiet range",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: the old statement ('too illiquid to trade are not watched') was close to circular; now states the 1% of average daily volume cap, with the not-watched half in the why",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: 'Widen the stop' was close to what the right answer does (75.50 is below 77.00); now a stop picked for room (74.00)",
    "fixed": true,
    "by": "checker"
   }

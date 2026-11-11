@@ -1316,7 +1316,7 @@
                 "V"
               ],
               "supply": "authored",
-              "est_questions": 66,
+              "est_questions": 70,
               "course_file": "docs/study/courses/V/V.06.json"
             },
             {
@@ -1414,7 +1414,7 @@
                 "V"
               ],
               "supply": "authored",
-              "est_questions": 58,
+              "est_questions": 62,
               "course_file": "docs/study/courses/V/V.13.json"
             }
           ]
@@ -1886,7 +1886,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 65,
+              "est_questions": 74,
               "course_file": "docs/study/courses/SET/SET.07.json"
             },
             {
@@ -1902,7 +1902,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 65,
+              "est_questions": 76,
               "course_file": "docs/study/courses/SET/SET.08.json"
             },
             {
@@ -1918,7 +1918,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 67,
+              "est_questions": 90,
               "course_file": "docs/study/courses/SET/SET.09.json"
             },
             {
@@ -1934,7 +1934,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 58,
+              "est_questions": 70,
               "course_file": "docs/study/courses/SET/SET.10.json"
             },
             {
@@ -1964,7 +1964,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 59,
+              "est_questions": 72,
               "course_file": "docs/study/courses/SET/SET.12.json"
             },
             {
@@ -1978,7 +1978,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 67,
+              "est_questions": 76,
               "course_file": "docs/study/courses/SET/SET.13.json"
             },
             {
@@ -1994,7 +1994,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 67,
+              "est_questions": 70,
               "course_file": "docs/study/courses/SET/SET.14.json"
             },
             {
@@ -2010,7 +2010,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 60,
+              "est_questions": 74,
               "course_file": "docs/study/courses/SET/SET.15.json"
             },
             {
@@ -2026,7 +2026,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 66,
+              "est_questions": 68,
               "course_file": "docs/study/courses/SET/SET.16.json"
             },
             {
@@ -2058,7 +2058,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 65,
+              "est_questions": 67,
               "course_file": "docs/study/courses/SET/SET.18.json"
             },
             {
@@ -2074,7 +2074,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 56,
+              "est_questions": 58,
               "course_file": "docs/study/courses/SET/SET.19.json"
             },
             {
@@ -2090,7 +2090,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 56,
+              "est_questions": 62,
               "course_file": "docs/study/courses/SET/SET.20.json"
             },
             {
@@ -2122,7 +2122,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 54,
+              "est_questions": 65,
               "course_file": "docs/study/courses/SET/SET.22.json"
             },
             {
@@ -2138,7 +2138,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 69,
+              "est_questions": 89,
               "course_file": "docs/study/courses/SET/SET.23.json"
             },
             {
@@ -2154,7 +2154,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 64,
+              "est_questions": 70,
               "course_file": "docs/study/courses/SET/SET.24.json"
             },
             {
@@ -2170,7 +2170,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 60,
+              "est_questions": 67,
               "course_file": "docs/study/courses/SET/SET.25.json"
             },
             {
@@ -2186,7 +2186,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 60,
+              "est_questions": 62,
               "course_file": "docs/study/courses/SET/SET.26.json"
             },
             {
@@ -2202,7 +2202,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 65,
+              "est_questions": 67,
               "course_file": "docs/study/courses/SET/SET.27.json"
             },
             {
@@ -2218,7 +2218,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 63,
+              "est_questions": 76,
               "course_file": "docs/study/courses/SET/SET.28.json"
             },
             {
@@ -2234,7 +2234,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 63,
+              "est_questions": 67,
               "course_file": "docs/study/courses/SET/SET.29.json"
             },
             {
@@ -2250,7 +2250,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 68,
+              "est_questions": 69,
               "course_file": "docs/study/courses/SET/SET.30.json"
             },
             {
@@ -2266,7 +2266,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 65,
+              "est_questions": 67,
               "course_file": "docs/study/courses/SET/SET.31.json"
             },
             {
@@ -2298,7 +2298,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 65,
+              "est_questions": 67,
               "course_file": "docs/study/courses/SET/SET.33.json"
             },
             {
@@ -2314,7 +2314,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 57,
+              "est_questions": 68,
               "course_file": "docs/study/courses/SET/SET.34.json"
             },
             {
@@ -2419,7 +2419,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 56,
+              "est_questions": 58,
               "course_file": "docs/study/courses/SET/SET.41.json"
             },
             {
@@ -2433,7 +2433,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 56,
+              "est_questions": 66,
               "course_file": "docs/study/courses/SET/SET.42.json"
             },
             {
@@ -2447,7 +2447,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 66,
+              "est_questions": 82,
               "course_file": "docs/study/courses/SET/SET.43.json"
             },
             {
@@ -2461,7 +2461,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 59,
+              "est_questions": 61,
               "course_file": "docs/study/courses/SET/SET.44.json"
             },
             {
@@ -2475,7 +2475,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 70,
+              "est_questions": 109,
               "course_file": "docs/study/courses/SET/SET.45.json"
             },
             {
@@ -2503,7 +2503,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 53,
+              "est_questions": 60,
               "course_file": "docs/study/courses/SET/SET.47.json"
             },
             {
@@ -2517,7 +2517,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 52,
+              "est_questions": 61,
               "course_file": "docs/study/courses/SET/SET.48.json"
             },
             {
@@ -2531,7 +2531,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 62,
+              "est_questions": 72,
               "course_file": "docs/study/courses/SET/SET.49.json"
             },
             {
@@ -2545,7 +2545,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 52,
+              "est_questions": 64,
               "course_file": "docs/study/courses/SET/SET.50.json"
             },
             {
@@ -2559,7 +2559,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 65,
+              "est_questions": 69,
               "course_file": "docs/study/courses/SET/SET.51.json"
             },
             {
@@ -2573,7 +2573,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 64,
+              "est_questions": 66,
               "course_file": "docs/study/courses/SET/SET.52.json"
             },
             {
@@ -2587,7 +2587,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 61,
+              "est_questions": 73,
               "course_file": "docs/study/courses/SET/SET.53.json"
             },
             {
@@ -2601,7 +2601,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 62,
+              "est_questions": 64,
               "course_file": "docs/study/courses/SET/SET.54.json"
             }
           ]

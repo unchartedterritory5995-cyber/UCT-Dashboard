@@ -757,6 +757,30 @@
    "source": "c1",
    "quote": "Bulkowski's own Stage 4 buys made money 24% of the time.",
    "claim": "Card: Bulkowski's own Stage 4 buys made money 24% of the time."
+  },
+  {
+   "id": "x11",
+   "source": "s3",
+   "quote": "If the moving average is still sharply sloping downward and the stock is trading far below it, the stock has likely not yet entered a true Stage 1.",
+   "claim": "TraderLion: a sharply falling average with the stock far below it has likely not yet entered a true Stage 1."
+  },
+  {
+   "id": "h31",
+   "source": "h1",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "D41: every position has a real stop order with the broker, not a stop kept in your head."
+  },
+  {
+   "id": "h32",
+   "source": "h1",
+   "quote": "No new buys outside regular trading hours.",
+   "claim": "E58: no new buys outside regular trading hours."
+  },
+  {
+   "id": "c42",
+   "source": "c1",
+   "quote": "Not on a round number: a few cents under it.",
+   "claim": "Card: the stop is not on a round number but a few cents under it."
   }
  ],
  "walkthroughs": [
@@ -2350,6 +2374,234 @@
     "D; it has the freshest reason": "A report inside 3 sessions ends it, however fresh the reason."
    },
    "house": true
+  },
+  {
+   "key": "q62",
+   "skill": "setup.weinstein_4b",
+   "rung": 3,
+   "format": "fill",
+   "criterion": "w4b.market_turn",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "After a correction, start with a few positions and add more only as the first ones ___.",
+   "bank": [
+    "work",
+    "fail",
+    "gap",
+    "stall",
+    "expire"
+   ],
+   "answer": "work",
+   "why": "Work. After a correction, start with a few positions and add more only as the first ones work.",
+   "lesson_line": "Start small after a correction. Let the first positions earn the next ones.",
+   "facts": [
+    "c16",
+    "h27"
+   ],
+   "house": true
+  },
+  {
+   "key": "q63",
+   "skill": "setup.weinstein_4b",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "w4b.market_turn",
+   "q": "Do you take the third one?",
+   "story": "A broad selloff ends and the market reading turns Green again. You hold two 4B- trades, both past their first trim. A third 4B- triggers.",
+   "choices": [
+    "Yes; the first two are working",
+    "No; wait for a new index high",
+    "Yes, by adding to the first two"
+   ],
+   "answer": "Yes; the first two are working",
+   "why": "Yes. After a correction, start with a few positions and add more only as the first ones work. Yours are working.",
+   "lesson_line": "Add positions, not shares. Let the first ones prove the turn.",
+   "facts": [
+    "c16",
+    "h27",
+    "c26"
+   ],
+   "wrong": {
+    "No; wait for a new index high": "Our rule starts positions as the reading turns Green again. It does not wait for a new index high.",
+    "Yes, by adding to the first two": "That adds to a trade. Our plan is one price, one stop, no adding along the way."
+   },
+   "house": true
+  },
+  {
+   "key": "q64",
+   "skill": "setup.weinstein_4b",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "w4b.first_in_group",
+   "q": "Which stock earns the group cue on our card?",
+   "story": "Two stocks sit in one group, which is basing too. Both show the same higher low and pause above the 50-day. Stock A reclaimed its 50-day first. Stock B reclaimed it weeks later, after most of the group.",
+   "choices": [
+    "Stock A, among the first to reclaim",
+    "Stock B, it waited for the group",
+    "Neither; the order is not part of it"
+   ],
+   "answer": "Stock A, among the first to reclaim",
+   "why": "Stock A. Our card's cue is a basing group with the stock among the first in it to reclaim its 50-day.",
+   "lesson_line": "In a basing group, the early reclaimers earn the cue.",
+   "facts": [
+    "c13"
+   ],
+   "wrong": {
+    "Stock B, it waited for the group": "Stock B came late, after most of the group. The cue asks for among the first.",
+    "Neither; the order is not part of it": "The cue is about the order. The stock should be among the first in the group to reclaim its 50-day."
+   },
+   "house": true
+  },
+  {
+   "key": "q65",
+   "skill": "setup.weinstein_4b",
+   "rung": 4,
+   "format": "mcq",
+   "criterion": "w4b.long_averages_flat",
+   "q": "Which picture of the 150-day and 200-day lines is the better cue?",
+   "choices": [
+    "Flat, or turning over the trade",
+    "Falling steeply, price far below",
+    "No difference to the grade"
+   ],
+   "answer": "Flat, or turning over the trade",
+   "why": "Flat, or turning. Our card wants the 150-day and 200-day lines flat or turning over the trade, not still falling steeply.",
+   "lesson_line": "Flat or turning long averages are the better picture. A steep fall is not.",
+   "facts": [
+    "c11",
+    "x11"
+   ],
+   "wrong": {
+    "Falling steeply, price far below": "TraderLion: a sharply falling average with the stock far below it has likely not yet entered a true Stage 1.",
+    "No difference to the grade": "It is a cue that counts. Flat or turning lines are the better picture."
+   },
+   "house": true
+  },
+  {
+   "key": "q66",
+   "skill": "setup.weinstein_4b",
+   "rung": 6,
+   "format": "tf",
+   "criterion": "w4b.long_averages_flat",
+   "q": "A falling 200-day line cancels a 4B- on our card.",
+   "answer": "False",
+   "why": "False. The card calls flat or turning lines a cue. A steep fall grades worse, but a cue is not a veto.",
+   "lesson_line": "A falling long average is a weaker cue, not a rule that ends the setup.",
+   "facts": [
+    "c11",
+    "x11"
+   ],
+   "house": true
+  },
+  {
+   "key": "q67",
+   "skill": "setup.weinstein_4b",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "w4b.order",
+   "q": "Do you buy now?",
+   "story": "Pre-market, a 4B- stock trades through its pause high of 20.00. The open is an hour away.",
+   "choices": [
+    "No; wait for regular hours",
+    "Yes, with a market order",
+    "Yes, with a limit at 20.00"
+   ],
+   "answer": "No; wait for regular hours",
+   "why": "No. Our entry is a market order once the trigger trades, and only during regular hours.",
+   "lesson_line": "Market order, regular hours only. A pre-market print is not a buy.",
+   "facts": [
+    "c20",
+    "h22",
+    "h32"
+   ],
+   "wrong": {
+    "Yes, with a market order": "A market order is our order type, but pre-market is outside regular hours.",
+    "Yes, with a limit at 20.00": "Our entries are market orders, and pre-market is outside regular hours."
+   },
+   "house": true
+  },
+  {
+   "key": "q68",
+   "skill": "setup.weinstein_4b",
+   "rung": 6,
+   "format": "mcq",
+   "criterion": "w4b.stop_round_number",
+   "q": "Your planned stop level lands on exactly 25.00. Where does the stop go?",
+   "choices": [
+    "A few cents under 25.00",
+    "Right on the 25.00 line",
+    "A few cents above 25.00",
+    "A full dollar under 25.00"
+   ],
+   "answer": "A few cents under 25.00",
+   "why": "A few cents under 25.00. Our card keeps the stop off a round number: a few cents under it, not on it.",
+   "lesson_line": "A few cents under the round number, never right on it.",
+   "facts": [
+    "c42",
+    "h01"
+   ],
+   "wrong": {
+    "Right on the 25.00 line": "Not on a round number. The stop sits a few cents under it.",
+    "A few cents above 25.00": "That puts the stop above the level instead of under it. A long stop sits a few cents under.",
+    "A full dollar under 25.00": "A few cents is the gap. A full dollar widens the stop and shrinks the size."
+   },
+   "house": true
+  },
+  {
+   "key": "q69",
+   "skill": "setup.weinstein_4b",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "w4b.stop_round_number",
+   "q": "Our card puts the stop right on the nearest round number.",
+   "answer": "False",
+   "why": "False. Not on a round number: a few cents under it.",
+   "lesson_line": "A few cents under the round number, not on it.",
+   "facts": [
+    "c42"
+   ],
+   "house": true
+  },
+  {
+   "key": "q70",
+   "skill": "setup.weinstein_4b",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "w4b.stop_broker",
+   "q": "What is wrong with that plan?",
+   "story": "You buy a 4B- and plan to sell by hand if it trades under your stop level. You place no stop order with your broker.",
+   "choices": [
+    "Every position needs a real stop order",
+    "Nothing; you will be watching the screen",
+    "An alert is enough if you act fast"
+   ],
+   "answer": "Every position needs a real stop order",
+   "why": "A stop kept in your head is not a stop. Every position has a real stop order with the broker.",
+   "lesson_line": "Place the order. A stop in your head is not a stop.",
+   "facts": [
+    "h31",
+    "c25"
+   ],
+   "wrong": {
+    "Nothing; you will be watching the screen": "Watching is not an order. The stop sits with the broker even when you look away.",
+    "An alert is enough if you act fast": "An alert is not an order. The rule is a real stop order with the broker."
+   },
+   "house": true
+  },
+  {
+   "key": "q71",
+   "skill": "setup.weinstein_4b",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "w4b.stop_broker",
+   "q": "Our stop is a real order with the broker, and it only moves up.",
+   "answer": "True",
+   "why": "True. A real stop order with the broker, and it only moves up.",
+   "lesson_line": "Real order, with the broker. It only moves up.",
+   "facts": [
+    "c25",
+    "h31"
+   ],
+   "house": true
   }
  ],
  "conflicts": [
@@ -2754,6 +3006,66 @@
    "notes": "Each of A, B and D fails a settled or card gate (plain 4B, B26, B22); C has the higher low and 3R of room (the room number is the card's proposal). c38/h10/c23/c04/c10 verbatim. Key right.",
    "fixed": false,
    "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: wrong note now rests on F68 (start as the reading turns Green) instead of an inference about new highs",
+   "by": "checker",
+   "fixed": true
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: dropped 'whenever' (absolute-word tell on a false statement)",
+   "by": "checker",
+   "fixed": true
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
   }
  }
 }

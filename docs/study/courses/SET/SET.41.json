@@ -761,6 +761,12 @@
    "source": "h1",
    "quote": "Max position 40% of the account",
    "claim": "A7: a position is at most 40% of the account."
+  },
+  {
+   "id": "x14",
+   "source": "s6",
+   "quote": "to be decisive prices must not only push through the line but close beyond it by a margin equal to about 3% of the stock's or commodity's price",
+   "claim": "Brandt, quoting the classic rule: a decisive break closes beyond the line by about 3% of the price."
   }
  ],
  "walkthroughs": [
@@ -2392,6 +2398,51 @@
     "D; it has momentum": "A gap more than 4% over the line is no trade."
    },
    "house": true
+  },
+  {
+   "key": "q64",
+   "skill": "setup.trendline_break",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "tl.no_3pct_filter",
+   "q": "Like the classic rule, our card waits for a close 3% past the line before we buy.",
+   "answer": "False",
+   "why": "False. The classic rule asks for a close about 3% of the price past the line, as Brandt quotes it. Our card does not wait for it.",
+   "lesson_line": "We do not wait for a close 3% past the line.",
+   "facts": [
+    "x14",
+    "c14"
+   ],
+   "house": true
+  },
+  {
+   "key": "q65",
+   "skill": "setup.trendline_break",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "tl.no_3pct_filter",
+   "q": "By our card, what do you do with that wait?",
+   "choices": [
+    "Skip it; it eats chase room",
+    "Follow it; a close beats a poke",
+    "Follow it, but wait two closes",
+    "Pass; no 3% close, no setup"
+   ],
+   "story": "Price trades through the line's value. A book says to wait for a close 3% past the line before buying.",
+   "answer": "Skip it; it eats chase room",
+   "why": "Skip the wait. Our card does not wait for a close 3% past the line, which would use up most of the 4% chase limit.",
+   "lesson_line": "No 3% wait on a short-term line. It eats most of the chase limit.",
+   "facts": [
+    "c14",
+    "x14",
+    "h11"
+   ],
+   "wrong": {
+    "Follow it; a close beats a poke": "Our card does not wait for that close. That filter is for long-term lines.",
+    "Follow it, but wait two closes": "More waiting is not what our card asks. It does not wait for that kind of confirmation.",
+    "Pass; no 3% close, no setup": "The 3% close is not part of our trigger. That filter is for long-term lines."
+   },
+   "house": true
   }
  ],
  "conflicts": [
@@ -2811,6 +2862,16 @@
    "status": "pass",
    "notes": "Each of A, B and D fails a settled gate (B26, B22, C28); C is the leader tight under the line. c07/c11/c13/g2/c08 verbatim. Key right.",
    "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10 (adds the Brandt quote q09 lacked; reads as our card's line)",
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10 (right choice shortened so it is not the single longest)",
    "by": "checker"
   }
  }

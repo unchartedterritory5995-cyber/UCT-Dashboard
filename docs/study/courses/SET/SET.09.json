@@ -954,6 +954,138 @@
    "source": "d1",
    "quote": "a breakout day that closes weak or opens with a gap it cannot build on is the first sign the answer is no.",
    "claim": "A weak close or a gap that cannot build is the first sign the trade is not working."
+  },
+  {
+   "id": "i36",
+   "source": "s3",
+   "quote": "the number of down weeks on the left side should roughly match the number of up weeks on the right side",
+   "claim": "IBD: the down weeks on the left side should roughly match the up weeks on the right side."
+  },
+  {
+   "id": "a04",
+   "source": "s31",
+   "quote": "Typically, the handle will form over a period of about one to four weeks",
+   "claim": "AAII: a handle typically forms over about one to four weeks."
+  },
+  {
+   "id": "sc02",
+   "source": "s30",
+   "quote": "The handle can last from one week to many weeks and is ideally completed within one to four weeks.",
+   "claim": "StockCharts: a handle is ideally completed within one to four weeks."
+  },
+  {
+   "id": "c46",
+   "source": "c1",
+   "quote": "Down weeks on the left side roughly match up weeks on the right.",
+   "claim": "The card's symmetry cue: down weeks on the left roughly match up weeks on the right."
+  },
+  {
+   "id": "c47",
+   "source": "c1",
+   "quote": "Usually 1 to 4 weeks; a handle over about 22 sessions is graded down.",
+   "claim": "The card: a handle is usually 1 to 4 weeks, and one over about 22 sessions is graded down."
+  },
+  {
+   "id": "c48",
+   "source": "c1",
+   "quote": "A handle of 8% or less is better; about 5% is best.",
+   "claim": "The card's grade cue: a handle of 8% or less is better, and about 5% is best."
+  },
+  {
+   "id": "c49",
+   "source": "c1",
+   "quote": "Before the buy: the handle's midpoint sits below the cup's midpoint",
+   "claim": "A handle whose midpoint sits below the cup's midpoint ends the setup before the buy."
+  },
+  {
+   "id": "c50",
+   "source": "c1",
+   "quote": "RS rating 80 or more, in one of the strongest groups.",
+   "claim": "The card's leadership test: an RS rating of 80 or more, in one of the strongest groups."
+  },
+  {
+   "id": "c51",
+   "source": "c1",
+   "quote": "Price above the 200-day SMA at the buy.",
+   "claim": "The card: price is above its 200-day average at the buy."
+  },
+  {
+   "id": "c52",
+   "source": "c1",
+   "quote": "Growing sales and earnings preferred; the chart comes first.",
+   "claim": "The card: growing sales and earnings are preferred, and the chart comes first."
+  },
+  {
+   "id": "c53",
+   "source": "c1",
+   "quote": "Price $10 or more and $20 million or more traded a day on average.",
+   "claim": "The card's liquidity floor: $10 or more a share and $20 million or more traded a day."
+  },
+  {
+   "id": "c54",
+   "source": "c1",
+   "quote": "The position is at most 1% of average daily volume.",
+   "claim": "The card: the position is at most 1% of average daily volume."
+  },
+  {
+   "id": "c55",
+   "source": "c1",
+   "quote": "A real stop order with the broker. It only moves up.",
+   "claim": "The card: a real stop order with the broker, and it only moves up."
+  },
+  {
+   "id": "c56",
+   "source": "c1",
+   "quote": "If it opens above a trim level, take that trim at the open.",
+   "claim": "The card: if it opens above a trim level, take that trim at the open."
+  },
+  {
+   "id": "i37",
+   "source": "s6",
+   "quote": "the stock makes a secondary decline, usually no more than 8% to 12%.",
+   "claim": "IBD: a handle's secondary decline is usually no more than 8% to 12%."
+  },
+  {
+   "id": "h35",
+   "source": "h1",
+   "quote": "Buy leaders: an RS rating of 80 or more, in one of the strongest groups, except parabolic and mean-reversion trades.",
+   "claim": "C31: buy leaders, an RS rating of 80 or more in a strong group, except parabolic and mean-reversion trades."
+  },
+  {
+   "id": "h36",
+   "source": "h1",
+   "quote": "Prefer stocks with growing sales and earnings; the chart comes first.",
+   "claim": "D40: prefer growing sales and earnings; the chart comes first."
+  },
+  {
+   "id": "h37",
+   "source": "h1",
+   "quote": "no longs below the 200-day simple moving average, unless it is a parabolic long",
+   "claim": "B26: no longs below the 200-day simple moving average, unless it is a parabolic long."
+  },
+  {
+   "id": "h38",
+   "source": "h1",
+   "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+   "claim": "B23: only stocks at $10 or more that trade at least $20 million a day."
+  },
+  {
+   "id": "h39",
+   "source": "h1",
+   "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+   "claim": "D42: never own more than 1% of a stock's average daily volume."
+  },
+  {
+   "id": "h40",
+   "source": "h1",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "D41: every position has a real stop order with the broker."
+  },
+  {
+   "id": "h41",
+   "source": "h1",
+   "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+   "claim": "F63: if a stock opens above a trim level, take that trim at the open."
   }
  ],
  "walkthroughs": [
@@ -2707,6 +2839,559 @@
     "h33"
    ],
    "house": true
+  },
+  {
+   "key": "q67",
+   "skill": "setup.cup_handle",
+   "rung": 2,
+   "format": "fill",
+   "criterion": "ch.leadership",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "We buy leaders: an RS rating of ___ or more, in one of the strongest groups.",
+   "bank": [
+    "80",
+    "50",
+    "60",
+    "70",
+    "90"
+   ],
+   "answer": "80",
+   "why": "80. Our rulebook buys leaders with an RS rating of 80 or more, in one of the strongest groups. Parabolic and mean-reversion trades are the exceptions.",
+   "lesson_line": "Buy leaders: an RS rating of 80 or more, in a strong group.",
+   "facts": [
+    "h35",
+    "c50"
+   ],
+   "house": true
+  },
+  {
+   "key": "q68",
+   "skill": "setup.cup_handle",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "ch.leadership",
+   "q": "Which cup do you take?",
+   "story": "Two clean cups trigger the same morning. One stock has an RS rating of 92 in a top group. The other has a rating of 55 in a weak group.",
+   "choices": [
+    "The 92 cup in the strong group",
+    "The 55 cup, since it has more room",
+    "Both, each at half the usual size",
+    "The one with the tighter handle"
+   ],
+   "wrong": {
+    "The 55 cup, since it has more room": "A weak rating in a weak group is a laggard. We buy leaders, 80 or more.",
+    "Both, each at half the usual size": "Half size does not fix a laggard. The 55 cup fails the leader test.",
+    "The one with the tighter handle": "Handle tightness grades a cup. It does not replace the leader test."
+   },
+   "answer": "The 92 cup in the strong group",
+   "why": "The 92 cup. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. A rating of 55 in a weak group is a laggard.",
+   "lesson_line": "A clean chart on a laggard is still a laggard. Buy the leader.",
+   "facts": [
+    "h35",
+    "c50"
+   ],
+   "house": true
+  },
+  {
+   "key": "q69",
+   "skill": "setup.cup_handle",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "ch.fundamentals",
+   "q": "What does our rule say?",
+   "story": "A stock grows sales and earnings every quarter. Its cup is a sharp V, with a 5-day dip at the rim. Price trades through the handle high.",
+   "choices": [
+    "Pass; the chart comes first",
+    "Buy; the growth outweighs the shape",
+    "Buy half size and trim fast",
+    "Buy a starter, add after earnings"
+   ],
+   "wrong": {
+    "Buy; the growth outweighs the shape": "We prefer growth, but the chart comes first. V-shaped patterns are less reliable.",
+    "Buy half size and trim fast": "Small size does not fix a failed shape. The chart comes first.",
+    "Buy a starter, add after earnings": "The V fails the chart test now. We do not buy a weak chart on growth alone."
+   },
+   "answer": "Pass; the chart comes first",
+   "why": "Pass; the chart comes first. We prefer growing sales and earnings, but a V-shaped cup fails the chart, whatever the growth.",
+   "lesson_line": "Growth is a plus. The chart decides first.",
+   "facts": [
+    "h36",
+    "c52",
+    "i05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q70",
+   "skill": "setup.cup_handle",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "ch.above_200",
+   "q": "A clean cup breakout is fine to buy even when price sits under its 200-day average.",
+   "answer": "False",
+   "why": "False. Our rule: no longs below the 200-day, unless it is a parabolic long. A cup with a handle is not a parabolic long.",
+   "lesson_line": "No long under the 200-day. A tidy cup does not change that.",
+   "facts": [
+    "h37",
+    "c51"
+   ],
+   "house": true
+  },
+  {
+   "key": "q71",
+   "skill": "setup.cup_handle",
+   "rung": 4,
+   "format": "mcq",
+   "criterion": "ch.above_200",
+   "q": "The cup is clean and price trades through the 31.40 pivot. The 200-day average is 33.10. Which rule decides this?",
+   "choices": [
+    "No longs under the 200-day average",
+    "No chasing more than 4% over the pivot",
+    "No new buys within 3 days of earnings",
+    "A stop that only moves up"
+   ],
+   "wrong": {
+    "No chasing more than 4% over the pivot": "The buy is at the pivot, so there is no chase. The 200-day is the issue.",
+    "No new buys within 3 days of earnings": "Nothing here mentions a report. The 200-day average decides this one.",
+    "A stop that only moves up": "That rule matters after the buy. It does not decide whether to buy."
+   },
+   "answer": "No longs under the 200-day average",
+   "why": "No longs under the 200-day average. The pivot is 31.40 and the 200-day is 33.10, so price sits under it. Skip the cup.",
+   "lesson_line": "Check the 200-day before the pivot. Under it, no long.",
+   "facts": [
+    "h37",
+    "c51",
+    "h11",
+    "h08",
+    "h02"
+   ],
+   "house": true
+  },
+  {
+   "key": "q72",
+   "skill": "setup.cup_handle",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "ch.liquidity",
+   "q": "A cup stock averages 600,000 shares a day at $28. How many millions of dollars does it trade a day?",
+   "answer": 16.8,
+   "why": "16.8 million. That is under our floor of $20 million traded a day, so we skip it, however clean the cup.",
+   "lesson_line": "Price times shares is dollars traded. We need $20 million a day.",
+   "facts": [
+    "h38",
+    "c53"
+   ],
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * b / 1000000",
+     "a": 600000,
+     "b": 28
+    },
+    "round": 1
+   },
+   "house": true,
+   "prefix": "$",
+   "suffix": " million"
+  },
+  {
+   "key": "q73",
+   "skill": "setup.cup_handle",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "ch.liquidity",
+   "q": "A $7 stock that trades $40 million a day passes our liquidity floor.",
+   "answer": "False",
+   "why": "False. We trade only stocks at $10 or more that trade at least $20 million a day. At $7 it fails the price test.",
+   "lesson_line": "Both tests count: $10 a share and $20 million a day.",
+   "facts": [
+    "h38",
+    "c53"
+   ],
+   "house": true
+  },
+  {
+   "key": "q74",
+   "skill": "setup.cup_handle",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "ch.position_adv",
+   "q": "A stock averages 250,000 shares a day. Under our volume rule, what is the most shares we may own?",
+   "answer": 2500,
+   "why": "2,500 shares. We never own more than 1% of a stock's average daily volume. One percent of 250,000 is 2,500.",
+   "lesson_line": "Cap every position at 1% of average daily volume.",
+   "facts": [
+    "h39",
+    "c54"
+   ],
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a / 100",
+     "a": 250000
+    },
+    "round": 0
+   },
+   "house": true,
+   "suffix": " shares"
+  },
+  {
+   "key": "q75",
+   "skill": "setup.cup_handle",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "ch.position_adv",
+   "q": "How many shares do you buy?",
+   "story": "The risk math allows 6,000 shares of a cup breakout. The stock averages 300,000 shares a day.",
+   "choices": [
+    "3,000 shares",
+    "6,000 shares",
+    "4,500 shares",
+    "1,500 shares"
+   ],
+   "wrong": {
+    "6,000 shares": "The risk math sets a size, but this is over 1% of average daily volume. The volume cap wins.",
+    "4,500 shares": "Still over 1% of average daily volume. Trim it to the cap.",
+    "1,500 shares": "That is safe but half the cap. The 1% rule is a ceiling, not a target."
+   },
+   "answer": "3,000 shares",
+   "why": "3,000 shares. The risk math allows 6,000, but we never own more than 1% of average daily volume. One percent of 300,000 is 3,000.",
+   "lesson_line": "Size is the smaller of the risk math and the volume cap.",
+   "facts": [
+    "h39",
+    "h03",
+    "c54"
+   ],
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a / 100",
+     "a": 300000
+    },
+    "round": 0
+   },
+   "house": true
+  },
+  {
+   "key": "q76",
+   "skill": "setup.cup_handle",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "ch.shape_symmetry",
+   "q": "On our card, the down weeks on a cup's left side roughly match the up weeks on its right side.",
+   "answer": "True",
+   "why": "True. IBD says the down weeks on the left should roughly match the up weeks on the right. A lopsided cup grades lower.",
+   "lesson_line": "A good cup is symmetric: weeks down on the left, weeks up on the right.",
+   "facts": [
+    "i36",
+    "c46",
+    "c37"
+   ],
+   "house": true
+  },
+  {
+   "key": "q77",
+   "skill": "setup.cup_handle",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "ch.shape_symmetry",
+   "q": "A cup takes 8 weeks to fall and 2 weeks to climb back. What does the symmetry cue say?",
+   "choices": [
+    "Lopsided, so it grades lower",
+    "Fine, depth is all that counts",
+    "Strong, a fast recovery is best",
+    "Fine, if the handle is quiet"
+   ],
+   "wrong": {
+    "Fine, depth is all that counts": "Depth is one test. IBD also wants the down and up weeks to roughly match.",
+    "Strong, a fast recovery is best": "A rebound that fast is lopsided, close to a V, and V-shaped patterns are less reliable.",
+    "Fine, if the handle is quiet": "A quiet handle is a separate cue. It does not fix a lopsided cup."
+   },
+   "answer": "Lopsided, so it grades lower",
+   "why": "Lopsided, so it grades lower. IBD wants the down weeks on the left to roughly match the up weeks on the right. 8 against 2 is far apart.",
+   "lesson_line": "Count the weeks down and the weeks up. They should roughly match.",
+   "facts": [
+    "i36",
+    "c46",
+    "c37",
+    "i05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q78",
+   "skill": "setup.cup_handle",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "ch.handle_length_typical",
+   "q": "AAII says a typical handle forms over about one to four weeks.",
+   "answer": "True",
+   "why": "True. AAII says a handle typically forms over about one to four weeks. StockCharts says ideally within one to four weeks. Our card agrees.",
+   "lesson_line": "A typical handle runs one to four weeks.",
+   "facts": [
+    "a04",
+    "sc02",
+    "c47"
+   ],
+   "house": true
+  },
+  {
+   "key": "q79",
+   "skill": "setup.cup_handle",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "ch.handle_length_typical",
+   "q": "What does our card do with it?",
+   "story": "A cup has a quiet handle. Its lows drift down and every close holds above the 50-day. It has now run 24 sessions with no breakout.",
+   "choices": [
+    "Grade it down; keep it on the list",
+    "Drop it; the handle is stale",
+    "Grade it up; a long handle is best",
+    "Buy now, before it gets older"
+   ],
+   "wrong": {
+    "Drop it; the handle is stale": "Stale starts past about 30 sessions. This handle is at 24.",
+    "Grade it up; a long handle is best": "Long handles grade down. A typical handle runs 1 to 4 weeks.",
+    "Buy now, before it gets older": "The buy is the trade through the handle high. No trade, no buy."
+   },
+   "answer": "Grade it down; keep it on the list",
+   "why": "Grade it down; keep it on the list. A handle over about 22 sessions is graded down. It goes stale only past about 30 sessions.",
+   "lesson_line": "Handles over about 22 sessions grade down. Past about 30 they are stale.",
+   "facts": [
+    "c47",
+    "c21",
+    "a04"
+   ],
+   "house": true
+  },
+  {
+   "key": "q80",
+   "skill": "setup.cup_handle",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "ch.handle_depth_best",
+   "q": "Handle high 50.00, handle low 47.50. How deep is the handle, in percent?",
+   "answer": 5.0,
+   "why": "5.0%. Depth is the fall from the handle's own high. Our card calls 8% or less better, and about 5% best.",
+   "lesson_line": "Handle depth is the fall from its own high. Shallower grades higher.",
+   "facts": [
+    "c48",
+    "z05"
+   ],
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / a * 100",
+     "a": 50.0,
+     "b": 47.5
+    },
+    "round": 1
+   },
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q81",
+   "skill": "setup.cup_handle",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "ch.handle_depth_best",
+   "q": "Which handle grades higher on our card?",
+   "story": "Two clean cups, each with a quiet handle that drifts down. One handle is 4% deep. The other is 11% deep.",
+   "choices": [
+    "The 4% handle",
+    "The 11% handle",
+    "They grade the same"
+   ],
+   "wrong": {
+    "The 11% handle": "A deeper handle gives back more. Our card grades shallower handles higher.",
+    "They grade the same": "Depth counts on our card: 8% or less is better, and about 5% is best."
+   },
+   "answer": "The 4% handle",
+   "why": "The 4% handle. Our card grades shallower handles higher: 8% or less is better, and about 5% is best.",
+   "lesson_line": "Shallow handles grade higher. Aim for 8% or less.",
+   "facts": [
+    "c48",
+    "z05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q82",
+   "skill": "setup.cup_handle",
+   "rung": 3,
+   "format": "fill",
+   "criterion": "ch.handle_above_50",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "IBD says a handle should generally form ___ the 50-day or 10-week moving average.",
+   "bank": [
+    "above",
+    "below",
+    "on",
+    "across"
+   ],
+   "answer": "above",
+   "why": "Above. IBD says a handle should generally form above the 50-day or 10-week moving averages. Our card is stricter: no close under the 50-day.",
+   "lesson_line": "A good handle holds above the 50-day.",
+   "facts": [
+    "i17",
+    "c13"
+   ],
+   "house": true
+  },
+  {
+   "key": "q83",
+   "skill": "setup.cup_handle",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "ch.stop_broker",
+   "q": "What does our rule say about that plan?",
+   "story": "You bought a cup breakout at 54.57 with the stop at 52.94. You plan to watch the screen and sell by hand if it breaks 52.94.",
+   "choices": [
+    "Enter the stop as a real order",
+    "Fine, if you stay at the screen",
+    "Fine, a stop this tight is safe",
+    "Set a price alert and sell by hand"
+   ],
+   "wrong": {
+    "Fine, if you stay at the screen": "Screens fail and gaps jump. A stop kept in your head is not a stop.",
+    "Fine, a stop this tight is safe": "A tight stop does not make a mental one safe. The order goes in with the broker.",
+    "Set a price alert and sell by hand": "An alert is a reminder, not an order. Every position has a real stop order."
+   },
+   "answer": "Enter the stop as a real order",
+   "why": "Enter the stop as a real order. Every position has a real stop order with the broker, not a stop kept in your head.",
+   "lesson_line": "A stop in your head is not a stop. Put the order in.",
+   "facts": [
+    "h40",
+    "c55",
+    "h02"
+   ],
+   "house": true
+  },
+  {
+   "key": "q84",
+   "skill": "setup.cup_handle",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "ch.stop_broker",
+   "q": "Our stop is a real order with the broker, and it only moves up.",
+   "answer": "True",
+   "why": "True. Every position has a real stop order with the broker. The stop only moves up, never down or wider. The gap rule is the one exception.",
+   "lesson_line": "A real order with the broker, and it only moves up.",
+   "facts": [
+    "h40",
+    "h02",
+    "c55"
+   ],
+   "house": true
+  },
+  {
+   "key": "q85",
+   "skill": "setup.cup_handle",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "ch.trim_gap_open",
+   "q": "What do you do with the first third?",
+   "story": "You bought at 91.29 with the stop at 90.67, so 3R is 93.15. The next morning the stock opens at 94.20.",
+   "choices": [
+    "Sell that third at the open",
+    "Wait for a pullback to 93.15",
+    "Skip it and wait for 5R",
+    "Sell it at the close instead"
+   ],
+   "wrong": {
+    "Wait for a pullback to 93.15": "A gap can fill and hand the gain back. The rule is to take it at the open.",
+    "Skip it and wait for 5R": "The hard rule is a third at 3R. Waiting for 5R skips the trim.",
+    "Sell it at the close instead": "The rule says at the open. Waiting until the close adds risk for no reason."
+   },
+   "answer": "Sell that third at the open",
+   "why": "Sell that third at the open. If a stock opens above a trim level, we take that trim at the open. Here 3R was 93.15.",
+   "lesson_line": "A gap over the trim level means you take the trim at the open.",
+   "facts": [
+    "h41",
+    "c56",
+    "h05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q86",
+   "skill": "setup.cup_handle",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "ch.trim_gap_open",
+   "q": "If a stock opens above 3R, we wait for it to fall back to 3R before we trim.",
+   "answer": "False",
+   "why": "False. If a stock opens above a trim level, we take that trim at the open. A gap can fill and give the gain back.",
+   "lesson_line": "Opens above a trim level: take that trim at the open.",
+   "facts": [
+    "h41",
+    "c56"
+   ],
+   "house": true
+  },
+  {
+   "key": "q87",
+   "skill": "setup.cup_handle",
+   "rung": 5,
+   "format": "tf",
+   "criterion": "ch.inv_handle",
+   "q": "Before the buy, a quiet handle is still off the list if its midpoint sits below the cup's midpoint.",
+   "answer": "True",
+   "why": "True. The handle's midpoint must sit above the cup's midpoint. Under it, the handle is too low, and the setup is off before the buy.",
+   "lesson_line": "Quiet is not enough. The handle must sit above the cup's midpoint.",
+   "facts": [
+    "c49",
+    "i15",
+    "i16"
+   ],
+   "house": true
+  },
+  {
+   "key": "q88",
+   "skill": "setup.cup_handle",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "ch.inv_wedge_or_short",
+   "q": "Before the buy, what do those lows make of the handle?",
+   "story": "A clean cup, then a 6-session handle. Its lows run 47.0, 47.2, 47.4, 47.6, 47.9 and 48.3. Volume is quiet.",
+   "choices": [
+    "A wedge, which fails more often",
+    "A tight handle, which grades best",
+    "A shakeout, which is a good sign",
+    "A V shape, which fails the cup"
+   ],
+   "wrong": {
+    "A tight handle, which grades best": "Tight closes are a separate cue. These lows climb, so the line trends up.",
+    "A shakeout, which is a good sign": "No low undercuts an earlier one. The lows climb every session into the pivot.",
+    "A V shape, which fails the cup": "A V describes the cup's shape, not the handle's lows."
+   },
+   "answer": "A wedge, which fails more often",
+   "why": "A wedge, which fails more often. A straight line through those lows slopes up. IBD: wedging handles have a higher failure rate.",
+   "lesson_line": "Fit a line through the handle's lows. It must slope flat or down.",
+   "facts": [
+    "c11",
+    "c24",
+    "i21"
+   ],
+   "house": true
+  },
+  {
+   "key": "q89",
+   "skill": "setup.cup_handle",
+   "rung": 7,
+   "format": "tf",
+   "criterion": "ch.inv_wedge_or_short",
+   "q": "A 4-session dip under the rim becomes a handle if the breakout comes on heavy volume.",
+   "answer": "False",
+   "why": "False. If it's shorter than five days, it's not a handle. Volume does not change that, and the setup is off before the buy.",
+   "lesson_line": "Under five sessions is not a handle, whatever the volume.",
+   "facts": [
+    "i19",
+    "c24",
+    "c09"
+   ],
+   "house": true
   }
  ],
  "conflicts": [
@@ -3144,6 +3829,144 @@
    "notes": "Key C34 ('a judgment call') and B26's burst description verbatim.",
    "fixed": false,
    "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: wrong note no longer says the story shows no report",
+   "by": "checker",
+   "fixed": true
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q74": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q75": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q76": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q77": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q78": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: statement now AAII only (StockCharts says ideally within, not typical)",
+   "by": "checker",
+   "fixed": true
+  },
+  "q79": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q80": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q81": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q82": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q83": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q84": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: why names the gap-rule exception (A4)",
+   "by": "checker",
+   "fixed": true
+  },
+  "q85": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q86": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q87": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q88": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: lows now rise every session so no dime-wide undercut reads as a shakeout",
+   "by": "checker",
+   "fixed": true
+  },
+  "q89": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
   }
  }
 }

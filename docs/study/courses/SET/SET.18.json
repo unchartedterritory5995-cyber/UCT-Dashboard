@@ -2950,6 +2950,63 @@
     "h25"
    ],
    "house": true
+  },
+  {
+   "key": "q67",
+   "skill": "setup.episodic_pivot",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "ep.inv_no_volume",
+   "q": "Average daily volume is 2,000,000 shares. By 10:00 the stock has traded 1,500,000. What multiple of average is that?",
+   "answer": 0.75,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a / b",
+     "a": 1.5,
+     "b": 2.0
+    },
+    "round": 2
+   },
+   "why": "0.75 times. On our card, less than the full average daily volume in the first 30 minutes means the volume is not there. The day-one buy is off.",
+   "lesson_line": "Short of a full day's volume by 10:00 means no day-one buy.",
+   "facts": [
+    "c21",
+    "c03",
+    "k04"
+   ],
+   "house": true,
+   "suffix": "x"
+  },
+  {
+   "key": "q68",
+   "skill": "setup.episodic_pivot",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "ep.inv_no_volume",
+   "q": "What do you do about the day-one buy?",
+   "choices": [
+    "Skip it; the volume is not there",
+    "Take it; holding the gap is enough",
+    "Half now and half at the close",
+    "Buy the close if it holds the gap"
+   ],
+   "story": "A stock gaps up on earnings and holds the gap. At 10:00 it has traded only a fifth of its average daily volume.",
+   "answer": "Skip it; the volume is not there",
+   "why": "Skip it. On our card, the volume has to be there by the first 30 minutes, so the day-one buy is off. The gap is only a gap.",
+   "lesson_line": "No crowd in the first 30 minutes, no day-one buy.",
+   "facts": [
+    "c21",
+    "c03",
+    "k15",
+    "h31"
+   ],
+   "wrong": {
+    "Take it; holding the gap is enough": "Volume is the number one thing. A held gap without the crowd can still fill.",
+    "Half now and half at the close": "Splitting the buy does not fix missing volume. We buy the full size once, at one price.",
+    "Buy the close if it holds the gap": "Our day-one buy is an opening-range buy with the volume on pace, not a close buy."
+   },
+   "house": true
   }
  ],
  "verify": {
@@ -3364,6 +3421,16 @@
    "status": "pass",
    "notes": "new 2026-11-10 variety question, awaiting second reader variety rewrite checked 2026-11-10.",
    "by": "writer"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10 (why now reads as our card's line (ep.inv_no_volume is proposed); arithmetic 1.5M / 2.0M = 0.75 rechecked; asks a different thing than q10 (a computed multiple, not the recall of the test))",
+   "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10 (choices reworded: the right choice was the only one not opening with 'Buy'; why now reads as our card's line; a scenario of the on-pace test, not the recall asked in q10)",
+   "by": "checker"
   }
  }
 }

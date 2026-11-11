@@ -915,6 +915,18 @@
    "source": "d1",
    "quote": "the first half hour's highs quoted in section 5.5 (DELL 543.15, HOOD 104.17, LITE 950.50) are the 9:30 candles' highs.",
    "claim": "DELL's first half hour high was 543.15."
+  },
+  {
+   "id": "h36",
+   "source": "h1",
+   "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+   "claim": "D42: never own more than 1% of a stock's average daily volume."
+  },
+  {
+   "id": "c54",
+   "source": "c1",
+   "quote": "The position is at most 1% of average daily volume.",
+   "claim": "Card: the position is at most 1% of average daily volume."
   }
  ],
  "walkthroughs": [
@@ -1403,6 +1415,18 @@
    "notes": "d03/d04 verbatim (PSX 2026-08-27: 5 reds into the 10-day EMA 236.78, pivot 11:00 = the day's low 237.12, buy 238.91 at 11:30, stop 237.09 = 0.76%, 3R next session, 5R two sessions on). The 40% cap (A7) and the 167% sizing line (c08) match.",
    "fixed": false,
    "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; 350,000 x 1% = 3,500 recomputed; D42 settled",
+   "by": "checker",
+   "fixed": false
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; min(9,000 risk, 7,000 cap, 5,000 = 1% of 500,000) = 5,000 recomputed; A5 and D42 settled",
+   "by": "checker",
+   "fixed": false
   }
  },
  "questions": [
@@ -2999,6 +3023,66 @@
     "round": 2
    },
    "suffix": "%"
+  },
+  {
+   "key": "q65",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "pvt.position_adv",
+   "q": "A stock averages 350,000 shares a day. Under our 1% rule, what is the most we can hold in a pivot trade?",
+   "answer": 3500,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * 0.01",
+     "a": 350000
+    },
+    "round": 0
+   },
+   "why": "3,500 shares. One percent of 350,000. Never own more than 1% of a stock's average daily volume.",
+   "lesson_line": "Check the stock's volume as well as the stop. One percent is the ceiling.",
+   "facts": [
+    "h36",
+    "c54"
+   ],
+   "suffix": " shares",
+   "house": true
+  },
+  {
+   "key": "q66",
+   "skill": "setup.thirty_minute_pivot",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "pvt.position_adv",
+   "q": "What is the most you can buy?",
+   "story": "A pivot sets up in a stock that averages 500,000 shares a day. Your risk formula asks for 9,000 shares and the 40% cap allows 7,000.",
+   "choices": [
+    "5,000 shares",
+    "7,000 shares",
+    "9,000 shares"
+   ],
+   "answer": "5,000 shares",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * 0.01",
+     "a": 500000
+    },
+    "round": 0
+   },
+   "why": "5,000 shares. One percent of 500,000 is the tightest limit. Never own more than 1% of a stock's average daily volume.",
+   "lesson_line": "Size is the least of what the stop, the cap and the volume allow.",
+   "facts": [
+    "h36",
+    "h03",
+    "c54"
+   ],
+   "wrong": {
+    "7,000 shares": "That is the 40% cap. The volume rule is tighter.",
+    "9,000 shares": "That is what the risk formula asks. The cap and the volume rule both come first."
+   },
+   "house": true
   }
  ]
 }

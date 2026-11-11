@@ -868,6 +868,42 @@
    "source": "d1",
    "quote": "57 hits, 1999 to 2026 (most in 2013, 2020, 2021 and 2024): 26.3% reached 3R and 17.5% reached 5R before the stop",
    "claim": "Our scan: 57 hits, 26.3% reached 3R and 17.5% reached 5R before the stop (a fixed stop, no trims)."
+  },
+  {
+   "id": "h18",
+   "source": "h1",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "D41: every position has a real stop order with the broker, not a stop kept in your head."
+  },
+  {
+   "id": "c46",
+   "source": "c1",
+   "quote": "The stock's first trading day is known from the app's first_trade_date (or list_date), not from the first stored bar.",
+   "claim": "Our card dates the listing from the stock's first trading day on record, not from the first bar we hold."
+  },
+  {
+   "id": "c47",
+   "source": "c1",
+   "quote": "In a leading group or a hot theme: the group in the top quarter of the app's group ranking.",
+   "claim": "Our card prefers an IPO base in a leading group or a hot theme: the group in the top quarter of the ranking."
+  },
+  {
+   "id": "c48",
+   "source": "c1",
+   "quote": "Before the trigger: the depth goes past 35%.",
+   "claim": "Our card ends the base before the trigger when its depth goes past 35%."
+  },
+  {
+   "id": "c49",
+   "source": "c1",
+   "quote": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "claim": "The stop goes to breakeven between 2R and 5R, at the first trim by default."
+  },
+  {
+   "id": "m10",
+   "source": "s6",
+   "quote": "the more volatile markets can have a decline of up to 50%.",
+   "claim": "MarketSmith India: in volatile markets an IPO base can decline up to 50%."
   }
  ],
  "walkthroughs": [
@@ -2577,6 +2613,287 @@
    },
    "house": true,
    "story": "A stock that listed several years ago builds a 6-week rest at its highs. It looks tight and clean."
+  },
+  {
+   "key": "q67",
+   "skill": "setup.ipo_base",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "ipo.listing_date",
+   "q": "How do we date this stock's listing?",
+   "story": "Our price history for a ticker goes back only 30 sessions, and it shows a neat rest under its high. The company listed six years ago.",
+   "choices": [
+    "From its first day of trading",
+    "From the first bar that we hold",
+    "From the heaviest-volume session"
+   ],
+   "answer": "From its first day of trading",
+   "why": "From its first trading day on record. Our card does not date a listing from the first bar we hold. That only shows how far our history goes.",
+   "lesson_line": "Date the listing from the record, never from where our price history starts.",
+   "facts": [
+    "c46",
+    "c30"
+   ],
+   "wrong": {
+    "From the first bar that we hold": "A short history only shows how little data we hold. This company listed years before that bar.",
+    "From the heaviest-volume session": "A volume spike is a guess at the listing. The record gives the actual first trading day."
+   },
+   "house": true
+  },
+  {
+   "key": "q68",
+   "skill": "setup.ipo_base",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "ipo.position_adv",
+   "q": "A new issue trades 650,000 shares a day on average. What is the most shares our volume rule lets us hold?",
+   "answer": 6500,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "adv * 0.01",
+     "adv": 650000
+    },
+    "round": 0
+   },
+   "suffix": "shares",
+   "why": "6,500 shares. We never own more than 1% of a stock's average daily volume. Thin new issues reach that ceiling first.",
+   "lesson_line": "One percent of the average daily volume is the ceiling, whatever the stop allows.",
+   "facts": [
+    "h19"
+   ],
+   "house": true
+  },
+  {
+   "key": "q69",
+   "skill": "setup.ipo_base",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "ipo.position_adv",
+   "q": "A tight stop on a clean IPO base lets us own more than 1% of its average daily volume.",
+   "answer": "False",
+   "why": "False. We never own more than 1% of a stock's average daily volume, however tight the stop is.",
+   "lesson_line": "A tight stop sets the size from risk. It never lifts the volume ceiling.",
+   "facts": [
+    "h19",
+    "h03"
+   ],
+   "house": true
+  },
+  {
+   "key": "q70",
+   "skill": "setup.ipo_base",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "ipo.group",
+   "q": "Which one grades higher?",
+   "story": "Two IPO bases look alike: same depth, same volume, same tight right side. One sits in a group in the top quarter of our group ranking. The other's group ranks in the bottom half.",
+   "choices": [
+    "The one in the top-quarter group",
+    "The one in the bottom-half group",
+    "Neither; the group has no say in grade"
+   ],
+   "answer": "The one in the top-quarter group",
+   "why": "The top-quarter group. Our card prefers an IPO base in a leading group or a hot theme. It lifts the grade; the chart still comes first.",
+   "lesson_line": "A leading group or a hot theme lifts an IPO base's grade.",
+   "facts": [
+    "c47",
+    "h17"
+   ],
+   "wrong": {
+    "The one in the bottom-half group": "Our card prefers the leading group, so the weaker group cannot grade higher.",
+    "Neither; the group has no say in grade": "The group is a grade cue on our card. Equal charts are separated by it."
+   },
+   "house": true
+  },
+  {
+   "key": "q71",
+   "skill": "setup.ipo_base",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "ipo.location_averages",
+   "q": "What does the location check ask of it?",
+   "story": "A new issue listed 30 sessions ago and is breaking out. Its close sits above the rising 10-day and 21-day averages. It has no 50-day yet.",
+   "choices": [
+    "The 10 and 21-day; the 50-day later",
+    "The 50-day, so wait until it has formed",
+    "The 200-day first, then the 21-day"
+   ],
+   "answer": "The 10 and 21-day; the 50-day later",
+   "why": "The 10-day and 21-day now. Our card asks for a close above the rising 10-day and 21-day averages, and above the 50-day once it exists.",
+   "lesson_line": "A young stock is judged on the averages it has. The 50-day joins later.",
+   "facts": [
+    "c22",
+    "c32"
+   ],
+   "wrong": {
+    "The 50-day, so wait until it has formed": "The 50-day is asked for only once it exists. A young stock does not have to wait for it.",
+    "The 200-day first, then the 21-day": "A young listing has no 200-day, and our card does not ask for one here."
+   },
+   "house": true
+  },
+  {
+   "key": "q72",
+   "skill": "setup.ipo_base",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "ipo.location_averages",
+   "q": "Our card wants an IPO base buy to close above its rising 10-day and 21-day averages.",
+   "answer": "True",
+   "why": "True. The close sits above the rising 10-day and 21-day averages, and above the 50-day once it exists.",
+   "lesson_line": "Buy the IPO breakout from strength: above the rising 10-day and 21-day.",
+   "facts": [
+    "c22"
+   ],
+   "house": true
+  },
+  {
+   "key": "q73",
+   "skill": "setup.ipo_base",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "ipo.stop_broker",
+   "q": "On a fresh IPO breakout, a stop kept in your head is fine if you watch the screen.",
+   "answer": "False",
+   "why": "False. Every position has a real stop order with the broker, not a stop kept in your head.",
+   "lesson_line": "A stop in your head is a debate. A stop with the broker is an appointment.",
+   "facts": [
+    "h18"
+   ],
+   "house": true
+  },
+  {
+   "key": "q74",
+   "skill": "setup.ipo_base",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "ipo.stop_broker",
+   "q": "What does our rule say about the stop?",
+   "story": "You bought an IPO breakout at 33.38 with the stop at 32.62. It trades up to 34.60, then pulls back. You want to drop the stop to 32.00 to give it air.",
+   "choices": [
+    "Keep it where it is or raise it",
+    "Lower it a little for a new issue",
+    "Cancel it and watch the price by eye"
+   ],
+   "answer": "Keep it where it is or raise it",
+   "why": "Keep it where it is, or raise it. The stop only moves up, never down or wider, and it stays a real order with the broker.",
+   "lesson_line": "Pick the stop before the buy. It only goes up from there.",
+   "facts": [
+    "h02",
+    "h18",
+    "d03"
+   ],
+   "wrong": {
+    "Lower it a little for a new issue": "A wider stop turns a planned loss into a bigger one. Widening the stop is a named mistake.",
+    "Cancel it and watch the price by eye": "A stop kept in your head is not a stop. It stays a real order with the broker."
+   },
+   "house": true
+  },
+  {
+   "key": "q75",
+   "skill": "setup.ipo_base",
+   "rung": 4,
+   "format": "mcq",
+   "criterion": "ipo.breakeven",
+   "q": "When does the stop move to breakeven on an IPO base winner?",
+   "choices": [
+    "Between 2R and 5R, at first trim",
+    "At 1R, once it clears the pivot",
+    "Only after the last third is sold",
+    "After the first higher close in a row"
+   ],
+   "answer": "Between 2R and 5R, at first trim",
+   "why": "Between 2R and 5R, ideally, and at the first trim by default.",
+   "lesson_line": "Breakeven comes between 2R and 5R, at the first trim.",
+   "facts": [
+    "c49",
+    "h05"
+   ],
+   "wrong": {
+    "At 1R, once it clears the pivot": "Too soon. Our rule starts at 2R.",
+    "Only after the last third is sold": "The stop moves long before the last third goes. It follows the first trim.",
+    "After the first higher close in a row": "A close is not a measure of R. The move is set in R, from 2R."
+   },
+   "house": true
+  },
+  {
+   "key": "q76",
+   "skill": "setup.ipo_base",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "ipo.breakeven",
+   "q": "Bought at 33.38, stop 32.62. At what price may the stop first go to breakeven?",
+   "answer": 34.9,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 2 * (a - b)",
+     "a": 33.38,
+     "b": 32.62
+    },
+    "round": 2
+   },
+   "suffix": "R",
+   "why": "34.90. The earliest breakeven is 2R, the fill plus two times the distance to the stop. Our rule runs from 2R to 5R.",
+   "lesson_line": "Count in R. From 2R the stop can move up to your entry.",
+   "facts": [
+    "h05",
+    "d03"
+   ],
+   "house": true
+  },
+  {
+   "key": "q77",
+   "skill": "setup.ipo_base",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "ipo.inv_ipo_price",
+   "q": "What does that do to the IPO base?",
+   "story": "A new issue priced at $20, opened at $21 and closed its first day at $22. In week three of its base the low hits $18.60. It then closes under $19 for two weeks.",
+   "choices": [
+    "It ends the base before the trigger",
+    "It is a normal shakeout; keep waiting",
+    "It resets the base to a fresh day one"
+   ],
+   "answer": "It ends the base before the trigger",
+   "why": "It ends the base. Our card voids it when the low undercuts the IPO price and no close gets back above within 3 sessions.",
+   "lesson_line": "A base that sinks under the IPO price and stays there is over.",
+   "facts": [
+    "c14",
+    "m02"
+   ],
+   "wrong": {
+    "It is a normal shakeout; keep waiting": "The base should not undercut the IPO price. Two weeks of closes under it is not a shakeout.",
+    "It resets the base to a fresh day one": "The listing day does not move. This rest is over as an IPO base."
+   },
+   "house": true
+  },
+  {
+   "key": "q78",
+   "skill": "setup.ipo_base",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "ipo.inv_depth",
+   "q": "What is the best read of it?",
+   "story": "A new issue falls 60% from its IPO high, then rests there for four weeks. The rest looks quiet and neat.",
+   "choices": [
+    "Too deep to be an IPO base",
+    "A bargain: deeper means cheaper",
+    "Fine, if you cut the size in half"
+   ],
+   "answer": "Too deep to be an IPO base",
+   "why": "Too deep. IPO bases usually do not top 20%, and MarketSmith India sees up to 50% in volatile markets. At 60% our card ends the base.",
+   "lesson_line": "Too deep is not a base, however quiet the rest looks.",
+   "facts": [
+    "m09",
+    "m10",
+    "c48"
+   ],
+   "wrong": {
+    "A bargain: deeper means cheaper": "A fall that deep is damage, not a discount. Our card ends the base.",
+    "Fine, if you cut the size in half": "Size cannot rescue a base that is already over."
+   },
+   "house": true
   }
  ],
  "conflicts": [
@@ -2912,6 +3229,78 @@
    "status": "cut",
    "notes": "Near-duplicate of q44: both key 'past the first year the IPO card no longer applies, judge it as a regular base'. q44 keeps the concrete CAVA case.",
    "fixed": false,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Key follows the card line c46 (proposed); wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Fixed: the question now says it asks the volume rule, since the risk size and the 40% cap could also bind. 650,000 x 1% = 6,500 (D42).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. D42 settled; tf False not marked by an absolute word.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Group in the top quarter is a proposed grade cue (c47); the story holds the charts equal.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. c22 verbatim; 30 sessions is under 50 so no 50-day yet, and no 200-day (c32).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. c22 verbatim; True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. D41 settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q74": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Fixed: the right choice began unlike the two wrong ones (\"It only moves up\"); now \"Keep it where it is or raise it\", same shape as \"Lower it\" and \"Cancel it\". A4 and D41 settled.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q75": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. B19 and the card line c49, both settled; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q76": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Fixed: it asked \"how many R\" (the R arithmetic, a neighbour); re-aimed at the breakeven price so it tests ipo.breakeven (B19, 2R to 5R). 33.38 + 2 x (33.38 - 32.62) = 34.90.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q77": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Fixed: the story named one \"IPO price\" ($20), so the key leaned on which price D-057 picks; it now gives the offer ($20), the open ($21) and the first close ($22), the low undercuts all three and nothing closes back over any for two weeks, so every option and any reclaim window up to 9 sessions give the same call. The \"fresh day one\" wrong note no longer says no later base can form (D-002 is held).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q78": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Fixed: removed the sentence \"Our card ends one past 35%\" (the 35% cap waits on D-055; 60% is past 20%, 35% and 50% alike, so the key does not need it); the right choice was the odd one out in opening (\"Too deep\" against \"A bargain\" and \"A base\"), so choice 3 now opens \"Fine,\".",
+   "fixed": true,
    "by": "checker"
   }
  }

@@ -619,6 +619,24 @@
    "source": "d1",
    "quote": "CRM 2023-06-20, a Super Oops (close 216.97 over the 213.65 prior high) with a 1.52% stop, opened 216.52 the next day and sold through the stop to 208.07",
    "claim": "CRM 2023-06-20: a Super Oops with a 1.52% stop sold through the stop the next day."
+  },
+  {
+   "id": "h13",
+   "source": "h1",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
+   "claim": "C29: skip a long more than 10% above its 10-day average."
+  },
+  {
+   "id": "h31",
+   "source": "h1",
+   "quote": "The full size at one price with one stop; no adding.",
+   "claim": "A5: the full size at one price with one stop; no adding."
+  },
+  {
+   "id": "o_stretch",
+   "source": "c1",
+   "quote": "At entry, no more than 10% above the 10-day average.",
+   "claim": "Card: at entry, no more than 10% above the 10-day average."
   }
  ],
  "walkthroughs": [
@@ -2247,6 +2265,180 @@
     "o_mktr"
    ],
    "house": true
+  },
+  {
+   "key": "q64",
+   "skill": "setup.oops_reversal",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "oops.earnings_day_lower",
+   "q": "How does the earnings day change the Oops?",
+   "choices": [
+    "Allowed, but it grades lower",
+    "Not allowed; earnings days are out",
+    "Allowed, and it grades higher",
+    "A delayed reaction, not an Oops"
+   ],
+   "story": "The company reported before the open. The stock opened under yesterday's close, undercut the low and closed over the prior close.",
+   "answer": "Allowed, but it grades lower",
+   "why": "Allowed, but it grades lower. On our card, an earnings-day Oops counts. The day after a news gap is a delayed reaction.",
+   "lesson_line": "An earnings-day Oops is allowed but grades lower. The day after is a delayed reaction.",
+   "facts": [
+    "o_earn_day",
+    "m_news"
+   ],
+   "wrong": {
+    "Not allowed; earnings days are out": "Our card allows an earnings-day Oops. It only grades lower.",
+    "Allowed, and it grades higher": "The card grades an earnings-day Oops lower, not higher.",
+    "A delayed reaction, not an Oops": "A delayed reaction is the reversal the day after a news gap, not the news day itself."
+   },
+   "house": true
+  },
+  {
+   "key": "q65",
+   "skill": "setup.oops_reversal",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "oops.position_adv",
+   "q": "A stock averages 800,000 shares a day. What is the most shares we hold?",
+   "answer": 8000,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * 0.01",
+     "a": 800000
+    },
+    "round": 0
+   },
+   "why": "8,000 shares. Our cap is 1% of average daily volume, and 1% of 800,000 is 8,000.",
+   "lesson_line": "Take 1% of the average daily volume. That is the most we hold.",
+   "facts": [
+    "h19"
+   ],
+   "house": true,
+   "suffix": " shares"
+  },
+  {
+   "key": "q66",
+   "skill": "setup.oops_reversal",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "oops.position_adv",
+   "q": "Our holding in a stock stays at or under 1% of its average daily volume.",
+   "answer": "True",
+   "why": "True. We never own more than 1% of a stock's average daily volume. Illiquid stocks are not even watched.",
+   "lesson_line": "One percent of average daily volume is our ceiling. Thin stocks are skipped.",
+   "facts": [
+    "h19"
+   ],
+   "house": true
+  },
+  {
+   "key": "q67",
+   "skill": "setup.oops_reversal",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "oops.not_stretched",
+   "q": "The 10-day average is 80.00. What is the most we pay before the stock counts as too stretched?",
+   "answer": 88.0,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * 1.1",
+     "a": 80.0
+    },
+    "round": 2
+   },
+   "why": "88.00. We skip a long more than 10% above its 10-day average, and 80.00 plus 10% is 88.00.",
+   "lesson_line": "No more than 10% over the 10-day average. Past that, skip.",
+   "facts": [
+    "h13",
+    "o_stretch"
+   ],
+   "house": true,
+   "prefix": "$"
+  },
+  {
+   "key": "q68",
+   "skill": "setup.oops_reversal",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "oops.not_stretched",
+   "q": "Do you buy it?",
+   "choices": [
+    "No, too far over its 10-day",
+    "No, it needs a red prior day",
+    "Yes, it passes every Oops test",
+    "Yes, at half size to stay safe"
+   ],
+   "story": "A pullback reverses hard. The Oops reclaims the prior close at 56.00. The 10-day average sits at 50.00.",
+   "answer": "No, too far over its 10-day",
+   "why": "No. 56.00 is more than 10% above the 10-day average of 50.00. A long that stretched is skipped.",
+   "lesson_line": "Over 10% above the 10-day average, skip the long, even a clean Oops.",
+   "facts": [
+    "h13",
+    "o_stretch"
+   ],
+   "wrong": {
+    "No, it needs a red prior day": "A red prior day is preferred, not required. The stretch rule is what stops this buy.",
+    "Yes, it passes every Oops test": "The Oops tests pass, but the stretch rule is separate.",
+    "Yes, at half size to stay safe": "Half size does not change the rule."
+   },
+   "house": true
+  },
+  {
+   "key": "q69",
+   "skill": "setup.oops_reversal",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "oops.trim_2",
+   "q": "Bought at 31.51 with the stop at 31.12. Where is 5R?",
+   "answer": 33.46,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 5 * (a - b)",
+     "a": 31.51,
+     "b": 31.12
+    },
+    "round": 2
+   },
+   "why": "33.46. One R is the fill minus the stop. Add five of those to the fill. The second third comes off there.",
+   "lesson_line": "Know your 5R too. The second third comes off there.",
+   "facts": [
+    "h20",
+    "dACN"
+   ],
+   "house": true,
+   "prefix": "$"
+  },
+  {
+   "key": "q70",
+   "skill": "setup.oops_reversal",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "oops.trim_2",
+   "q": "What do you do now?",
+   "choices": [
+    "Sell a second third, trail the rest",
+    "Sell all that is left",
+    "Hold it all; the trail does the work",
+    "Add a third; the stock is working"
+   ],
+   "story": "You sold a third at 3R and lifted the stop to breakeven. Now the Oops reaches 5R.",
+   "answer": "Sell a second third, trail the rest",
+   "why": "Sell a second third. After the first third at 3R, another third comes off at 5R, then you trail the last third.",
+   "lesson_line": "At 5R the second third comes off. The last third rides the trail.",
+   "facts": [
+    "h20",
+    "h31"
+   ],
+   "wrong": {
+    "Sell all that is left": "The last third is trailed, not sold at 5R.",
+    "Hold it all; the trail does the work": "The second third comes off at 5R. The trail handles the last third.",
+    "Add a third; the stock is working": "We buy the full size once, at one price. No adding."
+   },
+   "house": true
   }
  ],
  "conflicts": [
@@ -2659,6 +2851,41 @@
    "notes": "o_mktr / best_conditions, part of the settled oops.market_reading line. Requoted 2026-11-10: quote now ends the Red rule before the best-days sentence; key (True) holds. No text change.",
    "fixed": true,
    "by": "requoter"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10 (choices reworded: the right choice was the only 'No' against three 'Yes' choices, so one wrong choice is now a 'No' for the wrong reason)",
+   "by": "checker"
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker"
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker"
   }
  }
 }

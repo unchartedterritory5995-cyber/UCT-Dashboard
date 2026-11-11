@@ -390,12 +390,6 @@
    "claim": "A third failed attempt in a week on the same stock: stop trying."
   },
   {
-   "id": "cMkt",
-   "source": "c1",
-   "quote": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: shorts only, below the 200-day.",
-   "claim": "Green full risk; Yellow smaller and fewer; Orange A+ only; Red shorts only, below the 200-day."
-  },
-  {
    "id": "cIdx",
    "source": "c1",
    "quote": "A cue: the index itself gaps down and gets bought the same morning.",
@@ -670,6 +664,42 @@
    "source": "d1",
    "quote": "A 3.4% gap down to the 20-day EMA whose dip is too deep for the stop: the edge of the gap setups, skip or size down by the stop.",
    "claim": "DELL: a gap down whose dip is too deep for the stop; skip or size down by the stop."
+  },
+  {
+   "id": "h09",
+   "source": "h1",
+   "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+   "claim": "B23: trade only stocks at $10 or more that trade at least $20 million a day."
+  },
+  {
+   "id": "h19",
+   "source": "h1",
+   "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+   "claim": "D42: never own more than 1% of a stock's average daily volume."
+  },
+  {
+   "id": "h21",
+   "source": "h1",
+   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below."
+  },
+  {
+   "id": "cLiq",
+   "source": "c1",
+   "quote": "Price $10 or more and $20 million or more traded a day on average.",
+   "claim": "Our card: price $10 or more and $20 million or more traded a day on average."
+  },
+  {
+   "id": "cBE",
+   "source": "c1",
+   "quote": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "claim": "Our card: stop to breakeven between 2R and 5R, at the first trim by default."
+  },
+  {
+   "id": "cTrail",
+   "source": "c1",
+   "quote": "Trail the last third: a close under the 10-day average for fast movers, the 21-day for steadier ones.",
+   "claim": "Our card: trail the last third under the 10-day for fast movers, the 21-day for steadier ones."
   }
  ],
  "walkthroughs": [
@@ -2268,6 +2298,293 @@
    },
    "story": "You hold a red-to-green winner overnight. You bought at 40.00 with the stop at 38.50. The next morning it gaps down to 38.04. The first 30-minute low is 37.50.",
    "house": true
+  },
+  {
+   "key": "q64",
+   "skill": "setup.red_to_green",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "rg.liquidity",
+   "q": "Does it pass our floor?",
+   "story": "A leader pulls back to its 20-day EMA, gaps down and crosses the prior close. It trades at 8.40 a share and averages $30 million a day.",
+   "choices": [
+    "No; price must be at least $10",
+    "Yes, $30 million a day is plenty",
+    "No; it needs $50 million a day",
+    "Yes, leaders skip the price floor"
+   ],
+   "answer": "No; price must be at least $10",
+   "why": "No. We trade only stocks at $10 or more that trade at least $20 million a day. This one fails on price.",
+   "lesson_line": "Two checks: $10 a share and $20 million a day. Fail either and skip it.",
+   "facts": [
+    "h09",
+    "cLiq"
+   ],
+   "wrong": {
+    "Yes, $30 million a day is plenty": "The dollar volume passes, but the price does not. Both checks must pass.",
+    "No; it needs $50 million a day": "The floor is $20 million a day, not $50 million. It fails on price.",
+    "Yes, leaders skip the price floor": "Leaders get no exception. Price must be $10 or more."
+   },
+   "house": true
+  },
+  {
+   "key": "q65",
+   "skill": "setup.red_to_green",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "rg.liquidity",
+   "q": "The stock trades 1,500,000 shares a day on average at 12.00. How many dollars a day is that?",
+   "answer": 18000000,
+   "calc": {
+    "fn": "dollar_volume",
+    "args": {
+     "shares": 1500000,
+     "price": 12.0
+    },
+    "round": 0
+   },
+   "why": "$18 million a day. Shares times price. That is under the $20 million floor, so the stock fails even though it is over $10.",
+   "lesson_line": "Shares times price is dollars a day. Check it against $20 million.",
+   "facts": [
+    "h09",
+    "cLiq"
+   ],
+   "house": true,
+   "prefix": "$"
+  },
+  {
+   "key": "q66",
+   "skill": "setup.red_to_green",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "rg.position_adv",
+   "q": "How many shares do you buy?",
+   "story": "Your risk math says 40,000 shares. The stock trades 3,000,000 shares a day on average. The setup is clean and the stop is tight.",
+   "choices": [
+    "30,000, the 1% ceiling",
+    "40,000, the risk math",
+    "45,000, the clean setup",
+    "60,000, double for the tight stop"
+   ],
+   "answer": "30,000, the 1% ceiling",
+   "why": "30,000. We never own more than 1% of a stock's average daily volume. The ceiling caps the risk-based size.",
+   "lesson_line": "Check the volume ceiling after the risk math. It caps the size.",
+   "facts": [
+    "h19",
+    "h31"
+   ],
+   "wrong": {
+    "40,000, the risk math": "That is over 1% of 3,000,000 shares. The ceiling caps the size.",
+    "45,000, the clean setup": "A clean setup does not lift the ceiling. It is 1% of the daily volume.",
+    "60,000, double for the tight stop": "A tight stop does not lift the ceiling. It is 1% of the daily volume."
+   },
+   "house": true
+  },
+  {
+   "key": "q67",
+   "skill": "setup.red_to_green",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "rg.position_adv",
+   "q": "Holding 8,000 shares of a stock that averages 1,000,000 a day is under our volume ceiling.",
+   "answer": "True",
+   "why": "True. 8,000 shares is under 1% of the average daily volume, which is our ceiling.",
+   "lesson_line": "Compare your share count to the daily volume. One percent is the ceiling.",
+   "facts": [
+    "h19"
+   ],
+   "house": true
+  },
+  {
+   "key": "q68",
+   "skill": "setup.red_to_green",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "rg.position_adv",
+   "q": "A stock averages 2,400,000 shares a day. What is the most shares you may own, at 1% of that?",
+   "answer": 24000,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * 0.01",
+     "a": 2400000
+    },
+    "round": 0
+   },
+   "why": "24,000 shares. One percent of 2,400,000. Owning more is over our ceiling.",
+   "lesson_line": "Move the decimal two places: 1% of the daily volume.",
+   "facts": [
+    "h19"
+   ],
+   "house": true,
+   "suffix": "shares"
+  },
+  {
+   "key": "q69",
+   "skill": "setup.red_to_green",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "rg.breakeven",
+   "q": "Where does the stop on the rest go?",
+   "story": "You bought the red to green at 96.36 with the stop at 94.67. The stock hits 3R and you sell a third.",
+   "choices": [
+    "Up to your fill price, breakeven",
+    "Stay put under the dip's day low",
+    "Up to the 3R price where you sold",
+    "Just under the 10-day average line"
+   ],
+   "answer": "Up to your fill price, breakeven",
+   "why": "Up to your fill price. The stop goes to breakeven between 2R and 5R, at the first trim by default.",
+   "lesson_line": "First trim at 3R, stop to breakeven. The rest runs risk-free.",
+   "facts": [
+    "cBE",
+    "h05"
+   ],
+   "wrong": {
+    "Stay put under the dip's day low": "At the first trim the stop moves up to breakeven by default.",
+    "Up to the 3R price where you sold": "That locks in a profit target as a stop. Breakeven is the fill price.",
+    "Just under the 10-day average line": "The 10-day is the trail for the last third, not the breakeven move."
+   },
+   "house": true
+  },
+  {
+   "key": "q70",
+   "skill": "setup.red_to_green",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "rg.breakeven",
+   "q": "Move the stop to breakeven the moment the day turns green after your buy.",
+   "answer": "False",
+   "why": "False. The stop moves to breakeven between 2R and 5R, at the first trim by default. A green day is not 2R.",
+   "lesson_line": "Breakeven waits for 2R at least. Do not tighten it on the first green tick.",
+   "facts": [
+    "cBE",
+    "h05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q71",
+   "skill": "setup.red_to_green",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "rg.trim_2",
+   "q": "Fill 111.93, stop 110.75. Where is 5R?",
+   "answer": 117.83,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 5 * (a - b)",
+     "a": 111.93,
+     "b": 110.75
+    },
+    "round": 2
+   },
+   "why": "117.83. One R is the fill minus the stop. Five of those added to the fill is where the second third comes off.",
+   "lesson_line": "Write your 5R price down. The second third comes off there.",
+   "facts": [
+    "h20",
+    "h05"
+   ],
+   "house": true,
+   "prefix": "$"
+  },
+  {
+   "key": "q72",
+   "skill": "setup.red_to_green",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "rg.trim_2",
+   "q": "Next step at 5R?",
+   "story": "You sold a third at 3R and moved the stop to breakeven. The winner now trades at 5R, and two thirds are still open.",
+   "choices": [
+    "Sell a third more, trail the last",
+    "Sell all the rest and bank the 5R",
+    "Hold the rest; raise the stop to 3R",
+    "Add a third more at the new high"
+   ],
+   "answer": "Sell a third more, trail the last",
+   "why": "Sell another third and trail the last. After the first third at 3R, another third goes at 5R.",
+   "lesson_line": "Thirds at 3R and 5R, then trail what is left.",
+   "facts": [
+    "h20",
+    "cTrail",
+    "h30"
+   ],
+   "wrong": {
+    "Sell all the rest and bank the 5R": "The last third is trailed, not sold at 5R.",
+    "Hold the rest; raise the stop to 3R": "The second third comes off at 5R. Raising the stop does not replace it.",
+    "Add a third more at the new high": "The full size is bought at one price. No adding."
+   },
+   "house": true
+  },
+  {
+   "key": "q73",
+   "skill": "setup.red_to_green",
+   "rung": 3,
+   "format": "fill",
+   "criterion": "rg.trail",
+   "q": "Complete the trail rule.",
+   "sentence": "A fast mover's last third is sold on a close under the ___-day average.",
+   "bank": [
+    "5",
+    "10",
+    "21",
+    "50",
+    "200"
+   ],
+   "answer": "10",
+   "why": "10. Fast movers trail the 10-day. Steadier ones trail the 21-day. Sell on a close below it.",
+   "lesson_line": "Fast mover, 10-day. Steadier name, 21-day.",
+   "facts": [
+    "h21",
+    "cTrail"
+   ],
+   "house": true
+  },
+  {
+   "key": "q74",
+   "skill": "setup.red_to_green",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "rg.trail",
+   "q": "Do you sell the last third?",
+   "story": "You hold the last third of a red-to-green winner. It is a steady name that has ridden its 21-day for weeks. Today it closes under the 10-day but above the 21-day.",
+   "choices": [
+    "No, hold; the 21-day is its trail",
+    "Yes, a close under the 10-day exits",
+    "Yes, sell half of the last third",
+    "No, hold; trail the 50-day instead"
+   ],
+   "answer": "No, hold; the 21-day is its trail",
+   "why": "No. A steadier name trails the 21-day, and it is still above it. Sell on a close below that line.",
+   "lesson_line": "Pick the trail that fits the stock. Sell on a close under it.",
+   "facts": [
+    "h21",
+    "cTrail"
+   ],
+   "wrong": {
+    "Yes, a close under the 10-day exits": "The 10-day trails fast movers. This steady name trails the 21-day.",
+    "Yes, sell half of the last third": "The rule is a sale on a close under the trail average, not a half step.",
+    "No, hold; trail the 50-day instead": "The defaults are the 10-day and the 21-day, not the 50-day."
+   },
+   "house": true
+  },
+  {
+   "key": "q75",
+   "skill": "setup.red_to_green",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "rg.trail",
+   "q": "A steadier name trails the 21-day average, while a fast mover trails the 10-day.",
+   "answer": "True",
+   "why": "True. The last third trails the 10-day for fast movers and the 21-day for steadier ones.",
+   "lesson_line": "Match the trail to the mover: 10-day fast, 21-day steady.",
+   "facts": [
+    "h21",
+    "cTrail"
+   ],
+   "house": true
   }
  ],
  "conflicts": [
@@ -2681,6 +2998,78 @@
   "w3": {
    "status": "pass",
    "notes": "dHO, dHO1 verbatim; bars: HOOD buy 23.98, stop 23.51, 3R 25.39 first reached 2024-11-06, day 2; 2.0% = 0.47 / 23.98. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; the 60,000 wrong note borrowed A7's 40% line for the volume ceiling; reworded to the D42 ceiling",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q74": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; dropped an unsourced claim ('the 50-day is too slow') from a wrong note",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q75": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   }

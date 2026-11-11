@@ -688,6 +688,36 @@
    "source": "d1",
    "quote": "A 9% first leg: a base too shallow to contract from; by Minervini's own waiver it is a flat base, judged by the flat-base rules.",
    "claim": "UNH: a 9% first leg, too shallow to contract from; by Minervini's waiver a flat base."
+  },
+  {
+   "id": "h40",
+   "source": "h1",
+   "quote": "Prefer stocks with growing sales and earnings; the chart comes first.",
+   "claim": "D40: prefer stocks with growing sales and earnings; the chart comes first."
+  },
+  {
+   "id": "h41",
+   "source": "h1",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "D41: every position has a real stop order with the broker."
+  },
+  {
+   "id": "h42",
+   "source": "h1",
+   "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+   "claim": "F63: if a stock opens above a trim level, take that trim at the open."
+  },
+  {
+   "id": "h43",
+   "source": "h1",
+   "quote": "A climax run on your own long (Bracco's parabolic burst): sell a big part into it, a judgment call.",
+   "claim": "C34: on a climax run in your own long, sell a big part into it; how much is a judgment call."
+  },
+  {
+   "id": "c07",
+   "source": "c1",
+   "quote": "A grade cue: tight closes with little change from one day to the next and from one week to the next in the final contraction.",
+   "claim": "Card: tight closes with little change day to day and week to week in the final contraction are a grade cue."
   }
  ],
  "walkthroughs": [
@@ -2453,6 +2483,296 @@
    },
    "house": true,
    "story": "The honest stop is wider than you like. A friend says to give it even more room."
+  },
+  {
+   "key": "q70",
+   "skill": "setup.vcp",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "vcp.fundamentals",
+   "q": "For a VCP we prefer growing sales and earnings, but the chart comes first.",
+   "answer": "True",
+   "why": "True. We prefer a company with growing sales and earnings. The chart still comes first.",
+   "lesson_line": "Fundamentals are a plus. The chart comes first.",
+   "facts": [
+    "h40"
+   ],
+   "house": true
+  },
+  {
+   "key": "q71",
+   "skill": "setup.vcp",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "vcp.fundamentals",
+   "q": "What does our rule say about the buy?",
+   "choices": [
+    "The chart comes first; pass",
+    "The earnings come first; buy it",
+    "Both count the same; buy half size"
+   ],
+   "answer": "The chart comes first; pass",
+   "why": "Pass. Growing sales and earnings are preferred, but the chart comes first. This base is not contracting.",
+   "lesson_line": "Strong earnings do not fix a loose chart. The chart comes first.",
+   "facts": [
+    "h40",
+    "c11"
+   ],
+   "wrong": {
+    "The earnings come first; buy it": "Earnings are a preference. They do not replace the chart rules.",
+    "Both count the same; buy half size": "The chart comes first, so they do not count the same. A base that is not contracting is not a VCP."
+   },
+   "house": true,
+   "story": "A company posts fast sales and earnings growth. Its base is wide and loose, and the pullbacks are not shrinking."
+  },
+  {
+   "key": "q72",
+   "skill": "setup.vcp",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "vcp.no_right_side_selling",
+   "q": "A down day in the second half of a base trades 3,300,000 shares. The 50-day average is 2,200,000. How many times the average?",
+   "answer": 1.5,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a / b",
+     "a": 3300000,
+     "b": 2200000
+    },
+    "round": 2
+   },
+   "why": "1.5. That meets our limit of 1.5 times the 50-day average, so this base still has selling on its right side.",
+   "lesson_line": "A down day at 1.5 times the average or more on the right side is selling.",
+   "facts": [
+    "c06",
+    "cm2"
+   ],
+   "house": true,
+   "suffix": "x"
+  },
+  {
+   "key": "q73",
+   "skill": "setup.vcp",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "vcp.no_right_side_selling",
+   "q": "A down day on 1.5 times the 50-day volume in the base's second half is fine if shallow.",
+   "answer": "False",
+   "why": "False. Our card wants no down day in the second half on 1.5 times the 50-day volume or more, however shallow.",
+   "lesson_line": "Heavy down days on the right side mean distribution is still going on.",
+   "facts": [
+    "c06",
+    "cm2"
+   ],
+   "house": true
+  },
+  {
+   "key": "q74",
+   "skill": "setup.vcp",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "vcp.tight_closes",
+   "q": "Which base grades higher on the closes?",
+   "choices": [
+    "Base A, the closes are tight",
+    "Base B, a wider range of closes",
+    "Neither; only the depth matters"
+   ],
+   "answer": "Base A, the closes are tight",
+   "why": "Base A. Tight closes, with little change from one day to the next, are a grade cue in the final contraction.",
+   "lesson_line": "In the final contraction, tight closes day to day and week to week grade higher.",
+   "facts": [
+    "c07",
+    "c03"
+   ],
+   "wrong": {
+    "Base B, a wider range of closes": "Loose closes grade lower. The cue is little change from one day to the next.",
+    "Neither; only the depth matters": "Both are 5% deep, so the closes decide. The card grades on tight closes too."
+   },
+   "house": true,
+   "story": "Two bases end in a 5% final contraction on quiet volume. In base A the closes sit within a few cents day to day. In base B they jump around inside the range."
+  },
+  {
+   "key": "q75",
+   "skill": "setup.vcp",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "vcp.tight_closes",
+   "q": "Tight closes in the final contraction are a grade cue for a VCP, not a gate.",
+   "answer": "True",
+   "why": "True. Our card calls it a grade cue: tight closes with little change from one day to the next.",
+   "lesson_line": "Tight closes make a final contraction grade higher.",
+   "facts": [
+    "c07"
+   ],
+   "house": true
+  },
+  {
+   "key": "q76",
+   "skill": "setup.vcp",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "vcp.stop_broker",
+   "q": "What did the plan miss?",
+   "choices": [
+    "A live stop order with the broker",
+    "A wider stop to ride the shakeout",
+    "A smaller buy, spread over two days"
+   ],
+   "answer": "A live stop order with the broker",
+   "why": "A live stop order with the broker. Our rule is an order in place, not a stop kept in your head or your notes.",
+   "lesson_line": "A stop in your notes is not a stop. Put the order in with the broker.",
+   "facts": [
+    "h41",
+    "h02",
+    "h03b"
+   ],
+   "wrong": {
+    "A wider stop to ride the shakeout": "A stop never goes wider. The problem was that no order existed.",
+    "A smaller buy, spread over two days": "We do not build a VCP in steps; it is one full buy. The missing piece was the order."
+   },
+   "house": true,
+   "story": "You buy a VCP breakout at 17.38 and write the stop, 16.59, in your notes. No order is placed. At 11 am the stock trades 16.20 while you are in a meeting."
+  },
+  {
+   "key": "q77",
+   "skill": "setup.vcp",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "vcp.stop_broker",
+   "q": "Watching the stop on your screen all day is as good as a stop order with the broker.",
+   "answer": "False",
+   "why": "False. Our rule is a real order with the broker. An eye on the screen is not an order.",
+   "lesson_line": "The stop is an order, not a habit of watching.",
+   "facts": [
+    "h41"
+   ],
+   "house": true
+  },
+  {
+   "key": "q78",
+   "skill": "setup.vcp",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "vcp.trim_2",
+   "q": "You bought 900 shares. You sell a third of them at 3R and another third at 5R. How many are left to trail?",
+   "answer": 300,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a - 2 * a / 3",
+     "a": 900
+    },
+    "round": 0
+   },
+   "why": "300. A third at 3R and a third at 5R leaves the last third, which is trailed.",
+   "lesson_line": "Thirds at 3R and 5R, then trail the last third.",
+   "facts": [
+    "h20",
+    "h05"
+   ],
+   "house": true,
+   "suffix": " shares"
+  },
+  {
+   "key": "q79",
+   "skill": "setup.vcp",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "vcp.trim_2",
+   "q": "What does the plan do at 5R?",
+   "choices": [
+    "Sell a third more; trail the rest",
+    "Sell everything and lock the gain in",
+    "Hold it all until the 21-day breaks"
+   ],
+   "answer": "Sell a third more; trail the rest",
+   "why": "Sell another third. After the first third at 3R comes a third at 5R, then the last third is trailed.",
+   "lesson_line": "Third at 3R, third at 5R, trail the last third.",
+   "facts": [
+    "h20"
+   ],
+   "wrong": {
+    "Sell everything and lock the gain in": "The plan sells in thirds and trails the last one.",
+    "Hold it all until the 21-day breaks": "The second third comes off at 5R. Only the last third rides the trail."
+   },
+   "house": true,
+   "story": "Your VCP buy sold its first third at 3R. Price now touches 5R and the stop is at breakeven."
+  },
+  {
+   "key": "q80",
+   "skill": "setup.vcp",
+   "rung": 2,
+   "format": "fill",
+   "criterion": "vcp.trim_gap_open",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "A trim level the VCP gaps over is taken at the ___.",
+   "bank": [
+    "open",
+    "close",
+    "pivot",
+    "stop"
+   ],
+   "answer": "open",
+   "why": "Open. If a stock opens above a trim level, 3R or 5R, take that trim at the open.",
+   "lesson_line": "If it gaps over your trim level, take the trim at the open.",
+   "facts": [
+    "h42"
+   ],
+   "house": true
+  },
+  {
+   "key": "q81",
+   "skill": "setup.vcp",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "vcp.trim_gap_open",
+   "q": "How do you handle the second trim?",
+   "choices": [
+    "Take the trim at the open",
+    "Wait for it to dip back to 21.40",
+    "Skip the trim and raise the stop"
+   ],
+   "answer": "Take the trim at the open",
+   "why": "Take the trim at the open. If a stock opens above a trim level, we take that trim there.",
+   "lesson_line": "When a stock gaps over a trim level, the trim comes off at the open.",
+   "facts": [
+    "h42",
+    "h20"
+   ],
+   "wrong": {
+    "Wait for it to dip back to 21.40": "The level is passed. The rule takes the trim at the open.",
+    "Skip the trim and raise the stop": "The plan has no skipped trims. The level was passed, so the trim comes off at the open."
+   },
+   "house": true,
+   "story": "Your VCP buy has its 5R level at 21.40. The first third came off at 3R. The stock gaps up and opens at 22.10."
+  },
+  {
+   "key": "q82",
+   "skill": "setup.vcp",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "vcp.climax",
+   "q": "What do you do with the position?",
+   "choices": [
+    "Sell a big part into the burst",
+    "Add, since the leg is strong",
+    "Hold it all until the trail breaks"
+   ],
+   "answer": "Sell a big part into the burst",
+   "why": "Sell a big part into the burst. On a climax run in your own long, how much to sell is a judgment call.",
+   "lesson_line": "Into a climax run, sell a big part. How much is your call.",
+   "facts": [
+    "h43",
+    "h03b"
+   ],
+   "wrong": {
+    "Add, since the leg is strong": "No adds. A climax is where we sell, not where we buy more.",
+    "Hold it all until the trail breaks": "The rule is to sell a big part into a climax, not to wait for the trail."
+   },
+   "house": true,
+   "story": "Your VCP winner has run five days: two gaps up on rising volume, and today a third gap up on a huge range."
   }
  ],
  "conflicts": [
@@ -2902,6 +3222,84 @@
    "notes": "A3/A4/F62 settled. The story said the honest stop was 'wider than your risk budget allows', which cannot happen when size comes from the stop; now 'wider than you like'. Right. variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: right choice was the odd one out in opening (Pass against two Buy)",
+   "by": "checker",
+   "fixed": true
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q74": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q75": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q76": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q77": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q78": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: 'a third ... another third' could be read as a third of what is left (400); now a third of the 900",
+   "by": "checker",
+   "fixed": true
+  },
+  "q79": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q80": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: sentence repeated 'opens' next to the blank (a word-match tell)",
+   "by": "checker",
+   "fixed": true
+  },
+  "q81": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: wrong note did not answer the 'raise the stop' choice",
+   "by": "checker",
+   "fixed": true
+  },
+  "q82": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
   }
  }
 }

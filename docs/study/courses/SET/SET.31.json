@@ -1099,6 +1099,24 @@
    "source": "d1",
    "quote": "18.8% reached 3R and 12.5% reached 5R before the stop",
    "claim": "In the scan, 18.8% of climax shorts reached 3R and 12.5% reached 5R before the stop."
+  },
+  {
+   "id": "b34",
+   "source": "s1",
+   "quote": "a stock might only have two consecutive up days before the climax, but if the two day move shows significant short-term price and ATR expansion, it remains a viable candidate",
+   "claim": "Bracco: a stock with only two up days before the climax stays a viable candidate if the two days show significant price and ATR expansion."
+  },
+  {
+   "id": "c48",
+   "source": "c1",
+   "quote": "The run is linear, or fewer than 2 boxes",
+   "claim": "Card: a linear run, or fewer than 2 boxes, is not this setup."
+  },
+  {
+   "id": "c49",
+   "source": "c1",
+   "quote": "2 of 4 boxes only with exceptional extension: Bracco's two-day exception",
+   "claim": "Card: only 2 of 4 boxes is allowed only with exceptional extension, Bracco's two-day exception."
   }
  ],
  "walkthroughs": [
@@ -2948,6 +2966,79 @@
     "h05"
    ],
    "house": true
+  },
+  {
+   "key": "q70",
+   "skill": "setup.parabolic_short",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "ps.burst_exception",
+   "q": "What does Bracco say about it?",
+   "choices": [
+    "Still viable, with that expansion",
+    "Not viable; three up days or none",
+    "Skip it; two days is another setup",
+    "Viable only after a third up day"
+   ],
+   "answer": "Still viable, with that expansion",
+   "why": "Still viable. With only two up days, Bracco keeps it a candidate if the move shows significant price and ATR expansion. Our card allows this two-day exception only with big expansion.",
+   "lesson_line": "Two up days can work, but only with big expansion.",
+   "facts": [
+    "b34",
+    "c49",
+    "b07"
+   ],
+   "wrong": {
+    "Not viable; three up days or none": "Bracco says not every box needs to be satisfied, and he gives this very case.",
+    "Skip it; two days is another setup": "He calls it a viable candidate when the two days show big price and ATR expansion.",
+    "Viable only after a third up day": "Waiting for a third day is not his rule. The expansion in the two days is the test."
+   },
+   "house": true,
+   "story": "A stock rose only two days in a row before a climax-day gap up. Those two days showed sharp price and ATR expansion."
+  },
+  {
+   "key": "q71",
+   "skill": "setup.parabolic_short",
+   "rung": 4,
+   "format": "mcq",
+   "criterion": "ps.inv_linear",
+   "q": "Why does Bracco steer you away from a steady, linear ascent?",
+   "choices": [
+    "It shows strength and can persist",
+    "It always ends in a sharp gap down",
+    "It has too little volume to measure",
+    "It trades under the 200-day line"
+   ],
+   "answer": "It shows strength and can persist",
+   "why": "Because it shows strength and can persist for an extended period. A linear run is off the list, however far it has run.",
+   "lesson_line": "A steady climb is strength. Do not short it.",
+   "facts": [
+    "b09",
+    "c09",
+    "c48"
+   ],
+   "wrong": {
+    "It always ends in a sharp gap down": "A linear run has no reliable end. It can run on, and that is the point.",
+    "It has too little volume to measure": "Volume can be measured on any run. The issue is the shape: steady, not accelerating.",
+    "It trades under the 200-day line": "The 200-day is a separate test. This is about the shape of the run."
+   },
+   "house": true
+  },
+  {
+   "key": "q72",
+   "skill": "setup.parabolic_short",
+   "rung": 5,
+   "format": "tf",
+   "criterion": "ps.inv_linear",
+   "q": "On our card, a run with fewer than two of Bracco's boxes checked is not a Parabolic Short.",
+   "answer": "True",
+   "why": "True. A linear run, or fewer than 2 boxes, is not this setup. The more boxes checked, the stronger the setup.",
+   "lesson_line": "Too few boxes, or a linear run: not this setup.",
+   "facts": [
+    "c48",
+    "b07"
+   ],
+   "house": true
   }
  ],
  "conflicts": [
@@ -3403,6 +3494,24 @@
    "notes": "d32 verbatim (18.8% to 3R, 12.5% to 5R). The statement was 'most climax-day shorts were paid at the 9 EMA within a few sessions', which no cited fact measures (the card has the 9 EMA before a new high 51% of the time); it now states what d32 says. The lesson line's 'the 3R and 5R thirds belong to other setups' is D-013's open question; replaced. Edited: \"one in five\" was a close call against 18.8%; now \"one in three\", plainly false. variety rewrite checked 2026-11-10.",
    "fixed": true,
    "by": "checker"
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: story and why no longer state a box count (two of Bracco's boxes), which rides on the pending D-040 count",
+   "by": "checker",
+   "fixed": true
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q72": {
+   "status": "cut",
+   "notes": "coverage question checked 2026-11-10; cut: it keys a box count (fewer than 2 boxes), which rides on the pending D-040 test; the linear half of ps.inv_linear is already covered by q71 and q17, so no honest rewrite remains",
+   "by": "checker",
+   "fixed": false
   }
  }
 }

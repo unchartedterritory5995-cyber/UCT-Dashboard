@@ -929,6 +929,24 @@
    "source": "d1",
    "quote": "of the 346 above-200-day hits that have earnings dates, 150 (43%) had an earnings report inside the flush window, so those \"flushes\" are earnings reactions, not panic selling",
    "claim": "Of 346 hits with earnings dates, 150 (43%) had a report inside the flush window: earnings reactions, not panic selling."
+  },
+  {
+   "id": "c47",
+   "source": "c1",
+   "quote": "A new try only on a new trigger; at most 3 tries in a week and 6 in a month on one name.",
+   "claim": "A new try only on a new trigger; at most 3 tries in a week and 6 in a month on one name."
+  },
+  {
+   "id": "c48",
+   "source": "c1",
+   "quote": "After the entry: a trade below the low of the entry session is the stop and the exit.",
+   "claim": "After the entry, a trade below the low of the entry session is the stop and the exit."
+  },
+  {
+   "id": "c49",
+   "source": "c1",
+   "quote": "For the leader flush: the index holding up or itself stretched, not breaking down.",
+   "claim": "For a single leading stock's flush, the card wants the index holding up or itself stretched, not breaking down."
   }
  ],
  "walkthroughs": [
@@ -2666,6 +2684,259 @@
     "window": 120,
     "forward": 20
    }
+  },
+  {
+   "key": "q66",
+   "skill": "setup.capitulation",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "cap.volume_record",
+   "q": "Which flush day reads better on our card?",
+   "story": "Two stocks flush on 2.3 times their 50-day average volume. For one, that is the biggest volume bar of the whole decline. For the other, a day three sessions earlier traded more.",
+   "choices": [
+    "The one with the biggest volume",
+    "The one with the earlier heavy day",
+    "Neither; both passed the 2x test"
+   ],
+   "answer": "The one with the biggest volume",
+   "why": "The one with the biggest volume bar. Ideally the flush day has the highest volume of the decline or of the year.",
+   "lesson_line": "Pass the 2x bar, then look for the biggest bar of the decline.",
+   "facts": [
+    "c02",
+    "c03"
+   ],
+   "wrong": {
+    "The one with the earlier heavy day": "Heavier volume earlier means the flush day was not the peak of the decline.",
+    "Neither; both passed the 2x test": "The 2x bar is the minimum. The highest volume of the decline is the ideal."
+   },
+   "house": true
+  },
+  {
+   "key": "q67",
+   "skill": "setup.capitulation",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "cap.volume_record",
+   "q": "Our card's best flush day has the highest volume of the decline, or of the year.",
+   "answer": "True",
+   "why": "True. Our card's best flush day shows the highest volume of the decline or of the year.",
+   "lesson_line": "The best flush bar is the biggest bar of the decline.",
+   "facts": [
+    "c03"
+   ],
+   "house": true
+  },
+  {
+   "key": "q68",
+   "skill": "setup.capitulation",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "cap.position_adv",
+   "q": "A bounce trade in a stock that averages 400,000 shares a day. Under our 1% rule, what is the most we can own?",
+   "answer": 4000,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * 0.01",
+     "a": 400000
+    },
+    "round": 0
+   },
+   "why": "4,000 shares. One percent of 400,000. Never own more than 1% of a stock's average daily volume.",
+   "lesson_line": "Size to the stock's volume. One percent of the daily average is the ceiling.",
+   "facts": [
+    "h19"
+   ],
+   "suffix": " shares",
+   "house": true
+  },
+  {
+   "key": "q69",
+   "skill": "setup.capitulation",
+   "rung": 6,
+   "format": "tf",
+   "criterion": "cap.position_adv",
+   "q": "A position of 1% of a stock's average daily volume is over our limit.",
+   "answer": "False",
+   "why": "False. Never own more than 1% of a stock's average daily volume. Exactly 1% is at the limit, not over it.",
+   "lesson_line": "One percent of average daily volume is the ceiling. Above it is too much.",
+   "facts": [
+    "h19"
+   ],
+   "house": true
+  },
+  {
+   "key": "q70",
+   "skill": "setup.capitulation",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "cap.retries",
+   "q": "Do you take the fourth try?",
+   "story": "You tried the same stock three times this week and were stopped each time. On Friday it reclaims its flush low again.",
+   "choices": [
+    "No; three tries a week is the limit",
+    "Yes; a new reclaim is a new trigger",
+    "Yes, at half size to cut the risk"
+   ],
+   "answer": "No; three tries a week is the limit",
+   "why": "No. On one stock we take at most 3 tries in a week and 6 in a month, each on a new trigger.",
+   "lesson_line": "Three tries a week on one name. The fourth waits.",
+   "facts": [
+    "h29",
+    "c47",
+    "h28"
+   ],
+   "wrong": {
+    "Yes; a new reclaim is a new trigger": "A new trigger is needed, but the week's limit still holds: at most 3 tries.",
+    "Yes, at half size to cut the risk": "Half size does not change the count. It is at most 3 tries in a week on one stock."
+   },
+   "house": true
+  },
+  {
+   "key": "q71",
+   "skill": "setup.capitulation",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "cap.retries",
+   "q": "On one stock we allow at most 3 tries in a week and 6 in a month.",
+   "answer": "True",
+   "why": "True. A new try needs a new trigger, and the limit is 3 in a week and 6 in a month.",
+   "lesson_line": "Three a week, six a month, each on a new trigger.",
+   "facts": [
+    "h29",
+    "c47"
+   ],
+   "house": true
+  },
+  {
+   "key": "q72",
+   "skill": "setup.capitulation",
+   "rung": 4,
+   "format": "mcq",
+   "criterion": "cap.inv_stop",
+   "q": "A later test of the climax trades below the climax low. What does the Wyckoff school expect?",
+   "choices": [
+    "New lows or prolonged consolidation",
+    "A fast bounce back to the 20 EMA",
+    "A higher low and a strong rally",
+    "A confirmed bottom and a new uptrend"
+   ],
+   "answer": "New lows or prolonged consolidation",
+   "why": "New lows or prolonged consolidation. If the test goes lower than the climax, expect either.",
+   "lesson_line": "A test below the climax low means new lows or a long wait.",
+   "facts": [
+    "w04",
+    "m02",
+    "c48"
+   ],
+   "wrong": {
+    "A fast bounce back to the 20 EMA": "A test below the climax low is a warning, not a bounce signal.",
+    "A higher low and a strong rally": "A higher low needs the test to hold above the climax low. This one went under it.",
+    "A confirmed bottom and a new uptrend": "A climax must be successfully tested first. A lower test is not a success."
+   },
+   "house": true
+  },
+  {
+   "key": "q73",
+   "skill": "setup.capitulation",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "cap.inv_stop",
+   "q": "What happens now?",
+   "story": "You bought the reclaim with the stop a few cents under the low of your entry session. Next morning the stock trades below that low and through your stop.",
+   "choices": [
+    "The stop is the exit; you are out",
+    "Wait for a close under the low first",
+    "Move the stop lower to give it room"
+   ],
+   "answer": "The stop is the exit; you are out",
+   "why": "You are out. After the entry, a trade below the low of the entry session is the stop and the exit.",
+   "lesson_line": "The stop is the exit. It does not wait for a close.",
+   "facts": [
+    "c48",
+    "h02",
+    "k02"
+   ],
+   "wrong": {
+    "Wait for a close under the low first": "A close is not the test. The stop is the exit once price trades through it.",
+    "Move the stop lower to give it room": "The stop only moves up, never down or wider."
+   },
+   "house": true
+  },
+  {
+   "key": "q74",
+   "skill": "setup.capitulation",
+   "rung": 2,
+   "format": "fill",
+   "criterion": "cap.breadth",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "T2108 is the percent of stocks above their ___-day average.",
+   "bank": [
+    "40",
+    "50",
+    "200",
+    "20",
+    "10"
+   ],
+   "answer": "40",
+   "why": "40. T2108 is the percent of stocks above their 40-day average. Near or under 15% to 20% is washed out.",
+   "lesson_line": "T2108 counts stocks above their 40-day average. Low readings are washed out.",
+   "facts": [
+    "c30"
+   ],
+   "house": true
+  },
+  {
+   "key": "q75",
+   "skill": "setup.capitulation",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "cap.breadth",
+   "q": "What does breadth say about this market?",
+   "story": "A market-wide flush has the Nasdaq down five days in a row. T2108, the percent of stocks above their 40-day average, closes at 17%.",
+   "choices": [
+    "Washed out; it supports a flush",
+    "Healthy; most stocks are strong",
+    "Neutral; 17% is the middle"
+   ],
+   "answer": "Washed out; it supports a flush",
+   "why": "Washed out. Breadth near or under 15% to 20% supports a market-wide flush, and Bracco calls 15% the floor.",
+   "lesson_line": "Near 15% to 20% on T2108 is washed out.",
+   "facts": [
+    "c30",
+    "u06"
+   ],
+   "wrong": {
+    "Healthy; most stocks are strong": "At 17%, only a small share of stocks sit above their 40-day average.",
+    "Neutral; 17% is the middle": "17% sits near the washed-out zone of 15% to 20%, not in the middle."
+   },
+   "house": true
+  },
+  {
+   "key": "q76",
+   "skill": "setup.capitulation",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "cap.index_for_leader_flush",
+   "q": "Which flush does our card favor?",
+   "story": "Two leading stocks flush on heavy volume the same day. For one, the index is holding above its recent lows. For the other, the index is breaking to a new low.",
+   "choices": [
+    "The one with the index holding up",
+    "The one with the index breaking down",
+    "Both; the index is not part of it"
+   ],
+   "answer": "The one with the index holding up",
+   "why": "The one with the index holding up. For a single leading stock, the card wants the index holding up or itself stretched, not breaking down.",
+   "lesson_line": "Our card wants the index holding up when a leader flushes.",
+   "facts": [
+    "c49",
+    "c26"
+   ],
+   "wrong": {
+    "The one with the index breaking down": "A breaking index is the warning. The crash may have another leg.",
+    "Both; the index is not part of it": "The index is part of the read for a single leading stock."
+   },
+   "house": true
   }
  ],
  "conflicts": [
@@ -3092,6 +3363,72 @@
    "notes": "Cut: the 52.3% to 3R is a fixed-stop, no-trim, survivor-tilted scan hit rate whose rule used the pending burst gate (D-002) and trigger (D-003); it overstates the taught trade and q61 already uses the scan's numbers.",
    "fixed": false,
    "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: dropped the hedge 'Ideally' that marked the True statement; reads as the card's stance",
+   "by": "checker",
+   "fixed": true
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: why wording ('at the limit, not over it')",
+   "by": "checker",
+   "fixed": true
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q72": {
+   "status": "cut",
+   "notes": "coverage question checked 2026-11-10; cut: it tests the Wyckoff school's reading of a secondary test below the climax low, which sits in the card's evidence for cap.inv_stop but is not the criterion (the house stop under the entry session's low, tested by q73); the key also rests on one Tier 2 publisher (ChartSchool)",
+   "by": "checker",
+   "fixed": false
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q74": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q75": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q76": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: lesson line is the card's stance, not an efficacy claim; question text names no setting (leader flush is held under D-002/D-004/D-111), key is the proposed cap.index_for_leader_flush line, and the story says 'two leading stocks'",
+   "by": "checker",
+   "fixed": true
   }
  }
 }

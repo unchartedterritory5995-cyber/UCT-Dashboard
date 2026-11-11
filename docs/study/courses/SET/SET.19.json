@@ -2602,6 +2602,52 @@
     "Yes, but only after the next report": "Nothing says wait for the next report."
    },
    "house": true
+  },
+  {
+   "key": "q68",
+   "skill": "setup.power_earnings_gap",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "peg.stop_day1",
+   "q": "If you do buy at 85.60 on the gap day itself, where does the stop go?",
+   "story": "A leader gaps up on earnings. It opens at 84.80, dips to 83.60, then climbs to 85.60.",
+   "choices": [
+    "A few cents under 83.60",
+    "A few cents under the 84.80 open",
+    "At the prior close",
+    "A fixed 5% under your fill"
+   ],
+   "wrong": {
+    "A few cents under the 84.80 open": "The open is not the day's low. The stop goes under the low so far, 83.60.",
+    "At the prior close": "The prior close sits under the day's low. The stop never goes wider than under that low.",
+    "A fixed 5% under your fill": "A fixed percentage ignores the chart. The stop sits under a real low."
+   },
+   "answer": "A few cents under 83.60",
+   "why": "A few cents under 83.60, the gap day's low so far. On the gap day itself the stop goes under that low, never exactly on it.",
+   "lesson_line": "Day one: the stop sits a few cents under the low so far.",
+   "facts": [
+    "c05",
+    "h24",
+    "mo2"
+   ],
+   "house": true
+  },
+  {
+   "key": "q69",
+   "skill": "setup.power_earnings_gap",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "peg.stop_day1",
+   "q": "Gil Morales says a buyable gap-up should hold above the intraday low of the gap-up day.",
+   "answer": "True",
+   "why": "True. The OWL Trader uses the gap-up day's intraday low as a selling guide. We put the stop a few cents under that low so far.",
+   "lesson_line": "The gap day's low is the line. The stop sits a few cents under it.",
+   "facts": [
+    "mo2",
+    "c05",
+    "h24"
+   ],
+   "house": true
   }
  ],
  "conflicts": [
@@ -3040,6 +3086,18 @@
    "notes": "h28 (B21), h29 (E56) verbatim. The wrong note called doubling size 'the revenge trade the rules forbid'; no rule is named that, so it now says it breaks the sizing rule.",
    "fixed": true,
    "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: story no longer says 'you decide to buy' on day one (the day-one buy is pending, D-085); now a conditional that keys only the settled stop; prior-close note no longer assumes a gap size",
+   "by": "checker",
+   "fixed": true
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
   }
  }
 }

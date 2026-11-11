@@ -2713,6 +2713,50 @@
     "window": 120,
     "forward": 20
    }
+  },
+  {
+   "key": "q67",
+   "skill": "setup.wedge_pop",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "wp.stop_broker",
+   "q": "Where does the stop live?",
+   "story": "You buy the pop at 50.00. The pop day's low is 48.80. You are about to sit in a two-hour meeting and cannot watch the screen.",
+   "choices": [
+    "A real stop order with the broker",
+    "A phone alert set at the stop price",
+    "A mental stop you promise to follow",
+    "Place it after the meeting ends"
+   ],
+   "answer": "A real stop order with the broker",
+   "why": "A real stop order with the broker. Every position has one, not a stop kept in your head.",
+   "lesson_line": "No stop order, no position. The stop lives with the broker.",
+   "facts": [
+    "h18",
+    "c41"
+   ],
+   "wrong": {
+    "A phone alert set at the stop price": "An alert only tells you. It is not a stop order with the broker.",
+    "A mental stop you promise to follow": "A stop kept in your head is not a stop. It needs a real order.",
+    "Place it after the meeting ends": "The meeting is the unprotected stretch. The order goes in when you buy."
+   },
+   "house": true
+  },
+  {
+   "key": "q68",
+   "skill": "setup.wedge_pop",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "wp.stop_broker",
+   "q": "Weak first days after the pop are no reason to lower the stop.",
+   "answer": "True",
+   "why": "True. The stop is a real order that only moves up, never down when the first days are weak.",
+   "lesson_line": "A stop moves up or stays. A weak start never moves it down.",
+   "facts": [
+    "c41",
+    "h02"
+   ],
+   "house": true
   }
  ],
  "conflicts": [
@@ -3146,6 +3190,18 @@
   "w3": {
    "status": "pass",
    "notes": "STLD numbers match d05/d06 (22%, 15 of 15, base 162.16 to 175.51, 1.2x, buy 175.52, stop 171.31 = 2.4%, 3R on day 6, 175 to 280).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; the sticky-note choice was a second 'mental stop' and a little silly; replaced by a real mistake (placing the order late)",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   }

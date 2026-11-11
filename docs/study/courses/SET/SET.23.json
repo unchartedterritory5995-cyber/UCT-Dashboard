@@ -563,12 +563,6 @@
    "claim": "Adding on the next push is a named mistake: we buy once."
   },
   {
-   "id": "g_mkt",
-   "source": "c1",
-   "quote": "kk.market_reading: Yellow or Orange",
-   "claim": "A Yellow or Orange market grades the Kicker B-."
-  },
-  {
    "id": "dBBY",
    "source": "d1",
    "quote": "BBY | 2013-07-01 | -1.8% / -1.3% / 2% | +2.1% / +8.8% / 92% / 1.9x | 6.2% | 27.97 (red high +0.01) | 27.67 (1.1%) | 37.7R, 3R in 1d",
@@ -783,6 +777,54 @@
    "source": "c1",
    "quote": "the report came after the Kicker's own close; it gapped down the next morning to 0R. AVGO 2024-03-07 did the same.",
    "claim": "It gapped down the next morning to 0R."
+  },
+  {
+   "id": "h34",
+   "source": "h1",
+   "quote": "Buy leaders: an RS rating of 80 or more, in one of the strongest groups, except parabolic and mean-reversion trades.",
+   "claim": "C31: buy leaders, an RS rating of 80 or more in a strong group."
+  },
+  {
+   "id": "h35",
+   "source": "h1",
+   "quote": "Prefer stocks with growing sales and earnings; the chart comes first.",
+   "claim": "D40: prefer growing sales and earnings; the chart comes first."
+  },
+  {
+   "id": "h36",
+   "source": "h1",
+   "quote": "Every planned buy has its entry, stop and size written down before the market opens.",
+   "claim": "D39: write the entry, stop and size down before the open."
+  },
+  {
+   "id": "h37",
+   "source": "h1",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "D41: a real stop order with the broker, not a mental stop."
+  },
+  {
+   "id": "h38",
+   "source": "h1",
+   "quote": "A climax run on your own long (Bracco's parabolic burst): sell a big part into it, a judgment call.",
+   "claim": "C34: into a climax run on your own long, sell a big part; a judgment call."
+  },
+  {
+   "id": "cm1",
+   "source": "c1",
+   "quote": "No wild, overlapping bars in the base.",
+   "claim": "Our card: the base has no wild, overlapping bars."
+  },
+  {
+   "id": "cc1",
+   "source": "c1",
+   "quote": "The finished Kicker closes above the red day's high, in the top 20% of its range. Unknown at the moment of entry; it is how the chart is read afterward and graded.",
+   "claim": "Our card: the strong close is unknown at entry; it is how the chart is graded afterward."
+  },
+  {
+   "id": "ct1",
+   "source": "c1",
+   "quote": "Length and depth: two daily candles on top of the base. The red day's body is typically 1% to 5.5% (kept range 0.07% to 5.27%).",
+   "claim": "Our card: two daily candles on top of the base; the red day's body is typically 1% to 5.5%."
   }
  ],
  "walkthroughs": [
@@ -2652,6 +2694,489 @@
     "dAVGOw"
    ],
    "house": true
+  },
+  {
+   "key": "q71",
+   "skill": "setup.kicker",
+   "rung": 2,
+   "format": "fill",
+   "criterion": "kk.leadership",
+   "q": "Complete our leader rule.",
+   "sentence": "We buy leaders with an RS rating of ___ or more.",
+   "bank": [
+    "50",
+    "60",
+    "70",
+    "80",
+    "90"
+   ],
+   "answer": "80",
+   "why": "80. We buy leaders, an RS rating of 80 or more, in one of the strongest groups.",
+   "lesson_line": "A Kicker belongs on a leader: an RS rating of 80 or more.",
+   "facts": [
+    "h34",
+    "cx1"
+   ],
+   "house": true
+  },
+  {
+   "key": "q72",
+   "skill": "setup.kicker",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "kk.fundamentals",
+   "q": "Same chart, different business. Which one do you favor?",
+   "story": "Two leaders show the same clean Kicker: a base, a weak red day, a gap over its high. Stock A has growing sales and earnings. Stock B has flat sales.",
+   "choices": [
+    "Stock A, growth is preferred",
+    "Neither, flat sales rule out the trade",
+    "Stock B, sales matter more than charts",
+    "Skip both until earnings are out"
+   ],
+   "answer": "Stock A, growth is preferred",
+   "why": "Stock A. We prefer growing sales and earnings, but the chart comes first. With matching charts, growth breaks the tie.",
+   "lesson_line": "Prefer growth, but the chart comes first.",
+   "facts": [
+    "h35"
+   ],
+   "wrong": {
+    "Neither, flat sales rule out the trade": "Growth is preferred, not required. The chart comes first, so flat sales alone do not end the trade.",
+    "Stock B, sales matter more than charts": "Backwards. The chart comes first. Growth is the preference when the charts match.",
+    "Skip both until earnings are out": "Nothing in the rule asks you to wait for a report. It prefers growth and puts the chart first."
+   },
+   "house": true
+  },
+  {
+   "key": "q73",
+   "skill": "setup.kicker",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "kk.not_messy",
+   "q": "Does the base pass our card?",
+   "story": "A leader's last 20 closes span 12%, so the base looks tidy. Up close, the daily bars inside it are wide and overlap wildly. Yesterday was a weak red day.",
+   "choices": [
+    "Wild, overlapping bars fail it",
+    "The 12% span is all that counts",
+    "Wide bars show strong demand",
+    "It passes at half size"
+   ],
+   "answer": "Wild, overlapping bars fail it",
+   "why": "It fails. Our card wants no wild, overlapping bars in the base. A tidy 20-close span does not fix a sloppy base.",
+   "lesson_line": "A tight span is not enough. The bars inside the base must be orderly.",
+   "facts": [
+    "cm1",
+    "k_struct"
+   ],
+   "wrong": {
+    "The 12% span is all that counts": "The span is one test. The card also wants no wild, overlapping bars.",
+    "Wide bars show strong demand": "Wide, overlapping bars are the sloppy look the card rules out.",
+    "It passes at half size": "Size does not fix a failed base. A messy base is a skip."
+   },
+   "house": true
+  },
+  {
+   "key": "q74",
+   "skill": "setup.kicker",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "kk.trades_over_red_high",
+   "q": "Is there a trade?",
+   "story": "The red day's high is 50.00 and it closed at 48.00. The Kicker day opens at 48.80, a 1.7% gap. It climbs to 49.70, then fades.",
+   "choices": [
+    "No, it never traded over 50.00",
+    "Yes, the 1.7% gap is the trigger",
+    "Yes, buy the 49.70 high on the fade",
+    "Yes, buy the close, the gap held"
+   ],
+   "answer": "No, it never traded over 50.00",
+   "why": "No. The trigger is the Kicker day trading over the red day's high. A gap alone is not the trigger.",
+   "lesson_line": "The gap sets the stage. The trade over the red day's high is the trigger.",
+   "facts": [
+    "k_over",
+    "u01",
+    "k_fill"
+   ],
+   "wrong": {
+    "Yes, the 1.7% gap is the trigger": "The gap is needed, but the trigger is a trade over the red day's high.",
+    "Yes, buy the 49.70 high on the fade": "That is under the red high. Chasing a fade is not the trigger.",
+    "Yes, buy the close, the gap held": "We never buy the close. And it never traded over the red high."
+   },
+   "house": true
+  },
+  {
+   "key": "q75",
+   "skill": "setup.kicker",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "kk.trades_over_red_high",
+   "q": "The Kicker triggers on a trade over the red day's high, not just a gap up.",
+   "answer": "True",
+   "why": "True. The Kicker day must trade above the red day's high. That is the trigger.",
+   "lesson_line": "Gap up first, then a trade over the red day's high. That second part is the trigger.",
+   "facts": [
+    "k_over",
+    "u01"
+   ],
+   "house": true
+  },
+  {
+   "key": "q76",
+   "skill": "setup.kicker",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "kk.close_above_red_high",
+   "q": "A Kicker day ran 40.00 to 44.00 and closed at 43.40. Where in its range did it close, in percent?",
+   "answer": 85,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(c - l) / (h - l) * 100",
+     "c": 43.4,
+     "l": 40.0,
+     "h": 44.0
+    },
+    "round": 1
+   },
+   "why": "85. Close minus low, over the range, times 100. Our card wants the close in the top 20% of the range, so this one reads strong.",
+   "lesson_line": "Close minus low, over the range. A strong Kicker closes in the top of its range.",
+   "facts": [
+    "cc1",
+    "cp2"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q77",
+   "skill": "setup.kicker",
+   "rung": 8,
+   "format": "tf",
+   "criterion": "kk.close_above_red_high",
+   "q": "When you buy the trigger, you already know the Kicker will close strong.",
+   "answer": "False",
+   "why": "False. The strong close is unknown at entry. Our card uses it to read and grade the chart afterward.",
+   "lesson_line": "You buy the trigger, not the close. The strong close is how the chart is graded afterward.",
+   "facts": [
+    "cc1"
+   ],
+   "house": true
+  },
+  {
+   "key": "q78",
+   "skill": "setup.kicker",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "kk.two_candles",
+   "q": "How long is a Kicker on top of its base?",
+   "choices": [
+    "Two daily candles",
+    "Three daily candles",
+    "One daily candle",
+    "Five daily candles"
+   ],
+   "answer": "Two daily candles",
+   "why": "Two daily candles. The red day and the Kicker day sit on top of the base.",
+   "lesson_line": "A Kicker is two daily candles on a base: the red day, then the gap day.",
+   "facts": [
+    "ct1",
+    "cp1",
+    "cp2"
+   ],
+   "wrong": {
+    "Three daily candles": "Our card counts two: the red day and the Kicker day.",
+    "One daily candle": "One candle is a gap day. The Kicker needs the red day before it.",
+    "Five daily candles": "Our card counts two on top of the base, not five."
+   },
+   "house": true
+  },
+  {
+   "key": "q79",
+   "skill": "setup.kicker",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "kk.two_candles",
+   "q": "The red day opened at 51.00 and closed at 50.00. How big is its body, as a percent of the close?",
+   "answer": 2,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / b * 100",
+     "a": 51.0,
+     "b": 50.0
+    },
+    "round": 1
+   },
+   "why": "2. The body is the open minus the close, over the close: 1 on 50. Our card measures the red day's body as a percent of the close.",
+   "lesson_line": "Body as a percent of the close: open minus close, over the close.",
+   "facts": [
+    "ct1"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q80",
+   "skill": "setup.kicker",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "kk.plan_before_open",
+   "q": "What is the best use of tonight?",
+   "story": "A leader closed a weak red day at support. If it gaps up through the red day's high tomorrow, you want the Kicker. It is 8 pm.",
+   "choices": [
+    "Write down entry, stop and size",
+    "Wait and pick the stop after the fill",
+    "Set an alert and size it by feel",
+    "Plan the entry and size at the open"
+   ],
+   "answer": "Write down entry, stop and size",
+   "why": "Write down the entry, stop and size. Every planned buy has all three on paper before the market opens.",
+   "lesson_line": "Entry, stop and size are written before the open. Not after the fill.",
+   "facts": [
+    "h36",
+    "k_ea"
+   ],
+   "wrong": {
+    "Wait and pick the stop after the fill": "The stop is written down before the open too, not picked after the fill.",
+    "Set an alert and size it by feel": "An alert is not a plan. The size comes from a written stop.",
+    "Plan the entry and size at the open": "The open is too late. All three are written before the market opens."
+   },
+   "house": true
+  },
+  {
+   "key": "q81",
+   "skill": "setup.kicker",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "kk.stop_low_so_far",
+   "q": "Where does the stop go?",
+   "story": "The red high is 60.00. The Kicker day opens at 59.00 and dips to 58.40. It then trades over 60.00 and you are filled at 60.01.",
+   "choices": [
+    "A few cents under the 58.40 low",
+    "Exactly on the 58.40 low so far",
+    "3.5% under the 60.01 fill price",
+    "The final low, picked at the close"
+   ],
+   "answer": "A few cents under the 58.40 low",
+   "why": "A few cents under 58.40. On our card the low at the fill means the low so far, and that stop is closer than 3.5% under the fill.",
+   "lesson_line": "At the fill the low is the low so far. You cannot wait for the final low.",
+   "facts": [
+    "k_low",
+    "k_stop",
+    "h24"
+   ],
+   "wrong": {
+    "Exactly on the 58.40 low so far": "The stop sits a few cents under the low, not exactly on it.",
+    "3.5% under the 60.01 fill price": "That is the cap. The stop is the low so far when that is closer.",
+    "The final low, picked at the close": "The close is too late. You need the stop with the broker when you buy."
+   },
+   "house": true
+  },
+  {
+   "key": "q82",
+   "skill": "setup.kicker",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "kk.stop_low_so_far",
+   "q": "With entry B, the low for the stop is the first 30-minute bar's low.",
+   "answer": "True",
+   "why": "True. With entry B the low means the low so far, which is the 30-minute bar's low.",
+   "lesson_line": "At entry the low is the low so far, not the day's final low.",
+   "facts": [
+    "k_low",
+    "k_eb"
+   ],
+   "house": true
+  },
+  {
+   "key": "q83",
+   "skill": "setup.kicker",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "kk.stop_broker",
+   "q": "A stop you keep in your head works if you watch the screen closely.",
+   "answer": "False",
+   "why": "False. Every position has a real stop order with the broker. A stop in your head is not a stop.",
+   "lesson_line": "Put the stop in with the broker the moment you buy.",
+   "facts": [
+    "h37",
+    "k_brk"
+   ],
+   "house": true
+  },
+  {
+   "key": "q84",
+   "skill": "setup.kicker",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "kk.stop_broker",
+   "q": "What about the stop?",
+   "story": "You bought a Kicker at 42.00. After 10:00 the broker stop sits at 41.30. At 1:00 pm the stock is at 41.50 and you feel it will bounce.",
+   "choices": [
+    "Leave it; the stop only moves up",
+    "Lower it to 40.50 to give it room",
+    "Cancel it and watch the screen",
+    "Widen it to 41.00 and wait"
+   ],
+   "answer": "Leave it; the stop only moves up",
+   "why": "Leave it. The stop only moves up, never down or wider. Lowering it turns a planned loss into a bigger one.",
+   "lesson_line": "A stop only moves up. If you want to lower it, the answer is no.",
+   "facts": [
+    "h02",
+    "k_brk",
+    "h37"
+   ],
+   "wrong": {
+    "Lower it to 40.50 to give it room": "That widens the stop. A stop never moves down.",
+    "Cancel it and watch the screen": "A stop kept in your head is not a stop. It stays with the broker.",
+    "Widen it to 41.00 and wait": "Wider is the same mistake. The stop only moves up."
+   },
+   "house": true
+  },
+  {
+   "key": "q85",
+   "skill": "setup.kicker",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "kk.breakeven",
+   "q": "Move the stop up yet?",
+   "story": "You bought at 22.17 with the stop at 21.76. The Kicker is up 1R. A friend says to move the stop to breakeven now.",
+   "choices": [
+    "Not yet; breakeven is 2R to 5R",
+    "Yes, breakeven at 1R is the rule",
+    "Sell a third now, then breakeven",
+    "Yes, trail it under the 10-day"
+   ],
+   "answer": "Not yet; breakeven is 2R to 5R",
+   "why": "Not yet. We move the stop to breakeven at 2R to 5R. At 1R the original stop stays.",
+   "lesson_line": "Breakeven comes between 2R and 5R. At 1R the first stop still stands.",
+   "facts": [
+    "h05"
+   ],
+   "wrong": {
+    "Yes, breakeven at 1R is the rule": "The rule is 2R to 5R. 1R is under that range.",
+    "Sell a third now, then breakeven": "The first trim is a third at 3R, not at 1R.",
+    "Yes, trail it under the 10-day": "The trail is for the last third, after the trims."
+   },
+   "house": true
+  },
+  {
+   "key": "q86",
+   "skill": "setup.kicker",
+   "rung": 3,
+   "format": "fill",
+   "criterion": "kk.breakeven",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "We move the stop to breakeven between 2R and ___R.",
+   "bank": [
+    "3",
+    "4",
+    "5",
+    "6",
+    "8"
+   ],
+   "answer": "5",
+   "why": "5. Our rule moves the stop to breakeven at 2R to 5R, ideally.",
+   "lesson_line": "Breakeven window: 2R to 5R.",
+   "facts": [
+    "h05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q87",
+   "skill": "setup.kicker",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "kk.trim_2",
+   "q": "Bought at 22.17 with the stop at 21.76. Where is 5R?",
+   "answer": 24.22,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 5 * (a - b)",
+     "a": 22.17,
+     "b": 21.76
+    },
+    "round": 2
+   },
+   "why": "24.22. One R is the fill minus the stop. Add five of those to the fill. The second third comes off there.",
+   "lesson_line": "Know your 5R before the open. The second third comes off there.",
+   "facts": [
+    "h20",
+    "h05"
+   ],
+   "house": true,
+   "prefix": "$"
+  },
+  {
+   "key": "q88",
+   "skill": "setup.kicker",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "kk.trim_2",
+   "q": "What is next at 24.22?",
+   "story": "You bought a Kicker at 22.17 with the stop at 21.76. You sold a third at 23.40 and lifted the stop to breakeven. Now it trades at 24.22, which is 5R.",
+   "choices": [
+    "Sell a third more, trail the last",
+    "Sell all the rest and bank the 5R",
+    "Hold two thirds, skip the 5R trim",
+    "Add a third more at the higher price"
+   ],
+   "answer": "Sell a third more, trail the last",
+   "why": "Sell another third, then trail the last third. At 5R the second third comes off.",
+   "lesson_line": "Third at 3R, third at 5R, then trail the last third.",
+   "facts": [
+    "h20",
+    "h05"
+   ],
+   "wrong": {
+    "Sell all the rest and bank the 5R": "The last third is trailed, not sold at 5R.",
+    "Hold two thirds, skip the 5R trim": "The rule sells the second third at 5R. It does not skip it.",
+    "Add a third more at the higher price": "We buy once, at one price. No adds."
+   },
+   "house": true
+  },
+  {
+   "key": "q89",
+   "skill": "setup.kicker",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "kk.climax",
+   "q": "Into a burst like this, what fits our rule?",
+   "story": "You bought a Kicker at 22.17 two weeks ago. It has now risen three days in a row on gaps, each day's range wider than the last, far over its 10-day.",
+   "choices": [
+    "Sell a big part into the burst",
+    "Add more, the trend is strong",
+    "Hold it all until the 10-day breaks",
+    "Sell all of it at the first gap"
+   ],
+   "answer": "Sell a big part into the burst",
+   "why": "Sell a big part. Into a climax run on your own long we sell a big part, and it is a judgment call.",
+   "lesson_line": "Climax run on a winner: sell a big part into it.",
+   "facts": [
+    "h38"
+   ],
+   "wrong": {
+    "Add more, the trend is strong": "We buy once. A burst is a time to sell into strength, not to add.",
+    "Hold it all until the 10-day breaks": "That gives back the burst. The rule sells a big part into it.",
+    "Sell all of it at the first gap": "The rule says a big part, as a judgment call, not everything."
+   },
+   "house": true
+  },
+  {
+   "key": "q90",
+   "skill": "setup.kicker",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "kk.climax",
+   "q": "A climax run on a winner is a time to sell a big part, not to add.",
+   "answer": "True",
+   "why": "True. Into a climax run on your own long we sell a big part. It is a judgment call.",
+   "lesson_line": "Sell a big part into a climax run. Do not add.",
+   "facts": [
+    "h38"
+   ],
+   "house": true
   }
  ],
  "conflicts": [
@@ -3010,6 +3535,126 @@
   "q70": {
    "status": "cut",
    "notes": "Near-duplicate of q07 and q58 (a Red market allows no Kicker); the shock-day half is q57's.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; removed an invented line ('growth only tips a close call') from a wrong note and a filler sentence from the why",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; choices no longer make the right answer the only 'No' among three 'Yes'; 'a messy base is a pass' (read as passes) reworded; no new threshold for messy",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q74": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q75": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q76": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; 'so this passes' read as a gate; this line is a grade cue on our card, so reworded to 'reads strong'",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q77": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q78": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; dropped an unsourced claim from the 'Five' wrong note",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q79": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; cut the card's 'typically 1% to 5.5%' from the why so the held 1% (D-097) is not read as a cutoff; the key is only the arithmetic, 2.0%",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q80": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q81": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; proposed line now reads as our card's stance",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q82": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q83": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q84": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q85": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; right choice said breakeven 'comes from 2R' (reads as at 2R); the rule is a window, 2R to 5R",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q86": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q87": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q88": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; dropped an unsourced claim ('gives back strength') from a wrong note",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q89": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q90": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
    "fixed": false,
    "by": "checker"
   }

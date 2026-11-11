@@ -995,6 +995,24 @@
    "source": "c1",
    "quote": "A short rest of 3 to 15 sessions that drifts sideways or down, gives back at most half the pole and at most 15% from the pole top",
    "claim": "The card: a flag is a rest of 3 to 15 sessions."
+  },
+  {
+   "id": "c45",
+   "source": "c1",
+   "quote": "A third of the pole or less, and 10% or less from the top, is the A+ depth.",
+   "claim": "The A+ depth: a third of the pole or less, and 10% or less from the top."
+  },
+  {
+   "id": "c46",
+   "source": "c1",
+   "quote": "After the entry, the stop is the exit, with the time stop.",
+   "claim": "After the entry, the stop is the exit, with the time stop."
+  },
+  {
+   "id": "c47",
+   "source": "c1",
+   "quote": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "claim": "Stop to breakeven between 2R and 5R, at the first trim by default."
   }
  ],
  "walkthroughs": [
@@ -2753,6 +2771,278 @@
     "window": 120,
     "forward": 20
    }
+  },
+  {
+   "key": "q68",
+   "skill": "setup.bull_flag",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "bf.pole_strong",
+   "q": "Which stock has the A+ pole on our card?",
+   "story": "Two stocks pause after a run. Stock A jumped 45% in five sessions on an earnings gap. Stock B drifted up 22% over twenty sessions on no news.",
+   "choices": [
+    "Stock A, fast with a catalyst",
+    "Stock B, a slow and steady climb",
+    "Both poles grade the same"
+   ],
+   "answer": "Stock A, fast with a catalyst",
+   "why": "Stock A. On our card, the A+ pole is 30% or more, made fast on a catalyst such as an earnings gap.",
+   "lesson_line": "The A+ pole is big, fast and has a reason.",
+   "facts": [
+    "c35",
+    "k1"
+   ],
+   "wrong": {
+    "Stock B, a slow and steady climb": "Stock B is under 30% and had no catalyst. Our card's A+ pole is 30% or more, made fast.",
+    "Both poles grade the same": "They do not. Our card's A+ pole is the one made fast on a catalyst."
+   },
+   "house": true
+  },
+  {
+   "key": "q69",
+   "skill": "setup.bull_flag",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "bf.pole_strong",
+   "q": "Before the pole, the lowest low was 40.00. What price is 30% above it?",
+   "answer": 52.0,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * 1.3",
+     "a": 40.0
+    },
+    "round": 2
+   },
+   "why": "52.00. Add 30% to the low. On our card, a pole of 30% or more, made fast on a catalyst, is the A+ pole.",
+   "lesson_line": "Know the 30% line before you call a pole A+.",
+   "facts": [
+    "c35",
+    "k1"
+   ],
+   "prefix": "$",
+   "house": true
+  },
+  {
+   "key": "q70",
+   "skill": "setup.bull_flag",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "bf.depth_shallow",
+   "q": "Which flag has the A+ depth on our card?",
+   "story": "Two flags follow strong poles. Flag A gave back 25% of its pole and sits 6% under the top. Flag B gave back 45% and sits 12% under the top.",
+   "choices": [
+    "Flag A, shallow by both measures",
+    "Flag B, it has more room to bounce",
+    "Both; depth does not change grade"
+   ],
+   "answer": "Flag A, shallow by both measures",
+   "why": "Flag A. Our card's A+ depth cue is a third of the pole or less, and 10% or less from the top. Flag A fits both.",
+   "lesson_line": "Our card's A+ depth: a third of the pole or less, within 10% of the top.",
+   "facts": [
+    "c45"
+   ],
+   "wrong": {
+    "Flag B, it has more room to bounce": "Flag B gave back more than a third of the pole and sits more than 10% under the top.",
+    "Both; depth does not change grade": "Depth is a grade cue on our card, and the shallow rest is the A+ one."
+   },
+   "house": true
+  },
+  {
+   "key": "q71",
+   "skill": "setup.bull_flag",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "bf.depth_shallow",
+   "q": "The pole top is 60.00 and the flag low is 56.00. How far under the top is the low, in percent?",
+   "answer": 6.7,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / a * 100",
+     "a": 60.0,
+     "b": 56.0
+    },
+    "round": 1
+   },
+   "why": "6.7%. The top minus the low, divided by the top. Our card's A+ depth cue is 10% or less.",
+   "lesson_line": "Measure depth from the top, in percent.",
+   "facts": [
+    "c45"
+   ],
+   "suffix": "%",
+   "house": true
+  },
+  {
+   "key": "q72",
+   "skill": "setup.bull_flag",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "bf.not_stretched",
+   "q": "You would buy at 56.60. The 10-day average is 50.00. How far above the 10-day is the buy, in percent?",
+   "answer": 13.2,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / b * 100",
+     "a": 56.6,
+     "b": 50.0
+    },
+    "round": 1
+   },
+   "why": "13.2%. That is past 10%. Skip a long more than 10% above its 10-day average.",
+   "lesson_line": "Check the stretch before you buy. Over 10% above the 10-day, skip.",
+   "facts": [
+    "h13"
+   ],
+   "suffix": "%",
+   "house": true
+  },
+  {
+   "key": "q73",
+   "skill": "setup.bull_flag",
+   "rung": 2,
+   "format": "fill",
+   "criterion": "bf.not_stretched",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "Skip a long that is more than ___% above its 10-day average.",
+   "bank": [
+    "10",
+    "4",
+    "15",
+    "20",
+    "5"
+   ],
+   "answer": "10",
+   "why": "10. Too stretched to buy: skip a long more than 10% above its 10-day average.",
+   "lesson_line": "Over 10% above the 10-day is too stretched. Wait for the averages.",
+   "facts": [
+    "h13"
+   ],
+   "house": true
+  },
+  {
+   "key": "q74",
+   "skill": "setup.bull_flag",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "bf.breakeven",
+   "q": "Where does the stop go now?",
+   "story": "You bought a flag break at 20.09 with the stop at 19.81. The stock reaches 3R and you sell the first third.",
+   "choices": [
+    "Up to your entry price, 20.09",
+    "Down to 19.50 to give it room",
+    "Cancel it; a third is banked"
+   ],
+   "answer": "Up to your entry price, 20.09",
+   "why": "Up to your entry. Move the stop to breakeven between 2R and 5R, at the first trim by default.",
+   "lesson_line": "At the first trim the stop comes up to your entry.",
+   "facts": [
+    "h05",
+    "c47",
+    "h02",
+    "h18"
+   ],
+   "wrong": {
+    "Down to 19.50 to give it room": "The stop only moves up, never down or wider.",
+    "Cancel it; a third is banked": "Every position keeps a real stop order with the broker. A banked third does not cancel it."
+   },
+   "house": true
+  },
+  {
+   "key": "q75",
+   "skill": "setup.bull_flag",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "bf.breakeven",
+   "q": "Our plan moves the stop to breakeven between 2R and 5R, at the first trim by default.",
+   "answer": "True",
+   "why": "True. The stop goes to breakeven between 2R and 5R, and the first trim is the default moment.",
+   "lesson_line": "Breakeven comes with the first trim, between 2R and 5R.",
+   "facts": [
+    "h05",
+    "c47"
+   ],
+   "house": true
+  },
+  {
+   "key": "q76",
+   "skill": "setup.bull_flag",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "bf.inv_heavy_red",
+   "q": "Is the flag still a buy?",
+   "story": "A tight flag rests on the 21-day EMA. On two of its days the stock closed red on 1.6 times its 50-day average volume. Today is quiet.",
+   "choices": [
+    "No; that is distribution, not a rest",
+    "Yes; the flag held the 21-day EMA",
+    "Yes; heavy red days are normal in flags"
+   ],
+   "answer": "No; that is distribution, not a rest",
+   "why": "No. On our card, two or more days like that mean distribution, not a rest. Each is red on 1.5 times average volume or more.",
+   "lesson_line": "Two heavy red days is selling, not resting.",
+   "facts": [
+    "c15",
+    "c09"
+   ],
+   "wrong": {
+    "Yes; the flag held the 21-day EMA": "Holding the 21-day EMA is a separate test. Two heavy red days end the flag anyway.",
+    "Yes; heavy red days are normal in flags": "One heavy red day drops the grade. A second one ends the flag."
+   },
+   "house": true
+  },
+  {
+   "key": "q77",
+   "skill": "setup.bull_flag",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "bf.inv_heavy_red",
+   "q": "The 50-day average volume is 1,800,000 shares. A red flag day trades 2,700,000. How many times average is that?",
+   "answer": 1.5,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a / b",
+     "a": 2700000,
+     "b": 1800000
+    },
+    "round": 1
+   },
+   "why": "1.5 times. That is right on the line: on our card, a red day on 1.5 times average volume or more is heavy.",
+   "lesson_line": "Divide the day's volume by the average. 1.5 times or more is heavy.",
+   "facts": [
+    "c15",
+    "c09"
+   ],
+   "suffix": " times",
+   "house": true
+  },
+  {
+   "key": "q78",
+   "skill": "setup.bull_flag",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "bf.after_entry_stop",
+   "q": "What do you do?",
+   "story": "You bought a flag break two days ago. The stock is down about half an R and your stop has not traded. A post on your feed says the market looks weak.",
+   "choices": [
+    "Hold; the stop is the exit",
+    "Sell half now to be safe",
+    "Widen the stop to give it room"
+   ],
+   "answer": "Hold; the stop is the exit",
+   "why": "Hold. After the entry, the stop is the exit, with the time stop. Your stop has not traded.",
+   "lesson_line": "After the entry, the stop is the exit. Not a post, not a hunch.",
+   "facts": [
+    "c46",
+    "h02",
+    "c42"
+   ],
+   "wrong": {
+    "Sell half now to be safe": "A post is not an exit. The stop is, along with the time stop after 10 trading days under 1R.",
+    "Widen the stop to give it room": "The stop only moves up, never down or wider."
+   },
+   "house": true
   }
  ],
  "conflicts": [
@@ -3192,6 +3482,72 @@
    "notes": "BA asof 2020-11-30 is the session before the 2020-12-01 near-miss; highs rose 5.6% (d31), the card's wedge-up line (proposed).",
    "fixed": false,
    "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: reads as the card's stance (on our card)",
+   "by": "checker",
+   "fixed": true
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: why says on our card",
+   "by": "checker",
+   "fixed": true
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: card's stance, not a measured fact (the dossier scan cuts against the cue, so the wrong note no longer says shallower grades higher as fact); story said 'same pole' but 25%/6% and 45%/12% imply different poles, now 'strong poles'; the 33% and 10% are the proposed bf.depth_shallow cue, not a D-046 option, and the key does not rest on any D-046 value (Flag B at 45% and 12% passes every D-046 option)",
+   "by": "checker",
+   "fixed": true
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: why says it is the card's cue",
+   "by": "checker",
+   "fixed": true
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q74": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q75": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q76": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: why says on our card, split to short sentences",
+   "by": "checker",
+   "fixed": true
+  },
+  "q77": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: why says on our card",
+   "by": "checker",
+   "fixed": true
+  },
+  "q78": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
   }
  }
 }

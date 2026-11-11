@@ -679,6 +679,78 @@
    "source": "d1",
    "quote": "28.9% reached 3R and 17.6% reached 5R before the stop; 82.6% hit the stop at some point in the 60 sessions",
    "claim": "Our scan: 28.9% reached 3R and 17.6% reached 5R before the stop; 82.6% hit the stop at some point."
+  },
+  {
+   "id": "h13",
+   "source": "h1",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
+   "claim": "C29: skip a long more than 10% above its 10-day average."
+  },
+  {
+   "id": "h16",
+   "source": "h1",
+   "quote": "A climax run on your own long (Bracco's parabolic burst): sell a big part into it, a judgment call.",
+   "claim": "C34: sell a big part into a climax run on your own long."
+  },
+  {
+   "id": "h17",
+   "source": "h1",
+   "quote": "Prefer stocks with growing sales and earnings; the chart comes first.",
+   "claim": "D40: growing sales and earnings preferred; the chart comes first."
+  },
+  {
+   "id": "h18",
+   "source": "h1",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "D41: every position has a real stop order with the broker, not a stop kept in your head."
+  },
+  {
+   "id": "h19",
+   "source": "h1",
+   "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+   "claim": "D42: never own more than 1% of a stock's average daily volume."
+  },
+  {
+   "id": "h20",
+   "source": "h1",
+   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+   "claim": "E51: another third at 5R, then trail the last third."
+  },
+  {
+   "id": "h23",
+   "source": "h1",
+   "quote": "No new buys outside regular trading hours.",
+   "claim": "E58: no new buys outside regular hours."
+  },
+  {
+   "id": "x36",
+   "source": "c1",
+   "quote": "A climax run (Bracco's parabolic burst) or an Exhaustion Extension far above the 10-day EMA: sell a big part into it.",
+   "claim": "Our card: sell a big part into a climax run or an Exhaustion Extension far above the 10-day EMA."
+  },
+  {
+   "id": "x37",
+   "source": "c1",
+   "quote": "A market order the moment the trigger trades, in regular hours.",
+   "claim": "The crossback buy is a market order the moment the trigger trades, in regular hours."
+  },
+  {
+   "id": "x38",
+   "source": "c1",
+   "quote": "At entry, no more than 10% above the 10-day average.",
+   "claim": "At entry, the crossback buy is no more than 10% above the 10-day average."
+  },
+  {
+   "id": "x39",
+   "source": "c1",
+   "quote": "Breakeven once the trade reaches 2R; the rule allows 2R to 5R, at the first trim by default.",
+   "claim": "Breakeven from 2R; the rule allows 2R to 5R, at the first trim by default."
+  },
+  {
+   "id": "x40",
+   "source": "c1",
+   "quote": "Growing sales and earnings preferred; the chart comes first.",
+   "claim": "Our card prefers growing sales and earnings; the chart comes first."
   }
  ],
  "walkthroughs": [
@@ -2421,6 +2493,323 @@
    },
    "house": true,
    "story": "Two stocks pop and then pull back to their averages. One drifts sideways for five sessions. The other drops hard in two."
+  },
+  {
+   "key": "q69",
+   "skill": "setup.ema_crossback",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "xbk.market_order",
+   "q": "We buy a crossback with a market order the moment the trigger trades, in regular hours.",
+   "answer": "True",
+   "why": "True. Entries are market orders, placed as soon as price trades over the trigger, and only in regular hours.",
+   "lesson_line": "Market order at the trigger, regular hours only.",
+   "facts": [
+    "x37",
+    "h22",
+    "h23"
+   ],
+   "house": true
+  },
+  {
+   "key": "q70",
+   "skill": "setup.ema_crossback",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "xbk.market_order",
+   "q": "What do you do?",
+   "story": "It is 8:10 am, before the open. A thin pre-market print takes the stock a few cents over the hold day's high.",
+   "choices": [
+    "Wait; market buy in regular hours",
+    "Buy at market now, before it runs away",
+    "Rest a limit order at the high now"
+   ],
+   "answer": "Wait; market buy in regular hours",
+   "why": "Wait. No new buys outside regular hours, and entries are market orders. If the trigger trades after the open, buy then.",
+   "lesson_line": "A pre-market print is not your trigger. Regular hours only.",
+   "facts": [
+    "x37",
+    "h22",
+    "h23"
+   ],
+   "wrong": {
+    "Buy at market now, before it runs away": "Pre-market is outside regular hours. The rule is no new buys there.",
+    "Rest a limit order at the high now": "Entries are market orders, bought in regular hours. A resting order is not our entry."
+   },
+   "house": true
+  },
+  {
+   "key": "q71",
+   "skill": "setup.ema_crossback",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "xbk.not_stretched",
+   "q": "A crossback trigger gaps and would fill at 54.60. The 10-day average is 49.00. How far above it, in percent?",
+   "answer": 11.4,
+   "calc": {
+    "fn": "pct_change",
+    "args": {
+     "start": 49.0,
+     "end": 54.6
+    },
+    "round": 1
+   },
+   "suffix": "%",
+   "why": "11.4%. That is more than 10% above the 10-day average, so we skip it: too stretched to buy.",
+   "lesson_line": "More than 10% over the 10-day is a chase. Skip it.",
+   "facts": [
+    "h13",
+    "x38"
+   ],
+   "house": true
+  },
+  {
+   "key": "q72",
+   "skill": "setup.ema_crossback",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "xbk.not_stretched",
+   "q": "The fill is inside the 4% chase limit. Which rule says skip?",
+   "story": "The hold day's high was 100.00 and the 10-day average is 91.00. The stock opens next morning at 101.50, so a market buy fills near there.",
+   "choices": [
+    "The 10% stretch rule",
+    "The 4% chase limit",
+    "The 1% volume ceiling"
+   ],
+   "answer": "The 10% stretch rule",
+   "why": "The 10% stretch rule. A long more than 10% above its 10-day average is too stretched. 101.50 is more than 10% above 91.00.",
+   "lesson_line": "Two checks at the fill: distance from the trigger and distance from the 10-day.",
+   "facts": [
+    "h13",
+    "x38",
+    "h11"
+   ],
+   "wrong": {
+    "The 4% chase limit": "The fill is a little over the trigger, so the chase limit passes. The stretch rule is the one that fails.",
+    "The 1% volume ceiling": "That caps the share count. Nothing here says the count is too big."
+   },
+   "house": true
+  },
+  {
+   "key": "q73",
+   "skill": "setup.ema_crossback",
+   "rung": 6,
+   "format": "numeric",
+   "criterion": "xbk.position_adv",
+   "q": "A crossback stock trades 4,000,000 shares a day on average. What is the most shares our volume rule lets us hold?",
+   "answer": 40000,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "adv * 0.01",
+     "adv": 4000000
+    },
+    "round": 0
+   },
+   "suffix": "shares",
+   "why": "40,000 shares. We never own more than 1% of a stock's average daily volume, whatever the risk math allows.",
+   "lesson_line": "One percent of the average daily volume is the ceiling.",
+   "facts": [
+    "h19"
+   ],
+   "house": true
+  },
+  {
+   "key": "q74",
+   "skill": "setup.ema_crossback",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "xbk.position_adv",
+   "q": "Even on a textbook crossback, we never own more than 1% of the stock's average daily volume.",
+   "answer": "True",
+   "why": "True. The ceiling is 1% of average daily volume, and illiquid stocks are not even watched.",
+   "lesson_line": "A clean chart does not lift the volume ceiling.",
+   "facts": [
+    "h19"
+   ],
+   "house": true
+  },
+  {
+   "key": "q75",
+   "skill": "setup.ema_crossback",
+   "rung": 1,
+   "format": "fill",
+   "criterion": "xbk.stop_broker",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Every position has a real stop order with the ___, not a stop kept in your head.",
+   "bank": [
+    "broker",
+    "trader",
+    "screen",
+    "chart",
+    "alert"
+   ],
+   "answer": "broker",
+   "why": "Broker. Every position has a real stop order with the broker, not a stop kept in your head.",
+   "lesson_line": "A stop in your head is a debate. A stop with the broker is an appointment.",
+   "facts": [
+    "h18"
+   ],
+   "house": true
+  },
+  {
+   "key": "q76",
+   "skill": "setup.ema_crossback",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "xbk.stop_broker",
+   "q": "Once the crossback stop is set, it only moves up. The one exception is the gap rule.",
+   "answer": "True",
+   "why": "True. The stop is the exit and it only moves up, never down or wider. The gap rule is the one exception.",
+   "lesson_line": "Set the stop before the buy. It only goes up from there.",
+   "facts": [
+    "h02",
+    "h18"
+   ],
+   "house": true
+  },
+  {
+   "key": "q77",
+   "skill": "setup.ema_crossback",
+   "rung": 5,
+   "format": "tf",
+   "criterion": "xbk.fundamentals",
+   "q": "We pass on a clean crossback when the latest sales and earnings are not growing.",
+   "answer": "False",
+   "why": "False. Growing sales and earnings are preferred, but the chart comes first.",
+   "lesson_line": "Growth helps the grade. The chart still decides.",
+   "facts": [
+    "h17",
+    "x40"
+   ],
+   "house": true
+  },
+  {
+   "key": "q78",
+   "skill": "setup.ema_crossback",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "xbk.breakeven",
+   "q": "Bought at 40.82, stop 40.17. At what price may the stop first go to breakeven?",
+   "answer": 42.12,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 2 * (a - b)",
+     "a": 40.82,
+     "b": 40.17
+    },
+    "round": 2
+   },
+   "suffix": "R",
+   "why": "42.12. Breakeven comes once the trade reaches 2R: the fill plus two times the distance to the stop. The rule runs from 2R to 5R.",
+   "lesson_line": "Count in R. From 2R the stop can move up to your entry.",
+   "facts": [
+    "h05",
+    "d01"
+   ],
+   "house": true
+  },
+  {
+   "key": "q79",
+   "skill": "setup.ema_crossback",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "xbk.breakeven",
+   "q": "From which R can the crossback stop go to breakeven?",
+   "choices": [
+    "From 2R, at the first trim",
+    "From 1R, as soon as it moves up",
+    "Only at 5R, and not any sooner",
+    "From the first higher daily close"
+   ],
+   "answer": "From 2R, at the first trim",
+   "why": "From 2R, at the first trim by default. The rule allows 2R to 5R.",
+   "lesson_line": "Breakeven comes between 2R and 5R, not before.",
+   "facts": [
+    "x39",
+    "h05"
+   ],
+   "wrong": {
+    "From 1R, as soon as it moves up": "Too soon. The rule starts at 2R.",
+    "Only at 5R, and not any sooner": "5R is the far end of the range, not the only point. The rule allows 2R to 5R.",
+    "From the first higher daily close": "A close is not a measure of R. The move is set in R, from 2R."
+   },
+   "house": true
+  },
+  {
+   "key": "q80",
+   "skill": "setup.ema_crossback",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "xbk.trim_2",
+   "q": "You hold 120 shares. A third comes off at 3R and another third at 5R. How many shares sell at 5R?",
+   "answer": 40,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "n / 3",
+     "n": 120
+    },
+    "round": 0
+   },
+   "suffix": "shares",
+   "why": "40 shares. A third of 120 comes off at 3R, another third at 5R, then you trail the last third.",
+   "lesson_line": "Thirds: one at 3R, one at 5R, and the last rides the trail.",
+   "facts": [
+    "h20",
+    "h05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q81",
+   "skill": "setup.ema_crossback",
+   "rung": 3,
+   "format": "fill",
+   "criterion": "xbk.trim_2",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "After the first third at 3R, another third comes off at ___, then you trail the rest.",
+   "bank": [
+    "5R",
+    "2R",
+    "4R",
+    "8R"
+   ],
+   "answer": "5R",
+   "why": "5R. The second third comes off at 5R, and the last third rides the trail.",
+   "lesson_line": "3R for the first third, 5R for the second, then trail.",
+   "facts": [
+    "h20"
+   ],
+   "house": true
+  },
+  {
+   "key": "q82",
+   "skill": "setup.ema_crossback",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "xbk.climax",
+   "q": "What is the move on your long?",
+   "story": "Your crossback winner has run four days straight, gapping up each morning, now far above its 10-day average.",
+   "choices": [
+    "Sell a big part into the burst",
+    "Add a third piece into strength",
+    "Hold all of it and trail the 10-day"
+   ],
+   "answer": "Sell a big part into the burst",
+   "why": "Sell a big part into it. A climax run far above the 10-day on your own long is a judgment call, and we sell into strength.",
+   "lesson_line": "A climax run is a place to sell a big part, not to add.",
+   "facts": [
+    "x36",
+    "h16",
+    "h03b"
+   ],
+   "wrong": {
+    "Add a third piece into strength": "We buy one price with one stop and never add. A burst is a place to sell.",
+    "Hold all of it and trail the 10-day": "The trail is for the rest. Into a climax run we sell a big part first."
+   },
+   "house": true
   }
  ],
  "conflicts": [
@@ -2861,6 +3250,90 @@
   "q68": {
    "status": "pass",
    "notes": "Kell e02 and TraderLion e13/e14: a slow, gentle drift is ideal. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. E57 and E58 settled; True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. E57 and E58 settled; the pre-market print is not a trigger in regular hours.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. C29 settled. (54.60 - 49.00) / 49.00 = 11.4%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Fixed: the old story had a 95 to 108 hold day (a stop about 12% wide) and called 11.3% \"well over\" 10%; now a gap open at 101.50 over a 100.00 hold-day high, 91.00 ten-day average: 11.5% above the average, 1.5% over the trigger. C29 and C28 settled.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Fixed: the question now names the volume rule, since the risk size and the 40% cap could also bind. 4,000,000 x 1% = 40,000 (D42).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q74": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. D42 settled; True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q75": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. D41 verbatim; the other bank words are things a trader watches, and only the broker holds an order.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q76": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. A4 settled, the gap rule (B20) is its one exception.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q77": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. D40 settled; the chart comes first, so the False holds.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q78": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Fixed: it asked \"how many R\" (the R arithmetic, a neighbour); re-aimed at the breakeven price so it tests xbk.breakeven (B19). 40.82 + 2 x (40.82 - 40.17) = 42.12.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q79": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Card line x39 and B19, settled; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q80": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. E51 settled. 120 / 3 = 40.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q81": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. E51 settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q82": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. C34 settled (a judgment call); A5 for the no-add note.",
    "fixed": false,
    "by": "checker"
   }

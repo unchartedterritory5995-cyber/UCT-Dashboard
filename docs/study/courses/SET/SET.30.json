@@ -2906,6 +2906,33 @@
     "3R the next session; a textbook V": "The shape was textbook. The place in the move was the first leg down.",
     "Flat for a month; no edge either way": "Fresh breakdowns do not go flat. They go lower."
    }
+  },
+  {
+   "key": "q69",
+   "skill": "setup.parabolic_long",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "pl.burst_count",
+   "q": "On Bracco's line, which burst is stronger?",
+   "story": "Two stocks print a climax day with the same volume and the same context. One ticks all five boxes. The other is one box short.",
+   "choices": [
+    "The burst with all five boxes",
+    "The burst one box short",
+    "Equal; the box count adds nothing"
+   ],
+   "answer": "The burst with all five boxes",
+   "why": "The all-five burst. Bracco's line: not every box needs to be satisfied, but the more boxes checked, the stronger the setup.",
+   "lesson_line": "More boxes ticked reads stronger, on Bracco's line. Not every box is needed.",
+   "facts": [
+    "p08",
+    "c03",
+    "c03b"
+   ],
+   "wrong": {
+    "The burst one box short": "One box fewer is a weaker read on Bracco's line, not a stronger one.",
+    "Equal; the box count adds nothing": "Bracco's line is that the more boxes checked, the stronger the setup. The boxes matter."
+   },
+   "house": true
   }
  ],
  "conflicts": [
@@ -3346,6 +3373,12 @@
   "w3": {
    "status": "pass",
    "notes": "d05/d06 verbatim (HTHT 2021-07-27: 29.0%, 5/5, gap 4.5%, 7.2x, buy 40.75, stop 38.97, 3R next session, 5R within six weeks, six names). Removed 'the heaviest of the run' (7.2x is against the 50-day average; no run-wide volume ranking is in the data) and labelled 40.75 as the close stand-in.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10. Fixed: it said \"four boxes\" and read as our own grade rule, but the box count is held (D-002) and our scan found five boxes did not beat four on 3R. Now it asks \"on Bracco's line\", the second burst is \"one box short\" (no threshold, no four), and the why gives Bracco's sentence p08 only (verbatim). Key is the direction, not a count. Easy to guess; kept because pl.burst_count needs one question.",
    "fixed": true,
    "by": "checker"
   }

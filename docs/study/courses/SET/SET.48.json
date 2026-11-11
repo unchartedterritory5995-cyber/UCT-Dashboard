@@ -621,6 +621,36 @@
    "source": "c1",
    "quote": "The open is under the prior close by at least 1 ATR(14) or 4%, whichever is smaller, and the gap is not filled that day",
    "claim": "A bear gap needs an open at least 1 ATR (or 4%, whichever is smaller) under the prior close, not filled that day."
+  },
+  {
+   "id": "h19",
+   "source": "h1",
+   "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+   "claim": "D42: never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched."
+  },
+  {
+   "id": "c34",
+   "source": "c1",
+   "quote": "Version R, lives under a flat or falling 200-day (B26), in a weak group, in an Orange or Red market.",
+   "claim": "Card: the retest read lives under a flat or falling 200-day, in a weak group, in an Orange or Red market."
+  },
+  {
+   "id": "c35",
+   "source": "c1",
+   "quote": "Version P: the climax day sells off intraday but closes near the middle or high of its range",
+   "claim": "Card: a Version P climax day sells off intraday but closes near the middle or high of its range."
+  },
+  {
+   "id": "c36",
+   "source": "c1",
+   "quote": "Version R: a close back above the 200-day, or above the 50-day the bounce was rejected from.",
+   "claim": "Card: a close back above the 200-day, or the 50-day the bounce was rejected from, ends the retest read."
+  },
+  {
+   "id": "c37",
+   "source": "c1",
+   "quote": "The market reading turns Green with breadth thrusting: stand down.",
+   "claim": "Card: when the market reading turns Green with breadth thrusting, stand down."
   }
  ],
  "walkthroughs": [
@@ -2371,6 +2401,219 @@
     "h05"
    ],
    "house": true
+  },
+  {
+   "key": "q70",
+   "skill": "setup.bear_gap",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "bg.position_adv",
+   "q": "Our limit on any stock is 1% of its average daily volume, and no more.",
+   "answer": "True",
+   "why": "True. Never more than 1% of a stock's average daily volume. Illiquid stocks are not even watched.",
+   "lesson_line": "Our cap is 1% of average daily volume. Thin stocks are not even watched.",
+   "facts": [
+    "h19"
+   ],
+   "house": true
+  },
+  {
+   "key": "q71",
+   "skill": "setup.bear_gap",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "bg.position_adv",
+   "q": "Average daily volume is 1,200,000 shares. Under our volume cap, what is the most shares we can own?",
+   "answer": 12000,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * 0.01",
+     "a": 1200000
+    },
+    "round": 0
+   },
+   "why": "12,000 shares. Our cap is 1% of average daily volume, and 1% of 1,200,000 is 12,000.",
+   "lesson_line": "Take 1% of the average daily volume. That is the most we hold.",
+   "facts": [
+    "h19"
+   ],
+   "house": true,
+   "suffix": " shares"
+  },
+  {
+   "key": "q72",
+   "skill": "setup.bear_gap",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "bg.flat_falling_200",
+   "q": "By our card, which 200-day is the better context?",
+   "choices": [
+    "Stock A, the falling 200-day",
+    "Stock B, the rising 200-day",
+    "Neither; the slope is no cue",
+    "Both; only the side counts"
+   ],
+   "story": "Two stocks print the same bear gap and both close under their 200-day. Stock A's 200-day is falling. Stock B's is still rising.",
+   "answer": "Stock A, the falling 200-day",
+   "why": "Stock A. Our card wants a flat or falling 200-day. It is a cue for the grade, not a gate.",
+   "lesson_line": "Under the 200-day, flat or falling is the better context. It is a cue, not a gate.",
+   "facts": [
+    "c34",
+    "h10"
+   ],
+   "wrong": {
+    "Stock B, the rising 200-day": "A rising 200-day is not the flat or falling line our card wants.",
+    "Neither; the slope is no cue": "On our card the slope is a grade cue, though not a gate.",
+    "Both; only the side counts": "The side of the 200-day is the gate. The slope then adds a cue."
+   },
+   "house": true
+  },
+  {
+   "key": "q73",
+   "skill": "setup.bear_gap",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "bg.inv_200",
+   "q": "What does that close do to the retest read?",
+   "choices": [
+    "It switches the retest read off",
+    "It confirms the retest read",
+    "It moves the zone down a notch",
+    "Nothing; only the 200-day counts"
+   ],
+   "story": "A stock gapped down off its highs, then bounced and was turned back at its falling 50-day. Today it closes above that 50-day.",
+   "answer": "It switches the retest read off",
+   "why": "It switches the read off. A close back above the 50-day the bounce was rejected from ends the retest read.",
+   "lesson_line": "A close back above the 50-day or the 200-day ends the retest read.",
+   "facts": [
+    "c36",
+    "h10"
+   ],
+   "wrong": {
+    "It confirms the retest read": "A close back over the line the bounce failed at ends the read. It confirms nothing.",
+    "It moves the zone down a notch": "The zone stays where the gap left it. The close is what ends the read.",
+    "Nothing; only the 200-day counts": "The 50-day the bounce was rejected from counts too, along with the 200-day."
+   },
+   "house": true
+  },
+  {
+   "key": "q74",
+   "skill": "setup.bear_gap",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "bg.inv_200",
+   "q": "A close back above the 200-day takes the retest read off.",
+   "answer": "True",
+   "why": "True. A close back above the 200-day ends the read. Our shorts live under the 200-day, not above it.",
+   "lesson_line": "Close back over the 200-day and the retest read is over.",
+   "facts": [
+    "c36",
+    "h10"
+   ],
+   "house": true
+  },
+  {
+   "key": "q75",
+   "skill": "setup.bear_gap",
+   "rung": 5,
+   "format": "tf",
+   "criterion": "bg.inv_strong_bounce",
+   "q": "A bounce on heavy volume that closes near its high is a reason to stand down.",
+   "answer": "True",
+   "why": "True. That bounce shows buyers in control. It is the opposite of the weak, light bounce Fleckenstein wants.",
+   "lesson_line": "A strong bounce that closes near its high means stand down.",
+   "facts": [
+    "c15",
+    "f04"
+   ],
+   "house": true
+  },
+  {
+   "key": "q76",
+   "skill": "setup.bear_gap",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "bg.inv_market_turn",
+   "q": "What do you do with the retest read?",
+   "choices": [
+    "Stand down; no market help",
+    "Keep it; the stock is still weak",
+    "Trade it at half size instead",
+    "The 200-day is all that counts"
+   ],
+   "story": "A bear gap sits under its 200-day in a weak group. This week the market reading turns Green and breadth thrusts.",
+   "answer": "Stand down; no market help",
+   "why": "Stand down. Our card says a retest short needs the market's help. A Green reading with breadth thrusting takes that away.",
+   "lesson_line": "The market turns Green with breadth thrusting: stand down on the retest read.",
+   "facts": [
+    "c37",
+    "c14",
+    "h26"
+   ],
+   "wrong": {
+    "Keep it; the stock is still weak": "The stock's chart is only part of it. The short needs the market's help.",
+    "Trade it at half size instead": "Half size does not bring the market's help back.",
+    "The 200-day is all that counts": "The 200-day is a gate. A Green market with breadth thrusting still says stand down."
+   },
+   "house": true
+  },
+  {
+   "key": "q77",
+   "skill": "setup.bear_gap",
+   "rung": 6,
+   "format": "numeric",
+   "criterion": "bg.p_climax_day",
+   "q": "A climax day ranges 40.00 to 48.00 and closes at 45.00. Where in its range did it close, in percent?",
+   "answer": 62.5,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(c - l) / (h - l) * 100",
+     "c": 45.0,
+     "l": 40.0,
+     "h": 48.0
+    },
+    "round": 1
+   },
+   "why": "62.5%. (45.00 - 40.00) / (48.00 - 40.00) is 62.5%, past the middle. Our card's climax day closes near the middle or high.",
+   "lesson_line": "Close minus low, over high minus low. Middle or higher fits the climax day.",
+   "facts": [
+    "c35"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q78",
+   "skill": "setup.bear_gap",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "bg.p_climax_day",
+   "q": "A climax day can sell off intraday and still close near the middle or high of its range.",
+   "answer": "True",
+   "why": "True. On our card, the climax day sells off intraday but closes near the middle or high of its range.",
+   "lesson_line": "The climax day sells off, then closes mid-range or higher.",
+   "facts": [
+    "c35",
+    "c23"
+   ],
+   "house": true
+  },
+  {
+   "key": "q79",
+   "skill": "setup.bear_gap",
+   "rung": 5,
+   "format": "tf",
+   "criterion": "bg.stop_never_wider",
+   "q": "Once a trade is on, we do not move the stop wider to give it room.",
+   "answer": "True",
+   "why": "True. The stop is the exit, so we never widen it to give a trade room. The one exception is the gap rule.",
+   "lesson_line": "Never widen the stop to give a trade room.",
+   "facts": [
+    "h02"
+   ],
+   "house": true
   }
  ],
  "conflicts": [
@@ -2817,6 +3060,56 @@
    "status": "cut",
    "notes": "new 2026-11-10 variety question, awaiting second reader CUT 2026-11-10: teaches stop management on a short as a trade; D-001 pending, and the unit keys no stop placement, size or trade plan for the short; same class as the cut q30 and q58",
    "by": "writer"
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker"
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker"
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker"
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker"
+  },
+  "q74": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker"
+  },
+  "q75": {
+   "status": "cut",
+   "notes": "coverage question checked 2026-11-10: CUT. Same fact as q41 (a heavy bounce closing near its high means buyers in control, c15/c16) and as the already-cut q42, asked as true/false. bg.inv_strong_bounce is still taught by q41's wrong choice.",
+   "by": "checker"
+  },
+  "q76": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10 (choices reworded so the right choice is not the only one without a 'Keep it' opening; why now reads as our card's line)",
+   "by": "checker"
+  },
+  "q77": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker"
+  },
+  "q78": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10 (why no longer names the untaught 'Version P')",
+   "by": "checker"
+  },
+  "q79": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10 (why dropped 'only moves up', which is backwards for a short)",
+   "by": "checker"
   }
  }
 }

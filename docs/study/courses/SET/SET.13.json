@@ -943,6 +943,48 @@
    "source": "d1",
    "quote": "Before 2020 the rule found only 12 liquid hits in 36 years, which says the pattern is rare at our liquidity floor, as Bonde warns.",
    "claim": "The scan found only 12 liquid hits in 36 years before 2020: the pattern is rare."
+  },
+  {
+   "id": "c48",
+   "source": "c1",
+   "quote": "The rise takes 40 sessions (8 weeks) or less, measured from the lowest low of the 40 sessions ending at the pole high.",
+   "claim": "The card: the pole's rise takes 40 sessions (8 weeks) or less."
+  },
+  {
+   "id": "c49",
+   "source": "c1",
+   "quote": "The close is above the 50-day simple moving average at the trigger.",
+   "claim": "The card: the close is above the 50-day average at the trigger."
+  },
+  {
+   "id": "c50",
+   "source": "c1",
+   "quote": "Tight weekly closes through the flag are the A+ tightness cue.",
+   "claim": "The card: tight weekly closes through the flag are the A+ tightness cue."
+  },
+  {
+   "id": "c51",
+   "source": "c1",
+   "quote": "Growing sales and earnings, or a real catalyst, preferred but not required; the chart comes first.",
+   "claim": "The card: growing sales and earnings, or a real catalyst, are preferred but not required."
+  },
+  {
+   "id": "c52",
+   "source": "c1",
+   "quote": "At the trigger, price is above a rising 10-day and a rising 21-day EMA",
+   "claim": "The card: at the trigger, price is above a rising 10-day and a rising 21-day EMA."
+  },
+  {
+   "id": "k03",
+   "source": "s13",
+   "quote": "During the consolidation the stock price \"surfs\" the rising 10- and 20-day.",
+   "claim": "Kullamagi: during the consolidation the stock surfs the rising 10- and 20-day averages."
+  },
+  {
+   "id": "h31",
+   "source": "h1",
+   "quote": "Prefer stocks with growing sales and earnings; the chart comes first.",
+   "claim": "D40: prefer growing sales and earnings; the chart comes first."
   }
  ],
  "walkthroughs": [
@@ -2722,6 +2764,232 @@
     "window": 120,
     "forward": 20
    }
+  },
+  {
+   "key": "q67",
+   "skill": "setup.high_tight_flag",
+   "rung": 2,
+   "format": "fill",
+   "criterion": "htf.pole_time",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "On our card, the pole's rise takes ___ sessions or fewer.",
+   "bank": [
+    "40",
+    "20",
+    "60",
+    "80",
+    "100"
+   ],
+   "answer": "40",
+   "why": "40. Our card wants the rise done in 40 sessions, about 8 weeks. IBD describes a span of four to eight weeks.",
+   "lesson_line": "The pole is fast: 40 sessions or fewer, about 8 weeks.",
+   "facts": [
+    "c48",
+    "i01",
+    "b01"
+   ],
+   "house": true
+  },
+  {
+   "key": "q68",
+   "skill": "setup.high_tight_flag",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "htf.pole_time",
+   "q": "Which test does the pole fail?",
+   "story": "A leader rose 110% over 14 weeks, off a quiet base, after an earnings beat. Since then it has rested tight just under the high.",
+   "choices": [
+    "The time test: too many weeks",
+    "The size test: too small a gain",
+    "The base test: not a quiet base",
+    "The cause test: no real change"
+   ],
+   "wrong": {
+    "The size test: too small a gain": "A rise of 110% is a double and clears the size test.",
+    "The base test: not a quiet base": "The story says it rose off a quiet base, so that test passes.",
+    "The cause test: no real change": "An earnings beat is a real change, so that test passes."
+   },
+   "answer": "The time test: too many weeks",
+   "why": "The time test. Our card wants the rise done in 40 sessions, about 8 weeks. 14 weeks is far past that, so it is no pole.",
+   "lesson_line": "A double over 14 weeks is not a pole. Speed is part of the pattern.",
+   "facts": [
+    "c48",
+    "i01",
+    "b01"
+   ],
+   "house": true
+  },
+  {
+   "key": "q69",
+   "skill": "setup.high_tight_flag",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "htf.above_50",
+   "q": "On our card, the close is above the 50-day average at the trigger.",
+   "answer": "True",
+   "why": "True. Our card wants the close above the 50-day simple moving average at the trigger. It also wants the close above the 200-day.",
+   "lesson_line": "At the trigger, the close is above the 50-day and the 200-day.",
+   "facts": [
+    "c49",
+    "c13"
+   ],
+   "house": true
+  },
+  {
+   "key": "q70",
+   "skill": "setup.high_tight_flag",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "htf.holds_fast_averages",
+   "q": "On our card, price is above a rising 10-day and a rising 21-day EMA at the trigger.",
+   "answer": "True",
+   "why": "True. The card wants price above both rising averages at the trigger. Kullamagi has the stock surf the rising 10- and 20-day through the consolidation.",
+   "lesson_line": "Price should ride rising fast averages into the trigger.",
+   "facts": [
+    "c52",
+    "k03"
+   ],
+   "house": true
+  },
+  {
+   "key": "q71",
+   "skill": "setup.high_tight_flag",
+   "rung": 5,
+   "format": "fill",
+   "criterion": "htf.holds_fast_averages",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "A base that lost the fast averages is a flat base or a ___, not a high tight flag.",
+   "bank": [
+    "cup",
+    "pennant",
+    "wedge",
+    "triangle"
+   ],
+   "answer": "cup",
+   "why": "Cup. A base that lost the fast averages is a flat base or a cup, not a high tight flag. The flag must keep riding them.",
+   "lesson_line": "Lose the fast averages and it is a base, not a flag.",
+   "facts": [
+    "c43",
+    "c52"
+   ],
+   "house": true
+  },
+  {
+   "key": "q72",
+   "skill": "setup.high_tight_flag",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "htf.weekly_closes_tight",
+   "q": "Which tightness cue marks the A+ flag on our card?",
+   "choices": [
+    "Closes that stay tight each week",
+    "Narrow daily ranges on every bar",
+    "The lowest volume seen in the pole",
+    "A gap up out of the flag"
+   ],
+   "wrong": {
+    "Narrow daily ranges on every bar": "IBD's JDSU flag had wide weekly ranges and still had tight closes. Closes are the cue.",
+    "The lowest volume seen in the pole": "Light volume grades the flag's volume. It is not the tightness cue.",
+    "A gap up out of the flag": "A gap is a trigger event. It says nothing about tight closes inside the flag."
+   },
+   "answer": "Closes that stay tight each week",
+   "why": "Tight weekly closes. IBD's JDSU flag had wild weekly ranges, but its closes were relatively tight. Our card calls tight weekly closes the A+ cue.",
+   "lesson_line": "Judge a flag by where it closes, not by its wicks.",
+   "facts": [
+    "c50",
+    "i06",
+    "b05"
+   ],
+   "house": true
+  },
+  {
+   "key": "q73",
+   "skill": "setup.high_tight_flag",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "htf.fundamentals",
+   "q": "A high tight flag needs growing sales and earnings, or we skip it.",
+   "answer": "False",
+   "why": "False. Growing sales and earnings, or a real catalyst, are preferred but not required. The chart comes first.",
+   "lesson_line": "Preferred, not required. The chart comes first.",
+   "facts": [
+    "c51",
+    "h31"
+   ],
+   "house": true
+  },
+  {
+   "key": "q74",
+   "skill": "setup.high_tight_flag",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "htf.fundamentals",
+   "q": "What does our rule say?",
+   "story": "Every chart test is met: a double in seven weeks off a quiet base, a tight flag and a trigger. Sales growth stalled last quarter. A big new contract drove the pole.",
+   "choices": [
+    "Keep it; the chart comes first",
+    "Pass; sales have to be growing",
+    "Wait until sales turn back up",
+    "Buy it, but only at half size"
+   ],
+   "wrong": {
+    "Pass; sales have to be growing": "Growth is preferred, not required. A real catalyst counts, and the chart comes first.",
+    "Wait until sales turn back up": "Waiting on sales is not a rule. The chart sets the entry.",
+    "Buy it, but only at half size": "Size follows the grade and the stop, not a sales dip. The catalyst is real."
+   },
+   "answer": "Keep it; the chart comes first",
+   "why": "Keep it; the chart comes first. Growing sales and earnings, or a real catalyst, are preferred but not required. Here a contract drove the pole.",
+   "lesson_line": "Growth is preferred, never required. The chart comes first.",
+   "facts": [
+    "c51",
+    "h31",
+    "c12"
+   ],
+   "house": true
+  },
+  {
+   "key": "q75",
+   "skill": "setup.high_tight_flag",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "htf.stop_not_flag_low",
+   "q": "You buy at 100.00 and the flag low is 88.00. How far under your fill is a stop at the flag low, in percent?",
+   "answer": 12.0,
+   "why": "12.0%. Our stops usually sit within about 3% of the buy. The flag low is far too wide, so it kills the idea but is not the stop.",
+   "lesson_line": "The flag low ends the idea. The stop is much closer.",
+   "facts": [
+    "c04",
+    "h04",
+    "c03"
+   ],
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / a * 100",
+     "a": 100.0,
+     "b": 88.0
+    },
+    "round": 1
+   },
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q76",
+   "skill": "setup.high_tight_flag",
+   "rung": 8,
+   "format": "tf",
+   "criterion": "htf.stop_not_flag_low",
+   "q": "In Bulkowski's study, a stop a penny under the flag low meant taking an average 26% loss.",
+   "answer": "True",
+   "why": "True. That wide stop is why we do not use it. Ours is a few cents under the day's low; the flag low is the line that kills the idea.",
+   "lesson_line": "A flag-low stop is too far away. Ours is the day's low.",
+   "facts": [
+    "c45",
+    "c04",
+    "h24"
+   ],
+   "house": true
   }
  ],
  "conflicts": [
@@ -3160,6 +3428,66 @@
    "notes": "TSLA d17/d18 verbatim (+78% in 40 sessions, best 1.88R); trigger 2023-07-14 follows chart date 2023-07-13. 78% fails both pole_size options. Chart not viewed.",
    "fixed": false,
    "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: why said trigger close and called the consolidations good; now matches the card and k03",
+   "by": "checker",
+   "fixed": true
+  },
+  "q71": {
+   "status": "cut",
+   "notes": "cut: the key is the card's lookalike row for the SE near-miss, a flag with closes under the 21-day EMA, the dossier-only line the resolver already cut q55 for; cup is also the only base in the bank",
+   "by": "checker",
+   "fixed": false
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q74": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q75": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q76": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
   }
  }
 }

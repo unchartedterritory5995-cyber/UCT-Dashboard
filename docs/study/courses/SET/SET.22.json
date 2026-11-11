@@ -683,6 +683,72 @@
    "source": "d1",
    "quote": "low 0.8% under the gap-up low 230.42; close at 87% of the range | 231.13 | 228.43 (1.2%) | 16.6R",
    "claim": "LLY: test low 0.8% under the gap-up low 230.42, close at 87% of the range, buy 231.13, stop 228.43 (1.2%), best 16.6R."
+  },
+  {
+   "id": "h32",
+   "source": "h1",
+   "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+   "claim": "B23: only stocks at $10 or more trading at least $20 million a day."
+  },
+  {
+   "id": "h33",
+   "source": "h1",
+   "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+   "claim": "D42: never own more than 1% of a stock's average daily volume."
+  },
+  {
+   "id": "h34",
+   "source": "h1",
+   "quote": "Prefer stocks with growing sales and earnings; the chart comes first.",
+   "claim": "D40: prefer growing sales and earnings; the chart comes first."
+  },
+  {
+   "id": "h35",
+   "source": "h1",
+   "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+   "claim": "F63: a trim level the day opens past is taken at the open."
+  },
+  {
+   "id": "h36",
+   "source": "h1",
+   "quote": "A climax run on your own long (Bracco's parabolic burst): sell a big part into it, a judgment call.",
+   "claim": "C34: sell a big part into a climax run on your own long, a judgment call."
+  },
+  {
+   "id": "h37",
+   "source": "h1",
+   "quote": "three straight up days, two straight overnight gap ups, two of three days of range expansion, two days of rising volume, and a gap up on the climax day",
+   "claim": "B26 describes the parabolic burst: three up days, two gap ups, range and volume expansion, and a gap up on the climax day."
+  },
+  {
+   "id": "g52",
+   "source": "c1",
+   "quote": "Price $10 or more and $20 million or more traded a day.",
+   "claim": "Card 25: price $10 or more and $20 million or more traded a day."
+  },
+  {
+   "id": "g53",
+   "source": "c1",
+   "quote": "Sell a third at 5R.",
+   "claim": "Card 25: sell a third at 5R."
+  },
+  {
+   "id": "g54",
+   "source": "c1",
+   "quote": "If it opens above a trim level, take that trim at the open.",
+   "claim": "Card 25: if it opens above a trim level, take that trim at the open."
+  },
+  {
+   "id": "g55",
+   "source": "c1",
+   "quote": "A climax run on your own long: sell a big part into it.",
+   "claim": "Card 25: on a climax run in your own long, sell a big part into it."
+  },
+  {
+   "id": "g56",
+   "source": "c1",
+   "quote": "Growing sales and earnings preferred; the chart comes first.",
+   "claim": "Card 25: growing sales and earnings are preferred; the chart comes first."
   }
  ],
  "walkthroughs": [
@@ -2445,6 +2511,277 @@
     "Widen your stops on the next buy": "Wider stops break the stop rule."
    },
    "house": true
+  },
+  {
+   "key": "q66",
+   "skill": "setup.gap_support",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "gs.liquidity",
+   "q": "Which one passes our price and volume rule?",
+   "choices": [
+    "$12 stock, $24M traded a day",
+    "$8 stock, $40M traded a day",
+    "$35 stock, $15M traded a day",
+    "$18 stock, $9M traded a day"
+   ],
+   "answer": "$12 stock, $24M traded a day",
+   "why": "The $12 stock. Our rule is a price of $10 or more and at least $20 million traded a day. Each other stock fails one test.",
+   "lesson_line": "Ten dollars and twenty million. Both tests, every time.",
+   "facts": [
+    "g52",
+    "h32"
+   ],
+   "wrong": {
+    "$8 stock, $40M traded a day": "A price under $10 fails, whatever the volume.",
+    "$35 stock, $15M traded a day": "Under $20 million a day fails, whatever the price.",
+    "$18 stock, $9M traded a day": "Under $20 million a day fails, even at a good price."
+   },
+   "house": true,
+   "story": "Four stocks hold their gap-up lows today and close strong. You check the price and the dollars traded each day."
+  },
+  {
+   "key": "q67",
+   "skill": "setup.gap_support",
+   "rung": 1,
+   "format": "fill",
+   "criterion": "gs.liquidity",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "Gap Support needs $10 or more a share and $___ million traded a day.",
+   "bank": [
+    "20",
+    "2",
+    "5",
+    "50",
+    "100"
+   ],
+   "answer": "20",
+   "why": "20. Gap Support needs a price of $10 or more and $20 million or more traded a day.",
+   "lesson_line": "Ten dollars a share, twenty million a day.",
+   "facts": [
+    "g52",
+    "h32"
+   ],
+   "house": true
+  },
+  {
+   "key": "q68",
+   "skill": "setup.gap_support",
+   "rung": 5,
+   "format": "numeric",
+   "criterion": "gs.position_adv",
+   "q": "The stock trades 600,000 shares a day on average. The most shares we may own?",
+   "answer": 6000,
+   "why": "6,000. Never own more than 1% of a stock's average daily volume.",
+   "lesson_line": "One percent of the daily volume is the ceiling.",
+   "facts": [
+    "h33"
+   ],
+   "house": true,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "adv * 0.01",
+     "adv": 600000
+    },
+    "round": 0
+   },
+   "suffix": " shares"
+  },
+  {
+   "key": "q69",
+   "skill": "setup.gap_support",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "gs.position_adv",
+   "q": "We never own more than 1% of a stock's average daily volume, even on a clean Gap Support.",
+   "answer": "True",
+   "why": "True. Never own more than 1% of a stock's average daily volume. Illiquid stocks are not even watched.",
+   "lesson_line": "Clean setup or not, one percent of the daily volume is the limit.",
+   "facts": [
+    "h33"
+   ],
+   "house": true
+  },
+  {
+   "key": "q70",
+   "skill": "setup.gap_support",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "gs.fundamentals",
+   "q": "Which do you prefer?",
+   "choices": [
+    "The grower; the charts are equal",
+    "The flat-sales stock; it is safer",
+    "Neither; fundamentals are not a factor",
+    "The grower; the chart no longer matters"
+   ],
+   "answer": "The grower; the charts are equal",
+   "why": "The grower. We prefer stocks with growing sales and earnings, but the chart comes first. Here the charts are equal.",
+   "lesson_line": "Chart first. Then prefer the growing business.",
+   "facts": [
+    "g56",
+    "h34"
+   ],
+   "wrong": {
+    "The flat-sales stock; it is safer": "Flat sales are not safer. Growth is the preference when the charts match.",
+    "Neither; fundamentals are not a factor": "Growth is a preference on our list. The chart still comes first.",
+    "The grower; the chart no longer matters": "Growth is a preference, not a pass on the chart. The chart still comes first."
+   },
+   "house": true,
+   "story": "Two stocks hold their gap-up lows on the same day, both with strong closes. One grows sales and earnings fast. The other has flat sales."
+  },
+  {
+   "key": "q71",
+   "skill": "setup.gap_support",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "gs.fundamentals",
+   "q": "A fast-growing business can skip the chart check for Gap Support.",
+   "answer": "False",
+   "why": "False. Growing sales and earnings are preferred, but the chart comes first.",
+   "lesson_line": "Growth is a preference. The chart comes first.",
+   "facts": [
+    "g56",
+    "h34"
+   ],
+   "house": true
+  },
+  {
+   "key": "q72",
+   "skill": "setup.gap_support",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "gs.trim_2",
+   "q": "Bought at 27.15 with the stop at 26.89. Where is 5R?",
+   "answer": 28.45,
+   "why": "28.45. One R is the fill minus the stop. Add five of those to the fill. The second third comes off there.",
+   "lesson_line": "Know your 5R before the open. The second third comes off there.",
+   "facts": [
+    "g53",
+    "h20",
+    "e02"
+   ],
+   "house": true,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 5 * (a - b)",
+     "a": 27.15,
+     "b": 26.89
+    },
+    "round": 2
+   },
+   "prefix": "$"
+  },
+  {
+   "key": "q73",
+   "skill": "setup.gap_support",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "gs.trim_2",
+   "q": "How much of the position comes off at 5R?",
+   "choices": [
+    "A third of the position",
+    "Half of the whole position",
+    "A quarter of the position",
+    "Nothing; the trail takes it"
+   ],
+   "answer": "A third of the position",
+   "why": "A third of the position. The plan is a third at 3R, a third at 5R, then the last third trails.",
+   "lesson_line": "Thirds: one at 3R, one at 5R, the rest on the trail.",
+   "facts": [
+    "g53",
+    "h20"
+   ],
+   "wrong": {
+    "Half of the whole position": "Half is not the plan. The plan is a third at 3R, a third at 5R, then the trail.",
+    "A quarter of the position": "A quarter is not in the plan. The second trim is a third.",
+    "Nothing; the trail takes it": "The trail starts after both trims, on the last third."
+   },
+   "house": true
+  },
+  {
+   "key": "q74",
+   "skill": "setup.gap_support",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "gs.trim_gap_open",
+   "q": "What do you do at the open?",
+   "choices": [
+    "Sell the next third at the open",
+    "Wait for a dip back to 27.05",
+    "Sell everything left at the open",
+    "Hold it all and trail the 21-day"
+   ],
+   "answer": "Sell the next third at the open",
+   "why": "Sell the next third at the open. If a stock opens above a trim level, take that trim at the open. The last third trails.",
+   "lesson_line": "Gap past a trim level: take it at the open.",
+   "facts": [
+    "h35",
+    "g54",
+    "h20"
+   ],
+   "wrong": {
+    "Wait for a dip back to 27.05": "A dip may never come. A trim level the day opens past is taken at the open.",
+    "Sell everything left at the open": "The plan keeps the last third on the trail.",
+    "Hold it all and trail the 21-day": "The 5R third comes off first. Only the last third trails."
+   },
+   "house": true,
+   "story": "You bought at 25.10 with the stop at 24.71. The first third came off at 3R. Your 5R level is 27.05. Today the stock opens at 28.20."
+  },
+  {
+   "key": "q75",
+   "skill": "setup.gap_support",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "gs.climax",
+   "q": "What do you do with your long?",
+   "choices": [
+    "Sell a big part into the run",
+    "Buy more while it is strong",
+    "Hold it all and trail the 10-day",
+    "Move the stop to breakeven only"
+   ],
+   "answer": "Sell a big part into the run",
+   "why": "Sell a big part into it. On a climax run in your own long, how much to sell is a judgment call.",
+   "lesson_line": "A climax run in your own long: sell a big part into it.",
+   "facts": [
+    "g55",
+    "h36",
+    "h37"
+   ],
+   "wrong": {
+    "Buy more while it is strong": "No adding. We buy the full size at one price with one stop.",
+    "Hold it all and trail the 10-day": "Trailing alone waits for the stock to turn. The rule is to sell a big part into the run.",
+    "Move the stop to breakeven only": "A stop at breakeven takes no profit. A climax run is when we sell a big part."
+   },
+   "house": true,
+   "story": "You own a Gap Support winner up about 4R. It has risen three straight days on wider ranges and rising volume, with two gap ups in a row. Today it gaps up again."
+  },
+  {
+   "key": "q76",
+   "skill": "setup.gap_support",
+   "rung": 2,
+   "format": "fill",
+   "criterion": "gs.inv_under_200",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Before you buy, a test day that closes under the ___ is off the list.",
+   "bank": [
+    "200-day",
+    "10-day",
+    "5-day",
+    "20-day",
+    "open"
+   ],
+   "answer": "200-day",
+   "why": "200-day. Before entry, a test day that closes under the 200-day is off the list.",
+   "lesson_line": "A test day that closes under the 200-day is off the list.",
+   "facts": [
+    "g29",
+    "h10"
+   ],
+   "house": true
   }
  ],
  "conflicts": [
@@ -2872,6 +3209,72 @@
    "notes": "e17, e18, h28 verbatim (DKS 2021-06-16 test, stopped next session, ran to 147.39 by 09-07). The wrong note on doubling size no longer says 'the revenge trade'. | variety rewrite checked 2026-11-10",
    "fixed": true,
    "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: one wrong choice (the grower even over a weaker chart) was arguably right in a story with equal charts; now 'the chart no longer matters'",
+   "by": "checker",
+   "fixed": true
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q74": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q75": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: story now gives the range and volume expansion the rulebook's climax run names",
+   "by": "checker",
+   "fixed": true
+  },
+  "q76": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
   }
  }
 }

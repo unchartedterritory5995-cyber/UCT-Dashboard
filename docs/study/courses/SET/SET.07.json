@@ -873,6 +873,36 @@
    "source": "c1",
    "quote": "Volume on the trigger day: on pace for at least 1.4 times the 50-day average volume. Required for an A or A+ grade, not to take the trade.",
    "claim": "The card: breakout volume is needed for an A or A+ grade, not to take the trade."
+  },
+  {
+   "id": "c29",
+   "source": "c1",
+   "quote": "The base's first week reaches within 3% of the left-side high.",
+   "claim": "Our card: the base's first week reaches within 3% of the left-side high."
+  },
+  {
+   "id": "c30",
+   "source": "c1",
+   "quote": "At most 65 weeks (325 sessions) from the left-side high to the day before the breakout.",
+   "claim": "Our card: at most 65 weeks (325 sessions) from the left-side high to the day before the breakout."
+  },
+  {
+   "id": "c31",
+   "source": "c1",
+   "quote": "Three or more clean taps of one flat level is the A+ version of the ceiling.",
+   "claim": "Our card: three or more clean taps of one flat level is the A+ version of the ceiling."
+  },
+  {
+   "id": "c32",
+   "source": "c1",
+   "quote": "The 200-day is not lower than it was 20 sessions ago.",
+   "claim": "Our card: the 200-day is not lower than it was 20 sessions ago."
+  },
+  {
+   "id": "h30",
+   "source": "h1",
+   "quote": "A climax run on your own long (Bracco's parabolic burst): sell a big part into it, a judgment call.",
+   "claim": "C34: into a climax run on your own long, sell a big part; a judgment call."
   }
  ],
  "walkthroughs": [
@@ -2646,6 +2676,228 @@
     "c13"
    ],
    "house": true
+  },
+  {
+   "key": "q69",
+   "skill": "setup.flat_base",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "fb.first_week",
+   "q": "Left-side high 100.00. The base's first week tops out at 97.50. How far under the high is that, in percent?",
+   "answer": 2.5,
+   "calc": {
+    "fn": "drawdown_pct",
+    "args": {
+     "peak": 100.0,
+     "trough": 97.5
+    },
+    "round": 1
+   },
+   "why": "2.5%. The left-side high minus the first week's high, over the left-side high. Our card wants it within 3%, so this passes.",
+   "lesson_line": "The first week stays close to the high. Measure the gap in percent.",
+   "facts": [
+    "c29",
+    "c27"
+   ],
+   "house": true,
+   "suffix": "%"
+  },
+  {
+   "key": "q70",
+   "skill": "setup.flat_base",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "fb.first_week",
+   "q": "Does a flat base start from that high?",
+   "story": "A stock tops at 100.00. Over the next five sessions its highest high is 93.00, which is 7% under the top. Then it builds a neat box between 91 and 93.",
+   "choices": [
+    "No; week one fell too far below it",
+    "Yes, the box is neat and orderly",
+    "Yes, if volume dries up in the box",
+    "No; a flat base needs a handle"
+   ],
+   "answer": "No; week one fell too far below it",
+   "why": "No. Our card wants the first week to reach within 3% of the left-side high. This one sits 7% under it.",
+   "lesson_line": "A flat base stays near its high from week one. A quick drop is a different pattern.",
+   "facts": [
+    "c29",
+    "c27",
+    "c17"
+   ],
+   "wrong": {
+    "Yes, the box is neat and orderly": "A neat box later does not fix week one. The first week must stay near the high.",
+    "Yes, if volume dries up in the box": "Quiet volume is a grade cue. It cannot make up for a first week that fell away.",
+    "No; a flat base needs a handle": "Handles belong to the cup. A flat base is a box and needs none."
+   },
+   "house": true
+  },
+  {
+   "key": "q71",
+   "skill": "setup.flat_base",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "fb.length_max",
+   "q": "Our card caps a flat base at 325 sessions. A trading week has 5 sessions. How many weeks is that?",
+   "answer": 65,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a / b",
+     "a": 325,
+     "b": 5
+    },
+    "round": 0
+   },
+   "why": "65 weeks. Our card allows at most 65 weeks (325 sessions) from the left-side high to the day before the breakout.",
+   "lesson_line": "There is a ceiling on length too: 65 weeks, which is 325 sessions.",
+   "facts": [
+    "c30",
+    "m01"
+   ],
+   "house": true,
+   "suffix": "weeks"
+  },
+  {
+   "key": "q72",
+   "skill": "setup.flat_base",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "fb.length_max",
+   "q": "Is it a flat base breakout?",
+   "story": "A leader has gone sideways for 80 weeks since its left-side high, tapping the same top again and again. Today it trades through that top.",
+   "choices": [
+    "No; it ran past the 65-week cap",
+    "Yes, a longer base is stronger",
+    "Yes, as long as the top is flat",
+    "No; it needs a handle first"
+   ],
+   "answer": "No; it ran past the 65-week cap",
+   "why": "No. Our card caps a flat base at 65 weeks from the left-side high to the day before the breakout.",
+   "lesson_line": "A base that drags on past 65 weeks is no longer a flat base.",
+   "facts": [
+    "c30",
+    "m01",
+    "c17"
+   ],
+   "wrong": {
+    "Yes, a longer base is stronger": "Length has a cap. Past 65 weeks it is no longer a flat base.",
+    "Yes, as long as the top is flat": "A flat top is needed, but not enough. The base must also be 65 weeks or less.",
+    "No; it needs a handle first": "A handle belongs to the cup. The flat base fails here on length."
+   },
+   "house": true
+  },
+  {
+   "key": "q73",
+   "skill": "setup.flat_base",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "fb.ceiling_three_taps",
+   "q": "Which ceiling is the cleaner version on our card?",
+   "story": "Two stocks rest under a flat top. Stock A made two clean taps of it. Stock B made four, each a separate swing.",
+   "choices": [
+    "Stock B, three or more taps",
+    "Stock A, fewer taps mean less supply",
+    "Both are identical on our card",
+    "Neither; a ceiling needs five taps"
+   ],
+   "answer": "Stock B, three or more taps",
+   "why": "Stock B. Two taps make a ceiling, but three or more clean taps is the A+ version on our card. It is a grade cue, not a gate.",
+   "lesson_line": "Two taps make a ceiling. Three or more make it the A+ version.",
+   "facts": [
+    "c31",
+    "c03"
+   ],
+   "wrong": {
+    "Stock A, fewer taps mean less supply": "More clean taps of one level make the cleaner ceiling on our card, not fewer.",
+    "Both are identical on our card": "Both pass as ceilings, but three or more taps is the A+ version.",
+    "Neither; a ceiling needs five taps": "Two or more separate touches make a ceiling. Five is not a rule."
+   },
+   "house": true
+  },
+  {
+   "key": "q74",
+   "skill": "setup.flat_base",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "fb.ma200_rising",
+   "q": "Our card wants the 200-day to be no lower than it was 20 sessions ago.",
+   "answer": "True",
+   "why": "True. On our card the 200-day must be no lower than it was 20 sessions ago.",
+   "lesson_line": "Check the slope of the 200-day. It must not be falling.",
+   "facts": [
+    "c32"
+   ],
+   "house": true
+  },
+  {
+   "key": "q75",
+   "skill": "setup.flat_base",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "fb.ma200_rising",
+   "q": "Does the context pass our card?",
+   "story": "A leader rests in a box above its 50-day and 200-day, with the 50-day over the 200-day. The 200-day is 41.80 today and was 42.30 twenty sessions ago.",
+   "choices": [
+    "No; the 200-day has turned down",
+    "Yes, price is above both averages",
+    "Yes, the 50-day is over the 200-day",
+    "No; it needs a rising 10-day"
+   ],
+   "answer": "No; the 200-day has turned down",
+   "why": "No. The 200-day is lower than it was 20 sessions ago. Our card wants it not lower, even with the averages stacked.",
+   "lesson_line": "Stacked averages are not enough. The 200-day must not be falling.",
+   "facts": [
+    "c32",
+    "c05"
+   ],
+   "wrong": {
+    "Yes, price is above both averages": "That is one check. The 200-day must also not be lower than 20 sessions ago.",
+    "Yes, the 50-day is over the 200-day": "That is one check. A falling 200-day still fails the context.",
+    "No; it needs a rising 10-day": "The card asks about the 200-day slope, not the 10-day."
+   },
+   "house": true
+  },
+  {
+   "key": "q76",
+   "skill": "setup.flat_base",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "fb.climax",
+   "q": "The stock goes vertical. What fits our rule?",
+   "story": "You bought the breakout at 90.01. Two weeks on, it has jumped on gaps three days running, each bar bigger than the last, far over its rising 10-day.",
+   "choices": [
+    "Sell a big part into the surge",
+    "Buy more to ride the move",
+    "Sit tight until the 21-day breaks",
+    "Sell it all at the next gap up"
+   ],
+   "answer": "Sell a big part into the surge",
+   "why": "Sell a big part. Into a climax run on your own long we sell a big part. It is a judgment call.",
+   "lesson_line": "When a winner goes parabolic, sell a big part into it.",
+   "facts": [
+    "h30"
+   ],
+   "wrong": {
+    "Buy more to ride the move": "A burst is a time to sell into strength, not to add.",
+    "Sit tight until the 21-day breaks": "The rule sells a big part into the burst. It does not wait for the trail.",
+    "Sell it all at the next gap up": "The rule says a big part, as a judgment call, not everything."
+   },
+   "house": true
+  },
+  {
+   "key": "q77",
+   "skill": "setup.flat_base",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "fb.climax",
+   "q": "A climax run on a winner is the moment to add to the position.",
+   "answer": "False",
+   "why": "False. Into a climax run on your own long, sell a big part, not add.",
+   "lesson_line": "Climax run: sell into strength. Do not add.",
+   "facts": [
+    "h30"
+   ],
+   "house": true
   }
  ],
  "conflicts": [
@@ -2657,7 +2909,7 @@
   "Throwbacks: the card's 'two in three come back within 30 days' is Bulkowski's rectangle-top throwback rate (66%), a statistic on his page, not a verbatim quote in the dossier's section 3; q35 cites the card's own statement (c21) and Bulkowski's verbatim 'Throwbacks hurt post breakout performance' is not used as a key.",
   "Volume: IBD requires 40% to 50% above average (S1, S6) and TraderLion 1.4x (S17); Kullamagi is silent; Bulkowski's volume study found heavy-volume breakouts failed more; the owner is 'not a big volume guy'; our scan sided with IBD (39.2% / 30.1% to 3R / 5R against 26.0% / 17.3%). The unit grades on volume and never gates on it; LII (0.82x, 15.9R) is the case for the cue.",
   "Shallow is better: the card's A+ depth of 10% or less (fb.depth_shallow, D-044) is unmeasured and our scan found 10% or less was NOT better; Bulkowski: 'Tall patterns perform better than short ones.' Not taught here.",
-  "Three or more taps as the A+ ceiling (fb.ceiling_three_taps): the scan found no difference. q11 says 'three clean taps is the better version' as the card's cue; it is never a key.",
+  "Three or more taps as the A+ ceiling (fb.ceiling_three_taps): the scan found no difference. q11 says 'three clean taps is the better version' as the card's cue. Until the 2026-11-10 coverage pass it was never a key; q73 now keys it only as the card's A+ cue, a grade cue and not a gate, and does not cite the scan.",
   "The dossier's example numbers (d1) are cited as a Tier 3 repo source: they were read off our own daily bars by the research scan (dossier section 12 and 13), not from a public page or an owner ruling; the scan has no delisted names and the owner has not yet reviewed the examples (dossier question 15). The walk-throughs and the example stories depend on it; the checker and the owner should confirm the ten names before the unit goes live.",
   "The criteria card (c1) is cited as a Tier 3 repo source for its proposed criteria (the ceiling, tight at the end, holds the 50-day, flat drift, the undercut rule, the lookalike tells). Those statements are the dossier's proposals built on the sources it names, not owner rulings; every question keyed on them carries house: true and the owner's review is the gate.",
   "Walk-through fills: the scan filled at the pivot plus a cent (NUS 90.01, ALLY 30.28, WSM 73.16) or at the open when it gapped over the pivot, and stopped 5 cents under the lower of the trigger day's low and the prior day's low; a live market order fills a little differently.",
@@ -3093,6 +3345,60 @@
    "status": "pass",
    "notes": "i22 (IBD S7: a 20% gain counts as one stage), m08 (MarketSmith reset), c13 verbatim. True; a 30-word why sentence split.",
    "fixed": true,
+   "by": "checker"
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; story now says the taps are clean (the card's wording); reads as A+ on our card, a grade cue, not a gate; conflicts line updated",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q74": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; why was a bare restatement; now says it is our card's line",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q75": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q76": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; dropped an unsourced claim ('hands back much of the burst') from a wrong note",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q77": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "fixed": false,
    "by": "checker"
   }
  }

@@ -2649,6 +2649,50 @@
     "None; Orange is Red": "Red is mostly cash. Orange still allows the A+ drives."
    },
    "house": true
+  },
+  {
+   "key": "q67",
+   "skill": "setup.opening_drive",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "od.u_turn_not_this",
+   "q": "Which setup owns the failed drive?",
+   "choices": [
+    "The Parabolic Short; it is a climax",
+    "The Opening Drive; keep the long",
+    "The Episodic Pivot; it gapped on news"
+   ],
+   "answer": "The Parabolic Short; it is a climax",
+   "why": "The Parabolic Short. A drive on day 3 to 5 of a burst that fails is the U-Turn. It belongs to the Parabolic Short, not this card.",
+   "lesson_line": "A failed up-drive is the U-Turn, a different setup.",
+   "facts": [
+    "c17",
+    "c39",
+    "u05",
+    "c36"
+   ],
+   "wrong": {
+    "The Opening Drive; keep the long": "A failed up-drive is a different setup, not a drive to hold.",
+    "The Episodic Pivot; it gapped on news": "The gap here comes after a burst, not a neglected name on news."
+   },
+   "house": true,
+   "story": "Day 4 of a run with two overnight gap ups. The stock gaps up again and drives over its first 5-minute high. By 10:30 it has lost VWAP and broken the low of the day."
+  },
+  {
+   "key": "q68",
+   "skill": "setup.opening_drive",
+   "rung": 5,
+   "format": "tf",
+   "criterion": "od.u_turn_not_this",
+   "q": "A short on a drive that fails on a climax day is an Opening Drive trade.",
+   "answer": "False",
+   "why": "False. The failed up-drive, the U-Turn, is a different setup. It belongs to the Parabolic Short, allowed above the 200-day only because it is parabolic.",
+   "lesson_line": "The U-Turn is the Parabolic Short, not a drive.",
+   "facts": [
+    "c17",
+    "h10"
+   ],
+   "house": true
   }
  ],
  "conflicts": [
@@ -2994,6 +3038,18 @@
    "status": "pass",
    "notes": "CNC numbers match d07/d08/d09 (RS 90, gap 4.7%, bar 70.21 to 71.99 on 5.3x, buy 72.00, stop 70.16 = 2.6%, 3R 77.52 at 9:35 next day, faded two days later). Breakeven at the first trim is B19's default; the house plan was not simulated.",
    "fixed": false,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: the right choice said 'not this card', which gave the answer away; choice reworded; why had a 25-word sentence and the story a 23-word one (split)",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: the old statement was arguably true (a long you took in a failed drive is managed by its stop); now asks about shorting the failed drive, which the card gives to the Parabolic Short",
+   "fixed": true,
    "by": "checker"
   }
  }

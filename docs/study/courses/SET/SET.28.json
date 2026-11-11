@@ -704,6 +704,60 @@
    "source": "h1",
    "quote": "Max position 40% of the account",
    "claim": "A7: the maximum position is 40% of the account."
+  },
+  {
+   "id": "k26",
+   "source": "c1",
+   "quote": "The break left the line: at least one of those closes was 0.5 ATR or more under it.",
+   "claim": "Card 32: the break left the line when at least one close was 0.5 ATR or more under it."
+  },
+  {
+   "id": "k27",
+   "source": "c1",
+   "quote": "A level must be a real level (level remounts only): it held before it broke, at least 10 of the 15 closes before the break at or above it.",
+   "claim": "Card 32: a level must have held before it broke, at least 10 of the 15 closes before the break at or above it."
+  },
+  {
+   "id": "k28",
+   "source": "c1",
+   "quote": "Variant: on a gap down after the remount that stays above the line, buy as price turns positive on the day; stop under that day's low.",
+   "claim": "Card 32 variant: on a gap down after the remount that stays above the line, buy as price turns positive; stop under that day's low."
+  },
+  {
+   "id": "k29",
+   "source": "c1",
+   "quote": "often times it on the hourly, a higher low or a flag. Taught as a variant because daily drills cannot show it.",
+   "claim": "Card 32: the hourly timing, a higher low or a flag, is taught as a variant because daily drills cannot show it."
+  },
+  {
+   "id": "k30",
+   "source": "c1",
+   "quote": "One entry per trade.",
+   "claim": "Card 32: one entry per trade; the course teaches one entry."
+  },
+  {
+   "id": "k31",
+   "source": "c1",
+   "quote": "Sell a third at 5R.",
+   "claim": "Card 32: sell a third at 5R."
+  },
+  {
+   "id": "k32",
+   "source": "c1",
+   "quote": "A+ cue: the line matters to many people, the 50-day or 200-day, or a level",
+   "claim": "Card 32: an A plus cue is a line that matters to many people, an average or a level."
+  },
+  {
+   "id": "k33",
+   "source": "c1",
+   "quote": "(a round number, an old high, a base low), and best when an average and a level sit together.",
+   "claim": "Card 32: the examples of a level are a round number, an old high and a base low; best when an average and a level sit together."
+  },
+  {
+   "id": "k34",
+   "source": "c1",
+   "quote": "B- cue: a report within about two weeks (10 sessions).",
+   "claim": "Card 32: a B minus cue is a report within about two weeks, 10 sessions."
   }
  ],
  "walkthroughs": [
@@ -2404,6 +2458,330 @@
    },
    "house": true,
    "story": "Three remounts. A: a first try after a long decline, the line still curling lower. B: a leader that remounts before the index and clears every average. C: the 50-day retaken, other averages overhead and falling."
+  },
+  {
+   "key": "q65",
+   "skill": "setup.remount",
+   "rung": 3,
+   "format": "numeric",
+   "criterion": "rm.break_left_line",
+   "q": "The line is 50.00. The deepest close under it was 48.50. ATR is 1.20. How many ATR under the line?",
+   "answer": 1.25,
+   "why": "1.25 ATR. Take the line minus the deepest close, then divide by the ATR. Our card asks for at least 0.5 ATR, so the break left the line.",
+   "lesson_line": "A real break closes at least half an ATR under the line.",
+   "facts": [
+    "k26"
+   ],
+   "house": true,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / c",
+     "a": 50.0,
+     "b": 48.5,
+     "c": 1.2
+    },
+    "round": 2
+   },
+   "suffix": " ATR"
+  },
+  {
+   "key": "q66",
+   "skill": "setup.remount",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "rm.break_left_line",
+   "q": "Did the break leave the line?",
+   "choices": [
+    "No; the dip stayed under 0.5 ATR",
+    "Yes; any close under the line is a break",
+    "Yes; the close back over proves it",
+    "No; it needs a close under the 200-day"
+   ],
+   "answer": "No; the dip stayed under 0.5 ATR",
+   "why": "No. Our card asks that at least one close sat 0.5 ATR or more under the line. This dip reached only 0.2 ATR.",
+   "lesson_line": "A dip inside the noise is not a lost line. Wait for a real break.",
+   "facts": [
+    "k26",
+    "d10"
+   ],
+   "wrong": {
+    "Yes; any close under the line is a break": "One close under the line is not enough. Our card wants one at least 0.5 ATR under it.",
+    "Yes; the close back over proves it": "The close back over is the retake. The break must be deep enough first.",
+    "No; it needs a close under the 200-day": "The 200-day is a separate test. This one is about how deep the dip went under the 50-day."
+   },
+   "house": true,
+   "story": "A stock held its 50-day for months. It dipped under on a few closes, the deepest only 0.2 ATR below the line. Today it closes back over."
+  },
+  {
+   "key": "q67",
+   "skill": "setup.remount",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "rm.level_held",
+   "q": "A price level counts as a Remount line only if the stock held it before the break.",
+   "answer": "True",
+   "why": "True. Our card wants a level that held before it broke. At least 10 of the 15 closes before the break were at or above it.",
+   "lesson_line": "A level has to hold before it can be lost.",
+   "facts": [
+    "k27"
+   ],
+   "house": true
+  },
+  {
+   "key": "q68",
+   "skill": "setup.remount",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "rm.level_held",
+   "q": "Is 80.00 a real level for a Remount?",
+   "choices": [
+    "No; too few closes were above it",
+    "Yes; the retake is what counts",
+    "Yes; any round number is a level",
+    "No; a Remount uses averages only"
+   ],
+   "answer": "No; too few closes were above it",
+   "why": "No. Our card wants a level that held before it broke, at least 10 of the 15 closes at or above it. Here only 5 did.",
+   "lesson_line": "Chopping through a price for weeks does not make it a level.",
+   "facts": [
+    "k27",
+    "k14"
+   ],
+   "wrong": {
+    "Yes; the retake is what counts": "The retake comes second. The level has to have held before the break.",
+    "Yes; any round number is a level": "A round number counts only if it held. Weeks of chop through it says it did not.",
+    "No; a Remount uses averages only": "The level form is real. A price level that held before it broke counts."
+   },
+   "house": true,
+   "story": "A stock breaks under 80.00 and later closes back over it. In the 15 sessions before the break, only 5 closes were at or above 80.00. It had chopped through that price for weeks."
+  },
+  {
+   "key": "q69",
+   "skill": "setup.remount",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "rm.entry_red_to_green",
+   "q": "What is our card's variant buy?",
+   "choices": [
+    "Buy as it turns positive on the day",
+    "Buy the open to catch the dip",
+    "Wait for a close over the prior high",
+    "Skip it; a gap down ends the setup"
+   ],
+   "answer": "Buy as it turns positive on the day",
+   "why": "Buy as it turns positive on the day. On a gap down that stays above the line, our card buys the turn. The stop goes under that day's low.",
+   "lesson_line": "Gap down, line held: buy the turn to positive.",
+   "facts": [
+    "k28",
+    "h24"
+   ],
+   "wrong": {
+    "Buy the open to catch the dip": "The open is the weakest moment. The variant waits for price to turn positive.",
+    "Wait for a close over the prior high": "That waits for the daily close. This variant buys the turn on the day itself.",
+    "Skip it; a gap down ends the setup": "A gap down that stays above the line is the case this variant is for."
+   },
+   "house": true,
+   "story": "Yesterday was a clean remount day. Today the stock gaps down at the open but stays above the line. You have not bought yet."
+  },
+  {
+   "key": "q70",
+   "skill": "setup.remount",
+   "rung": 7,
+   "format": "tf",
+   "criterion": "rm.entry_hourly",
+   "q": "A Remount can be timed on the hourly chart, on a higher low or a flag.",
+   "answer": "True",
+   "why": "True. Our card teaches the hourly timing, a higher low or a flag, as a variant. Daily drills cannot show it.",
+   "lesson_line": "Hourly timing is a variant. The daily rules stay the base.",
+   "facts": [
+    "k29"
+   ],
+   "house": true
+  },
+  {
+   "key": "q71",
+   "skill": "setup.remount",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "rm.one_price",
+   "q": "Do you add to the position?",
+   "choices": [
+    "No; one price, one stop, no adds",
+    "Yes; add half with the same stop",
+    "Yes; add, and move the stop to average",
+    "No; sell half to lock in the gain"
+   ],
+   "answer": "No; one price, one stop, no adds",
+   "why": "No. We buy the full size at one price with one stop, and no adding. The course teaches one entry.",
+   "lesson_line": "One entry, one price, one stop. Liking it more is not a trigger.",
+   "facts": [
+    "k30",
+    "m12",
+    "h20"
+   ],
+   "wrong": {
+    "Yes; add half with the same stop": "Half now and half later is two entries. We buy the full size at one price.",
+    "Yes; add, and move the stop to average": "Moving the stop to fit an add breaks the one-stop rule.",
+    "No; sell half to lock in the gain": "Trims come at 3R and 5R, a third each. Half now is not the plan."
+   },
+   "house": true,
+   "story": "You bought a Remount at 40.00 with the stop at 38.80. Two days later it holds the line again on a quiet day. You like it even more."
+  },
+  {
+   "key": "q72",
+   "skill": "setup.remount",
+   "rung": 4,
+   "format": "numeric",
+   "criterion": "rm.trim_2",
+   "q": "Bought at 59.54 with the stop at 58.44. Where is 5R?",
+   "answer": 65.04,
+   "why": "65.04. One R is the fill minus the stop. Add five of those to the fill. The second third comes off there.",
+   "lesson_line": "Know your 5R before the open. The second third comes off there.",
+   "facts": [
+    "h20",
+    "k31",
+    "d05"
+   ],
+   "house": true,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 5 * (a - b)",
+     "a": 59.54,
+     "b": 58.44
+    },
+    "round": 2
+   },
+   "prefix": "$"
+  },
+  {
+   "key": "q73",
+   "skill": "setup.remount",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "rm.trim_2",
+   "q": "What comes off at 5R?",
+   "choices": [
+    "Another 100; trail the last 100",
+    "The other 200; no trail needed",
+    "Another 50; trail the other 150",
+    "Nothing; wait for the 21-day"
+   ],
+   "answer": "Another 100; trail the last 100",
+   "why": "Another 100, a third of the position. After the first third at 3R comes another third at 5R, then you trail the last third.",
+   "lesson_line": "A third at 3R, a third at 5R, then the trail.",
+   "facts": [
+    "h20",
+    "k31"
+   ],
+   "wrong": {
+    "The other 200; no trail needed": "The plan keeps the last third on the trail. A third comes off at 5R, not all of it.",
+    "Another 50; trail the other 150": "Half a third is not the plan. The second trim is a third of the position.",
+    "Nothing; wait for the 21-day": "The trail is for the last third, after both trims. At 5R the second third comes off."
+   },
+   "house": true,
+   "story": "You hold 300 shares of a Remount. You sold 100 at 3R. Today the stock reaches 5R."
+  },
+  {
+   "key": "q74",
+   "skill": "setup.remount",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "rm.failed_first_try",
+   "q": "May you take the fourth try?",
+   "choices": [
+    "No; three tries a week is the limit",
+    "Yes; every trigger is a new trade",
+    "No; two tries a week is the limit",
+    "Yes; if the stop is wider this time"
+   ],
+   "answer": "No; three tries a week is the limit",
+   "why": "No. A new trigger after a failed try is a new trade. But the cap is 3 tries a week and 6 a month on one stock.",
+   "lesson_line": "A new trigger is a new trade, but the cap still holds.",
+   "facts": [
+    "k07",
+    "h29"
+   ],
+   "wrong": {
+    "Yes; every trigger is a new trade": "A new trigger is a new trade, but there is a cap: 3 tries a week on one stock.",
+    "No; two tries a week is the limit": "The cap is 3 tries a week and 6 a month on one stock.",
+    "Yes; if the stop is wider this time": "A wider stop is never the fix. The stop only moves up."
+   },
+   "house": true,
+   "story": "This week you took three Remount tries on one stock. All three hit the stop. Today it triggers a fourth time."
+  },
+  {
+   "key": "q75",
+   "skill": "setup.remount",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "rm.failed_first_try",
+   "q": "After a stop-out, a second Remount try is a new trade with its own trigger and its own stop.",
+   "answer": "True",
+   "why": "True. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop.",
+   "lesson_line": "A second try is a new trade, not a rescue.",
+   "facts": [
+    "h28",
+    "k07"
+   ],
+   "house": true
+  },
+  {
+   "key": "q76",
+   "skill": "setup.remount",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "rm.line_plus_level",
+   "q": "Which carries the stronger A plus cue?",
+   "choices": [
+    "B; average and level together",
+    "A; one clean line reads better",
+    "Same; a second line adds nothing",
+    "A; a level only adds noise to it"
+   ],
+   "answer": "B; average and level together",
+   "why": "B. On our card a line many people watch is an A plus cue, best when an average and a level sit together. It is a cue, not a score.",
+   "lesson_line": "An average and a level together: the strongest line to retake.",
+   "facts": [
+    "k32",
+    "k33"
+   ],
+   "wrong": {
+    "A; one clean line reads better": "Two lines taken back at once is the stronger picture, not the noisier one.",
+    "Same; a second line adds nothing": "A second line that many people watch adds to the cue.",
+    "A; a level only adds noise to it": "A round number is a level many people name. Together with an average it is the best case."
+   },
+   "house": true,
+   "story": "Two remounts close back over their line today. A retakes the 50-day alone. B retakes the 50-day and the round 100.00 level together."
+  },
+  {
+   "key": "q77",
+   "skill": "setup.remount",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "rm.report_soon",
+   "q": "How does the report change the trade?",
+   "choices": [
+    "Allowed; it counts as a B minus cue",
+    "Blocked; no buys within 10 sessions",
+    "Allowed; it is an A plus catalyst",
+    "Blocked; no buys within 8 sessions"
+   ],
+   "answer": "Allowed; it counts as a B minus cue",
+   "why": "Allowed, as a B minus cue. A report within about two weeks (10 sessions) lowers the grade. Only the 3 sessions before are barred.",
+   "lesson_line": "A report close by lowers the grade. Only the last 3 sessions bar the buy.",
+   "facts": [
+    "k34",
+    "k03"
+   ],
+   "wrong": {
+    "Blocked; no buys within 10 sessions": "Only the 3 sessions before a report are barred. Ten sessions is a cue, not a ban.",
+    "Allowed; it is an A plus catalyst": "A report close by lowers the grade. It does not raise it.",
+    "Blocked; no buys within 8 sessions": "Only the 3 sessions before a report are barred. Eight sessions is outside that."
+   },
+   "house": true,
+   "story": "A clean remount triggers today. The company reports in 8 sessions."
   }
  ],
  "conflicts": [
@@ -2417,7 +2795,8 @@
   "Deepvue is a vendor page about Weinstein (Tier 2 with a note); it is used only to name the sideways chop (dv1). The 4B- name appears only in card 13's tell (m04); the questions explain it in plain words.",
   "MAU&R: Morales and Kacher let the stop sit 1-2% under the average (the VoSI FAQ). Card 32 lists that as a named variant and not the default; no question keys it. The scanners' remount.py claims (Bonde, Shannon, Raschke, 1.5:1 reward) are not sourced and none reaches a member here.",
   "Cold-check notes carried from the pilot: no 'the owner' in member text, no untaught house words, the stop stays the rule's stop (B20 for a gap through it), the breakeven move at the first trim (B19).",
-  "Cold check 2026-11-10: 60 pass (13 fixed), 0 fix, 4 cut; 3 walk-throughs pass. Cut: q14 and q60 (breakeven and the 3R trim, duplicates of q59 and q32), q17 (duplicate of q63), q35 (duplicate of q51). Fixed: 'a week or more' removed from member text where it stood for the pending D-074 count (q01, q13, q41, q42); q23's three-session dip is now two sessions (three is unsafe if the owner takes option A, 3 of the prior 20 closes); q39 and q49 stories that contradicted themselves or left out the 200-day; q53 (AAPL opened lower, it did not gap through the stop); q57 (CRM's 200-day is rising, so the 'falling' sources were dropped and B26 carries the key); q29 now names the 40% cap. For the owner, first: D-074 (how long the line must be lost; nothing keys the count now, but q13, q41 and q42 lean on the proposed 3-session U&R limit), D-003 (the pause entry in q20 and the walk-throughs is card 13's proposed Entry B; Entry A, buying the remount-day close, is not taught), and E50 against the grade-cue questions (q39, q49, q50, q64): they teach A plus and B minus cues, and the rulebook says grading is discretionary with no fixed checklist."
+  "Cold check 2026-11-10: 60 pass (13 fixed), 0 fix, 4 cut; 3 walk-throughs pass. Cut: q14 and q60 (breakeven and the 3R trim, duplicates of q59 and q32), q17 (duplicate of q63), q35 (duplicate of q51). Fixed: 'a week or more' removed from member text where it stood for the pending D-074 count (q01, q13, q41, q42); q23's three-session dip is now two sessions (three is unsafe if the owner takes option A, 3 of the prior 20 closes); q39 and q49 stories that contradicted themselves or left out the 200-day; q53 (AAPL opened lower, it did not gap through the stop); q57 (CRM's 200-day is rising, so the 'falling' sources were dropped and B26 carries the key); q29 now names the 40% cap. For the owner, first: D-074 (how long the line must be lost; nothing keys the count now, but q13, q41 and q42 lean on the proposed 3-session U&R limit), D-003 (the pause entry in q20 and the walk-throughs is card 13's proposed Entry B; Entry A, buying the remount-day close, is not taught), and E50 against the grade-cue questions (q39, q49, q50, q64): they teach A plus and B minus cues, and the rulebook says grading is discretionary with no fixed checklist.",
+  "Coverage job 2026-11-10: no question for rm.ma200_rising (held: D-075 (the 200-day slope test: higher than 20 sessions ago, or only 'not falling fast'); the unit keys neither); rm.remount_day_candle (held: D-075 (the remount-day candle: the upper-half close is one of the options); the unit keys neither)."
  ],
  "verify": {
   "w1": {
@@ -2821,6 +3200,84 @@
    "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. k08, k09, k11, m18. Grade cues are discretionary (E50); the unit says 'cue', never a fixed score. variety rewrite checked 2026-11-10.",
    "fixed": false,
    "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: why now reads as our card (the 10 of 15 line is proposed)",
+   "by": "checker",
+   "fixed": true
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: right choice said 'never held' but 5 of 15 closes did hold; now 'too few closes were above it'",
+   "by": "checker",
+   "fixed": true
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: 'green' could mean above the open; choice and why now use the card's 'turns positive on the day'",
+   "by": "checker",
+   "fixed": true
+  },
+  "q70": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q71": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q72": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q74": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: one wrong choice used a comma where the others use a semicolon (shape tell); now a semicolon",
+   "by": "checker",
+   "fixed": true
+  },
+  "q75": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
+  },
+  "q76": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10; fixed: why now reads as our card's cue",
+   "by": "checker",
+   "fixed": true
+  },
+  "q77": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-10",
+   "by": "checker",
+   "fixed": false
   }
  }
 }
