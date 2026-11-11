@@ -26,7 +26,7 @@
 // registry in the browser and against the sent manifest on the server; approvals and protected layouts apply as
 // before. The `routing` object sent to the server has v1's exact shape.
 
-import { GROUPS, ROUTING_VERSION, groupOfAction, selectGroups, wordsSelect, routeManifest } from '../routing'
+import { GROUPS, ROUTING_VERSION, groupOfAction, selectGroups, wordsSelect, routeManifest, warnBudgetCut } from '../routing'
 import { manifestFor } from '../capabilities'
 import { buildIndex, lexicalScores, tokens, stem, entityTokens, tickerWordsOf, vocabularyHits, ENTITY_W, ENTITY_GROUPS, RELATED } from './capabilityIndex'
 
@@ -51,6 +51,7 @@ export const TUNING = Object.freeze({
   LIKELY_FLOOR: 1,      // the least own score an entity-expanded group needs to be packed (charts exempt)
   MATCHED_ADD: 0,       // D1.3: the evidence a v2 group needs to be ADDED to a request v1's words already recognised
   DOUBT_FILL: 1,        // D1.3: under doubt, v1's fill stops at this share of the byte budget (v1's own fallback request size)
+  TIE: 0.9,             // 11-11: an over-budget strong tier — scores within 10% of a band's best are a tie (packed smallest first)
 })
 // dev sweeps only (nlm1 tuning script): an override object; production never sets it
 const T = () => (globalThis.__NLM1_TUNING__ ? { ...TUNING, ...globalThis.__NLM1_TUNING__ } : TUNING)
@@ -162,6 +163,18 @@ function bytesFor(manifest, opts) {
 
 const SENT_WITH_GROUP = ['boardEdit', 'calendar']
 
+/** `ranked` (best first) cut into bands of scores within `tie` of the band's best; each band smallest first. */
+function tieBands(ranked, scoreOf, bySize, tie) {
+  const out = []
+  let band = []
+  for (const g of ranked) {
+    if (band.length && scoreOf(g) < tie * scoreOf(band[0])) { out.push(...band.sort(bySize)); band = [] }
+    band.push(g)
+  }
+  out.push(...band.sort(bySize))
+  return out
+}
+
 /** Route a manifest — routeManifest's contract (manifest, routing, overBudget, refresh), plus `v2` diagnostics. */
 export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   const k = T()
@@ -206,10 +219,16 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   })()
   const evidenceOf = (g) => (scoreOf.get(g) || 0) + (entEvidence.has(g) ? k.STRONG : 0)
   const v1Order = v1Fits ? [...v1Own].sort(bySize) : [...v1Own].sort((a, b) => (evidenceOf(b) - evidenceOf(a)) || bySize(a, b))
-  const own = !sel.matched ? [] : sel.uncertain ? ['charts', ...lead]
-    : [...v1Order,
-      // D1.3 (bytes): on a message v1's words recognised, v2 ADDS a group to the request only on evidence ≥ MATCHED_ADD
-      ...(sel.v1Matched ? sel.strong.filter(g => (scoreOf.get(g) || 0) >= k.MATCHED_ADD) : sel.strong)]
+  // D1.3 (bytes): on a message v1's words recognised, v2 ADDS a group to the request only on evidence ≥ MATCHED_ADD
+  const strongAdds = (sel.v1Matched ? sel.strong.filter(g => (scoreOf.get(g) || 0) >= k.MATCHED_ADD) : sel.strong).filter(g => !v1Own.includes(g) && !pinned.includes(g))
+  // BUDGET-CUT TIES (11-11): v2's strong groups are packed best-first while they all FIT beside v1's hits. When they don't,
+  // a score within TIE of a better one is NOT evidence against it — near-tied scores from one generic word ("how is that one
+  // set right now": set → charts 2.08, lists 2.07, drawings 2.04, boardEdit 2.00) — so each band of near-tied groups is
+  // packed SMALLEST first (v1's own packing principle): the big co-selected groups give way before a small one is cut on a
+  // few hundredths of a point. Bands keep their evidence order. When everything fits, the outcome is exactly as before.
+  const strongFits = [...v1Own, ...strongAdds].reduce((a, id) => a + sizeOf(id), pinnedSize) <= budget
+  const strongOrder = strongFits ? strongAdds : tieBands([...strongAdds].sort((a, b) => evidenceOf(b) - evidenceOf(a)), evidenceOf, bySize, k.TIE)
+  const own = !sel.matched ? [] : sel.uncertain ? ['charts', ...lead] : [...v1Order, ...strongOrder]
   // 4. weak
   const weak = sel.ranked.filter(([, s]) => s >= k.WEAK).map(([g]) => g)
   // 5. context
@@ -225,7 +244,10 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   // decisively (best ≥ STRONG) is routed on that evidence plus its entities, as v1 routes a message its words recognise
   const doubt = sel.uncertain || !sel.matched
   const fillOn = k.FILL_WHEN === 'uncertain' ? doubt : v1Fill
-  const fill = fillOn ? [...(sel.v1Soft || sel.soft || []), 'charts', ...GROUPS.map(g => g.id).filter(id => id !== 'charts').sort(fillOrder)] : []
+  // `wordsOnly` (routing.js, #1027): a niche group is never filler. As in v1's own fallback (selectGroups `filler`), it is
+  // packed only when its own words name the message (and then v1 recognised it, so the fill is off anyway)
+  const filler = GROUPS.filter(g => g.id !== 'charts' && (!g.wordsOnly || wordsSelect(g.id, message))).map(g => g.id)
+  const fill = fillOn ? [...(sel.v1Soft || sel.soft || []), 'charts', ...filler.sort(fillOrder)] : []
 
   // 3b. LIKELY (D1.1, context-aware candidate expansion — never an all-tool fallback): what the message's ENTITIES make
   //     likely, packed right after its own groups — a ticker: its chart, its data, an alert on it; a price: an alert or a
@@ -263,6 +285,7 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
     if ((used + n > budget || usedBytes + b > cap) && want.size >= always.length) { if (needed.includes(id)) over.push(id); continue }
     want.add(id); used += n; usedBytes += b
   }
+  warnBudgetCut(manifest, groupOfAction, over)          // a needed group the budget cut is never silent (routing.js)
   const sentWith = sel.undoSignal ? [] : SENT_WITH_GROUP.filter(id => id === 'calendar' || (scoreOf.get(id) || 0) >= k.EVID_FLOOR)
   const present = GROUPS.filter(g => counts.has(g.id))
   const routed = manifest.filter(c => want.has(groupOfAction(c.name)) || groupOfAction(c.name) === null)

@@ -158,13 +158,19 @@ export function buildIndex(manifest) {
   }
   for (const g of GROUPS) if (docs.has(g.id)) add(g.id, g.title, W_TITLE)
   if (docs.has('indicators')) for (const n of cat) add('indicators', n, W_CATALOG)
+  // AUDIT #1027 (held-out list v2, C1-065): a `wordsOnly` group (routing.js) is chosen by its OWN words (v1's regexes), never
+  // by a score. It stays a document (inspectable), but it is not SCORED and takes no part in the corpus statistics. Counted,
+  // it only raised every other term's IDF (N + 1) and moved the average length, which lifted an unrelated group past STRONG
+  // on a chart request and dropped the chart group from that request.
+  const wordsOnly = new Set(GROUPS.filter(g => g.wordsOnly).map(g => g.id))
+  const scored = [...docs.keys()].filter(g => !wordsOnly.has(g))
   const len = new Map([...docs].map(([g, d]) => [g, [...d.values()].reduce((a, b) => a + b, 0)]))
-  const avg = [...len.values()].reduce((a, b) => a + b, 0) / Math.max(1, len.size)
+  const avg = scored.reduce((a, g) => a + len.get(g), 0) / Math.max(1, scored.length)
   const df = new Map()
-  for (const d of docs.values()) for (const t of d.keys()) df.set(t, (df.get(t) || 0) + 1)
-  const N = docs.size
+  for (const g of scored) for (const t of docs.get(g).keys()) df.set(t, (df.get(t) || 0) + 1)
+  const N = scored.length
   const idf = new Map([...df].map(([t, n]) => [t, Math.log(1 + (N - n + 0.5) / (n + 0.5))]))
-  const index = { docs, field, len, avg, idf, groups: [...docs.keys()] }
+  const index = { docs, field, len, avg, idf, groups: scored }
   MEMO = { key, index }
   return index
 }

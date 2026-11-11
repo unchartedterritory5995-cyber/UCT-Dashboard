@@ -324,6 +324,16 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         drawSym: () => symRef.current,
         goToDate: (ms) => paneRef.current?.goToDate?.(ms),
         viewDo: (op, arg) => !!paneRef.current?.viewDo?.(op, arg),
+        // ⭐ C1-127: the chart's OWN Chart Settings dialog — the very openSettings the gear, the right-click
+        // "Chart settings" item and Alt+, call (ChartPane). Opening it writes nothing; `settingsOpen` is the read-back.
+        canOpenSettings: () => !!paneRef.current?.canOpenSettings?.(),
+        settingsOpen: () => !!paneRef.current?.isSettingsOpen?.(),
+        openSettings: () => {
+          const pane = paneRef.current
+          if (!pane?.canOpenSettings?.() || typeof pane.openSettings !== 'function') return false
+          pane.openSettings()
+          return true
+        },
         // INDICATORS M1 (AGENT-INTEGRATION-HANDOFF §11): the chart's own Create Indicator door.
         openCreateIndicator: (o) => paneRef.current?.openCreateIndicatorFor?.(o) ?? { ok: false, reason: 'unavailable', prefilled: false, draft: false, editing: false },
         canCreateIndicator: () => !!paneRef.current?.canCreateIndicator?.(),

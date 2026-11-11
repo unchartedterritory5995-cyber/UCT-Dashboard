@@ -7,6 +7,7 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import DesktopStaleBanner from './DesktopStaleBanner'
 import DesktopDeskToast from './DesktopDeskToast'
+import AppUpdateToast from './AppUpdateToast'
 import { ackBeforeQuit, hasDesktopFeature, onBeforeQuit, onDeskVisibility, reportDesktopEvent } from '../lib/desktopBridge'
 import { setDeskHidden } from '../lib/deskVisibility'
 import { clearAppClosing, markAppClosing } from '../lib/appClosing'
@@ -69,6 +70,7 @@ export default function DesktopBridgeSync() {
     <>
       <DesktopStaleBanner />
       <DesktopDeskToast />
+      <AppUpdateToast />
     </>
   )
 }
