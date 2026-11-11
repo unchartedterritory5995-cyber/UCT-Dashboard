@@ -45,6 +45,8 @@ const BAR_COORDS = new Set(BAR_COORD_PROPS)
 // by nothing — parked on the reachability allowlist with an expiry that had
 // passed. This is the seam it was built for.
 import { POOL_LIMITS, resolveCapacity, collectsAbove } from './objectPool'
+import { writeCell, spanned, MERGED_HEAD_REWRITE, MERGED_HEAD_REWRITE_SENTENCE } from './objectCells.js'
+import { NOT_SHOWN, notShownSentence, stoppedRunSentence, STOPPED_KEY } from './ast/objectLoss.js'
 // ⭐ A GUARD THAT READS OBJECT STATE (`{v:'bool'|'cmp'|'cross'|'get'|'size'}`, see
 // `LIVE_GUARD_KINDS`) is combined with `interpret`'s OWN operator table and its
 // OWN carried crossing step — never a second copy of either.
@@ -251,6 +253,15 @@ export function beginObjects(program, ctx) {
     for (const n of nodesOfOp(op)) if (readUnknown(n, bar)) return true
     return false
   }
+  /** ⭐ OZ r1 — the same question with the chart-clock channel taken out
+   *  (`objectColumns.js::clockSplitMask`): unknown for a reason the C36 clock note
+   *  does NOT give. A caller that cannot split answers as `unknownAt`. */
+  const readUnknownOther = typeof ctx.readUnknownOther === 'function' ? ctx.readUnknownOther : readUnknown
+  const unknownOtherAt = (op, bar) => {
+    if (!readUnknownOther) return false
+    for (const n of nodesOfOp(op)) if (readUnknownOther(n, bar)) return true
+    return false
+  }
   let withheldUnknown = 0
   /** ⭐ C45 — of those, ops held because a bar index reached them as a value. */
   let withheldBarIndex = 0
@@ -282,6 +293,9 @@ export function beginObjects(program, ctx) {
   const live = new Map()
   /** table instanceId → Map<"col,row", props> — cells are addressed, not listed */
   const cells = new Map()
+  /** ⭐ DIV-3 r1 — the guards a cell write named (`objectCells.writeCell`); each
+   *  withholds the table family whole at the end, by name. */
+  const cellGuards = new Set()
   const regs = new Map((program.regs || []).map((r) => [r.id, null]))
   /** ⭐ C14 — scalars only getters write (`program.nums`), written in op order.
    *  ⛔ Where a getter can be answered exactly is the CONVERTER's ruling
@@ -383,17 +397,32 @@ export function beginObjects(program, ctx) {
    *  (`lastBarOnly`): a getter's history read there has no earlier run. */
   let onceNow = false
   /** ⭐⭐ C33 — creates Pine MAY have run that this run could not decide (an
-   *  `unknownGuard` create withheld on a bar), per family; and the families
+   *  `unknownGuard` create withheld on a bar — and, W-C22-DEL, a create whose
+   *  guard reads an unmeasured window reduction, `op.withhold`), per family; and the families
    *  whose live count TradingView's collector may therefore have cut — its count
    *  is ours plus up to that many, so past the collector's trigger which objects
-   *  it still holds is unknown. Such a family is withheld whole (`finish`), and a
-   *  getter on a LIVE object of it is unknown from then on (an empty handle is
-   *  still `na` whatever the collector did). */
+   *  it still holds is unknown. ⭐ W-C22-DEL r3 — of such a family, an object is
+   *  withheld (`finish`) unless TradingView certainly still keeps it: its rank from
+   *  the newest there is at most 1 + (this run's creates of the family after it) +
+   *  (creates Pine MAY have made after it), and the collector leaves `cap` objects
+   *  less the ones variables hold (r4: P, one per register of the family). ⚰️ It was
+   *  the family WHOLE, which on vdubus SPY (DIV-1 replay) hid lines TradingView
+   *  shows. A getter on
+   *  a LIVE object of the family is unknown from then on (an empty handle is still
+   *  `na` whatever the collector did). */
   const unknownCreates = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, 0]))
   const collectorUnknown = new Set()
-  const noteUnknownCreate = (op) => {
-    if (!op || op.k !== 'create' || op.unknownGuard !== true || !own(POOL_LIMITS, op.family)) return
+  /** ⭐ r5 (N-g) — families whose collector reached an object a collection held. */
+  const collectorInCollection = new Set()
+  /** Per family: this run's creates so far (an object's `seq` is its place in it). */
+  const familySeq = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, 0]))
+  /** Per family: at each create Pine MAY have made, how many this run had made
+   *  (ascending), so "after object o" is every mark above `o.seq`. */
+  const unknownMarks = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, []]))
+  const noteUnknownCreate = (op, mayHaveRun = !!op && op.unknownGuard === true) => {
+    if (!op || op.k !== 'create' || !mayHaveRun || !own(POOL_LIMITS, op.family)) return
     unknownCreates[op.family] += 1
+    unknownMarks[op.family].push(familySeq[op.family])
     if (counts[op.family] + unknownCreates[op.family] > collectsAbove(limits[op.family])) collectorUnknown.add(op.family)
   }
   const taintInst = (id, props) => {
@@ -401,8 +430,10 @@ export function beginObjects(program, ctx) {
     const cur = instTaint.get(id)
     if (cur === '*') return
     taintSeen = true
+    if (props !== '*' && !props.length) return
+    // ⭐ OZ r2 — the cause is counted only where a taint actually lands
+    if (taintCause !== 'clock') taintOtherSeen = true
     if (props === '*') { instTaint.set(id, '*'); return }
-    if (!props.length) return
     const s = cur || new Set()
     for (const p of props) s.add(p)
     instTaint.set(id, s)
@@ -429,6 +460,7 @@ export function beginObjects(program, ctx) {
     const cur = cellTaint.get(id)
     if (cur === '*') return
     taintSeen = true
+    if (taintCause !== 'clock') taintOtherSeen = true
     if (key === '*') { cellTaint.set(id, '*'); return }
     const s = cur || new Set()
     s.add(key)
@@ -517,6 +549,32 @@ export function beginObjects(program, ctx) {
   /** ⭐ C40 — a family one of whose creates was WITHHELD (C17): TradingView may
    *  hold an object of it this run does not, so `<family>.all` is unknown. */
   const famUnknown = new Set()
+  /** ⭐ OZ r1 — of those, the families one of whose creates was withheld for a
+   *  reason the chart-clock note (C36, `bar-index:window`) does not already give the
+   *  member. `taintCause` is the reason the op being withheld right now carries. */
+  const famUnknownOther = new Set()
+  let taintCause = 'other'
+  /** ⭐ OZ r2 — whether any taint this run carries came from a reason OTHER than the
+   *  chart clock. When none did, a taint-held family (C17) is the clock's to explain. */
+  let taintOtherSeen = false
+  /** ⭐⭐ OZ r3 (review B1) — A WITHHOLD IS THE CLOCK'S ONLY WHEN THE CLOCK LEFT A TAINT.
+   *  ⚰️ r2 booked an op withheld for a taint as the clock's whenever no OTHER taint had
+   *  landed (`taintOtherSeen`). But `tainted` also answers true for unknowns that never
+   *  land as a mark: a getter's history two or more bars back (C48), an unread conjunct
+   *  (`{v:'unknown'}`), a held colour (C45), and a scalar a `setnum` fed from one. Such a
+   *  program has `taintSeen` from bar 0, so its first withhold was booked as the clock's on
+   *  a chart that never read the clock: no family name and no clock note — a SILENT zero
+   *  (measured: 10 boxes withheld, 0 drawn, nothing said).
+   *  ⭐ So the clock is a cause that must be PROVED, never the default:
+   *    · `taintClockSeen` — a withhold the clock alone caused actually happened (only then
+   *      is the C36 / `bar-index:window` note on the chart to explain a family);
+   *    · `unknownOtherSeen` — `tainted` answered true from a source the clock never
+   *      produces (the list above). A latch or a crossing can be the clock's or not, and a
+   *      collector-cut getter follows a withhold that landed its own cause, so those are
+   *      left to `taintClockSeen`: booked the clock's only where a clock note exists.
+   *  The worst case is now naming a family the clock note also covers, never silence. */
+  let taintClockSeen = false
+  let unknownOtherSeen = false
   /** ⭐⭐ C9 — every `{v:'at'}` history read an op's values carry (see
    *  `MAX_BARS_BACK_CAP` in objectProgram.js), once per op. */
   const atAtoms = new Map()
@@ -703,6 +761,15 @@ export function beginObjects(program, ctx) {
     for (const inst of live.values()) {
       if (counts[family] <= cap) break
       if (inst.family !== family || inst.createdBar === bar || held.has(inst.id)) continue
+      // ⭐ W-C22-DEL r5 (N-g) — an object held only in a COLLECTION is the case no
+      // capture separates (C7: "unmeasured"): the collector reaching one makes the
+      // family's held set unknown, so it is withheld WHOLE (`finish`), as the runtime
+      // lane's collector already does (`runtime/objectStore.js::collect`).
+      // ⭐ r6 — a BOX in a list is WITNESSED collected like any other (objectPool.js
+      // C7, sonarlab-order-blocks-spy-1d): no fallback for boxes.
+      if (family !== 'box' && !collectorInCollection.has(family)) {
+        for (const list of colls.values()) if (list.includes(inst.id)) { collectorInCollection.add(family); break }
+      }
       reap(inst)
       evicted += 1
       collectedBy[family] += 1
@@ -1120,7 +1187,8 @@ export function beginObjects(program, ctx) {
           return 'unknown'
         }
         if (!readable) {
-          runtimeError(`a history read \`x[${back}]\` on bar ${bar} is ${back < 0 ? 'a future bar'
+          // ⭐ OZ r3 (N-2) — the offset as the script writes it, `[n]`: no placeholder name
+          runtimeError(`a history read \`[${back}]\` on bar ${bar} is ${back < 0 ? 'a future bar'
             : !Number.isInteger(back) ? 'not a whole number of bars'
               : `past the script's max_bars_back (${at.limit})`} — TradingView stops the script there`)
           return 'error'
@@ -1266,7 +1334,7 @@ export function beginObjects(program, ctx) {
     const colorTainted = (c, depth) => {
       if (!isObj(c) || depth > 48) return false
       // ⭐ C45 — a colour the translator HELD (`{c:'held'}`) has no value on any bar.
-      if (c.c === 'held') return true
+      if (c.c === 'held') { unknownOtherSeen = true; return true }
       if (c.c === 'if') return tainted(c.cond, depth + 1) || colorTainted(c.then, depth + 1) || colorTainted(c.else, depth + 1)
       if (c.c === 'rt') return tainted(c.v, depth + 1)
       if (c.c === 'new') return colorTainted(c.of, depth + 1) || tainted(c.t, depth + 1)
@@ -1311,10 +1379,12 @@ export function beginObjects(program, ctx) {
           if (bar - v.back < 0) return false
           const h = getHistory.get(v)
           const then = h ? h.get(bar - v.back) : undefined
-          if (then === undefined) return !onceNow
-          return v.back > 1 && !Number.isNaN(then)
+          // ⭐ OZ r3 (B1) — unknown, and never the clock's (`unknownOtherSeen`)
+          const histUnknown = then === undefined ? !onceNow : v.back > 1 && !Number.isNaN(then)
+          if (histUnknown) unknownOtherSeen = true
+          return histUnknown
         }
-        case 'unknown': return true
+        case 'unknown': unknownOtherSeen = true; return true
         case 'text': return textTainted(v.node, depth + 1)
         case 'color': return colorTainted(v.node, depth + 1)
         // ⭐ C11c — an `and` with a KNOWN false operand is known false whatever
@@ -1366,12 +1436,15 @@ export function beginObjects(program, ctx) {
      *  an update or delete marks whatever the handle holds now. */
     const taintOutputs = (op) => {
       taintSeen = true
+      if (taintCause !== 'clock') taintOtherSeen = true
+      else taintClockSeen = true
       switch (op.k) {
         case 'create':
           if (op.into) regTaint.add(op.into)
           if (op.once) onceUnknown.add(op.site)
           siteTaint.add(op.site)
           famUnknown.add(op.family)
+          if (taintCause !== 'clock') famUnknownOther.add(op.family)
           break
         case 'update':
           for (const id of targetsOf(op.target)) taintInst(id, Object.keys(op.props || {}))
@@ -1414,7 +1487,16 @@ export function beginObjects(program, ctx) {
       }
     }
     /** Withhold one op on this bar, marking what it would have written. */
-    const withholdTainted = (op) => { withheldTainted += 1; taintOutputs(op) }
+    // ⭐ OZ r2 — an op withheld because it reads a TAINT inherits the taint's cause: when
+    // every taint so far came from the chart clock alone, so does this one.
+    // ⭐ OZ r3 (B1) — and the clock must have LEFT one (`taintClockSeen`), with no unknown
+    // the clock never produces read so far (`unknownOtherSeen`); otherwise it is named.
+    const withholdTainted = (op) => {
+      withheldTainted += 1
+      taintCause = taintClockSeen && !taintOtherSeen && !unknownOtherSeen ? 'clock' : 'other'
+      taintOutputs(op)
+      taintCause = 'other'
+    }
     /** The properties of an op's props whose VALUE is unknown. */
     const taintedProps = (props) => (!taintSeen ? NO_PROPS : Object.entries(props || {})
       .filter(([, v]) => isObj(v) && !v.r && tainted(v)).map(([k]) => k))
@@ -1474,14 +1556,42 @@ export function beginObjects(program, ctx) {
         if (op.indexHeld) withheldBarIndex += 1
         withheldUnknown += 1
         noteUnknownCreate(op)
+        // ⭐ OZ r1 — withheld ONLY by the chart clock (a `time(<tf>)` read C36 names,
+        // or a bar index held off the window, `bar-index:window`): the clock note says why.
+        taintCause = readsUnknownLatch(op.when) || unknownOtherAt(op, bar) ? 'other' : 'clock'
         taintOutputs(op)
+        taintCause = 'other'
         continue
       }
       // ⭐⭐ C11c — a step whose value reads an UNMEASURED window reduction on this
       // bar (`op.withhold`) is withheld, and — C17's rule — marks everything it
-      // would have written. ⛔ No known-false shortcut: its guard may itself read
-      // the reduction, so its falseness is as unmeasured as its value.
-      if (withheldAt(op)) { withheldUnknown += 1; taintOutputs(op); continue }
+      // would have written. ⛔ No known-false shortcut on the WHOLE guard: it may
+      // itself read the reduction, so its falseness is as unmeasured as its value.
+      // ⭐ W-C22-DEL — but a bar its MEASURED conjuncts (`withholdRuns`, the `&&`
+      // terms that read no reduction) are false is a certain skip, C17's
+      // known-false rule: Pine did not run the step, nothing is withheld or counted.
+      // ⭐⭐ W-C22-DEL — and a create withheld here is one Pine MAY have made, so
+      // TradingView's collector may be that many creates further on than this
+      // run's: it then removed old objects this run still holds. ⚰️ MEASURED on
+      // vdubus SPY 1D replayed from the listing (the script deletes nothing; its
+      // lines leave only by the collector): creates withheld on 20 bars, the
+      // vendor's creation counter at 2907 against our 2831, and the 48 oldest
+      // lines TradingView had collected (pivots 2015-16, before the window) DRAWN
+      // here. The family is withheld whole once that may be so
+      // (`collectorUnknown`, C33's rule — one authority, `finish`), and named.
+      if (withheldAt(op)) {
+        // ⛔ ONE AUTHORITY FOR "THE MEASURED TERMS ARE UNKNOWN HERE": `unknownAt`
+        // above. `withholdRuns` is a graph column (the validator admits nothing
+        // else, `objectProgram.js`), whose only unknown is the warm-up curtain, and
+        // `unknownAt` reads every node of the op — this one included — and withholds
+        // the op before it reaches here. So a value read here is known.
+        if (op.withholdRuns != null && !truthy(value(op.withholdRuns))) continue
+        withheldUnknown += 1
+        noteUnknownCreate(op, true)
+        if (ctx.trace) events.push({ bar, k: 'withheld', family: op.family, site: op.site })
+        taintOutputs(op)
+        continue
+      }
       // ⭐⭐ C17 — whether it runs, or what it acts on, reads a tainted value.
       if (handleUnknown || guardTainted(op)) { noteUnknownCreate(op); withholdTainted(op); continue }
       if (op.when != null && !truthy(value(op.when))) continue
@@ -1686,7 +1796,9 @@ export function beginObjects(program, ctx) {
           nextId += 1
           const inst = {
             family: op.family, id, site: op.site, createdBar: bar, props,
+            seq: familySeq[op.family],
           }
+          familySeq[op.family] += 1
           live.set(id, inst)
           // ⭐ C17 — Pine made this object here; a property whose VALUE read
           // something tainted is what stays unknown on it (C22: or read an
@@ -1749,16 +1861,14 @@ export function beginObjects(program, ctx) {
         // time is gone, because `text` defaults to `""`. `table.cell_set_*()` is
         // the patch you use when that is not what you meant.
         //
-        // ⚠️⚠️ AND THIS RUNTIME MERGES BOTH, WHICH IS A FOURTH FIDELITY GAP.
-        // `map.get(key) || {}` below makes `cell` a patch too, so today the two
-        // kinds behave identically and no test in the repo can tell them apart.
-        // That is PRE-EXISTING and is not fixed in this change: turning `cell`
-        // into a true replace changes what every already-imported script draws
-        // and needs its own evidence. ⛔ The kinds stay distinct anyway — the
-        // day `cell` becomes a replace is the day a `cell_set_text` modelled as
-        // a `cell` would wipe the colours off the row it was only asked to
-        // relabel, and a shared kind would make that a one-line silent
-        // regression instead of a decision.
+        // ⭐⭐ DIV-3 (2026-11-09) — `cell` IS A REPLACE, `cellpatch` A PATCH, and
+        // the rule is `objectCells.js::writeCell`, the ONE the runtime lane calls
+        // too (reference: `table.cell` remarks[1], quoted there). ⚰️ This lane
+        // merged both kinds and carried a merge's span; the runtime lane replaced
+        // and dropped it: one script, two tables.
+        // ⛔ A `table.cell` on a MERGED HEAD is what the reference does not settle:
+        // the table family is withheld under `MERGED_HEAD_REWRITE` (`withheldBy`),
+        // never drawn with a guessed span. Railed in `tableCellReplace.test.js`.
         //
         // ⚠️ A PATCH TO A CELL NEVER WRITTEN CREATES IT, and the reference does
         // not say whether TradingView agrees — `docs/pine/lwc5-capability-map.md:858`
@@ -1777,8 +1887,9 @@ export function beginObjects(program, ctx) {
           let map = cells.get(inst.id)
           if (!map) { map = new Map(); cells.set(inst.id, map) }
           const key = `${col},${row}`
-          const cur = map.get(key) || {}
-          map.set(key, resolveProps(op.props, cur))
+          const wrote = writeCell(map.get(key), op.k, (base) => resolveProps(op.props, base))
+          if (wrote.withhold) cellGuards.add(wrote.withhold)
+          map.set(key, wrote.cell)
           // ⭐ C17 — a cell written from a tainted value is unknown; a whole
           // `table.cell` written clean is known again (a patch is only part of it).
           const um = unmeasuredProps(op)
@@ -1848,7 +1959,7 @@ export function beginObjects(program, ctx) {
             }
           }
           const head = `${c0},${r0}`
-          map.set(head, { ...map.get(head), colspan: c1 - c0 + 1, rowspan: r1 - r0 + 1 })
+          map.set(head, spanned(map.get(head), c1 - c0 + 1, r1 - r0 + 1))
           updated += 1
           if (ctx.trace) events.push({ bar, k: 'mergecells', id: inst.id })
           break
@@ -2054,9 +2165,60 @@ export function beginObjects(program, ctx) {
   for (const fam of Object.keys(POOL_LIMITS)) {
     if (collectedBy[fam] > 0 && (lost.has(fam) || lost.has('*'))) withheldFams.add(fam)
   }
-  // ⭐ C33 — a family whose count TradingView's collector may have cut (creates
-  // this run could not decide pushed the possible count past its trigger).
-  for (const fam of collectorUnknown) withheldFams.add(fam)
+  // ⭐⭐ W-C22-DEL r5 (N-g) — AND WHOLE where a COLLECTION may hold the family:
+  // either this run's collector reached a collection-held object, or TradingView's
+  // collector may have been further on (C33) while a list of the family exists —
+  // whether it spares a list member is unmeasured (C7), so no rank bound holds.
+  // ⛔ A list whose family the converter could not name counts for every family.
+  {
+    const listFams = new Set((program.colls || []).map((c) => (c && c.family) || '*'))
+    for (const fam of collectorInCollection) withheldFams.add(fam)
+    for (const fam of collectorUnknown) if (fam !== 'box' && (listFams.has(fam) || listFams.has('*'))) withheldFams.add(fam)
+  }
+  // ⭐⭐ W-C22-DEL — the lost-create rule above withholds a family WHOLE (how many
+  // creates it lost is not counted, so no object's rank is bounded:
+  // `withheldBy['objects:collector-all']`); the C33 rule below withholds per object
+  // (`withheldBy['objects:collector']`). Both reach the member's drawing note.
+  const collectorWhole = new Set(withheldFams)
+  const collectorFams = new Set()
+  // ⭐ C33 (W-C22-DEL r3/r4) — of a family whose count TradingView's collector may
+  // have cut, the objects NOT certainly among what it keeps (see
+  // `noteUnknownCreate`). The collector leaves `cap` objects, but an object a
+  // drawing VARIABLE holds is skipped and still COUNTS (`objectPool.js` C7,
+  // capture-witnessed), so up to one slot per register of the family (P) can be
+  // taken by an OLDER object the bound below never sees. ⛔ P counts every register
+  // that may hold the family (an unnamed one included) — whatever it holds, whenever
+  // — never only the ones holding an older object at the end of this run.
+  // ⚰️ r3 left P out: cap 5, var-held A, L1..L15, one maybe-create M ⇒ TradingView
+  // keeps A, L13, L14, M, L15 and r3 drew L12 (bound 5).
+  // ⚠️ N-i: P over-counts (a block-local register is counted as if it held a line
+  // for good) — conservative, left so.
+  // Held when 1 + later + maybe-later + P > cap.
+  const collectorHeld = new Set()
+  {
+    const marksAbove = (marks, seq) => {
+      let lo = 0
+      let hi = marks.length
+      while (lo < hi) { const mid = (lo + hi) >> 1; if (marks[mid] > seq) hi = mid; else lo = mid + 1 }
+      return marks.length - lo
+    }
+    const varSlots = new Map()
+    const slotsOf = (fam) => {
+      if (!varSlots.has(fam)) {
+        varSlots.set(fam, (program.regs || []).filter((r) => r.family === fam || !r.family || r.family === '*').length)
+      }
+      return varSlots.get(fam)
+    }
+    for (const o of live.values()) {
+      if (!collectorUnknown.has(o.family) || withheldFams.has(o.family)) continue
+      const later = familySeq[o.family] - o.seq - 1
+      if (1 + later + marksAbove(unknownMarks[o.family], o.seq) + slotsOf(o.family) > limits[o.family]) collectorHeld.add(o.id)
+    }
+    // a fill spans two lines: a fill on a held line goes with it
+    for (const o of live.values()) {
+      if (o.family === 'linefill' && !withheldFams.has('linefill') && fillRefs(o).some((id) => collectorHeld.has(id))) collectorHeld.add(o.id)
+    }
+  }
   // ⭐⭐ F1 — OFF THE LISTING, A `var` LIST OF DRAWINGS HOLDS WHAT THIS RUN NEVER
   // SAW. TradingView ran the script from the symbol's first bar: the list (and the
   // chart) already holds the objects earlier bars made, and the script keeps
@@ -2076,13 +2238,24 @@ export function beginObjects(program, ctx) {
     }
   }
   for (const fam of offListingFams) withheldFams.add(fam)
+  // ⭐ DIV-3 r1 — a `table.cell` rewrote a merged head (`objectCells.js`).
+  if (cellGuards.size) withheldFams.add('table')
   if (withheldFams.has('line')) withheldFams.add('linefill')
+  if (collectorWhole.has('line')) collectorWhole.add('linefill')
   const withheld = {}
   for (const o of live.values()) {
     if (withheldFams.has(o.family)) withheld[o.family] = (withheld[o.family] || 0) + 1
   }
   const heldCounts = { ...counts }
   for (const fam of withheldFams) heldCounts[fam] = 0
+  for (const id of collectorHeld) {
+    const o = live.get(id)
+    withheld[o.family] = (withheld[o.family] || 0) + 1
+    heldCounts[o.family] -= 1
+    collectorFams.add(o.family)
+  }
+  const collectorShown = [...collectorFams].filter((f) => withheld[f] > 0 && !collectorWhole.has(f)).sort()
+  const collectorAllShown = [...collectorWhole].filter((f) => withheld[f] > 0).sort()
   // ⭐⭐ C17 — AN OBJECT STILL CARRYING A TAINTED PROPERTY IS NOT DRAWN. Its
   // text, a coordinate, or its very existence reads what a withheld op wrote,
   // so drawing it would show a value TradingView may not hold. It is counted as
@@ -2091,11 +2264,11 @@ export function beginObjects(program, ctx) {
   // unknown goes whole, and a known table drops only its unknown cells.
   const taintHeld = new Set()
   for (const o of live.values()) {
-    if (withheldFams.has(o.family)) continue
+    if (withheldFams.has(o.family) || collectorHeld.has(o.id)) continue
     if (instTaint.has(o.id) || (o.family === 'table' && cellTaint.get(o.id) === '*')) taintHeld.add(o.id)
   }
   for (const o of live.values()) {
-    if (o.family !== 'linefill' || withheldFams.has(o.family) || taintHeld.has(o.id)) continue
+    if (o.family !== 'linefill' || withheldFams.has(o.family) || taintHeld.has(o.id) || collectorHeld.has(o.id)) continue
     if (fillRefs(o).some((id) => taintHeld.has(id))) taintHeld.add(o.id)
   }
   for (const id of taintHeld) {
@@ -2119,16 +2292,78 @@ export function beginObjects(program, ctx) {
   // a creation counter. Sorting by anything else (price, family) would put a
   // later object under an earlier one and quietly change what the author drew.
   const ordered = stopped ? [] : [...live.values()]
-    .filter((o) => !withheldFams.has(o.family) && !taintHeld.has(o.id))
+    .filter((o) => !withheldFams.has(o.family) && !taintHeld.has(o.id) && !collectorHeld.has(o.id))
     .sort((a, b) => a.id - b.id)
   const cellsDropped = stopped ? 0 : ordered.reduce((n, o) => (o.family === 'table'
     ? n + cellsOf(cells.get(o.id)).length - cellsHeld(o.id).length : n), 0)
+  // ⭐⭐ OZ — A FAMILY THIS RUN DRAWS NONE OF, FOR A REASON OF THE ENGINE'S OWN, IS
+  // SAID BY NAME. Measured (DIVERGE triage 2026-11-08, lane 5): seven scripts ran
+  // `ok`, withheld nothing by name, and drew no line / label / box where TradingView
+  // draws dozens, because the translation lost the creates (`lostCreates`: a loop
+  // guarded by a multi-statement block, an unresolved `request.security`, a user
+  // type's field) or because every create this run reached was withheld, or every
+  // object it made carries a value it could not compute (C17). An empty family with
+  // no word reads as "the script draws none here", a claim this run cannot make.
+  // ⛔ ONLY A FAMILY NOTHING OF WHICH IS DRAWN: naming it hides nothing that was
+  // shown (a partly drawn family keeps the translation's "incomplete" note). A
+  // family already withheld by name above keeps its own sentence.
+  const drawnFams = new Set(ordered.map((o) => o.family))
+  // ⭐⭐ OZ r3 (review N-1) — A PER-OBJECT COLLECTOR FAMILY OF WHICH NOTHING IS DRAWN IS SAID
+  // WHOLE. C22's per-object sentence ends "The newest ones are drawn.", which is false when
+  // none is (measured: five `var line` anchors under `max_lines_count=5` leave 0 lines drawn,
+  // and that false clause was the member's only note). Such a family is published under
+  // C22's whole wording (`objects:collector-all`, "No lines are shown on this chart: …"),
+  // which is true of it, and OZ does not name it again below: one family, one true note.
+  const collectorNoneDrawn = collectorShown.filter((f) => !drawnFams.has(f))
+  const collectorPartOut = collectorShown.filter((f) => drawnFams.has(f))
+  const collectorWholeOut = [...new Set([...collectorAllShown, ...collectorNoneDrawn])].sort()
+  const notShown = { [NOT_SHOWN.NOT_CARRIED]: [], [NOT_SHOWN.NOT_COMPUTABLE]: [] }
+  if (!stopped) {
+    const taintFams = taintOtherSeen ? new Set([...taintHeld].map((id) => live.get(id).family)) : new Set()
+    for (const fam of Object.keys(counts)) {
+      if (withheldFams.has(fam) || drawnFams.has(fam)) continue
+      // ⭐ OZ (C22 merge) — a family C22's collector names keeps C22's sentence (said whole
+      // above, so it is true): one family, one note. (A whole-withheld collector family is
+      // in `withheldFams` and never reaches here.)
+      if (collectorNoneDrawn.includes(fam)) continue
+      if (lost.has(fam)) notShown[NOT_SHOWN.NOT_CARRIED].push(fam)
+      else if (famUnknownOther.has(fam) || taintFams.has(fam)) notShown[NOT_SHOWN.NOT_COMPUTABLE].push(fam)
+    }
+  }
+  const notShownBy = Object.fromEntries(Object.entries(notShown).filter(([, fs]) => fs.length))
+  const notShownWhy = {}
+  for (const [guard, fs] of Object.entries(notShownBy)) {
+    const t = notShownSentence(fs, guard)
+    for (const f of fs) notShownWhy[f] = t
+  }
+  // ⭐⭐ OZ r1 — A STOPPED RUN DRAWS NOTHING (C9 / C40 above), AND SAYS WHY: its
+  // reason, which until now reached only the layer's meta, in the member's note.
+  const stoppedWhy = stopped ? stoppedRunSentence(reason,
+    status === OBJECT_STATUS.RUNTIME_ERROR ? 'error' : 'unmeasured', { fromListing: ctx.offListing === false }) : null
+  const whyOut = {
+    ...(stoppedWhy ? { [STOPPED_KEY]: stoppedWhy } : {}),
+    ...notShownWhy,
+    ...(cellGuards.has(MERGED_HEAD_REWRITE) && !stopped ? { table: MERGED_HEAD_REWRITE_SENTENCE } : {}),
+  }
 
   return {
     status,
     reason,
-    ...(withheldFams.size || taintHeld.size ? { withheld } : {}),
-    ...(offListingFams.size ? { withheldBy: { 'objects:off-listing': [...offListingFams] } } : {}),
+    ...(withheldFams.size || taintHeld.size || collectorHeld.size ? { withheld } : {}),
+    ...(offListingFams.size || ((collectorPartOut.length || collectorWholeOut.length) && !stopped) || cellGuards.size || Object.keys(notShownBy).length ? { withheldBy: {
+      ...(offListingFams.size ? { 'objects:off-listing': [...offListingFams] } : {}),
+      // ⛔ only a family that held something here: an empty one hides nothing
+      ...(collectorPartOut.length && !stopped ? { 'objects:collector': collectorPartOut } : {}),
+      ...(collectorWholeOut.length && !stopped ? { 'objects:collector-all': collectorWholeOut } : {}),
+      // ⭐ DIV-3 r1 — a `table.cell` rewrote a merged head (`objectCells.js`)
+      ...Object.fromEntries([...cellGuards].map((g) => [g, ['table']])),
+      // ⭐ OZ — a family drawn as none for an engine-side cause (`notShown` above)
+      ...notShownBy,
+    } } : {}),
+    // ⭐ DIV-3 r2 — the member's sentence per family withheld by a cell guard; the
+    // binder carries it to the drawing note (`publishDrops`, `withRenderDrops`).
+    // ⭐ OZ — and per family drawn as none for an engine-side cause (`notShownSentence`).
+    ...(Object.keys(whyOut).length ? { withheldWhy: whyOut } : {}),
     // ⭐ F1 — what the off-listing withholding kept back, for DIAGNOSTICS only (the
     // vendor harness's window analysis); never drawn — the binder reads `live`.
     ...(offListingFams.size && !stopped ? { offListingLive: [...live.values()]

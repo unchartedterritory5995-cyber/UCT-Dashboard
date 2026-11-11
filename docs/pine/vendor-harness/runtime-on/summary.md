@@ -1198,10 +1198,10 @@ rvol-spy-1d-2026-10-03                       AMEX:SPY 1D      2      MATCH      
     objects                                  MATCH         neither side draws an object
 sector-rotation-rddt-1d-2026-09-28           NYSE:RDDT 1D     1      DIVERGE       1 of 2 compared items diverge
     Current Symbol Percentage Change         MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 1.95e-16
-    objects                                  DIVERGE       2 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
+    objects                                  DIVERGE       1 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
 sector-rotation-spy-1d-2026-10-03            AMEX:SPY 1D      1      DIVERGE       1 of 2 compared items diverge
     Current Symbol Percentage Change         MATCH         cmp 1800 ok 1799 warm 1/1 steady 0/1799 maxRel 1.95e-16
-    objects                                  DIVERGE       2 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
+    objects                                  DIVERGE       1 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
 smt-divergence-ict-01-tradingfinder-smart-mo NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
     objects                                  DIVERGE       3 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
 smt-divergence-ict-01-tradingfinder-smart-mo AMEX:SPY 1D      0      DIVERGE       1 of 1 compared items diverge
@@ -1223,7 +1223,7 @@ supertrend-kivancozbilgic-rddt-1d-2026-10-02 NYSE:RDDT 1D     7      INCONCLUSIV
     Sell                                     MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 2.08e-16
     plot_6                                   INCONCLUSIVE  cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (fill-anchor))
     objects                                  MATCH         neither side draws an object
-supertrend-strategy-rddt-1d-2026-10-02       NYSE:RDDT 1D     7      DIVERGE       1 of 9 compared items diverge
+supertrend-strategy-rddt-1d-2026-10-02       NYSE:RDDT 1D     7      INCONCLUSIVE  1 of 9 items could not be compared
     Up Trend                                 MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 3.71e-16
     UpTrend Begins                           MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 1.50e-16
     Buy                                      MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -1232,8 +1232,8 @@ supertrend-strategy-rddt-1d-2026-10-02       NYSE:RDDT 1D     7      DIVERGE    
     Sell                                     MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     plot_6                                   INCONCLUSIVE  cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (fill-anchor))
     objects                                  MATCH         neither side draws an object
-    paints                                   DIVERGE       1 paint differs (first: barcolor plot_9 "Bar Color" withheld (`barcolor`'s colour is an expression this door cannot carry yet))
-supertrend-strategy-spy-1d-2026-10-02        AMEX:SPY 1D      7      DIVERGE       1 of 9 compared items diverge
+    paints                                   MATCH         1 paint agree bar for bar
+supertrend-strategy-spy-1d-2026-10-02        AMEX:SPY 1D      7      INCONCLUSIVE  1 of 9 items could not be compared
     Up Trend                                 MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 2.18e-16
     UpTrend Begins                           MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.99e-16
     Buy                                      MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
@@ -1242,7 +1242,7 @@ supertrend-strategy-spy-1d-2026-10-02        AMEX:SPY 1D      7      DIVERGE    
     Sell                                     MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     plot_6                                   INCONCLUSIVE  cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (fill-anchor))
     objects                                  MATCH         neither side draws an object
-    paints                                   DIVERGE       1 paint differs (first: barcolor plot_9 "Bar Color" withheld (`barcolor`'s colour is an expression this door cannot carry yet))
+    paints                                   MATCH         1 paint agree bar for bar
 support-and-resistance-multi-time-frame-rddt NYSE:RDDT 1D     6      DIVERGE       Resistance Weekly: bar 161 t=1731076200 na vendor=134.8 ours=na
     Resistance Daily                         MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Support Daily                            MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -1364,8 +1364,8 @@ ultimate-pivot-points-spy-1d-2026-10-03      AMEX:SPY 1D      3      MATCH      
     objects                                  MATCH         object counts and texts agree; colours agree on 102 paired slots; 51 slots on objects neither side draws not graded; coordinates are NOT compared by v1
 vdubus-pattern-gen-v2-restored-refined-rddt- NYSE:RDDT 1D     0      MATCH         all 1 items agree
     objects                                  MATCH         object counts and texts agree; colours agree on 122 paired slots; coordinates are NOT compared by v1
-vdubus-pattern-gen-v2-restored-refined-spy-1 AMEX:SPY 1D      0      DIVERGE       1 of 1 compared items diverge
-    objects                                  DIVERGE       1 object families differ (count or text); colours agree on 710 paired slots; coordinates are NOT compared by v1
+vdubus-pattern-gen-v2-restored-refined-spy-1 AMEX:SPY 1D      0      INCONCLUSIVE  1 of 1 items could not be compared
+    objects                                  INCONCLUSIVE  our lines are withheld by name (TradingView's object limit may have removed some of them; objects:collector); every other object family's counts and texts agree
 vold-market-breadth-rddt-1d-2026-09-28       NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
     objects                                  DIVERGE       2 object families differ (count or text); colours agree on 2 paired slots; coordinates are NOT compared by v1
 vold-market-breadth-spy-1d-2026-10-03        AMEX:SPY 1D      0      DIVERGE       1 of 1 compared items diverge
@@ -1421,15 +1421,15 @@ vw-bar-counters-rddt-240-2026-09-30          NYSE:RDDT 240    8      INCONCLUSIV
     C06_n1_minus_bar_index                   MATCH         cmp 1262 ok 1262 warm 0/0 steady 0/1262 maxRel 0.00e+0
     C07_n2_minus_bar_index                   MATCH         cmp 1262 ok 1262 warm 0/0 steady 0/1262 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-bar-counters-rddt-5-2026-09-30            NYSE:RDDT 5      8      DIVERGE       C01_var_n_plus_1: bar 250 t=1758811800 na vendor=251 ours=na
+vw-bar-counters-rddt-5-2026-09-30            NYSE:RDDT 5      8      INCONCLUSIVE  7 of 9 items could not be compared
     C00_bar_index_CONTROL                    MATCH         cmp 20052 ok 20052 warm 0/0 steady 0/20052 maxRel 0.00e+0
-    C01_var_n_plus_1                         DIVERGE       cmp 20052 ok 0 warm 250/250 steady 19802/19802 maxRel 0.00e+0 — 19802 steady-state bars disagree; first at bar 250 (na: vendor 251 vs ours na) — persistent, last at bar 20051
-    C02_na_hist_seeded_counter               DIVERGE       cmp 20052 ok 0 warm 250/250 steady 19802/19802 maxRel 0.00e+0 — 19802 steady-state bars disagree; first at bar 250 (na: vendor 250 vs ours na) — persistent, last at bar 20051
-    C03_var_compound                         DIVERGE       cmp 20052 ok 0 warm 250/250 steady 19802/19802 maxRel 0.00e+0 — 19802 steady-state bars disagree; first at bar 250 (na: vendor 251 vs ours na) — persistent, last at bar 20051
-    C04_var_na_seed_counter                  DIVERGE       cmp 20052 ok 0 warm 250/250 steady 19802/19802 maxRel 0.00e+0 — 19802 steady-state bars disagree; first at bar 250 (na: vendor 250 vs ours na) — persistent, last at bar 20051
+    C01_var_n_plus_1                         INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it
+    C02_na_hist_seeded_counter               INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it
+    C03_var_compound                         INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it
+    C04_var_na_seed_counter                  INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it
     C05_ta_cum_1                             INCONCLUSIVE  cmp 20052 ok 20052 warm 0/0 steady 0/20052 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
-    C06_n1_minus_bar_index                   DIVERGE       cmp 20052 ok 0 warm 250/250 steady 19802/19802 maxRel 0.00e+0 — 19802 steady-state bars disagree; first at bar 250 (na: vendor 1 vs ours na) — persistent, last at bar 20051
-    C07_n2_minus_bar_index                   DIVERGE       cmp 20052 ok 0 warm 250/250 steady 19802/19802 maxRel 0.00e+0 — 19802 steady-state bars disagree; first at bar 250 (na: vendor 0 vs ours na) — persistent, last at bar 20051
+    C06_n1_minus_bar_index                   INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it
+    C07_n2_minus_bar_index                   INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it
     objects                                  MATCH         neither side draws an object
 vw-bar-counters-rddt-60-2026-09-30           NYSE:RDDT 60     8      INCONCLUSIVE  1 of 9 items could not be compared
     C00_bar_index_CONTROL                    MATCH         cmp 4417 ok 4417 warm 0/0 steady 0/4417 maxRel 0.00e+0
@@ -1441,35 +1441,35 @@ vw-bar-counters-rddt-60-2026-09-30           NYSE:RDDT 60     8      INCONCLUSIV
     C06_n1_minus_bar_index                   MATCH         cmp 4417 ok 4417 warm 0/0 steady 0/4417 maxRel 0.00e+0
     C07_n2_minus_bar_index                   MATCH         cmp 4417 ok 4417 warm 0/0 steady 0/4417 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-bar-counters-spy-1-2026-10-02             AMEX:SPY 1       8      DIVERGE       C01_var_n_plus_1: bar 250 t=1788201600 na vendor=12011 ours=na
+vw-bar-counters-spy-1-2026-10-02             AMEX:SPY 1       8      INCONCLUSIVE  8 of 9 items could not be compared
     C00_bar_index_CONTROL                    INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
-    C01_var_n_plus_1                         DIVERGE       cmp 9300 ok 0 warm 250/250 steady 9050/9050 maxRel 0.00e+0 — 9050 steady-state bars disagree; first at bar 250 (na: vendor 12011 vs ours na) — persistent, last at bar 9299
-    C02_na_hist_seeded_counter               DIVERGE       cmp 9300 ok 0 warm 250/250 steady 9050/9050 maxRel 0.00e+0 — 9050 steady-state bars disagree; first at bar 250 (na: vendor 12010 vs ours na) — persistent, last at bar 9299
-    C03_var_compound                         DIVERGE       cmp 9300 ok 0 warm 250/250 steady 9050/9050 maxRel 0.00e+0 — 9050 steady-state bars disagree; first at bar 250 (na: vendor 12011 vs ours na) — persistent, last at bar 9299
-    C04_var_na_seed_counter                  DIVERGE       cmp 9300 ok 0 warm 250/250 steady 9050/9050 maxRel 0.00e+0 — 9050 steady-state bars disagree; first at bar 250 (na: vendor 12010 vs ours na) — persistent, last at bar 9299
+    C01_var_n_plus_1                         INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it
+    C02_na_hist_seeded_counter               INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it
+    C03_var_compound                         INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it
+    C04_var_na_seed_counter                  INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it
     C05_ta_cum_1                             INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (running-total:window) — nothing is drawn for it
     C06_n1_minus_bar_index                   INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
     C07_n2_minus_bar_index                   INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
     objects                                  MATCH         neither side draws an object
-vw-bar-counters-spy-30-2026-10-02            AMEX:SPY 30      8      DIVERGE       C01_var_n_plus_1: bar 250 t=1712842200 na vendor=13952 ours=na
+vw-bar-counters-spy-30-2026-10-02            AMEX:SPY 30      8      INCONCLUSIVE  8 of 9 items could not be compared
     C00_bar_index_CONTROL                    INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
-    C01_var_n_plus_1                         DIVERGE       cmp 8300 ok 0 warm 250/250 steady 8050/8050 maxRel 0.00e+0 — 8050 steady-state bars disagree; first at bar 250 (na: vendor 13952 vs ours na) — persistent, last at bar 8299
-    C02_na_hist_seeded_counter               DIVERGE       cmp 8300 ok 0 warm 250/250 steady 8050/8050 maxRel 0.00e+0 — 8050 steady-state bars disagree; first at bar 250 (na: vendor 13951 vs ours na) — persistent, last at bar 8299
-    C03_var_compound                         DIVERGE       cmp 8300 ok 0 warm 250/250 steady 8050/8050 maxRel 0.00e+0 — 8050 steady-state bars disagree; first at bar 250 (na: vendor 13952 vs ours na) — persistent, last at bar 8299
-    C04_var_na_seed_counter                  DIVERGE       cmp 8300 ok 0 warm 250/250 steady 8050/8050 maxRel 0.00e+0 — 8050 steady-state bars disagree; first at bar 250 (na: vendor 13951 vs ours na) — persistent, last at bar 8299
+    C01_var_n_plus_1                         INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it
+    C02_na_hist_seeded_counter               INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it
+    C03_var_compound                         INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it
+    C04_var_na_seed_counter                  INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it
     C05_ta_cum_1                             INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (running-total:window) — nothing is drawn for it
     C06_n1_minus_bar_index                   INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
     C07_n2_minus_bar_index                   INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
     objects                                  MATCH         neither side draws an object
-vw-bar-origin-rddt-5-2026-10-02              NYSE:RDDT 5      11     DIVERGE       O03_bars_seen_by_a_var_counter: bar 250 t=1758811800 na vendor=251 ours=na
+vw-bar-origin-rddt-5-2026-10-02              NYSE:RDDT 5      11     INCONCLUSIVE  4 of 12 items could not be compared
     O00_bar_index_CONTROL                    MATCH         cmp 20208 ok 20208 warm 0/0 steady 0/20208 maxRel 0.00e+0
     O01_last_bar_index                       MATCH         cmp 20208 ok 20208 warm 0/0 steady 0/20208 maxRel 0.00e+0
     O02_isfirst                              MATCH         cmp 20208 ok 20208 warm 0/0 steady 0/20208 maxRel 0.00e+0
-    O03_bars_seen_by_a_var_counter           DIVERGE       cmp 20208 ok 0 warm 250/250 steady 19958/19958 maxRel 0.00e+0 — 19958 steady-state bars disagree; first at bar 250 (na: vendor 251 vs ours na) — persistent, last at bar 20207
-    O04_bar_index_minus_counter_MUST_BE_MINU DIVERGE       cmp 20208 ok 0 warm 250/250 steady 19958/19958 maxRel 0.00e+0 — 19958 steady-state bars disagree; first at bar 250 (na: vendor -1 vs ours na) — persistent, last at bar 20207
-    O05_bar_index_where_isfirst_was_true     DIVERGE       cmp 20208 ok 0 warm 250/250 steady 19958/19958 maxRel 0.00e+0 — 19958 steady-state bars disagree; first at bar 250 (na: vendor 0 vs ours na) — persistent, last at bar 20207
+    O03_bars_seen_by_a_var_counter           INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it
+    O04_bar_index_minus_counter_MUST_BE_MINU INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it
+    O05_bar_index_where_isfirst_was_true     INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:bars) — nothing is drawn for it
     O06_barssince_isfirst                    MATCH         cmp 20208 ok 20208 warm 0/0 steady 0/20208 maxRel 0.00e+0
-    O07_first_bar_time_in_days               DIVERGE       cmp 20208 ok 1 warm 250/250 steady 19957/19958 maxRel 1.83e-2 — 19957 steady-state bars disagree; first at bar 251 (value: vendor 20353.5625 vs ours 20353.565972222223) — persistent, last at bar 20207
+    O07_first_bar_time_in_days               INCONCLUSIVE   — our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it
     O08_bar_index_mod_3                      MATCH         cmp 20208 ok 20208 warm 0/0 steady 0/20208 maxRel 0.00e+0
     O09_bar_index_gt_100                     MATCH         cmp 20208 ok 20208 warm 0/0 steady 0/20208 maxRel 0.00e+0
     O10_distance_MUST_BE_5                   MATCH         cmp 20208 ok 20208 warm 0/5 steady 0/20203 maxRel 0.00e+0
@@ -1529,7 +1529,7 @@ vw-bar-origin-spy-1w-2026-10-02              AMEX:SPY 1W      11     DIVERGE    
 vw-bgcolor-barcolor-spy-1d-2026-10-02        AMEX:SPY 1D      1      DIVERGE       1 of 3 compared items diverge
     control                                  MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-    paints                                   DIVERGE       1 paint differs (first: barcolor plot_3 "O4" withheld (an `offset` that is not a whole-number literal on `barcolor` has no capture (tools/visual_conformance/probes/vw-bgcolor-barcolor.pine)))
+    paints                                   DIVERGE       1 paint differs (first: barcolor plot_3 "O4" withheld (`offset = na` on `barcolor`: where TradingView draws such a paint is not captured (O4 of tools/visual_conformance/probes/vw-bgcolor-barcolor.pine is painted over on every bar by a later `barcolor`)))
 vw-bgcolor-v4-default-spy-1d-2026-10-02      AMEX:SPY 1D      1      MATCH         all 3 items agree
     control                                  MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
@@ -2047,7 +2047,7 @@ vw-rt6-runtime-colour-rddt-1d-2026-10-03     NYSE:RDDT 1D     7      DIVERGE    
     C05_rgb_na                               DIVERGE       cmp 636 ok 0 warm 0/0 steady 636/636 maxRel 0.00e+0 — 636 steady-state bars disagree; first at bar 0 (color: vendor #000000ff vs ours #c9a84cff at value 50.44) — persistent, last at bar 635
     C06_cond_or_na                           MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-    paints                                   DIVERGE       1 paint differs (first: barcolor plot_12 "B01_var_barcolor" withheld (`barcolor`'s colour is an expression this door cannot carry yet))
+    paints                                   MATCH         2 paints agree bar for bar
 vw-rt6-runtime-colour-spy-1d-2026-10-03      AMEX:SPY 1D      7      DIVERGE       C01_var_colour: bar 0 t=1565098200 color vendor=#33ff00ff ours=#c9a84cff
     K00_bar_index_CONTROL                    MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     C01_var_colour                           DIVERGE       cmp 1800 ok 0 warm 0/0 steady 1800/1800 maxRel 0.00e+0 — 1800 steady-state bars disagree; first at bar 0 (color: vendor #33ff00ff vs ours #c9a84cff at value 287.8) — persistent, last at bar 1799
@@ -2057,7 +2057,7 @@ vw-rt6-runtime-colour-spy-1d-2026-10-03      AMEX:SPY 1D      7      DIVERGE    
     C05_rgb_na                               DIVERGE       cmp 1800 ok 0 warm 0/0 steady 1800/1800 maxRel 0.00e+0 — 1800 steady-state bars disagree; first at bar 0 (color: vendor #000000ff vs ours #c9a84cff at value 287.8) — persistent, last at bar 1799
     C06_cond_or_na                           MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-    paints                                   DIVERGE       1 paint differs (first: barcolor plot_12 "B01_var_barcolor" withheld (`barcolor`'s colour is an expression this door cannot carry yet))
+    paints                                   MATCH         2 paints agree bar for bar
 vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04 AMEX:SPY 1D      11     MATCH         all 12 items agree
     E00_bar_index_CONTROL                    MATCH         cmp 8477 ok 8477 warm 0/0 steady 0/8477 maxRel 0.00e+0
     E01_max_empty                            MATCH         cmp 8477 ok 8477 warm 0/0 steady 0/8477 maxRel 0.00e+0
@@ -2692,11 +2692,11 @@ w2-warmup-spy-12m-2026-09-22                 SPY 12M          14     MATCH      
     W13_cum_close_FROM_BAR0                  MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
     W14_sma1_DEGENERATE_WINDOW               MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
 
-TOTAL 369 captures — MATCH 173 · DIVERGE 75 · INCONCLUSIVE 121
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 125 captures) — MATCH 173 · DIVERGE 75 · INCONCLUSIVE 121
+TOTAL 369 captures — MATCH 173 · DIVERGE 68 · INCONCLUSIVE 128
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 124 captures) — MATCH 173 · DIVERGE 68 · INCONCLUSIVE 128
 CHANGED BY OBJECT COLOUR (0): none
-WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 174 · DIVERGE 71 · INCONCLUSIVE 124
-CHANGED BY PAINTS (4): supertrend-strategy-rddt-1d-2026-10-02 INCONCLUSIVE → DIVERGE; supertrend-strategy-spy-1d-2026-10-02 INCONCLUSIVE → DIVERGE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → DIVERGE; vw-deadband-ticks-brk-a-1d-2026-09-28 INCONCLUSIVE → DIVERGE
+WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 174 · DIVERGE 66 · INCONCLUSIVE 129
+CHANGED BY PAINTS (2): vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → DIVERGE; vw-deadband-ticks-brk-a-1d-2026-09-28 INCONCLUSIVE → DIVERGE
 ```
 
 ## Runtime declines by code (68)

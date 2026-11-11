@@ -433,6 +433,31 @@ const makeReadUnknown = (unknown, fromListing) => (node, bar) => {
   return !!m && m[bar] === 1
 }
 
+/** ⭐⭐ OZ r1 — WHICH UNKNOWN WITHHELD IT. A node whose `time(<timeframe>)` the chart
+ *  clock withholds (C36) is already said to the member by the clock note; a node
+ *  unknown for any OTHER reason (warm-up, a symbol, a lower timeframe, a failed tree)
+ *  is not. The full mask is unchanged; beside it, for a node the clock channel
+ *  reached (its own sink wrote a reason), the mask WITHOUT that channel is kept, so
+ *  `objectRuntime.js` can tell a family withheld only by the clock from one withheld
+ *  for a reason the clock note does not give. */
+function clockSplitMask(base, full, withoutClock, chartClock, otherUnknown, node) {
+  const sink = new Map()
+  const mask = full(sink)
+  if (sink.size) {
+    for (const [k, v] of sink) if (!chartClock.has(k)) chartClock.set(k, v)
+    const other = withoutClock()
+    otherUnknown.set(node, other || null)
+  }
+  return mask
+}
+
+/** `readUnknown` with the chart-clock channel taken out (`clockSplitMask`). */
+const makeReadUnknownOther = (readUnknown, otherUnknown) => (node, bar) => {
+  if (bar < 0 || !otherUnknown.has(node)) return readUnknown(node, bar)
+  const m = otherUnknown.get(node)
+  return !!m && m[bar] === 1
+}
+
 export function computeObjectColumns(graph, program, bars, opts = {}) {
   const columns = new Map()
   const failed = []
@@ -460,6 +485,8 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
   // ⭐ C36 — why a tree's `time(<timeframe>)` is withheld on this chart (code →
   // sentence), written by `periodAnchorMask` as it decides; one Map per pass.
   const chartClock = new Map()
+  // ⭐ OZ r1 — per node withheld by the chart clock, its mask WITHOUT that channel.
+  const otherUnknown = new Map()
   // ⭐ C12r — one object per distinct subtree for the whole pass (`makeInterner`).
   const intern = makeInterner()
   // ⭐ C45 — the nodes that ARE a bar index (`'pos'`), for the per-property rule.
@@ -480,7 +507,9 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
       columns.set(node, col)
       // ⭐ C19 — a probe reads the columns no probe value can move from THIS
       // pass's memo (`interpret.js::passView`) instead of recomputing them.
-      const mask = withLowerTfMask(withPeriodAnchorMask(withSymMask(unknownMask(tree, col, bars, opts.inputs || {}, opts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts), tree, bars, opts.inputs || {}, opts.budget, { ...iopts, chartClockSink: chartClock }), tree, bars, iopts)
+      const base = withSymMask(unknownMask(tree, col, bars, opts.inputs || {}, opts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts)
+      const mask = clockSplitMask(base, (sink) => withLowerTfMask(withPeriodAnchorMask(base, tree, bars, opts.inputs || {}, opts.budget, { ...iopts, chartClockSink: sink }), tree, bars, iopts),
+        () => withLowerTfMask(base, tree, bars, iopts), chartClock, otherUnknown, node)
       if (mask) unknown.set(node, mask)
     } catch (err) {
       failed.push(node)
@@ -515,7 +544,7 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
   }
   const readUnknown = makeReadUnknown(unknown, opts.historyFromListing === true)
   const held = holdBarIndexOps(program, indexClass, chartClock, opts.tf)
-  return { readNode, readUnknown, unknown, columns, failed, refusals, wanted, chartClock: chartClockRows(chartClock),
+  return { readNode, readUnknown, readUnknownOther: makeReadUnknownOther(readUnknown, otherUnknown), unknown, columns, failed, refusals, wanted, chartClock: chartClockRows(chartClock),
     program: held, indexClass }
 }
 
@@ -679,8 +708,8 @@ export function objectReaderFor(definition, bars, opts = {}) {
   }
   const graph = definition.compute && definition.compute.graph
   if (graph && Array.isArray(graph.nodes)) {
-    const { readNode, readUnknown, failed, refusals, chartClock, program: held } = computeObjectColumns(graph, program, bars, evalOpts)
-    return { program: held, readNode, readUnknown, readTime, failed, refusals, form: 'graph', otherSymbols, chartClock,
+    const { readNode, readUnknown, readUnknownOther, failed, refusals, chartClock, program: held } = computeObjectColumns(graph, program, bars, evalOpts)
+    return { program: held, readNode, readUnknown, readUnknownOther, readTime, failed, refusals, form: 'graph', otherSymbols, chartClock,
       historyFromListing: evalOpts.historyFromListing === true }
   }
   const trees = Array.isArray(program.trees) ? program.trees : null
@@ -714,6 +743,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
   const unknown = new Map()
   const probeMemos = new Map()
   const chartClock = new Map()
+  const otherUnknown = new Map()
   const intern = makeInterner()
   const bix = barIndexOpts(evalOpts)
   const indexClass = bix ? new Map() : null
@@ -743,7 +773,9 @@ export function objectReaderFor(definition, bars, opts = {}) {
       if (indexClass && barIndexClass(tree) === 'pos') indexClass.set(i, 'pos')
       const col = interpret(tree, bars, evalOpts.inputs, evalOpts.budget, undefined, { ...iopts, crossMemo, switchedAgreement: false })
       columns.set(i, col)
-      const mask = withLowerTfMask(withPeriodAnchorMask(withSymMask(unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts), tree, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, chartClockSink: chartClock }), tree, bars, iopts)
+      const base = withSymMask(unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts)
+      const mask = clockSplitMask(base, (sink) => withLowerTfMask(withPeriodAnchorMask(base, tree, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, chartClockSink: sink }), tree, bars, iopts),
+        () => withLowerTfMask(base, tree, bars, iopts), chartClock, otherUnknown, i)
       if (mask) unknown.set(i, mask)
     } catch (err) {
       failed.push(i)
@@ -790,7 +822,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
   const readUnknown = makeReadUnknown(unknown, evalOpts.historyFromListing === true)
   const held = holdBarIndexOps(bound, indexClass, chartClock, evalOpts.tf)
   return {
-    program: held, readNode, readUnknown, readTime, failed, refusals, form: 'trees', otherSymbols,
+    program: held, readNode, readUnknown, readUnknownOther: makeReadUnknownOther(readUnknown, otherUnknown), readTime, failed, refusals, form: 'trees', otherSymbols,
     // ⭐ C45 — whether a read before the first bar is Pine's `na` (`objectRuntime.js::atCheck`).
     historyFromListing: evalOpts.historyFromListing === true,
     // ⭐ C36 — why every bar of a tree reading `time(<timeframe>)` is withheld on

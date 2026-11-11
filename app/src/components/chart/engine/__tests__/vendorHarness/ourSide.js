@@ -33,6 +33,7 @@ import { addInstance } from '../../instanceControls'
 import { mergeChartSettings } from '../../../chartDefaults'
 import { objectReaderFor } from '../../objectColumns'
 import { evaluateObjects } from '../../objectRuntime'
+import { NOT_SHOWN, runtimeWithheldWhy, runtimeWithheldCause } from '../../ast/objectLoss'
 import { toRenderState } from '../../objectRenderState'
 // ⭐ RT5 — a runtime document's own drawings.
 import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf, RUNTIME_WARMUP_KEY } from '../../runtime/runtimeObjects'
@@ -683,7 +684,14 @@ function runtimeObjectsReport(def, bars, ctx, cols) {
   }
   const run = { live: payload.live, pineVersion: payload.pineVersion }
   const state = toRenderState(run.live, { bars, tf: ctx.tf, pineVersion: payload.pineVersion })
+  // ⭐ OZ — a family the run withheld whole is graded as a gap with a name, the
+  // way the host lane's are (the member reads the same sentence, `runtimeWithheldWhy`).
+  const rtWhy = runtimeWithheldWhy(payload.withheld)
+  const rtFams = rtWhy ? Object.keys(rtWhy).sort() : []
   return { ...heldReport(run.live, state, payload.pineVersion), lane: 'runtime',
+    ...(rtFams.length ? { withheldFamilies: rtFams,
+      withheldGuards: [...new Set(rtFams.map((f) => runtimeWithheldCause(payload.withheld[f], f)))].sort(),
+      withheldWhy: [...new Set(Object.values(rtWhy))].join(' ') } : {}),
     runStatus: payload.status, runReason: payload.reason || null, runWithheld: payload.withheld || {},
     undrawnProps: payload.undrawnProps || {}, chartClock: [] }
 }
@@ -746,6 +754,24 @@ function drawingWithheldBy(built) {
   }
 }
 
+/** ⭐ OZ — the families a run withheld by name with nothing of them drawn
+ *  (`NOT_SHOWN` guards), merged into the collector's `withheldFamilies`, with the
+ *  guards and the member's sentence(s) for the verdict's reason. */
+function notShownReport(withheldBy, withheldWhy, base = null) {
+  const by = withheldBy || {}
+  const guards = Object.values(NOT_SHOWN).filter((g) => Array.isArray(by[g]) && by[g].length)
+  if (!guards.length) return {}
+  const fams = new Set([...(by['objects:collector'] || []), ...(by['objects:collector-all'] || []), ...(base || [])])
+  for (const g of guards) for (const f of by[g]) fams.add(f)
+  const why = [...new Set(guards.flatMap((g) => by[g]).map((f) => (withheldWhy || {})[f]).filter(Boolean))]
+  return {
+    withheldFamilies: [...fams].sort(),
+    withheldGuards: [...(by['objects:collector'] ? ['objects:collector'] : []),
+      ...(by['objects:collector-all'] ? ['objects:collector-all'] : []), ...guards],
+    withheldWhy: why.join(' '),
+  }
+}
+
 /** The object lane's LIVE set at the last bar, as counts and texts. */
 function objectsOf(def, bars, ctx, cols, built = null) {
   if (drawsRuntimeObjects(def)) return runtimeObjectsReport(def, bars, ctx, cols)
@@ -764,7 +790,7 @@ function objectsOf(def, bars, ctx, cols, built = null) {
     if (!reader) return { drawsObjects: true, ok: false, reason: 'objectReaderFor returned null' }
     const run = evaluateObjects(reader.program, {
       barCount: bars.length, readNode: reader.readNode, readTime: reader.readTime,
-      readUnknown: reader.readUnknown,
+      readUnknown: reader.readUnknown, readUnknownOther: reader.readUnknownOther,
       // ⭐ F1 — the binder's own statement (`binder.js`): off the listing a `var`
       // list of drawings is withheld whole (`objectRuntime.js`, `withheldBy`).
       offListing: reader.historyFromListing !== true,
@@ -828,6 +854,15 @@ function objectsOf(def, bars, ctx, cols, built = null) {
       pineVersion: reader.program.pineVersion,
       // ⭐ C36 — why drawings that read `time(<timeframe>)` are withheld here.
       chartClock: reader.chartClock || [],
+      // ⭐ W-C22-DEL — families the run withheld WHOLE, by name, because
+      // TradingView's collector may have removed objects this run holds
+      // (`objectRuntime.js`, `withheldBy['objects:collector']`): graded as a gap.
+      ...(run.withheldBy && (run.withheldBy['objects:collector'] || run.withheldBy['objects:collector-all'])
+        ? { withheldFamilies: [...new Set([...(run.withheldBy['objects:collector'] || []),
+          ...(run.withheldBy['objects:collector-all'] || [])])].sort() } : {}),
+      // ⭐ OZ — and a family the run drew NONE of for a cause of the engine's own
+      // (`objectRuntime.js`, `notShown`), by the same name the member reads.
+      ...notShownReport(run.withheldBy, run.withheldWhy),
     }
   } catch (err) {
     return { drawsObjects: true, ok: false, reason: `the object lane threw: ${String((err && err.message) || err)}` }

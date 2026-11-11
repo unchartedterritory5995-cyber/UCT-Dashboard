@@ -22,16 +22,11 @@
 // **Implement them as two distinct operations. Never implement `cell()` as a
 // merge.**"
 //
-// ⚠️⚠️ AND THIS REPO'S `cell` IS CURRENTLY A MERGE — `objectRuntime.js` does
-// `map.set(key, resolveProps(op.props, map.get(key) || {}))`. That is a FOURTH
-// fidelity gap, it is PRE-EXISTING, and it is deliberately not fixed here:
-// changing `cell` to a true replace changes what every already-imported script
-// renders and needs its own evidence. The consequence for this file is worth
-// stating plainly rather than leaving for a reviewer to notice: today a patch
-// and a put behave identically, so NONE of the cases below can tell them apart.
-// The op kinds are kept separate anyway, because the day `cell` becomes a real
-// replace is the day a `cell_set_text` modelled as a `cell` would wipe the
-// colours off the row it was only supposed to relabel.
+// ⭐ DIV-3 (2026-11-09): `cell` IS NOW A REPLACE in `objectRuntime.js` (it was a
+// merge — the "fourth fidelity gap" this header used to record). The cases
+// below now DO tell a patch from a put: a patch that replaced would wipe the six
+// other properties pinned here. The replace itself is railed in
+// `tableCellReplace.test.js`. The op kinds were kept separate for exactly this day.
 //
 // ⭐ 11 setters exist; 10 are implemented. `cell_set_text_font_family` is the
 // one refusal and it is NAMED, for the reason `CELL_PROPS` gives: a substituted

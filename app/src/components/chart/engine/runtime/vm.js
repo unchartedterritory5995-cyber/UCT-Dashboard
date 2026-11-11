@@ -515,24 +515,29 @@ export function execute(program, ctx, limits, opts) {
   const heldNow = () => {
     const vars = new Set()
     const containers = new Set()
-    const seen = new Set()
-    const inside = (v, depth) => {
-      if (depth > 32 || v === null || typeof v !== 'object' || seen.has(v)) return
-      if (isDrawingHandle(v)) { containers.add(v.id); return }
-      seen.add(v)
-      if (Array.isArray(v)) { for (const x of v) inside(x, depth + 1); return }
+    // ⭐ W-C22-DEL r6 — a drawing reached through ARRAYS only (`arrays`) is told apart
+    // from one a map, a matrix or a UDT field holds (`containers`): for boxes the
+    // array case is WITNESSED (objectPool.js C7, sonarlab-order-blocks-spy-1d).
+    const arrays = new Set()
+    const seen = [new Set(), new Set()]
+    const inside = (v, depth, pure) => {
+      const s = seen[pure ? 1 : 0]
+      if (depth > 32 || v === null || typeof v !== 'object' || s.has(v)) return
+      if (isDrawingHandle(v)) { (pure ? arrays : containers).add(v.id); return }
+      s.add(v)
+      if (Array.isArray(v)) { for (const x of v) inside(x, depth + 1, pure); return }
       // ⭐ W6-T7 — a matrix's cells hold drawings too (`matrix<pivotGraphic>`)
-      if (isMatrix(v)) { for (const row of v.cells) inside(row, depth + 1); return }
-      if (isUdtRecord(v)) for (const x of Object.values(v.f)) inside(x, depth + 1)
-      if (isMap(v)) for (const x of v.m.values()) inside(x, depth + 1)
+      if (isMatrix(v)) { for (const row of v.cells) inside(row, depth + 1, false); return }
+      if (isUdtRecord(v)) for (const x of Object.values(v.f)) inside(x, depth + 1, false)
+      if (isMap(v)) for (const x of v.m.values()) inside(x, depth + 1, false)
     }
     const top = (v) => {
       if (isDrawingHandle(v)) vars.add(v.id)
-      else inside(v, 0)
+      else inside(v, 0, Array.isArray(v))
     }
     for (let i = 0; i < persist.length; i += 1) top(persist[i])
     for (let i = 0; i < heldTop; i += 1) top(locals[i])
-    return { vars, containers }
+    return { vars, containers, arrays }
   }
 
   // ⭐ RT7 — read once: a budget's limits are fixed for its life (`limits.js`), and

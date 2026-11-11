@@ -29,6 +29,7 @@ import { POOL_LIMITS, resolveCapacity, collectsAbove } from '../objectPool.js'
 import { packedToObjectHex } from './colours.js'
 import { objectHandle, isDrawingHandle } from './handles.js'
 import { ENUM_NA_SENTENCE } from '../enumNaRule.js'
+import { writeCell, spanned, CELL_WRITE, MERGED_HEAD_REWRITE, MERGED_HEAD_REWRITE_SENTENCE } from '../objectCells.js'
 
 /** Pine's absent colour (`color = na`): fully transparent — the host lane's
  *  `NA_OBJECT_COLOUR` (`pine.js`). */
@@ -415,7 +416,11 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
     for (const inst of [...live.values()]) {
       if (counts[fam] <= cap) break
       if (inst.family !== fam || inst.createdBar === bar || held.vars.has(inst.id)) continue
-      if (held.containers.has(inst.id)) {
+      // ⭐ W-C22-DEL r6 — a BOX held only in arrays is collected like any other box
+      // (objectPool.js C7: witnessed on sonarlab-order-blocks-spy-1d); every other
+      // kind in an array, and any kind in a map, a matrix or a UDT field, is not
+      // witnessed: the family is withheld (capture queue Q-C22-1).
+      if (held.containers.has(inst.id) || (fam !== 'box' && held.arrays && held.arrays.has(inst.id))) {
         withhold(fam, `TradingView's collector deletes the oldest ${fam}s past ${cap + 5}; one it reaches `
           + 'here is held in an array or a user type, and no capture shows whether such an object is spared')
       }
@@ -578,14 +583,19 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
         if (inst.family !== 'table') throw new ObjectRunError(`\`${name}\` was handed a ${inst.family}`)
         const key = cellAddr(name, inst, args[1], args[2])
         if (key === null) return undefined
-        if (spec.kind === 'cell') {
-          // ⭐ a whole `table.cell` REPLACES the cell (unpassed properties take
-          // their defaults again); a `cell_set_*` patches one property.
-          inst.cells.set(key, assign(name, {}, spec.params.slice(3), args.slice(3), 'table'))
-        } else {
-          const cur = inst.cells.get(key) || {}
-          inst.cells.set(key, assign(name, cur, [spec.prop], [args[3]], 'table'))
-        }
+        // ⭐⭐ DIV-3 r1 — ONE RULE, BOTH LANES (`objectCells.js::writeCell`): a whole
+        // `table.cell` REPLACES the cell (unpassed properties take their defaults
+        // again), a `cell_set_*` patches one property, and a `table.cell` on a
+        // merged head withholds the tables by name — the reference does not say
+        // what it does to the span. ⚰️ This lane dropped the span; the host lane
+        // kept it.
+        const wrote = spec.kind === 'cell'
+          ? writeCell(inst.cells.get(key), CELL_WRITE.REPLACE,
+            (base) => assign(name, base, spec.params.slice(3), args.slice(3), 'table'))
+          : writeCell(inst.cells.get(key), CELL_WRITE.PATCH,
+            (base) => assign(name, base, [spec.prop], [args[3]], 'table'))
+        if (wrote.withhold === MERGED_HEAD_REWRITE) withhold('table', MERGED_HEAD_REWRITE_SENTENCE)
+        inst.cells.set(key, wrote.cell)
         stats.updated += 1
         return undefined
       }
@@ -609,7 +619,7 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
             for (let c = c0; c <= c1; c += 1) if (!inst.cells.has(`${c},${r}`)) inst.cells.set(`${c},${r}`, {})
           }
           const head = `${c0},${r0}`
-          inst.cells.set(head, { ...inst.cells.get(head), colspan: c1 - c0 + 1, rowspan: r1 - r0 + 1 })
+          inst.cells.set(head, spanned(inst.cells.get(head), c1 - c0 + 1, r1 - r0 + 1))
         }
         stats.updated += 1
         return undefined
