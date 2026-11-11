@@ -139,6 +139,8 @@ The defect phrasing on head uses 48 of 55, so boardEdit can grow by 7 before tha
 - **Corpus gap GAP-WIDGET-READ-ROUTE:** this gap was shared by the v1 and v2 level-(a) tests. v2 now passes it, and v1 still fails it as expected. The gap is now marked `"router": "v1"`, and `corpus.routingV2.test.js` runs a v1-only gap as a normal case. Its reason was updated, and coverage.json and COVERAGE.md were regenerated (`UPDATE_CAPREG=1`).
 - **Mutant** (the rule reverted to best-first): the rail fails with `routing v2: NEW unreachable actions: widget.readOptions [boardEdit] CUT BY THE BUDGET`, and the corpus v2 case for "how is that one set right now" fails. After restoring the rule the diff is empty.
 
+**After merging the rail's final head 89f5f756cd** (rate-limited budget-cut log): the same 24 files give 24 passed / **2668 passed**. The rail reports a v2 budget cut on 97/1081 distinct phrasings (9.0%), with chartSetup 38, lists 21, charts 15 and indicators 12. These match this doc's probe counts.
+
 ## Files (git diff --stat origin/master...HEAD)
 
 ```
