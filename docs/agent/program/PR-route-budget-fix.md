@@ -33,32 +33,62 @@ The rail (`routeReachability.test.js`) runs on the head. `widget.readOptions` wa
 
 guide.explain stays unreachable because the fast path answers it, not because of the budget.
 
-### The 20 PROD routes that change (board | recent | message | master | head)
+### The 20 changed PROD v2 routes: expected action before / after (AUDIT GO evidence 1)
 
-None of them loses an action its phrasing needs; the probe found 0 lost pairs. In 3 of them (keep a copy of that one, open a chart for AMD, show it on daily charts only) the selected groups are the same and only the order of the cut list changes. AUDIT's targeting probes 1-23 should cover these selection changes.
+Each row is a phrasing whose routed v2 request changed, keyed by its source id. The expected action comes from the corpus intent needs and model ops, the golden step ops, or the NL set expect.ops. Before means master (the rule reverted); after means head. For held-out sources only the id is shown, never the text. Sealed sets are never read.
 
-| board | recent | message | master | head |
+**Result: 0 regressions** (no expected action is in before and out after). 1 fix: #13. "how is that one set right now" expects widget.readOptions (boardEdit). Nothing it expects lives in charts, so cutting charts there is not a regression.
+
+| # | source id | board | message | expected action | before (master) | after (head) |
+|---|---|---|---|---|---|---|
+| 1 | corpus board.duplicateChart | HALF | "make a copy of the NVDA chart" | board.duplicateChart | in | in |
+| 2 | corpus drawing.addLevel | DRAW | "draw a price line at 200 on this chart" | drawing.addLevel | in | in |
+| 3 | corpus chart.closeTab | ONE | "close the Swing tab" (after chart.addTab) | chart.closeTab | in | in |
+| 4 | corpus chart.closeTab | ONE | "close that tab" (after chart.addTab) | chart.closeTab | in | in |
+| 5 | corpus indicator.preview-draft | AUTHOR | "let me see what it looks like on the chart" (after indicator.draft) | indicator.previewDraft | in | in |
+| 6 | corpus indicator.save-draft-as | AUTHOR | "save it as Thrust Days" (after indicator.draft) | indicator.saveDraft | in | in |
+| 7 | corpus indicator.save-draft-as | AUTHOR | "ok save it, call it Thrust Days" (after indicator.draft) | indicator.saveDraft | in | in |
+| 8 | corpus indicator.followup-daily-only | AUTHOR | "only show it on the daily" (after indicator.draft,indicator.add) | indicatorStyle.set | in | in |
+| 9 | corpus indicator.followup-daily-only | AUTHOR | "show it on daily charts only" (after indicator.draft,indicator.add) | indicatorStyle.set | in | in |
+| 10 | corpus indicator.followup-daily-only | AUTHOR | "make it daily only" (after indicator.draft,indicator.add) | indicatorStyle.set | in | in |
+| 11 | corpus indicator.followup-other-chart (before) | AUTHOR_TWO | "make an indicator on the QQQ chart that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average" | indicator.draft | in | in |
+| 12 | corpus watchlist.sortColumn | LISTVIEW | "sort the Momentum list by RVOL high to low" | watchlist.sortColumn | in | in |
+| 13 | corpus widget.readOptions | ONE | "how is that one set right now" | widget.readOptions | OUT | in |
+| 14 | corpus widget.sendToJournal.no-door | ONE | "keep a copy of that one" | widget.sendToJournal | in | in |
+| 15 | golden GW-22.new-chart-then-rsi-on-it | HALF | "open a chart for AMD" | widget.addCharts | in | in |
+| 16 | nl corpus.json typo-09 | null | "hide volumn" | volume.setState | in | in |
+| 17 | nl dev-nl1.json d-cas-04 | null | "hide the volumn" | volume.setState | in | in |
+| 18 | nl dev-nl1.json d-p2-17 | null | "make this chart weekly and add the 50" | chart.setTimeframe | in | in |
+| 18 | nl dev-nl1.json d-p2-17 | null | "make this chart weekly and add the 50" | indicator.add | in | in |
+| 19 | nl heldout-v1.json h-screen-02 | null | (held-out: text withheld) | screener.run | in | in |
+| 20 | nl heldout-v1.json h-safety-19 | null | (held-out: text withheld) | layout.rename | in | in |
+
+### agentExecReach [reach] lines, master vs head (AUDIT GO evidence 2)
+
+agentExecReach.test.jsx was run on head and on master routing (the rule reverted). Its [reach] output is **byte-identical** in the two runs: every set has the same model / action / list counts, so no set drops. 23/23 tests pass on both. Counts only (the misses name held-out phrasings):
+
+| set | router | model | action | list |
 |---|---|---|---|---|
-| HALF |  | make a copy of the NVDA chart | 53 agent,boardEdit,chartSetup,charts,definitions,indicatorSetup OVER layouts,screener  | 54 agent,boardEdit,charts,definitions,indicatorSetup,layouts,screener OVER chartSetup |
-| DRAW |  | draw a price line at 200 on this chart | 54 agent,charts,drawingTools,drawings,indicators OVER alerts  | 46 agent,alerts,charts,drawingTools,drawings OVER indicators |
-| ONE | chart.addTab | close the Swing tab | 51 agent,chartSetup,charts,workspace OVER indicators  | 47 agent,charts,indicators,workspace OVER chartSetup |
-| ONE | chart.addTab | close that tab | 51 agent,chartSetup,charts,workspace OVER indicators  | 47 agent,charts,indicators,workspace OVER chartSetup |
-| AUTHOR | indicator.draft | let me see what it looks like on the chart | 50 agent,chartSetup,charts,indicators OVER indicatorSetup  | 40 agent,charts,indicatorSetup,indicators OVER chartSetup |
-| AUTHOR | indicator.draft | save it as Thrust Days | 52 agent,boardEdit,calendar,chartSetup,indicators,layouts,screener OVER charts,definitions  | 55 agent,calendar,chartSetup,definitions,indicatorAlerts,indicators,layouts,screener OVER charts,boardEdit |
-| AUTHOR | indicator.draft | ok save it, call it Thrust Days | 52 agent,boardEdit,calendar,chartSetup,indicators,layouts,screener OVER charts,definitions  | 51 agent,calendar,chartSetup,definitions,indicators,layouts,screener OVER charts,boardEdit |
-| AUTHOR | indicator.draft,indicator.add | only show it on the daily | 54 agent,charts,data,indicatorSetup,indicators,settings OVER breadth,chartSetup  | 52 agent,breadth,charts,indicatorAlerts,indicatorSetup,indicators,settings OVER data,chartSetup |
-| AUTHOR | indicator.draft,indicator.add | show it on daily charts only | 54 agent,charts,data,indicatorSetup,indicators,settings OVER chartSetup,breadth,indicatorAlerts  | 52 agent,breadth,charts,indicatorAlerts,indicatorSetup,indicators,settings OVER chartSetup,data |
-| AUTHOR | indicator.draft,indicator.add | make it daily only | 54 agent,charts,data,indicatorSetup,indicators,settings OVER chartSetup,breadth  | 54 agent,breadth,charts,data,indicatorAlerts,indicatorSetup,indicators OVER settings,chartSetup |
-| AUTHOR_TWO |  | make an indicator on the QQQ chart that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average | 52 agent,breadth,chartSetup,charts,indicators OVER indicatorAlerts,data  | 48 agent,breadth,charts,data,indicatorAlerts,indicators OVER chartSetup |
-| LISTVIEW |  | sort the Momentum list by RVOL high to low | 40 agent,breadth,indicators,lists,screener OVER charts  | 49 agent,breadth,charts,lists,screener OVER indicators |
-| ONE |  | how is that one set right now | 52 agent,charts,lists,workspace OVER drawings,boardEdit  | 48 agent,boardEdit,drawings,lists,workspace OVER charts |
-| ONE |  | keep a copy of that one | 49 agent,boardEdit,chartSetup,definitions,indicatorSetup,lists OVER layouts,screener  | 49 agent,boardEdit,chartSetup,definitions,indicatorSetup,lists OVER screener,layouts |
-| HALF |  | open a chart for AMD | 47 agent,boardEdit,chartGrid,charts,settings,workspace OVER lists,layouts  | 47 agent,boardEdit,chartGrid,charts,settings,workspace OVER layouts,lists |
-| null |  | hide volumn | 55 agent,chartSetup,charts,lists OVER indicators  | 51 agent,charts,indicators,lists OVER chartSetup |
-| null |  | hide the volumn | 55 agent,chartSetup,charts,lists OVER indicators  | 51 agent,charts,indicators,lists OVER chartSetup |
-| null |  | make this chart weekly and add the 50 | 50 agent,chartSetup,charts,indicators OVER settings  | 40 agent,charts,indicators,settings OVER chartSetup |
-| null |  | top rs stocks | 54 agent,calendar,data,indicatorSetup,lists,screener,workspace OVER indicators  | 49 agent,calendar,data,indicatorSetup,indicators,screener,workspace OVER lists |
-| null |  | rename UCT Default to Mine | 54 agent,charts,layouts,lists,settings OVER screener  | 45 agent,charts,layouts,screener,settings OVER lists |
+| widget held-out | v1 | 24/24 | 21/24 | 21/24 |
+| widget held-out | v2 | 24/24 | 21/24 | 21/24 |
+| widget tune | v1 | 24/24 | 20/24 | 21/24 |
+| widget tune | v2 | 24/24 | 21/24 | 21/24 |
+| list held-out | v1 | 8/8 | 7/8 | — |
+| list held-out | v2 | 8/8 | 8/8 | — |
+| list tune | v1 | 5/5 | 5/5 | — |
+| list tune | v2 | 5/5 | 5/5 | — |
+| name held-out2 | v1 | 6/6 | 5/6 | 5/6 |
+| name held-out2 | v2 | 6/6 | 5/6 | 5/6 |
+| door held-out2 | v1 | 4/4 | 4/4 | 4/4 |
+| door held-out2 | v2 | 4/4 | 4/4 | 4/4 |
+| journal held-out2 | v1 | 4/4 | 4/4 | — |
+| journal held-out2 | v2 | 4/4 | 4/4 | — |
+| widget tune2 | v1 | 5/5 | 5/5 | 5/5 |
+| widget tune2 | v2 | 5/5 | 5/5 | 5/5 |
+| journal tune2 | v1 | 4/4 | 4/4 | — |
+| journal tune2 | v2 | 4/4 | 4/4 | — |
+| search held-out7 | v1 | 3/3 | 3/3 | 3/3 |
+| search held-out7 | v2 | 3/3 | 3/3 | 3/3 |
 
 ### Budget cuts per group across all 1081 PROD v2 routes (`overBudget`, which is what `warnBudgetCut` logs)
 
