@@ -144,14 +144,6 @@ export function sixtyMinGridFor(session = 'extended', policy = SIXTY_MIN_GRID_BY
   return policy[session === 'rth' ? 'rth' : 'extended']
 }
 
-/** The /api/stream/bars `session` (wire name 'rth' | 'eth') whose 60m buckets
- *  match the series this chart view FETCHES. Follows the grid policy, NOT the
- *  view: while the server stores one 'session' grid, an extended-hours chart
- *  must still ask the stream for 'rth' buckets, or live 60m candles land on
- *  clock hours between the fetched 09:30/10:30… bars. */
-export function liveStreamSession(showExtended, policy = SIXTY_MIN_GRID_BY_SESSION) {
-  return sixtyMinGridFor(showExtended ? 'extended' : 'rth', policy) === 'clock' ? 'eth' : 'rth'
-}
 
 /** True when `unixSec` is a 60m bucket start on the grid this chart view uses
  *  (half-day aware) — the push opt-in's "is the fetched series on the stream's
@@ -185,36 +177,8 @@ export function bucketStartUnix(unixSec, tfMin, { grid } = {}) {
 
 // Grid names: this file's 'session'/'clock' == bar_rollup.tv_bucket_bounds'
 // (and the stream wire's) 'rth'/'eth'.
-const _GRID_ALIAS = { session: 'session', clock: 'clock', rth: 'session', eth: 'clock' }
+export const _GRID_ALIAS = { session: 'session', clock: 'clock', rth: 'session', eth: 'clock' }
 
-/**
- * Unix second at which the bucket STARTING at (or containing) `unixSec` ends
- * (exclusive). Client twin of `bar_rollup.tv_bucket_bounds(..)[1]`: on the
- * session grid the 09:00 pre-market stub ends at 09:30 and the last regular bar
- * at the close (16:00, or 13:00 on a half-day).
- * ⭐ Canonical client bucket end — liveBarMerge.bucketEndTime should delegate here
- * (via `bucketEndChartTime`) rather than re-encode the anchors.
- */
-export function bucketEndUnix(unixSec, tfMin, { grid } = {}) {
-  const tf = Number(tfMin)
-  const start = bucketStartUnix(unixSec, tf, { grid })
-  if (tf !== 60) return start + (tf > 0 ? tf : 5) * 60
-  const g = _GRID_ALIAS[grid || sixtyMinGridFor('extended')] || 'session'
-  if (g === 'clock') return start + 3600
-  const m0 = etMinuteOfDay(start)
-  const close = rthCloseMinuteOf(start)
-  let endMin = m0 + 60
-  if (m0 < RTH_OPEN_MIN) endMin = Math.min(endMin, RTH_OPEN_MIN)
-  else if (m0 < close) endMin = Math.min(endMin, close)
-  return start + (endMin - m0) * 60
-}
-
-/** `bucketEndUnix` in chart-time space (what live writers compare `bar.time` to).
- *  `session` is 'rth' | 'eth' | 'extended' (wire names accepted). */
-export function bucketEndChartTime(chartTime, tf, session = 'rth') {
-  const grid = session === 'eth' ? 'clock' : session === 'rth' ? 'session' : sixtyMinGridFor(session)
-  return toChartTime(bucketEndUnix(fromChartTime(chartTime), Number(tf), { grid }))
-}
 
 export const PERIOD_SECONDS = { '1': 60, '5': 300, '15': 900, '30': 1800, '60': 3600 }
 

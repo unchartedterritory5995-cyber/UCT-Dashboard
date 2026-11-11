@@ -8,8 +8,9 @@ import { describe, it, expect } from 'vitest'
 import {
   etOffsetSec, toChartTime, fromChartTime, etMinuteOfDay, etDateOf,
   bucketStartUnix, computeBarTime, sixtyMinGridFor, SIXTY_MIN_GRID_BY_SESSION,
-  rthCloseMinuteOf, bucketEndUnix, bucketEndChartTime,
+  rthCloseMinuteOf,
 } from './barTime'
+import { bucketEndUnix, bucketEndChartTime } from './liveBuckets'
 
 const NY = new Intl.DateTimeFormat('en-US', {
   timeZone: 'America/New_York', hourCycle: 'h23',
