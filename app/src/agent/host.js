@@ -148,6 +148,10 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
           view: e.api.agent.view?.() || null,
           // the exact symbol string StockChart keys its drawings by (useChartDrawings(sym))
           drawSym: e.api.agent.drawSym?.() || e.r.symbol,
+          // ⭐ C1-127: the chart's own Chart Settings door (ChartWidget adapter → ChartPane): may it open here, and is it
+          // open now (the read-back). Absent when the adapter has no door (a Multi Chart cell): chartSetup.openSettings refuses.
+          ...(typeof e.api.agent.openSettings === 'function'
+            ? { canOpenSettings: !!e.api.agent.canOpenSettings?.(), settingsOpen: !!e.api.agent.settingsOpen?.() } : {}),
           // ⭐ W1-B B-06: the workspace's Replay Mode cutoff ('YYYY-MM-DD' | null) — ONE shared value every linked chart
           // reads (StockChart `replayCutoff`); absent (undefined) when this host has no replay source
           ...(replay ? { replay: replay.read() ?? null } : {}),
@@ -212,6 +216,11 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
     openIndicatorDoor: (ref, door) => {
       const e = entries().find(x => x.ref === ref)
       try { return !!e?.api.agent.openIndicatorDoor?.(door) } catch { return false }
+    },
+    // ⭐ C1-127: open THIS chart's own Chart Settings dialog (the gear's openSettings). Writes nothing; chart.js reads it back.
+    openSettings: (ref) => {
+      const e = entries().find(x => x.ref === ref)
+      try { return !!e?.api.agent.openSettings?.() } catch { return false }
     },
     // The Time Navigator's jump on this chart (a view; see ChartWidget's adapter).
     goTo: (ref, ms) => {
