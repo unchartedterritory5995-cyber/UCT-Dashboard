@@ -66,7 +66,7 @@ _COLS = "ticker,tf,ts,o,h,l,c,v"
 _NEW = "NEW.ticker,NEW.tf,NEW.ts,NEW.o,NEW.h,NEW.l,NEW.c,NEW.v"
 _OLD_KEY = "ticker=OLD.ticker AND tf=OLD.tf AND ts=OLD.ts"
 
-CHUNK_ROWS = int(os.environ.get("BARS_CLUSTER_CHUNK_ROWS", "50000"))
+CHUNK_ROWS = int(os.environ.get("BARS_CLUSTER_CHUNK_ROWS", "20000"))
 #: A chunk transaction longer than this halves the next chunk (writers never queue long).
 CHUNK_BUDGET_S = float(os.environ.get("BARS_CLUSTER_CHUNK_BUDGET_S", "0.5"))
 DISK_HEADROOM = float(os.environ.get("BARS_CLUSTER_DISK_HEADROOM", "0.8"))
@@ -216,7 +216,11 @@ def copy_chunk(conn: sqlite3.Connection, rows: int) -> int:
         before = conn.total_changes
         conn.execute(
             f"INSERT OR IGNORE INTO {CLUSTERED}({_COLS}) SELECT {_COLS} FROM ohlcv "
-            f"WHERE {lo_sql}(ticker, tf, ts) <= (?, ?, ?)", args + tuple(hi))
+            # ORDER BY is load-bearing: it makes the planner range-scan the PK on the FULL
+            # key; without it SQLite picks idx_ohlcv_lookup bounded on (ticker, tf) only,
+            # re-reading a deep series from its start for every chunk inside it.
+            f"WHERE {lo_sql}(ticker, tf, ts) <= (?, ?, ?) ORDER BY ticker, tf, ts",
+            args + tuple(hi))
         n = conn.total_changes - before
         conn.executemany(f"INSERT OR REPLACE INTO {STATE}(k, v) VALUES (?, ?)",
                          (("ticker", hi[0]), ("tf", hi[1]), ("ts", int(hi[2]))))
@@ -279,14 +283,21 @@ def swap(conn: sqlite3.Connection) -> None:
 
 
 def retire(conn: sqlite3.Connection) -> None:
-    """Phase 4: drop the old rowid table (and with it its indexes)."""
-    _begin(conn)
-    try:
-        conn.execute(f"DROP TABLE IF EXISTS {RETIRED}")
-        conn.execute("COMMIT")
-    except BaseException:
-        conn.execute("ROLLBACK")
-        raise
+    """Phase 4: drop the old rowid table -- its secondary indexes first, each in its own
+    transaction, so no single write-lock hold covers the whole multi-GB free."""
+    names = [r[0] for r in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name=? "
+        "AND name NOT LIKE 'sqlite_autoindex_%'", (RETIRED,)).fetchall()]
+    stmts = [f'DROP INDEX IF EXISTS "{n}"' for n in names] + [f"DROP TABLE IF EXISTS {RETIRED}"]
+    for sql in stmts:
+        with _write_lock():
+            _begin(conn)
+            try:
+                conn.execute(sql)
+                conn.execute("COMMIT")
+            except BaseException:
+                conn.execute("ROLLBACK")
+                raise
 
 
 def abort(conn: sqlite3.Connection) -> None:
@@ -356,8 +367,7 @@ def run(db_path: str, *, may_continue=lambda: True, chunk_rows: int | None = Non
             if not may_continue():
                 return ph
             t0 = time.monotonic()
-            with lock:
-                retire(conn)
+            retire(conn)                # takes the write lock per transaction
             _log.info("[bars-cluster] retired rowid table in %.1fs", time.monotonic() - t0)
         _set(phase="done", finished=time.time())
         return "done"
