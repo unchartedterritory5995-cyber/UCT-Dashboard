@@ -2,7 +2,7 @@
  "unit": "SET.22",
  "track": "SET",
  "title": "Gap Support",
- "teaches": "Gap Support as we trade it: a leader gaps up, price drifts back days or weeks later to the gap-up day's low (not the prior day's high) while the gap is still open, holds it or breaches it slightly, and closes back over it in the upper half of the test day; above a flat or rising 50-day and the 200-day; the stop sits a few cents under the test day's low; a third comes off at the post-gap high if it comes before 3R, else at 3R, another at 5R, the rest on the 10-day or 21-day trail, and a loss taken at the stop is the system working.",
+ "teaches": "Gap Support as we trade it: a leader gaps up, price drifts back days or weeks later to the gap-up day's low (not the prior day's high) while the gap is still open, holds it or breaches it slightly, and closes back over it in the upper half of the test day; above a flat or rising 50-day and the 200-day; the stop sits a few cents under the test day's low; a third comes off at 3R, another at 5R, the rest on the 10-day or 21-day trail, and a loss taken at the stop is the system working.",
  "skills": [
   {
    "id": "setup.gap_support",
@@ -34,22 +34,6 @@
    "publisher": "Virtue of Selfish Investing (Gil Morales and Chris Kacher)",
    "title": "FAQ: should I buy a buyable gap-up at the open or wait (2012, updated 2025)",
    "url": "https://www.virtueofselfishinvesting.com/faqs/answer/should-i-buy-a-buyable-gap-up-at-the-open-or-wait-until-later-in-the-trading-day-what-about-buying-in-subsequent-days-on-pullbacks-stop-loss",
-   "accessed": "2026-11-09"
-  },
-  {
-   "id": "s4",
-   "tier": 2,
-   "publisher": "Thomas Bulkowski, thepatternsite.com",
-   "title": "Gauging Gaps",
-   "url": "https://www.thepatternsite.com/GaugingGaps.html",
-   "accessed": "2026-11-09"
-  },
-  {
-   "id": "s5",
-   "tier": 2,
-   "publisher": "Thomas Bulkowski, thepatternsite.com",
-   "title": "Gaps",
-   "url": "https://www.thepatternsite.com/gaps.html",
    "accessed": "2026-11-09"
   },
   {
@@ -249,18 +233,6 @@
    "source": "s3",
    "quote": "it is generally best to sell since buyable gap ups do not close their gaps.",
    "claim": "Morales and Kacher: it is best to sell, since buyable gap-ups do not close their gaps."
-  },
-  {
-   "id": "bu1",
-   "source": "s4",
-   "quote": "Gaps in an uptrend (rising windows) show underlying support 20% of the time in a bull market",
-   "claim": "Bulkowski: gaps in an uptrend show underlying support 20% of the time in a bull market."
-  },
-  {
-   "id": "bu2",
-   "source": "s5",
-   "quote": "Gaps are places of weak support or resistance, but you can use them for a stop location.",
-   "claim": "Bulkowski: gaps are weak support or resistance, but you can use them for a stop location."
   },
   {
    "id": "wg1",
@@ -720,8 +692,8 @@
    "steps": [
     "GPN, 2013. A quiet stock gaps up on 2013-10-02 on 11.5x volume. The gap-up low, 27.00, is the line.",
     "Five sessions later, on 2013-10-09, the low dips 0.3% under the line. The day closes at 62% of its range.",
-    "The scan buys the test day's close, 27.15. The stop sits a few cents under the test day's low, 26.89, 0.9% away.",
-    "Failure mode: a close under the line. The post-gap high, 28.71, sits above 3R, so the first third sells at 3R."
+    "The scan buys the test day's close, 27.15. The stop sits a few cents under the test day's low, 26.89.",
+    "Failure mode: a close under the line. Instead it ran to 24.9R: trim a third at 3R and another at 5R."
    ],
    "facts": [
     "e01",
@@ -729,10 +701,10 @@
     "e03",
     "g01",
     "g12",
-    "g20",
     "g27",
     "h05",
-    "h24"
+    "h24",
+    "h20"
    ]
   },
   {
@@ -742,7 +714,7 @@
     "ILMN, 2010. An earnings gap on 2010-10-27 opens 5.6% up on 3.6x volume. The gap-up low, 53.03, is the line.",
     "Four sessions later the low breaks the line by 1.1%, but the day closes at 94% of its range.",
     "The scan buys the close, 53.27. The stop sits a few cents under the test day's low, 52.40, 1.6% away.",
-    "Failure mode: a close under the line. Instead the post-gap high, 55.63, comes before 3R, and the first third sells there."
+    "Failure mode: a close under the line. Instead it ran to 18.6R: trim a third at 3R and another at 5R."
    ],
    "facts": [
     "e04",
@@ -750,10 +722,10 @@
     "e06",
     "g01",
     "g12",
-    "g20",
     "g27",
     "h05",
-    "h24"
+    "h24",
+    "h20"
    ]
   },
   {
@@ -1136,7 +1108,7 @@
     "round": 2
    },
    "why": "26.27. One R is the fill minus the stop. Add three of those to the fill. AKAM ran to 30.4R from these levels.",
-   "lesson_line": "Know your 3R before the close. The first third comes off at 3R or sooner.",
+   "lesson_line": "Know your 3R before the close. The first third comes off there.",
    "facts": [
     "h05",
     "e11"
@@ -1692,24 +1664,24 @@
    "format": "scenario",
    "criterion": "gs.test_close_position",
    "q": "Grade each close.",
-   "story": "Two test days hold the gap-up low. One closes near its high on a hammer with a long lower wick. The other closes in the lower part of its range.",
+   "story": "Two test days hold the gap-up low. One closes near its high on a hammer with a long lower wick. The other closes at 60% of its range.",
    "choices": [
-    "First an A+ cue; second a B-",
+    "First an A+ cue; second a plain test",
     "Both the same; both held the line",
     "First a B-; a hammer is a warning",
     "Both A+; any hold is fine"
    ],
-   "answer": "First an A+ cue; second a B-",
-   "why": "First an A+ cue, second a B-. The A+ test closes back above the line near its high with a lower wick or hammer. A close in the lower part of the range is a B-.",
-   "lesson_line": "A hammer close is A+. A lower-part close is a B-.",
+   "answer": "First an A+ cue; second a plain test",
+   "why": "First an A+ cue, second a plain test. The A+ test closes back above the line near its high with a lower wick or hammer. A close in the upper half holds the line but earns no extra.",
+   "lesson_line": "A hammer close near the high is A+. Upper half just holds.",
    "facts": [
     "g43",
-    "g48"
+    "g10"
    ],
    "wrong": {
     "Both the same; both held the line": "Both held, but the close is half the story.",
     "First a B-; a hammer is a warning": "A hammer with a lower wick is the best look.",
-    "Both A+; any hold is fine": "A weak close is a weaker test even on a held line."
+    "Both A+; any hold is fine": "Only a close near the high is the A+ cue; 60% is not."
    },
    "house": true
   },
@@ -1784,7 +1756,7 @@
     "No stop until the close"
    ],
    "answer": "A few cents under the day's low so far",
-   "why": "A few cents under the test day's low so far. The intraday version, an undercut and reclaim of the gap-up low, a red to green or an hourly higher low, uses the same stop.",
+   "why": "A few cents under the test day's low so far. The intraday version is an undercut and reclaim, a red to green or an hourly higher low. It uses the same stop.",
    "lesson_line": "Same stop on the intraday version.",
    "facts": [
     "g30",
@@ -2130,7 +2102,7 @@
     "Add at 18.50 to lower your cost"
    ],
    "answer": "Get out; the loss is past 2R",
-   "why": "Get out. On a gap through the stop, the first 30-minute low is the new stop, and you are out if that loss is past 2R. Here it is.",
+   "why": "Get out. On a gap through the stop, the first 30-minute low is the new stop. Here that loss is past 2R, so you are out.",
    "lesson_line": "Past 2R in the first half hour, get out.",
    "facts": [
     "g17",
@@ -2206,7 +2178,7 @@
    ],
    "wrong": {
     "Yes; a new trigger is a new trade": "A new trigger is a new trade, but the tries per week are capped.",
-    "Yes, at double size": "Doubling size to win it back is the revenge trade the rules forbid.",
+    "Yes, at double size": "Doubling size to win it back breaks the sizing rule.",
     "Yes, with a wider stop": "A wider stop breaks the stop rule."
    },
    "house": true
@@ -2324,7 +2296,7 @@
     "Pass; it closed in the lower half"
    ],
    "answer": "Take it; it held and closed back up",
-   "why": "Take it. A quiet stock gapped on 11.5x volume. Five sessions later the low dipped 0.3% under the line and the day closed at 62% of its range, with the gap still open.",
+   "why": "Take it. A quiet stock gapped on 11.5x volume. Five sessions later the low dipped 0.3% under the line. The day closed at 62% of its range, with the gap still open.",
    "lesson_line": "A hold at the line with a strong close is the setup.",
    "facts": [
     "e01",
@@ -2391,7 +2363,7 @@
     "No trade; it needs a deeper undercut"
    ],
    "answer": "A+; the cues line up",
-   "why": "A+. A leader with growing sales and earnings, a gap on heavy volume, a first quiet test that holds the line to the tick, a hammer close near the high, risk under 3% and a Green market: the cues line up.",
+   "why": "A+. A leader with growing sales and earnings, a heavy-volume gap and a quiet first test that holds the line to the tick. Add a hammer close, risk under 3% and a Green market.",
    "lesson_line": "When every cue lines up, it is an A+.",
    "facts": [
     "g49",
@@ -2425,8 +2397,6 @@
    "why": "Pick leaders, the right line and the market, and keep a tight stop. Bulkowski found gaps in an uptrend show support only 20% of the time, and in our scan 28.9% reached 3R. The edge is the stock, the level and the market, with small stops, not a promise.",
    "lesson_line": "No guarantees: leader, line, market, and a tight stop.",
    "facts": [
-    "bu1",
-    "bu2",
     "e26",
     "g12"
    ],
@@ -2461,7 +2431,7 @@
    ],
    "wrong": {
     "Chase it; you were right all along": "Chasing is how a planned small loss becomes a bigger one.",
-    "Rebuy at double size": "Doubling size to win it back is the revenge trade.",
+    "Rebuy at double size": "Doubling size to win it back breaks the sizing rule.",
     "Widen your stops from now on": "Wider stops break the stop rule."
    },
    "house": true
@@ -2480,7 +2450,417 @@
   "Scanner and app (D-004): the scanner uses the prior day's high as the line and fires on closes under the gap-up low; this unit teaches the card, not the scanner.",
   "The chart questions (q61 GPN asof 2013-10-09, the test day; q62 DE asof 2026-02-25, the test day) show the member's own chart; the keys rest on the dossier's reads (e01, e02, e03, e21, e22). The importer resolves the bars from our own history. Ticker is never named in the question.",
   "The short mirror (gap resistance, a retest short) is not taught here (D-001); the Bear gap lesson owns gap-down setups (q34).",
-  "The UNITS-method row for SET.22 ('The Level the Tape Remembers: High Volume Edge & Gap Support') pairs this unit with the High Volume Edge; the criteria card is Gap Support only, so the HVE appears here as a lookalike tell (q33), not as content. The unit id SET.22 is as the card gives it."
+  "The UNITS-method row for SET.22 ('The Level the Tape Remembers: High Volume Edge & Gap Support') pairs this unit with the High Volume Edge; the criteria card is Gap Support only, so the HVE appears here as a lookalike tell (q33), not as content. The unit id SET.22 is as the card gives it.",
+  "Cold check 2026-11-10: 51 pass (10 fixed), 3 fix, 14 cut. Post-gap-high trim (brief point 1): not safe as a key. The card's 'settled' rests on the owner's 'yes add those stops too' about Trade Story stopping at the post-gap high, which the dossier reads as a game stop only; B19 makes a third at 3R the hard rule, so q18, q26 and q55 are held as fix on D-013 and w1, w2 and the unit's teaches line now say 3R and 5R. Our current default, in conflicts only: the lower of the post-gap high and 3R. 40% cap (A7): q40 is the only sizing question; 287 shares is 30.6%, under the cap. Cut as duplicates: q02, q04, q09, q10, q13, q22, q25, q39, q47, q51 (DE story; chart q62 kept), q58, q60; q50 cut (AMD 2020 risk was 3.2%, past the card's 3%, and the market reading is not stated); q64 cut (opinion key; Bulkowski's two quotes and sources s4, s5 removed because his site bars use of its content to train AI). q38 changed because the card gates on an upper-half close and also lists a lower-part close as a B- cue, as in the News Gapper card; the second stock now closes at 60%. w1 '0.9% away' is 0.96% from its own levels, so the percent is dropped. Look at first: (1) D-013, the post-gap-high trim; (2) D-003, 'buy the close' against a trade over the test day's high, which every test-day story assumes; (3) the card's clash on the test-day close position (upper-half gate against lower-part B- cue)."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "e01-e03 verbatim (GPN 2013-10-02: 7.0%, 11.5x, test 2013-10-09 low 0.3% under 27.00, close 62%, buy 27.15, stop 26.89, best 24.9R); bars db agrees (gap 7.0%, 11.5x, test low 26.925 vs line 27.00, close 0.62). g01, g12, g27, h05, h24 verbatim. Changed: step 3's '0.9% away' is 0.96% from the levels shown, so the percent is dropped; step 4 and the facts no longer teach the post-gap-high trim (D-013), it says 3R and 5R as B19 and E51 do.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "e04-e06 verbatim (ILMN 2010-10-27: 5.6%, 3.6x, test low 1.1% under 53.03, close 94%, buy 53.27, stop 52.40, 1.6%, best 18.6R); (53.27 - 52.40) / 53.27 = 1.6%. Step 4 said the post-gap high 55.63 'comes before 3R, and the first third sells there': that is the unsettled D-013 trim (3R here is 55.88), now 'ran to 18.6R: trim a third at 3R and another at 5R'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "e07-e09 verbatim (AXON 2022-11-09 gap, test 2022-12-30 35 sessions later, low 0.4% above 161.70, close 82%, buy 165.93, stop 162.22, 2.2%, best 16.2R); (165.93 - 162.22) / 165.93 = 2.2%. g01, g12, g27, h05, h20, h21, h24 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "cut",
+   "notes": "duplicate of q32 and q57: the gap day itself is a PEG and the later test is Gap Support, asked as a plain true/false; q32 is the PEG-or-Gap-Support scenario and q57 keeps the 'never revisited is nothing' line.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "cut",
+   "notes": "duplicate of q19: the stop goes a few cents under the test day's low, asked as a fill whose sentence gives its answer away (rule 10); q19 adds the wrong-stop traps.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "cut",
+   "notes": "duplicate of q49 and q08: a close at or under the prior day's high kills the setup; q08 defines the open gap and q49 is the AEHR case.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "cut",
+   "notes": "duplicate of q52: a gap out of a downtrend under a falling 50-day is not Gap Support; q52 asks it on DOCU and q34 covers the gap-down lookalike.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "cut",
+   "notes": "duplicate of q38 and q61: where the test day should close (upper half, a hammer), asked as a recall; q38 grades two closes and q61 puts one on the member's chart.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "cut",
+   "notes": "duplicate of q44: the pullback must be at least 1 ATR under the post-gap high; q44 computes it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "cut",
+   "notes": "duplicate of q62: a test day still falling into the close is not the setup; q62 asks it on the member's own chart.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "cut",
+   "notes": "duplicate of q12: heavy-volume selling into the line is a warning and a quiet pullback is liked best; q12 asks the same two lines as a true/false.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "cut",
+   "notes": "duplicate of q53: the test closes under the 200-day, so no buy; q53 asks it on EVR 2019 and q03 states the rule.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "cut",
+   "notes": "the key is not safe: the dossier's AMD 2020 test had 3.2% risk, past the card's 3% line, so 'the stop distance' is not clearly wrong; the broad market reading in September 2020 is not stated; and one stopped trade is read as proof of a missing filter. Needs the market reading on that date, or a different example.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "cut",
+   "notes": "duplicate of q62: DE 2026, the test closing at 0.01 of its range, asked as a story and again on the member's own chart. The chart is kept (SET.07 precedent).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "cut",
+   "notes": "duplicate of q36: the ranking held, slight breach, fill that reclaims (settled gs.fill_reclaim_lesser); q36 asks it as a grading scenario.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "cut",
+   "notes": "duplicate of q15: a real stop order with the broker; q15 asks it as a true/false.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "cut",
+   "notes": "the key has no cited fact behind it: 'leaders, the right line, a tight stop' is an opinion, and the question's premise is Bulkowski's 20% for rising windows, a different measure. The unit's own conflicts note that his site bars use of its content to train AI systems, and SET.20 avoids him for that reason; the Study module is brain-training material. Bulkowski's two quotes and sources are removed from the unit.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "fix",
+   "notes": "Held as fix on D-013: the post-gap-high trim is marked settled on the card but rests on the owner's 2026-11-09 'yes add those stops too' about Trade Story stopping at the post-gap high, which the dossier reads as approving a game stop only. B19 makes a third at 3R the hard rule (ideally 3R to 6R, mostly 5R), E51 the second third at 5R, and D-013's own default is only 'a cue to take the 3R third early'; the dossier's recommendation was a third at the higher of the two, and the post-gap high sits under 3R in about 41% of trades. Three readings, none ruled, so no key may teach it as ours. Our current default (conflicts only): the lower of the post-gap high and 3R.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "fix",
+   "notes": "Held as fix on D-013: the post-gap-high trim is marked settled on the card but rests on the owner's 2026-11-09 'yes add those stops too' about Trade Story stopping at the post-gap high, which the dossier reads as approving a game stop only. B19 makes a third at 3R the hard rule (ideally 3R to 6R, mostly 5R), E51 the second third at 5R, and D-013's own default is only 'a cue to take the 3R third early'; the dossier's recommendation was a third at the higher of the two, and the post-gap high sits under 3R in about 41% of trades. Three readings, none ruled, so no key may teach it as ours. Our current default (conflicts only): the lower of the post-gap high and 3R. ILMN arithmetic checks: R = 0.87, 3R = 55.88, post-gap high 55.63.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "fix",
+   "notes": "Held as fix on D-013: the post-gap-high trim is marked settled on the card but rests on the owner's 2026-11-09 'yes add those stops too' about Trade Story stopping at the post-gap high, which the dossier reads as approving a game stop only. B19 makes a third at 3R the hard rule (ideally 3R to 6R, mostly 5R), E51 the second third at 5R, and D-013's own default is only 'a cue to take the 3R third early'; the dossier's recommendation was a third at the higher of the two, and the post-gap high sits under 3R in about 41% of trades. Three readings, none ruled, so no key may teach it as ours. Our current default (conflicts only): the lower of the post-gap high and 3R. LLY arithmetic checks: 231.13 + 3 x 2.70 = 239.23, post-gap high 239.37; the question also repeats q17's 3R arithmetic.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "g01, m01 (Morales page found) verbatim; settled gs.line_is_gap_up_low.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "g03, h10 verbatim; settled gs.above_200 and B26.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "g32, h26 verbatim (settled market reading).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "g23, h22 verbatim (settled gs.order, E57).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "g05 verbatim (proposed gs.true_gap); each wrong note is true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "g08, g01 verbatim (proposed gs.gap_still_open). The card also says closes inside the gap are allowed (conflicts); the key uses only 'no close at or under the prior day's high'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "g13, g12 verbatim (proposed). On a true gap the fill spot sits under the gap-up low, so the wrong note 'it sits above the gap-up low' is true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "g31, g45 verbatim (proposed gs.heavy_selling_warning). Same fact as the cut q39; the true/false is kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "g18, h31 verbatim: one buy, no adding (A5).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "g16, h02 verbatim (settled gs.stop_broker, D41).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Re-derived (53.03 - 52.45) / 53.03 = 1.09%, 1.1; ILMN's stop 52.40 is 5 cents under a 52.45 low. e05, e06 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Re-derived 25.10 + 3 x 0.39 = 26.27. h05, e11 verbatim. Lesson line said 'at 3R or sooner', a hint of the unsettled post-gap-high trim; now 'comes off there'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "g12, g13, g14 verbatim; settled gs.stop.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "g19, h05 verbatim (B19, settled).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "g21, h21 verbatim (E52).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Re-derived (15.96 - 15.48) / 15.96 = 3.01%, 3.0. g15, e13 verbatim (VIAV).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "g27, g01 verbatim. A 3% close under the line is a no-buy under all three pending gs.test_close options (exact, within 1%, or a later reclaim).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "Re-derived 52.30 / 50.00 = +4.6%, over the 4% chase line (C28, settled gs.no_chase). g24, h11, h12 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "g25, h08 verbatim: a Thursday after-close report is inside 3 sessions of a Wednesday buy (B22).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "g15, h01, h02 verbatim (settled gs.stop_width).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "g22, h15 verbatim (C33).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "g32, h26 verbatim: Red is mostly cash and shorts (F65).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "g02, g38, g39 verbatim. Settled gs.not_gap_day; the PEG unit (SET.19) teaches the same line from the other side.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "g40, g01 verbatim (HVE line is the record day's close). Consistent with SET.21 q68.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "g41, g04 verbatim; the bear gap is its own setup and never a long.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "g42, g01 verbatim: a U&R reclaims a prominent swing low within 3 sessions, here two days later; no gap involved.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "g11, g46 verbatim (settled gs.fill_reclaim_lesser): held, then a slight breach, then a fill that reclaims.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "g07, wg1 verbatim (Wagner's page found). 10% against 35%: the 30% line is proposed; no pending gap-size option is touched.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "FIXED. The card gates the test day on 'closes in the upper half' (gs.test_close_position, proposed) and lists 'a close in the lower part of the range' as a B- cue in the same grading block, the same clash as the News Gapper card. The second stock now closes at 60% (upper half, no A+ cue), so the key rests on g43 and g10 only.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "Re-derived 250 / 0.87 = 287.4, rounded down 287; 287 x 53.27 = 15,289 dollars, 30.6% of 50,000, under the 40% cap (A7). h03, h01, e05 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "g30, g12, u02 (Sunday Scans page found) verbatim; proposed gs.intraday_version. Why had a 24-word sentence, split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "m03 (Virtue of Selfish Investing page found), g14, g12 verbatim (proposed gs.stop_not_porosity).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "g06, g05 verbatim (proposed gs.gap_day_close).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "Re-derived (24.00 - 22.20) / 0.90 = 2.0 ATR. g09 verbatim (proposed gs.pullback_depth).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "g33, h14 verbatim (C31, settled).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "g37, h13 verbatim (C29, settled gs.not_stretched): 13% is over 10%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "e15, g12, h01 verbatim; dossier 13: AVGO test 2025-09-24 bought 339.31, stop 333.47 (1.7%), stopped next session, 0.0R. A loss at the stop on a clean test is the plan working.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "e16, g26 verbatim; dossier 13: AEHR hammer close on the line, stopped next session, close under the gap-fill spot two sessions later.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "e23, e24, g04 verbatim (DOCU 2025-03-14, close 2.6% under a falling 50-day).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "e25, g03, h10 verbatim (EVR 2019-01-30, test closed 6.9% under the 200-day). Kept over the generic q47.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "Re-derived R = 0.60; the 18.50 low is 1.50 under the fill = 2.5R, past 2R, so out (B20). g17, h06, h07 verbatim. The why had a 24-word sentence, split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "g36, h29, h28 verbatim (E56, B21). The wrong note on doubling size said 'the revenge trade the rules forbid'; no rule is named that, so it now says it breaks the sizing rule.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "g02, g39 verbatim. Kept as the true/false for the gap-day line; q02 cut.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "g47, g51, e07, e09 verbatim. Rests on the card's grading lines (chop on the line is a B- cue; a long drift back is not a minus, his DOCS at 37 sessions), not on the pending 2-to-60-session window: seven weeks is 35 sessions, inside it and inside the owner's 37-session DOCS rating.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "Chart GPN asof 2013-10-09: 3,203 daily bars on or before it (120 needed), as-of bar present. Bars db: gap 2013-10-02 +7.0% on 11.5x, true gap, no close under the prior high since, test low 0.28% under the 27.00 line, close 0.62 of the range, 0.56% over the line. e01-e03, g10 verbatim. Why split (24-word sentence). The 'buy the close' wording rests on the pending entry option D-003 (a); the key is whether the test qualifies.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "Chart DE asof 2026-02-25: 523 daily bars on or before it, as-of bar present. Bars db: gap 2026-02-19 +6.8% on 4.4x, true gap, test low 0.83% under the 628.72 line, close 0.01 of the range, 0.81% under. e21, e22, g28 verbatim; the near-miss gate is the upper-half close.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "g49, g43, g44, g45, h30 verbatim (proposed A+ cues all line up; E50 grading is a judgment, the story gives the cues). Why was 40 words, split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "e17, e18, h28 verbatim (DKS 2021-06-16 test, stopped next session, ran to 147.39 by 09-07). The wrong note on doubling size no longer says 'the revenge trade'.",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
 }

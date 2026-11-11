@@ -796,7 +796,7 @@
    "steps": [
     "AMZN, 2017. A five-month base, then a report after the close on 2017-10-26. So 2017-10-27 is the PEG day.",
     "The gap is 6 ATRs on 5.5x volume, closing at 0.92 of its range. The pause: five days, 1.7% deep.",
-    "Buy at market over the pause high, 56.14. Stop a few cents under the low, 55.39, 1.4% away.",
+    "Buy at market over the pause high, 56.14. Stop a few cents under the low, 55.39.",
     "Failure mode: the gap fills, or a close under the gap-day low. Instead 3R came in 13 sessions: trim a third."
    ],
    "facts": [
@@ -818,7 +818,7 @@
    "steps": [
     "BIDU, 2010. A four-month flat shelf. Report after the close on 2010-02-09, so 2010-02-10 is the PEG day, up 8.5%.",
     "The gap clears the shelf on 3.0x volume, closing at 0.95 of its range. Then two tight days, 0.3% deep.",
-    "Buy at market over the pause high, 48.93. Stop a few cents under the low, 48.20, 2.1% away.",
+    "Buy at market over the pause high, 48.93. Stop a few cents under the low, 48.20.",
     "Failure mode: a close under the PEG-day low. Instead it ran ten weeks up the 10-day. Trim at 3R and 5R."
    ],
    "facts": [
@@ -913,8 +913,8 @@
    "choices": [
     "It opens up, fades, and closes red",
     "It opens up and closes near the high",
-    "Gap open, close over yesterday's high",
-    "It opens up and holds above the open"
+    "It opens up, dips, closes strong",
+    "It opens up and rallies all day"
    ],
    "answer": "It opens up, fades, and closes red",
    "why": "It opens up, fades, and closes red. Stewie: a gap that reverses and closes in the red is not what he wants to see in a PEG candidate.",
@@ -926,8 +926,8 @@
    ],
    "wrong": {
     "It opens up and closes near the high": "That is the ideal PEG candle.",
-    "Gap open, close over yesterday's high": "That is a PEG day: the gap held and the close is strong.",
-    "It opens up and holds above the open": "Holding above the open is what a strong day does."
+    "It opens up, dips, closes strong": "A dip that recovers into a strong close is still a PEG day.",
+    "It opens up and rallies all day": "A day that rallies all day closes strong, the ideal candle."
    },
    "house": true
   },
@@ -1207,7 +1207,7 @@
     },
     "round": 2
    },
-   "why": "51.12. One R is the fill minus the stop. Add three of those to the fill. BIDU ran 27.7R from these levels.",
+   "why": "51.12. One R is the fill minus the stop. Add three of those to the fill. BIDU ran 27.7R in our scan.",
    "lesson_line": "Know your 3R before the open. The first third comes off there.",
    "facts": [
     "h05",
@@ -1825,19 +1825,19 @@
    "rung": 6,
    "format": "numeric",
    "criterion": "peg.stop_pause",
-   "q": "Account 50,000. Risk 1%. Fill 90.25, stop 88.19. How many shares?",
-   "answer": 242,
+   "q": "Account 50,000. Risk 0.5%. Fill 90.25, stop 88.19. How many shares?",
+   "answer": 121,
    "calc": {
     "fn": "shares_from_risk",
     "args": {
      "account": 50000,
-     "risk_pct": 1,
+     "risk_pct": 0.5,
      "entry": 90.25,
      "stop": 88.19
     },
     "round": 0
    },
-   "why": "242. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size.",
+   "why": "121. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
@@ -1948,7 +1948,7 @@
     "One; earnings gaps are risky now"
    ],
    "answer": "A few positions; add as they work",
-   "why": "A few positions, adding more as the first ones work. After a correction, when the reading turns Green, the recent earnings gappers often lead.",
+   "why": "A few positions, adding more as the first ones work. After a correction, start small and add as they work. The first earnings season after a correction is one this setup favors.",
    "lesson_line": "After a correction, start small and add as they work.",
    "facts": [
     "h27",
@@ -1956,8 +1956,8 @@
    ],
    "wrong": {
     "All six; Green is full risk": "Start with a few and add only as the first ones work.",
-    "None; wait for a second Green week": "Waiting loses the first earnings season after a correction, when these lead.",
-    "One; earnings gaps are risky now": "The first earnings season after a correction is the best time for the setup."
+    "None; wait for a second Green week": "Waiting gives up the first earnings season after a correction, which this setup favors.",
+    "One; earnings gaps are risky now": "That season is one this setup favors; start with a few and add as they work."
    },
    "house": true
   },
@@ -2391,7 +2391,7 @@
     "Add at 47.20 to lower your cost"
    ],
    "answer": "Get out; the loss is past 2R",
-   "why": "Get out. On a gap through the stop, the first 30-minute low is the new stop, and you are out if that loss is past 2R. Here it is.",
+   "why": "Get out. On a gap through the stop, the first 30-minute low is the new stop. Here that loss is past 2R, so you are out.",
    "lesson_line": "Past 2R in the first half hour, get out.",
    "facts": [
     "c25",
@@ -2412,7 +2412,7 @@
    "format": "scenario",
    "criterion": "peg.earnings_season",
    "q": "Why does the plan still work?",
-   "story": "Over 1,516 PEG buys in our scan, most hit the stop. Yet the setup is worth trading.",
+   "story": "Over 1,516 PEG buys in our scan of past bars, most hit the stop. Why can the plan still work?",
    "choices": [
     "Small losses and a few big runs",
     "A wider stop that rarely hits",
@@ -2420,7 +2420,7 @@
     "Holding every winner to the next report"
    ],
    "answer": "Small losses and a few big runs",
-   "why": "Small losses and a few big runs. The scan found 31.0% reach 3R and 20.0% reach 5R before the stop. The edge comes from the few big runs, so the trims are not pulled earlier.",
+   "why": "Small losses and a few big runs. In that scan 31.0% reached 3R and 20.0% reached 5R before the stop. The edge comes from the few big runs, so the trims are not pulled earlier.",
    "lesson_line": "Most buys stop out. The few big runs pay for them.",
    "facts": [
     "d22",
@@ -2467,7 +2467,7 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "peg.entry_pause",
-   "q": "Which gets full size?",
+   "q": "Which one gets the bigger size?",
    "story": "Yellow market. Gap A: 12%, 5x volume, a high close, out of a six-month base, tight pause. Gap B: up 35% in three months, mid-range close, loose pause that undercuts the low.",
    "choices": [
     "A; B is a B- and gets smaller size",
@@ -2476,7 +2476,7 @@
     "Neither; Yellow is all cash"
    ],
    "answer": "A; B is a B- and gets smaller size",
-   "why": "A gets full size. B is a B-: a late gap, a mid-range close, a loose pause. B- or lower is sized down.",
+   "why": "A gets the bigger size. B is a B-: a late gap, a mid-range close, a loose pause. B- or lower is sized down.",
    "lesson_line": "Match size to the grade. B- gets smaller size.",
    "facts": [
     "h30",
@@ -2598,7 +2598,7 @@
    ],
    "wrong": {
     "No; one try per gap": "There is no one-try rule; there is a limit of tries a week and a month.",
-    "Yes; double size to recover": "Doubling size to win it back is the revenge trade the rules forbid.",
+    "Yes; double size to recover": "Doubling size to win it back breaks the sizing rule.",
     "Yes, but only after the next report": "Nothing says wait for the next report."
    },
    "house": true
@@ -2615,7 +2615,429 @@
   "Day one and the gap-and-go: Stewie and Bonde buy after hours or pre-market; Kullamagi waits for the opening-range high; the house buys at market in regular hours only (E57, E58). The unit teaches the pause buy as the card's trigger and quotes the day-one A+ line once.",
   "Short mirror (dossier 8.8): not taught here (D-001); the owner calls a one-day earnings collapse 'just an earnings breakdown'.",
   "Chart questions: q64 (META, asof 2022-04-28, the PEG day is the last bar) and q65 (AMZN, asof 2017-11-03, the fifth pause day; the buy was the next session, 2017-11-06) show the member's own chart; the keys rest on the dossier's reads (d26, d27, d01, d02, d03). The importer resolves the bars from our own history.",
-  "Cross-unit tell with the sibling Episodic Pivot (SET.18): the PEG-versus-EP split is keyed on the months before the report (an established leader in a base against a neglected name flat or down for six months), never on the gap size, because both gap floors wait on D-033."
+  "Cross-unit tell with the sibling Episodic Pivot (SET.18): the PEG-versus-EP split is keyed on the months before the report (an established leader in a base against a neglected name flat or down for six months), never on the gap size, because both gap floors wait on D-033.",
+  "Cold check 2026-11-10: 56 pass (10 fixed), 1 fix, 13 cut. Cut as duplicates: q02, q04, q08, q10, q12, q19, q24, q27, q54, q55 (q55 repeats q16's 3R arithmetic), q62, q66; q48 cut because the NVDA loss is not shown to come from the 30% run (the dossier's own cut finds no effect) and the card names the 0.5% stop as the lesson. q32 held as fix on D-025. Numbers corrected: q40 sized 242 shares at 1% risk, 43.7% of the account, over the 40% cap (A7); now 0.5% risk, 121 shares, 21.8%. w1 and w2 dropped stop percents that contradict their own levels (the dossier table measures them from the buy-day fill: BIDU 2.1% is from the 49.25 open, 1.5% from 48.93; AMZN 1.4% is 1.3% from 56.14); q16 no longer says BIDU 'ran 27.7R from these levels'. q63 said A gets 'full size' in a Yellow market (F65 says smaller and fewer); q44 and q61 overclaims softened. Quotes removed: none from facts; q66's Bulkowski mention went with the cut. Look at first: (1) D-025, whether a no-report news gap on a major name is a PEG (q32, BA); (2) D-085, the pause buy as the trigger (q31, q65, w1 to w3 rest on option a); (3) the dossier's stop-percent column and the NVDA failure, which blends two lessons (the 0.5% stop and the 36% run)."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "d01-d03 verbatim in dossier section 12 (AMZN 2017-10-27: 6.0 ATR, 5.5x, 0.92, five days 1.7% deep, 56.14, 55.39); c01, c03, c05, c06, h05, h22, h24 verbatim. Re-derived from the bars db: gap 8.8%, close 0.92, pause high 56.14, stop 5 cents under the 11-06 low. Step 3 said '1.4% away': 56.14 to 55.39 is 1.3%, so the percent is dropped.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "d04-d06 verbatim (BIDU 2010-02-10: 8.5%, 3.0x, 0.95, two days 0.3% deep, 48.93, 48.20); c21, h20, h21 verbatim. Step 3 said '2.1% away': the table's 2.1% is measured from the 49.25 open the buy day filled at (bars db); from 48.93 it is 1.5%. The percent is dropped so no number contradicts the levels shown.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "d14, d14b, d15 verbatim (COCO 2026-04-29 pre-open: 17.4%, 4.0x, 0.98, six days 5.1% deep, 69.58, 68.27, 1.9%, 5R in two weeks); re-derived 1.31/69.58 = 1.9%. h05, h20, h21 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "cut",
+   "notes": "duplicate of q13: the same fact (the PEG day is the first regular session after the report) asked as a plain true/false; q13 applies it to an after-close report and carries the card's own seed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "cut",
+   "notes": "duplicate of q18: the same fact (the stop goes a few cents under the pause or trigger-day low) asked as a fill whose sentence gives its answer away (rule 10); q18 adds the gap-low limit.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "cut",
+   "notes": "duplicate of q07 and q17: where the A-grade close sits (top quarter of the range) asked a third way; q07 keeps the Stewie quote, q17 keeps the arithmetic.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "cut",
+   "notes": "duplicate of q28: a close under the PEG-day low before the buy ends the setup, asked as a recall and again as a scenario; q28 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "cut",
+   "notes": "duplicate of q45: the $10 and $20 million rule asked as a recall and again as a scenario; q45 adds the 'one big day does not count' trap.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "cut",
+   "notes": "duplicate of q42: sell before the next report unless up 5R, asked as a true/false and again as a scenario; q42 keeps the 3.5R case from the card's seed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "cut",
+   "notes": "duplicate of q09: a slight undercut that closes back over the PEG-day low is Gap Support, not a failure; q09 asks the same line as a true/false and q24 adds nothing the lookalike tell does not.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "cut",
+   "notes": "duplicate of q05: no after-hours or pre-market buy, asked a second way; q05 keeps the Stewie contrast.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "cut",
+   "notes": "the key does not follow from the scan: the dossier's own cut shows a 30% run-up filter does not move the rate (31.3% against 31.0%), the card names the 0.5% stop as the NVDA lesson (criterion peg.stop_pause), and the 30% run is already asked in q36. A question that says the loss was paid for by the run states a cause the data does not show.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "cut",
+   "notes": "duplicate of q50 (a loss at the stop on a valid setup is the plan working); q50 is the ELF story and keeps the base rate in its why.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "cut",
+   "notes": "duplicate arithmetic of q16: the price 3R above the fill from the fill and the stop (q16 asks it on BIDU, this on AMZN). Same method, same fact.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "cut",
+   "notes": "duplicate of q13 and q09: which day is the PEG day and why the later test is Gap Support; the answer choices are a restatement of the lookalike tell.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "cut",
+   "notes": "duplicate of q11 (a trade back to the prior close fills the gap), and its extra claim, that a PEG day itself which fills and then closes strong is invalid, is not a line on the card; its why cites Bulkowski, who is not in the unit's sources.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "fix",
+   "notes": "Rests on a pending-owner line: D-025's default (21:2 b) files a major company news gap as a PEG, and BA is a mega-cap with no report that day, so the key 'News Gapper' is exactly what the owner has not settled (peg.news_gap). The story also never says a headline occurred, though the why does. Needs the owner's call on D-025, then a story that names the headline.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "st1, c01 verbatim (Stewie's page found by check_course_quotes). Key matches the card's pattern; the wrong note on the headline gap is true (lookalike 22).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "st3, c08, c37 verbatim. The 'close over yesterday's high' choice was not safely a PEG day (AMD closed at 0.23 with the gap open), so it and 'holds above the open' are replaced by two choices that are plainly strong days; the dip-and-recover note is true of the PEG days in the dossier.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "c19, h23, st5 verbatim. Stewie starts in the after-hours session, we buy regular hours only (E58). False is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "c28, h26 verbatim; Green or Yellow is the card's best-conditions line (settled market reading, F65).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "st2, c09 verbatim. Stewie's line is quoted, our A cue is the top quarter (proposed, 0.75).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "c23 (settled peg.undercut_is_gap_support), c35 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "c20, mp1 verbatim (Morpheus). A trade at or under the prior close is the card's gap-fill test.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "c01, d10, d11 verbatim; BURL 2016-05-26 shows the pre-open case. Wednesday is right for an after-close Tuesday report. Same fact as the cut q02, kept here.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "c14, h17 verbatim: a grade cue, not a gate (D40).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "c15, h31 verbatim: one buy, no adding (A5).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Re-derived 48.93 + 3 x 0.73 = 51.12. h05, d05 verbatim. The why said BIDU 'ran 27.7R from these levels': the 27.7R is measured from the 49.25 open fill and the 48.20 stop, not from 48.93, so it now reads 'in our scan'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Re-derived (74.80 - 70.00) / 6.00 = 0.80. c09, st2 verbatim; top quarter = 0.75 or more (proposed close_a).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "c16, c05, h24 verbatim. Key is the settled stop line (peg.stop_pause, A3, F62); each wrong note is true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "c28, h26, c41 verbatim. Orange allows A+ only (F65). The second PEG's tight pause on lighter volume holding the PEG-day close is the card's A+ cue; the grade is a judgment (E50) but the story gives the cue.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "h21, h20 verbatim (E52, settled). The owner's own 20 EMA habit (D-024, pending) is not keyed; the choices avoid it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Re-checked h05, h20: a third at 3R (hard rule B19), another third at 5R (E51).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Re-derived (55.60 - 50.00) / 50.00 = 11.2%. c10 verbatim; 10% or more is a proposed A cue, never a gate.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Re-derived (90.25 - 88.19) / 90.25 = 2.28%, 2.3. h04 (A13), d07, d08 verbatim. LULU's stop is 5 cents under the 04-05 low 88.24 per the bars db.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "Re-derived 62.80 / 60.00 = +4.67%, over the 4% chase line (C28, settled). c18, h11, h12 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "c21, c06 verbatim: a daily close under the PEG-day low before the buy ends it (proposed). Same fact as the cut q10; kept as the scenario.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "Re-derived: R = 0.60, the 28.95 low is 1.05 under the fill = 1.75R, inside the 2R ceiling, so 28.95 is the new stop (B20). 30.00 - 2 x 0.60 = 28.80 is the 2R point. c25, h02 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "c24, h05 verbatim: breakeven at the first trim by default (B19, settled).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "c03, c05, st4 verbatim. Key is the card's pause-high market buy. It rests on the recommended option (a) of the pending D-085 (pause buy as the default); options b and d agree, only c (day one only) would not. No window number is keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "c13, c34 verbatim (settled peg.not_hve; ASML 7.6x). The story gives no ticker.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "c36, c33 verbatim: a Kicker needs a weak red close and a gap on positioning, rarely earnings. Consistent with SET.18's EP-versus-Kicker line.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "c32, bo1, c11 verbatim. Neglect over six months is the tell and the same one SET.18 teaches for an EP; the 15% gap clears the EP's 10%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "c12, c40, c43 verbatim. The 30% run-up is the proposed not_extended cue; the 45% case is plainly past it and the five-month base plainly under it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "c41, c42 verbatim (proposed A+ and B- cues).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "c27, h15 verbatim: under 1R after 10 trading days, sell (C33, settled).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "Re-derived R = 1.00, 3R = 43.00; the 43.60 open is past it. h25 (F63), h05 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "CAP FIX. At 1% risk the answer 242 shares was 21,840 dollars, 43.7% of a 50,000 account, over the 40% cap (A7: the size is the smaller of the risk size and the cap). Risk is now 0.5%: 250 / 2.06 = 121.4, rounded down 121, about 10,920 dollars, 21.8% of the account, under the cap. h03, h01, d08 verbatim.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "h01, h02, c17 verbatim. Rests on A3/A4 (settled), not on the pending 3% cap choice: size down or skip, never pull the stop in. 5.2% matches a pause of 61.00 to 57.90 and a stop a few cents under.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "c26, h08, c45 verbatim: 3.5R is under 5R with a report in two sessions (B22, settled).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "c27, h15 verbatim. Same fact as q38; the scenario is kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "h27 (F68), c28 verbatim. The why and two wrong notes said recent gappers 'lead' and it is 'the best time': that line (best_conditions) is not in the cited quotes and 'best' overclaims, so both now say the setup favors the season.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "h09, c31 verbatim; $12 million a day is under the $20 million floor (B23, settled).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "c29 verbatim (proposed earnings_season).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "Re-derived 400,000 / 100 = 4,000 shares. c30, h19 verbatim (D42). No account size is given, so the 40% cap does not bind.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "d18, d19, c22, c42 verbatim; h04. CELH: the loss was a stop-out of a weaker setup, framed as the plan working, not a mistake. 2.9% stop is inside 3%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "d20-d22, h01 verbatim. A loss at the stop on a setup that passed every test is the plan working; base rate numbers are the dossier's 31.0 and 20.0.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "c39, c07, bo2 verbatim (Bonde's page found). B- cue for a widely covered mega-cap; the story gives no gap size, so it does not touch the pending gap floor.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "Re-derived (67.05 - 61.35) / (61.35 - 60.21) = 5.70 / 1.14 = 5.0R. h20, d12, d13 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "h26, c28 verbatim. Red is mostly cash and shorts (F65) and a card no-trade line.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "c20, mp1, sc1 verbatim. Same fact as q11, kept because it adds the 'recovers to a close' wrinkle; the fill is the trade at the prior close, far below the PEG-day low, so the card's slight-undercut line does not apply.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "c17, h02 verbatim: the stop only moves up (A4, settled).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "d24, d25, c08, ku1 verbatim. AMD 2022-02-02 closed at 0.23 with the gap open (low 120.64 over 116.78): a faded day is not a PEG whether the line is top half or top quarter.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "c38, bo3 verbatim. A late gap after a huge run is a warning, not a short signal (no PEG short, D-001).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "Re-derived R = 1.00; 47.20 is 2.80R under the fill, past 2R, so out (B20 ceiling). c25, h06, h07 verbatim. The why had a 24-word sentence; split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "d22, c46, h20 verbatim (31.0% to 3R, 20.0% to 5R, 1,516 hits, fixed stop, 60 sessions). Story said 'the setup is worth trading', a promise the scan does not make; now 'why can the plan still work' and the why says 'in that scan'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "h30 (D38), c40, c41, c42, c44 verbatim. Yellow is 'smaller and fewer' (F65), so 'full size' for A was wrong; the question now asks which gets the bigger size.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "Chart META asof 2022-04-28: 2,503 daily bars on or before it (120 needed), the as-of bar present, 1,138 after. Re-derived from the bars db: close 205.73, 200-day SMA 302.98, gap 16.0%, close 0.82 of range. B26 decides under every D-020 option. d26, d27, h10 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "Chart AMZN asof 2017-11-03: 5,154 bars on or before it, as-of bar present, 2,265 after. Bars db: PEG day 10-27 gap 8.8%, pause high 56.14 (10-30), pause closes all over the gap-day low, buy day 11-06. d01-d03, c03 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "h28 (B21), h29 (E56) verbatim. The wrong note called doubling size 'the revenge trade the rules forbid'; no rule is named that, so it now says it breaks the sizing rule.",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
 }

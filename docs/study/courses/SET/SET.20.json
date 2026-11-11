@@ -1374,7 +1374,7 @@
    "format": "scenario",
    "criterion": "ng.entry_pullback",
    "q": "What do you do?",
-   "story": "A stock gapped 9% on a contract headline and closed strong. Two down days followed, both closing above the gap-day low. This morning it trades over yesterday's high.",
+   "story": "A stock gapped 12% on a contract headline and closed strong. Two down days followed, both closing above the gap-day low. This morning it trades over yesterday's high.",
    "choices": [
     "Buy at market; stop under pullback low",
     "Pass; day one was the only entry",
@@ -1382,7 +1382,7 @@
     "Buy at the gap-day low with a limit"
    ],
    "answer": "Buy at market; stop under pullback low",
-   "why": "Buy at market. After two down days that hold the gap-day low, the trigger is a market buy as price trades over the prior day's high, with the stop a few cents under the pullback low.",
+   "why": "Buy at market. After two down days that hold the gap-day low, the trigger is a market buy over the prior day's high. The stop goes a few cents under the pullback low.",
    "lesson_line": "Buy as price trades over the prior day's high.",
    "facts": [
     "c12",
@@ -1600,7 +1600,7 @@
     "The Episodic Pivot owns the day"
    ],
    "answer": "PEG owns the day; we teach the pullback",
-   "why": "The PEG owns the day; the pullback buy is taught here. A report's reaction day on an established leader clearing its base is the PEG, and the first-pullback entry on either is taught here.",
+   "why": "The PEG owns the day; the pullback buy is taught here. A report's reaction day on an established leader clearing its base is the PEG. The first-pullback entry on either is taught here.",
    "lesson_line": "A report day on a leader is a PEG. The pullback entry is taught here.",
    "facts": [
     "c47",
@@ -1676,7 +1676,7 @@
    "format": "scenario",
    "criterion": "ng.entry_pullback",
    "q": "News Gapper or Gap Support?",
-   "story": "Five weeks after a gap on a report, the stock pulls back to the gap-up low, undercuts it slightly, and closes back over it.",
+   "story": "Five weeks after a report gap, the stock dips to the gap-up low, undercuts it slightly, and closes back over it.",
    "choices": [
     "Gap Support, the later test",
     "A News Gapper pullback buy",
@@ -1762,24 +1762,24 @@
    "format": "scenario",
    "criterion": "ng.gap_holds",
    "q": "Grade each close.",
-   "story": "Same gap, same volume, two stocks. One closes at 93% of its range. The other closes at 40% of its range.",
+   "story": "Same gap, same volume, two stocks. One closes at 93% of its range. The other closes at 60% of its range.",
    "choices": [
-    "First an A+ cue; second a B-",
+    "First an A+ cue; second a plain gapper",
     "Both the same; the gap decides",
     "First a B-; too close to the high",
-    "Both A; both closed green"
+    "Both A+; both closed green"
    ],
-   "answer": "First an A+ cue; second a B-",
-   "why": "First an A+ cue, second a B-. A close in the top quarter of the range is an A+ cue. A close in the lower half is a B-.",
-   "lesson_line": "Top-quarter close is A+. Lower-half close is a B-.",
+   "answer": "First an A+ cue; second a plain gapper",
+   "why": "First an A+ cue, second a plain gapper. A close in the top quarter of the range is an A+ cue. A close in the upper half holds the gap but earns no extra.",
+   "lesson_line": "Top-quarter close is an A+ cue. Upper half just holds the gap.",
    "facts": [
     "c40",
-    "c03"
+    "c02"
    ],
    "wrong": {
     "Both the same; the gap decides": "The close is half the story, and these two differ.",
     "First a B-; too close to the high": "A close near the high is the best close, not a flaw.",
-    "Both A; both closed green": "A lower-half close is a weaker day even if it is green."
+    "Both A+; both closed green": "Only a top-quarter close is the A+ cue; 60% is not."
    },
    "house": true
   },
@@ -1790,12 +1790,12 @@
    "format": "scenario",
    "criterion": "ng.catalyst",
    "q": "Grade the catalyst of each.",
-   "story": "Two stocks gap 6% on 4x volume. One gaps on a government contract. The other gaps on an analyst upgrade.",
+   "story": "Two stocks gap 12% on 4x volume. One gaps on a government contract. The other gaps on an analyst upgrade.",
    "choices": [
     "Contract stronger; an upgrade is a B-",
     "Both A+; the gap and volume match",
     "Upgrade stronger; analysts move stocks",
-    "Neither; 6% is too small"
+    "Same grade; a gap is a gap"
    ],
    "answer": "Contract stronger; an upgrade is a B-",
    "why": "The contract is stronger; an upgrade is a B- catalyst. A business-changing deal is an A+ catalyst. Bonde: upgrades have a low probability of follow-through.",
@@ -1808,7 +1808,7 @@
    "wrong": {
     "Both A+; the gap and volume match": "The catalyst is what differs, and it is part of the grade.",
     "Upgrade stronger; analysts move stocks": "An upgrade alone has a low probability of follow-through.",
-    "Neither; 6% is too small": "Both gaps have the same size; the catalyst decides the grade."
+    "Same grade; a gap is a gap": "Both gaps have the same size; the catalyst decides the grade."
    },
    "house": true
   },
@@ -1818,19 +1818,19 @@
    "rung": 6,
    "format": "numeric",
    "criterion": "ng.stop_pullback",
-   "q": "Account 40,000. Risk 1%. Fill 105.11, stop 103.20. How many shares?",
-   "answer": 209,
+   "q": "Account 40,000. Risk 0.5%. Fill 105.11, stop 103.20. How many shares?",
+   "answer": 104,
    "calc": {
     "fn": "shares_from_risk",
     "args": {
      "account": 40000,
-     "risk_pct": 1,
+     "risk_pct": 0.5,
      "entry": 105.11,
      "stop": 103.2
     },
     "round": 0
    },
-   "why": "209. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size.",
+   "why": "104. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
@@ -1911,7 +1911,7 @@
     "At the prior close"
    ],
    "answer": "A few cents under the pullback low",
-   "why": "A few cents under the pullback low. No porosity: Morales and Kacher allow a 1 to 2% undercut, but here the stop is the exit and it only moves up.",
+   "why": "A few cents under the pullback low. No porosity: Morales and Kacher allow a 1 to 2% undercut. Here the stop is the exit and it only moves up.",
    "lesson_line": "No porosity. The stop is the exit.",
    "facts": [
     "c16",
@@ -1948,7 +1948,7 @@
    "format": "scenario",
    "criterion": "ng.liquidity",
    "q": "Take the reclaim?",
-   "story": "An $8 stock that trades about $6 million a day gaps 20% on a contract, holds the gap, and sets up a clean pullback.",
+   "story": "An $8 stock that trades about $6 million a day gaps 20% on a contract. It holds the gap and sets up a clean pullback.",
    "choices": [
     "No; under $10 and $20 million a day",
     "Yes; the gap day's volume is huge",
@@ -2002,7 +2002,7 @@
    "format": "scenario",
    "criterion": "ng.next_earnings",
    "q": "Hold or sell?",
-   "story": "You are up 4R on a news gapper, with no trims taken yet. The next report is tomorrow after the close.",
+   "story": "You are up 4R on a news gapper and took the first third at 3R. The next report is tomorrow after the close.",
    "choices": [
     "Sell before the report; not up 5R",
     "Hold; the news was a winner last time",
@@ -2183,7 +2183,7 @@
     "Yes; the high was never held"
    ],
    "answer": "No; it closed green and held the gap",
-   "why": "No. The gap held (the low stayed above the prior close of 34.64) and the day closed green, so it is not a News Failure. A close at 35% of the range is a lower-half close, a B- cue.",
+   "why": "No. The gap held, since the low stayed above the prior close of 34.64. The day closed green, so it is not a News Failure. It is a weak, faded close, not a red one.",
    "lesson_line": "A fade that closes green is weak, not a News Failure.",
    "facts": [
     "d24",
@@ -2193,7 +2193,7 @@
    ],
    "wrong": {
     "Yes; any fade is a failure": "A News Failure closes red or trades back to the prior close.",
-    "Yes; it closed in the lower half": "A lower-half close is a B- cue; a red close is the failure.",
+    "Yes; it closed in the lower half": "A weak close is not the failure. A red close or a filled gap is.",
     "Yes; the high was never held": "Not holding the high is a fade, not a failure."
    },
    "house": true
@@ -2318,7 +2318,7 @@
    "format": "scenario",
    "criterion": "ng.not_late",
    "q": "What do you do?",
-   "story": "A stock has gapped up three days in a row, each on wider ranges. Today a news headline gaps it again on 4x volume.",
+   "story": "A stock has gapped up two days in a row, each on wider ranges. Today a news headline gaps it a third time on 4x volume.",
    "choices": [
     "Pass; the third gap of a burst is late",
     "Buy day one; the volume is there",
@@ -2390,7 +2390,7 @@
    ],
    "wrong": {
     "Yes; a new trigger is a new trade": "A new trigger is a new trade, but the tries per week are capped.",
-    "Yes, at double size": "Doubling size to win it back is the revenge trade the rules forbid.",
+    "Yes, at double size": "Doubling size to win it back breaks the sizing rule.",
     "Yes, with a wider stop": "A wider stop breaks the stop rule."
    },
    "house": true
@@ -2492,7 +2492,7 @@
    "format": "scenario",
    "criterion": "ng.catalyst",
    "q": "Grade this one.",
-   "story": "Report beats with a raise. A 12% true gap on the highest volume in a year, closing in the top quarter, out of a 4-month quiet range above a rising 200-day. Green market.",
+   "story": "Report beats with a raise. A 12% true gap on the highest volume in a year, closing in the top quarter. It comes out of a 4-month quiet range above a rising 200-day. Green market.",
    "choices": [
     "A+; the cues line up",
     "B-; a pullback is not day one",
@@ -2500,7 +2500,7 @@
     "A; a gap is only A+ at 15%"
    ],
    "answer": "A+; the cues line up",
-   "why": "A+. A beat and a raise, a true gap of 10% or more, the highest volume in a year, a top-quarter close, out of a quiet range above a rising 200-day: the cues line up.",
+   "why": "A+. A beat and a raise, a true gap of 10% or more and the year's top volume all line up. So do a top-quarter close and a quiet range above a rising 200-day.",
    "lesson_line": "When every cue lines up, size up. That is an A+.",
    "facts": [
     "c38",
@@ -2572,7 +2572,7 @@
    "format": "scenario",
    "criterion": "ng.trim_2",
    "q": "What keeps the plan alive?",
-   "story": "In our scan of news gappers, roughly three in ten reach 3R before the stop. Most buys end at the stop.",
+   "story": "In our scan of news gappers, roughly three in ten reach 3R before the stop. The rest do not.",
    "choices": [
     "Small stops and trims at 3R and 5R",
     "A wider stop that rarely hits",
@@ -2580,8 +2580,8 @@
     "Skipping every pullback buy"
    ],
    "answer": "Small stops and trims at 3R and 5R",
-   "why": "Small stops and trims at 3R and 5R. In our scan about three in ten reached 3R before the stop, so most buys end at the stop. The stop sets the size, so each loss is small, and the winners are trimmed.",
-   "lesson_line": "Most buys stop out. Small losses and trims pay for them.",
+   "why": "Small stops and trims at 3R and 5R. In our scan about three in ten reached 3R before the stop, so most buys never get there. The stop sets the size, so each loss is small, and the winners are trimmed.",
+   "lesson_line": "Most buys never reach 3R. Small losses and trims pay for them.",
    "facts": [
     "d29",
     "h01",
@@ -2607,7 +2607,429 @@
   "Bulkowski's site states it must not be used to train AI systems; no Bulkowski quote is used in this unit. Bonde's quotes come from his blog posts; the checker should confirm them against the pages (the 2014 post's reply text).",
   "The dossier's example numbers (d1) are a Tier 3 repo source: read off our own daily bars by the research scan (dossier sections 12 and 13), split-adjusted, no delisted names, not yet reviewed by the owner. The pullback-buy levels are the scan's trigger (a cent over the prior day's high) and stop, not a live fill. The criteria card (c1) is cited for its proposed criteria (volume, the gap holds, not late, the pullback entry, the invalidations, the lookalike tells, the grading rows); every question keyed on them carries house: true and the owner's review is the gate.",
   "The chart questions (q62 ULTA asof 2016-03-18, the fifth session after the gap; q63 URI asof 2024-01-25, the gap day) show the member's own chart; the keys rest on the dossier's reads (d01, d02, d03, d27, d28). The importer resolves the bars from our own history.",
-  "The short mirror (the earnings breakdown, dossier 8.6) is not taught here (D-001). The owner's words quoted (u01, u04, u05) are from his published Sunday Scans, with the Substack links as given in the dossier."
+  "The short mirror (the earnings breakdown, dossier 8.6) is not taught here (D-001). The owner's words quoted (u01, u04, u05) are from his published Sunday Scans, with the Substack links as given in the dossier.",
+  "Cold check 2026-11-10: 54 pass (14 fixed), 3 fix, 13 cut. Cut as duplicates: q04, q08, q09, q10, q11, q13, q22, q27, q42, q54 (the URI story; the chart q63 kept), q55 (repeats q16's 3R arithmetic), q56, q65. Held as fix: q31 (D-086, day one), q49 (a 'fails most often' claim from four losers), q51 (D-025, a no-report news gap on a major name). Numbers corrected: q40 sized 209 shares at 1% risk, 54.9% of the account, over the 40% cap (A7); now 0.5% risk, 104 shares, 27.3%. q38 and q53: the card does say a lower-half close is a B- (ng.gap_holds), but the same line and the pattern line also gate on the upper half and the dossier's NFLX near-miss calls a 35% close 'not a gapper', so q38 now uses a 60% close and q53 keys only 'not a News Failure'. q24 and q39 gap sizes moved to 12% so no key touches the pending gap floor; q47 and q58 stories fixed; q67 'most buys end at the stop' softened. Quotes removed: none. Look at first: (1) D-086, day one against the reclaim (q31, and the day-one stop); (2) D-025, who owns a no-report news gap on a major name (q51 here, q32 in SET.19); (3) the card's gap-holds line, which says both 'upper half' and 'lower half is a B-' (ng.gap_holds)."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "d01-d03 verbatim (ULTA 2016-03-11: 14.2%, 4.8x, 94%, four-session pullback 2.8% deep, buy 190.69, stop 186.55, 12.1R); bars db agrees (gap 14.2%, 4.8x, close 0.94, stop 5 cents under the 03-16 low). c11, c15, c27, h05, h20-h24 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "d04-d06 verbatim (TWLO 2018-02-14: 10.0%, 8.3x, 62%, buy 33.55, stop 32.59, 2.9%, 3R in 4 sessions). Re-derived (33.55 - 32.59) / 33.55 = 2.86%. c11, c15, c27, h05, h21, h22, h24 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "d07-d09 verbatim (NFLX 2024-10-18: 7.3%, 5.6x, 92%, four-session pullback 2.9% deep, 75.62, 74.38, 1.6%). Re-derived 1.24 / 75.62 = 1.6%. c26, h20, h21 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "cut",
+   "notes": "duplicate of q18: the stop is a few cents under the pullback low, asked as a fill whose sentence gives the answer away (rule 10); q18 adds the wrong-stop traps.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "cut",
+   "notes": "duplicate of q52 and q23: the 3-times-average volume line, asked as a recall; q52 tests it on AAPL 2022 and q23 computes the multiple.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "cut",
+   "notes": "duplicate of q24: the pullback entry (two down days or an inside day that hold the gap-day low, then a market buy over the prior high) as a plain true/false; q24 applies it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "cut",
+   "notes": "duplicate of q25: a close under the gap-day low ends the setup; q25 adds the reclaim trap.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "cut",
+   "notes": "duplicate of q33: a gap that closes red is a News Failure, not a News Gapper; q33 asks it as a scenario.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "cut",
+   "notes": "duplicate of q41: no new buy with a report within 3 sessions; q41 keeps the Monday-to-Friday case.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "cut",
+   "notes": "duplicate of q21: what a true gap is (the day's low stays above the prior day's high); q21 asks the A+ gap with the same definition.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "cut",
+   "notes": "duplicate of q05: no pre-market buy, asked a second way; q05 keeps the Bonde contrast.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "cut",
+   "notes": "duplicate of q25: a close under the gap-day low in the first ten sessions with no buy yet; q25 keeps the version with a later reclaim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "cut",
+   "notes": "duplicate of q63: URI 2024, up 42% in the 65 sessions before the gap, asked as a story and again on the member's own chart. The chart version is kept (SET.07 precedent for q52 and q67).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "cut",
+   "notes": "duplicate arithmetic of q16: the price 3R above the fill from the fill and the stop (q16 on TGT, this on PANW). Same method, same fact.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "cut",
+   "notes": "duplicate of q57: a pullback under the gap-day midpoint grades down (c43, c44); q57 asks the same pair as a scenario.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "cut",
+   "notes": "duplicate of q19, q20, q30 and q50: the exit plan restated in one true/false whose why runs 35 words; each piece is asked on its own.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "fix",
+   "notes": "Rests on ng.entry_day1, pending-owner (D-086: teach both, day one first, or never the open, always the reclaim). The unit's own conflicts line says q31 is cut if the owner picks the second. The A+ day-one form, its volume pace and the day's-low stop (also pending, ng.stop_day1) are not settled. Needs the owner's call on D-086.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "fix",
+   "notes": "The key ('fails most often') is drawn from four hand-picked losers (AVAV day 8, SEDG, PEN and GE day 4): three of four on day 4. The dossier gives no failure rate for early reclaims against all 1,200 pullback buys, and its own near-miss scan finds that only the late window (session 12 to 20) separates. Teaching a pattern from n = 4 as fact breaks 'when in doubt, leave it out'. Needs a count over the full pullback sample.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "fix",
+   "notes": "Rests on a pending-owner line: D-025's default (21:2 b) files a major company news gap as a PEG, and GE is a major company with no report that day, so the wrong note 'a PEG is a report reaction day' is exactly what the owner has not settled (peg.news_gap). The 5.4% gap also sits under two of the four pending gap-floor options (ng.gap_floor). Same fix as SET.19 q32.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "c01, c02 verbatim; matches the card's pattern line. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "c01, c32 verbatim. Both pending ng.catalyst options require a named catalyst, so the key holds.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "c02, c03 verbatim: the day never trades back to the prior close and closes green in the upper half.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "b06 (Bonde's page found by check_course_quotes), c18, h23 verbatim. Regular hours only (E58, settled).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "c29, h26 verbatim (settled ng.market_reading).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "c30 verbatim (proposed earnings_season).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "c38, c39, b01, b02 verbatim (Bonde's pages found). Holds under both pending ng.catalyst options (D-032): earnings with a raise outranks a mention, an upgrade or a vague release.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "c09, h17 verbatim: a grade cue (settled D40).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "h31 verbatim: one buy, one price, one stop.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Re-derived 105.11 + 3 x 1.91 = 110.84. h05, d11 verbatim; (105.11 - 103.20) / 105.11 = 1.8% matches the table.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Re-derived (107 - 100) / (110 - 100) = 0.70, upper half. c02, c40 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "c15, c14, h24 verbatim. Key is the settled ng.stop_pullback (A3, F62); wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "c22, h21 verbatim (E52, settled).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "h20, h05 verbatim: a third at 3R, another at 5R (E51).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "c05 and sc1 (ChartSchool, found by check_course_quotes) verbatim. 10% or more and a true gap is the proposed A+ cue; the pending 4/8/10% floor is not asked.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Re-derived 13 / 4 = 3.25. c04, k04 verbatim. The 3-times line is proposed (gate).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "c12, c15 verbatim. The story's 9% gap is now 12% so the key does not touch the pending gap-floor options (4, 8, 10% or 0.75 ATR); the why had a 33-word sentence, split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "c28, c27 verbatim (proposed ng.inv_pullback_breaks_low).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "Re-derived 41.80 / 40.00 = +4.5%, over the 4% chase line (C28, settled). The reference is the reclaim level (the D-022 default); the base-pivot option would only make it a bigger chase, so the key holds. h11, h12 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "c25, h16 verbatim (settled ng.climax, C34: a judgment call, 'sell a big part'). Four straight up days, two gaps and widening ranges match the card's description.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "Re-derived: R = 2.00, 3R = 56.00, 5R = 60.00; the 60.80 open is past 5R. c21, h25, h20 verbatim (F63).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "c20, h05 verbatim (B19, settled).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "c47, d10 verbatim. Follows the card's lookalike tell and SET.19's PEG line. Holds under ng.scope options b and c, and under a the PEG is a named version, so 'the PEG owns the day' still reads right. The why had a 23-word sentence, split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "c49, c26 verbatim. The 8% gap does not matter here: a close under the prior close is the failure at any gap size.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "c48, c04 verbatim. Consistent with SET.18 q42 and the Kicker card (weak red close, small gap, rarely a headline).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "c50, c10 verbatim. Consistent with the PEG unit's Gap Support line (settled undercut rule). Story shortened (24 words).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "c46, c01 verbatim. Same neglect tell SET.18 teaches for an EP; an 18% gap clears the EP's 10%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "c41, c42, c08, c05 verbatim: quiet three months is the A+ cue, up 42% is past the 30% not-late line (both proposed); 11% clears the 10% A+ gap.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "FIXED. The card says both things: ng.gap_holds (proposed) reads 'closes in the upper half' as a gate and 'a close in the lower half is a B-' in the same line, and its pattern line says the day closes in the upper half; the dossier's NFLX 2018 near-miss (35%) calls such a day 'not a gapper'. The B- half of the key was unsettled, so the second stock now closes at 60% (upper half, no A+ cue) and the key rests on c40 and c02 only.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "c38, c39, b02 verbatim (Bonde's page found). The story's 6% gap is now 12%: with 6% the wrong choice 'Neither; 6% is too small' became right under the pending 8% and 10% gap floors, so it is replaced.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "CAP FIX. At 1% risk the answer 209 shares cost 21,968 dollars, 54.9% of a 40,000 account, over the 40% cap (A7: the size is the smaller of the risk size and the cap). Risk is now 0.5%: 200 / 1.91 = 104.7, rounded down 104, about 10,930 dollars, 27.3% of the account. h03, h01, d11 verbatim.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "c17, h08 verbatim. Monday gap, Thursday trigger, Friday after-close report: the buy is inside the 3 sessions before the report (B22, settled).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "c16, m01 (Virtue of Selfish Investing page found), c15 verbatim. Why had a 23-word sentence, split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "c31, u05 (Sunday Scans page found) verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "h09, h19 verbatim; an $8 stock at $6 million a day fails B23 on both counts. Story split (24 words).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "Re-derived (33.55 - 32.59) / 33.55 = 2.86%, 2.9. h04, d05 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "c24, c37, h08 verbatim. The story said 'up 4R, no trims taken yet', which contradicts the third at 3R; now 'took the first third at 3R'. Sell before the report below 5R (B22).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "d14-d16 verbatim (AVAV 2024-03-05; dossier 13: buy 162.59, stop 158.43, 2.6%, best 0.0R). A loss at the stop on a setup that passed the gates is framed as the plan working.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "d18, d19, c23, h15 verbatim. Dossier 13: PEN stopped on day 10 at best 0.45R, the time-stop case.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "d23, c04 verbatim (AAPL 2022-01-28: 4.1%, 1.7x, close at the high). Names no PEG answer.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "d24-d26 verbatim; bars db: NFLX 2018-10-17 gap 9.2%, 3.3x, close 0.35, low over the prior close. Key (not a News Failure) holds under both readings of ng.gap_holds. The why and one wrong note called a 35% close 'a B- cue', which the dossier calls 'not a gapper'; both now say only 'a weak, faded close'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "c43, c44 verbatim (proposed ng.entry_pullback cues).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "c08, c35 verbatim. The story said 'gapped up three days in a row' and then 'again' today, a fourth gap, against a key about the third; now two days then a third gap.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "c06, k04 (Kullamagi's page found) verbatim. 9:30 to 9:50 is the 20-minute window.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "h29, h28 verbatim (E56, B21, settled). Wrong note on doubling size no longer says 'the revenge trade the rules forbid'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "Re-derived 40,000 / 100 = 400. h03, h19 verbatim (D42).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "Chart ULTA asof 2016-03-18: 2,114 daily bars on or before it (120 needed), as-of bar present, 2,677 after. Bars db: gap 14.2%, 4.8x, close 0.94; 03-18 is the day-6 trigger bar (03-17 high 190.68). d01-d03, c12 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "Chart URI asof 2024-01-25: 6,567 bars on or before it, as-of bar present, 701 after. Bars db: gap 5.5%, 4.0x, close 0.89; the 65-session run is 45% by the simple low-to-prior-close count against the dossier's 42%, both far past 30%. d27, d28, c08 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "c38, c05, c06, c40, c45, h30 verbatim (all proposed A+ cues line up). Story and why had 26- and 34-word sentences, split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "d17, h01, h02 verbatim (SEDG 2019: buy 51.76 on day 4, stop 50.50, best 0.0R). Loss framed as the plan working.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "d29 verbatim (29.5% to 3R, 19.5% to 5R, fixed stop, 60 sessions, 1,491 hits). The story said 'most buys end at the stop', a figure the news-gapper dossier does not give (the 80.7% stopped is the PEG's); now 'the rest do not' reach 3R, and the lesson line follows.",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
 }
