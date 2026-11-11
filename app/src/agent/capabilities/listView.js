@@ -48,6 +48,9 @@ const notKept = (st) => (st.persisted ? '' : ' (for now: this list goes back to 
 
 export const listViewKind = {
   name: 'listView',
+  source: 'listViews',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "List widgets aren't available on this page — open Charts to change a list widget.",
+  empty: "There are no list widgets on this board yet.",
   selfDescribing: true,                // its lines name the list
   list: viewsOf,
   read: viewOf,
@@ -95,6 +98,8 @@ const flagSnap = (host) => {
 
 export const flaggedKind = {
   name: 'flaggedList',
+  source: 'flagged',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "The Flagged list isn't available on this page — open Charts to flag a symbol.",
   boardScoped: false,                  // the same set in every layout
   selfDescribing: true,
   list: (host) => (host?.flagged ? [flagSnap(host)] : []),
