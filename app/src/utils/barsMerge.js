@@ -21,18 +21,37 @@ export function mergeDelta(existing, delta) {
   return merged
 }
 
-// A write never moves a cache backwards (see barsIDB `idbPutMonotonic`): merge `incoming`
-// into what is stored NOW; on overlapping bars the source with the newer tail wins.
-//   tail(result) = max(tail(cur), tail(incoming)); bars(result) ⊇ both (by timestamp).
-// A DELTA with nothing to merge into is not a chart → null.
-// `curIsNewer`: the stored set was WRITTEN after the incoming request began (a later fetch
-// already landed). On an equal tail it then wins every overlapping bar — a late answer for
-// the same day/bucket never overwrites a fresher close.
+// >2% apart at a shared bar = stale / wrong scale (split, wrong company). Owned here so the
+// pack keep-rule, the chart's basis heal and the monotonic writer ask ONE question.
+export function _closeMismatch(a, b) {
+  if (!a || !b) return false                        // no shared bar to compare → don't force a heal
+  const ac = +a.c, bc = +b.c
+  if (!Number.isFinite(ac) || !Number.isFinite(bc) || bc === 0) return false
+  return Math.abs(ac - bc) / Math.abs(bc) > 0.02    // >2% at a shared CLOSED session = stale/wrong scale
+}
+
+// ── THE ONE WRITE RULE (W-L 2026-11-11, reviews of #1095) ────────────────────────────
+// How a server ANSWER lands on what is stored NOW (`cur` must already have passed the
+// reader's validity rules — barsIDB `_entryReadable`; an unreadable entry is passed as null):
+//   • overlapping timestamps: the ANSWER wins (corrections always land) — unless the stored
+//     set was written AFTER this request began (`curIsNewer`: a later answer already landed);
+//   • a FULL answer is authoritative over [answer[0].t, answer.tail]: stored bars in that
+//     range that the answer does not carry are DROPPED (off-grid / stale / wrong-basis rows);
+//   • deeper history (< answer[0].t) is kept only if it joins the answer cleanly — no >2%
+//     close mismatch at the seam (`_closeMismatch`) — otherwise the answer replaces it;
+//   • stored bars NEWER than the answer's tail are kept (tail age decides only this): the
+//     result's tail is never older than what was stored;
+//   • a DELTA (`since=`) merges into the stored set; with nothing stored it writes nothing.
 export function mergeMonotonic(cur, incoming, { delta = false, curIsNewer = false } = {}) {
   if (!incoming?.length) return cur?.length ? cur : null
   if (!cur?.length) return delta ? null : incoming
-  const ct = cur[cur.length - 1]?.t
-  const it = incoming[incoming.length - 1]?.t
-  const incomingWins = it > ct || (it === ct && !curIsNewer)
-  return incomingWins ? mergeDelta(cur, incoming) : mergeDelta(incoming, cur)
+  if (curIsNewer) return mergeDelta(incoming, cur)
+  if (delta) return mergeDelta(cur, incoming)
+  const first = incoming[0].t
+  const last = incoming[incoming.length - 1].t
+  const seam = cur.find(b => String(b.t) === String(first))
+  const before = _closeMismatch(seam, incoming[0]) ? [] : cur.filter(b => b.t < first)
+  const after = cur.filter(b => b.t > last)
+  if (!before.length && !after.length) return incoming
+  return [...before, ...incoming, ...after]
 }

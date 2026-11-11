@@ -12,7 +12,7 @@
 
 import { classifyIntradayTail } from './marketSession'
 import { isOnSixtyMinGrid, logicTfOf } from '../components/chart/barTime'
-import { mergeDelta, mergeMonotonic } from './barsMerge'
+import { mergeDelta, mergeMonotonic, _closeMismatch } from './barsMerge'
 
 const DB_NAME    = 'uct_bars_v1'
 // Stay at v2. The v3 bump caused a deadlock: existing v2 connections held by
@@ -230,6 +230,30 @@ export function _capForWrite(tf, bars) {
   return bars
 }
 
+/**
+ * ⛔ ONE OWNER (W-L 2026-11-11, review of #1095): would `idbGet` hand this stored entry
+ * back at all? Every rule that makes a stored entry read as ABSENT lives here, and both
+ * the reader (`idbGet`) and the compare-and-write (`idbPutMonotonic`, which may only MERGE
+ * into an entry that passes) call it — a write can never keep alive what a read refuses.
+ */
+export function _entryReadable(entry, tf, nowMs = Date.now()) {
+  if (!entry || !entry.bars?.length) return false
+  // Logic-version invalidation: a stale schema/logic record is treated as absent.
+  if (entry.v !== CACHE_LOGIC_VERSION) return false
+  const isIntraday = ['1','5','15','30','60'].includes(logicTfOf(tf))
+  if (isIntraday) {
+    // Only a GAPPED tail is discarded (a BEHIND one is a sound repair base — see idbGet).
+    if (classifyIntradayTail(entry.lastT, logicTfOf(tf)) === 'gapped') return false
+  } else if ((nowMs - (entry.savedAt || 0)) > DAILY_MAX_AGE_MS) {
+    // D/W/M: save-time bound catches corrupted historical bars delta can't heal
+    // (wrong company / pre-split); refetched within DAILY_MAX_AGE_MS.
+    return false
+  }
+  // 60m grid move (2026-11-10): an old-layout entry is refetched, per chart, never in bulk.
+  if (_hasOldSixtyMinGrid(entry.bars, tf)) return false
+  return true
+}
+
 export async function idbGet(sym, tf) {
   try {
     const db = await _open()
@@ -238,11 +262,12 @@ export async function idbGet(sym, tf) {
       const req = tx.objectStore(STORE).get(_key(sym, tf))
       req.onsuccess = () => {
         const entry = req.result
-        if (!entry || !entry.bars?.length) return resolve(null)
-        // Logic-version invalidation: a stale schema/logic record is
-        // treated as absent so the caller refetches fresh.
-        if (entry.v !== CACHE_LOGIC_VERSION) return resolve(null)
+        // Every "reads as absent" rule (version, gapped intraday tail, D/W/M age, the
+        // retired 60m grid) is `_entryReadable` — shared with the monotonic writer. The
+        // comments below explain each rule where it used to live.
+        if (!_entryReadable(entry, tf)) return resolve(null)
         const isIntraday = ['1','5','15','30','60'].includes(logicTfOf(tf))
+        // (rule history, enforced in `_entryReadable`:)
         if (isIntraday) {
           // Bar-data freshness vs the last CLOSED session (weekend/holiday-aware). A
           // pre-seeded pack ending at the prior session is FRESH (today's bars fill via
@@ -257,11 +282,9 @@ export async function idbGet(sym, tf) {
           // (tools/intraday_tail_harness.py): FRESH sent `since=`, BEHIND did not.
           // A BEHIND entry is structurally SOUND; handing it back is what lets the
           // chart paint history instantly and ask only for the gap.
-          if (classifyIntradayTail(entry.lastT, logicTfOf(tf)) === 'gapped') return resolve(null)
-        } else if ((Date.now() - (entry.savedAt || 0)) > DAILY_MAX_AGE_MS) {
+        } else {
           // D/W/M: save-time bound catches corrupted historical bars delta can't heal
           // (wrong company / pre-split); refetched within DAILY_MAX_AGE_MS.
-          return resolve(null)
         }
         // RENDER CAP (intraday): hand back only the recent window so a bloated ~20k-bar
         // entry can't stall the chart. Freshness above used entry.lastT (the true tail,
@@ -282,8 +305,7 @@ export async function idbGet(sym, tf) {
         // starts: the chart asks `since=<repairFromT-1>`, which returns every row after
         // it — the hole's bars if they exist, an empty stretch if the name simply did not
         // trade. `lastT` stays the TRUE tail so currentness is judged on what we hold.
-        // 60m grid move (2026-11-10): an old-layout entry is refetched, per chart, never in bulk.
-        if (_hasOldSixtyMinGrid(entry.bars, tf)) return resolve(null)
+        // 60m grid move (2026-11-10): an old-layout entry is refetched (`_entryReadable`).
         const repairFromT = _intradayGapStart(bars, tf)
         const out = (bars === entry.bars && repairFromT == null)
           ? entry
@@ -358,11 +380,11 @@ export async function idbPut(sym, tf, bars) {
 // ⛔⛔ (W-L 2026-11-11, review of #1095) A background warmer reads an entry, awaits the
 // network, and writes. Meanwhile the chart may have written a NEWER series under the same
 // key; a blind put then rolled the cache back to the warmer's older base + tail. Every
-// background writer goes through these instead: the incoming set is merged INTO WHATEVER
-// IS STORED NOW, and on overlapping bars the source with the newer tail wins. So:
-//   tail(result)  = max(tail(stored), tail(incoming))          — never older
-//   bars(result) ⊇ bars(stored) ∪ bars(incoming) by timestamp  — never shallower
-// A DELTA with nothing stored to merge into is not a chart and writes nothing.
+// background writer goes through these instead: the answer lands on WHATEVER IS STORED NOW
+// by the one write rule (barsMerge `mergeMonotonic`): answer wins overlaps, a full answer
+// is authoritative over its own range, deeper history survives only across a clean seam,
+// the stored tail is never moved backwards — and only onto an entry `_entryReadable`
+// accepts (anything the reader would refuse is replaced, never merged into).
 // (P2 seam: StockChart's own idbPut/memPut writers still put blindly — they are the
 // newest writer by construction today, but should move onto these too.)
 
@@ -381,9 +403,12 @@ export async function idbPutMonotonic(sym, tf, bars, { delta = false, startedAt 
       const req = store.get(key)
       req.onsuccess = () => {
         const e = req.result
-        // An entry idbGet would not hand back (other logic version, the retired 60m
-        // grid) is not a base: it is replaced, never merged into.
-        const cur = (e && e.v === CACHE_LOGIC_VERSION && e.bars?.length && !_hasOldSixtyMinGrid(e.bars, tf)) ? e.bars : null
+        // ⛔ An entry idbGet would read as ABSENT (`_entryReadable`: other logic version,
+        // gapped intraday tail, D/W/M past DAILY_MAX_AGE_MS — the wrong-company / pre-split
+        // guard — or the retired 60m grid) is NOT a base: a full answer REPLACES it, a
+        // delta writes nothing. Merging into it would keep its bad bars and re-stamp
+        // savedAt, so the age eviction would never fire again.
+        const cur = _entryReadable(e, tf) ? e.bars : null
         const curIsNewer = !!cur && Number.isFinite(startedAt) && Number.isFinite(e.savedAt) && e.savedAt > startedAt
         const next = mergeMonotonic(cur, bars, { delta, curIsNewer })
         if (!next?.length || next === cur) { out = cur; return }
@@ -522,12 +547,7 @@ export function _findRecentBarByT(bars, t) {
   }
   return null
 }
-export function _closeMismatch(a, b) {
-  if (!a || !b) return false                        // no shared bar to compare → don't force a heal
-  const ac = +a.c, bc = +b.c
-  if (!Number.isFinite(ac) || !Number.isFinite(bc) || bc === 0) return false
-  return Math.abs(ac - bc) / Math.abs(bc) > 0.02    // >2% at a shared CLOSED session = stale/wrong scale
-}
+// _closeMismatch lives in ./barsMerge (one owner for the seam test) and is re-exported.
 
 /**
  * Should a pack import KEEP the cached entry `cur` instead of writing pack entry `e`?
@@ -664,4 +684,4 @@ function _deltaBatch(db, batch) {
 }
 
 // mergeDelta lives in ./barsMerge (pure, no IndexedDB) and is re-exported here.
-export { mergeDelta, mergeMonotonic }
+export { mergeDelta, mergeMonotonic, _closeMismatch }
