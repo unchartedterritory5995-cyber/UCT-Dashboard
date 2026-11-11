@@ -992,7 +992,11 @@ def test_bar_close_epoch_lands_on_the_next_bar_start_in_the_60m_open_buckets():
     import zoneinfo
 
     et = zoneinfo.ZoneInfo("America/New_York")
-    bars = ar.load_fixture("hourly_open_60m")["bars"]
+    from api.services.bars_sqlite import is_old_grid_60m_ts
+    # The tape predates the 2026-11-10 TradingView grid (09:30, 10:30 … 15:30):
+    # old H:00 RTH buckets map 1:1 to H:30 (see test_alert_bar_close_60m_grid).
+    bars = [dict(b, t=int(b["t"]) + 1800) if is_old_grid_60m_ts(b["t"]) else b
+            for b in ar.load_fixture("hourly_open_60m")["bars"]]
     shortened: dict = {}
     adjacent = gaps = 0
     for i in range(len(bars) - 1):
@@ -1009,7 +1013,7 @@ def test_bar_close_epoch_lands_on_the_next_bar_start_in_the_60m_open_buckets():
             start = datetime.datetime.fromtimestamp(bars[i]["t"], et).strftime("%H:%M")
             # what the nominal answer WOULD have overstated this bar by
             shortened.setdefault(start, []).append(bars[i]["t"] + 3600 - close_at)
-    assert set(shortened) == {"09:00", "09:30"}, (
+    assert set(shortened) == {"09:00", "15:30"}, (
         f"the 60-minute grid changed shape: {sorted(shortened)}")
     for start, deltas in shortened.items():
         assert set(deltas) == {1800}, (start, sorted(set(deltas)))

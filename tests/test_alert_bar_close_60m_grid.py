@@ -54,8 +54,20 @@ from api.services.bars_fetch import bucket_60_et_unix_seconds  # noqa: E402
 
 _ET = zoneinfo.ZoneInfo("America/New_York")
 
-#: The two starts whose bucket is thirty minutes long, as wall-clock ET.
-_OPEN_BUCKET_STARTS = {"09:00", "09:30"}
+#: The two starts whose bucket is thirty minutes long, as wall-clock ET: the
+#: pre-market 09:00 stub (cut at the open) and TradingView's 15:30 half bar.
+#: (Before 2026-11-10 the grid was 09:00, 09:30, 10:00 … and the pair was
+#: 09:00/09:30; the rule — "derive closes from the bucketer" — is unchanged.)
+_OPEN_BUCKET_STARTS = {"09:00", "15:30"}
+
+
+def _regrid_legacy_hourly(bars):
+    """The frozen tape predates the 2026-11-10 grid move (09:30, 10:00 … 15:00 →
+    TradingView's 09:30, 10:30 … 15:30). Each old RTH clock hour H:00 maps 1:1 to
+    the new H:30 bucket (7 regular-hour bars either way), so the tape keeps its
+    sessions, gaps and bar sequence on the grid the store now writes."""
+    from api.services.bars_sqlite import is_old_grid_60m_ts
+    return [dict(b, t=int(b["t"]) + 1800) if is_old_grid_60m_ts(b["t"]) else b for b in bars]
 
 
 def _wall(t) -> str:
@@ -73,7 +85,7 @@ def _unix(y, m, d, hh=0, mm=0) -> int:
 @pytest.fixture(scope="module")
 def hourly():
     """SPY 60-minute tape, 17 sessions, frozen with its own sha256."""
-    return ar.load_fixture("hourly_open_60m")["bars"]
+    return _regrid_legacy_hourly(ar.load_fixture("hourly_open_60m")["bars"])
 
 
 def _open_bucket_indices(bars) -> list[int]:
@@ -137,10 +149,11 @@ def test_a_real_rsi_cross_on_the_0930_bar_fires_when_the_bar_becomes_final(hourl
     On today's code the answer is 10:30 ET. That is the sentence a member would
     write in a support ticket: *"my hourly alert is thirty minutes late."*
     """
-    target = next(i for i in _open_bucket_indices(hourly)
+    target = next(i for i in range(len(hourly) - 1)
                   if _wall(hourly[i]["t"]).startswith("2026-07-17 09:30"))
     became_final = hourly[target + 1]["t"]
-    assert _wall(became_final).startswith("2026-07-17 10:00"), _wall(became_final)
+    # TradingView grid: the 09:30 bar runs to 10:30.
+    assert _wall(became_final).startswith("2026-07-17 10:30"), _wall(became_final)
 
     alert = {"id": 1, "sym": "SPY", "tf": "60", "indicator": "rsi",
              "condition": "cross_above", "threshold": 31.0,
@@ -310,11 +323,14 @@ def test_the_unknowable_still_answers_none():
 # ─── THE GRID ITSELF, AWAY FROM THE TAPE ────────────────────────────────────
 
 def test_the_two_open_buckets_close_where_the_session_grid_says():
-    """The rule, stated on named instants: 09:00→09:30, 09:30→10:00, else +1h."""
+    """The rule, stated on named instants (TradingView grid): 09:00→09:30,
+    09:30→10:30, 15:30→16:00, else +1h."""
     assert ev.bar_close_epoch(_unix(2026, 7, 15, 9, 0), "60") == _unix(2026, 7, 15, 9, 30)
-    assert ev.bar_close_epoch(_unix(2026, 7, 15, 9, 30), "60") == _unix(2026, 7, 15, 10, 0)
-    assert ev.bar_close_epoch(_unix(2026, 7, 15, 10, 0), "60") == _unix(2026, 7, 15, 11, 0)
+    assert ev.bar_close_epoch(_unix(2026, 7, 15, 9, 30), "60") == _unix(2026, 7, 15, 10, 30)
+    assert ev.bar_close_epoch(_unix(2026, 7, 15, 10, 30), "60") == _unix(2026, 7, 15, 11, 30)
     assert ev.bar_close_epoch(_unix(2026, 7, 15, 4, 0), "60") == _unix(2026, 7, 15, 5, 0)
+    assert ev.bar_close_epoch(_unix(2026, 7, 15, 15, 30), "60") == _unix(2026, 7, 15, 16, 0)
+    # a pre-2026-11-10 clock-hour row is off-grid now: nominal fallback (late, never early)
     assert ev.bar_close_epoch(_unix(2026, 7, 15, 15, 0), "60") == _unix(2026, 7, 15, 16, 0)
     # the last bucket of the ET day rolls the DATE, not the hour field
     assert ev.bar_close_epoch(_unix(2026, 7, 15, 23, 0), "60") == _unix(2026, 7, 16, 0, 0)

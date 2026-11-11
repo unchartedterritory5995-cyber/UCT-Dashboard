@@ -579,7 +579,7 @@ export default function StudyReview() {
     // under the arrow are the ones the reader judges (owner 2026-10-31), in their own red/green (owner 2026-11-01).
     const firstHour = isHourlyItem(sel) ? sel.reveal_json?.facts?.first_hour_t : null
     if (firstHour != null) {
-      // StockChart feeds intraday bars at t + ET_OFFSET (adjustTime); the marker rides the same shift or it lands hours late.
+      // StockChart feeds intraday bars at toChartTime(t) (adjustTime, per-instant ET offset); the marker rides the same shift or it lands hours late.
       const arrow = { time: toChartTime(Number(firstHour), '60'), position: 'aboveBar', color: GOLD, shape: 'arrowDown', text: 'the open: first 3 hours dotted', id: 'study-open' }
       return [arrow, ...((chartBars && studyOpenMarkers(sel, chartBars)) || [])]
     }

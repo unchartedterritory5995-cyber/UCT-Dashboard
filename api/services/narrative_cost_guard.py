@@ -64,6 +64,7 @@ DEFAULT_CAP_USD = 5.0
 _PRICES = {
     # The dearest models, so the unknown-model fallback really is the priciest rate: without them a model string
     # set to Fable was reserved at half its real price, and every dollar cap held at about twice its value.
+    "claude-fable-5-2": (8.0, 40.0),
     "claude-fable-5-1": (10.0, 50.0),
     "claude-fable-5": (10.0, 50.0),
     "claude-opus-5-5": (4.0, 20.0),
