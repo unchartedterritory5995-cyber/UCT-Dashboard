@@ -66,7 +66,7 @@ atr-stepped-pdf-ma-loxx-rddt-1d-2026-10-03   NYSE:RDDT 1D     3      INCONCLUSIV
     Short                                    INCONCLUSIVE   — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
     objects                                  MATCH         neither side draws an object
     paints                                   MATCH         1 paint agree bar for bar
-atr-support-and-resistance-rddt-1d-2026-09-2 NYSE:RDDT 1D     9      DIVERGE       1 of 11 compared items diverge
+atr-support-and-resistance-rddt-1d-2026-09-2 NYSE:RDDT 1D     9      INCONCLUSIVE  1 of 11 items could not be compared
     Impulse Up                               MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     Impulse Down                             MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     RSI Mid Line Support                     MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
@@ -76,9 +76,9 @@ atr-support-and-resistance-rddt-1d-2026-09-2 NYSE:RDDT 1D     9      DIVERGE    
     Ran Previous High                        MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     Ran Previous Low                         MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     Moving Average                           MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
-    objects                                  DIVERGE       2 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
+    objects                                  INCONCLUSIVE  our lines, boxes are withheld by name (objects:not-carried: No line or box is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree
     paints                                   MATCH         4 paints agree bar for bar
-atr-support-and-resistance-spy-1d-2026-10-03 AMEX:SPY 1D      9      DIVERGE       1 of 11 compared items diverge
+atr-support-and-resistance-spy-1d-2026-10-03 AMEX:SPY 1D      9      INCONCLUSIVE  1 of 11 items could not be compared
     Impulse Up                               MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Impulse Down                             MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     RSI Mid Line Support                     MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
@@ -88,7 +88,7 @@ atr-support-and-resistance-spy-1d-2026-10-03 AMEX:SPY 1D      9      DIVERGE    
     Ran Previous High                        MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Ran Previous Low                         MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Moving Average                           MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
-    objects                                  DIVERGE       2 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
+    objects                                  INCONCLUSIVE  our lines, boxes are withheld by name (objects:not-carried: No line or box is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree
     paints                                   MATCH         4 paints agree bar for bar
 atr-trailing-stop-by-ceyhun-rddt-1d-2026-10- NYSE:RDDT 1D     4      DIVERGE       1 of 6 compared items diverge
     Fast Trail                               MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 2.17e-16
@@ -545,9 +545,9 @@ high-low-open-mid-ranges-spy-1d-2026-10-03   AMEX:SPY 1D      7      MATCH      
     plot_12                                  MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 1588 paired slots; 16 slots on objects neither side draws not graded; coordinates are NOT compared by v1
 htf-candle-footprint-cartel-console-rddt-1d- NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
-    objects                                  DIVERGE       4 object families differ (count or text); colours agree on 12 paired slots; coordinates are NOT compared by v1
+    objects                                  DIVERGE       1 object families differ (count or text); colours agree on 12 paired slots; coordinates are NOT compared by v1
 htf-candle-footprint-cartel-console-spy-1d-2 AMEX:SPY 1D      0      DIVERGE       1 of 1 compared items diverge
-    objects                                  DIVERGE       4 object families differ (count or text); colours agree on 12 paired slots; coordinates are NOT compared by v1
+    objects                                  DIVERGE       1 object families differ (count or text); colours agree on 12 paired slots; coordinates are NOT compared by v1
 htf-liquidity-dashboard-tfo-rddt-1d-2026-09- NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
     objects                                  DIVERGE       2 object families differ (count or text); colours agree on 19 paired slots; 4 slots on objects neither side draws not graded; coordinates are NOT compared by v1
 htf-liquidity-dashboard-tfo-spy-1d-2026-10-0 AMEX:SPY 1D      0      DIVERGE       1 of 1 compared items diverge
@@ -595,9 +595,9 @@ institutional-smc-order-flow-matrix-pro-rddt NYSE:RDDT 1D     0      MATCH      
 institutional-smc-order-flow-matrix-pro-spy- AMEX:SPY 1D      0      MATCH         all 1 items agree
     objects                                  MATCH         object counts and texts agree; colours agree on 1105 paired slots; coordinates are NOT compared by v1
 k-clustering-rddt-1d-2026-09-28              NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
-    objects                                  DIVERGE       3 object families differ (count or text); colours agree on 11 paired slots; coordinates are NOT compared by v1
+    objects                                  DIVERGE       2 object families differ (count or text); colours agree on 11 paired slots; coordinates are NOT compared by v1
 k-clustering-spy-1d-2026-10-03               AMEX:SPY 1D      0      DIVERGE       1 of 1 compared items diverge
-    objects                                  DIVERGE       3 object families differ (count or text); colours agree on 11 paired slots; coordinates are NOT compared by v1
+    objects                                  DIVERGE       2 object families differ (count or text); colours agree on 11 paired slots; coordinates are NOT compared by v1
 kalman-price-filter-backquant-rddt-1d-2026-1 NYSE:RDDT 1D     1      MATCH         all 3 items agree
     Kalman                                   MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
@@ -700,10 +700,10 @@ liquidity-engulfing-candles-upslidedown-spy- AMEX:SPY 1D      3      MATCH      
     Shapes                                   MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Shapes                                   MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-liquidity-heatmap-nephew-sam-rddt-1d-2026-09 NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
-    objects                                  DIVERGE       2 object families differ (count or text); colours agree on 3 paired slots; coordinates are NOT compared by v1
-liquidity-heatmap-nephew-sam-spy-1d-2026-10- AMEX:SPY 1D      0      DIVERGE       1 of 1 compared items diverge
-    objects                                  DIVERGE       2 object families differ (count or text); colours agree on 3 paired slots; coordinates are NOT compared by v1
+liquidity-heatmap-nephew-sam-rddt-1d-2026-09 NYSE:RDDT 1D     0      INCONCLUSIVE  1 of 1 items could not be compared
+    objects                                  INCONCLUSIVE  our labels are withheld by name (objects:not-carried: No label is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree
+liquidity-heatmap-nephew-sam-spy-1d-2026-10- AMEX:SPY 1D      0      INCONCLUSIVE  1 of 1 items could not be compared
+    objects                                  INCONCLUSIVE  our labels are withheld by name (objects:not-carried: No label is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree
 liquidity-pools-rddt-1d-2026-09-28           NYSE:RDDT 1D     2      MATCH         all 3 items agree
     Swing High                               MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     Swing Low                                MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
@@ -934,12 +934,12 @@ opening-range-initial-balance-opening-price- AMEX:SPY 1D      14     INCONCLUSIV
     OR High                                  MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     IB High                                  MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-optimized-keltner-channels-sltp-strategy-for NYSE:RDDT 1D     5      DIVERGE       Plot: bar 0 t=1711027800 na vendor=0 ours=na
+optimized-keltner-channels-sltp-strategy-for NYSE:RDDT 1D     5      MATCH         all 6 items agree
     Upper                                    MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 7.06e-16
     Basis                                    MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 6.00e-16
     Lower                                    MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 6.34e-16
-    Plot                                     DIVERGE       cmp 636 ok 635 warm 0/0 steady 1/636 maxRel 0.00e+0 — 1 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — scattered, last at bar 0
-    Plot                                     DIVERGE       cmp 636 ok 635 warm 0/0 steady 1/636 maxRel 0.00e+0 — 1 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — scattered, last at bar 0
+    Plot                                     MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Plot                                     MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 optimized-keltner-channels-sltp-strategy-for AMEX:SPY 1D      5      MATCH         all 6 items agree
     Upper                                    MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 7.01e-16
@@ -1015,10 +1015,10 @@ pmax-explorer-spy-1d-2026-10-02              AMEX:SPY 1D      7      DIVERGE    
     Moving Avg Line                          MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 7.05e-16
     PMax                                     MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 7.60e-16
     objects                                  DIVERGE       TradingView holds 1 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused) — the program carried none of its 2 drawing steps (dropped: create:label ×1; pine:request)
-poor-man039s-volume-profile-rddt-1d-2026-09- NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
-    objects                                  DIVERGE       2 object families differ (count or text); colours agree on 2 paired slots; coordinates are NOT compared by v1
-poor-man039s-volume-profile-spy-1d-2026-10-0 AMEX:SPY 1D      0      DIVERGE       1 of 1 compared items diverge
-    objects                                  DIVERGE       2 object families differ (count or text); colours agree on 2 paired slots; coordinates are NOT compared by v1
+poor-man039s-volume-profile-rddt-1d-2026-09- NYSE:RDDT 1D     0      INCONCLUSIVE  1 of 1 items could not be compared
+    objects                                  INCONCLUSIVE  our labels are withheld by name (objects:not-computable: No label is shown on this chart: whether and where the script draws them depends on values this chart can't work out here, so none are drawn rather than a guess.); every other object family's counts and texts agree
+poor-man039s-volume-profile-spy-1d-2026-10-0 AMEX:SPY 1D      0      INCONCLUSIVE  1 of 1 items could not be compared
+    objects                                  INCONCLUSIVE  our labels are withheld by name (objects:not-computable: No label is shown on this chart: whether and where the script draws them depends on values this chart can't work out here, so none are drawn rather than a guess.); every other object family's counts and texts agree
 position-size-calc-rddt-1d-2026-09-28        NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
     objects                                  DIVERGE       2 object families differ (count or text); colours agree on 21 paired slots; coordinates are NOT compared by v1
 position-size-calc-spy-1d-2026-10-03         AMEX:SPY 1D      0      DIVERGE       1 of 1 compared items diverge
@@ -1196,16 +1196,16 @@ rvol-spy-1d-2026-10-03                       AMEX:SPY 1D      2      MATCH      
     Plot                                     MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Plot                                     MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-sector-rotation-rddt-1d-2026-09-28           NYSE:RDDT 1D     1      DIVERGE       1 of 2 compared items diverge
+sector-rotation-rddt-1d-2026-09-28           NYSE:RDDT 1D     1      INCONCLUSIVE  1 of 2 items could not be compared
     Current Symbol Percentage Change         MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 1.95e-16
-    objects                                  DIVERGE       1 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
-sector-rotation-spy-1d-2026-10-03            AMEX:SPY 1D      1      DIVERGE       1 of 2 compared items diverge
+    objects                                  INCONCLUSIVE  our lines, boxes are withheld by name (objects:collector-all, objects:not-carried: No box is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree
+sector-rotation-spy-1d-2026-10-03            AMEX:SPY 1D      1      INCONCLUSIVE  1 of 2 items could not be compared
     Current Symbol Percentage Change         MATCH         cmp 1800 ok 1799 warm 1/1 steady 0/1799 maxRel 1.95e-16
-    objects                                  DIVERGE       1 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
-smt-divergence-ict-01-tradingfinder-smart-mo NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
-    objects                                  DIVERGE       3 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
-smt-divergence-ict-01-tradingfinder-smart-mo AMEX:SPY 1D      0      DIVERGE       1 of 1 compared items diverge
-    objects                                  DIVERGE       3 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
+    objects                                  INCONCLUSIVE  our lines, boxes are withheld by name (objects:collector-all, objects:not-carried: No box is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree
+smt-divergence-ict-01-tradingfinder-smart-mo NYSE:RDDT 1D     0      INCONCLUSIVE  1 of 1 items could not be compared
+    objects                                  INCONCLUSIVE  our lines, labels are withheld by name (objects:not-computable: No line or label is shown on this chart: whether and where the script draws them depends on values this chart can't work out here, so none are drawn rather than a guess.); every other object family's counts and texts agree
+smt-divergence-ict-01-tradingfinder-smart-mo AMEX:SPY 1D      0      INCONCLUSIVE  1 of 1 items could not be compared
+    objects                                  INCONCLUSIVE  our lines, labels are withheld by name (objects:not-computable: No line or label is shown on this chart: whether and where the script draws them depends on values this chart can't work out here, so none are drawn rather than a guess.); every other object family's counts and texts agree
 sonarlab-order-blocks-aapl-1d-2026-10-02     NASDAQ:AAPL 1D   0      DIVERGE       1 of 1 compared items diverge
     objects                                  DIVERGE       TradingView holds 17 drawing object(s) at the last bar and our drawing is withheld by name (objects:off-listing) — the box drawings live in a `var` list, and on a chart that does not start at the symbol's listing the objects earlier bars put there are not knowable
 sonarlab-order-blocks-brk-a-1d-2026-10-02    NYSE:BRK.A 1D    0      DIVERGE       1 of 1 compared items diverge
@@ -1308,12 +1308,12 @@ trend-lines-supports-and-resistances-spy-1d- AMEX:SPY 1D      2      DIVERGE    
     High Pivots                              MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Low Pivots                               MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  DIVERGE       TradingView holds 11 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused) — the program carried none of its 6 drawing steps (dropped: never carried: box.new, label.delete, label.new, line.delete, line.new, line.set_color, line.set_extend, line.set_style)
-trend-targets-algoalpha-rddt-1d-2026-10-02   NYSE:RDDT 1D     5      DIVERGE       Baseline: bar 140 t=1728567000 na vendor=59.7746204320142 ours=na
+trend-targets-algoalpha-rddt-1d-2026-10-02   NYSE:RDDT 1D     5      MATCH         all 7 items agree
     Bullish Rejection                        MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 1.95e-16
-    Bearish Rejection                        MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 9.84e-14
-    Baseline                                 DIVERGE       cmp 636 ok 554 warm 0/0 steady 82/636 maxRel 2.96e-4 — 82 steady-state bars disagree; first at bar 140 (na: vendor 59.7746204320142 vs ours na) — scattered, last at bar 221
-    Bullish Trend Change                     MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 4.59e-15
-    Bearish Trend Change                     MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 5.28e-11
+    Bearish Rejection                        MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 7.20e-16
+    Baseline                                 MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 1.39e-15
+    Bullish Trend Change                     MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 3.82e-16
+    Bearish Trend Change                     MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 8.40e-16
     objects                                  MATCH         object counts and texts agree; colours agree on 15 paired slots; coordinates are NOT compared by v1
     paints                                   MATCH         1 paint agree bar for bar
 trend-targets-algoalpha-spy-1d-2026-10-02    AMEX:SPY 1D      5      MATCH         all 7 items agree
@@ -1344,9 +1344,9 @@ trendlines-spy-1d-2026-10-03                 AMEX:SPY 1D      8      MATCH      
     Plot                                     MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Plot                                     MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 52 paired slots; coordinates are NOT compared by v1
-twin-range-filter-rddt-1d-2026-10-02         NYSE:RDDT 1D     2      DIVERGE       Long: bar 177 t=1733236200 na vendor=1 ours=na
-    Long                                     DIVERGE       cmp 636 ok 631 warm 0/0 steady 5/636 maxRel 0.00e+0 — 5 steady-state bars disagree; first at bar 177 (na: vendor 1 vs ours na) — scattered, last at bar 243
-    Short                                    DIVERGE       cmp 636 ok 630 warm 0/0 steady 6/636 maxRel 0.00e+0 — 6 steady-state bars disagree; first at bar 171 (na: vendor 1 vs ours na) — scattered, last at bar 247
+twin-range-filter-rddt-1d-2026-10-02         NYSE:RDDT 1D     2      MATCH         all 3 items agree
+    Long                                     MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Short                                    MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 twin-range-filter-spy-1d-2026-10-02          AMEX:SPY 1D      2      MATCH         all 3 items agree
     Long                                     MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
@@ -1370,10 +1370,10 @@ vold-market-breadth-rddt-1d-2026-09-28       NYSE:RDDT 1D     0      DIVERGE    
     objects                                  DIVERGE       2 object families differ (count or text); colours agree on 2 paired slots; coordinates are NOT compared by v1
 vold-market-breadth-spy-1d-2026-10-03        AMEX:SPY 1D      0      DIVERGE       1 of 1 compared items diverge
     objects                                  DIVERGE       2 object families differ (count or text); colours agree on 2 paired slots; coordinates are NOT compared by v1
-volume-profile-rddt-1d-2026-09-28            NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
-    objects                                  DIVERGE       1 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
-volume-profile-spy-1d-2026-10-03             AMEX:SPY 1D      0      DIVERGE       1 of 1 compared items diverge
-    objects                                  DIVERGE       1 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
+volume-profile-rddt-1d-2026-09-28            NYSE:RDDT 1D     0      INCONCLUSIVE  1 of 1 items could not be compared
+    objects                                  INCONCLUSIVE  our lines are withheld by name (objects:not-carried: No line is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree
+volume-profile-spy-1d-2026-10-03             AMEX:SPY 1D      0      INCONCLUSIVE  1 of 1 items could not be compared
+    objects                                  INCONCLUSIVE  our lines are withheld by name (objects:not-carried: No line is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree
 vw-arm-history-rddt-1d-2026-10-02            NYSE:RDDT 1D     0      INCONCLUSIVE  refused on our side: member door refused (pine:roundtrip) [runtime declined: runtime:conditional-history]: the translator wrote formula text it could not read back, so it emitted none
 vw-arm-history-spy-1d-2026-10-02             AMEX:SPY 1D      0      INCONCLUSIVE  refused on our side: member door refused (pine:roundtrip) [runtime declined: runtime:conditional-history]: the translator wrote formula text it could not read back, so it emitted none
 vw-array-na-spy-1d-2026-10-02                AMEX:SPY 1D      13     INCONCLUSIVE  5 of 14 items could not be compared
@@ -1474,52 +1474,52 @@ vw-bar-origin-rddt-5-2026-10-02              NYSE:RDDT 5      11     INCONCLUSIV
     O09_bar_index_gt_100                     MATCH         cmp 20208 ok 20208 warm 0/0 steady 0/20208 maxRel 0.00e+0
     O10_distance_MUST_BE_5                   MATCH         cmp 20208 ok 20208 warm 0/5 steady 0/20203 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-bar-origin-rddt-60-2026-10-02             NYSE:RDDT 60     11     DIVERGE       O05_bar_index_where_isfirst_was_true: bar 0 t=1711038600 na vendor=0 ours=na
+vw-bar-origin-rddt-60-2026-10-02             NYSE:RDDT 60     11     MATCH         all 12 items agree
     O00_bar_index_CONTROL                    MATCH         cmp 4431 ok 4431 warm 0/0 steady 0/4431 maxRel 0.00e+0
     O01_last_bar_index                       MATCH         cmp 4431 ok 4431 warm 0/0 steady 0/4431 maxRel 0.00e+0
     O02_isfirst                              MATCH         cmp 4431 ok 4431 warm 0/0 steady 0/4431 maxRel 0.00e+0
     O03_bars_seen_by_a_var_counter           MATCH         cmp 4431 ok 4431 warm 0/0 steady 0/4431 maxRel 0.00e+0
     O04_bar_index_minus_counter_MUST_BE_MINU MATCH         cmp 4431 ok 4431 warm 0/0 steady 0/4431 maxRel 0.00e+0
-    O05_bar_index_where_isfirst_was_true     DIVERGE       cmp 4431 ok 0 warm 0/0 steady 4431/4431 maxRel 0.00e+0 — 4431 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 4430
+    O05_bar_index_where_isfirst_was_true     MATCH         cmp 4431 ok 4431 warm 0/0 steady 0/4431 maxRel 0.00e+0
     O06_barssince_isfirst                    MATCH         cmp 4431 ok 4431 warm 0/0 steady 0/4431 maxRel 0.00e+0
     O07_first_bar_time_in_days               MATCH         cmp 4431 ok 4431 warm 0/0 steady 0/4431 maxRel 0.00e+0
     O08_bar_index_mod_3                      MATCH         cmp 4431 ok 4431 warm 0/0 steady 0/4431 maxRel 0.00e+0
     O09_bar_index_gt_100                     MATCH         cmp 4431 ok 4431 warm 0/0 steady 0/4431 maxRel 0.00e+0
     O10_distance_MUST_BE_5                   MATCH         cmp 4431 ok 4431 warm 0/0 steady 0/4431 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-bar-origin-spy-1d-300-2026-10-02          AMEX:SPY 1D      11     DIVERGE       O05_bar_index_where_isfirst_was_true: bar 0 t=1753450200 na vendor=0 ours=na
+vw-bar-origin-spy-1d-300-2026-10-02          AMEX:SPY 1D      11     MATCH         all 12 items agree
     O00_bar_index_CONTROL                    MATCH         cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
     O01_last_bar_index                       MATCH         cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
     O02_isfirst                              MATCH         cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
     O03_bars_seen_by_a_var_counter           MATCH         cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
     O04_bar_index_minus_counter_MUST_BE_MINU MATCH         cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
-    O05_bar_index_where_isfirst_was_true     DIVERGE       cmp 300 ok 0 warm 0/0 steady 300/300 maxRel 0.00e+0 — 300 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 299
+    O05_bar_index_where_isfirst_was_true     MATCH         cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
     O06_barssince_isfirst                    MATCH         cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
     O07_first_bar_time_in_days               MATCH         cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
     O08_bar_index_mod_3                      MATCH         cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
     O09_bar_index_gt_100                     MATCH         cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
     O10_distance_MUST_BE_5                   MATCH         cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-bar-origin-spy-1m-2026-10-02              AMEX:SPY 1M      11     DIVERGE       O05_bar_index_where_isfirst_was_true: bar 0 t=725898600 na vendor=0 ours=na
+vw-bar-origin-spy-1m-2026-10-02              AMEX:SPY 1M      11     MATCH         all 12 items agree
     O00_bar_index_CONTROL                    MATCH         cmp 406 ok 406 warm 0/0 steady 0/406 maxRel 0.00e+0
     O01_last_bar_index                       MATCH         cmp 406 ok 406 warm 0/0 steady 0/406 maxRel 0.00e+0
     O02_isfirst                              MATCH         cmp 406 ok 406 warm 0/0 steady 0/406 maxRel 0.00e+0
     O03_bars_seen_by_a_var_counter           MATCH         cmp 406 ok 406 warm 0/0 steady 0/406 maxRel 0.00e+0
     O04_bar_index_minus_counter_MUST_BE_MINU MATCH         cmp 406 ok 406 warm 0/0 steady 0/406 maxRel 0.00e+0
-    O05_bar_index_where_isfirst_was_true     DIVERGE       cmp 406 ok 0 warm 0/0 steady 406/406 maxRel 0.00e+0 — 406 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 405
+    O05_bar_index_where_isfirst_was_true     MATCH         cmp 406 ok 406 warm 0/0 steady 0/406 maxRel 0.00e+0
     O06_barssince_isfirst                    MATCH         cmp 406 ok 406 warm 0/0 steady 0/406 maxRel 0.00e+0
     O07_first_bar_time_in_days               MATCH         cmp 406 ok 406 warm 0/0 steady 0/406 maxRel 0.00e+0
     O08_bar_index_mod_3                      MATCH         cmp 406 ok 406 warm 0/0 steady 0/406 maxRel 0.00e+0
     O09_bar_index_gt_100                     MATCH         cmp 406 ok 406 warm 0/0 steady 0/406 maxRel 0.00e+0
     O10_distance_MUST_BE_5                   MATCH         cmp 406 ok 406 warm 0/0 steady 0/406 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-bar-origin-spy-1w-2026-10-02              AMEX:SPY 1W      11     DIVERGE       O05_bar_index_where_isfirst_was_true: bar 0 t=727972200 na vendor=0 ours=na
+vw-bar-origin-spy-1w-2026-10-02              AMEX:SPY 1W      11     MATCH         all 12 items agree
     O00_bar_index_CONTROL                    MATCH         cmp 1758 ok 1758 warm 0/0 steady 0/1758 maxRel 0.00e+0
     O01_last_bar_index                       MATCH         cmp 1758 ok 1758 warm 0/0 steady 0/1758 maxRel 0.00e+0
     O02_isfirst                              MATCH         cmp 1758 ok 1758 warm 0/0 steady 0/1758 maxRel 0.00e+0
     O03_bars_seen_by_a_var_counter           MATCH         cmp 1758 ok 1758 warm 0/0 steady 0/1758 maxRel 0.00e+0
     O04_bar_index_minus_counter_MUST_BE_MINU MATCH         cmp 1758 ok 1758 warm 0/0 steady 0/1758 maxRel 0.00e+0
-    O05_bar_index_where_isfirst_was_true     DIVERGE       cmp 1758 ok 0 warm 0/0 steady 1758/1758 maxRel 0.00e+0 — 1758 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 1757
+    O05_bar_index_where_isfirst_was_true     MATCH         cmp 1758 ok 1758 warm 0/0 steady 0/1758 maxRel 0.00e+0
     O06_barssince_isfirst                    MATCH         cmp 1758 ok 1758 warm 0/0 steady 0/1758 maxRel 0.00e+0
     O07_first_bar_time_in_days               MATCH         cmp 1758 ok 1758 warm 0/0 steady 0/1758 maxRel 0.00e+0
     O08_bar_index_mod_3                      MATCH         cmp 1758 ok 1758 warm 0/0 steady 0/1758 maxRel 0.00e+0
@@ -2014,10 +2014,10 @@ vw-other-symbol-rddt-1d-2026-09-30           NYSE:RDDT 1D     8      DIVERGE    
     O06_NYSE_BRKB                            DIVERGE       cmp 634 ok 300 warm 0/0 steady 334/634 maxRel 0.00e+0 — 334 steady-state bars disagree; first at bar 0 (na: vendor 413.78 vs ours na) — scattered, last at bar 333
     O07_brkb_bare_eq_nyse                    DIVERGE       cmp 634 ok 300 warm 0/0 steady 334/634 maxRel 1.00e+0 — 334 steady-state bars disagree; first at bar 0 (value: vendor 1 vs ours 0) — scattered, last at bar 333
     objects                                  MATCH         object counts and texts agree; colours agree on 2 paired slots; coordinates are NOT compared by v1
-vw-ratchet-stops-rddt-1d-2026-10-02          NYSE:RDDT 1D     8      DIVERGE       R03_trend: bar 0 t=1711027800 na vendor=1 ours=na
+vw-ratchet-stops-rddt-1d-2026-10-02          NYSE:RDDT 1D     8      MATCH         all 9 items agree
     R01_up                                   MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 3.71e-16
     R02_dn                                   MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 2.13e-16
-    R03_trend                                DIVERGE       cmp 636 ok 635 warm 0/0 steady 1/636 maxRel 0.00e+0 — 1 steady-state bars disagree; first at bar 0 (na: vendor 1 vs ours na) — scattered, last at bar 0
+    R03_trend                                MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     R04_local_stop                           MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 3.62e-16
     R05_range_filter                         MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 2.90e-16
     R06_pivot_high                           MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -2692,10 +2692,10 @@ w2-warmup-spy-12m-2026-09-22                 SPY 12M          14     MATCH      
     W13_cum_close_FROM_BAR0                  MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
     W14_sma1_DEGENERATE_WINDOW               MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
 
-TOTAL 369 captures — MATCH 173 · DIVERGE 68 · INCONCLUSIVE 128
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 124 captures) — MATCH 173 · DIVERGE 68 · INCONCLUSIVE 128
+TOTAL 369 captures — MATCH 181 · DIVERGE 48 · INCONCLUSIVE 140
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 112 captures) — MATCH 181 · DIVERGE 48 · INCONCLUSIVE 140
 CHANGED BY OBJECT COLOUR (0): none
-WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 174 · DIVERGE 66 · INCONCLUSIVE 129
+WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 182 · DIVERGE 46 · INCONCLUSIVE 141
 CHANGED BY PAINTS (2): vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → DIVERGE; vw-deadband-ticks-brk-a-1d-2026-09-28 INCONCLUSIVE → DIVERGE
 ```
 

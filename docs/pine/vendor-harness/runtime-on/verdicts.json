@@ -2910,15 +2910,16 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "DIVERGE",
-    "verdictWithoutColour": "DIVERGE",
-    "reason": "2 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1",
+    "verdict": "INCONCLUSIVE",
+    "withheld": "objects:not-carried",
+    "reason": "our lines, boxes are withheld by name (objects:not-carried: No line or box is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree",
     "counts": [
      {
       "family": "lines",
       "vendor": 20,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "labels",
@@ -2929,8 +2930,9 @@
      {
       "family": "boxes",
       "vendor": 20,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "tables",
@@ -2996,10 +2998,9 @@
      }
     ]
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 11 compared items diverge",
-   "verdictWithoutPaints": "DIVERGE",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 11 items could not be compared",
+   "verdictWithoutPaints": "INCONCLUSIVE",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
     "paints: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
@@ -3434,15 +3435,16 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "DIVERGE",
-    "verdictWithoutColour": "DIVERGE",
-    "reason": "2 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1",
+    "verdict": "INCONCLUSIVE",
+    "withheld": "objects:not-carried",
+    "reason": "our lines, boxes are withheld by name (objects:not-carried: No line or box is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree",
     "counts": [
      {
       "family": "lines",
       "vendor": 306,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "labels",
@@ -3453,8 +3455,9 @@
      {
       "family": "boxes",
       "vendor": 54,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "tables",
@@ -3520,10 +3523,9 @@
      }
     ]
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 11 compared items diverge",
-   "verdictWithoutPaints": "DIVERGE",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 11 items could not be compared",
+   "verdictWithoutPaints": "INCONCLUSIVE",
    "ourNotes": [
     "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "paints: warm: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume"
@@ -5385,8 +5387,9 @@
      {
       "family": "labels",
       "vendor": 0,
-      "ours": 0,
-      "agree": true
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "boxes",
@@ -5408,12 +5411,6 @@
      }
     ],
     "texts": [
-     {
-      "family": "labels text",
-      "agree": true,
-      "onlyVendor": [],
-      "onlyOurs": []
-     },
      {
       "family": "tableCells text",
       "agree": true,
@@ -5831,8 +5828,9 @@
      {
       "family": "labels",
       "vendor": 0,
-      "ours": 0,
-      "agree": true
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "boxes",
@@ -5854,12 +5852,6 @@
      }
     ],
     "texts": [
-     {
-      "family": "labels text",
-      "agree": true,
-      "onlyVendor": [],
-      "onlyOurs": []
-     },
      {
       "family": "tableCells text",
       "agree": true,
@@ -22078,19 +22070,21 @@
    "objects": {
     "verdict": "DIVERGE",
     "verdictWithoutColour": "DIVERGE",
-    "reason": "4 object families differ (count or text); colours agree on 12 paired slots; coordinates are NOT compared by v1",
+    "reason": "1 object families differ (count or text); colours agree on 12 paired slots; coordinates are NOT compared by v1",
     "counts": [
      {
       "family": "lines",
       "vendor": 6,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "labels",
       "vendor": 6,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "boxes",
@@ -22112,19 +22106,6 @@
      }
     ],
     "texts": [
-     {
-      "family": "labels text",
-      "agree": false,
-      "onlyVendor": [
-       "-4193038",
-       "-4307275",
-       "-7455647",
-       "0",
-       "High: 161.67",
-       "Low: 143.08"
-      ],
-      "onlyOurs": []
-     },
      {
       "family": "tableCells text",
       "agree": true,
@@ -22205,19 +22186,21 @@
    "objects": {
     "verdict": "DIVERGE",
     "verdictWithoutColour": "DIVERGE",
-    "reason": "4 object families differ (count or text); colours agree on 12 paired slots; coordinates are NOT compared by v1",
+    "reason": "1 object families differ (count or text); colours agree on 12 paired slots; coordinates are NOT compared by v1",
     "counts": [
      {
       "family": "lines",
       "vendor": 6,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "labels",
       "vendor": 3,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "boxes",
@@ -22239,16 +22222,6 @@
      }
     ],
     "texts": [
-     {
-      "family": "labels text",
-      "agree": false,
-      "onlyVendor": [
-       "-57283324",
-       "High: 775.14",
-       "Low: 758.79"
-      ],
-      "onlyOurs": []
-     },
      {
       "family": "tableCells text",
       "agree": true,
@@ -23112,20 +23085,23 @@
      {
       "family": "lines",
       "vendor": 0,
-      "ours": 0,
-      "agree": true
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "labels",
       "vendor": 0,
-      "ours": 0,
-      "agree": true
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "boxes",
       "vendor": 0,
-      "ours": 0,
-      "agree": true
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "tables",
@@ -23141,12 +23117,6 @@
      }
     ],
     "texts": [
-     {
-      "family": "labels text",
-      "agree": true,
-      "onlyVendor": [],
-      "onlyOurs": []
-     },
      {
       "family": "tableCells text",
       "agree": true,
@@ -23562,20 +23532,23 @@
      {
       "family": "lines",
       "vendor": 0,
-      "ours": 0,
-      "agree": true
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "labels",
       "vendor": 0,
-      "ours": 0,
-      "agree": true
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "boxes",
       "vendor": 0,
-      "ours": 0,
-      "agree": true
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "tables",
@@ -23591,12 +23564,6 @@
      }
     ],
     "texts": [
-     {
-      "family": "labels text",
-      "agree": true,
-      "onlyVendor": [],
-      "onlyOurs": []
-     },
      {
       "family": "tableCells text",
       "agree": true,
@@ -24594,13 +24561,14 @@
    "objects": {
     "verdict": "DIVERGE",
     "verdictWithoutColour": "DIVERGE",
-    "reason": "3 object families differ (count or text); colours agree on 11 paired slots; coordinates are NOT compared by v1",
+    "reason": "2 object families differ (count or text); colours agree on 11 paired slots; coordinates are NOT compared by v1",
     "counts": [
      {
       "family": "lines",
       "vendor": 9,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "labels",
@@ -24705,13 +24673,14 @@
    "objects": {
     "verdict": "DIVERGE",
     "verdictWithoutColour": "DIVERGE",
-    "reason": "3 object families differ (count or text); colours agree on 11 paired slots; coordinates are NOT compared by v1",
+    "reason": "2 object families differ (count or text); colours agree on 11 paired slots; coordinates are NOT compared by v1",
     "counts": [
      {
       "family": "lines",
       "vendor": 9,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "labels",
@@ -28978,9 +28947,9 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "DIVERGE",
-    "verdictWithoutColour": "DIVERGE",
-    "reason": "2 object families differ (count or text); colours agree on 3 paired slots; coordinates are NOT compared by v1",
+    "verdict": "INCONCLUSIVE",
+    "withheld": "objects:not-carried",
+    "reason": "our labels are withheld by name (objects:not-carried: No label is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree",
     "counts": [
      {
       "family": "lines",
@@ -28991,8 +28960,9 @@
      {
       "family": "labels",
       "vendor": 27,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "boxes",
@@ -29014,23 +28984,6 @@
      }
     ],
     "texts": [
-     {
-      "family": "labels text",
-      "agree": false,
-      "onlyVendor": [
-       "                ░░░░░░░░░░░░░░░░\n                ░░░░░░░░░░░░░░░░",
-       "                ░░░░░░░░░░░░░░░░\n                ░░░░░░░░░░░░░░░░",
-       "           ░░░░░░░░░░░",
-       "           ░░░░░░░░░░░",
-       "           ░░░░░░░░░░░",
-       "           ░░░░░░░░░░░",
-       "           ░░░░░░░░░░░",
-       "           ░░░░░░░░░░░",
-       "           ░░░░░░░░░░░",
-       "           ░░░░░░░░░░░"
-      ],
-      "onlyOurs": []
-     },
      {
       "family": "tableCells text",
       "agree": true,
@@ -29071,9 +29024,8 @@
      "vendor": 27
     }
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 1 compared items diverge",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 1 items could not be compared",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ]
@@ -29096,9 +29048,9 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "DIVERGE",
-    "verdictWithoutColour": "DIVERGE",
-    "reason": "2 object families differ (count or text); colours agree on 3 paired slots; coordinates are NOT compared by v1",
+    "verdict": "INCONCLUSIVE",
+    "withheld": "objects:not-carried",
+    "reason": "our labels are withheld by name (objects:not-carried: No label is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree",
     "counts": [
      {
       "family": "lines",
@@ -29109,8 +29061,9 @@
      {
       "family": "labels",
       "vendor": 421,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "boxes",
@@ -29132,23 +29085,6 @@
      }
     ],
     "texts": [
-     {
-      "family": "labels text",
-      "agree": false,
-      "onlyVendor": [
-       "                ░░░░░░░░░░░░░░░░\n                ░░░░░░░░░░░░░░░░",
-       "                ░░░░░░░░░░░░░░░░\n                ░░░░░░░░░░░░░░░░",
-       "                ░░░░░░░░░░░░░░░░\n                ░░░░░░░░░░░░░░░░",
-       "                ░░░░░░░░░░░░░░░░\n                ░░░░░░░░░░░░░░░░",
-       "                ░░░░░░░░░░░░░░░░\n                ░░░░░░░░░░░░░░░░",
-       "                ░░░░░░░░░░░░░░░░\n                ░░░░░░░░░░░░░░░░",
-       "                ░░░░░░░░░░░░░░░░\n                ░░░░░░░░░░░░░░░░",
-       "                ░░░░░░░░░░░░░░░░\n                ░░░░░░░░░░░░░░░░",
-       "                ░░░░░░░░░░░░░░░░\n                ░░░░░░░░░░░░░░░░",
-       "                ░░░░░░░░░░░░░░░░\n                ░░░░░░░░░░░░░░░░"
-      ],
-      "onlyOurs": []
-     },
      {
       "family": "tableCells text",
       "agree": true,
@@ -29189,9 +29125,8 @@
      "vendor": 421
     }
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 1 compared items diverge",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 1 items could not be compared",
    "ourNotes": [
     "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
@@ -38402,8 +38337,8 @@
      "title": "Plot",
      "ours": "out4",
      "rule": "M2-position-untitled",
-     "verdict": "DIVERGE",
-     "reason": "1 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — scattered, last at bar 0",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 270,
@@ -38412,23 +38347,17 @@
       "bars": 636,
       "compared": 636,
       "oursUnread": 0,
-      "matching": 635,
+      "matching": 636,
       "vendorRowsMissing": 0,
-      "naMismatches": 1,
+      "naMismatches": 0,
       "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 635,
+      "colorCompared": 636,
       "colorComparable": 636,
       "valued": 636,
       "maxAbs": 0,
       "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1711027800,
-       "kind": "na",
-       "vendor": 0,
-       "ours": null
-      },
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -38438,25 +38367,10 @@
       "steady": {
        "bars": 636,
        "compared": 636,
-       "divergent": 1,
-       "first": {
-        "bar": 0,
-        "time": 1711027800,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       },
-       "last": {
-        "bar": 0,
-        "time": 1711027800,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "scattered",
-        "lastDivergentBar": 0
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -38466,8 +38380,8 @@
      "title": "Plot",
      "ours": "out5",
      "rule": "M2-position-untitled",
-     "verdict": "DIVERGE",
-     "reason": "1 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — scattered, last at bar 0",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 270,
@@ -38476,23 +38390,17 @@
       "bars": 636,
       "compared": 636,
       "oursUnread": 0,
-      "matching": 635,
+      "matching": 636,
       "vendorRowsMissing": 0,
-      "naMismatches": 1,
+      "naMismatches": 0,
       "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 635,
+      "colorCompared": 636,
       "colorComparable": 636,
       "valued": 636,
       "maxAbs": 0,
       "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1711027800,
-       "kind": "na",
-       "vendor": 0,
-       "ours": null
-      },
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -38502,25 +38410,10 @@
       "steady": {
        "bars": 636,
        "compared": 636,
-       "divergent": 1,
-       "first": {
-        "bar": 0,
-        "time": 1711027800,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       },
-       "last": {
-        "bar": 0,
-        "time": 1711027800,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "scattered",
-        "lastDivergentBar": 0
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -38537,8 +38430,8 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "DIVERGE",
-   "reason": "2 of 6 compared items diverge",
+   "verdict": "MATCH",
+   "reason": "all 6 items agree",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ]
@@ -41281,9 +41174,9 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "DIVERGE",
-    "verdictWithoutColour": "DIVERGE",
-    "reason": "2 object families differ (count or text); colours agree on 2 paired slots; coordinates are NOT compared by v1",
+    "verdict": "INCONCLUSIVE",
+    "withheld": "objects:not-computable",
+    "reason": "our labels are withheld by name (objects:not-computable: No label is shown on this chart: whether and where the script draws them depends on values this chart can't work out here, so none are drawn rather than a guess.); every other object family's counts and texts agree",
     "counts": [
      {
       "family": "lines",
@@ -41294,8 +41187,9 @@
      {
       "family": "labels",
       "vendor": 40,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "boxes",
@@ -41317,23 +41211,6 @@
      }
     ],
     "texts": [
-     {
-      "family": "labels text",
-      "agree": false,
-      "onlyVendor": [
-       "####",
-       "#####",
-       "######",
-       "#######",
-       "########",
-       "########",
-       "########",
-       "########",
-       "#########",
-       "#########"
-      ],
-      "onlyOurs": []
-     },
      {
       "family": "tableCells text",
       "agree": true,
@@ -41361,9 +41238,8 @@
      "vendor": 40
     }
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 1 compared items diverge",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 1 items could not be compared",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ]
@@ -41386,9 +41262,9 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "DIVERGE",
-    "verdictWithoutColour": "DIVERGE",
-    "reason": "2 object families differ (count or text); colours agree on 2 paired slots; coordinates are NOT compared by v1",
+    "verdict": "INCONCLUSIVE",
+    "withheld": "objects:not-computable",
+    "reason": "our labels are withheld by name (objects:not-computable: No label is shown on this chart: whether and where the script draws them depends on values this chart can't work out here, so none are drawn rather than a guess.); every other object family's counts and texts agree",
     "counts": [
      {
       "family": "lines",
@@ -41399,8 +41275,9 @@
      {
       "family": "labels",
       "vendor": 40,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "boxes",
@@ -41422,23 +41299,6 @@
      }
     ],
     "texts": [
-     {
-      "family": "labels text",
-      "agree": false,
-      "onlyVendor": [
-       "#####",
-       "#######",
-       "#######",
-       "########",
-       "########",
-       "########",
-       "#########",
-       "##########",
-       "###########",
-       "###########"
-      ],
-      "onlyOurs": []
-     },
      {
       "family": "tableCells text",
       "agree": true,
@@ -41466,9 +41326,8 @@
      "vendor": 40
     }
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 1 compared items diverge",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 1 items could not be compared",
    "ourNotes": [
     "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
@@ -48213,9 +48072,9 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "DIVERGE",
-    "verdictWithoutColour": "DIVERGE",
-    "reason": "1 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1",
+    "verdict": "INCONCLUSIVE",
+    "withheld": "objects:collector-all,objects:not-carried",
+    "reason": "our lines, boxes are withheld by name (objects:collector-all, objects:not-carried: No box is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree",
     "counts": [
      {
       "family": "lines",
@@ -48233,8 +48092,9 @@
      {
       "family": "boxes",
       "vendor": 504,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "tables",
@@ -48269,9 +48129,8 @@
      "vendor": 554
     }
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 2 compared items diverge",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 2 items could not be compared",
    "ourNotes": [
     "other symbol BANKNIFTY: no committed capture of BANKNIFTY at 1D — the vendor bars (and listing) this read would need",
     "other symbol CNXAUTO: no committed capture of CNXAUTO at 1D — the vendor bars (and listing) this read would need",
@@ -48372,9 +48231,9 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "DIVERGE",
-    "verdictWithoutColour": "DIVERGE",
-    "reason": "1 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1",
+    "verdict": "INCONCLUSIVE",
+    "withheld": "objects:collector-all,objects:not-carried",
+    "reason": "our lines, boxes are withheld by name (objects:collector-all, objects:not-carried: No box is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree",
     "counts": [
      {
       "family": "lines",
@@ -48392,8 +48251,9 @@
      {
       "family": "boxes",
       "vendor": 504,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "tables",
@@ -48428,9 +48288,8 @@
      "vendor": 559
     }
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 2 compared items diverge",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 2 items could not be compared",
    "ourNotes": [
     "other symbol BANKNIFTY: no committed capture of BANKNIFTY at 1D — the vendor bars (and listing) this read would need",
     "other symbol CNXAUTO: no committed capture of CNXAUTO at 1D — the vendor bars (and listing) this read would need",
@@ -48538,21 +48397,23 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "DIVERGE",
-    "verdictWithoutColour": "DIVERGE",
-    "reason": "3 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1",
+    "verdict": "INCONCLUSIVE",
+    "withheld": "objects:not-computable",
+    "reason": "our lines, labels are withheld by name (objects:not-computable: No line or label is shown on this chart: whether and where the script draws them depends on values this chart can't work out here, so none are drawn rather than a guess.); every other object family's counts and texts agree",
     "counts": [
      {
       "family": "lines",
       "vendor": 500,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "labels",
       "vendor": 500,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "boxes",
@@ -48575,23 +48436,6 @@
     ],
     "texts": [
      {
-      "family": "labels text",
-      "agree": false,
-      "onlyVendor": [
-       "+SMT",
-       "+SMT",
-       "+SMT",
-       "+SMT",
-       "+SMT",
-       "+SMT",
-       "+SMT",
-       "+SMT",
-       "+SMT",
-       "+SMT"
-      ],
-      "onlyOurs": []
-     },
-     {
       "family": "tableCells text",
       "agree": true,
       "onlyVendor": [],
@@ -48604,9 +48448,8 @@
      "vendor": 1000
     }
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 1 compared items diverge",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 1 items could not be compared",
    "ourNotes": [
     "other symbol XAUUSD: no committed capture of XAUUSD at 1D — the vendor bars (and listing) this read would need",
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
@@ -48692,21 +48535,23 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "DIVERGE",
-    "verdictWithoutColour": "DIVERGE",
-    "reason": "3 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1",
+    "verdict": "INCONCLUSIVE",
+    "withheld": "objects:not-computable",
+    "reason": "our lines, labels are withheld by name (objects:not-computable: No line or label is shown on this chart: whether and where the script draws them depends on values this chart can't work out here, so none are drawn rather than a guess.); every other object family's counts and texts agree",
     "counts": [
      {
       "family": "lines",
       "vendor": 504,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "labels",
       "vendor": 504,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "boxes",
@@ -48729,23 +48574,6 @@
     ],
     "texts": [
      {
-      "family": "labels text",
-      "agree": false,
-      "onlyVendor": [
-       "+SMT",
-       "+SMT",
-       "+SMT",
-       "+SMT",
-       "+SMT",
-       "+SMT",
-       "+SMT",
-       "+SMT",
-       "+SMT",
-       "+SMT"
-      ],
-      "onlyOurs": []
-     },
-     {
       "family": "tableCells text",
       "agree": true,
       "onlyVendor": [],
@@ -48758,9 +48586,8 @@
      "vendor": 1008
     }
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 1 compared items diverge",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 1 items could not be compared",
    "ourNotes": [
     "other symbol XAUUSD: no committed capture of XAUUSD at 1D — the vendor bars (and listing) this read would need",
     "plots/objects: cold: a proved supplier exists (vw-clock-close-tfchange-spy-1d-2026-09-28.json) but the script also reads another symbol whose prehistory is not supplied, cold replay",
@@ -52695,8 +52522,8 @@
       "colorCompared": 4,
       "colorComparable": 4,
       "valued": 4,
-      "maxAbs": 1.1240786079724785e-11,
-      "maxRel": 9.839009667223965e-14,
+      "maxAbs": 1.7053025658242404e-13,
+      "maxRel": 7.204491947838028e-16,
       "firstDivergence": null,
       "warmup": {
        "bars": 0,
@@ -52720,8 +52547,8 @@
      "title": "Baseline",
      "ours": "out3",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "82 steady-state bars disagree; first at bar 140 (na: vendor 59.7746204320142 vs ours na) — scattered, last at bar 221",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 394,
@@ -52730,23 +52557,17 @@
       "bars": 636,
       "compared": 636,
       "oursUnread": 0,
-      "matching": 554,
+      "matching": 636,
       "vendorRowsMissing": 0,
-      "naMismatches": 1,
-      "valueMismatches": 81,
+      "naMismatches": 0,
+      "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 414,
+      "colorCompared": 496,
       "colorComparable": 496,
       "valued": 496,
-      "maxAbs": 0.01776785418742577,
-      "maxRel": 0.00029585015407570397,
-      "firstDivergence": {
-       "bar": 140,
-       "time": 1728567000,
-       "kind": "na",
-       "vendor": 59.7746204320142,
-       "ours": null
-      },
+      "maxAbs": 2.2737367544323206e-13,
+      "maxRel": 1.3918254456653436e-15,
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -52756,25 +52577,10 @@
       "steady": {
        "bars": 636,
        "compared": 636,
-       "divergent": 82,
-       "first": {
-        "bar": 140,
-        "time": 1728567000,
-        "kind": "na",
-        "vendor": 59.7746204320142,
-        "ours": null
-       },
-       "last": {
-        "bar": 221,
-        "time": 1738938600,
-        "kind": "value",
-        "vendor": 166.5359909616156,
-        "ours": 166.5359907720313
-       },
-       "pattern": {
-        "kind": "scattered",
-        "lastDivergentBar": 221
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -52802,8 +52608,8 @@
       "colorCompared": 2,
       "colorComparable": 2,
       "valued": 2,
-      "maxAbs": 5.115907697472721e-13,
-      "maxRel": 4.587045967646585e-15,
+      "maxAbs": 4.263256414560601e-14,
+      "maxRel": 3.8225383063721546e-16,
       "firstDivergence": null,
       "warmup": {
        "bars": 0,
@@ -52845,8 +52651,8 @@
       "colorCompared": 2,
       "colorComparable": 2,
       "valued": 2,
-      "maxAbs": 9.390703326062066e-9,
-      "maxRel": 5.275719948295354e-11,
+      "maxAbs": 1.9895196601282805e-13,
+      "maxRel": 8.404611357664405e-16,
       "firstDivergence": null,
       "warmup": {
        "bars": 0,
@@ -53021,10 +52827,10 @@
      }
     ]
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 7 compared items diverge",
-   "verdictWithoutPaints": "DIVERGE",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "MATCH",
+   "reason": "all 7 items agree",
+   "verdictWithoutPaints": "MATCH",
+   "verdictWithoutColour": "MATCH",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
     "paints: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
@@ -54332,8 +54138,8 @@
      "title": "Long",
      "ours": "value",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "5 steady-state bars disagree; first at bar 177 (na: vendor 1 vs ours na) — scattered, last at bar 243",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 917,
@@ -54342,23 +54148,17 @@
       "bars": 636,
       "compared": 636,
       "oursUnread": 0,
-      "matching": 631,
+      "matching": 636,
       "vendorRowsMissing": 0,
-      "naMismatches": 5,
+      "naMismatches": 0,
       "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 11,
+      "colorCompared": 16,
       "colorComparable": 16,
       "valued": 16,
       "maxAbs": 0,
       "maxRel": 0,
-      "firstDivergence": {
-       "bar": 177,
-       "time": 1733236200,
-       "kind": "na",
-       "vendor": 1,
-       "ours": null
-      },
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -54368,25 +54168,10 @@
       "steady": {
        "bars": 636,
        "compared": 636,
-       "divergent": 5,
-       "first": {
-        "bar": 177,
-        "time": 1733236200,
-        "kind": "na",
-        "vendor": 1,
-        "ours": null
-       },
-       "last": {
-        "bar": 243,
-        "time": 1741786200,
-        "kind": "na",
-        "vendor": 1,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "scattered",
-        "lastDivergentBar": 243
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -54396,8 +54181,8 @@
      "title": "Short",
      "ours": "out2",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "6 steady-state bars disagree; first at bar 171 (na: vendor 1 vs ours na) — scattered, last at bar 247",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 917,
@@ -54406,23 +54191,17 @@
       "bars": 636,
       "compared": 636,
       "oursUnread": 0,
-      "matching": 630,
+      "matching": 636,
       "vendorRowsMissing": 0,
-      "naMismatches": 6,
+      "naMismatches": 0,
       "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 11,
+      "colorCompared": 17,
       "colorComparable": 17,
       "valued": 17,
       "maxAbs": 0,
       "maxRel": 0,
-      "firstDivergence": {
-       "bar": 171,
-       "time": 1732285800,
-       "kind": "na",
-       "vendor": 1,
-       "ours": null
-      },
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -54432,25 +54211,10 @@
       "steady": {
        "bars": 636,
        "compared": 636,
-       "divergent": 6,
-       "first": {
-        "bar": 171,
-        "time": 1732285800,
-        "kind": "na",
-        "vendor": 1,
-        "ours": null
-       },
-       "last": {
-        "bar": 247,
-        "time": 1742304600,
-        "kind": "na",
-        "vendor": 1,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "scattered",
-        "lastDivergentBar": 247
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -54480,8 +54244,8 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "DIVERGE",
-   "reason": "2 of 3 compared items diverge",
+   "verdict": "MATCH",
+   "reason": "all 3 items agree",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ]
@@ -55509,15 +55273,16 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "DIVERGE",
-    "verdictWithoutColour": "DIVERGE",
-    "reason": "1 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1",
+    "verdict": "INCONCLUSIVE",
+    "withheld": "objects:not-carried",
+    "reason": "our lines are withheld by name (objects:not-carried: No line is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree",
     "counts": [
      {
       "family": "lines",
       "vendor": 203,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "labels",
@@ -55564,9 +55329,8 @@
      "vendor": 203
     }
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 1 compared items diverge",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 1 items could not be compared",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ]
@@ -55589,15 +55353,16 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "DIVERGE",
-    "verdictWithoutColour": "DIVERGE",
-    "reason": "1 object families differ (count or text); no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1",
+    "verdict": "INCONCLUSIVE",
+    "withheld": "objects:not-carried",
+    "reason": "our lines are withheld by name (objects:not-carried: No line is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree",
     "counts": [
      {
       "family": "lines",
       "vendor": 203,
-      "ours": 0,
-      "agree": false
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "labels",
@@ -55644,9 +55409,8 @@
      "vendor": 203
     }
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 1 compared items diverge",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 1 items could not be compared",
    "ourNotes": [
     "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
@@ -58531,33 +58295,27 @@
      "title": "O05_bar_index_where_isfirst_was_true",
      "ours": "out6",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "4431 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 4430",
+     "verdict": "MATCH",
+     "reason": "4431 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 250,
-     "color": "unresolvable on our side",
+     "color": "compared",
      "stats": {
       "bars": 4431,
       "compared": 4431,
       "oursUnread": 0,
-      "matching": 0,
+      "matching": 4431,
       "vendorRowsMissing": 0,
-      "naMismatches": 4431,
+      "naMismatches": 0,
       "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 0,
+      "colorCompared": 4431,
       "colorComparable": 4431,
       "valued": 4431,
       "maxAbs": 0,
       "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1711038600,
-       "kind": "na",
-       "vendor": 0,
-       "ours": null
-      },
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -58567,25 +58325,10 @@
       "steady": {
        "bars": 4431,
        "compared": 4431,
-       "divergent": 4431,
-       "first": {
-        "bar": 0,
-        "time": 1711038600,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       },
-       "last": {
-        "bar": 4430,
-        "time": 1790969400,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 4430
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -58817,8 +58560,8 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 12 compared items diverge",
+   "verdict": "MATCH",
+   "reason": "all 12 items agree",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ]
@@ -59051,33 +58794,27 @@
      "title": "O05_bar_index_where_isfirst_was_true",
      "ours": "out6",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "300 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 299",
+     "verdict": "MATCH",
+     "reason": "300 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "our side replayed 8177 bars of proved prehistory (vw-clock-close-tfchange-spy-1d-2026-09-28.json) before the window against a maxLookback of 250",
      "derivedLookback": 250,
-     "color": "unresolvable on our side",
+     "color": "compared",
      "stats": {
       "bars": 300,
       "compared": 300,
       "oursUnread": 0,
-      "matching": 0,
+      "matching": 300,
       "vendorRowsMissing": 0,
-      "naMismatches": 300,
+      "naMismatches": 0,
       "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 0,
+      "colorCompared": 300,
       "colorComparable": 300,
       "valued": 300,
       "maxAbs": 0,
       "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1753450200,
-       "kind": "na",
-       "vendor": 0,
-       "ours": null
-      },
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -59087,25 +58824,10 @@
       "steady": {
        "bars": 300,
        "compared": 300,
-       "divergent": 300,
-       "first": {
-        "bar": 0,
-        "time": 1753450200,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       },
-       "last": {
-        "bar": 299,
-        "time": 1790947800,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 299
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -59337,8 +59059,8 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 12 compared items diverge",
+   "verdict": "MATCH",
+   "reason": "all 12 items agree",
    "ourNotes": [
     "plots/objects: replayed: 8177 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ]
@@ -59571,33 +59293,27 @@
      "title": "O05_bar_index_where_isfirst_was_true",
      "ours": "out6",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "406 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 405",
+     "verdict": "MATCH",
+     "reason": "406 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 250,
-     "color": "unresolvable on our side",
+     "color": "compared",
      "stats": {
       "bars": 406,
       "compared": 406,
       "oursUnread": 0,
-      "matching": 0,
+      "matching": 406,
       "vendorRowsMissing": 0,
-      "naMismatches": 406,
+      "naMismatches": 0,
       "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 0,
+      "colorCompared": 406,
       "colorComparable": 406,
       "valued": 406,
       "maxAbs": 0,
       "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 725898600,
-       "kind": "na",
-       "vendor": 0,
-       "ours": null
-      },
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -59607,25 +59323,10 @@
       "steady": {
        "bars": 406,
        "compared": 406,
-       "divergent": 406,
-       "first": {
-        "bar": 0,
-        "time": 725898600,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       },
-       "last": {
-        "bar": 405,
-        "time": 1790861400,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 405
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -59857,8 +59558,8 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 12 compared items diverge",
+   "verdict": "MATCH",
+   "reason": "all 12 items agree",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ]
@@ -60091,33 +59792,27 @@
      "title": "O05_bar_index_where_isfirst_was_true",
      "ours": "out6",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "1758 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — persistent, last at bar 1757",
+     "verdict": "MATCH",
+     "reason": "1758 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 250,
-     "color": "unresolvable on our side",
+     "color": "compared",
      "stats": {
       "bars": 1758,
       "compared": 1758,
       "oursUnread": 0,
-      "matching": 0,
+      "matching": 1758,
       "vendorRowsMissing": 0,
-      "naMismatches": 1758,
+      "naMismatches": 0,
       "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 0,
+      "colorCompared": 1758,
       "colorComparable": 1758,
       "valued": 1758,
       "maxAbs": 0,
       "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 727972200,
-       "kind": "na",
-       "vendor": 0,
-       "ours": null
-      },
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -60127,25 +59822,10 @@
       "steady": {
        "bars": 1758,
        "compared": 1758,
-       "divergent": 1758,
-       "first": {
-        "bar": 0,
-        "time": 727972200,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       },
-       "last": {
-        "bar": 1757,
-        "time": 1790602200,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 1757
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -60377,8 +60057,8 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 12 compared items diverge",
+   "verdict": "MATCH",
+   "reason": "all 12 items agree",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ]
@@ -77850,8 +77530,8 @@
      "title": "R03_trend",
      "ours": "out3",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "1 steady-state bars disagree; first at bar 0 (na: vendor 1 vs ours na) — scattered, last at bar 0",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 511,
@@ -77860,23 +77540,17 @@
       "bars": 636,
       "compared": 636,
       "oursUnread": 0,
-      "matching": 635,
+      "matching": 636,
       "vendorRowsMissing": 0,
-      "naMismatches": 1,
+      "naMismatches": 0,
       "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 635,
+      "colorCompared": 636,
       "colorComparable": 636,
       "valued": 636,
       "maxAbs": 0,
       "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1711027800,
-       "kind": "na",
-       "vendor": 1,
-       "ours": null
-      },
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -77886,25 +77560,10 @@
       "steady": {
        "bars": 636,
        "compared": 636,
-       "divergent": 1,
-       "first": {
-        "bar": 0,
-        "time": 1711027800,
-        "kind": "na",
-        "vendor": 1,
-        "ours": null
-       },
-       "last": {
-        "bar": 0,
-        "time": 1711027800,
-        "kind": "na",
-        "vendor": 1,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "scattered",
-        "lastDivergentBar": 0
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -78136,8 +77795,8 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 9 compared items diverge",
+   "verdict": "MATCH",
+   "reason": "all 9 items agree",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ]
