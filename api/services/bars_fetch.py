@@ -763,7 +763,17 @@ def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool =
     write) propagates to the caller and verifies nothing.
 
     `tail_only` (request path): fetch ONLY the missing tail window — see
-    `_delta_intraday`. The interior gap-fill scan runs afterwards in the background."""
+    `_delta_intraday`. The interior gap-fill scan runs afterwards in the background.
+
+    ⭐ LOCAL FIRST for a DERIVED tf (30m / 60m, see `_local_tail_repair`): on the
+    request path the missing buckets are rebuilt from the stored finer series and the
+    provider is asked only when that series does not reach the frontier."""
+    if tail_only and last_ts and tf in _DERIVED_TFS:
+        _lt = _local_tail_repair(ticker_up, tf, int(last_ts))
+        if _lt is not None:
+            if _lt[1]:
+                return _lt[2]             # the finer store covered the gap: no provider
+            last_ts = _lt[0]              # provider fetches only what is still missing
     checked_at = _time.time()
     status: dict = {}
     new = _delta_intraday(ticker_up, tf, last_ts, status=status, tail_only=tail_only)
@@ -772,6 +782,171 @@ def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool =
     if status.get("ok"):
         _mark_tail_verified(ticker_up, tf, checked_at)
     return new
+
+
+# ── DERIVED TIMEFRAMES: ONE DERIVATION PATH FROM THE STORED BASE (2026-11-11) ──
+# ⛔⛔ ROOT CAUSE. tf=30 (since #1037) and tf=60 are resamples of 15m, but their tail
+# repair treated them as provider series of their own: it asked the provider for
+# whole ET days of 15m, resampled in memory, stored only the 30m/60m result and
+# threw the 15m away. Two consequences, both measured on production 2026-11-11
+# 09:42 ET: (1) SPY tf=30 bars=1120 first answer ended at the previous evening's
+# 19:30 bar (`delta-deadline`, unverified; a retry 3 s later the same) while SPY
+# tf=15 — the very rows the 30m is built from — was current in the same store; the
+# provider tail outlived the 2.5 s ceiling at the open. (2) every 30m/60m repair
+# re-fetched base rows the store already held.
+# ⭐ INVARIANT: a derived tf's stored bucket is ALWAYS `_resample_derived` of the
+# STORED base (`_DERIVED_BASE_TF` = 15m) rows in that bucket. Every tail writer goes
+# through `_derive_from_stored_base`:
+#   * the provider delta (`_delta_intraday` tf 30/60) persists the 15m it fetched to
+#     the 15m store FIRST, then derives from the store;
+#   * the request-path repair (`_local_tail_repair`, run before any provider slot is
+#     taken) derives from the store and asks the provider only when the rebuilt tail
+#     is still not current — and then only from that rebuilt tail onward.
+# Guards: the base must OVERLAP the target's newest stored bucket (it provably runs
+# from where the target stops — a base that only began today cannot fabricate a
+# contiguous tail), and a stored bucket is never replaced by a thinner one (lower
+# volume = the base is missing rows there; the base's own gap-fill heals it first).
+# The ETH-grid 60m (`session=eth`) is served straight from the 15m serve
+# (`routers/bars._serve_eth_hourly`): the same base, no store of its own.
+# Kill switch for the request-path rebuild only: BARS_LOCAL_DERIVE_TAIL=0.
+_DERIVED_BASE_TF = "15"
+_DERIVED_TFS = ("30", "60")
+_LOCAL_DERIVE_ENABLED = _os.environ.get("BARS_LOCAL_DERIVE_TAIL", "1") == "1"
+
+
+def _derived_bucket_start(tf: str, t: int) -> int:
+    if tf == "60":
+        return bucket_60_et_unix_seconds(int(t))
+    step = int(tf) * 60
+    return int(t) // step * step
+
+
+def _resample_derived(tf: str, base_rows: list[dict]) -> list[dict]:
+    """THE derivation of a derived tf from its base rows (60 = TradingView session
+    grid `SIXTY_MIN_GRID`, 30 = ET clock floor, which is TradingView's 30m grid)."""
+    return _session_resample_hourly(base_rows) if tf == "60" else _resample_minutes(base_rows, 30)
+
+
+def _derive_from_stored_base(ticker_up: str, tf: str, from_bucket: int) -> list[dict]:
+    """Derived `tf` buckets from `from_bucket` onward, built from the STORED base."""
+    rows = [{"t": int(ts), "o": o, "h": h, "l": l, "c": c, "v": v}
+            for ts, o, h, l, c, v in _sqlite.get_bars_since(ticker_up, _DERIVED_BASE_TF,
+                                                            int(from_bucket) - 1)
+            if o is not None and h is not None and l is not None and c is not None]
+    return [b for b in _resample_derived(tf, rows) if b["t"] >= int(from_bucket)]
+
+
+def _local_derived_tail(ticker_up: str, tf: str, last_ts: int):
+    """READ-ONLY: the target `tf` buckets from `last_ts`'s bucket onward, derived from
+    the stored base. Returns {"rows", "src"} or None when the base cannot extend the
+    target (see the block above)."""
+    if tf not in _DERIVED_TFS or not last_ts or not _LOCAL_DERIVE_ENABLED:
+        return None
+    base_last = _sqlite.get_last_ts(ticker_up, _DERIVED_BASE_TF)
+    if base_last is None or int(base_last) <= int(last_ts):
+        return None                       # the base holds nothing newer than the target
+    b0 = _derived_bucket_start(tf, last_ts)
+    derived = _derive_from_stored_base(ticker_up, tf, b0)
+    if not derived or derived[0]["t"] != b0:
+        return None                       # no overlap with the target's newest bucket
+    # ⛔ COMPLETE BUCKETS ONLY (review #1090 F4). A derived bucket is built only when
+    # EVERY base slot it spans (in the extended session, early-close aware, up to now)
+    # is stored; derivation stops at the first missing base slot and the provider is
+    # asked from there. A hole in the base can never become a "current" derived bar.
+    missing = _first_missing_base_slot(
+        ticker_up, b0, int(_time.time()))
+    if missing is not None:
+        step = int(tf) * 60 if tf != "60" else 3600
+        derived = [b for b in derived if _bucket_end(tf, b["t"], step) <= missing]
+    stored_v = {int(r[0]): int(r[5] or 0) for r in _sqlite.get_bars_since(ticker_up, tf, b0 - 1)}
+    keep = [b for b in derived
+            if b["t"] > int(last_ts)
+            or (b["t"] in stored_v and int(b.get("v") or 0) >= stored_v[b["t"]])]
+    if not keep or keep[-1]["t"] <= int(last_ts):
+        return None                       # nothing newer: leave it to the provider
+    return {"rows": keep, "src": _DERIVED_BASE_TF, "complete": missing is None}
+
+
+def _base_contiguous_window(ticker_up: str, from_date: str) -> tuple[str, bool]:
+    """(from_date, persist_base) for a derived tf's provider fetch of its base (F3):
+    start no later than the stored base's tail session so the write is contiguous;
+    when that is beyond the 15m gap-fill reach, do not write the base at all."""
+    try:
+        base_last = _sqlite.get_last_ts(ticker_up, _DERIVED_BASE_TF)
+    except Exception:                      # noqa: BLE001 — unreadable: do not write it
+        return from_date, False
+    if base_last is None:
+        return from_date, True            # no base yet: this fetch STARTS it (no hole)
+    base_day = datetime.fromtimestamp(int(base_last), _ZI("America/New_York")).strftime("%Y-%m-%d")
+    if base_day >= from_date:
+        return from_date, True
+    span = (datetime.strptime(from_date, "%Y-%m-%d") - datetime.strptime(base_day, "%Y-%m-%d")).days
+    if span <= _GAPFILL_CAP_BY_TF.get(_DERIVED_BASE_TF, 14):
+        return base_day, True
+    return from_date, False
+
+
+def _base_slot_in_session(s: int) -> bool:
+    """A 15m base slot starting at `s` lies inside its day's extended session."""
+    try:
+        d = datetime.fromtimestamp(int(s), _ZI("America/New_York"))
+        if not _is_trading_day_ymd(d):
+            return False
+        m = d.hour * 60 + d.minute
+        return _EXT_OPEN_MINUTES_SERVER <= m < _ext_close_minutes(int(d.strftime("%Y%m%d")))
+    except Exception:                      # noqa: BLE001 — unknown = expected (strict)
+        return True
+
+
+def _first_missing_base_slot(ticker_up: str, lo: int, now: int):
+    """First CLOSED in-session 15m slot at/after `lo` with no stored base row, else None.
+
+    * Only CLOSED slots are required (slot end <= now): the still-forming slot may not
+      have printed or landed yet — requiring it would block every rebuild at the open
+      and at each 15m boundary (review #1090 N3).
+    * A slot the provider has already ANSWERED for (`tail_verified_through` of the base
+      at/after the slot's end) and that is still absent is a legitimate no-trade slot,
+      not a hole — so thin names rebuild locally too."""
+    step = int(_DERIVED_BASE_TF) * 60
+    have = {int(r[0]) for r in _sqlite.get_bars_since(ticker_up, _DERIVED_BASE_TF, int(lo) - 1)}
+    vt = tail_verified_through(ticker_up, _DERIVED_BASE_TF)
+    s = int(lo) // step * step
+    while s + step <= int(now):
+        if (s not in have and _base_slot_in_session(s)
+                and not (vt is not None and float(vt) >= s + step)):
+            return s
+        s += step
+    return None
+
+
+def _local_tail_repair(ticker_up: str, tf: str, last_ts: int):
+    """Rebuild + PERSIST a derived tf's tail from its stored base (no provider).
+
+    Returns None when nothing could be rebuilt, else (new_last_ts, current, rows):
+    `current` = the rebuilt tail needs no provider top-up (`_needs_fresh` False and not
+    `unverified`). The target inherits the source's `verified_through` — derived rows
+    are exactly as proven as the rows they were built from — and only after the write
+    reached SQLite (a failed write verifies nothing)."""
+    try:
+        d = _local_derived_tail(ticker_up, tf, last_ts)
+        if not d:
+            return None
+        if not _sqlite.put_bars(ticker_up, tf, d["rows"], date_tf=False):
+            return None
+        # Inherit the base's proof only when the derivation ran to the base tail with no
+        # missing slot — a truncated derivation proves nothing about what lies beyond.
+        vt = tail_verified_through(ticker_up, d["src"]) if d.get("complete") else None
+        if vt is not None:
+            _mark_tail_verified(ticker_up, tf, vt)
+        new_last = max(int(b["t"]) for b in d["rows"])
+        current = (not _needs_fresh(new_last, tf)
+                   and intraday_tail_status(ticker_up, tf, new_last)["tail_status"] != "unverified")
+        return new_last, current, d["rows"]
+    except Exception as _e:               # noqa: BLE001 — fall back to the provider path
+        import logging as _log_ld
+        _log_ld.getLogger(__name__).warning(
+            "[bars] local derive %s tf=%s: %s", ticker_up, tf, type(_e).__name__)
+        return None
 
 
 def expected_completed_bucket(tf: str, now: float | None = None):
@@ -1769,10 +1944,10 @@ def _fetch_intraday_range(ticker: str, tf: str, from_ymd: str, to_ymd: str,
     re-fetched (same class the daily reconciliation worker handles for D/W/M)."""
     if tf == "60":
         src = _fetch_intraday_range(ticker, "15", from_ymd, to_ymd, raise_errors)   # 15m base, session-anchored
-        return _session_resample_hourly(src) if src else []
+        return _resample_derived("60", src) if src else []
     if tf == "30":
         src = _fetch_intraday_range(ticker, "15", from_ymd, to_ymd, raise_errors)   # 15m base (native 30m is sparse)
-        return _resample_minutes(src, 30) if src else []
+        return _resample_derived("30", src) if src else []
     multiplier = int(tf)
     try:
         client = _get_client()
@@ -2104,7 +2279,7 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
         # 15-min source, applying per-bar validation at each hop.
         bars_src = fetch_with_validation(ticker, "15", src, prior_close=prior_close, expected_session=expected_session)
         if bars_src and not _is_intraday_stale(bars_src):
-            out = _session_resample_hourly(bars_src)[-max_bars:]
+            out = _resample_derived("60", bars_src)[-max_bars:]
             _logger.warning(
                 f"[bars-resample] {ticker} tf=60 src={src} validated_15m={len(bars_src)} resampled_to={len(out)}"
             )
@@ -2127,7 +2302,7 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
         # clock floor IS TradingView's 30m grid on both session views.
         bars_src = fetch_with_validation(ticker, "15", max_bars * 2, prior_close=prior_close, expected_session=expected_session)
         if bars_src and not _is_intraday_stale(bars_src):
-            return _resample_minutes(bars_src, 30)[-max_bars:]
+            return _resample_derived("30", bars_src)[-max_bars:]
         _logger.warning(
             "[bars] %s 15m(for 30m): all sources failed validation, returning empty", ticker
         )
@@ -2508,6 +2683,14 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = 
     # carries them. Mirrors the cold-fetch tf=="60" path above — keep both in sync.
     if tf in ("30", "60"):
         try:
+            # ⛔ THE BASE MUST STAY CONTIGUOUS (review #1090 F3). The window above is the
+            # TARGET's; writing it into a 15m store whose tail is OLDER than the window
+            # start would advance the 15m tail over a never-fetched stretch — an
+            # interior hole the 15m tail repair can no longer see. So the fetch starts
+            # at the stored base's own tail session when that is older (bounded by the
+            # 15m gap-fill reach); a base further behind is not written here (its own
+            # repair owns it) and the target is derived from this fetch alone.
+            from_date, persist_base = _base_contiguous_window(ticker, from_date)
             client = _get_client()
             url = (
                 f"{_REST_BASE}/v2/aggs/ticker/{to_polygon_symbol(ticker)}/range/15/minute"
@@ -2518,8 +2701,19 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = 
             # the WHOLE 60m delta (see `_safe_volume`).
             bars_src = [r for r in map(_massive_bar_row, _paginate_massive_aggs(client, url))
                         if r is not None]
-            resampled = (_session_resample_hourly(bars_src) if tf == "60"
-                         else _resample_minutes(bars_src, 30))
+            # ⭐ ONE DERIVATION PATH (2026-11-11): the fetched 15m IS the base series —
+            # persist it to the 15m store, then derive the target from the STORED base
+            # with the same function the local-first repair uses
+            # (`_derive_from_stored_base`). The derived store can therefore never hold
+            # a bucket its own base does not explain, and the next 30m/60m repair finds
+            # the base already current instead of re-asking the provider.
+            resampled = []
+            if bars_src and persist_base and not _is_intraday_stale(bars_src):
+                _sqlite.put_bars(ticker, _DERIVED_BASE_TF, bars_src, date_tf=False)
+                resampled = _derive_from_stored_base(
+                    ticker, tf, _derived_bucket_start(tf, bars_src[0]["t"]))
+            elif bars_src:
+                resampled = _resample_derived(tf, bars_src)
             # Filter shifted from strict > to >= on 2026-05-23. Original concern
             # was REST stepping on the WS-painted live bar; that's now mooted by
             # Phase 4's bar_broadcaster owning the developing-bar timeline AND
@@ -3613,6 +3807,10 @@ def _kick_cold_fetch(ticker_up: str, tf: str, bars: int, date_tf: bool) -> None:
 _REQUEST_DEADLINE_SECONDS = float(
     _os.environ.get("BARS_REQUEST_DEADLINE_SECONDS", "2.5")
 )
+# The local 30m/60m rebuild (`_local_tail_repair`) is two indexed reads and one small
+# write; this ceiling only matters under a held SQLite write lock.
+_LOCAL_DERIVE_DEADLINE_SECONDS = float(
+    _os.environ.get("BARS_LOCAL_DERIVE_DEADLINE_SECONDS", "0.75"))
 
 
 def _bounded_delta(ticker_up: str, tf: str, last_ts: int, date_tf: bool,
@@ -3635,6 +3833,27 @@ def _start_bounded_delta(ticker_up: str, tf: str, last_ts: int, date_tf: bool):
     """Start the `_bounded_delta` job WITHOUT waiting. Returns its done-Event, or None
     when no slot was free / the thread could not start (lets the deep branch run the
     tail repair and the depth fetch in parallel)."""
+    # ⭐ LOCAL FIRST (30m / 60m): rebuild the tail from the stored finer series BEFORE
+    # taking a provider slot — so neither a full heal pool nor a slow provider can
+    # keep a tail the store already holds off the first answer. Its own small thread
+    # (the write never runs on the request thread), deduped, waited on briefly.
+    if (not date_tf) and last_ts and tf in _DERIVED_TFS and _LOCAL_DERIVE_ENABLED:
+        _bounded_job(f"lderive_{ticker_up}_{tf}",
+                     lambda: _local_tail_repair(ticker_up, tf, int(last_ts)),
+                     _LOCAL_DERIVE_DEADLINE_SECONDS)
+        try:
+            _lt_now = _sqlite.get_last_ts(ticker_up, tf)
+        except Exception:                 # noqa: BLE001
+            _lt_now = None
+        if _lt_now and int(_lt_now) > int(last_ts):
+            if (not _needs_fresh(int(_lt_now), tf)
+                    and intraday_tail_status(ticker_up, tf, _lt_now)["tail_status"] != "unverified"):
+                _mark_serve("derived-local")
+                _kick_tail_gapfill(ticker_up, tf)   # interior holes: provider, background
+                done_now = _threading.Event()
+                done_now.set()
+                return done_now
+            last_ts = int(_lt_now)        # the provider fetches only what is still missing
     # ⭐ An interactive INTRADAY repair may draw on the reserved pool (see
     # `_interactive_heal_sem`); everything else competes for the shared one only.
     _slot = _acquire_heal_slot(interactive=(not date_tf) and _request_is_interactive())
