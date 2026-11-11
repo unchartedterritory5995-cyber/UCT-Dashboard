@@ -382,7 +382,9 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
       activeRange: null, atDefaultView: false, indicatorsHidden: false, priceAuto: false, frame: { fromRight: 120, toRight: -8, activeRange: null, locked: false, lock: null } })
     st.replay = null
     const charts = mounted.h.charts
-    const withTime = (x) => (x ? { ...x, view: { ...viewOf(x.ref) }, replay: st.replay } : x)
+    // C1-127: the chart's own Chart Settings door (ChartWidget adapter → ChartPane.openSettings), read back as open
+    st.settingsOpen = {}
+    const withTime = (x) => (x ? { ...x, view: { ...viewOf(x.ref) }, replay: st.replay, canOpenSettings: true, settingsOpen: !!st.settingsOpen[x.ref] } : x)
     mounted.h.charts = { ...charts, list: () => charts.list().map(withTime), read: (r) => withTime(charts.read(r)),
       goTo: (ref, ms) => { viewOf(ref).rightMs = ms >= BAR_DAYS.at(-1) ? BAR_DAYS.at(-1) : lastOnOrBefore(ms); return true },
       // the chart's own view controls (StockChart.applyRange / restoreView / resetView / setIndicatorsHidden), as getDateMeta reads them back
@@ -397,7 +399,8 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
         if (op === 'autoScale') v.priceAuto = true
         return true
       },
-      setReplay: (iso) => { st.replay = iso ?? null; return true } }
+      setReplay: (iso) => { st.replay = iso ?? null; return true },
+      openSettings: (ref) => { st.settingsOpen[ref] = true; return true } }
     st.views = views
   }
   if (extra.drawings) {

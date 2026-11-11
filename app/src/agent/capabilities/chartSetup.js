@@ -54,6 +54,12 @@ const MAX_STEP = 100
 const STEP_NO_UNDO = 'I couldn\'t read where the chart was before, so this step can\'t be undone here: step it the other way, or reset the view.'
 const AUTO_NO_UNDO = 'Auto-scale has no Undo: drag the price scale to set it by hand again.'
 const PRICE_UNREADABLE = 'I can\'t read this chart\'s price scale right now, so I can\'t tell whether it is on auto-scale. Try again in a moment.'
+// C1-127 · chartSetup.openSettings
+const OPEN_NO_UNDO = 'Opening Chart Settings changes nothing, so there\'s nothing to undo: close it with ✕ or Esc.'
+const NO_SETTINGS_DOOR = 'I can\'t open Chart Settings for that chart from here. Use the gear on the chart (or its grid\'s toolbar in Multi Chart).'
+// "open chart settings", "show me the settings panel", "bring up the chart's settings", "pull up the settings for the chart"
+// (canon() has already folded "this / my chart" into "the chart"; no lookbehind: src/noRegexLookbehind.test.js)
+const OPEN_SETTINGS = /^(?:please )?(?:open|show(?: me)?|bring up|pull up|pop up|pop open|launch|display|get me|give me)(?: up)? (?:the |my |its )?(?:(?:the )?chart'?s? )?settings( (?:dialog|panel|window|modal|menu|box|screen|popup|pop-up))?(?: (?:for|of|on) the chart)?$/
 
 // ── copyLook: what a chart's LOOK is NOT (kept from the target chart) ──
 // Top-level keys that are data or per-chart tools, not appearance.
@@ -301,6 +307,31 @@ export function registerChartSetupCapabilities() {
     apply: (st) => (st.view?.atDefaultView ? st : { ...st, viewDo: { op: 'resetView' } }),
     describe: (b, a) => (a.viewDo ? 'Reset this chart\'s view to the default window and put the price scale back on auto' : null),
     noop: () => 'This chart is already at its default view',
+  })
+
+  // ── C1-127: open ONE chart's own Chart Settings dialog — the gear / right-click "Chart settings" / Alt+, door ──
+  // host.charts.openSettings → the ChartWidget adapter → ChartPane.openSettings (the gear's own function); read back from
+  // the pane's open state. A dialog opening changes no setting, so there is nothing to undo (undo: 'none', said on the
+  // receipt). Targeting is the chart kind's (deixis / the clicked chart / "Which chart?"), never its own.
+  registerCapability({
+    ...chartCommon,
+    name: 'chartSetup.openSettings',
+    summary: 'Open ONE chart\'s own Chart Settings dialog for the member (the gear on the chart\'s header, right-click → Chart settings, Alt+,), so they can look or edit there themselves. Changes no setting; no Undo needed.',
+    hints: 'target = the chart. Only when they ask to OPEN / SHOW / BRING UP the chart\'s settings; to CHANGE a setting use chart.setSetting. "Open settings" alone (no chart) is the Settings page (app.open).',
+    args: { type: 'object', properties: {}, required: [], additionalProperties: false },
+    undo: 'none',
+    undoNote: OPEN_NO_UNDO,
+    fast: ({ lower, typed }) => {
+      const m = OPEN_SETTINGS.exec(lower)
+      if (!m) return null
+      // a chart named anywhere in the sentence ("… for the AAPL chart" is lifted off before the clause is read), or a
+      // dialog word: bare "open settings" / "open the settings" stays the Settings PAGE (app.open)
+      return /\bcharts?\b|\bchart'?s\b/.test(lower) || m[1] || /\bcharts?\b|\bchart'?s\b/i.test(String(typed || '')) ? {} : null
+    },
+    check: (st) => (st.canOpenSettings ? null : NO_SETTINGS_DOOR),
+    apply: (st) => (st.settingsOpen ? st : { ...st, openSettings: true }),
+    describe: (b, a) => (a.openSettings ? 'Opened Chart Settings for this chart — nothing on it was changed' : null),
+    noop: () => 'Chart Settings is already open for this chart',
   })
 
   registerCapability({

@@ -1,0 +1,637 @@
+LinkType: red run before any product change
+Wed Nov 11 05:35:04 UTC 2026
+381f91acbd
+
+ RUN  v4.0.18 C:/w/pl-ocs/app
+
+ ❯ src/pages/charts/widgets/ChartWidget.openSettings.test.jsx (4 tests | 4 failed) 93ms
+   × the adapter reaches the pane's own openSettings: the dialog opens and is read back from the pane 58ms
+   × the host snapshot carries the read-back, and host.charts.openSettings reaches the right chart 17ms
+   × end to end: chartSetup.openSettings plans, opens the dialog, is read back, and offers no Undo 10ms
+   × already open: a no-op that opens nothing twice 8ms
+ ❯ src/agent/agentOpenChartSettings.test.jsx (24 tests | 18 failed) 17840ms
+     × one chart: "open chart settings" opens its dialog, with no model call 1073ms
+     × "open the chart settings" is the same door 989ms
+     × "show me the chart settings" is the same door 985ms
+     × "bring up chart settings" is the same door 998ms
+     × "open the settings dialog" is the same door 995ms
+     × "show me the settings panel" is the same door 980ms
+     × "open this chart's settings" is the same door 985ms
+     × "pull up the settings for this chart" is the same door 982ms
+     × names the AAPL chart: only that chart opens 980ms
+     × names a position: "show me the settings panel for the top-left chart" 985ms
+     × ⛔ two charts, none named or clicked: it asks which, and opens nothing 985ms
+     × two charts, one clicked: "this chart" is the clicked one 995ms
+     × ⛔ excluded: "not the NVDA chart" never opens NVDA's dialog 990ms
+     × ⛔ excluded: the clicked chart left alone ("open the settings for the other chart") opens the OTHER one or asks 972ms
+     × a chart with no settings door here (Multi Chart cell, a read-only surface) refuses and calls nothing 987ms
+     ✓ ⛔ a dialog that did not open gets no success  981ms
+     × already open: says so and calls nothing 973ms
+     × says there is no Undo (nothing changed), and declares none 975ms
+     ✓ bare "open settings" stays the Settings PAGE (app.open), as before 1ms
+     ✓ a question about HOW is the walkthrough (guide.show → the settings row), never the door 18ms
+     ✓ a setting change is not the door 1ms
+     ✓ matches the existing "Finding chart settings" guide row, whose first step points at the gear 8ms
+     ✓ the gear the walkthrough points at calls the very openSettings the Agent's door calls 1ms
+     × the row's "do it" line names the Agent's door 1ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 22 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent/agentOpenChartSettings.test.jsx > chartSetup.openSettings: the chart's own Chart Settings door > one chart: "open chart settings" opens its dialog, with no model call
+AssertionError: expected [] to deeply equal [ 'c' ]
+
+- Expected
++ Received
+
+- [
+-   "c",
+- ]
++ []
+
+ ❯ src/agent/agentOpenChartSettings.test.jsx:44:21
+     42|     const before = JSON.stringify(board.state.widgets)
+     43|     const out = await say('open chart settings')
+     44|     expect(s.calls).toEqual(['c'])
+       |                     ^
+     45|     expect([...s.open]).toEqual(['c'])
+     46|     expect(out).toMatch(/Opened Chart Settings/)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/22]⎯
+
+ FAIL  src/agent/agentOpenChartSettings.test.jsx > chartSetup.openSettings: the chart's own Chart Settings door > "open the chart settings" is the same door
+ FAIL  src/agent/agentOpenChartSettings.test.jsx > chartSetup.openSettings: the chart's own Chart Settings door > "show me the chart settings" is the same door
+ FAIL  src/agent/agentOpenChartSettings.test.jsx > chartSetup.openSettings: the chart's own Chart Settings door > "bring up chart settings" is the same door
+ FAIL  src/agent/agentOpenChartSettings.test.jsx > chartSetup.openSettings: the chart's own Chart Settings door > "open the settings dialog" is the same door
+ FAIL  src/agent/agentOpenChartSettings.test.jsx > chartSetup.openSettings: the chart's own Chart Settings door > "show me the settings panel" is the same door
+ FAIL  src/agent/agentOpenChartSettings.test.jsx > chartSetup.openSettings: the chart's own Chart Settings door > "open this chart's settings" is the same door
+ FAIL  src/agent/agentOpenChartSettings.test.jsx > chartSetup.openSettings: the chart's own Chart Settings door > "pull up the settings for this chart" is the same door
+AssertionError: expected [] to deeply equal [ 'c' ]
+
+- Expected
++ Received
+
+- [
+-   "c",
+- ]
++ []
+
+ ❯ src/agent/agentOpenChartSettings.test.jsx:59:21
+     57|     const s = withSettings(h)
+     58|     await say(said)
+     59|     expect(s.calls).toEqual(['c'])
+       |                     ^
+     60|   }, 40000)
+     61| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/22]⎯
+
+ FAIL  src/agent/agentOpenChartSettings.test.jsx > chartSetup.openSettings: the chart's own Chart Settings door > names the AAPL chart: only that chart opens
+AssertionError: expected [] to deeply equal [ 'cl' ]
+
+- Expected
++ Received
+
+- [
+-   "cl",
+- ]
++ []
+
+ ❯ src/agent/agentOpenChartSettings.test.jsx:66:21
+     64|     const s = withSettings(h)
+     65|     await say('open the settings for the AAPL chart')
+     66|     expect(s.calls).toEqual(['cl'])
+       |                     ^
+     67|   }, 40000)
+     68| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/22]⎯
+
+ FAIL  src/agent/agentOpenChartSettings.test.jsx > chartSetup.openSettings: the chart's own Chart Settings door > names a position: "show me the settings panel for the top-left chart"
+AssertionError: expected [] to deeply equal [ 'c0' ]
+
+- Expected
++ Received
+
+- [
+-   "c0",
+- ]
++ []
+
+ ❯ src/agent/agentOpenChartSettings.test.jsx:73:21
+     71|     const s = withSettings(h)
+     72|     await say('show me the settings panel for the top-left chart')
+     73|     expect(s.calls).toEqual(['c0'])
+       |                     ^
+     74|   }, 40000)
+     75| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/22]⎯
+
+ FAIL  src/agent/agentOpenChartSettings.test.jsx > chartSetup.openSettings: the chart's own Chart Settings door > ⛔ two charts, none named or clicked: it asks which, and opens nothing
+AssertionError: expected 'UCT Agent12:35 AM«the model was asked»' to match /Which chart/i
+
+- Expected: 
+/Which chart/i
+
++ Received: 
+"UCT Agent12:35 AM«the model was asked»"
+
+ ❯ src/agent/agentOpenChartSettings.test.jsx:80:17
+     78|     const s = withSettings(h)
+     79|     const out = await say('open chart settings')
+     80|     expect(out).toMatch(/Which chart/i)
+       |                 ^
+     81|     expect(s.calls).toEqual([])
+     82|   }, 40000)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/22]⎯
+
+ FAIL  src/agent/agentOpenChartSettings.test.jsx > chartSetup.openSettings: the chart's own Chart Settings door > two charts, one clicked: "this chart" is the clicked one
+AssertionError: expected [] to deeply equal [ 'cr' ]
+
+- Expected
++ Received
+
+- [
+-   "cr",
+- ]
++ []
+
+ ❯ src/agent/agentOpenChartSettings.test.jsx:89:21
+     87|     p.select('cr')
+     88|     await say('open this chart\'s settings')
+     89|     expect(s.calls).toEqual(['cr'])
+       |                     ^
+     90|   }, 40000)
+     91| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/22]⎯
+
+ FAIL  src/agent/agentOpenChartSettings.test.jsx > chartSetup.openSettings: the chart's own Chart Settings door > ⛔ excluded: "not the NVDA chart" never opens NVDA's dialog
+AssertionError: expected 'UCT Agent12:35 AM«the model was asked»' to deeply equal StringMatching{…}
+ ❯ src/agent/agentOpenChartSettings.test.jsx:98:44
+     96|     expect(s.calls).not.toContain('cl')
+     97|     // and it is not silently dropped: the other chart opens, or it as…
+     98|     expect(s.calls.length ? s.calls : out).toEqual(s.calls.length ? ['…
+       |                                            ^
+     99|   }, 40000)
+    100| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/22]⎯
+
+ FAIL  src/agent/agentOpenChartSettings.test.jsx > chartSetup.openSettings: the chart's own Chart Settings door > ⛔ excluded: the clicked chart left alone ("open the settings for the other chart") opens the OTHER one or asks
+AssertionError: expected 'UCT Agent12:35 AM«the model was asked»' to deeply equal StringMatching{…}
+ ❯ src/agent/agentOpenChartSettings.test.jsx:107:44
+    105|     const out = await say('open the settings for the other chart')
+    106|     expect(s.calls).not.toContain('cl')
+    107|     expect(s.calls.length ? s.calls : out).toEqual(s.calls.length ? ['…
+       |                                            ^
+    108|   }, 40000)
+    109| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/22]⎯
+
+ FAIL  src/agent/agentOpenChartSettings.test.jsx > chartSetup.openSettings: the chart's own Chart Settings door > a chart with no settings door here (Multi Chart cell, a read-only surface) refuses and calls nothing
+AssertionError: expected 'UCT Agent12:35 AM«the model was asked»' to match /can't open Chart Settings for that ch…/
+
+- Expected: 
+/can't open Chart Settings for that chart from here/
+
++ Received: 
+"UCT Agent12:35 AM«the model was asked»"
+
+ ❯ src/agent/agentOpenChartSettings.test.jsx:114:17
+    112|     const s = withSettings(h, { can: () => false })
+    113|     const out = await say('open chart settings')
+    114|     expect(out).toMatch(/can't open Chart Settings for that chart from…
+       |                 ^
+    115|     expect(s.calls).toEqual([])
+    116|   }, 40000)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/22]⎯
+
+ FAIL  src/agent/agentOpenChartSettings.test.jsx > chartSetup.openSettings: the chart's own Chart Settings door > already open: says so and calls nothing
+AssertionError: expected 'UCT Agent12:35 AM«the model was asked»' to match /already open/
+
+- Expected: 
+/already open/
+
++ Received: 
+"UCT Agent12:35 AM«the model was asked»"
+
+ ❯ src/agent/agentOpenChartSettings.test.jsx:130:17
+    128|     s.open.add('c')
+    129|     const out = await say('open chart settings')
+    130|     expect(out).toMatch(/already open/)
+       |                 ^
+    131|     expect(s.calls).toEqual([])
+    132|   }, 40000)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/22]⎯
+
+ FAIL  src/agent/agentOpenChartSettings.test.jsx > chartSetup.openSettings: the chart's own Chart Settings door > says there is no Undo (nothing changed), and declares none
+AssertionError: expected 'UCT Agent12:35 AM«the model was asked»' to match /changes nothing, so there's nothing t…/
+
+- Expected: 
+/changes nothing, so there's nothing to undo/
+
++ Received: 
+"UCT Agent12:35 AM«the model was asked»"
+
+ ❯ src/agent/agentOpenChartSettings.test.jsx:138:17
+    136|     withSettings(h)
+    137|     const out = await say('open chart settings')
+    138|     expect(out).toMatch(/changes nothing, so there's nothing to undo/)
+       |                 ^
+    139|     const c = getCapability('chartSetup.openSettings')
+    140|     expect(c.undo).toBe('none')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/22]⎯
+
+ FAIL  src/agent/agentOpenChartSettings.test.jsx > the walkthrough: "how do I open chart settings" teaches the same door > the row's "do it" line names the Agent's door
+AssertionError: expected 'Tell me the change — for example “dar…' to match /open chart settings/i
+
+- Expected: 
+/open chart settings/i
+
++ Received: 
+"Tell me the change — for example “dark theme on this chart”, “hide the grid” or “candles to hollow”."
+
+ ❯ src/agent/agentOpenChartSettings.test.jsx:185:83
+    183|   it('the row\'s "do it" line names the Agent\'s door', async () => {
+    184|     const { matchFeature } = await import('./guide/registry')
+    185|     expect(matchFeature('how do i open chart settings', null, 'charts'…
+       |                                                                                   ^
+    186|   })
+    187| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/22]⎯
+
+ FAIL  src/pages/charts/widgets/ChartWidget.openSettings.test.jsx > the adapter reaches the pane's own openSettings: the dialog opens and is read back from the pane
+TypeError: adapter(...).canOpenSettings is not a function
+ ❯ src/pages/charts/widgets/ChartWidget.openSettings.test.jsx:81:20
+     79|   render(<Wrap initialOpts={{ tf: 'D' }} />)
+     80|   expect(screen.queryByTestId('chart-settings-modal')).toBeNull()
+     81|   expect(adapter().canOpenSettings()).toBe(true)
+       |                    ^
+     82|   expect(adapter().settingsOpen()).toBe(false)
+     83|   let ok
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/22]⎯
+
+ FAIL  src/pages/charts/widgets/ChartWidget.openSettings.test.jsx > the host snapshot carries the read-back, and host.charts.openSettings reaches the right chart
+AssertionError: expected { ref: 'w1', …(13) } to match object { settingsOpen: false, …(1) }
+(62 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "canOpenSettings": true,
+-   "settingsOpen": false,
++   "canvasTheme": "default",
++   "cell": {
++     "h": 20,
++     "w": 24,
++     "x": 0,
++     "y": 0,
++   },
++   "cs": {
++     "background": "#17181a",
++     "bgGradient": {
++       "bottom": "#17181a",
++       "top": "#16233b",
++     },
++     "bgMode": "solid",
++     "breadthChartType": "candles",
++     "candleColorMode": "netchange",
++     "candles": {
++       "downBorder": "#df4646",
++       "downColor": "#df4646",
++       "downWick": "#df4646",
++       "oneColor": "#2faf68",
++       "thinBars": true,
++       "upBorder": "#2faf68",
++       "upColor": "#2faf68",
++       "upWick": "#2faf68",
++     },
++     "chartType": "candles",
++     "compareHideBase": false,
++     "comparisonSymbols": [],
++     "countdown": false,
++     "crosshair": {
++       "color": "#706b5e",
++       "enabled": true,
++       "magnet": false,
++       "style": 1,
++       "width": 1,
++     },
++     "darkPool": {
++       "barColor": "#c9a84ccc",
++       "enabled": false,
++       "labelColor": "#c9a84c",
++     },
++     "drawingDefaults": {
++       "color": "#c9a84c",
++       "fontSize": 13,
++       "style": "solid",
++       "width": 1,
++     },
++     "extendedHoursShading": true,
++     "grid": {
++       "color": "rgba(46,49,39,0.25)",
++       "visible": true,
++     },
++     "header": {
++       "colors": {},
++       "customTimeframes": [],
++       "legendLayout": "vertical",
++       "showChange": true,
++       "showLegend": true,
++       "showMarketCap": true,
++       "showNextEarnings": true,
++       "showUctRating": true,
++       "timeframes": [
++         "1",
++         "5",
++         "15",
++         "30",
++         "60",
++         "D",
++         "W",
++         "M",
++       ],
++       "titleMode": "company",
++     },
++     "heikinAshi": false,
++     "hideDrawings": false,
++     "indicatorInstances": [
++       {
++         "defId": "movingAverage",
++         "hidden": false,
++         "inputs": {
++           "color": "#4ade80",
++           "maType": "ema",
++           "period": 9,
++           "source": "close",
++         },
++         "instanceId": "ovl:0",
++       },
++       {
++         "defId": "movingAverage",
++         "hidden": false,
++         "inputs": {
++           "color": "#f472b6",
++           "maType": "ema",
++           "period": 20,
++           "source": "close",
++         },
++         "instanceId": "ovl:1",
++       },
++       {
++         "defId": "movingAverage",
++         "hidden": false,
++         "inputs": {
++           "color": "#60a5fa",
++           "maType": "sma",
++           "period": 50,
++           "source": "close",
++         },
++         "instanceId": "ovl:2",
++       },
++       {
++         "defId": "movingAverage",
++         "hidden": false,
++         "inputs": {
++           "color": "#fb923c",
++           "maType": "sma",
++           "period": 200,
++           "source": "close",
++         },
++         "instanceId": "ovl:3",
++       },
++     ],
++     "indicators": {
++       "volumeProfile": {
++         "bins": 24,
++         "color": "rgba(120,160,100,0.25)",
++         "enabled": false,
++         "pocColor": "rgba(200,160,40,0.65)",
++       },
++     },
++     "invertScale": false,
++     "logScale": false,
++     "markers": {
++       "dividends": false,
++       "earnings": false,
++       "earningsBeat": "#2faf68",
++       "earningsMiss": "#df4646",
++       "ipo": true,
++       "ipoColor": "#dcbb5e",
++       "news": false,
++       "splits": false,
++     },
++     "overlays": [
++       {
++         "adopted": "ovl:0",
++         "color": "#4ade80",
++         "enabled": true,
++         "lineStyle": "solid",
++         "lineWidth": 1,
++         "offset": 0,
++         "onTop": false,
++         "period": 9,
++         "plotStyle": "line",
++         "removed": true,
++         "type": "EMA",
++       },
++       {
++         "adopted": "ovl:1",
++         "color": "#f472b6",
++         "enabled": true,
++         "lineStyle": "solid",
++         "lineWidth": 1,
++         "offset": 0,
++         "onTop": false,
++         "period": 20,
++         "plotStyle": "line",
++         "removed": true,
++         "type": "EMA",
++       },
++       {
++         "adopted": "ovl:2",
++         "color": "#60a5fa",
++         "enabled": true,
++         "lineStyle": "solid",
++         "lineWidth": 1,
++         "offset": 0,
++         "onTop": false,
++         "period": 50,
++         "plotStyle": "line",
++         "removed": true,
++         "type": "SMA",
++       },
++       {
++         "adopted": "ovl:3",
++         "color": "#fb923c",
++         "enabled": true,
++         "lineStyle": "solid",
++         "lineWidth": 1,
++         "offset": 0,
++         "onTop": false,
++         "period": 200,
++         "plotStyle": "line",
++         "removed": true,
++         "type": "SMA",
++       },
++     ],
++     "paneOrder": [],
++     "paneSeriesOrder": {},
++     "paneSizes": {},
++     "percentScale": false,
++     "positionCalc": {
++       "accountSize": 100000,
++       "riskPct": 1,
++     },
++     "preset": "classic",
++     "prevDayLevels": {
++       "close": {
++         "color": "#9aa0a6",
++         "enabled": true,
++         "style": "dotted",
++         "width": 1,
++       },
++       "high": {
++         "color": "#3cb868",
++         "enabled": true,
++         "style": "dashed",
++         "width": 1,
++       },
++       "low": {
++         "color": "#e74c3c",
++         "enabled": true,
++         "style": "dashed",
++         "width": 1,
++       },
++     },
++     "sessionView": "regular",
++     "settingsVersion": 2,
++     "showMaLabels": false,
++     "showPatterns": false,
++     "showPriceLabels": true,
++     "signature": {
++       "darkPoolLevels": false,
++       "flowSignals": false,
++       "gexWalls": false,
++     },
++     "swingLabels": {
++       "bg": null,
++       "bgEnabled": true,
++       "color": "#d4d0c4",
++       "downColor": "#f87171",
++       "enabled": false,
++       "sensitivity": "medium",
++       "tintByType": false,
++       "upColor": "#4ade80",
++     },
++     "textColor": "#706b5e",
++     "textSize": 11,
++     "theme": "dark",
++     "volume": {
++       "barStyle": "columns",
++       "downColor": "#df4646",
++       "hvcEnabled": true,
++       "labelColor": "#9b9684",
++       "labelVisible": true,
++       "maColor": "rgba(168,162,144,0.55)",
++       "maLineStyle": "solid",
++       "maLineWidth": 1,
++       "maPeriod": 0,
++       "paneHeightPct": 22,
++       "plotStyle": "histogram",
++       "separatePane": false,
++       "upColor": "#2faf68",
++       "visible": true,
++     },
++     "volumeOverlayIndicators": [],
++     "watermark": {
++       "color": "#a8a290",
++       "lines": {
++         "company": true,
++         "industry": true,
++         "sector": true,
++         "theme": true,
++         "ticker": true,
++       },
++       "opacity": 0.07,
++       "sizeScale": 1.25,
++       "visible": true,
++       "weight": 500,
++       "x": 0.5,
++       "y": 0.5,
++     },
++   },
++   "drawSym": "NVDA",
++   "group": "A",
++   "label": "Chart (NVDA)",
++   "linkedCount": 0,
++   "position": null,
++   "ref": "w1",
++   "stored": null,
++   "symbol": "NVDA",
++   "tf": "D",
++   "view": null,
++   "watermarkPos": null,
+  }
+
+ ❯ src/pages/charts/widgets/ChartWidget.openSettings.test.jsx:98:34
+     96|   render(<Wrap initialOpts={{ tf: 'D' }} />)
+     97|   const host = hostOf()
+     98|   expect(host.charts.read('w1')).toMatchObject({ settingsOpen: false, …
+       |                                  ^
+     99|   let ok
+    100|   act(() => { ok = host.charts.openSettings('w1') })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/22]⎯
+
+ FAIL  src/pages/charts/widgets/ChartWidget.openSettings.test.jsx > end to end: chartSetup.openSettings plans, opens the dialog, is read back, and offers no Undo
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/pages/charts/widgets/ChartWidget.openSettings.test.jsx:111:19
+    109|   const host = hostOf()
+    110|   const plan = planOps(collectTargets(host, ['chart']), [{ action: 'ch…
+    111|   expect(plan.ok).toBe(true)
+       |                   ^
+    112|   const res = await offAct(() => commitPlan(host, plan))
+    113|   expect(res.ok).toBe(true)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/22]⎯
+
+ FAIL  src/pages/charts/widgets/ChartWidget.openSettings.test.jsx > already open: a no-op that opens nothing twice
+TypeError: adapter(...).openSettings is not a function
+ ❯ src/pages/charts/widgets/ChartWidget.openSettings.test.jsx:123:25
+    121| test('already open: a no-op that opens nothing twice', async () => {
+    122|   render(<Wrap initialOpts={{ tf: 'D' }} />)
+    123|   act(() => { adapter().openSettings() })
+       |                         ^
+    124|   const host = hostOf()
+    125|   const plan = planOps(collectTargets(host, ['chart']), [{ action: 'ch…
+ ❯ ../../pl-mc-fw/app/node_modules/@testing-library/react/dist/act-compat.js:47:24
+ ❯ process.env.NODE_ENV.exports.act ../../pl-mc-fw/app/node_modules/react/cjs/react.development.js:814:22
+ ❯ Proxy.<anonymous> ../../pl-mc-fw/app/node_modules/@testing-library/react/dist/act-compat.js:46:25
+ ❯ src/pages/charts/widgets/ChartWidget.openSettings.test.jsx:123:3
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/22]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  22 failed | 6 passed (28)
+   Start at  00:35:05
+   Duration  24.42s (transform 7.59s, setup 717ms, import 10.58s, tests 17.93s, environment 1.28s)
+

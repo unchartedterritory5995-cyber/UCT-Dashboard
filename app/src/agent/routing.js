@@ -80,7 +80,9 @@ export const GROUPS = [
       // temporary reachability; replace with description-driven discovery
       /\b(?:range|show|frame|zoom)\b.*\b(?:3m|6m|ytd|1y|5y|year to date|(?:one|1|last|past|five|5) years?|(?:three|3|six|6) months)\b|\bsince (?:the )?ipo\b/,
       /\breset (?:the |this |my |chart |chart's )*(?:view|zoom)\b|\bdefault view\b/,
-      /\b(?:hide|show|bring back|turn (?:off|on)|unhide)\b.*\b(?:all|every)\b.*\b(?:indicators?|moving averages?|mas|overlays)\b/] },
+      /\b(?:hide|show|bring back|turn (?:off|on)|unhide)\b.*\b(?:all|every)\b.*\b(?:indicators?|moving averages?|mas|overlays)\b/,
+      // C1-127: OPENING a chart's own Chart Settings dialog (chartSetup.openSettings) — an open verb and the chart's settings
+      /\b(?:open|show|bring up|pull up|pop up|pop open|launch|display)\b.*\b(?:chart'?s? settings|settings (?:dialog|panel|window|modal)|settings (?:for|of|on) (?:the |this |that |my )?(?:\w+ )?(?:\w+ )?chart)\b/] },
   // ⭐ live test 2026-10-28: N tickers as N equal charts (reuse, add, re-tile — one change, one Undo) — its OWN group
   // (one action), so neither the NL-1 core nor the workspace group grows: core + workspace is exactly the budget.
   { id: 'chartGrid', title: 'Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells', domains: ['chartGrid'], fillLast: true,
@@ -442,6 +444,26 @@ export function selectGroups(message, { pendingActions = [], recentActions = [],
 }
 
 /**
+ * ROUTE REACHABILITY guard: a group a request needed that the per-request budget could not carry is never cut SILENTLY —
+ * one console line names the groups and their actions (names only, never the message). Nothing member-visible changes:
+ * the cut groups stay named to the model (need_groups), as before. Pinned by qa/capabilityRegression/routeReachability.test.js.
+ * Rate-limited: ONCE per distinct set of cut groups per page session (bounded), so a busy console is not flooded.
+ */
+const CUT_SEEN = new Set()
+const CUT_SEEN_MAX = 256
+export const _resetBudgetCutLog = () => CUT_SEEN.clear()
+export function warnBudgetCut(manifest, groupOf, ids) {
+  if (!ids || !ids.length) return
+  const cut = ids.filter(id => manifest.some(c => groupOf(c.name) === id))
+  if (!cut.length) return
+  const key = [...cut].sort().join(',')
+  if (CUT_SEEN.has(key) || CUT_SEEN.size >= CUT_SEEN_MAX) return
+  CUT_SEEN.add(key)
+  const names = manifest.filter(c => cut.includes(groupOf(c.name))).map(c => c.name)
+  try { console.warn(`[uct-agent] routing budget cut: ${cut.join(', ')} not sent (${names.join(', ')})`) } catch { /* no console */ }
+}
+
+/**
  * Route a manifest. Returns { manifest, routing } — `routing` is what the server needs to tell
  * the model about the groups it was NOT given (null = the full manifest, no routing).
  * `extra` adds groups (the bounded reroute).
@@ -496,6 +518,10 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
     if (used + n > budget && want.size >= always.length) { over.push(id); continue }
     want.add(id); used += n
   }
+  // a group this message NEEDED (pinned, its own words, a carried answer, soft vocabulary) that the budget cut is logged —
+  // the fallback's fill groups are not: past the catalog size they are expected not to fit
+  const needed = new Set([...pinned, ...carried, ...(matched ? own : (soft || []))])
+  warnBudgetCut(manifest, groupOf, over.filter(id => needed.has(id)))
   const present = GROUPS.filter(g => counts.has(g.id))
   const routed = manifest.filter(c => want.has(groupOf(c.name)) || groupOf(c.name) === null)
   if (routed.length === manifest.length) return { manifest, routing: null }

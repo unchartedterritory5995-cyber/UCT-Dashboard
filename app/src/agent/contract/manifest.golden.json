@@ -5903,6 +5903,28 @@
    "shape": null
   },
   {
+   "name": "chartSetup.openSettings",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Open ONE chart's own Chart Settings dialog for the member (the gear on the chart's header, right-click → Chart settings, Alt+,), so they can look or edit there themselves. Changes no setting; no Undo needed.",
+   "hints": "target = the chart. Only when they ask to OPEN / SHOW / BRING UP the chart's settings; to CHANGE a setting use chart.setSetting. \"Open settings\" alone (no chart) is the Settings page (app.open).",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "chartSetup.stepBars",
    "domain": "chartSetup",
    "target": "chart",
