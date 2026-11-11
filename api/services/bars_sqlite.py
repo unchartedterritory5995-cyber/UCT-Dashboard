@@ -157,6 +157,31 @@ BARS_INDEX_DDL = {
     ),
 }
 
+def ohlcv_ddl(name: str = "ohlcv") -> str:
+    """⭐ THE ONE DDL for the bar table: CLUSTERED (WITHOUT ROWID) on its primary key.
+
+    Rows are stored in (ticker, tf, ts) order, so a series' newest N bars are a handful of
+    ADJACENT pages however their writes were interleaved -- the universe live store writes
+    every ticker's bucket every few seconds, which in a rowid table put each of a ticker's
+    600 newest 5m bars on a different page (0.05-1.4 s cold reads at the open, measured
+    2026-11-11; see `bars_cluster` for the evidence and the in-place conversion of an
+    existing store). The PK b-tree IS the table: no `idx_ohlcv_lookup` is needed on it."""
+    return (f"CREATE TABLE IF NOT EXISTS {name} ("
+            "ticker TEXT NOT NULL, tf TEXT NOT NULL, ts INTEGER NOT NULL, "
+            "o REAL, h REAL, l REAL, c REAL, v INTEGER, "
+            "PRIMARY KEY (ticker, tf, ts)) WITHOUT ROWID")
+
+
+def expected_index_ddl(conn: sqlite3.Connection) -> dict:
+    """`BARS_INDEX_DDL` as it applies to THIS store's `ohlcv` layout: a clustered table's
+    primary key already is the (ticker, tf, ts) b-tree, so `LOOKUP_INDEX` would only be
+    a redundant second copy of every key (and a third b-tree on every write)."""
+    from api.services import bars_cluster
+    if bars_cluster.layout(conn) == "clustered":
+        return {k: v for k, v in BARS_INDEX_DDL.items() if k != LOOKUP_INDEX}
+    return dict(BARS_INDEX_DDL)
+
+
 # One-time migrations: (name, sql_to_run). Runs once per name. Add a new entry
 # whenever the upstream intraday fetch path changes so existing cached rows get
 # re-fetched through the corrected code path.
@@ -173,16 +198,9 @@ MIGRATION_NAMES = tuple(name for name, _sql in _MIGRATIONS)
 
 def init_db() -> None:
     c = _conn()
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS ohlcv (
-            ticker TEXT NOT NULL,
-            tf     TEXT NOT NULL,
-            ts     INTEGER NOT NULL,
-            o REAL, h REAL, l REAL, c REAL, v INTEGER,
-            PRIMARY KEY (ticker, tf, ts)
-        )
-    """)
-    c.execute(BARS_INDEX_DDL[LOOKUP_INDEX])
+    c.execute(ohlcv_ddl())   # a no-op on an existing store (rowid stores convert via bars_cluster)
+    if LOOKUP_INDEX in expected_index_ddl(c):
+        c.execute(BARS_INDEX_DDL[LOOKUP_INDEX])
     # ⚰️ `bars_provenance` LIVED HERE UNTIL 2026-08-09 AND ITS COMMENT PROMISED
     # A DEBUGGING AFFORDANCE THAT NEVER EXISTED. It said future audit logic
     # "joins ohlcv ⨝ bars_provenance to report 'this bad bar came from yfinance
@@ -230,7 +248,7 @@ def daily_bydate_index_ready() -> bool:
     """True if the by-date daily index exists — a cheap catalog check (no build)."""
     try:
         return _conn().execute(
-            "SELECT 1 FROM sqlite_master WHERE type='index' AND name=?",
+            "SELECT 1 FROM sqlite_master WHERE type='index' AND name=? AND tbl_name='ohlcv'",
             (DAILY_BYDATE_INDEX,),
         ).fetchone() is not None
     except Exception:
@@ -351,7 +369,7 @@ def ensure_indexes_at(db_path: str) -> list[str]:
         present = {r[0] for r in c.execute(
             "SELECT name FROM sqlite_master WHERE type='index'").fetchall()}
         created = []
-        for name, ddl in BARS_INDEX_DDL.items():
+        for name, ddl in expected_index_ddl(c).items():
             if name in present:
                 continue
             c.execute(ddl)
