@@ -163,6 +163,10 @@ describe('widget.setOption: exactly what the widget reads', () => {
     const prem = ownControls('optionsflow').find(c => c.key === 'minPremium').options
     expect([...flow.matchAll(/\{ v: (\d+), label:/g)].map(m => Number(m[1]))).toEqual(prem)
     for (const v of ['SWEEP', 'BLOCK', 'BULL', 'BEAR']) expect(flow).toContain(`k: '${v}'`)
+    // every chip word the Agent says is the one on the chip: the premium chips are `{ v, label }`, the others `{ k, l }`
+    for (const c of ownControls('optionsflow')) for (const [v, word] of Object.entries(c.shown || {})) {
+      expect(flow).toContain(c.key === 'minPremium' ? `{ v: ${v}, label: '${word}' }` : `k: '${v}', l: '${word}'`)
+    }
     expect(read('pages/ThemeTrackerPage.jsx')).toContain("'1W': '1w', '1M': '1m', '3M': '3m', '1Y': '1y', 'YTD': 'ytd'")
   })
   it('the rail can see what it checks (guards the parse above)', () => {

@@ -8,12 +8,19 @@ Built on `agent/pl/bar-time-coverage` from `agent/pl/integration-1` `b07a97d526`
 
 ## The number
 
-**225 of 484 actions, 46.5%, are VERIFIED at panel level with a scripted model** (158 in the 2026-11-05 run, plus 67 on 2026-11-10: 29 from the chart-settings outcome test, 3 from the Multi Chart outcome test, 35 from the cited-test re-run). A further 9 are PARTIAL (SIMULATED): part of the action passes, part is not covered. See "Update 2026-11-10: combined execution packets (PR #1016)" below. That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
+**226 of 484 actions, 46.7%, are VERIFIED at panel level with a scripted model** (158 in the 2026-11-05 run, plus 68 on 2026-11-10: 29 from the chart-settings outcome test, 3 from the Multi Chart outcome test, 35 from the cited-test re-run, 1 from the Options Flow chips). A further 9 are PARTIAL (SIMULATED): part of the action passes, part is not covered. See "Update 2026-11-10: combined execution packets (PR #1016)" below. That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
 
 - Production evidence with the real planner covers 13 of those 158 rows, from the 2026-11-03 live run on the older build `463a4bcba5`, read by receipt and some server reads.
 - Real component in a browser, Agent executing: 0 rows. The browser runs in teach-status.md prove walkthroughs, where a person clicks. They never ran an Agent plan.
-- A further 29 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 225. (It was 43 on 2026-11-05; 14 of them were raised on 2026-11-10.)
+- A further 29 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 226. (It was 43 on 2026-11-05; 14 of them were raised on 2026-11-10.)
 - P0 actions: 58 of 74 VERIFIED (as of 2026-11-05; this doc carries no per-row P0 tag, so the 2026-11-10 update did not recount it).
+
+## Update 2026-11-10 (4): the Options Flow widget's chips, F-16 widened (agent/pl/exec-flow-filters)
+
+The owner widened F-16 to every existing Options Flow widget chip (Calls / Puts, Sweep / Block, Bull / Bear, the premium floor), through the widget’s own control (widget.setOption → opts.filters), never a screen, no hidden field, no data read, no trade. Built on #872 (Calls only). Test: `app/src/agent/qa/chartsOutcome/flowFilters.outcome.test.jsx` over the REAL OptionsFlowWidget beside the real panel (scripted model, jsdom, SIMULATED). PR doc: `docs/agent/program/PR-exec-flow-filters.md`.
+
+- VERIFIED (1): C3-166; was MISSING (1): C3-166.
+- Recounted from the "All actions" table by `recount-flow-filters.mjs` (it first reproduces the previous "Counts by area" exactly from the previous rows).
 
 ## Update 2026-11-10: combined execution packets (PR #1016)
 
@@ -53,6 +60,7 @@ The 10 non-held-out test files named by 40 NOT VERIFIED rows (ledger `docs/agent
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | 2026-11-05 | 158 | 0 | 112 | 154 | 47 | 13 | 484 | 19 |
 | after chart settings + multichart + cited re-run | 225 | 9 | 69 | 126 | 43 | 12 | 484 | 19 |
+| after the Options Flow chips (agent/pl/exec-flow-filters) | 226 | 9 | 69 | 125 | 43 | 12 | 484 | 19 |
 
 - VERIFIED 225 of 484, 46.5%. PARTIAL is in scope but never VERIFIED (the PARTIAL column PR #1016 introduced).
 - Re-run on the combined branch (after both merges): all 12 test files of the three packets were run once each, single-file, under the suite lock, and all passed (chartSettings.outcome 40 passed + 5 known-gap (pinned) + 7 todo; multiChart.outcome 8 passed + 17 todo; the 10 cited files as in EXEC-CITED-RERUN.md). Totals lines: `docs/agent/program/PR-exec-chart-settings.md`.
@@ -193,7 +201,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3 | TE News | 1 | 1 | 2 | 6 | 0 | 0 | 10 | 0 |
 | C3 | Calendar | 5 | 0 | 1 | 3 | 0 | 0 | 9 | 0 |
 | C3 | Breadth | 3 | 0 | 0 | 4 | 0 | 0 | 7 | 0 |
-| C3 | Options Flow | 1 | 0 | 2 | 2 | 0 | 0 | 5 | 0 |
+| C3 | Options Flow | 2 | 0 | 2 | 1 | 0 | 0 | 5 | 0 |
 | C3 | Themes | 5 | 1 | 0 | 3 | 0 | 0 | 9 | 0 |
 | C3 | Fundamentals | 2 | 0 | 0 | 1 | 0 | 0 | 3 | 0 |
 | C3 | Profile | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 0 |
@@ -211,8 +219,8 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3 | Workspace | 0 | 0 | 0 | 1 | 1 | 1 | 3 | 0 |
 | C1 | **all** | 103 | 4 | 17 | 28 | 11 | 5 | 168 | 11 |
 | C2 | **all** | 39 | 0 | 32 | 20 | 5 | 4 | 100 | 1 |
-| C3 | **all** | 83 | 5 | 20 | 78 | 27 | 3 | 216 | 7 |
-| | **Total** | 225 | 9 | 69 | 126 | 43 | 12 | 484 | 19 |
+| C3 | **all** | 84 | 5 | 20 | 77 | 27 | 3 | 216 | 7 |
+| | **Total** | 226 | 9 | 69 | 125 | 43 | 12 | 484 | 19 |
 
 ## Raised to VERIFIED (47)
 
@@ -783,7 +791,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-163 | Breadth | Send a snapshot to Journal | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: "Send to Journal over the real widgets' own capture doors", case C3-163; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
 | C3-164 | Options Flow | Switch market or symbol scope | IMPLEMENTED / UNVERIFIED | agentWidgetOptions.test.jsx:49; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | pass 1/1 | runtime, no panel |
 | C3-165 | Options Flow | Switch the lead view | IMPLEMENTED / UNVERIFIED | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | source only |
-| C3-166 | Options Flow | Set filters (premium, call/put, type, direction) | MISSING | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | none |
+| C3-166 | Options Flow | Set filters (premium, call/put, type, direction) | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | flowFilters.outcome.test.jsx: C3-166 over the real OptionsFlowWidget, every chip group (premium, call/put, type, direction) and AND across groups: 12 held-out set phrasings + 2 resets read back from opts.filters AND the prints drawn, Undo exact; 5 refusals (same-group conflicts, a premium no chip has, an invented filter); two widgets asked or named; approve paths. F-16 widened by the owner 2026-11-10 (from #872) | pass 27/27 | panel, scripted model |
 | C3-167 | Options Flow | Read the flow | MISSING | none | n/a | none |
 | C3-168 | Options Flow | Click a flow row | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
 | C3-169 | Themes | Pick a period or ranking | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | themeTracker.outcome.test.jsx: C3-169 "show the theme tracker for the past month"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |

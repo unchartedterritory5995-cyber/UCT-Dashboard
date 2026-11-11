@@ -8,6 +8,7 @@
 //     door:    true = the widget's own writer, not `opts` (its state lives in the widget, or the write is more than one key);
 //              Undo goes back through that writer
 //     inverse: true = a set whose stored members are the ones turned OFF (a hidden list)
+//     shown:   { value: the word on its control } where the two differ (a chip says Calls, opts holds C)
 //     inOpts:  true = a door write whose whole result is in `opts`: Undo needs only those opts
 //     all:     true = an empty set means every member, and a full one is stored empty }
 // A `set` takes "+member" / "-member". agent/settingsLiveness.test.js proves a row the same way as a `live` field: an `opts`
@@ -36,11 +37,15 @@ const OWN = {
     { key: 'day', type: 'day', door: true },
     { key: 'tbdOpen', type: 'boolean', default: false, door: true },
   ],
+  // the widget's four single-select chip groups (OptionsFlowWidget.jsx MIN_PREM_OPTS and its three chip rows), AND across groups;
+  // `shown` = the words on the chips, `also` = how a person says one (F-16 widened by the owner 2026-11-10: every chip)
   optionsflow: [
-    { key: 'minPremium', type: 'enum', options: [0, 250000, 500000, 1000000], default: 0, path: 'filters.minPrem' },
-    { key: 'callPut', type: 'enum', options: ['all', 'C', 'P'], default: 'all', path: 'filters.cp' },
-    { key: 'printType', type: 'enum', options: ['all', 'SWEEP', 'BLOCK'], default: 'all', path: 'filters.type' },
-    { key: 'direction', type: 'enum', options: ['all', 'BULL', 'BEAR'], default: 'all', path: 'filters.dir' },
+    { key: 'minPremium', type: 'enum', options: [0, 250000, 500000, 1000000], shown: { 0: 'All', 250000: '$250K', 500000: '$500K', 1000000: '$1M' }, default: 0, path: 'filters.minPrem',
+      also: { 1000000: ['million', '1m'], 500000: ['500k'], 250000: ['250k'], 0: ['premium'] } },
+    { key: 'callPut', type: 'enum', options: ['all', 'C', 'P'], shown: { all: 'All', C: 'Calls', P: 'Puts' }, default: 'all', path: 'filters.cp' },
+    { key: 'printType', type: 'enum', options: ['all', 'SWEEP', 'BLOCK'], shown: { all: 'Any', SWEEP: 'Sweep', BLOCK: 'Block' }, default: 'all', path: 'filters.type' },
+    { key: 'direction', type: 'enum', options: ['all', 'BULL', 'BEAR'], shown: { all: 'All', BULL: 'Bull', BEAR: 'Bear' }, default: 'all', path: 'filters.dir',
+      also: { BULL: ['bullish'], BEAR: ['bearish'] } },
   ],
   nhnl: [
     { key: 'universe', type: 'enum', from: 'door', path: 'activeUniverse' },
