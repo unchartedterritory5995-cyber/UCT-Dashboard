@@ -123,6 +123,10 @@
   "drawing.setProps": "drawings",
   "drawing.setFibLevels": "drawings",
   "drawing.setAlert": "alerts",
+  "drawing.setActiveBoard": "drawings",
+  "drawing.createBoard": "drawings",
+  "drawing.renameBoard": "drawings",
+  "drawing.deleteBoard": "drawings",
   "indicator.list": "indicators",
   "indicator.openCreate": "indicators",
   "indicator.add": "indicators",
@@ -208,7 +212,7 @@
   },
   {
    "id": "drawings",
-   "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+   "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list; Drawing Boards (switch the board you draw on, new board, rename, delete)"
   },
   {
    "id": "lists",
@@ -347,7 +351,7 @@
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list; Drawing Boards (switch the board you draw on, new board, rename, delete)"
      },
      {
       "id": "lists",
@@ -504,7 +508,7 @@
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list; Drawing Boards (switch the board you draw on, new board, rename, delete)"
      },
      {
       "id": "lists",
@@ -675,7 +679,7 @@
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list; Drawing Boards (switch the board you draw on, new board, rename, delete)"
      },
      {
       "id": "lists",
@@ -809,7 +813,11 @@
     "drawing.clear",
     "drawing.setAnchors",
     "drawing.setProps",
-    "drawing.setFibLevels"
+    "drawing.setFibLevels",
+    "drawing.setActiveBoard",
+    "drawing.createBoard",
+    "drawing.renameBoard",
+    "drawing.deleteBoard"
    ],
    "routing": {
     "version": 1,
@@ -856,7 +864,7 @@
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list; Drawing Boards (switch the board you draw on, new board, rename, delete)"
      },
      {
       "id": "lists",
@@ -1009,7 +1017,7 @@
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list; Drawing Boards (switch the board you draw on, new board, rename, delete)"
      },
      {
       "id": "lists",
@@ -1208,6 +1216,10 @@
     "drawing.setProps",
     "drawing.setFibLevels",
     "drawing.setAlert",
+    "drawing.setActiveBoard",
+    "drawing.createBoard",
+    "drawing.renameBoard",
+    "drawing.deleteBoard",
     "indicator.list",
     "indicator.openCreate",
     "indicator.add",

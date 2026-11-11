@@ -164,10 +164,12 @@ export const GROUPS = [
       /\b(?:draw|put|add|plot)\b.*\blines? from\b.*\bto\b/, /\bfib(?:onacci)?(?: retracement)?\b|\bretracement\b/,
       /\b(?:write|type|label|annotate)\b.*\b(?:on (?:the|my|this) chart|at \$?\d)/, /\banchor(?:ed)? (?:a |an |the )?vwap\b/,
       /\b(trend ?lines?|rays?|fib\w*|retracements?|rectangles?|anchored vwap|avwap)\b.*\b(from|between|starting|anchored|since)\b/, /\banchored vwap\b|\bavwap\b/] },
-  { id: 'drawings', title: 'Chart drawings: horizontal price levels (draw, move to a price), move any drawing\'s anchors, restyle, every setting in a drawing\'s menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list', domains: ['drawing'],
+  { id: 'drawings', title: 'Chart drawings: horizontal price levels (draw, move to a price), move any drawing\'s anchors, restyle, every setting in a drawing\'s menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list; Drawing Boards (switch the board you draw on, new board, rename, delete)', domains: ['drawing'],
     // W2 (CG-7): a stock's "drawdowns" are price history (data), never a drawing
     // CG-28 family: "the lines on here" may be the member's drawn levels as much as their averages — both groups ride
-    words: [/\bdraw(?![\s-]?downs?\b)\w*\b/, /\b(?:what|which|any|my|the|all) (?:[a-z-]+ ){0,2}lines\b.*\b(?:on|in) (?:here|this chart|the chart|my chart|it)\b/, /\b(a |the )?line at \$?\d/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
+    words: [/\bdraw(?![\s-]?downs?\b)\w*\b/, /\b(?:what|which|any|my|the|all) (?:[a-z-]+ ){0,2}lines\b.*\b(?:on|in) (?:here|this chart|the chart|my chart|it)\b/, /\b(a |the )?line at \$?\d/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/,
+      // C1-167..170: a Drawing Board by its verb ("switch to my Swing board", "rename Board 2 to Earnings")
+      /\b(?:switch|change|go|flip|jump|draw on|rename|delete|remove|new|another|create|make)\b.*\bboards?\b/] },
   { id: 'lists', title: 'Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)', domains: ['watchlist'],
     words: [/\bwatch ?lists?\b/, /\blists?\b/, /\b(add|put|remove|drop)\b.+\b(to|into|from|off)\b/] },
   { id: 'screener', title: 'Screener (run screens, saved screens: run, save, copy, rename, delete)', domains: ['screener'],
