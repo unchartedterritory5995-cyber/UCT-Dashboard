@@ -496,6 +496,19 @@
    ],
    "fast": false
   },
+  "chartSetup.compareGroup": {
+   "domain": "chartSetup",
+   "group": "compareGroups",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "chartSetup.copyLook": {
    "domain": "chartSetup",
    "group": "chartSetup",

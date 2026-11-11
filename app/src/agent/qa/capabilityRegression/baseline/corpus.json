@@ -1376,6 +1376,53 @@
       ]
     },
     {
+      "id": "compare.group.aiChips",
+      "source": "C1-035/037/040 (pl-exec): the Compare panel's group controls",
+      "capabilities": [
+        "chartSetup.compareGroup"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chartSetup.compareGroup"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.compareGroup",
+            "target": "$charts[0]",
+            "args": {
+              "action": "add",
+              "group": "AI Chips",
+              "groupType": "any",
+              "scale": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "settingSome": {
+          "key": "comparisonSymbols",
+          "match": {
+            "sym": "AMD",
+            "group": "AI Chips"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "compare this chart against the AI Chips theme",
+        "overlay the AI Chips group on this chart",
+        "compare NVDA with the AI Chips theme"
+      ]
+    },
+    {
       "id": "widget.news",
       "capabilities": [
         "widget.add"

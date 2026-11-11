@@ -151,6 +151,7 @@
   "chartSetup.setMovingAverages": "chartSetup",
   "chartSetup.saveTemplate": "chartSetup",
   "chartSetup.deleteTemplate": "chartSetup",
+  "chartSetup.compareGroup": "compareGroups",
   "indicatorStyle.set": "indicatorSetup",
   "indicatorStyle.placeIn": "indicatorSetup",
   "pane.move": "indicatorSetup",
@@ -179,6 +180,10 @@
   {
    "id": "chartSetup",
    "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
+  },
+  {
+   "id": "compareGroups",
+   "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
   },
   {
    "id": "chartGrid",
@@ -322,6 +327,10 @@
      {
       "id": "chartSetup",
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
+     },
+     {
+      "id": "compareGroups",
+      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
       "id": "chartGrid",
@@ -483,6 +492,10 @@
      {
       "id": "chartSetup",
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
+     },
+     {
+      "id": "compareGroups",
+      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
       "id": "chartGrid",
@@ -658,6 +671,10 @@
      {
       "id": "chartSetup",
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
+     },
+     {
+      "id": "compareGroups",
+      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
       "id": "chartGrid",
@@ -845,6 +862,10 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
+      "id": "compareGroups",
+      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -1002,6 +1023,10 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
+      "id": "compareGroups",
+      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -1100,6 +1125,7 @@
    "selected": [
     "charts",
     "chartSetup",
+    "compareGroups",
     "chartGrid",
     "boardEdit",
     "workspace",
@@ -1267,6 +1293,7 @@
     "chartSetup.setMovingAverages",
     "chartSetup.saveTemplate",
     "chartSetup.deleteTemplate",
+    "chartSetup.compareGroup",
     "indicatorStyle.set",
     "indicatorStyle.placeIn",
     "pane.move",

@@ -252,6 +252,9 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
       if (method === 'DELETE') { const id = decodeURIComponent(u.split('/').pop()); st.alerts = st.alerts.filter(r => r.id !== id); return json({ ok: true }) }
       return json(st.alerts)
     }
+    // the Compare panel's group reads (api/routers/compare.py shapes): one theme, for chartSetup.compareGroup
+    if (u.startsWith('/api/compare/groups?')) return json({ groups: u.endsWith('type=theme') ? [{ name: 'AI Chips', count: 3 }] : [] })
+    if (u.startsWith('/api/compare/group-members?')) return json(u.includes('name=AI%20Chips') ? { name: 'AI Chips', symbols: ['NVDA', 'AMD', 'AVGO'], total: 3, truncated: false } : { name: '', symbols: [], total: 0, truncated: false })
     if (u === '/api/screener/fields?options=1') return json({ fields: FIELDS, options: FIELD_OPTIONS })
     if (u === '/api/screener/fields' || u.startsWith('/api/screener/fields?')) return json({ fields: FIELDS })
     // the saved screens behind the real routes' semantics (screener saved-screens: GET list, POST create, PUT rename, DELETE)
