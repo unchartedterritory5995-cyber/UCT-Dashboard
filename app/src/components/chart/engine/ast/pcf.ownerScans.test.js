@@ -153,15 +153,15 @@ describe('🔴 the TC2000 dialog carries meaning the formula TEXT does not', () 
 // the member's TC2000 indicator, and it does not say the row can simply be
 // deleted.
 describe('a TC2000 dialog indicator says what it is, and what to do instead', () => {
-  it('Price History names itself and points at the way out', () => {
+  // ⚰️ THIS TEST PINNED A REFUSAL — "Price History … can simply be dropped" —
+  // and the refusal was wrong: TC2000's `Price History` is the PRICE source, so
+  // dropping the row silently removed a $10 price floor from the owner's scan.
+  // It reads now (2026-11-10); `pcf.conditionRows.test.js` owns the reading.
+  it('Price History reads as the price, so the row is a price floor', () => {
     const ev = read('Price History > 10')
-    expect(ev.ok).toBe(false)
-    expect(ev.dialect, 'it reached the NATIVE reader, so the message is wrong')
-      .toBe('pcf')
-    expect(ev.guard).toBe('pcf:name')
-    expect(ev.error).toContain('Price History')
-    // ⭐ The actionable half — this is the sentence that saves the member's scan.
-    expect(ev.error).toMatch(/can simply be dropped/)
+    expect(ev.ok, ev.error || '').toBe(true)
+    expect(ev.dialect).toBe('pcf')
+    expect(ev.readback).toBe(read('C > 10').readback)
   })
 
   it('the 52-week-high row points at the formula that replaces it', () => {
@@ -185,10 +185,11 @@ describe('a TC2000 dialog indicator says what it is, and what to do instead', ()
     expect(ev.dialect).toBe('pcf')
   })
 
-  it('🔴 the owner`s Inside-Day column reads once the dialog row is dropped', () => {
-    // The whole point: the rest of that TC2000 column is expressible today.
-    const ev = read('(L > L1) AND (H < H1) AND (H > L) AND V > 1000000'
-      + ' AND 100 * c / maxh250 > 80')
+  it('🔴 the owner`s Inside-Day column reads WHOLE, its Price History row included', () => {
+    // ⚰️ This used to read "once the dialog row is dropped" — the price floor was
+    // deleted to make the column parse. It no longer has to be.
+    const ev = read('Price History > 10 AND (L > L1) AND (H < H1) AND (H > L)'
+      + ' AND V > 1000000 AND 100 * c / maxh250 > 80')
     expect(ev.ok, ev.error || '').toBe(true)
     expect(ev.verdict.mode).toBe('non-repainting')
   })

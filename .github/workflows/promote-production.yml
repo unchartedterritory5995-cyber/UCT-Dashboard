@@ -41,10 +41,19 @@ on:
   workflow_dispatch:
     inputs:
       sha:
-        description: "master commit to promote (defaults to the tip of master)"
+        description: "master commit to promote (default: the PENDING SHA; never the tip of master)"
         required: false
       freeze_override:
         description: "reason to promote INSIDE the Wed 09:00-11:00 ET measurement window (voids that week's reading)"
+        required: false
+      resume:
+        description: "resume the PENDING SHA (set by this workflow's own bounded re-dispatch)"
+        required: false
+      dry_run:
+        description: "yes = decide and report only: no push, no state write, no re-dispatch"
+        required: false
+      now:
+        description: "DRY RUN ONLY: a simulated clock (ISO time) for the freeze and the wait"
         required: false
   # ⭐ THE WEDNESDAY CATCH-UP (tools/deploy_freeze.py). A promotion that arrives inside
   # the Wed 09:00-11:00 ET measurement window is HELD, not refused; these two runs
@@ -56,6 +65,18 @@ on:
   # opening (09:20-09:45 ET) and closing (15:30-16:15 ET) rush; these promote the tip of
   # master after each: 09:50 and 16:20 ET, one cron per daylight/standard offset (the
   # other lands outside every window and promotes harmlessly).
+  # ⭐ A PR that changes the promotion machinery runs ONLY the `dryrun` job below (contents: read; no push, no state
+  # write, no dispatch): tools/promote_dryrun.py on simulated clocks inside a rush and inside the Wednesday window,
+  # plus the decision tests. The promote and resume jobs are excluded from pull_request by their job-level `if:`.
+  pull_request:
+    paths:
+      - .github/workflows/promote-production.yml
+      - tools/promote_decision.py
+      - tools/promote_dryrun.py
+      - tools/promote_facts.sh
+      - tools/promote_state.sh
+      - tools/deploy_freeze.py
+      - tests/test_promote_decision.py
   schedule:
     - cron: '5 15 * * 3'
     - cron: '5 16 * * 3'
@@ -73,9 +94,12 @@ on:
 # and promoting B still deploys A's code, but A's changed files were never scanned by
 # any run that gated a deploy. Coalescing is only sound when every gating check is
 # cumulative over the tree, and one of ours is per-commit by construction.
+# ⭐ A pull_request dry run gets its OWN group (per PR, superseded runs cancelled, as tests/test_ci_cost_rails.py asks
+# of every PR workflow); it can never join, queue behind or cancel a real promotion. Every other event: the one
+# `promote-production` queue, never cancelled.
 concurrency:
-  group: promote-production
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('promote-dryrun-{0}', github.event.pull_request.number) || 'promote-production' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: write      # the fast-forward push to `production`
@@ -91,9 +115,19 @@ jobs:
     # the step below. A job-level skip, never an `exit 0` in that step: that step's failure is what
     # stops every later step from running, so softening it would let promotion proceed.
     # Rail: tests/test_promote_skips_only_cancelled_gates.py.
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion != 'cancelled'
+    # ⛔ NEVER on pull_request: a PR runs only the `dryrun` job.
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion != 'cancelled')
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # ⭐ 200 min: the bounded freeze wait (at most 126 min: tools/deploy_freeze.py MAX_WAIT_MIN + margin; the
+    # wait step's own timeout is 130) + the gating poll (~20 min) + checkout and bookkeeping. Well under
+    # GitHub's 6 h job cap. On a public repository standard GitHub-hosted runners bill 0 minutes
+    # (docs/agent/program/PROMOTE-CATCHUP-DESIGN.md, "Billing").
+    timeout-minutes: 200
+    outputs:
+      action: ${{ steps.dec.outputs.action }}
+      candidate: ${{ steps.cand.outputs.sha }}
+    env:
+      DRY_RUN: ${{ inputs.dry_run == 'yes' && 'yes' || 'no' }}
     steps:
       # ⛔ A FAILED GATE MUST NOT REACH THE POLL. `workflow_run` fires on completion
       # whatever the conclusion, and the poll below would then sit waiting for a run
@@ -107,55 +141,216 @@ jobs:
           echo "\`master deploy gate\` concluded **${{ github.event.workflow_run.conclusion }}**. Fix forward on master; the next green gate promotes." >> "$GITHUB_STEP_SUMMARY"
           exit 1
 
-      # fetch-depth 0: the ancestry check needs real history. A shallow clone makes
-      # `merge-base --is-ancestor` answer from an incomplete graph.
+      # fetch-depth 0: the ancestry checks need real history. A shallow clone makes
+      # `merge-base --is-ancestor` answer from an incomplete graph. Master is checked out for the
+      # TOOLS only; the candidate is resolved below and is never "whatever master is now".
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event.workflow_run.head_sha || inputs.sha || 'master' }}
+          ref: master
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
+      # PyYAML: promote_decision.py counts the gate's expected jobs from its workflow file (matrix-aware).
+      - name: Tools and their self-checks (the decision, the freeze, the gate table)
+        run: |
+          python -m pip install --quiet pyyaml
+          python tools/promotion_gate.py --self-check
+          python tools/promote_decision.py --self-check
+          python tools/deploy_freeze.py --self-check
+
+      # ⭐ THE PENDING RECORD (deploy-gate-state/pending-promotion.json): the exact gated SHA a freeze held,
+      # written BEFORE any wait so an interrupted run leaves it behind. Absent = nothing pending.
+      - name: Read the pending record
+        id: pend
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          if gh api "/repos/$GITHUB_REPOSITORY/contents/pending-promotion.json?ref=deploy-gate-state" --jq .content > "$RUNNER_TEMP/pending.b64" 2>/dev/null; then
+            base64 -d "$RUNNER_TEMP/pending.b64" > "$RUNNER_TEMP/pending.json" || echo null > "$RUNNER_TEMP/pending.json"
+            BLOB=$(gh api "/repos/$GITHUB_REPOSITORY/contents/pending-promotion.json?ref=deploy-gate-state" --jq .sha 2>/dev/null || echo "")
+          else
+            echo null > "$RUNNER_TEMP/pending.json"; BLOB=""
+          fi
+          python -c 'import json,sys; json.load(open(sys.argv[1]))' "$RUNNER_TEMP/pending.json" 2>/dev/null || echo null > "$RUNNER_TEMP/pending.json"
+          echo "blob=$BLOB" >> "$GITHUB_OUTPUT"
+          echo "pending: $(cat "$RUNNER_TEMP/pending.json")"
+
+      # ⛔ THE CANDIDATE IS NEVER MASTER'S TIP. It is the triggering gate's head_sha, the dispatch input, or the
+      # pending record (tools/promote_decision.py resolve); a schedule or resume with nothing pending does nothing.
       - name: Resolve the candidate
         id: cand
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          TRIGGER_SHA: ${{ github.event.workflow_run.head_sha }}
+          TRIGGER_CONC: ${{ github.event.workflow_run.conclusion }}
+          INPUT_SHA: ${{ inputs.sha }}
+          RESUME: ${{ inputs.resume }}
+          ACTOR: ${{ github.triggering_actor || github.actor }}
         run: |
-          SHA=$(git rev-parse HEAD)
+          set -euo pipefail
+          # (A) the operator's manual fallback needs the tip's OWN gate verdict. It is looked up ONLY for a human blank
+          # dispatch with nothing pending (resolve() re-checks every guard: no sha, no resume, no dry run, not the bot).
+          TIP=""; TIP_OK=no; TIP_RUN=""
+          PEND_SHA=$(python -c 'import json,sys; p=json.load(open(sys.argv[1])); print((p or {}).get("sha") or "")' "$RUNNER_TEMP/pending.json")
+          if [ "$EVENT" = "workflow_dispatch" ] && [ -z "$INPUT_SHA" ] && [ -z "$PEND_SHA" ] && [ "$RESUME" != "yes" ] \
+             && [ "$DRY_RUN" != "yes" ] && [ "$ACTOR" != "github-actions[bot]" ]; then
+            git fetch --no-tags --quiet origin master
+            TIP=$(git rev-parse origin/master)
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${TIP}&branch=master&event=push&per_page=100" > tip-runs.json
+            TIP_RUN=$(python -c 'import json; r=[x for x in json.load(open("tip-runs.json"))["workflow_runs"] if x.get("name")=="master deploy gate" and x.get("conclusion")=="success"]; print(max(r,key=lambda x:x["id"])["id"] if r else "")')
+            if [ -n "$TIP_RUN" ]; then gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${TIP_RUN}/jobs?per_page=100" > tip-jobs.json; else echo '{"jobs":[]}' > tip-jobs.json; fi
+            G=$(python tools/promote_decision.py gate --runs tip-runs.json --jobs tip-jobs.json --workflow .github/workflows/master-deploy-gate.yml --sha "$TIP")
+            echo "tip own gate: $G"
+            TIP_OK=$(printf '%s' "$G" | python -c 'import json,sys; print("yes" if json.load(sys.stdin)["gate_ok"] else "no")')
+          fi
+          export TIP TIP_OK TIP_RUN
+          python - "$RUNNER_TEMP/pending.json" > "$RUNNER_TEMP/resolve-facts.json" <<'PY'
+          import json, os, sys
+          print(json.dumps({"event": os.environ["EVENT"], "trigger_sha": os.environ.get("TRIGGER_SHA") or None,
+                            "trigger_conclusion": os.environ.get("TRIGGER_CONC") or None,
+                            "input_sha": os.environ.get("INPUT_SHA") or None, "pending": json.load(open(sys.argv[1])),
+                            "resume": os.environ.get("RESUME") == "yes", "dry_run": os.environ.get("DRY_RUN") == "yes",
+                            "actor": os.environ.get("ACTOR") or None, "master_tip": os.environ.get("TIP") or None,
+                            "tip_gate_ok": os.environ.get("TIP_OK") == "yes", "tip_gate_run": os.environ.get("TIP_RUN") or None}))
+          PY
+          R=$(python tools/promote_decision.py resolve --facts "$RUNNER_TEMP/resolve-facts.json")
+          echo "resolve: $R"
+          printf '%s' "$R" > "$RUNNER_TEMP/resolve.json"
+          python - "$RUNNER_TEMP/resolve.json" >> "$GITHUB_OUTPUT" <<'PY'
+          import json, sys
+          r = json.load(open(sys.argv[1]))
+          print(f"gate_green={'yes' if r.get('gate_green') else 'no'}")
+          print(f"source={(r.get('source') or '').replace(chr(10), ' ')}")
+          print(f"stop={(r.get('stop') or '').replace(chr(10), ' ')}")
+          PY
+          SHA=$(printf '%s' "$R" | python -c 'import json,sys; print(json.load(sys.stdin)["candidate"] or "")')
+          if [ -z "$SHA" ]; then
+            echo "none=yes" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Nothing to promote::$(printf '%s' "$R" | python -c 'import json,sys; print(json.load(sys.stdin)["stop"])')"
+            exit 0
+          fi
+          SHA=$(git rev-parse --verify "${SHA}^{commit}")
+          git checkout -q --detach "$SHA"
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
-          echo "candidate: $SHA"
+          echo "none=no" >> "$GITHUB_OUTPUT"
+          echo "candidate: $SHA ($(printf '%s' "$R" | python -c 'import json,sys; print(json.load(sys.stdin)["source"])'))"
 
-      # ⛔ THE WEDNESDAY MEASUREMENT-WINDOW FREEZE (TERM-007, decision B1). Inside Wed
-      # 09:00-11:00 ET `web` is not promoted, because a deploy there voids the week's
-      # one-pod reading. FAILS OPEN: an error in the tool, or in this step, leaves
-      # `frozen` unset and the promotion proceeds. Override: the `freeze_override`
-      # dispatch input, or `[freeze-override]` in the candidate commit's message.
-      - name: Deploy freeze (Wed 09:00-11:00 ET measurement window, weekday rushes)
-        id: freeze
+      # ⛔ THE WEDNESDAY MEASUREMENT-WINDOW FREEZE (TERM-007, decision B1) AND THE WEEKDAY RUSHES. Inside
+      # them `web` is not promoted. FAILS OPEN: an error in the tool, or in this step, leaves `frozen0`
+      # unset and nothing waits. Override: the `freeze_override` dispatch input, or `[freeze-override]` in
+      # the candidate commit's message. `now` (dispatch input) is honoured in a DRY RUN only: a simulated clock.
+      - name: Deploy freeze, and how long to wait for it (bounded)
+        id: freeze0
+        if: steps.cand.outputs.none == 'no'
         continue-on-error: true
         env:
           DEPLOY_FREEZE_OVERRIDE: ${{ inputs.freeze_override }}
+          SIM_NOW: ${{ inputs.dry_run == 'yes' && inputs.now || '' }}
         run: |
           set +e
           MSG=$(git log -1 --format=%B HEAD 2>/dev/null)
-          python tools/deploy_freeze.py --message "$MSG"
-          CODE=$?
-          if [ "$CODE" = "3" ]; then
-            echo "::notice title=Promotion held (deploy freeze)::Inside the Wed 09:00-11:00 ET measurement window or a weekday market rush. production is not moved now; the next scheduled run after the window promotes the tip of master."
-            echo "## Promotion held — deploy freeze" >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "Inside the Wednesday 09:00-11:00 ET window (TERM-007) or a weekday rush (09:20-09:45 / 15:30-16:15 ET). The next scheduled run promotes the tip of master." >> "$GITHUB_STEP_SUMMARY"
+          NOWARG=(); [ -n "$SIM_NOW" ] && NOWARG=(--now "$SIM_NOW")
+          SCRATCH=$(mktemp)
+          GITHUB_OUTPUT="$SCRATCH" python tools/deploy_freeze.py "${NOWARG[@]}" --message "$MSG"
+          if [ "$?" = "3" ]; then
+            GITHUB_OUTPUT="$SCRATCH" python tools/deploy_freeze.py "${NOWARG[@]}" --wait-plan --message "$MSG"
+            WAIT_S=$(sed -n 's/^wait_s=//p' "$SCRATCH" | tail -1)
+            case "$WAIT_S" in ''|*[!0-9]*) WAIT_S=0 ;; esac
+            echo "frozen0=yes" >> "$GITHUB_OUTPUT"
+            echo "wait_s=$WAIT_S" >> "$GITHUB_OUTPUT"
+          else
+            echo "frozen0=no" >> "$GITHUB_OUTPUT"
+            echo "wait_s=0" >> "$GITHUB_OUTPUT"
           fi
           exit 0
 
-      # The decision table, proved able to fail, before it is used on a real commit.
-      - name: promotion_gate self-check
-        run: python tools/promotion_gate.py --self-check
+      # The ancestry facts, from git. Recomputed after any wait (master and production may have moved).
+      - name: Facts before the wait
+        id: facts0
+        if: steps.freeze0.outputs.frozen0 == 'yes'
+        env:
+          SHA: ${{ steps.cand.outputs.sha }}
+        run: bash tools/promote_facts.sh "$SHA" "$RUNNER_TEMP/pending.json" > "$RUNNER_TEMP/facts0.json" && cat "$RUNNER_TEMP/facts0.json"
+
+      # ⭐ HOLD FIRST, THEN WAIT. The SHA is recorded PENDING before the sleep, so a killed run leaves the
+      # record and the bounded re-dispatch (job `resume` below) or the backup crons resume THAT SHA.
+      - name: Record the SHA as PENDING (before waiting)
+        if: steps.freeze0.outputs.frozen0 == 'yes'
+        # the record is the safety net for an interrupted wait; failing to write it must not stop the wait itself
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BLOB: ${{ steps.pend.outputs.blob }}
+          GATE_RUN_ID: ${{ github.event.workflow_run.id }}
+          GATE_GREEN: ${{ steps.cand.outputs.gate_green }}
+        run: |
+          set -uo pipefail
+          python - "$RUNNER_TEMP/facts0.json" > "$RUNNER_TEMP/hold-facts.json" <<'PY'
+          import json, os, sys, datetime as dt
+          f = json.load(open(sys.argv[1]))
+          f.update(frozen=True, gate_ok=True, gate_run_id=os.environ.get("GATE_RUN_ID") or None,
+                   cand_gate_green=os.environ.get("GATE_GREEN") == "yes",
+                   held_at=dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"))
+          print(json.dumps(f))
+          PY
+          D=$(python tools/promote_decision.py decide --facts "$RUNNER_TEMP/hold-facts.json")
+          echo "hold decision: $D"
+          bash tools/promote_state.sh write-pending "$D" "$BLOB"
+
+      # ⛔ BOUNDED TWICE: the tool never plans more than MAX_WAIT_MIN, and this step dies at 130 minutes.
+      # A dry run does not sleep; it advances its simulated clock by the planned wait instead.
+      - name: Wait in-job for the freeze to close (bounded)
+        id: wait
+        if: steps.freeze0.outputs.frozen0 == 'yes' && steps.freeze0.outputs.wait_s != '0'
+        timeout-minutes: 130
+        env:
+          WAIT_S: ${{ steps.freeze0.outputs.wait_s }}
+          SIM_NOW: ${{ inputs.dry_run == 'yes' && inputs.now || '' }}
+        run: |
+          set -euo pipefail
+          if [ "$WAIT_S" -gt 7620 ]; then echo "::error::refusing a wait of ${WAIT_S}s (bound 7620s)"; exit 1; fi
+          if [ "$DRY_RUN" = "yes" ]; then
+            NEW=$(python -c 'import datetime as d,sys; t=d.datetime.fromisoformat((sys.argv[1] or d.datetime.now(d.timezone.utc).isoformat()).replace("Z","+00:00")); print((t+d.timedelta(seconds=int(sys.argv[2]))).isoformat())' "$SIM_NOW" "$WAIT_S")
+            echo "DRY RUN: would sleep ${WAIT_S}s; simulated clock -> $NEW"
+            echo "sim_now=$NEW" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::notice title=Promotion waiting (deploy freeze)::waiting ${WAIT_S}s in-job for the freeze to close, then re-checking everything on the same SHA."
+          sleep "$WAIT_S"
+
+      # The SAME freeze decision again, after the wait. `frozen` is the final answer every later step reads.
+      - name: Deploy freeze (Wed 09:00-11:00 ET measurement window, weekday rushes)
+        id: freeze
+        if: steps.cand.outputs.none == 'no'
+        continue-on-error: true
+        env:
+          DEPLOY_FREEZE_OVERRIDE: ${{ inputs.freeze_override }}
+          SIM_NOW: ${{ steps.wait.outputs.sim_now || (inputs.dry_run == 'yes' && inputs.now) || '' }}
+        run: |
+          set +e
+          MSG=$(git log -1 --format=%B HEAD 2>/dev/null)
+          NOWARG=(); [ -n "$SIM_NOW" ] && NOWARG=(--now "$SIM_NOW")
+          python tools/deploy_freeze.py "${NOWARG[@]}" --message "$MSG"
+          CODE=$?
+          if [ "$CODE" = "3" ]; then
+            echo "::notice title=Promotion held (deploy freeze)::Still inside a freeze window after the bounded wait. The SHA stays PENDING; the bounded re-dispatch or the backup crons resume it."
+            echo "## Promotion held — deploy freeze" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Still inside the Wednesday 09:00-11:00 ET window (TERM-007) or a weekday rush (09:20-09:45 / 15:30-16:15 ET) after the bounded wait. The SHA is PENDING in deploy-gate-state." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit 0
 
       # ⛔ POLL, DO NOT ASSUME. `master deploy gate` finishing does not mean the other
       # gating workflows have. They started at the same time and may still be running.
+      # Re-verified at FIRE time, for the candidate, never carried over from when it was held.
       - name: Wait for the gating checks
         id: gate
+        if: steps.cand.outputs.none == 'no' && steps.freeze.outputs.frozen != 'yes'
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ steps.cand.outputs.sha }}
@@ -172,21 +367,29 @@ jobs:
             case $CODE in
               0) echo "verdict=PROMOTE" >> "$GITHUB_OUTPUT"
                  echo "$OUT" > gate-detail.txt
-                 exit 0 ;;
+                 break ;;
               3) echo "attempt ${attempt}/40 — still waiting; sleeping 30s"; sleep 30 ;;
-              *) echo "::error title=Promotion refused::$(echo "$OUT" | tail -1)"
+              *) echo "verdict=REFUSE" >> "$GITHUB_OUTPUT"
                  echo "$OUT" > gate-detail.txt
-                 exit 1 ;;
+                 break ;;
             esac
           done
-          echo "::error title=Promotion timed out::gating checks did not conclude within ~20 minutes"
-          exit 1
+          # ⛔ AND the candidate's OWN master deploy gate run: success, with every expected job successful.
+          # fetched with head_sha=<SHA>, branch=master, event=push; gate_ok re-checks all three on every run it counts
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${SHA}&branch=master&event=push&per_page=100" > own-runs.json
+          RUN=$(python -c 'import json; r=[x for x in json.load(open("own-runs.json"))["workflow_runs"] if x.get("name")=="master deploy gate" and x.get("conclusion")=="success"]; print(max(r,key=lambda x:x["id"])["id"] if r else "")')
+          if [ -n "$RUN" ]; then gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN}/jobs?per_page=100" > jobs.json; else echo '{"jobs":[]}' > jobs.json; fi
+          OWN=$(python tools/promote_decision.py gate --runs own-runs.json --jobs jobs.json --workflow .github/workflows/master-deploy-gate.yml --sha "$SHA")
+          echo "own gate: $OWN"
+          echo "own=$(printf '%s' "$OWN" | python -c 'import json,sys; print("yes" if json.load(sys.stdin)["gate_ok"] else "no")')" >> "$GITHUB_OUTPUT"
+          grep -q '^verdict=' "$GITHUB_OUTPUT" || echo "verdict=TIMEOUT" >> "$GITHUB_OUTPUT"
 
       # ⛔ THE PRE-CUTOVER NO-OP. Creating `production` is an owner step, on purpose: a
       # workflow that creates the branch it deploys from could point production at
       # whatever it happened to be holding.
       - name: Does `production` exist on origin?
         id: exists
+        if: steps.cand.outputs.none == 'no'
         run: |
           if git ls-remote --exit-code --heads origin production >/dev/null 2>&1; then
             echo "exists=yes" >> "$GITHUB_OUTPUT"
@@ -195,30 +398,88 @@ jobs:
             echo "::notice title=Nothing promoted::origin/production does not exist yet — the gate ran and passed, but there is no branch to advance."
           fi
 
-      # ⛔ FAST-FORWARD ONLY, AND NEVER `--force`. If `production` is not an ancestor of
-      # the candidate, somebody pushed to it directly (or it was reset by hand). Forcing
-      # past that would silently discard whatever is deployed. Fail, and say exactly
-      # what to look at.
-      - name: Fast-forward `production`
-        if: steps.exists.outputs.exists == 'yes' && steps.freeze.outputs.frozen != 'yes'
+      # ⭐ THE DECISION (tools/promote_decision.py decide), on facts gathered NOW: the candidate's own gate,
+      # SHA ⊑ master, production ⊑ SHA, the final freeze answer, and the pending record.
+      - name: Decide
+        id: dec
+        if: steps.cand.outputs.none == 'no' && steps.exists.outputs.exists == 'yes'
         env:
+          SHA: ${{ steps.cand.outputs.sha }}
+          FROZEN: ${{ steps.freeze.outputs.frozen }}
+          VERDICT: ${{ steps.gate.outputs.verdict }}
+          OWN: ${{ steps.gate.outputs.own }}
+          GATE_RUN_ID: ${{ github.event.workflow_run.id }}
+          GATE_GREEN: ${{ steps.cand.outputs.gate_green }}
+        run: |
+          set -euo pipefail
+          bash tools/promote_facts.sh "$SHA" "$RUNNER_TEMP/pending.json" > "$RUNNER_TEMP/facts.json"
+          python - "$RUNNER_TEMP/facts.json" > "$RUNNER_TEMP/decide-facts.json" <<'PY'
+          import json, os, sys
+          f = json.load(open(sys.argv[1]))
+          frozen = os.environ.get("FROZEN") == "yes"
+          f.update(frozen=frozen, gate_run_id=os.environ.get("GATE_RUN_ID") or None,
+                   gate_unknown=os.environ.get("VERDICT") == "TIMEOUT",
+                   cand_gate_green=os.environ.get("GATE_GREEN") == "yes" or (os.environ.get("VERDICT") == "PROMOTE" and os.environ.get("OWN") == "yes"),
+                   # held: the gate is re-verified when the hold ends; a gate that was not polled is NOT ok
+                   gate_ok=True if frozen else (os.environ.get("VERDICT") == "PROMOTE" and os.environ.get("OWN") == "yes"))
+          print(json.dumps(f))
+          PY
+          D=$(python tools/promote_decision.py decide --facts "$RUNNER_TEMP/decide-facts.json")
+          echo "$D" > "$RUNNER_TEMP/decision.json"
+          echo "decision: $D"
+          python - "$RUNNER_TEMP/decision.json" >> "$GITHUB_OUTPUT" <<'PY'
+          import json, sys
+          d = json.load(open(sys.argv[1]))
+          print(f"action={d['action']}"); print(f"target={d['target'] or ''}")
+          PY
+
+      # Keep deploy-gate-state/pending-promotion.json equal to the decision's record (written, replaced or cleared).
+      - name: Update the pending record
+        if: steps.dec.outputs.action != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          BLOB=$(gh api "/repos/$GITHUB_REPOSITORY/contents/pending-promotion.json?ref=deploy-gate-state" --jq .sha 2>/dev/null || echo "")
+          bash tools/promote_state.sh write-pending "$(cat "$RUNNER_TEMP/decision.json")" "$BLOB"
+
+      # ⛔ FAST-FORWARD ONLY, AND NEVER `--force`, TO EXACTLY THE DECIDED TARGET (= the candidate, never the
+      # tip). production ⊑ target is checked again at push time; a plain push also refuses a non-fast-forward.
+      - name: Fast-forward `production`
+        if: steps.dec.outputs.action == 'PROMOTE'
+        env:
+          TARGET: ${{ steps.dec.outputs.target }}
           SHA: ${{ steps.cand.outputs.sha }}
         run: |
           set -euo pipefail
+          [ "$TARGET" = "$SHA" ] || { echo "::error::decision target $TARGET is not the candidate $SHA"; exit 1; }
           git fetch origin production
           CUR=$(git rev-parse origin/production)
-          echo "production is at $CUR"
-          if [ "$CUR" = "$SHA" ]; then
-            echo "::notice title=Already promoted::production is already at $SHA"
+          if ! git merge-base --is-ancestor "$CUR" "$TARGET"; then
+            echo "::error title=production is not an ancestor::origin/production ($CUR) is not an ancestor of $TARGET. Never forced — see docs/breadth/deploy-gate-v2.md, 'Rollback'."
+            exit 1
+          fi
+          if [ "$DRY_RUN" = "yes" ]; then
+            echo "DRY RUN: would push $TARGET to production (now $CUR)"
+            echo "promoted=dry-run" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          git push origin "$TARGET":refs/heads/production
+          echo "promoted=$TARGET" >> "$GITHUB_ENV"
+
+      - name: Already promoted, or refused
+        if: steps.dec.outputs.action != '' && steps.dec.outputs.action != 'PROMOTE' && steps.dec.outputs.action != 'HOLD'
+        env:
+          ACTION: ${{ steps.dec.outputs.action }}
+        run: |
+          WHY=$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["reason"])' "$RUNNER_TEMP/decision.json")
+          if [ "$ACTION" = "ALREADY_PROMOTED" ]; then
+            echo "::notice title=Already promoted::$WHY"
             echo "promoted=already" >> "$GITHUB_ENV"
             exit 0
           fi
-          if ! git merge-base --is-ancestor "$CUR" "$SHA"; then
-            echo "::error title=production is not an ancestor::origin/production ($CUR) is not an ancestor of the candidate ($SHA). Somebody pushed to production directly, or it was reset by hand. This job will NEVER force past that — see docs/breadth/deploy-gate-v2.md, 'Rollback'."
-            exit 1
-          fi
-          git push origin "$SHA":refs/heads/production
-          echo "promoted=$SHA" >> "$GITHUB_ENV"
+          echo "::error title=Promotion refused ($ACTION)::$WHY"
+          exit 1
 
       # SD-1.3 C2.1 — write down what was promoted, somewhere a human and the NEXT
       # gate run can both read it WITHOUT a token. Session 14 could not read the gate
@@ -235,7 +496,7 @@ jobs:
       # ⛔ An unreadable log records `null`, never a verdict. tools/promotion_record.py
       # owns that rule (and is tested); nothing here parses the log itself.
       - name: Record the promotion (deploy-gate-state)
-        if: steps.exists.outputs.exists == 'yes' && env.promoted != ''
+        if: steps.exists.outputs.exists == 'yes' && env.promoted != '' && env.promoted != 'dry-run'
         env:
           SHA: ${{ steps.cand.outputs.sha }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -278,7 +539,7 @@ jobs:
       # deploy at all, and it says so in the summary: serialisation is then at GitHub
       # only, and two promotions can still overlap one Railway build.
       - name: Wait for the Railway `web` deploy
-        if: steps.exists.outputs.exists == 'yes' && steps.freeze.outputs.frozen != 'yes'
+        if: steps.dec.outputs.action == 'PROMOTE' && steps.freeze.outputs.frozen != 'yes' && env.DRY_RUN != 'yes'
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
@@ -303,7 +564,7 @@ jobs:
       # for the fast-forward, and it RUNS on a red gate (the "must have succeeded" step
       # fails it, and `if: always()` still reaches this).
       - name: Record this gate run (deploy-gate-state)
-        if: always()
+        if: always() && env.DRY_RUN != 'yes'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -317,6 +578,8 @@ jobs:
           export SHA="${{ steps.cand.outputs.sha }}"
           export PROMOTED_STATE="${promoted:-no}"
           export PROD_AFTER=$(git ls-remote origin refs/heads/production 2>/dev/null | cut -f1)
+          export HELD="${{ steps.freeze.outputs.frozen }}"
+          export ACTION="${{ steps.dec.outputs.action }}"
           REC_FILE="$RUNNER_TEMP/gate-run.json"
           python - "$REC_FILE" <<'PY'
           import json, os, sys, datetime as dt
@@ -326,6 +589,8 @@ jobs:
               "gate_conclusion": os.environ.get("CONC") or None,
               "promoted": os.environ.get("PROMOTED_STATE") or "no",
               "production_head_after": os.environ.get("PROD_AFTER") or None,
+              "held_by_freeze": os.environ.get("HELD") == "yes",
+              "decision": os.environ.get("ACTION") or None,
               "ts": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
           }
           open(sys.argv[1], "w", encoding="utf-8").write(json.dumps(rec, indent=2) + "\n")
@@ -351,7 +616,12 @@ jobs:
           {
             echo "## promote to production"
             echo ""
-            echo "- candidate: \`${{ steps.cand.outputs.sha }}\`"
+            echo "- candidate: \`${{ steps.cand.outputs.sha || 'none' }}\`"
+            echo "- dry run: **${DRY_RUN}**"
+            echo "- chosen: ${{ steps.cand.outputs.source || 'nothing' }}${{ steps.cand.outputs.stop && ' — ' || '' }}${{ steps.cand.outputs.stop }}"
+            echo "- freeze before / after the wait: **${{ steps.freeze0.outputs.frozen0 || 'n/a' }}** / **${{ steps.freeze.outputs.frozen || 'n/a' }}** (planned wait ${{ steps.freeze0.outputs.wait_s || '0' }}s)"
+            echo "- decision: **${{ steps.dec.outputs.action || 'none' }}** → \`${{ steps.dec.outputs.target || '-' }}\`"
+            if [ -f "$RUNNER_TEMP/decision.json" ]; then echo "- reason: $(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["reason"])' "$RUNNER_TEMP/decision.json")"; fi
             echo "- production existed: **${{ steps.exists.outputs.exists || 'unknown' }}**"
             echo "- promoted: **${promoted:-no}**"
             echo "- railway deploy wait: **${DEPLOY_WAIT:-not reached}**"
@@ -362,3 +632,66 @@ jobs:
               echo '```'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # ⭐ THE SECOND LAYER: when the promote job failed, timed out, or ended still HELD, re-dispatch ONE run that
+  # resumes the PENDING SHA. GITHUB_TOKEN's workflow_dispatch DOES start a run, so the cap is in the logic:
+  # tools/promote_decision.py may_redispatch, at most MAX_REDISPATCH per pending SHA, counted IN the record.
+  # Its own job so `actions: write` is granted to this job only. A dry run never re-dispatches.
+  resume:
+    needs: promote
+    if: always() && github.event_name != 'pull_request' && inputs.dry_run != 'yes' && (needs.promote.result == 'failure' || needs.promote.result == 'cancelled' || needs.promote.outputs.action == 'HOLD')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write     # the re-dispatch count in deploy-gate-state
+      actions: write      # workflow_dispatch of this workflow, nothing else
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          sparse-checkout: tools
+      - name: Re-dispatch a resume for the pending SHA (capped)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          if ! gh api "/repos/$GITHUB_REPOSITORY/contents/pending-promotion.json?ref=deploy-gate-state" --jq .content 2>/dev/null | base64 -d > pending.json; then
+            echo "nothing pending: no re-dispatch" | tee -a "$GITHUB_STEP_SUMMARY"; exit 0
+          fi
+          R=$(python3 tools/promote_decision.py redispatch --pending pending.json)
+          echo "$R" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$(printf '%s' "$R" | python3 -c 'import json,sys; print(json.load(sys.stdin)["dispatch"])')" != "True" ]; then
+            echo "::warning title=Promotion still pending::$(printf '%s' "$R" | python3 -c 'import json,sys; print(json.load(sys.stdin)["reason"])') — the backup crons or the next green gate resume it."
+            exit 0
+          fi
+          BLOB=$(gh api "/repos/$GITHUB_REPOSITORY/contents/pending-promotion.json?ref=deploy-gate-state" --jq .sha)
+          DRY_RUN=no bash tools/promote_state.sh write-pending "$(printf '%s' "$R" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps({"pending": d["pending"]}))')" "$BLOB"             || { echo "::error::could not record the re-dispatch count; NOT re-dispatching (the cap must be recorded first)"; exit 1; }
+          gh workflow run promote-production.yml --ref master -f resume=yes
+          echo "re-dispatched a resume run" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # ⭐ THE PR DRY RUN: real Actions evidence on the PR's own checks, with no credentials. Read-only token; the job runs
+  # tools/promote_dryrun.py, which executes the promote job's REAL run: blocks in a throwaway local repo (stubbed gh,
+  # local bare origin) on two simulated clocks, and the decision tests. It cannot push, write state or dispatch.
+  dryrun:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Decision tests (and the CI cost rails)
+        run: |
+          python -m pip install --quiet pyyaml pytest
+          python -m pytest tests/test_promote_decision.py tests/test_ci_cost_rails.py -q -p no:cacheprovider
+      - name: Dry run inside the opening rush (Tue 09:31 ET)
+        run: python tools/promote_dryrun.py --now 2026-11-10T14:31:00Z --summary "$GITHUB_STEP_SUMMARY"
+      - name: Dry run inside the Wednesday window (Wed 09:05 ET)
+        run: python tools/promote_dryrun.py --now 2026-11-11T14:05:00Z --summary "$GITHUB_STEP_SUMMARY"
+      - name: Dry run outside every window (Tue 11:00 ET)
+        run: python tools/promote_dryrun.py --now 2026-11-10T16:00:00Z --summary "$GITHUB_STEP_SUMMARY"

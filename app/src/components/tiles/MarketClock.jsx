@@ -32,7 +32,8 @@ export default function MarketClock() {
       <div className={styles.market}>New York · ET</div>
       <div className={styles.time}>{time}</div>
       <div className={`${styles.session} ${toneCls}`}>
-        <span className={styles.dot} aria-hidden="true" />
+        {/* Live cue on the once-a-second render, never a CSS animation (see MarketClock.module.css). */}
+        <span className={styles.dot} data-beat={now.getSeconds() % 2} aria-hidden="true" />
         {label}
       </div>
       {!session.isOpen && <div className={styles.hint}>{nextOpenHint()}</div>}

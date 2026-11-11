@@ -249,6 +249,12 @@ import time
 import logging
 from contextlib import asynccontextmanager
 
+
+# ⛔ SECURITY (2026-11-10): redact credential query params (Massive `apiKey=`) in
+# every log record -- this pod's httpx/Massive clients log URLs carrying the key.
+from api.services.log_redaction import install as _install_log_redaction
+_install_log_redaction()
+
 from fastapi import FastAPI
 import uvicorn
 
@@ -633,6 +639,54 @@ def _start_flow_schedulers():
             log.info("[startup] auto-push scanners registered (single=60s, accum=300s)")
         except Exception as e:  # noqa: BLE001
             log.warning("auto-push scanner scheduling failed: %s", e)
+
+        try:
+            # flow.db corruption canary (2026-11-09). flow.db corrupted TWICE
+            # that day and BOTH times the onset minute had rolled out of the
+            # logs before anyone looked, which is why the cause is still open.
+            # A cheap read-only probe on a schedule turns "we noticed hours
+            # later" into "here is the minute it happened, with context".
+            #
+            # ⛔⛔ TWO JOBS, AND THE SPLIT IS THE POINT. The fast tick is a BOUNDED
+            # WRITE-HEAD READ (max_id + the newest N rows by explicit id window).
+            # It must never run `quick_check`: measured 2026-11-09 on the live
+            # 10.7GB file, `quick_check(1)` alone ran past 600 s without finishing,
+            # because it verifies every page of every btree and the `(1)` bounds
+            # ERRORS REPORTED, not bytes read. At FLOW_CANARY_SEC=300 with
+            # coalesce=True that is not a 5-minute probe, it is a permanent 10.7GB
+            # read loop beside the OPRA write path — on the very volume that
+            # corrupted twice that day — and a tick that never finishes never logs
+            # the onset it exists to catch.
+            #
+            # The whole-file proof runs ONCE DAILY at a quiet hour instead, on the
+            # closed tape, where many minutes of scanning costs nothing.
+            from apscheduler.triggers.interval import IntervalTrigger as _IT
+            from apscheduler.triggers.cron import CronTrigger as _CT
+            from api import flow_integrity_canary as _canary
+            _canary_sec = int(os.environ.get("FLOW_CANARY_SEC", "300"))
+            if _canary_sec > 0:
+                sched.add_job(_canary.run_tick,
+                              trigger=_IT(seconds=_canary_sec),
+                              id="flow_integrity_canary", max_instances=1,
+                              coalesce=True, replace_existing=True)
+                n += 1
+                log.info("[startup] flow.db write-head canary registered (every %ds)", _canary_sec)
+            else:
+                log.info("[startup] flow.db write-head canary DISABLED (FLOW_CANARY_SEC=0)")
+
+            # 03:30 ET: tape closed, no gap to lose, and clear of the 05:30 syncs.
+            if os.environ.get("FLOW_CANARY_FULL_ENABLED", "1") == "1":
+                sched.add_job(_canary.run_full_tick,
+                              trigger=_CT(hour=3, minute=30,
+                                          timezone=ZoneInfo("America/New_York")),
+                              id="flow_integrity_canary_full", max_instances=1,
+                              coalesce=True, replace_existing=True)
+                n += 1
+                log.info("[startup] flow.db FULL quick_check registered (daily 03:30 ET)")
+            else:
+                log.info("[startup] flow.db FULL quick_check DISABLED")
+        except Exception as e:  # noqa: BLE001
+            log.warning("flow integrity canary scheduling failed: %s", e)
 
         try:
             # Daily OI snapshot (5:30 AM ET) — captures Schwab live OI for
