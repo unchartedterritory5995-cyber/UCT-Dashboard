@@ -27,7 +27,7 @@ vi.mock('../lib/todayPackClient', () => ({
 const clock = pinWallClock('2026-11-11T16:05:00Z')
 afterAll(() => clock.restore())
 
-const { warmTypedSymbol, prepareDailyForDisplay, _noteWarmResult } = await import('./prefetchBars')
+const { warmTypedSymbol, prepareDailyForDisplay, _noteWarmResult, __resetTypedWarm } = await import('./prefetchBars')
 const { memClear, memPeek, memPeekSavedAt, memPut } = await import('./barsMemCache')
 const { dailyCachePaintVerdict } = await import('./marketSession')
 
@@ -40,6 +40,7 @@ const SEED = { o: 1, h: 2, l: 0.5, c: 1.6, v: 1 }
 
 beforeEach(() => {
   memClear()
+  __resetTypedWarm()
   _noteWarmResult({ bars: [{ t: 1 }] })
   world.idb = {}; world.packUsable = false; world.packBars = {}
   try { localStorage.removeItem('barspack.version') } catch { /* jsdom */ }
@@ -105,6 +106,7 @@ describe('warmTypedSymbol', () => {
     let n = 0
     for (const t of tails) for (const savedAt of writes) for (const seed of [false, true]) {
       memClear()
+      __resetTypedWarm()
       const S = `Z${++n}`
       const f = vi.fn(async () => answer(S))
       vi.stubGlobal('fetch', f)
@@ -173,5 +175,54 @@ describe('warmTypedSymbol', () => {
     expect(warmTypedSymbol('$IDX:ai', 'D')).toBeNull()
     expect(warmTypedSymbol('', 'D')).toBeNull()
     expect(f).not.toHaveBeenCalled()
+  })
+  // ── one live warm: the latest text ──────────────────────────────────────────
+  const hanging = () => vi.fn((url, init) => new Promise((resolve, reject) => {
+    init?.signal?.addEventListener('abort', () => { const e = new Error('aborted'); e.name = 'AbortError'; reject(e) })
+  }))
+
+  it('REQUEST COUNT: typing G, GO, GOO, GOOG, GOOGL back to back (pack-less browser) asks /api/bars ONCE, for GOOGL', async () => {
+    const f = hanging()
+    vi.stubGlobal('fetch', f)
+    const runs = ['G', 'GO', 'GOO', 'GOOG', 'GOOGL'].map((t) => warmTypedSymbol(t, 'D'))
+    await Promise.all(runs.slice(0, 4))
+    await waitFor(() => expect(f).toHaveBeenCalledTimes(1))
+    expect(String(f.mock.calls[0][0])).toBe(URL_FOR('GOOGL'))
+    for (const t of ['G', 'GO', 'GOO', 'GOOG']) expect(memPeek(t, 'D')).toBeNull()   // no prefix churn
+  })
+
+  it('a request already in flight is ABORTED when a newer text arrives', async () => {
+    const f = hanging()
+    vi.stubGlobal('fetch', f)
+    const first = warmTypedSymbol('MSF', 'D')
+    await waitFor(() => expect(f).toHaveBeenCalledTimes(1))
+    warmTypedSymbol('MSFT', 'D')
+    await waitFor(() => expect(f).toHaveBeenCalledTimes(2))
+    expect(f.mock.calls[0][1]?.signal?.aborted).toBe(true)
+    expect(f.mock.calls[1][1]?.signal?.aborted).toBe(false)
+    await expect(first).resolves.toBe(false)
+    expect(memPeek('MSF', 'D')).toBeNull()
+  })
+
+  it('a warm the handoff JOINED (Enter on that text) is never aborted by later typing', async () => {
+    const f = hanging()
+    vi.stubGlobal('fetch', f)
+    warmTypedSymbol('AMD', 'D')
+    await waitFor(() => expect(f).toHaveBeenCalledTimes(1))
+    prepareDailyForDisplay('AMD', 'D')                 // the member pressed Enter on AMD
+    warmTypedSymbol('AMDL', 'D')                       // and started a new search
+    await waitFor(() => expect(f).toHaveBeenCalledTimes(2))
+    expect(f.mock.calls[0][1]?.signal?.aborted).toBe(false)
+  })
+
+  it('NEWER WINS: a late warm answer never overwrites a set written after it was requested', async () => {
+    let release
+    vi.stubGlobal('fetch', vi.fn(() => new Promise((r) => { release = () => r(answer('NFLX', [bar('2026-11-10', 1)])) })))
+    const w = warmTypedSymbol('NFLX', 'D')
+    await waitFor(() => expect(release).toBeTypeOf('function'))
+    memPut('NFLX', 'D', NET)                           // the chart's own fetch landed first
+    release()
+    await expect(w).resolves.toBe('stale-answer')
+    expect(memPeek('NFLX', 'D')).toEqual(NET)
   })
 })

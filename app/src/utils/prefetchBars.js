@@ -463,6 +463,8 @@ const _chartLaneInflight = new Map()
  */
 export async function prepareDailyForDisplay(sym, tf, { signal } = {}) {
   if (!sym || !tf) return 'error'
+  // Enter on a typed text: its in-flight warm now belongs to this chart — never abort it.
+  _keepTypedWarm(_url(sym, tf, false))
   try {
     const have = await idbGet(sym, tf)
     if (have?.bars?.length) {
@@ -530,13 +532,30 @@ function _packStamped() {
   try { return !!localStorage.getItem('barspack.version') } catch { return false }
 }
 
+// ONE typed warm is live at a time: the latest text. A newer text ABORTS the previous warm's
+// request unless the handoff has already joined it (`kept` — the member pressed Enter on it).
+let _typedLatest = null   // { url, ctl, kept }
+function _typedSuperseded(url) { return !_typedLatest || _typedLatest.url !== url }
+/** @internal the handoff joined this URL's warm: it now belongs to a chart, never abort it. */
+function _keepTypedWarm(url) { if (_typedLatest && _typedLatest.url === url) _typedLatest.kept = true }
+/** @internal test seam */
+export function __resetTypedWarm() { _typedLatest = null }
+
 export function warmTypedSymbol(sym, tf = 'D') {
   if (!sym || !tf || !['D', 'W', 'M'].includes(String(tf))) return null
   const S = String(sym).trim().toUpperCase()
   if (!/^[A-Z0-9][A-Z0-9.^-]{0,11}$/.test(S)) return null
+  const url = _url(S, tf, false)
+  // A newer text supersedes the previous one at once — its request is aborted (GOO -> GOOGL).
+  if (_typedLatest && _typedLatest.url !== url) {
+    if (!_typedLatest.kept) { try { _typedLatest.ctl?.abort() } catch { /* ignore */ } }
+    _typedLatest = null
+  }
   const saved = memPeekSavedAt(S, tf)
   if (memHas(S, tf) && Number.isFinite(saved) && Date.now() - saved < TYPED_FRESH_MS) return null
-  const url = _url(S, tf, false)
+  if (_typedLatest && _typedLatest.url === url) return null   // this text is already being warmed
+  const ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null
+  _typedLatest = { url, ctl, kept: false }
   return (async () => {
     let lastT = null
     let savedAt = null
@@ -546,6 +565,7 @@ export function warmTypedSymbol(sym, tf = 'D') {
       savedAt = memPeekSavedAt(S, tf)
     } else {
       const have = await idbGet(S, tf)
+      if (_typedSuperseded(url)) return 'superseded'   // a newer text arrived: no promote, no fetch
       if (have?.bars?.length) {
         // Promoted with its OWN stamp, so the paint gate still judges it by when it was written.
         if (!memHas(S, tf)) memPut(S, tf, have.bars, { savedAt: have.savedAt ?? null })
@@ -560,15 +580,22 @@ export function warmTypedSymbol(sym, tf = 'D') {
     // (a possible cold provider lookup each). Only a browser without the pack (a new member)
     // warms an uncached name.
     if (lastT == null && _packStamped()) return 'unknown'
-    const json = await _warmLoad(url)
+    const startedAt = Date.now()
+    const json = await _warmLoad(url, ctl ? ((u) => _chartLaneFetch(u, ctl.signal)) : warmFetcher)
     if (!_isAuthoritativeAnswer(json, S, tf).ok || json.delta || !json.bars?.length) return false
+    // NEWER WINS: a set written for this key after this request began (the chart's own fetch,
+    // a later warm) is at least as current — a late warm answer never overwrites it.
+    const curSaved = memPeekSavedAt(S, tf)
+    if (Number.isFinite(curSaved) && curSaved > startedAt) return 'stale-answer'
     // Keep any DEEPER history already in memory; the server wins every overlapping bar.
     const cur = memPeek(S, tf)
     const next = (cur?.length > json.bars.length && cur[0]?.t <= json.bars[0]?.t)
       ? mergeDelta(cur, json.bars) : json.bars
     memPut(S, tf, next)
     return 'network'
-  })().catch(() => false)
+  })().catch(() => false).finally(() => {
+    if (_typedLatest && _typedLatest.url === url && _typedLatest.ctl === ctl) _typedLatest = null
+  })
 }
 
 /**

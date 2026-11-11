@@ -16,7 +16,10 @@ export { POPULAR_RESULTS }
 // Render `text` with every case-insensitive occurrence of the typed query wrapped in
 // a gold `.hit` span (TradingView highlights the matched term; ours is gold).
 // How long the typed text must hold still before the host is told (see onTypedIntent).
-export const TYPED_INTENT_SETTLE_MS = 40
+// LONGER than a typist's inter-key gap (~70-120 ms) on purpose: a prefix on the way to the
+// ticker (G, GO, GOO, GOOG) is not intent, and warming it is cache churn plus, when the
+// today-pack is unusable, a wasted /api/bars request.
+export const TYPED_INTENT_SETTLE_MS = 140
 
 function highlighted(text, query, styles) {
   if (!text) return null
@@ -205,9 +208,8 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   }, [query, open, chip, breadthAll, econ, chips])
 
   // ⭐ TYPE-TO-SEARCH WARM (2026-11-11): tell the host what is being typed, so the chart can
-  // start fetching that symbol BEFORE Enter (see `warmTypedSymbol`). A short settle coalesces
-  // a paste / key-repeat burst; it is shorter than a typist's inter-key gap on purpose, so the
-  // full ticker is warmed as soon as its last letter lands. Plain-ticker text only.
+  // start fetching that symbol BEFORE Enter (see `warmTypedSymbol`), once the text has held
+  // still for TYPED_INTENT_SETTLE_MS (prefixes typed through are not reported). Plain-ticker text only.
   useEffect(() => {
     if (!open || !onTypedIntent || chip === 'economic' || chip === 'breadth') return undefined
     const q = query.trim()

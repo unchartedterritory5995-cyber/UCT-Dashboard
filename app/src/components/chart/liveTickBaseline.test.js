@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { isSaneLivePrice, isSaneLivePriceFor, baselinesFor } from './liveTickBaseline'
+import { isSaneLivePrice, isSaneLivePriceFor, baselinesFor, makeLiveSane } from './liveTickBaseline'
 
 // Deterministic PRNG so a failure names a reproducible sequence.
 function rng(seed) {
@@ -88,6 +88,37 @@ describe('live-tick baseline is keyed to the symbol', () => {
   })
 })
 
+
+describe('makeLiveSane: the chart call resolves the symbol OWN close itself', () => {
+  // ⭐ INVARIANT: before B paints, a 100x price for B is rejected at EVERY call shape the chart
+  // uses — no option passed, or a known lastClose — because the helper resolves B's own
+  // cached close when the caller does not pass one. (A W/M period seed that forgot `ownClose`
+  // dropped both baselines and painted a 100x live-store price onto B's candle.)
+  it('INVARIANT: pre-paint 100x for B is rejected whatever A traded at, with no ownClose passed', () => {
+    for (const a of RATIOS) for (const b of RATIOS) {
+      const st = { lastBar: null, lastBarSym: null, serverClose: 100 * a, serverCloseSym: 'A' }
+      const own = { A: 100 * a, B: 100 * b }
+      const sane = makeLiveSane({
+        lastBar: () => st.lastBar, lastBarSym: () => st.lastBarSym,
+        serverClose: () => st.serverClose, serverCloseSym: () => st.serverCloseSym,
+        ownClose: (s) => own[s] ?? null,
+      })
+      expect(sane('B', 100 * b * 100), `A=${a} B=${b}: phantom`).toBe(false)
+      expect(sane('B', 100 * b * 1.05), `A=${a} B=${b}: plausible`).toBe(true)
+      // the legend shape: a close known to be B's, still with B's own close behind it
+      expect(sane('B', 100 * b * 100, { lastClose: 100 * b }), `A=${a} B=${b}: legend phantom`).toBe(false)
+    }
+  })
+  it('an explicit ownClose wins over the resolver; a throwing resolver degrades to none', () => {
+    const base = { lastBar: () => null, lastBarSym: () => null, serverClose: () => null, serverCloseSym: () => null }
+    const sane = makeLiveSane({ ...base, ownClose: () => 10 })
+    expect(sane('B', 500)).toBe(false)
+    expect(sane('B', 500, { ownClose: 480 })).toBe(true)
+    const broken = makeLiveSane({ ...base, ownClose: () => { throw new Error('x') } })
+    expect(broken('B', 500)).toBe(true)
+  })
+})
+
 // ⛔ RAIL: StockChart reaches the rule ONLY through the symbol-keyed helper. A direct call,
 // or an inline `> 0.5` copy reading a baseline ref, is how a path drifts back to reading the
 // previous symbol's close.
@@ -100,9 +131,15 @@ describe('StockChart wiring', () => {
   it('reads the server-close baseline only inside _liveSane (plus its one stamped write)', () => {
     const reads = src.split('\n').filter((l) => /lastServerCloseRef\.current/.test(l) && !/^\s*\/\//.test(l))
     expect(reads.map((l) => l.trim())).toEqual([
-      'serverClose: lastServerCloseRef.current,',
+      'serverClose: () => lastServerCloseRef.current,',
       expect.stringMatching(/lastServerCloseRef\.current = last\.c; lastServerCloseSymRef\.current = sym/),
     ])
+  })
+  it('builds _liveSane once from makeLiveSane with an ownClose resolver, and no call site passes ownClose', () => {
+    expect((src.match(/makeLiveSane\(/g) || []).length).toBe(1)
+    expect(src).toMatch(/const _liveSane = makeLiveSane\(\{[\s\S]{0,400}ownClose: \(forSym\) =>/)
+    const calls = src.match(/_liveSane\([^)]*\)/g) || []
+    expect(calls.filter((c) => /ownClose/.test(c))).toEqual([])
   })
   it('has no inline 50% bound against lastBarRef', () => {
     expect(src).not.toMatch(/lastBarRef\.current\?\.close[\s\S]{0,120}>\s*0\.5/)

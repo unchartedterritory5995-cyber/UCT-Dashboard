@@ -53,3 +53,29 @@ export function isSaneLivePriceFor(sym, p, s = {}) {
   const b = baselinesFor(sym, s)
   return isSaneLivePrice(p, b.lastClose, b.serverClose)
 }
+
+/**
+ * The chart's one sanity call, built from getters over its refs so every call site reads
+ * them at CALL time. `ownClose` — the judged symbol's OWN cached close, which is the only
+ * reference it has between a switch and its first paint — is resolved HERE when a caller
+ * does not pass one, so no call site can forget it (a forgotten one dropped BOTH baselines
+ * and let a 100x price through on the W/M period seed, 2026-11-11).
+ *
+ *   const saneFor = makeLiveSane({ lastBar, lastBarSym, serverClose, serverCloseSym, ownClose })
+ *   saneFor(sym, price)                    // baselines of `sym` only
+ *   saneFor(sym, price, { lastClose })     // plus a close the caller KNOWS is sym's
+ */
+export function makeLiveSane(get) {
+  return (forSym, p, { lastClose, ownClose } = {}) => {
+    let own = ownClose
+    if (own === undefined) { try { own = get.ownClose ? get.ownClose(forSym) : null } catch { own = null } }
+    const known = lastClose !== undefined
+    return isSaneLivePriceFor(forSym, p, {
+      lastBar: known ? (lastClose == null ? null : { close: lastClose }) : get.lastBar(),
+      lastBarSym: known ? forSym : get.lastBarSym(),
+      serverClose: get.serverClose(),
+      serverCloseSym: get.serverCloseSym(),
+      ownClose: own,
+    })
+  }
+}

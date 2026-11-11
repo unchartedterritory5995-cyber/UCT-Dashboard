@@ -1558,7 +1558,7 @@ import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
 import { memPeek, memPut, memPeekSavedAt } from '../utils/barsMemCache'
 import { timingStart, timingMark, timingMarkPaint, timingMarkEmpty } from '../utils/intradayTiming'
-import { isSaneLivePriceFor } from './chart/liveTickBaseline'
+import { makeLiveSane } from './chart/liveTickBaseline'
 import { etMinutesOfUnix, classifyIntradayTail, isCurrentEnoughForPaint, expectedFormingBar, isDailyTodayBarStaleForPaint, dailyMissingSessionsForPaint, dailyCachePaintVerdict, DAILY_PAINT_MAX_GAP, isTradingSessionTodayET, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
 import { createTailPollState, nextTailPollMs, tailRetriesExhausted, watchdogGapMs, intradayDedupMs, liveBadgeState } from '../utils/intradayTailPoll'
 import { resample, resampleForSpec } from '../utils/resampleBars'
@@ -5248,16 +5248,23 @@ export default function StockChart({
   const _switchSrcRef = useRef(null)     // the outgoing tf's series captured at a tf switch (see _switchSourceFor)
   const lastServerCloseRef = useRef(null)  // Last close from CLEAN server bars — poison-proof live-tick baseline
   const lastServerCloseSymRef = useRef(null)  // the symbol lastServerCloseRef belongs to
-  // ⭐ THE ONE LIVE-TICK SANITY CALL. A price for `forSym` is judged only against baselines
-  // stamped with `forSym` (chart/liveTickBaseline.js); `lastClose` passes a close the caller
-  // KNOWS is forSym's, `ownClose` this symbol's cached close for the frames before it paints.
-  // Reads the refs at CALL time, so a callback created several renders ago is still correct.
-  const _liveSane = (forSym, p, { lastClose, ownClose = null } = {}) => isSaneLivePriceFor(forSym, p, {
-    lastBar: lastClose !== undefined ? (lastClose == null ? null : { close: lastClose }) : lastBarRef.current,
-    lastBarSym: lastClose !== undefined ? forSym : lastBarSymRef.current,
-    serverClose: lastServerCloseRef.current,
-    serverCloseSym: lastServerCloseSymRef.current,
-    ownClose,
+  // ⭐ THE ONE LIVE-TICK SANITY CALL (chart/liveTickBaseline.makeLiveSane). A price for
+  // `forSym` is judged only against baselines stamped with `forSym`; before it paints, its
+  // OWN cached close (IDB state for this key, else the mem cache) is resolved by the helper
+  // itself, so no call site can drop it. Getters read the refs at CALL time. The ref and
+  // const reads below run only when a writer/seed calls, after this render has declared them.
+  const _liveSane = makeLiveSane({
+    lastBar: () => lastBarRef.current,
+    lastBarSym: () => lastBarSymRef.current,
+    serverClose: () => lastServerCloseRef.current,
+    serverCloseSym: () => lastServerCloseSymRef.current,
+    ownClose: (forSym) => {
+      const _k = `${forSym}_${_barsTf}`
+      const arr = (idbReadyForRef.current === _k && idbBarsRef.current?.length) ? idbBarsRef.current : memPeek(forSym, _barsTf)
+      const b = arr?.length ? arr[arr.length - 1] : null
+      const c = b ? +(b.c ?? b.close) : NaN
+      return Number.isFinite(c) && c > 0 ? c : null
+    },
   })
   // ── colorByNetChange (TC2000/StockCharts coloring) ── Track the closes needed to
   // color the DEVELOPING bar on live ticks: netPrevCloseRef = close of the bar BEFORE
@@ -8558,16 +8565,13 @@ export default function StockChart({
     // that belongs to another symbol is no baseline; fall back to this symbol's own
     // cached close (the IDB set for this key, else the mem cache), which still catches
     // the 100x phantom the guard exists for.
-    const _ownCached = (idbBars?.length && idbReadyForRef.current === `${sym}_${_barsTf}`)
-      ? idbBars : memPeek(sym, _barsTf)
-    const _ownClose = _ownCached?.length ? +(_ownCached[_ownCached.length - 1]?.c) : null
     // 1) Live-price store — the same `day.h`/`day.l` aggregate, at the freshest cadence
     //    UCT has (15s server TTL behind a 2s client poll), and it carries the vendor's
     //    own `observed_at` so the age we report is not a guess.
     try {
       const _snap = (typeof getLivePriceStoreSnapshot === 'function') ? getLivePriceStoreSnapshot()[sym] : null
       const _px = _snap ? _effLivePrice(_snap) : null
-      if (_px && !_snap.ext_session && _liveSane(sym, _px, { ownClose: _ownClose })
+      if (_px && !_snap.ext_session && _liveSane(sym, _px)
           && _snap.day_open > 0 && _snap.day_high > 0 && _snap.day_low > 0) {
         const _obs = Number(_snap.observed_at)
         return {
@@ -8586,7 +8590,7 @@ export default function StockChart({
     try {
       if (todayPackUsable()) {
         const _tb = getTodayBar(sym)
-        if (_tb && _liveSane(sym, _tb.c, { ownClose: _ownClose })) {
+        if (_tb && _liveSane(sym, _tb.c)) {
           return { t: _dev, o: _tb.o, h: _tb.h, l: _tb.l, c: _tb.c, src: 'today-pack', ageMs: null }
         }
       }
