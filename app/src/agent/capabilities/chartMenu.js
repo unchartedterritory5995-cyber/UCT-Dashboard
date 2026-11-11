@@ -31,8 +31,8 @@ export function registerChartMenuCapabilities() {
   registerCapability({
     ...chartCommon,
     name: 'chartMenu.askAi',
-    summary: 'Open Ask AI about ONE chart\'s symbol, exactly like the chart\'s right-click → "Ask AI about {symbol}": the stock\'s Research page, AI section. It leaves Charts (this panel closes; the conversation is kept). Changes nothing on the chart; no Undo.',
-    hints: 'target = the chart whose symbol to ask about. Only when they ask to OPEN Ask AI / the AI about the chart\'s stock; a question about data is answered here instead. A stock that is not on a chart is app.open (page research).',
+    summary: 'Open Ask AI about ONE chart\'s stock, as its right-click "Ask AI about {symbol}" does (Research, AI section). Leaves Charts; changes nothing; no Undo.',
+    hints: 'target = the chart. Only when they ask to OPEN Ask AI about it; answer data questions here.',
     args: { type: 'object', properties: {}, required: [], additionalProperties: false },
     undo: 'none',
     undoNote: ASK_AI_NO_UNDO,
@@ -47,8 +47,8 @@ export function registerChartMenuCapabilities() {
   registerCapability({
     ...chartCommon,
     name: 'chartMenu.resetWatermark',
-    summary: 'Put ONE chart\'s dragged symbol watermark back in the centre (Chart Settings → Watermark → "Reset to center"). Only the hand-placed position is cleared; the watermark\'s text, size and colour stay. Undo puts it back where it was.',
-    hints: 'target = the chart. To set a position by number use chart.setSetting (watermark.x / watermark.y); to hide or show the watermark, chart.setSetting too.',
+    summary: 'Put ONE chart\'s dragged watermark back in the centre (Chart Settings → Watermark → "Reset to center"). Undo puts it back.',
+    hints: 'target = the chart. A set position, size or hiding is chart.setSetting.',
     args: { type: 'object', properties: {}, required: [], additionalProperties: false },
     check: () => null,
     apply: (st) => (st.watermarkPos == null ? st : { ...st, watermarkPos: null }),
