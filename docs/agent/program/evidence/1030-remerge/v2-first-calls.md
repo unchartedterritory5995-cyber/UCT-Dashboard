@@ -1,12 +1,10 @@
 # #1030 re-merge: routing v2 first calls, master vs merged
 
-## After the Lead's decisions (2026-11-11): multiChart words-only + grid-context words
+## Final: measured on head `9902cb9bc9` (2026-11-11)
 
-Same method and request sets as below (3635 requests), master `64421f770d` vs this branch with `wordsOnly: true` and the narrowed words. The last dump was run on the tree as committed, except one later edit. That edit added a negative lookahead to the "switch to … group" word so it skips "… group comparison / overlay / scale". It only narrows multiChart, so the 0 cannot grow. agentNoLookbehindEquivalence (frozen v1 rows) is green on the final tree.
+Same method and request sets as below. `routeManifestV2` first calls on master `64421f770d` vs the committed tree at `9902cb9bc9`, which includes the "switch to … group" lookahead. Both runs used the same 3635 requests (identical id sets). The temp dump was removed after the run. **0 requests differ**, in selected groups or in whether the expected plan is fully in the first call: in→in 0, out→in 0, out→out 0, **in→out 0**. In with an expectation: master 665/774, `9902cb9bc9` 665/774.
 
-**0 requests differ** (in→in 0, out→in 0, out→out 0, **in→out 0**). In on master 665/774, merged 665/774. Intermediate run (before link/lock was limited to crosshair / time range): 1 differed, `corpus.json:ws-14` (widget.setLink, in→in), because "link … charts" read as a sync. Fixed, now 0.
-
-v1 frozen no-lookbehind rows (2745): 0 changed. lb.routing[75], [159], [200], [227] are back to master's output.
+History: before link/lock was limited to crosshair / time range, an intermediate tree had one difference, `corpus.json:ws-14` (widget.setLink, in→in). v1 frozen no-lookbehind rows (2745): 0 changed on this head (agentNoLookbehindEquivalence green).
 
 ## Before the decisions (merge `951f7b9419`): STOPPED
 
