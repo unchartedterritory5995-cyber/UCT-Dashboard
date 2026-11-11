@@ -66,14 +66,17 @@ export function memPut(sym, tf, bars, { savedAt } = {}) {
 
 /** The monotonic twin of memPut (see barsIDB `mergeMonotonic`): merges `bars` into the
  *  entry held NOW so a background writer can never move it backwards or shallower. */
-export function memPutMonotonic(sym, tf, bars, { savedAt, delta = false } = {}) {
+// `startedAt`: when the incoming request BEGAN — a held set written after that is newer on
+// an equal tail (see mergeMonotonic `curIsNewer`).
+export function memPutMonotonic(sym, tf, bars, { savedAt, delta = false, startedAt = null } = {}) {
   if (!sym || !tf || !bars?.length) return null
   const cur = _map.get(_key(sym, tf))
-  const next = mergeMonotonic(cur?.bars ?? null, bars, { delta })
+  const curIsNewer = Number.isFinite(startedAt) && Number.isFinite(cur?.savedAt) && cur.savedAt > startedAt
+  const next = mergeMonotonic(cur?.bars ?? null, bars, { delta, curIsNewer })
   if (!next?.length || next === cur?.bars) return next ?? null
-  // The stamp follows the source that supplies the tail: the incoming set's own
+  // The stamp follows the source that supplied the tail BAR: the incoming set's own
   // (`savedAt`, or now when it is fresh from the server), else the held entry's.
-  const incomingWins = next[next.length - 1]?.t === bars[bars.length - 1]?.t
+  const incomingWins = next[next.length - 1] === bars[bars.length - 1]
   memPut(sym, tf, next, incomingWins ? (savedAt === undefined ? {} : { savedAt }) : { savedAt: cur?.savedAt ?? null })
   return next
 }

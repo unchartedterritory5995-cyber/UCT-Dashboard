@@ -757,3 +757,28 @@ export function isIntradayTailStale(lastTUnixSec, tf) {
   return classifyIntradayTail(lastTUnixSec, tf) !== 'fresh'
 }
 
+
+// ── THE DAILY PAINT AUTHORITY — ONE OWNER (2026-11-11) ──────────────────────────
+// May a CACHED daily set ending at `tailISO` (written at `savedAtMs`) be the FIRST
+// frame, with no network? Returns 'ok' or the refusal reason. The chart
+// (StockChart `_dailyCacheVerdict`) and the type-to-search warm (prefetchBars
+// `warmTypedSymbol`, which must know whether the network is needed before Enter) both
+// ask HERE, so the two can never disagree about what will paint.
+//   hasSeed — today's developing bar can be supplied locally right now
+//   breadth — a breadth series (no live tick, no seed: paints its sealed history)
+// A set missing ONE session can be final at first paint (that session is TODAY, which a
+// seed supplies); one missing two or more guarantees a right-edge insertion later.
+export const DAILY_PAINT_MAX_GAP = 1
+export function dailyCachePaintVerdict(tailISO, savedAtMs, { hasSeed = false, breadth = false } = {}, nowMs = Date.now()) {
+  if (typeof tailISO !== 'string' || tailISO.length < 10) return 'ok'
+  if (breadth) {
+    const g = dailyMissingSessionsForPaint(tailISO, DAILY_PAINT_MAX_GAP + 1).length
+    return g > Math.max(1, DAILY_PAINT_MAX_GAP) ? 'too-far-behind' : 'ok'
+  }
+  if (isDailyTodayCloseProvisionalForPaint(tailISO, savedAtMs, nowMs)) return 'provisional-close'
+  const gap = dailyMissingSessionsForPaint(tailISO, DAILY_PAINT_MAX_GAP + 1).length
+  if (gap > DAILY_PAINT_MAX_GAP) return 'too-far-behind'
+  if (gap > 0) return hasSeed ? 'ok' : 'no-local-today'
+  if (isDailyTodayBarStaleForPaint(tailISO, savedAtMs, nowMs)) return hasSeed ? 'ok' : 'today-stale'
+  return 'ok'
+}

@@ -17,7 +17,8 @@ import { memHas as _memHasRaw, memPutMonotonic as _memPutMono, memPeek as _memPe
 import { seriesCacheTf, barsSessionQuery, barsGridQuery } from '../components/chart/barTime'
 import { setViewShowExtended } from './viewSession'
 import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor } from './barsBackfill'
-import { isDailyTailStale, isDailyTodayCloseProvisionalForPaint, classifyIntradayTail, isCacheCurrentForView } from './marketSession'
+import { isDailyTailStale, isDailyTodayCloseProvisionalForPaint, dailyCachePaintVerdict, classifyIntradayTail, isCacheCurrentForView } from './marketSession'
+import { getTodayBar, todayPackUsable } from '../lib/todayPackClient'
 
 // ⛔ D10 (2026-11-10): a non-OK body is NOT data. `r.json()` on a 404/429/500 handed the
 // error body ({detail:…}) to the caller as if it were bars. Both fetchers now throw the
@@ -169,9 +170,9 @@ function idbGet(sym, tf) { return _idbGetRaw(sym, _ck(tf)) }
 // reads, awaits the network, then writes — and the chart may have written a NEWER series
 // under the same key in between. `_land` merges into what is stored NOW (barsIDB
 // `mergeMonotonic`: never an older tail, never shallower), in IDB and in mem.
-async function _land(sym, k, bars, { delta = false, savedAt } = {}) {
-  const stored = await _idbPutMono(sym, k, bars, { delta })
-  const opts = savedAt === undefined ? {} : { savedAt }
+async function _land(sym, k, bars, { delta = false, savedAt, startedAt = null } = {}) {
+  const stored = await _idbPutMono(sym, k, bars, { delta, startedAt })
+  const opts = savedAt === undefined ? { startedAt } : { savedAt, startedAt }
   const inMem = stored?.length ? _memPutMono(sym, k, stored, opts) : _memPutMono(sym, k, bars, { ...opts, delta })
   return stored?.length ? stored : inMem
 }
@@ -253,10 +254,11 @@ async function _fillUrgent(url, sym, tf) {
   let have = null
   try { have = await _idbGetRaw(sym, k) } catch { /* IDB unavailable: fetch instead */ }
   if (have?.bars?.length && _memPromoteFresh(tf, have.lastT, have.savedAt, have.bars)) { _promote(sym, k, have.bars, have.savedAt); return }
+  const startedAt = Date.now()
   const json = _noteWarmResult(await _warmLoad(url))
   // Merged into what is stored now — which also keeps a deeper daily history (the
   // stale-daily heal used to special-case that).
-  if (json?.bars?.length && !json.delta && _gridOk(k, json)) await _land(sym, k, json.bars)
+  if (json?.bars?.length && !json.delta && _gridOk(k, json)) await _land(sym, k, json.bars, { startedAt })
 }
 function _drainUrgentWhileHeld() {
   if (Date.now() < _warmBackoffUntil) return // server shedding: nobody goes
@@ -431,6 +433,7 @@ export async function prepareForDisplay(sym, tf) {
     const asked = (hasBars && typeof lastT === 'number'
       && classifyIntradayTail(lastT, tf) !== 'gapped')
     const url = asked ? _sinceUrl(sym, tf, lastT) : _url(sym, tf)
+    const startedAt = Date.now()
     const json = _noteWarmResult(await _warmLoad(url))
 
     // ⛔⛔ VERIFY THAT WE ACTUALLY HEARD FROM THE AUTHORITY BEFORE BELIEVING
@@ -445,7 +448,7 @@ export async function prepareForDisplay(sym, tf) {
 
     const rows = json.bars
     if (!rows.length && !hasBars) return 'nodata'
-    const next = rows.length ? await _land(sym, k, rows, { delta: !!json.delta }) : have.bars
+    const next = rows.length ? await _land(sym, k, rows, { delta: !!json.delta, startedAt }) : have.bars
     if (!next?.length) return 'nodata'
     const newestT = next[next.length - 1]?.t
     if (!_INTRADAY_TFS.has(String(tf))) return 'current'
@@ -490,6 +493,8 @@ const _chartLaneInflight = new Map()
  */
 export async function prepareDailyForDisplay(sym, tf, { signal } = {}) {
   if (!sym || !tf) return 'error'
+  // Enter on a typed text: its in-flight warm now belongs to this chart — never abort it.
+  _keepTypedWarm(_url(sym, tf, false))
   try {
     const have = await idbGet(sym, tf)
     if (have?.bars?.length) {
@@ -498,7 +503,8 @@ export async function prepareDailyForDisplay(sym, tf, { signal } = {}) {
     }
     if (signal?.aborted) return 'error'
     const url = _url(sym, tf, false)
-    let req = _chartLaneInflight.get(url)
+    // A type-to-search warm of this exact URL already in flight is JOINED, never repeated.
+    let req = _chartLaneInflight.get(url) || _pendingBars.get(url) || null
     if (!req) {
       req = _chartLaneFetch(url, signal).finally(() => { _chartLaneInflight.delete(url) })
       _chartLaneInflight.set(url, req)
@@ -521,6 +527,103 @@ export async function prepareDailyForDisplay(sym, tf, { signal } = {}) {
   } catch {
     return 'error'
   }
+}
+
+// ── TYPE-TO-SEARCH WARM (D/W/M) ──────────────────────────────────────────────
+// ⭐ (2026-11-11) THE SWITCH IS PREPARED WHILE THE MEMBER IS STILL TYPING.
+//   1. The symbol's cached set is promoted IndexedDB → memory, so on Enter the handoff
+//      finds it synchronously and commits in the same tick (no IDB read after Enter).
+//   2. When that cache could NOT be the first frame on its own — a daily chart paints
+//      its cache only if today's bar can be supplied locally (`_typedCachePaints`, the
+//      chart's paint authority restated) — the chart's own URL is fetched now: a name
+//      never opened, the today-pack aged past its 90 s seed ceiling after a pause, a
+//      tail sessions behind. By Enter the authoritative set is usually in memory
+//      (stamped NOW, which the paint authority accepts); an answer still in flight is
+//      JOINED by the handoff (`prepareDailyForDisplay`) and by the chart's SWR key.
+// ⚠️ COST. No request when the cache will paint, nor for uncached text on a browser that
+// holds the pack (a prefix, not a ticker); otherwise one shallow request
+// (~14 KB, a mem/sqlite hit server-side) per settled text, deduped per URL, skipped
+// while a network-fresh set is in memory. D/W/M only: intraday has `prepareForDisplay`.
+const TYPED_FRESH_MS = 60_000
+
+/** Would the chart paint this cached set as its FIRST frame without the network? Asks the
+ *  chart's own authority (`dailyCachePaintVerdict`); the seed it can count on before Enter is
+ *  the today-pack (the live-store seed is per-symbol and usually absent for a typed name —
+ *  missing it only costs one unneeded request, never a wrong frame). */
+export function _typedCachePaints(sym, tf, lastT, savedAt) {
+  if (String(tf) !== 'D') return true                       // W/M paint their cache as is
+  if (typeof lastT !== 'string' || lastT.length < 10) return false
+  let hasSeed = false
+  try { hasSeed = todayPackUsable() && !!getTodayBar(sym) } catch { hasSeed = false }
+  return dailyCachePaintVerdict(lastT, savedAt, { hasSeed }) === 'ok'
+}
+
+function _packStamped() {
+  try { return !!localStorage.getItem('barspack.version') } catch { return false }
+}
+
+// ONE typed warm is live at a time: the latest text. A newer text ABORTS the previous warm's
+// request unless the handoff has already joined it (`kept` — the member pressed Enter on it).
+let _typedLatest = null   // { url, ctl, kept }
+function _typedSuperseded(url) { return !_typedLatest || _typedLatest.url !== url }
+/** @internal the handoff joined this URL's warm: it now belongs to a chart, never abort it. */
+function _keepTypedWarm(url) { if (_typedLatest && _typedLatest.url === url) _typedLatest.kept = true }
+/** @internal test seam */
+export function __resetTypedWarm() { _typedLatest = null }
+
+export function warmTypedSymbol(sym, tf = 'D') {
+  if (!sym || !tf || !['D', 'W', 'M'].includes(String(tf))) return null
+  const S = String(sym).trim().toUpperCase()
+  if (!/^[A-Z0-9][A-Z0-9.^-]{0,11}$/.test(S)) return null
+  const url = _url(S, tf, false)
+  // A newer text supersedes the previous one at once — its request is aborted (GOO -> GOOGL).
+  if (_typedLatest && _typedLatest.url !== url) {
+    if (!_typedLatest.kept) { try { _typedLatest.ctl?.abort() } catch { /* ignore */ } }
+    _typedLatest = null
+  }
+  const saved = memPeekSavedAt(S, tf)
+  if (memHas(S, tf) && Number.isFinite(saved) && Date.now() - saved < TYPED_FRESH_MS) return null
+  if (_typedLatest && _typedLatest.url === url) return null   // this text is already being warmed
+  const ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null
+  _typedLatest = { url, ctl, kept: false }
+  return (async () => {
+    let lastT = null
+    let savedAt = null
+    const inMem = memPeek(S, tf)
+    if (inMem?.length) {
+      lastT = inMem[inMem.length - 1]?.t ?? null
+      savedAt = memPeekSavedAt(S, tf)
+    } else {
+      const have = await idbGet(S, tf)
+      if (_typedSuperseded(url)) return 'superseded'   // a newer text arrived: no promote, no fetch
+      if (have?.bars?.length) {
+        // Promoted with its OWN stamp, so the paint gate still judges it by when it was written.
+        if (!memHas(S, tf)) memPut(S, tf, have.bars, { savedAt: have.savedAt ?? null })
+        lastT = have.bars[have.bars.length - 1]?.t ?? null
+        savedAt = have.savedAt ?? null
+      }
+    }
+    if (lastT != null && _typedCachePaints(S, tf, lastT, savedAt)) return 'cache'
+    // ⛔ A PREFIX IS NOT A TICKER. Typing GOOGL settles on G, GO, GOO, GOOG on the way; on a
+    // browser holding the whole-universe pack, text with NO cached set is almost always a
+    // partial word, and asking /api/bars for it would send unknown symbols to the origin
+    // (a possible cold provider lookup each). Only a browser without the pack (a new member)
+    // warms an uncached name.
+    if (lastT == null && _packStamped()) return 'unknown'
+    const startedAt = Date.now()
+    const json = await _warmLoad(url, ctl ? ((u) => _chartLaneFetch(u, ctl.signal)) : warmFetcher)
+    if (!_isAuthoritativeAnswer(json, S, tf).ok || json.delta || !json.bars?.length) return false
+    // NEWER WINS, through the ONE monotonic write path (barsMerge `mergeMonotonic`): a set
+    // written for this key after this request began (the chart's own fetch, a later warm)
+    // keeps every bar it holds — a late answer only adds history it lacks — and deeper
+    // history already in memory is kept while the server wins the overlap otherwise.
+    const curSaved = memPeekSavedAt(S, tf)
+    const stale = Number.isFinite(curSaved) && curSaved > startedAt
+    memPut(S, tf, json.bars, { startedAt })
+    return stale ? 'stale-answer' : 'network'
+  })().catch(() => false).finally(() => {
+    if (_typedLatest && _typedLatest.url === url && _typedLatest.ctl === ctl) _typedLatest = null
+  })
 }
 
 /**
@@ -689,11 +792,12 @@ async function _idbWarmOne({ sym, tf, visible = false }) {
       if (!_repairCooldownOk(sym, tf)) return
       const rk = _repairKey(sym, tf)
       const at = _repairAt.get(rk)
+      const startedAt = Date.now()
       const tail = _noteWarmResult(
         await _warmLoad(_sinceUrl(sym, tf, have.lastT)))
       // No answer from the authority (503 shed, network/HTTP error): not a repair.
       if (!_isAuthoritativeAnswer(tail, sym, tf).ok) { _repairFailed(rk, at); return }
-      if (tail.bars.length && _gridOk(k, tail)) await _land(sym, k, tail.bars, { delta: true })
+      if (tail.bars.length && _gridOk(k, tail)) await _land(sym, k, tail.bars, { delta: true, startedAt })
       return
     }
     if (have?.bars?.length && !staleDaily) return  // already durable + fresh — no fetch
@@ -706,11 +810,12 @@ async function _idbWarmOne({ sym, tf, visible = false }) {
     // the bars in mem AND IDB: fetching them again under `&warm=1` downloads the same bars twice
     // (measured on production 2026-10-17: the first three rows of every screener open).
     if (_urgent.has(_url(sym, tf, false)) || _urgentRunning.has(`${sym}_${tf}`)) return
+    const startedAt = Date.now()
     const json = _noteWarmResult(await _warmLoad(_url(sym, tf)))
     // Merged into what is stored NOW (monotonic): a deeper history already in IDB is
     // kept and only the recent tail heals — a bare shallow put would truncate a
     // deep-warmed series back to ~600 bars, or roll back a newer chart write.
-    if (json?.bars?.length && !json.delta && _gridOk(k, json)) await _land(sym, k, json.bars)
+    if (json?.bars?.length && !json.delta && _gridOk(k, json)) await _land(sym, k, json.bars, { startedAt })
   } catch { /* best-effort; the chart's own fetch remains the source of truth */ }
 }
 
@@ -939,8 +1044,9 @@ async function _deepWarmOne(sym, tf) {
     // stalls in the HAR — never race the pack with it, and never pile it onto a
     // shedding server. Holds during pack-ingest OR while backed off (_holdBackgroundWarm).
     if (_holdBackgroundWarm()) return
+    const startedAt = Date.now()
     const json = _noteWarmResult(await _warmLoad(_deepUrl(sym, tf))) // dedupes + warms SWR + server
-    if (json?.bars?.length && !json.delta && _gridOk(k, json)) await _land(sym, k, json.bars)   // durable: the click paints deep from IDB
+    if (json?.bars?.length && !json.delta && _gridOk(k, json)) await _land(sym, k, json.bars, { startedAt })   // durable: the click paints deep from IDB
   } catch { /* best-effort; the chart's own dwell-warm remains the fallback */ }
 }
 function _deepPump() {
@@ -1010,9 +1116,10 @@ async function _warmIntentNow(sym, tf) {
       _promote(sym, k, have.bars, have.savedAt)
       return
     }
+    const startedAt = Date.now()
     const json = await _warmLoad(_url(sym, tf, false), fetcher) // intent warm: not shed, matches the chart's SWR key
     // Monotonic: deeper history kept, a newer chart write never rolled back.
-    if (json?.bars?.length && !json.delta && _gridOk(k, json)) await _land(sym, k, json.bars)
+    if (json?.bars?.length && !json.delta && _gridOk(k, json)) await _land(sym, k, json.bars, { startedAt })
   } catch { /* best-effort; the chart's own fetch remains source of truth */ }
 }
 

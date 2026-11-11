@@ -25,10 +25,14 @@ export function mergeDelta(existing, delta) {
 // into what is stored NOW; on overlapping bars the source with the newer tail wins.
 //   tail(result) = max(tail(cur), tail(incoming)); bars(result) ⊇ both (by timestamp).
 // A DELTA with nothing to merge into is not a chart → null.
-export function mergeMonotonic(cur, incoming, { delta = false } = {}) {
+// `curIsNewer`: the stored set was WRITTEN after the incoming request began (a later fetch
+// already landed). On an equal tail it then wins every overlapping bar — a late answer for
+// the same day/bucket never overwrites a fresher close.
+export function mergeMonotonic(cur, incoming, { delta = false, curIsNewer = false } = {}) {
   if (!incoming?.length) return cur?.length ? cur : null
   if (!cur?.length) return delta ? null : incoming
   const ct = cur[cur.length - 1]?.t
   const it = incoming[incoming.length - 1]?.t
-  return it >= ct ? mergeDelta(cur, incoming) : mergeDelta(incoming, cur)
+  const incomingWins = it > ct || (it === ct && !curIsNewer)
+  return incomingWins ? mergeDelta(cur, incoming) : mergeDelta(incoming, cur)
 }

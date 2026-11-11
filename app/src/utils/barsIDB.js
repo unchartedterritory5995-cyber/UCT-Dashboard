@@ -369,7 +369,7 @@ export async function idbPut(sym, tf, bars) {
 
 /** Compare-and-write in ONE readwrite transaction (no read/await/write gap). Returns the
  *  series now stored (capped as idbPut caps it), or null when nothing was written. */
-export async function idbPutMonotonic(sym, tf, bars, { delta = false } = {}) {
+export async function idbPutMonotonic(sym, tf, bars, { delta = false, startedAt = null } = {}) {
   if (!bars?.length) return null
   try {
     const db = await _open()
@@ -384,7 +384,8 @@ export async function idbPutMonotonic(sym, tf, bars, { delta = false } = {}) {
         // An entry idbGet would not hand back (other logic version, the retired 60m
         // grid) is not a base: it is replaced, never merged into.
         const cur = (e && e.v === CACHE_LOGIC_VERSION && e.bars?.length && !_hasOldSixtyMinGrid(e.bars, tf)) ? e.bars : null
-        const next = mergeMonotonic(cur, bars, { delta })
+        const curIsNewer = !!cur && Number.isFinite(startedAt) && Number.isFinite(e.savedAt) && e.savedAt > startedAt
+        const next = mergeMonotonic(cur, bars, { delta, curIsNewer })
         if (!next?.length || next === cur) { out = cur; return }
         const capped = _capForWrite(tf, next)
         store.put({ key, bars: capped, lastT: capped[capped.length - 1]?.t, savedAt: Date.now(), v: CACHE_LOGIC_VERSION })

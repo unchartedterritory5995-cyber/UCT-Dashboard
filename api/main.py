@@ -250,6 +250,7 @@ from api.routers import note_sync as note_sync_router  # note connectors (Roam/C
 from api.routers import desk_zoom_webhook as desk_zoom_webhook_router
 from api.routers import tsdr_lessons as tsdr_lessons_router
 from api.routers import media_evidence_bridge as media_evidence_bridge_router
+from api.routers import chart_monitor_heartbeat as chart_monitor_heartbeat_router
 from api.routers import dashboard_signposts as dashboard_signposts_router
 from api.routers import market_calendar as market_calendar_router
 from api.routers import single_stock_etfs as single_stock_etfs_router
@@ -10181,6 +10182,14 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] indicator support digest job registration failed (non-fatal): {e}")
 
+        # Chart-data monitor dead-man (P0a): the worker-side synthetic monitor POSTs a heartbeat
+        # here after every cycle; this job pages ops once when the beats stop (chart_monitor/deadman.py).
+        try:
+            from api.services.chart_monitor import deadman as _cm_deadman
+            _cm_deadman.register(_scheduler)
+        except Exception as e:
+            print(f"[startup] chart monitor dead-man registration failed (non-fatal): {e}")
+
         _scheduler.start()
         print("[startup] COT scheduler running -- Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
         print("[startup] Session cleanup scheduled -- daily at 3:00 AM ET")
@@ -11391,6 +11400,7 @@ app.include_router(note_sync_router.router)  # note connectors /api/j2/notes/con
 app.include_router(desk_zoom_webhook_router.router)
 app.include_router(tsdr_lessons_router.router)
 app.include_router(media_evidence_bridge_router.router)  # Phase 4D-4C /api/internal/media-evidence/* -- PUSH_SECRET bearer, uct-clips consumer
+app.include_router(chart_monitor_heartbeat_router.router)  # P0a /api/internal/chart-monitor/* -- PUSH_SECRET bearer, worker chart monitor heartbeat
 app.include_router(signature_router.router)  # UCT Signature indicators /api/signature/*
 app.include_router(what_else_open_router.router)  # TERM-093 /api/instruments/what-else-open/* + admin read -- admin-only, DARK (WHAT_ELSE_OPEN_CAPTURE_ENABLED)
 # UCT Wisdom Loop routers (docs/wisdom/CONTRACTS.md §2.2): /api/admin/wisdom/<pkg>/* (require_admin on

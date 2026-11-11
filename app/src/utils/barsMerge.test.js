@@ -34,6 +34,12 @@ describe('mergeMonotonic (fuzz, 600 pairs)', () => {
       for (const b of out) if (shared.has(b.t)) expect(b.c).toBe(winner)
     }
   })
+  it('equal tails: the incoming answer wins unless the stored set was written after it was requested', () => {
+    const cur = [{ t: 1, c: 'cur' }, { t: 2, c: 'cur' }]
+    const inc = [{ t: 2, c: 'inc' }]
+    expect(mergeMonotonic(cur, inc).at(-1).c).toBe('inc')
+    expect(mergeMonotonic(cur, inc, { curIsNewer: true }).at(-1).c).toBe('cur')
+  })
   it('a delta with nothing stored is not a chart; a full set with nothing stored is stored as is', () => {
     expect(mergeMonotonic(null, [{ t: 1 }], { delta: true })).toBeNull()
     const full = [{ t: 1 }, { t: 2 }]
