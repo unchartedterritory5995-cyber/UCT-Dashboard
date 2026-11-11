@@ -34,8 +34,11 @@ describe('foldOffGridBars', () => {
 
   it('60m: a minute-aligned stray is caught too (session + clock grid aware)', () => {
     const et = (h, m) => Date.UTC(2026, 10, 5, h + 5, m) / 1000   // EST
-    // 10:47 is no bucket start; its 10:30 session bucket exists → dropped.
-    expect(foldOffGridBars([bar(et(10, 30)), bar(et(10, 47))], '60').map(b => b.t)).toEqual([et(10, 30)])
+    // 10:47 is no bucket start; its 10:30 session bucket exists → dropped (RTH view:
+    // the series is on the session grid).
+    expect(foldOffGridBars([bar(et(10, 30)), bar(et(10, 47))], '60', { showExtended: false }).map(b => b.t)).toEqual([et(10, 30)])
+    // ETH view (#1061): the series is the clock grid, so the stray's bucket is 10:00.
+    expect(foldOffGridBars([bar(et(10, 0)), bar(et(10, 47))], '60', { showExtended: true }).map(b => b.t)).toEqual([et(10, 0)])
     // 17:30 is not a start on either grid (post-market is clock hours) → 17:00.
     expect(foldOffGridBars([bar(et(16, 0)), bar(et(17, 30))], '60').map(b => b.t)).toEqual([et(16, 0), et(17, 0)])
     // Valid starts on both grids are untouched.
