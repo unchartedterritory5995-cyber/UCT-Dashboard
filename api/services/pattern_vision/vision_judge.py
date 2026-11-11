@@ -32,6 +32,8 @@ _INSTRUCT = (
 )
 
 
+#: The judge's model: `judge`'s default and the Batch lane's, one value.
+JUDGE_MODEL = "claude-opus-4-8"
 MAX_TOKENS = 900
 #: The most one picture can bill as input (`indicator_from_image.IMAGE_TOKENS_WORST`'s documented
 #: ceiling). A picture's base64 bytes are not its tokens, so it is counted apart from the text.
@@ -56,6 +58,13 @@ def build_messages(setup: str, png_bytes: bytes, *, key_level=None, example_pngs
     if example_pngs:
         text += _EXAMPLES_LINE.format(label=label)
         content.extend(_img_block(p) for p in example_pngs if p)
+        if content:
+            # The reference charts are the SAME bytes for every ticker judged on this
+            # setup (modelbook_examples caches them per process) and they lead the
+            # prompt, so they are a cacheable prefix: later calls read them at 0.1x
+            # instead of paying full input for up to two images again. A prefix under
+            # the model's minimum simply does not cache; nothing errors.
+            content[-1] = {**content[-1], "cache_control": {"type": "ephemeral"}}
     else:
         text += _CANDIDATE_LINE
     text += _INSTRUCT
@@ -108,17 +117,32 @@ def worst_case_tokens(setup: str, *, key_level=None, example_pngs=None) -> tuple
             MAX_TOKENS)
 
 
-def judge(setup: str, png_bytes: bytes, *, client, model: str = "claude-opus-4-8",
-          key_level=None, example_pngs=None) -> dict:
-    msg = client.messages.create(
-        model=model, max_tokens=MAX_TOKENS,
-        messages=build_messages(setup, png_bytes, key_level=key_level, example_pngs=example_pngs))
-    text = next((b.text for b in msg.content if getattr(b, "type", None) == "text"), "")
+def build_request(setup: str, png_bytes: bytes, *, model: str = JUDGE_MODEL,
+                  key_level=None, example_pngs=None) -> dict:
+    """The Messages request one judgement sends: the live call and the Batch lane
+    send the identical body, so a batched verdict is the same judgement."""
+    return {"model": model, "max_tokens": MAX_TOKENS,
+            "messages": build_messages(setup, png_bytes, key_level=key_level,
+                                       example_pngs=example_pngs)}
+
+
+def verdict_from_message(msg, model: str) -> dict:
+    text = next((b.text for b in (getattr(msg, "content", None) or [])
+                 if getattr(b, "type", None) == "text"), "")
     verdict = parse_verdict(text)
     usage = getattr(msg, "usage", None)
     verdict["usage"] = {
-        "input_tokens": getattr(usage, "input_tokens", 0),
-        "output_tokens": getattr(usage, "output_tokens", 0),
+        "input_tokens": getattr(usage, "input_tokens", 0) or 0,
+        "output_tokens": getattr(usage, "output_tokens", 0) or 0,
+        "cache_read_input_tokens": getattr(usage, "cache_read_input_tokens", 0) or 0,
+        "cache_creation_input_tokens": getattr(usage, "cache_creation_input_tokens", 0) or 0,
     }
     verdict["model"] = model
     return verdict
+
+
+def judge(setup: str, png_bytes: bytes, *, client, model: str = JUDGE_MODEL,
+          key_level=None, example_pngs=None) -> dict:
+    msg = client.messages.create(**build_request(setup, png_bytes, model=model, key_level=key_level,
+                                                 example_pngs=example_pngs))
+    return verdict_from_message(msg, model)

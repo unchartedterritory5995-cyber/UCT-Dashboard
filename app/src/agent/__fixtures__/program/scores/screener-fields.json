@@ -636,6 +636,14 @@
    "description": "Mean daily volume of the last 50 sessions, the last one included. Blank if any of them has no volume. Measured at the last completed session."
   },
   {
+   "key": "min_volume_3d_prior",
+   "label": "Min Volume (3d, prior)",
+   "type": "range",
+   "unit": null,
+   "category": "technical",
+   "description": "The lowest daily volume of the three sessions before the last one (TC2000's MINV3.1). The last session is left out, so one heavy day cannot lift it. Blank if any of the three has no volume. Measured at the last completed session."
+  },
+  {
    "key": "vol_trend_pct",
    "label": "Volume Trend (5d vs 20d)",
    "type": "range",

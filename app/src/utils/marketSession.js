@@ -10,6 +10,7 @@
 // session." Outside `hasCoverage`'s covered years this degrades EXACTLY to the
 // prior weekday-only/16:00 behavior — never a guess, never a throw.
 import { hasCoverage, holidayOn, earlyCloseOn } from '../lib/marketClock/nyseCalendar'
+import { bucketStartUnix as _sharedBucketStartUnix } from '../components/chart/barTime'
 
 const _pad = (n) => String(n).padStart(2, '0')
 
@@ -458,19 +459,14 @@ const _etMinutesOfUnix = etMinutesOfUnix
 
 /**
  * Start instant of the bucket containing `unixSec`.
- * ⭐ tf=60 is SESSION-ANCHORED (09:30-09:59 anchors at 09:30, then clock hours) to
- * match the server's `bucket_60_et_unix_seconds`. Two bucketings of one timeframe is
- * how duplicate candles at neighbouring timestamps get planted.
- * Subtracting a MINUTE DIFFERENCE from the epoch keeps this DST-safe — no calendar
- * instant is reconstructed.
+ * ⭐ tf=60 follows the ONE 60-minute grid policy (chart/barTime.js
+ * `bucketStartUnix`, server twin `bars_fetch.bucket_60_et_unix_seconds`):
+ * TradingView's session grid, 09:30, 10:30 ... 15:30 (early-close aware). Two
+ * bucketings of one timeframe is how duplicate candles at neighbouring
+ * timestamps get planted, so this file never re-encodes it.
  */
 function _bucketStartUnix(unixSec, tfMin) {
-  const mins = _etMinutesOfUnix(unixSec)
-  const anchor = tfMin === 60
-    ? ((mins >= 570 && mins < 600) ? 570 : Math.floor(mins / 60) * 60)
-    : Math.floor(mins / tfMin) * tfMin
-  const secs = new Date(unixSec * 1000).getSeconds()   // timezone-invariant
-  return unixSec - (mins - anchor) * 60 - secs
+  return _sharedBucketStartUnix(unixSec, tfMin)
 }
 
 export function expectedLatestCompletedBar(tf, nowMs = Date.now(), { session = 'rth' } = {}) {

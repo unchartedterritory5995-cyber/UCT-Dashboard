@@ -4,8 +4,6 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { POINT_COUNT, validateDrawing, drawingTimeFor } from './drawingTools'
-import { toChartTime } from './patternTime'
-import { ET_OFFSET } from './barTime'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const OVERLAY = readFileSync(join(HERE, 'ChartDrawingOverlay.jsx'), 'utf8')
@@ -23,12 +21,12 @@ describe('POINT_COUNT', () => {
 })
 
 describe('drawingTimeFor', () => {
-  it('is patternTime’s conversion: YYYY-MM-DD on D/W/M, ET-shifted seconds intraday', () => {
+  it('is patternTime’s conversion: YYYY-MM-DD on D/W/M, RAW unix seconds intraday (the overlay base)', () => {
     expect(drawingTimeFor('2026-01-05', 'D')).toBe('2026-01-05')
     expect(drawingTimeFor(20260105, 'W')).toBe('2026-01-05')
-    expect(drawingTimeFor('2026-01-05', '5')).toBe(toChartTime('2026-01-05', '5'))
+    expect(drawingTimeFor('2026-01-05', '5')).toBe(Date.UTC(2026, 0, 5, 14, 30) / 1000)   // 09:30 EST
     const sec = Date.UTC(2026, 0, 5, 15, 0) / 1000
-    expect(drawingTimeFor(sec, '15')).toBe(sec + ET_OFFSET)
+    expect(drawingTimeFor(sec, '15')).toBe(sec)   // a real instant stays itself
   })
   it('never guesses', () => {
     expect(drawingTimeFor('soon', 'D')).toBeNull()
