@@ -57,3 +57,28 @@ Master's deploy gate went red on gate runs 42955187848 (`fd2f9acf2c`) and 429565
 - (screener-fields.json: identical to #1066, so it is no longer in the diff after the merge)
 - docs/agent/program/PR-fix-gate-screener-pins.md
 - tests/test_uct_agent_qa_f16.py
+
+## SAT-1 follow-up (gate red on 12818d811c, browser shard 3/4)
+
+`src/agent/agentScanSat1Requests.test.jsx` failed with "the captured planner requests moved". Master fixed it with
+#1069 (`c85f7e5e3f`, merged as `381f91acbd`). This branch is merged with `381f91acbd` and needs **no further
+regeneration**: in check mode (no UPDATE_SAT1_REQUESTS) the test passes 62/62.
+
+I attributed every change between 12818d811c's stored `api/services/uct_agent/scan/sat/section_b_requests.json` and
+the current one, which the passing check run shows matches a fresh capture, using a structural JSON diff at the leaf level:
+
+| Where | Count | Change | Commit |
+|---|---|---|---|
+| `requests/*/context/screener/0/fields` | 30 of 30 non-null requests | `+rs_rating_9m:9M Return Rank`; nothing removed; existing labels unchanged | #1021 (new field) |
+| same strings | 30 | RS group reordered: `rs_rating_1m/3m/6m/9m/12m`, `rs_rating_chg_20` now follow `rs_line_trend`; `rs_benchmark_agree` moved after `rs_rating_chg_5`. Order outside the RS group unchanged | #1021 (`filters.py` catalog reorder) |
+
+- Total leaf differences: 30, all in the field string above.
+- Manifests, routing, message, capabilities refs, reroute bodies, corpus_version and the null-request count are all unchanged.
+- #1029 contributed nothing: no chip or refusal-block change appears.
+- No expected outcome changed. `git diff 12818d811c origin/master -- api/services/uct_agent/scan/eval` is empty, so the
+  SAT corpus, its answers and its refusals did not change. Only the captured planner request (catalog field text) moved.
+
+Re-verified on this branch at BelowNormal:
+- `vitest agentScanSat1Requests.test.jsx`: 62 passed.
+- `pytest test_uct_agent_scan_sat_section_b.py`, `test_uct_agent_spend_protection.py` (the readers of the capture),
+  `test_uct_agent_qa_f16.py` and `test_uct_agent_qa_scan_corpus.py`: 128 passed.
