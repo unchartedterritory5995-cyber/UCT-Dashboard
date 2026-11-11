@@ -38,8 +38,8 @@ ET = ZoneInfo("America/New_York")
 FAKE_NOW = datetime(2026, 11, 2, 12, 5, tzinfo=ET)
 DAYS = [(2026, 10, 28), (2026, 10, 29), (2026, 10, 30), (2026, 11, 2)]
 # the TradingView session grid (pre clock hours, 09:30 … 15:30, post clock hours)
-GRID = [(h, 0) for h in range(4, 10)] + [(9, 30)] + [(h, 30) for h in range(10, 16)] + [(h, 0) for h in range(16, 20)]
-GRID = sorted(set(GRID))
+GRID = sorted(set([(h, 0) for h in range(4, 10)] + [(9, 30)] + [(h, 30) for h in range(10, 16)]
+                  + [(h, 0) for h in range(16, 20)]))
 
 def ts(y, mo, d, h, mi):
     return int(datetime(y, mo, d, h, mi, tzinfo=ET).timestamp())
