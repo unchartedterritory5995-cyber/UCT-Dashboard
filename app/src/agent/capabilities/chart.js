@@ -261,15 +261,22 @@ export function viewDone(meta, { op, arg, want }) {
   if (op === 'stepBar') return !!meta.frame && !!want && Math.abs(meta.frame.fromRight - want.fromRight) < 0.6 && Math.abs(meta.frame.toRight - want.toRight) < 0.6
   // Auto-scale: the price scale itself says it fits the bars (unreadable is never "done")
   if (op === 'autoScale') return meta.priceAuto === true
+  // the Position Calculator (drawing extras): open or closed, and its entry / stop / target, as the panel shows them
+  if (op === 'positionCalc') return samePositionCalc(meta.positionCalc, arg)
   return meta.indicatorsHidden === arg
 }
 // The window (right-relative, within a bar: the tolerance of the range read-back) and the view lock, as a range button found them.
 // What a view change's Undo is pinned to: the range shown, the window a step left (to a tenth of a bar), or hide-all.
 const viewFp = (snap, op) => {
   if (op === 'applyRange') return snap.view?.activeRange ?? null
+  // a Position Calculator's Undo is stale once the member typed in its panel or closed it themselves
+  if (op === 'positionCalc') return positionCalcSig(snap.view?.positionCalc)
   if (op === 'stepBar') { const f = snap.view?.frame; return f ? `${f.fromRight.toFixed(1)}|${f.toRight.toFixed(1)}` : null }
   return !!snap.view?.indicatorsHidden
 }
+/** The Position Calculator's read-back: open, and its three prices (as numbers; '' = empty). */
+export const positionCalcSig = (p) => (p ? JSON.stringify([!!p.open, ...['entry', 'stop', 'target'].map(k => (p[k] === '' || p[k] == null ? null : Number(p[k])))]) : null)
+const samePositionCalc = (a, b) => !!a && !!b && positionCalcSig(a) === positionCalcSig(b)
 const sameFrame = (a, b) =>!!a && !!b && Math.abs(a.fromRight - b.fromRight) < 0.6 && Math.abs(a.toRight - b.toRight) < 0.6 && !!a.locked === !!b.locked
 // Did the view arrive? The Time Navigator puts the LAST BAR ON OR BEFORE the date at the right
 // edge (clamped to the first bar before inception, and to the last bar for a future date).
@@ -336,7 +343,7 @@ export const chartKind = {
   list: (host) => (host?.charts?.list() || []).map(s => withMemberState(host, s)),
   read: (host, ref) => withMemberState(host, host?.charts?.read(ref) || null),
   // `replay`: the workspace's Replay Mode cutoff (W1-B B-06) — undefined when the host has none (then chart.replay refuses)
-  stateOf: (snap) => ({ cs: snap.cs, tf: snap.tf, symbol: snap.symbol, goto: null, replay: snap.replay,
+  stateOf: (snap) => ({ cs: snap.cs, tf: snap.tf, symbol: snap.symbol, drawSym: snap.drawSym || snap.symbol, goto: null, replay: snap.replay,
     watermarkPos: snap.watermarkPos ?? null, volPanePref: snap.volPanePref ?? null, volPanePct: snap.volPanePct, prefsWritable: !!snap.prefsWritable,
     canvasTheme: snap.canvasTheme ?? null, view: snap.view ?? null, viewDo: null,
     // C1-127: the chart's own Chart Settings door — may it open here (absent = no door: false), and is it open now
@@ -426,6 +433,8 @@ export const chartKind = {
       const { op } = item.patch.viewDo
       if (op === 'setIndicatorsHidden') p.viewDo = { op, arg: !!item.before.view?.indicatorsHidden }
       else if ((op === 'applyRange' || op === 'stepBar') && item.before.view?.frame) p.viewDo = { op: 'restoreView', arg: item.before.view.frame }
+      // the Position Calculator back to exactly what it showed before (closed stays closed, its old prices kept)
+      else if (op === 'positionCalc' && item.before.view?.positionCalc) p.viewDo = { op, arg: { ...item.before.view.positionCalc } }
       else return null
     }
     return p

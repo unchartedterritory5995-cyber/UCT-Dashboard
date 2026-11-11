@@ -185,6 +185,17 @@ export const GROUPS = [
     // W2 (CG-7): a stock's "drawdowns" are price history (data), never a drawing
     // CG-28 family: "the lines on here" may be the member's drawn levels as much as their averages — both groups ride
     words: [/\bdraw(?![\s-]?downs?\b)\w*\b/, /\b(?:what|which|any|my|the|all) (?:[a-z-]+ ){0,2}lines\b.*\b(?:on|in) (?:here|this chart|the chart|my chart|it)\b/, /\b(a |the )?line at \$?\d/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
+  // drawing extras (C1-144 / C1-160 / C1-165): the Position Calculator with entry / stop / target, a drawing's "Save as
+  // default", and a drawing tool's ★ — their OWN group, WORDS-ONLY (as #1027's watchlistShow / #1073's compareGroups), so
+  // `drawings` keeps master's exact size and the nothing-recognised fill (exactly at the 55-action budget) does not move.
+  // Its words: a position-calculator / position-size word, or entry + stop + target with no alert word; "default" with a
+  // save / make / set verb and a drawing noun (or "default style"); a favourite / star word with a TOOL noun. Plain "draw a
+  // line" stays `drawings`, "set an alert at my stop" stays `alerts`, and "favourite NVDA" (a ticker flag) is not this.
+  { id: 'drawingExtras', title: 'Position Calculator with an entry, stop and target on a chart; make a drawing\'s style the chart\'s default for new drawings; star / unstar a drawing tool as a favourite', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['drawing.positionCalculator', 'drawing.saveDefaults', 'drawing.favoriteTool'],
+    words: [/\bposition (?:calculator|calc|sizer|sizing)\b|\bsize (?:the|my|a|this) (?:position|trade)\b|^(?!.*\b(?:alerts?|notify|ping)\b)(?=.*\bentry\b)(?=.*\bstops?\b).*\btargets?\b/,
+      /\bdefault (?:drawing )?style\b|^(?=.*\b(?:save|make|set|use)\b)(?=.*\b(?:drawings?|trend ?lines?|lines?|rays?|rectangles?|boxe?s?|fib\w*|arrows?|notes?|circles?|channels?|pitchforks?)\b).*\bdefaults?\b/,
+      /\b(?:favou?rit\w*|star|unstar|starred)\b.*\b(?:tools?|toolbar)\b|\b(?:tools?|toolbar)\b.*\bfavou?rit\w*\b/] },
   { id: 'lists', title: 'Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)', domains: ['watchlist'],
     words: [/\bwatch ?lists?\b/, /\blists?\b/, /\b(add|put|remove|drop)\b.+\b(to|into|from|off)\b/] },
   { id: 'screener', title: 'Screener (run screens, saved screens: run, save, copy, rename, delete)', domains: ['screener'],
