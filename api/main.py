@@ -5783,6 +5783,12 @@ async def lifespan(app: FastAPI):
         print("[startup] weekly_key_purge: scheduled (background)")
     except Exception as e:
         print(f"[startup] weekly_key_purge error (non-fatal): {e}")
+    # Off-grid intraday rows (intraday_grid): background, paced, idempotent repair.
+    try:
+        from api.services import intraday_grid as _grid
+        _grid.sweep_async(delay_s=120)
+    except Exception as e:
+        print(f"[startup] offgrid_sweep error (non-fatal): {e}")
 
     # Chart pipeline mode fingerprint -- one line so a grep on Tuesday morning
     # tells the operator EXACTLY which fixes are active in this deploy.

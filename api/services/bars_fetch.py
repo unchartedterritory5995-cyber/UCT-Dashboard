@@ -1542,6 +1542,17 @@ def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> l
         else:
             t_val = ts
         out.append({"t": t_val, "o": o, "h": h, "l": l, "c": c, "v": v})
+    if not date_tf and out:
+        # ⛔ Grid guard (2026-11-10): an intraday row is keyed on its bucket START. A
+        # stored off-grid row (the yfinance live row stamped at a trade time, e.g. SPY
+        # 5m 16:35:50 beside 16:35:00) drew as an extra candle. Drop it beside its
+        # bucket row (or snap it when the bucket has no row) and queue a repair of the
+        # stored pair — `intraday_grid` module doc. No-op (no copy) on a clean series.
+        try:
+            from api.services import intraday_grid as _grid
+            out = _grid.fold_for_serve(tf, out, ticker)
+        except Exception:
+            pass  # best-effort: never let the guard blank a chart
     if ticker and weekly and out:
         out = _reconcile_developing_week(ticker, out)
     if ticker and date_tf and out:
@@ -1818,7 +1829,8 @@ def _fetch_intraday_fmp(ticker: str, tf: str, max_bars: int) -> list[dict]:
                 })
             except (KeyError, ValueError, TypeError):
                 continue
-        return bars[-max_bars:]
+        from api.services import intraday_grid as _grid
+        return _grid.normalize(tf, bars)[-max_bars:]
     except Exception as _e:
         _note_provider_fault(_e)
         import logging as _log
@@ -1884,6 +1896,13 @@ def _fetch_intraday_yfinance(ticker: str, tf: str, max_bars: int) -> list[dict]:
                 # outer except emptied the WHOLE payload over one padded row.
                 "v": _safe_volume(row.get("Volume")),
             })
+        # ⛔ YAHOO'S LIVE ROW IS STAMPED AT THE LAST TRADE, NOT THE BUCKET START. While an
+        # interval is forming Yahoo returns it as a separate last row (e.g. 16:35:50 on 5m);
+        # yfinance folds it in only when the bucket already has a row, which thin
+        # post-market buckets often lack. Persisted add-only, it sat next to the Massive
+        # 16:35:00 row as an extra candle (prod 2026-11-10). Fold it onto the grid here.
+        from api.services import intraday_grid as _grid
+        bars = _grid.normalize(tf, bars)
         return bars[-max_bars:]
     except Exception as _e:
         _note_provider_fault(_e)
