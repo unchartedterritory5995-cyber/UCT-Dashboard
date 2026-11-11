@@ -7,10 +7,10 @@
     "get_bars_before",
     "get_bars_since"
   ],
-  "modules_scanned": 2246,
+  "modules_scanned": 2266,
   "summary": {
     "named_access_count": 2,
-    "positional_count": 50,
+    "positional_count": 52,
     "named_access": [
       "api/services/canonical/resolver.py",
       "api/services/ticker_returns.py"
@@ -34,6 +34,7 @@
       "api/services/discord_render/symbols.py",
       "api/services/fundamentals_pit/beta_store.py",
       "api/services/indicator_alert_evaluator.py",
+      "api/services/intraday_gap_audit.py",
       "api/services/journal_two/excursion_engine.py",
       "api/services/journal_two/notebook_today.py",
       "api/services/journal_two/notebook_widgets.py",
@@ -41,6 +42,7 @@
       "api/services/journal_two/setups_board.py",
       "api/services/journal_two/tech_fingerprint.py",
       "api/services/journal_two/trader_blocks.py",
+      "api/services/journal_two/tweet_price.py",
       "api/services/market_intel/price_reads.py",
       "api/services/pattern_engine/memory.py",
       "api/services/pattern_vision/modelbook_examples.py",
@@ -74,23 +76,23 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 545
+          "line": 547
         },
         {
           "function": "get_bars",
-          "line": 834
+          "line": 836
         },
         {
           "function": "get_bars",
-          "line": 852
+          "line": 854
         },
         {
           "function": "get_bars",
-          "line": 5721
+          "line": 5815
         }
       ],
       "evidence": {
-        "line": 552,
+        "line": 554,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -128,11 +130,11 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 141
+          "line": 142
         }
       ],
       "evidence": {
-        "line": 145,
+        "line": 146,
         "pattern": "known-positional-delegate",
         "delegate": "_fmt_sqlite_bars"
       }
@@ -174,19 +176,19 @@
       "calls": [
         {
           "function": "get_bars_before",
-          "line": 599
+          "line": 743
         },
         {
           "function": "get_bars_before",
-          "line": 632
+          "line": 776
         },
         {
           "function": "get_bars_before",
-          "line": 641
+          "line": 785
         }
       ],
       "evidence": {
-        "line": 602,
+        "line": 746,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -250,75 +252,75 @@
       "calls": [
         {
           "function": "get_bars_since",
-          "line": 261
+          "line": 293
         },
         {
           "function": "get_bars",
-          "line": 1155
+          "line": 1214
         },
         {
           "function": "get_bars",
-          "line": 1590
+          "line": 1728
         },
         {
           "function": "get_bars_since",
-          "line": 1922
+          "line": 2068
         },
         {
           "function": "get_bars",
-          "line": 2400
-        },
-        {
-          "function": "get_bars_before",
-          "line": 2478
-        },
-        {
-          "function": "get_bars_before",
-          "line": 2497
-        },
-        {
-          "function": "get_bars_before",
-          "line": 2557
+          "line": 2543
         },
         {
           "function": "get_bars_before",
           "line": 2621
         },
         {
+          "function": "get_bars_before",
+          "line": 2640
+        },
+        {
+          "function": "get_bars_before",
+          "line": 2700
+        },
+        {
+          "function": "get_bars_before",
+          "line": 2764
+        },
+        {
           "function": "get_bars_since",
-          "line": 2757
+          "line": 2900
         },
         {
           "function": "get_bars",
-          "line": 2761
+          "line": 2904
         },
         {
           "function": "get_bars",
-          "line": 3344
+          "line": 3490
         },
         {
           "function": "get_bars",
-          "line": 3398
+          "line": 3544
         },
         {
           "function": "get_bars",
-          "line": 3498
+          "line": 3644
         },
         {
           "function": "get_bars",
-          "line": 3569
+          "line": 3715
         },
         {
           "function": "get_bars",
-          "line": 3666
+          "line": 3815
         },
         {
           "function": "get_bars",
-          "line": 3804
+          "line": 3953
         }
       ],
       "evidence": {
-        "line": 261,
+        "line": 293,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -438,6 +440,24 @@
         "index": 0
       }
     },
+    "api/services/intraday_gap_audit.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_since",
+          "line": 106
+        },
+        {
+          "function": "get_bars_since",
+          "line": 171
+        }
+      ],
+      "evidence": {
+        "line": 103,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
     "api/services/journal_two/excursion_engine.py": {
       "classification": "positional",
       "calls": [
@@ -552,6 +572,28 @@
       ],
       "evidence": {
         "line": 280,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/journal_two/tweet_price.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 198
+        },
+        {
+          "function": "get_bars_before",
+          "line": 217
+        },
+        {
+          "function": "get_bars_before",
+          "line": 246
+        }
+      ],
+      "evidence": {
+        "line": 127,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -687,13 +729,13 @@
       "calls": [
         {
           "function": "get_bars_before",
-          "line": 467
+          "line": 517
         }
       ],
       "evidence": {
-        "line": 190,
-        "pattern": "for-unpack",
-        "size": 6
+        "line": 141,
+        "pattern": "int-subscript",
+        "index": 1
       }
     },
     "api/services/screener/scan_evaluator.py": {
@@ -715,11 +757,11 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 810
+          "line": 818
         }
       ],
       "evidence": {
-        "line": 814,
+        "line": 822,
         "pattern": "int-subscript",
         "index": 0
       }

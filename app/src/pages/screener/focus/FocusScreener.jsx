@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom'
 import { AuthContext } from '../../../context/AuthContext'
 import useScreenerMeta from '../hooks/useScreenerMeta'
 import useScreenerScan from '../hooks/useScreenerScan'
+import { LIVE_REFRESH_MS } from '../hooks/liveRefresh'
 import useScreenerCount from '../hooks/useScreenerCount'
 import useSavedScreens from '../hooks/useSavedScreens'
 import useScreenSpec, { REQUIRED_COLS } from '../shell/useScreenSpec'
@@ -201,7 +202,7 @@ function FocusList({ mode, onMode }) {
     askedBy.current.set(sp, { sig: screenSig, filters: s.filters, logic: s.logic, rank: s.rank, baseSpec: s.baseSpec })
     return sp
   }, [s.scanSpec, columns, retryNonce, screenSig, s.filters, s.logic, s.rank, s.baseSpec])
-  const { result, answeredSpec, isLoading, error } = useScreenerScan(landed ? scanSpec : null, { leading: true })
+  const { result, answeredSpec, isLoading, error } = useScreenerScan(landed ? scanSpec : null, { leading: true, refreshMs: LIVE_REFRESH_MS })
   const { count, isLoading: countLoading, error: countError } = useScreenerCount(landed ? s.baseSpec : null)
 
   // Each new scan answer is folded in ONCE, during render (React's "adjust state when an

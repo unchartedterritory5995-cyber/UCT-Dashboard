@@ -37,6 +37,13 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import Depends, FastAPI, Query
 
+# ⛔ SECURITY (2026-11-10): redact credential query params (Massive `apiKey=`) on
+# EVERY log record of this pod -- httpx logs each request URL at INFO and an
+# HTTPStatusError's text carries the full URL. api/main.py does this for web; this
+# entrypoint never imports api.main, so it must install it itself.
+from api.services.log_redaction import install as _install_log_redaction
+_install_log_redaction()
+
 _log = logging.getLogger("uvicorn.error")
 _DATA_DIR = os.environ.get("DATA_DIR", "/data")
 
@@ -228,6 +235,7 @@ async def _lifespan(app: FastAPI):
 def _build_app() -> FastAPI:
     app = FastAPI(title="UCT Bars API", docs_url=None, redoc_url=None, lifespan=_lifespan)
     from api.routers.bars import serve_bars, serve_bars_history
+    from api.routers.bars import serve_bars_http   # edge-budgeted HTTP entry (8 s abort)
     # 🔴 THIS SERVICE IS PUBLICLY ROUTABLE. Railway serves it at a public domain as
     # well as on private networking, so every data route below is directly reachable
     # from the internet and a gate on the web pod alone would protect one of TWO doors.
@@ -340,7 +348,7 @@ def _build_app() -> FastAPI:
         to: str = "",
         warm: int = 0,
     ):
-        return serve_bars(ticker, tf, bars, since=since, to=to, warm=warm)
+        return serve_bars_http(ticker, tf, bars, since=since, to=to, warm=warm)
 
     # ⛔ NO GATE HERE ON PURPOSE — same reason as `/api/bars/{ticker}` above.
     @app.get("/api/bars-history/{ticker}")

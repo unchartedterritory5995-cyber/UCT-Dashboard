@@ -168,7 +168,11 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     //                               the two TEXT names stay excluded for
     //                               `rs_line_trend`'s reason. The Python pin
     //                               moved with it: (149, 107) -> (149, 110).
-    expect(Object.keys(excluded).length).toBe(110)
+    //   excluded 110 + 1 = 111       `min_volume_3d_prior` (2026-11-10, TC2000's MINV3.1 for the
+    //                                Anticipation starter): a scan primitive, excluded with theirs.
+    //   excluded 111 + 4 = 115       the four `live_base_*` columns (2026-11-10): live-tier bases,
+    //                                not member columns, excluded with their own reason.
+    expect(Object.keys(excluded).length).toBe(115)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)

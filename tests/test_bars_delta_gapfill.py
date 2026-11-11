@@ -13,6 +13,11 @@ amplification, no worsened lock contention).
 import time
 from unittest.mock import patch
 
+# 2026-11-10: tf=30 is now RESAMPLED from 15m in the delta (native 30m is
+# intermittently sparse), so the native-passthrough gap-fill contract below is
+# exercised on tf=15 — the same `_delta_keep_bar` filter; the resample paths
+# (30/60) apply it to the resampled buckets (test_delta_30m_resamples_from_15m).
+
 from api.services import bars_fetch
 
 
@@ -49,7 +54,7 @@ def test_delta_intraday_restores_interior_hole_but_not_stored_bars():
     with patch.object(bars_fetch, "_get_client", return_value=_FakeClient()), \
          patch.object(bars_fetch, "_paginate_massive_aggs", return_value=massive_raw), \
          patch.object(bars_fetch._sqlite, "get_bars_since", return_value=stored_rows):
-        out = bars_fetch._delta_intraday("QQQ", "30", last_ts)
+        out = bars_fetch._delta_intraday("QQQ", "15", last_ts)
 
     ts_out = {b["t"] for b in out}
     assert hole in ts_out,   "interior hole must be gap-filled from Massive"
@@ -79,7 +84,7 @@ def test_delta_intraday_clean_data_only_reemits_trailing_window():
     with patch.object(bars_fetch, "_get_client", return_value=_FakeClient()), \
          patch.object(bars_fetch, "_paginate_massive_aggs", return_value=massive_raw), \
          patch.object(bars_fetch._sqlite, "get_bars_since", return_value=stored_rows):
-        out = bars_fetch._delta_intraday("QQQ", "30", last_ts)
+        out = bars_fetch._delta_intraday("QQQ", "15", last_ts)
 
     ts_out = {b["t"] for b in out}
     assert ts_out == {recent}, "clean data must only re-emit the trailing window"
@@ -104,9 +109,28 @@ def test_delta_intraday_killswitch_disables_gapfill():
          patch.object(bars_fetch, "_get_client", return_value=_FakeClient()), \
          patch.object(bars_fetch, "_paginate_massive_aggs", return_value=massive_raw), \
          patch.object(bars_fetch._sqlite, "get_bars_since") as gbs:
-        out = bars_fetch._delta_intraday("QQQ", "30", last_ts)
+        out = bars_fetch._delta_intraday("QQQ", "15", last_ts)
 
     ts_out = {b["t"] for b in out}
     assert ts_out == {recent}, "kill-switch must restore trailing-only behaviour"
     assert hole not in ts_out, "kill-switch must NOT gap-fill"
     gbs.assert_not_called()  # gap-fill disabled → no stored-ts read at all
+
+
+def test_delta_30m_resamples_from_15m():
+    """tf=30's delta fetches the 15m range and re-buckets it on the :00/:30 grid."""
+    now = int(time.time())
+    base = (now - 3 * 3600) // 1800 * 1800
+    raw = [{"t": _ms(base + i * 900), "o": 10, "h": 11 + i, "l": 9, "c": 10, "v": 1} for i in range(4)]
+    seen = {}
+
+    def fake_pages(client, url):
+        seen["url"] = url
+        return raw
+
+    with patch.object(bars_fetch, "_get_client", return_value=_FakeClient()),          patch.object(bars_fetch, "_paginate_massive_aggs", side_effect=fake_pages),          patch.object(bars_fetch._sqlite, "get_bars_since", return_value=[]):
+        out = bars_fetch._delta_intraday("QQQ", "30", now - 4 * 3600)
+    assert "/range/15/minute/" in seen["url"]
+    assert [b["t"] for b in out] == [base, base + 1800]
+    assert [b["v"] for b in out] == [2, 2]
+    assert [b["h"] for b in out] == [12, 14]

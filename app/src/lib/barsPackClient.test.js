@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // Mock the IDB import so the hot-pack ingest can be asserted without a real
 // IndexedDB. vi.hoisted lets the mock factory (hoisted to top) reference the spies.
@@ -7,7 +7,9 @@ const { idbImportPack, idbApplyDelta, idbCountKeys } = vi.hoisted(() => ({
 }))
 vi.mock('../utils/barsIDB', () => ({ idbImportPack, idbApplyDelta, idbCountKeys }))
 
-import { decodeShardPayload, _shardIdx, _ingestHotPack, _ingestFull, _packDataPresent } from './barsPackClient'
+import { decodeShardPayload, _shardIdx, _ingestHotPack, _ingestFull, _packDataPresent, _oneWindowAtATime, _run, packLock, afterFirstChartPaint, markFirstChartPaint, __resetFirstChartPaint, FIRST_CHART_PAINT_EVENT } from './barsPackClient'
+import fs from 'node:fs'
+import path from 'node:path'
 
 const HOT_CFG = { base: '/api/barspack', hotVersionKey: 'barspack.hotVersion', ingestBatchSize: 60, ingestYield: true }
 
@@ -205,5 +207,149 @@ describe('_packDataPresent — verify the pre-seed before trusting the stamp', (
     idbCountKeys.mockResolvedValue(0)
     expect(await _packDataPresent({ presenceSuffix: '_D' }, {})).toBe(true)
     expect(idbCountKeys).not.toHaveBeenCalled()  // short-circuits before the probe
+  })
+})
+
+describe('one window at a time per pack (2026-11-10)', () => {
+  // Measured: 12 Terminal pop-outs that started together each wrote the whole universe pack into the
+  // SAME IndexedDB store at once (~33,000 store reads in 6 s), because the version stamp lands only
+  // when an ingest completes. Under a Web Lock the second window waits, re-reads the stamp, and skips.
+  const RUN_CFG = { ...FULL_CFG, versionKey: 'barspack.test.version', seedKey: 'barspack.test.seed' }
+  const manifest = { version: '2026-11-10', shards: [{ idx: 0 }] } // no ticker_count: presence is trusted
+  let hadLocks, savedLocks
+
+  function serialLocks() {
+    let chain = Promise.resolve()
+    return {
+      request: vi.fn((name, cb) => {
+        const run = chain.then(() => cb())
+        chain = run.catch(() => {})
+        return run
+      }),
+    }
+  }
+  function setLocks(value) {
+    Object.defineProperty(globalThis.navigator, 'locks', { value, configurable: true, writable: true })
+  }
+
+  beforeEach(() => {
+    hadLocks = 'locks' in globalThis.navigator
+    savedLocks = globalThis.navigator.locks
+    localStorage.removeItem(RUN_CFG.versionKey)
+    localStorage.removeItem(RUN_CFG.seedKey)
+    idbImportPack.mockReset()
+    idbImportPack.mockResolvedValue({ written: 300, skipped: 0, aborted: false })
+    globalThis.fetch = vi.fn(async (url) => (String(url).endsWith('/manifest')
+      ? { ok: true, json: async () => manifest }
+      : { ok: true, json: async () => okShard }))
+  })
+  afterEach(() => {
+    if (hadLocks) setLocks(savedLocks)
+    else delete globalThis.navigator.locks
+  })
+
+  it('takes the named Web Lock when the browser has one', async () => {
+    const locks = serialLocks()
+    setLocks(locks)
+    const fn = vi.fn(async () => 'ran')
+    expect(await _oneWindowAtATime('uct-barspack:x', fn)).toBe('ran')
+    expect(locks.request).toHaveBeenCalledWith('uct-barspack:x', expect.any(Function))
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('runs directly where Web Locks are missing', async () => {
+    setLocks(undefined)
+    const fn = vi.fn(async () => 'ran')
+    expect(await _oneWindowAtATime('uct-barspack:x', fn)).toBe('ran')
+  })
+
+  it('a second window that waited on the lock skips the ingest the first one finished', async () => {
+    setLocks(serialLocks())
+    const window = () => _oneWindowAtATime(packLock(RUN_CFG), () => _run(RUN_CFG)) // initBarsPack's shape
+    await Promise.all([window(), window()])
+    expect(idbImportPack).toHaveBeenCalledTimes(1)
+    expect(localStorage.getItem(RUN_CFG.versionKey)).toBe('2026-11-10')
+  })
+
+  it('CONTROL: without the lock, two windows that start together both ingest', async () => {
+    setLocks(undefined)
+    const window = () => _oneWindowAtATime(packLock(RUN_CFG), () => _run(RUN_CFG))
+    await Promise.all([window(), window()])
+    expect(idbImportPack).toHaveBeenCalledTimes(2)
+  })
+
+  it('every pack run in initBarsPack goes through its lock', () => {
+    const src = fs.readFileSync(path.resolve(globalThis.process.cwd(), 'src/lib/barsPackClient.js'), 'utf8')
+    const body = src.slice(src.indexOf('export function initBarsPack'), src.indexOf('export async function _ingestHotPack'))
+    const runs = body.match(/_run\(PACK_[A-Z_]+\)/g) || []
+    expect(runs.length).toBeGreaterThanOrEqual(3)
+    for (const r of runs) {
+      const pack = r.slice(5, -1)
+      expect(body, `${r} must be wrapped in _oneWindowAtATime(packLock(${pack}), ...)`).toContain(`_oneWindowAtATime(packLock(${pack}), () => ${r})`)
+    }
+    expect(body).toContain("_oneWindowAtATime('uct-barspack:hot', () => _ingestHotPack(PACK_DAILY))")
+  })
+})
+
+describe('the full pack ingests wait for the first chart (2026-11-10)', () => {
+  // Measured: in 20 timed /charts loads, the 5 that ingested pack shards drew first candles in
+  // 1.6-3.0 s and the 15 that did not in 0.43-0.9 s. The ingest now starts after the page's first
+  // chart, or after a time limit for pages without one.
+  beforeEach(() => { __resetFirstChartPaint(); vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers(); __resetFirstChartPaint() })
+
+  it('holds until the first chart paints', () => {
+    const fn = vi.fn()
+    afterFirstChartPaint(fn, { maxWaitMs: 15000 })
+    vi.advanceTimersByTime(5000)
+    expect(fn).not.toHaveBeenCalled()
+    markFirstChartPaint()
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('starts at the time limit on a page with no chart', () => {
+    const fn = vi.fn()
+    afterFirstChartPaint(fn, { maxWaitMs: 15000 })
+    vi.advanceTimersByTime(14999)
+    expect(fn).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(1)
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('runs once even when both the paint and the time limit happen', () => {
+    const fn = vi.fn()
+    afterFirstChartPaint(fn, { maxWaitMs: 1000 })
+    markFirstChartPaint()
+    vi.advanceTimersByTime(5000)
+    window.dispatchEvent(new Event(FIRST_CHART_PAINT_EVENT))
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('runs at once when a chart has already painted on this page', () => {
+    markFirstChartPaint()
+    const fn = vi.fn()
+    afterFirstChartPaint(fn)
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('marks the first paint only once per page', () => {
+    const seen = vi.fn()
+    window.addEventListener(FIRST_CHART_PAINT_EVENT, seen)
+    markFirstChartPaint()
+    markFirstChartPaint()
+    window.removeEventListener(FIRST_CHART_PAINT_EVENT, seen)
+    expect(seen).toHaveBeenCalledTimes(1)
+  })
+
+  it('every full pack ingest in initBarsPack waits for the first chart, and StockChart reports it', () => {
+    vi.useRealTimers()
+    const src = fs.readFileSync(path.resolve(globalThis.process.cwd(), 'src/lib/barsPackClient.js'), 'utf8')
+    const body = src.slice(src.indexOf('export function initBarsPack'), src.indexOf('export async function _ingestHotPack'))
+    for (const pack of ['PACK_DAILY', 'PACK_BREADTH', 'PACK_INTRADAY']) {
+      expect(body).toContain(`afterFirstChartPaint(() => _whenIdle(() => { Promise.resolve(_oneWindowAtATime(packLock(${pack}), () => _run(${pack})))`)
+    }
+    const chart = fs.readFileSync(path.resolve(globalThis.process.cwd(), 'src/components/StockChart.jsx'), 'utf8')
+    // setChartReady(true), then (after any comment lines) markFirstChartPaint().
+    expect(chart).toMatch(/setChartReady\(true\)\s*(\/\/[^\n]*\s*)*markFirstChartPaint\(\)/)
   })
 })
