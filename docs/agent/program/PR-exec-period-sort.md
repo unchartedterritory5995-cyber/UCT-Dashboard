@@ -2,6 +2,83 @@
 
 Branch `agent/pl/period-sort-exec` (pl-exec6), from master `70dd3a375c`. One family, releasable on its own. It does not touch deixis.js, spatialCheck.js, clickRef.js, fastPath.js, the useAgent approval path or Indicator Intelligence. It stays out of every file #1027 owns for the Period Sort widget (PeriodSortResults.jsx, PeriodSortWidget.jsx, whichWidget.js, widgetControls.js, widget.setOption, board.js, listView.js).
 
+## Re-merged onto 1208aa0085 (2026-11-11)
+
+Head after the re-merge: `3e4779be9d` (merge `362bc237af` + SAT-1 regeneration), then this doc commit. Master since the first build: #1077, #1027, #1084, #1073, #988 and other teams' changes (#1088 StockChart).
+
+**Routing changed shape: periodSort is now its OWN words-only group**, not part of boardEdit. Merging #1077's boardEdit (5 actions, its own words) with this PR's boardEdit additions (domain `periodSort`, title, 3 word rules) was measured first: routing v2 first calls lost the needed action on 5 rows (in→out 5; v1 0), because the bigger boardEdit title and size moved v2's lexical scores and its fill. So, as #1027 / #1073 did:
+
+- `boardEdit` is character-identical to master.
+- New group `periodSort` (actions `periodSort.run`, `periodSort.dock`; `domains: []`, `fillLast`, `wordsOnly`), with this PR's three word rules unchanged: the tool's name; rank / sort … from / since / between … a date; dock … ranking / sort. The title avoids the word "custom" (see "Routing and budget" below).
+- It is LAST in GROUPS. turn.py names at most `MAX_GROUPS = 24` groups and master already sends 24, so this group (not one of master's) is the one the server leaves unnamed until #1089 raises the cap. **Known red until #1089:** `tests/test_uct_agent_nl1_selection.py::test_a_routed_nl1_request_is_three_cache_blocks_core_first` (extra item: `periodSort` only). turn.py is not touched here.
+- One routing-logic line in `namedGroups`: a docked Period Sort widget named beside a date (the tool's name + a month-day / ISO / M/D) does not bring boardEdit on its own. Without it, agentExecSideEffect (pinned at 0) found 3 of this PR's own corpus phrasings newly adding boardEdit (+5,258 bytes each) when a Period Sort widget is on the board. That widget's only control is Refresh, which takes no date; "refresh the period sort" still routes boardEdit (pinned). Mutant (exception off): 2 red in agentPeriodSort.test.jsx.
+- nlm1Routing OWN_WORDS: `periodSort` gets 4 phrases of its own words, plus 6 negative controls (a bare sort / rank / dock / period never selects it).
+- `tests/test_uct_agent_contract.py`: `periodSort` → `periodSort` (was `boardEdit`).
+
+**First calls vs master over the standard 3650 requests** ([evidence/period-sort/remerge-first-calls-1208aa0085.md](evidence/period-sort/remerge-first-calls-1208aa0085.md)): v1 in→out **0**, v2 in→out **0**. Only 2 rows change groups (both C3-206 rows, + periodSort; out→out on their old widget.setOption expectation). In with an expectation: v1 643 = 643, v2 676 = 676.
+
+**Pins** (master's actual + this PR):
+
+- `agentRouting.test.jsx` FULL.length: master 164 + periodSort.run + periodSort.dock = **166**.
+- `agentScreener.test.jsx` manifestFor(CTX).length: master 158 + 2 = **160**.
+- `agentNl1Selection.test.js` core and `agentIndicatorsM2.test.jsx` indicators group: unchanged (master's).
+
+**Generated files** were reset to master and regenerated, each in its own run: `manifest.golden.json` (UPDATE_AGENT_GOLDEN=1, +123 lines as before), `nl1_assemble_parity.json` (UPDATE_NL1_PARITY=1: the 2 actions' group map + the periodSort group in the catalog), capreg `coverage/*` (UPDATE_CAPREG=1), `baseline.lock.json` (`--update`: 173 intents, 42 refusals, 31 workflows; `periodSort.run` and `periodSort.dock` intents present in corpus.json). SAT-1 `section_b_requests.json`: regenerated in its own commit (`3e4779be9d`). All 120 added lines are the periodSort `{id, title}` in the named-group catalog of 30 requests. No line was removed, and no request's selected groups changed.
+
+PeriodSortResults.jsx / PeriodSortWidget.jsx: this PR does not edit them, and the merge left #1027's versions as they are. `CHARTS_EXECUTION_STATUS.md` is master's: this PR has no rows in it (see "Status rows" for the recount).
+
+**Tests on the final tree** (summary: [evidence/period-sort/remerge-tests.txt](evidence/period-sort/remerge-tests.txt)):
+
+- Focused run A, 25 files (4 count pins, agentNl1SelectionCoverage, agentExecReach, agentScanSat1Requests, routeReachability, agentNoLookbehindEquivalence, noRegexLookbehind, capreg routing / routingV2 / inventory / collision ×2, agentContracts, nlm1Routing, agentPeriodSort, agentExecSideEffect, the widget-action rails): 2514/2514.
+- agentNoLookbehindEquivalence: 0 frozen rows changed. ExecReach: v2 list held-out 8/8, and every other reach line is equal to master's.
+- Run B (capreg finalState 0–3 / deterministic / dark / golden, the PeriodSort config and agent tests, the widget-settings and watchlist column tests): see the summary file.
+- pytest, full `tests/test_uct_agent*.py` (this PR touches turn_v2.py): 4126 passed, 1 failed, which is the MAX_GROUPS test above. The golden / parity / section_b readers outside that glob (test_agent_eval_proxy, test_agent_eval_run, test_desk_session_recap): 29/29.
+
+### Move read: `runPeriodSort` (ChartsWorkspace.jsx)
+
+Master `1208aa0085`, the popover's inline `onSort` (lines 4182–4195):
+
+```
+onSort={(start, end, replay, group, tf, markStart) => {
+  setPeriodSortSel(null)
+  setPeriodSortPanel({ start, end, group: group || null })
+  const s = String(end)
+  setReplayCutoff(replay ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : null)
+  const st = String(start)
+  setStartMarker(markStart && markStart !== 'off' ? `${st.slice(0, 4)}-${st.slice(4, 6)}-${st.slice(6, 8)}` : null)
+  if (markStart === 'line' || markStart === 'candle') setStartMarkerStyle(markStart)
+  applyTfToCharts(tf)
+}}
+```
+
+This branch: the popover keeps line 1 and calls the extracted function with the same six arguments in the same order:
+
+```
+onSort={(start, end, replay, group, tf, markStart) => {
+  setPeriodSortSel(null)
+  runPeriodSort(start, end, replay, group, tf, markStart)
+}}
+
+const runPeriodSort = useCallback((start, end, replay, group, tf, markStart) => {
+  setPeriodSortPanel({ start, end, group: group || null })                                    // = inline line 2
+  const s = String(end)                                                                         // = line 3
+  setReplayCutoff(replay ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : null)          // = line 4
+  const st = String(start)                                                                      // = line 5
+  setStartMarker(markStart && markStart !== 'off' ? `${st.slice(0, 4)}-${st.slice(4, 6)}-${st.slice(6, 8)}` : null) // = line 6
+  if (markStart === 'line' || markStart === 'candle') setStartMarkerStyle(markStart)            // = line 7
+  applyTfToCharts(tf)                                                                           // = line 8
+}, [applyTfToCharts])
+```
+
+Why it behaves the same:
+
+1. Same statements, same order, same expressions. The comments are copied too. `setPeriodSortSel(null)` still runs first, in the popover.
+2. Every setter is a React `useState` setter, so its identity is stable. The only captured value that is not a setter is `applyTfToCharts`. It is a `useCallback` declared earlier (line 1632, so there is no TDZ) and listed in the deps, so `runPeriodSort` always calls the current one, as the inline closure did on each render.
+3. All the writes happen in one event handler, so React batches them exactly as before. There is no new await or effect.
+4. `handleDockPeriodSort`: the id expression `` `w-periodsort-${Date.now()}` `` moved out of the `setLayout` updater to just before it, and the function now `return id`. The updater always appends the widget (there is no early return), so the returned id is the widget's id. The one difference is that `Date.now()` is read a few microseconds earlier, and under StrictMode's double-invoked updater both invocations now use the same id.
+
+The ChartsWorkspace diff against master is exactly the first build's 6 hunks (dock id, runPeriodSort, the Agent ref, the host `periodSort` object, the popover call). Master's changes since then did not touch these lines. The source rail in agentPeriodSort.test.jsx pins the popover → runPeriodSort call and the Agent's call without a timeframe.
+
 ## What a member can now ask
 
 Tools → Custom-Period Sort had no Agent path. By hand: drag a span on a chart, set the popover (Sort, Start, End, Timeframe, Replay mode, Mark start), press Sort; a floating results panel opens; its Dock button turns it into a grid widget.
@@ -32,6 +109,8 @@ Neither action is destructive (a view, and an add with exact Undo), so there is 
 Failing first: `agentPeriodSort.test.jsx` ran 12 failed / 7 passed with the capabilities unregistered (evidence/period-sort/red-run.txt). The 7 that passed were the routing and source checks, written with the code.
 
 ## Routing and budget
+
+(First build. Superseded by "Re-merged onto 1208aa0085" above: periodSort is now its own words-only group and boardEdit is master's.)
 
 `periodSort.*` route by DOMAIN in the **boardEdit** group (5 → 7 actions), with three word rules: the tool's name ("period sort", "custom period"), a rank / sort said over dates (a month-day, M/D or ISO day after from / since / between), and "dock … ranking / sort". No bare common words.
 
