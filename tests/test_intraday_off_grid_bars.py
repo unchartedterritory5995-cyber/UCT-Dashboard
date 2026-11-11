@@ -42,6 +42,25 @@ def _stored(ticker, tf):
 
 # ── the grid ─────────────────────────────────────────────────────────────────
 
+def test_two_strays_of_one_empty_bucket_take_volume_from_the_latest():
+    """Two Yahoo live snapshots of the same forming bucket: each volume is cumulative."""
+    b = _et(2026, 11, 6, 16, 35)
+    bars = [_bar(b - 300), _bar(b + 20, o=10, h=11, l=9, c=10, v=40),
+            _bar(b + 50, o=10.5, h=12, l=9.5, c=11, v=55)]
+    _out, snapped, _n = intraday_grid.fold("5", bars)
+    assert snapped == [{"t": b, "o": 10, "h": 12, "l": 9, "c": 11, "v": 55}]
+
+
+def test_repair_snaps_two_strays_with_the_latest_volume(store):
+    b = _et(2026, 11, 6, 16, 35)
+    c = bars_sqlite._conn()
+    c.executemany("INSERT INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)", [
+        ("SPY", "5", b + 20, 10, 11, 9, 10, 40), ("SPY", "5", b + 50, 10.5, 12, 9.5, 11, 55)])
+    c.commit()
+    assert intraday_grid.repair_pair("SPY", "5", 0) == {"deleted": 2, "snapped": 1}
+    assert _stored("SPY", "5") == [(b, 10.0, 12.0, 9.0, 11.0, 55)]
+
+
 def test_alignment_rules_per_timeframe():
     b = _et(2026, 11, 6, 16, 35)
     assert intraday_grid.is_aligned("5", b)

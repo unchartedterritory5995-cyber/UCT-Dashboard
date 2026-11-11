@@ -15,6 +15,11 @@ describe('foldOffGridBars', () => {
     expect(out[1]).toBe(twin)   // no double-counted volume, no foreign close / wick
   })
 
+  it('two strays of one empty bucket: open earliest, H/L extremes, close AND volume latest', () => {
+    const out = foldOffGridBars([bar(B - 300), bar(B + 20, 10, 11, 9, 10, 40), bar(B + 50, 10.5, 12, 9.5, 11, 55)], '5')
+    expect(out[1]).toEqual({ t: B, o: 10, h: 12, l: 9, c: 11, v: 55 })
+  })
+
   it('re-keys a lone off-grid row to its bucket start', () => {
     const out = foldOffGridBars([bar(B - 300), bar(B + 41)], '5')
     expect(out.map(b => b.t)).toEqual([B - 300, B])

@@ -55,6 +55,8 @@ export function foldOffGridBars(bars, tf, { showExtended = true } = {}) {
 }
 
 // Two strays of ONE empty bucket, `early` then `late` → merged OHLCV (keeps early's t).
+// They are snapshots of the same forming bucket (cumulative), so close AND volume come
+// from the later one — summing would overcount.
 function foldPair(early, late) {
   const hs = [early.h, late.h].filter(x => typeof x === 'number')
   const ls = [early.l, late.l].filter(x => typeof x === 'number')
@@ -63,6 +65,6 @@ function foldPair(early, late) {
     h: hs.length ? Math.max(...hs) : early.h,
     l: ls.length ? Math.min(...ls) : early.l,
     c: late.c,
-    v: (Number(early.v) || 0) + (Number(late.v) || 0),
+    v: Number(late.v) || 0,
   }
 }

@@ -145,8 +145,12 @@ def _close_min(ymd: int) -> int:
     return 960
 
 
-def _fold_into(acc: dict, b: dict, b_is_later: bool) -> None:
-    """Merge `b` into `acc` in place (OHLCV fold). `b_is_later` decides open/close."""
+def _fold_into(acc: dict, b: dict, b_is_later: bool, cumulative: bool = False) -> None:
+    """Merge `b` into `acc` in place (OHLCV fold). `b_is_later` decides open/close.
+
+    ``cumulative``: `acc` and `b` are SNAPSHOTS OF THE SAME forming bucket (two Yahoo
+    live rows from different fetches) — each one's volume already includes the
+    earlier one's, so the later volume REPLACES rather than adds (review #1062)."""
     if b_is_later:
         acc["c"] = b.get("c")
     else:
@@ -156,7 +160,11 @@ def _fold_into(acc: dict, b: dict, b_is_later: bool) -> None:
         acc["l"] = min(x for x in (acc.get("l"), b.get("l")) if x is not None)
     except ValueError:
         pass
-    acc["v"] = int(acc.get("v") or 0) + int(b.get("v") or 0)
+    if cumulative:
+        if b_is_later:
+            acc["v"] = int(b.get("v") or 0)
+    else:
+        acc["v"] = int(acc.get("v") or 0) + int(b.get("v") or 0)
 
 
 def fold(tf, bars: list[dict], window_start: Optional[int] = None, twin: str = "drop",
@@ -211,7 +219,7 @@ def fold(tf, bars: list[dict], window_start: Optional[int] = None, twin: str = "
                 # A misaligned row is always LATER than its bucket start.
                 _fold_into(tw, b, b_is_later=True)
         elif start in lone:
-            _fold_into(lone[start], b, b_is_later=True)
+            _fold_into(lone[start], b, b_is_later=True, cumulative=True)
         else:
             nb = dict(b)
             nb["t"] = start
@@ -341,7 +349,8 @@ def repair_pair(ticker: str, tf, lo: int = 0) -> dict:
         acc = {"t": start, "o": grp[0][1], "h": grp[0][2], "l": grp[0][3],
                "c": grp[0][4], "v": int(grp[0][5] or 0)}
         for r in grp[1:]:
-            _fold_into(acc, {"o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}, True)
+            _fold_into(acc, {"o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}, True,
+                       cumulative=True)
         inserts.append((ticker, tf, start, acc["o"], acc["h"], acc["l"], acc["c"], acc["v"]))
     with bars_sqlite._WRITE_LOCK:
         if inserts:
