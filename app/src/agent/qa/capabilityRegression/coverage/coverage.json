@@ -54,7 +54,8 @@
  "knownGaps": [
   {
    "id": "GAP-WIDGET-READ-ROUTE",
-   "reason": "a BUDGET CUT under routing v2 (production): the message wants boardEdit, but charts 21 + workspace 13 + lists 17 + agent 1 = 52 leave no room for boardEdit (5) under the 55-action budget (routeReachability.test.js). Under v1 (the kill-switch fallback, which this level runs) boardEdit has no words of its own; the model can still ask for the group (need_groups)",
+   "router": "v1",
+   "reason": "v1 ONLY (the kill-switch fallback): boardEdit has no v1 words in this message (workspace + agent only); the model can still ask for the group (need_groups). Routing v2 (production) reaches it since the budget-cut tie rule (routingV2.js TIE)",
    "owner": "agent-lead",
    "mode": "\"how is that one set right now\" → widget.readOptions",
    "level": "a",
