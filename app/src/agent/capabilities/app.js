@@ -76,7 +76,7 @@ export function registerAppCapabilities() {
     undo: 'none',
     surfaces: ['*'],
     target: 'app',
-    summary: 'Open another UCT page for the member, exactly like clicking it in the sidebar: the Screener, Dashboard, Breadth, Settings, a stock\'s Research page, etc. This closes this panel (the conversation is kept).',
+    summary: 'Open another UCT page for the member, exactly like clicking it in the sidebar: the Screener, Breadth, Settings, a stock\'s Research page, etc. This closes this panel (the conversation is kept).',
     hints: `target = the ref of the app entry. page: one of ${Object.entries(DESTINATIONS).map(([k, d]) => `${k} (${d.label})`).join(', ')}. `
       + `section: only for page settings — ${SETTINGS_SECTIONS.join(' | ')} — else null. symbol: only for page research (the ticker) — else null. `
       + 'Use this only when they ask to GO somewhere ("open / take me to / go to"); a question about data is answered here instead. Watchlists and Theme Tracker live on Charts (this page).',
