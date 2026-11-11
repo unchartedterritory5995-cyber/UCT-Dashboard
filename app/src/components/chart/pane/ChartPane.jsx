@@ -43,6 +43,7 @@ import useDelisted from '../../../hooks/useDelisted'
 import { chordById, matchesChord } from '../../../pages/command/chords.js'
 import { isEconomicId } from '../engine/econMark'
 import useEconomicCatalog from '../engine/useEconomicCatalog'
+import { warmTypedSymbol } from '../../../utils/prefetchBars'
 // Phase-A carried debt (see the design doc): the pane still reads the charts
 // workspace's CSS module rather than owning its own. Moving the rules would
 // change every hashed class name in the same commit as the extraction and make
@@ -815,6 +816,8 @@ function ChartPane({
       focusableRef.current?.focus({ preventScroll: true })
     })
   }, [onSymbolChange])
+  // Type-to-search: start fetching the typed D/W/M symbol before Enter (warmTypedSymbol).
+  const handleTypedIntent = useCallback((s) => { warmTypedSymbol(s, effectiveTf) }, [effectiveTf])
 
   const handleChartClick = useCallback((e) => {
     // ⛔ A PORTAL CLICK IS NOT A CHART CLICK (a11y gate §12.2, 2026-11-08). React
@@ -968,6 +971,7 @@ function ChartPane({
           boundsRef={focusableRef}
           themeVars={menuVars}
           onSymbolChange={onSymbolChange ? handleSymbolChange : null}
+          onTypedIntent={onSymbolChange ? handleTypedIntent : null}
           economic={allowEconomic}
           showChange={!exhibit && !_themeViewLabel && hdr.showChange && !isDelisted && !isBreadthLike && !isEcon && !(themeIdx.isIndex && !idxGain)}
           dayGain={themeIdx.isIndex ? idxGain : null}
