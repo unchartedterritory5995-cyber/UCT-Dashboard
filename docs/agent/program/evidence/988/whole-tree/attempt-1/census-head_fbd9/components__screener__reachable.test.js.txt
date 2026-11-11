@@ -1,0 +1,6 @@
+rail src/components/screener/reachable.test.js
+## ≡ƒö┤ every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing
++   "app/src/agent/agentExecTune.js",
++   "app/src/components/instruments/WhatElseOpenPrompt.jsx",
++   "app/src/pages/breadth/drill/scan/useDayFacts.js",
++ Received

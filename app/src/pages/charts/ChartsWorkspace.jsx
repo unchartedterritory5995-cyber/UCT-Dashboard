@@ -60,7 +60,7 @@ import { readChartsLink, stripChartsLink } from '../../lib/chartDeepLink'
 import useDoorParam from '../../hooks/useDoorParam'
 import PoppedLayout from './popout/PoppedLayout'
 import { saveRecord, listOrphans, confirmRestored, holdOwnerLock, boardWindowName, widgetWindowName, planDeskRepop } from './popout/deskStore'
-import { hasDesktopFeature } from '../../lib/desktopBridge'
+import { hasDesktopFeature, reportDesktopEvent } from '../../lib/desktopBridge'
 import { announceDeskLaunchBlocked, finishDeskLaunch } from '../../lib/popoutRegistry'
 import PeriodSortPanel from './PeriodSortPanel'
 import FloatingWidgetPanel from './FloatingWidgetPanel'
@@ -3066,6 +3066,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         plan.widgetIds.forEach(saveWidgetRecord)
         setPoppedWidgetIds(prev => plan.widgetIds.reduce(popoutAddWidgetId, prev))
       }
+      // Telemetry (plan 5.1): a saved desk came back at launch.
+      if (plan.boards.length || plan.widgetIds.length) reportDesktopEvent('desk_restored')
     } finally {
       setDeskRepopSettled(true)
     }

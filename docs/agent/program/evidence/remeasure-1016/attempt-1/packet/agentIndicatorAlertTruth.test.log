@@ -1,0 +1,27 @@
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+date -u: 2026-11-10T23:48:58Z
+tree: /c/w/pl-auto-remeasure HEAD 0188c97815e1c9a5a96aa0c1d07d48d8640d846f (measured master 69ab78db82dec1ebeb242e3ecf7edfaf63b978a4)
+harness: 6f9abd8515 (6f9abd85155112a64a6bc7facf0e5fc2de31c911) - recount.mjs only; no harness file is in the run tree
+# cmd: vitest run src/agent/agentIndicatorAlertTruth.test.jsx --reporter=default --reporter=json
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[bn] free memory GB: 39.5
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/w/pl-auto-remeasure/app[39m
+
+ [32m✓[39m src/agent/agentIndicatorAlertTruth.test.jsx [2m([22m[2m57 tests[22m[2m)[22m[33m 8268[2mms[22m[39m
+     [33m[2m✓[22m[39m "show my indicator alerts": the table shows the server's rows [33m 1133[2mms[22m[39m
+     [33m[2m✓[22m[39m "alert on the weekly RSI": a card first, nothing armed; Apply arms it on W; Undo deletes it [33m 1766[2mms[22m[39m
+     [33m[2m✓[22m[39m "tell me when my Bullish Trend flips on" → a card; Apply arms becomes_true on the server; Undo removes it [33m 1453[2mms[22m[39m
+     [33m[2m✓[22m[39m "alert when Bullish Trend switches off" → a card; Apply arms becomes_false on the server; Undo removes it [33m 1339[2mms[22m[39m
+     [33m[2m✓[22m[39m "notify me while my Bullish Trend is true" → a card; Apply arms is_true on the server; Undo removes it [33m 1322[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m57 passed[39m[22m[90m (57)[39m
+[2m   Start at [22m 18:50:01
+[2m   Duration [22m 20.05s[2m (transform 8.55s, setup 428ms, import 10.40s, tests 8.27s, environment 766ms)[22m
+
+JSON report written to C:/w/pl-auto-remeasure/docs/agent/program/evidence/remeasure-1016/attempt-1/packet/agentIndicatorAlertTruth.test.json
+# exit=0 end 23:50:21Z
