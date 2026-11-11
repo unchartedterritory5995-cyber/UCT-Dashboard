@@ -52,7 +52,7 @@ import { serverServesScan, serverDataKinds, activeConversationId } from '../agen
 import { readData } from '../marketdata/client'
 import { currentTurnId } from '../trace'
 import { isHidden, refusalFor, DEFAULT_SORT, DEFAULT_ORDER_WORDS, hiddenPhraseIn } from './scanHidden'
-import { composeRefine, refineRefusal, persistLastScreen, restoreLastScreen, NO_LAST_SCREEN, UNIVERSE_KEYS, LAST_SCREEN_FAILED, LAST_SCREEN_UNREAD, _forgetUnsavedScreens } from './scanRefine'
+import { composeRefine, refineRefusal, persistLastScreen, restoreLastScreen, NO_LAST_SCREEN, UNIVERSE_KEYS, LAST_SCREEN_FAILED, LAST_SCREEN_UNREAD, _forgetUnsavedScreens, isUnsavedScreen, retryUnsavedScreen, unsavedQuestion, unsavedRetryFailed } from './scanRefine'
 
 // W1.1 R-05: a message shaped like a screen or a refinement of one (a screen verb, "only / just", a universe noun, a
 // "which stocks" question) — the gate for claiming a hidden-field PHRASE before the planner (screener.run `fast`)
@@ -119,14 +119,15 @@ async function json(r, what) {
   return r.json()
 }
 
-const cache = { unreadConv: null, meta: null, metaAt: 0, metaP: null, options: null, optionsAt: 0, optionsP: null, saved: null, savedAt: 0, last: null, lastConv: null, restoreP: null, said: null }
-export function _resetScreenerCache() { cache.said = null; cache.meta = null; cache.metaAt = 0; cache.metaP = null; cache.options = null; cache.optionsAt = 0; cache.optionsP = null; cache.saved = null; cache.savedAt = 0; cache.last = null; cache.lastConv = null; cache.restoreP = null; cache.unreadConv = null; _forgetUnsavedScreens() }
+const cache = { unsaved: null, unreadConv: null, meta: null, metaAt: 0, metaP: null, options: null, optionsAt: 0, optionsP: null, saved: null, savedAt: 0, last: null, lastConv: null, restoreP: null, said: null }
+export function _resetScreenerCache() { cache.unsaved = null; cache.said = null; cache.meta = null; cache.metaAt = 0; cache.metaP = null; cache.options = null; cache.optionsAt = 0; cache.optionsP = null; cache.saved = null; cache.savedAt = 0; cache.last = null; cache.lastConv = null; cache.restoreP = null; cache.unreadConv = null; _forgetUnsavedScreens() }
 
 // ── the LAST SCREEN, per conversation (W1-C C-01) ──
 /** Record the screen just run as the conversation's last screen and persist it server-side (fire-and-forget). */
 function setLast(last) {
   cache.last = last
   cache.unreadConv = null
+  cache.unsaved = null
   cache.lastConv = activeConversationId()
   persistLastScreen(last)
 }
@@ -147,6 +148,7 @@ export function ensureLast() {
   if (lastIsCurrent()) return Promise.resolve(cache.last)
   const conv = activeConversationId()
   if (!conv) { cache.last = null; cache.lastConv = null; return Promise.resolve(null) }   // a new chat: the old chat's screen is not its
+  if (cache.unsaved && cache.unsaved.conv === conv) return Promise.resolve(null)          // already holding this chat's unsaved screen
   if (!cache.restoreP) {
     cache.restoreP = restoreLastScreen().then(l => {
       if (activeConversationId() !== conv) return lastIsCurrent() ? cache.last : null    // the chat changed meanwhile
@@ -154,6 +156,9 @@ export function ensureLast() {
       // is starting fresh (LAST_SCREEN_UNREAD); the next refinement reads again
       if (l === LAST_SCREEN_FAILED) { cache.last = null; cache.lastConv = null; cache.unreadConv = conv; return null }
       cache.unreadConv = null
+      // a screen this browser could not save (kept across a reload): never refined until the member says so
+      if (isUnsavedScreen(l)) { cache.last = null; cache.lastConv = null; cache.unsaved = { conv, last: l.last, asked: false }; return null }
+      cache.unsaved = null
       cache.last = l
       cache.lastConv = conv
       return l
@@ -1025,8 +1030,26 @@ const leavesOfArgs = (args) => {
 async function specFor(args, host = null) {
   await loadMeta()
   if (usesList(args)) await loadOptions()
-  if (args?.mode === 'refine') await ensureLast()        // a reload / chat switch: the conversation's last screen
+  if (args?.mode === 'refine') {
+    await ensureLast()        // a reload / chat switch: the conversation's last screen
+    const stop = await settleUnsaved()
+    if (stop) return stop
+  }
   return buildSpec(args, { host })
+}
+/** A refinement on a chat whose newest screen this browser could not save: the FIRST time, ask (nothing is refined);
+ *  the next refinement is the member's "refine it": save this browser's copy again FIRST, then refine it. A failed
+ *  save again refines nothing. -> { error } to stop, or null to go on. */
+async function settleUnsaved() {
+  const u = cache.unsaved
+  if (!u || lastIsCurrent() || u.conv !== activeConversationId()) return null
+  if (!u.asked) { u.asked = true; return { error: unsavedQuestion(u.last).replace(/\.$/, '') } }
+  const r = await retryUnsavedScreen(u.conv, u.last)
+  if (!r.ok) return { error: unsavedRetryFailed(r.cause).replace(/\.$/, '') }
+  if (cache.unsaved !== u || activeConversationId() !== u.conv) return null
+  cache.unsaved = null; cache.unreadConv = null
+  cache.last = u.last; cache.lastConv = u.conv
+  return null
 }
 
 // Could this request involve screening? Deliberately BROAD (a false positive costs ~3 KB; a

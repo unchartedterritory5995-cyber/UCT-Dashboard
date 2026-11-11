@@ -8,7 +8,7 @@ import { registerBuiltins } from './builtins'
 import { _resetScreenerCache, lastScreenNow, ensureLast } from './capabilities/screener'
 import { noteConversation } from './agentClient'
 import {
-  composeRefine, refineRefusal, publicAlternative, hiddenKeys, RATINGS_REFUSAL, FLOW_REFUSAL, ALT_STRENGTH, ALT_SETUP, ALT_FLOW, NO_LAST_SCREEN, LAST_SCREEN_UNREAD,
+  composeRefine, refineRefusal, publicAlternative, hiddenKeys, RATINGS_REFUSAL, FLOW_REFUSAL, ALT_STRENGTH, ALT_SETUP, ALT_FLOW, NO_LAST_SCREEN, LAST_SCREEN_UNREAD, UNSAVED_KEY, unsavedQuestion,
 } from './capabilities/scanRefine'
 
 registerBuiltins()
@@ -28,6 +28,7 @@ const ROWS = [{ ticker: 'AAA', company: 'A', price: 12, chg_pct_1d: 1 }, { ticke
 
 let calls, state
 beforeEach(() => {
+  localStorage.removeItem(UNSAVED_KEY)                      // the browser's unsaved-screen record (exact key) starts empty
   _resetScreenerCache(); noteConversation('ac_1')
   calls = []; state = {}                                     // the server's agent_conversation_state rows, by conversation
   globalThis.fetch = vi.fn(async (url, init = {}) => {
@@ -119,6 +120,8 @@ describe('persisted per conversation', () => {
     expect(a.text).toMatch(/^2 stocks match/)
     await flush()
     expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^\[uct-agent\] screener: this chat's last screen was not saved \(/))
+    expect(JSON.parse(localStorage.getItem(UNSAVED_KEY)).ac_1).toBeTruthy()      // this browser kept the unsaved screen
+    localStorage.removeItem(UNSAVED_KEY)                       // without that record (agentUnsavedScreen.rail has it): the read-failure path
     _resetScreenerCache()
     expect(await run({ mode: 'refine', filters: [F('price', 'gte', 10)] })).toBe(`I didn't run it: ${LAST_SCREEN_UNREAD.replace(/\.$/, '')}.`)
     expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^\[uct-agent\] screener: this chat's last screen could not be read back \(/))
@@ -133,7 +136,8 @@ describe('persisted per conversation', () => {
     await flush()
     noteConversation('ac_2'); await ensureLast()
     noteConversation('ac_1')
-    expect(await run({ mode: 'refine', filters: [F('vol_ratio', 'gte', 2)] })).toBe(`I didn't run it: ${LAST_SCREEN_UNREAD.replace(/\.$/, '')}.`)
+    // this browser kept the newer screen, so the member is ASKED (agentUnsavedScreen.rail), never the older copy refined
+    expect(await run({ mode: 'refine', filters: [F('vol_ratio', 'gte', 2)] })).toBe(`I didn't run it: ${unsavedQuestion({ spec: { filters: [{}] } }).replace(/\.$/, '')}.`)
     expect(scans().map(s => s[2].filters)).toEqual([[{ key: 'pct_vs_ema20', op: 'gt', min: 0 }]])   // never the OLD price ≥ 50 screen
     expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^\[uct-agent\] screener: this chat's last screen was not saved \(HTTP 503/))
   })

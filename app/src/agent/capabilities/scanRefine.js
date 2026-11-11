@@ -93,32 +93,106 @@ const unsaved = new Set()
 export function _forgetUnsavedScreens() { unsaved.clear() }
 const causeOf = (r) => (r?.status ? `HTTP ${r.status}` : (r?.error || r?.message || 'error'))
 const warnScreen = (msg) => console.warn(`[uct-agent] screener: ${msg}`)
+
+// The unsaved marker survives a RELOAD (follow-up to #1033). ONE exact localStorage key holds
+// { [conversation id]: { at, cause, screen } }, where screen is the slim screen that failed to save. Only this key is ever
+// read, written or removed (the origin's storage is shared, so no prefix scan and no enumeration). At most
+// UNSAVED_CAP chats are kept, oldest first out. A storage error never breaks an answer; a READ error fails closed
+// (start fresh), because an unreadable marker may be hiding a newer screen than the server's.
+export const UNSAVED_KEY = 'uct.agent.unsavedScreens.v1'
+export const UNSAVED_CAP = 20
+const storeOf = () => globalThis.localStorage
+function readUnsaved() {
+  try {
+    const raw = storeOf().getItem(UNSAVED_KEY)
+    if (raw == null) return { ok: true, map: {} }
+    const map = JSON.parse(raw)
+    if (!map || typeof map !== 'object' || Array.isArray(map)) return { ok: false, why: 'an unreadable record' }
+    return { ok: true, map }
+  } catch (e) { return { ok: false, why: e?.name && e.name !== 'Error' ? e.name : (e?.message || 'error') } }
+}
+function writeUnsaved(map) {
+  try {
+    if (Object.keys(map).length) storeOf().setItem(UNSAVED_KEY, JSON.stringify(map))
+    else storeOf().removeItem(UNSAVED_KEY)
+    return true
+  } catch (e) {
+    warnScreen(`this browser could not keep the unsaved screen (${e?.name && e.name !== 'Error' ? e.name : (e?.message || 'error')}); after a reload it starts fresh`)
+    return false
+  }
+}
+function keepUnsaved(id, screen, cause) {
+  const r = readUnsaved()
+  const map = r.ok ? r.map : {}
+  delete map[id]
+  map[id] = { at: Date.now(), cause, screen }
+  const ids = Object.keys(map)
+  for (let n = ids.length; n > UNSAVED_CAP; n--) {
+    let oldest = null
+    for (const k of Object.keys(map)) if (oldest == null || !(Number(map[k]?.at) >= Number(map[oldest]?.at))) oldest = k
+    delete map[oldest]
+  }
+  writeUnsaved(map)
+}
+function dropUnsaved(id) {
+  const r = readUnsaved()
+  if (!r.ok || !Object.prototype.hasOwnProperty.call(r.map, id)) return
+  delete r.map[id]
+  writeUnsaved(r.map)
+}
+/** The restored screen kept in this browser for a chat whose newest save failed (see restoreLastScreen). */
+export const isUnsavedScreen = (l) => !!(l && l.unsavedScreen === true && l.last)
 /** Persist the screener's last screen for the member's current conversation. Never throws, never awaited by answers. */
 export function persistLastScreen(last) {
   const id = activeConversationId()
   if (!id || !last?.spec) return null
   const failed = (cause) => {
     unsaved.add(id)
+    keepUnsaved(id, slim(last), cause)
     warnScreen(`this chat's last screen was not saved (${cause}); a chat switch or reload starts fresh`)
     return { ok: false, error: cause }
   }
   return agentConversationStateSet(id, STATE_KEY, slim(last))
-    .then(r => { if (!r?.ok) return failed(causeOf(r)); unsaved.delete(id); return r }, e => failed(causeOf(e)))
+    .then(r => { if (!r?.ok) return failed(causeOf(r)); unsaved.delete(id); dropUnsaved(id); return r }, e => failed(causeOf(e)))
 }
 /** The last screen stored for the current conversation → the screener's `last` shape; null when there is none;
  *  LAST_SCREEN_FAILED when it could not be read (or the stored copy is older than a screen this session failed to save). */
 export async function restoreLastScreen() {
   const id = activeConversationId()
   if (!id) return null
+  const kept = readUnsaved()
+  if (!kept.ok) { warnScreen(`this browser's record of unsaved screens could not be read (${kept.why}); starting fresh`); return LAST_SCREEN_FAILED }
+  const entry = kept.map[id]
+  if (entry && entry.screen && typeof entry.screen === 'object') {
+    const last = shapeOf(entry.screen, id)
+    if (last) return { unsavedScreen: true, last, cause: String(entry.cause || 'error') }
+  }
   if (unsaved.has(id)) { warnScreen("this chat's last screen could not be read back (its newest save failed; the stored copy is older)"); return LAST_SCREEN_FAILED }
   const r = await agentConversationState(id, STATE_KEY)          // never rejects: a failure is { ok: false, … }
   if (!r?.ok) { warnScreen(`this chat's last screen could not be read back (${causeOf(r)})`); return LAST_SCREEN_FAILED }
-  const v = r.data?.value
+  return shapeOf(r.data?.value, id)
+}
+/** a stored (slim) screen -> the screener's `last` shape, or null when it is not one */
+function shapeOf(v, id) {
   if (!v || typeof v !== 'object' || !v.spec || !Array.isArray(v.spec.filters)) return null
   return { spec: { filters: v.spec.filters, post: Array.isArray(v.spec.post) ? v.spec.post : [], sort: v.spec.sort || null,
     ...(v.spec.logic ? { logic: v.spec.logic } : {}), ...(v.spec.rank ? { rank: v.spec.rank } : {}) },
     name: v.name || null, savedId: v.savedId || null, total: Number.isFinite(v.total) ? v.total : 0, asOf: v.asOf || null,
     live: null, symbols: Array.isArray(v.symbols) ? v.symbols : [], ms: 0, restored: true, conversation: id }
 }
+/** Save a chat's unsaved screen again (the member said "refine it"). Removes the entry on success. -> { ok, cause } */
+export async function retryUnsavedScreen(id, last) {
+  const r = await agentConversationStateSet(id, STATE_KEY, slim(last)).then(x => x, e => ({ ok: false, error: causeOf(e) }))
+  if (!r?.ok) { const cause = causeOf(r); warnScreen(`this chat's unsaved screen could not be saved again (${cause})`); return { ok: false, cause } }
+  unsaved.delete(id); dropUnsaved(id)
+  return { ok: true }
+}
+const conditionsOf = (spec) => (spec?.filters?.length || 0) + (spec?.post?.length || 0)
+/** The question asked before a chat's unsaved screen is refined. Says how many conditions, never a value. */
+export function unsavedQuestion(last) {
+  const n = conditionsOf(last?.spec)
+  return `This chat's newest screen (${n} condition${n === 1 ? '' : 's'}) wasn't saved to UCT, so UCT still holds an older one. Say “refine it” to save this browser's copy again and narrow it, or run a new screen to start fresh.`
+}
+export const unsavedRetryFailed = (cause) => `I still couldn't save this chat's newest screen to UCT (${cause}), so I didn't narrow anything. Try “refine it” again in a moment, or run a new screen to start fresh.`
 export const LAST_SCREEN_UNREAD = "I couldn't read this chat's last screen back from UCT, so I'm starting fresh: run the screen again first, e.g. “stocks above their 20-day EMA with volume at least twice average”."
 export const NO_LAST_SCREEN = "Which screen should I narrow? Run one first, e.g. “stocks above their 20-day EMA with volume at least twice average”."
