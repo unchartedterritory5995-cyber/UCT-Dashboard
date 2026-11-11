@@ -62,6 +62,20 @@ describe('(d) u18-refresh-06: an EXCLUDED widget is never acted on', () => {
     expect(out).not.toMatch(/Refreshed/)
     expect(s.calls).toEqual([])                                               // never re-aimed across types
   }, 40000)
+  // AUDIT #1027 (post-#1029): the refusal must name BOTH widgets, or say why it won't guess. Fail closed: it names the one left
+  // alone, the one the words asked for, says it will not guess, and how to get it done.
+  it('u18-refresh-06: the refusal names the Period Sort AND the Scanner, and says it won\'t guess', async () => {
+    const { say } = mount([wg('sc', 'scanner', 0, IPOS), wg('ps', 'periodsort', 10, PS)])
+    const s = publish('sc', actDoor()), ps = publish('ps', actDoor())
+    p.st.envelopes.push(plan(refresh('ps')))
+    const out = await say("don't touch the period sort, just reload the scanner")
+    expect(ps.calls, out).toEqual([])
+    expect(s.calls, out).toEqual([])
+    expect(out, out).toMatch(/leave the Period Sort alone/)
+    expect(out, out).toMatch(/Scanner/)
+    expect(out, out).toMatch(/won.t guess/)
+    expect(out, out).toMatch(/Nothing changed\./)
+  }, 40000)
 })
 
 describe('over-asks (AUDIT 3): a widget named by the list it shows acts with no question', () => {

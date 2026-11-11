@@ -68,6 +68,19 @@ describe('NEVER ACROSS TYPES: a widget set aside that is the only one of its typ
     expect(r.ask).toBeUndefined()
     expect(r.args).toBeUndefined()
   })
+  // AUDIT #1027 (post-#1029): the refusal names both widgets, or says why it won't guess (fail closed: never a silent "no")
+  it('the refusal says it won\'t guess; a widget the words never name (the Scanner) is not named in it', () => {
+    const r = whichWidget(logos, H, 'hide the logos, but don\'t touch the watchlist')
+    expect(r?.refuse).toMatch(/won.t guess/)
+    expect(r?.refuse).not.toMatch(/Scanner/)
+  })
+  it('the words name a widget of another type ("…, just reload the scanner"): the refusal names it too, and still won\'t guess', () => {
+    const r = whichWidget(logos, H, 'don\'t touch the watchlist, just reload the scanner')
+    expect(r?.refuse).toMatch(/leave the Watchlist alone/)
+    expect(r?.refuse).toMatch(/Scanner/)
+    expect(r?.refuse).toMatch(/won.t guess/)
+    expect(r.args).toBeUndefined()
+  })
   it('control: the same op without the negation acts on the Watchlist, no question', () => {
     expect(whichWidget(logos, H, 'hide the logos in the watchlist')).toBe(null)
   })
