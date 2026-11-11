@@ -93,13 +93,57 @@ def test_the_old_latest_close_seed_rejected_a_doubled_stock(store, only_massive)
     assert bars_fetch._payload_passes_validation(payload, None) is True
 
 
-def test_seed_is_the_stored_bar_just_before_the_payload(store):
-    old = _walk(10, 40.0, 40.0, _et(2024, 1, 2, 9, 30), seed=1)
-    new = _walk(10, 90.0, 90.0, _et(2026, 10, 1, 9, 30), seed=2)
-    bars_sqlite.put_bars("SEED", "15", old + new)
-    payload = [{"t": old[-1]["t"] + 900, "o": 41, "h": 41, "l": 41, "c": 41, "v": 1}]
-    assert bars_fetch._prior_close_before("SEED", "15", payload) == pytest.approx(old[-1]["c"])
-    assert bars_fetch._prior_close_before("SEED", "15", [{"t": old[0]["t"], "c": 1}]) is None
+def _stored_tail_and_deep(ticker, stored_px, deep_from_px, deep_to_px, overlap_px=None, n=600, seed=0):
+    """A store holding the recent 40 bars at `stored_px`, and a deep payload of `n` bars
+    ending at the same timestamps (its last 40 bars overlap the store) at `overlap_px`
+    (default: the store's own values, i.e. agreeing)."""
+    start = _et(2024, 1, 2, 9, 30)
+    payload = _walk(n, deep_from_px, deep_to_px, start, seed=seed)
+    stored = [dict(b, o=stored_px, h=stored_px, l=stored_px, c=stored_px) for b in payload[-40:]]
+    bars_sqlite.put_bars(ticker, "15", stored)
+    if overlap_px is None:
+        for i in range(1, 41):
+            payload[-i] = dict(stored[-i])
+    else:
+        for i in range(1, 41):
+            payload[-i] = dict(payload[-i], o=overlap_px, h=overlap_px, l=overlap_px, c=overlap_px)
+    return payload, stored
+
+
+def test_a_genuine_10x_run_over_months_is_accepted(store, only_massive):
+    payload, _ = _stored_tail_and_deep("RUN", 100.0, 10.0, 100.0)
+    only_massive.setattr(bars_fetch, "_fetch_intraday_massive", lambda *a: list(payload))
+    assert len(bars_fetch._fetch_intraday("RUN", "15", 600)) == 600
+
+
+def test_a_reused_symbol_payload_is_rejected_and_not_stored(store, only_massive):
+    """Another company under the same ticker: deep bars around 5 while the store (and the
+    overlap the provider returns for it) trade around 100 — refused, the store untouched."""
+    payload, stored = _stored_tail_and_deep("REUSE", 100.0, 5.0, 5.2, overlap_px=5.1)
+    only_massive.setattr(bars_fetch, "_fetch_intraday_massive", lambda *a: list(payload))
+    assert bars_fetch._fetch_intraday("REUSE", "15", 600) == []
+    assert bars_fetch._deepfill_once("REUSE", "15", 600) == 0
+    assert [r[4] for r in bars_sqlite.get_bars("REUSE", "15", 1000)] == [b["c"] for b in stored]
+
+
+def test_an_unadjusted_split_payload_is_rejected_and_not_stored(store, only_massive):
+    """The store is split-adjusted (~50); the provider answers unadjusted (~100) over the
+    same recent bars: a different basis, wholesale. Refused even though the 2x step sits
+    inside the 50% gate bar-to-bar."""
+    payload, stored = _stored_tail_and_deep("SPLT2", 50.0, 90.0, 100.0, overlap_px=100.0)
+    only_massive.setattr(bars_fetch, "_fetch_intraday_massive", lambda *a: list(payload))
+    assert bars_fetch._fetch_intraday("SPLT2", "15", 600) == []
+    assert bars_fetch._deepfill_once("SPLT2", "15", 600) == 0
+    assert [r[4] for r in bars_sqlite.get_bars("SPLT2", "15", 1000)] == [b["c"] for b in stored]
+
+
+def test_a_deep_payload_far_from_todays_anchor_is_rejected_without_overlap(store, only_massive):
+    """Nothing stored overlaps, but the payload's NEWEST bar is nowhere near the stored
+    close: the backward chain has no valid starting point."""
+    bars_sqlite.put_bars("ANCH", "15", [{"t": _et(2026, 11, 10, 15, 45), "o": 100, "h": 100, "l": 100, "c": 100, "v": 1}])
+    payload = _walk(600, 5.0, 5.0, _et(2024, 1, 2, 9, 30), seed=4)
+    only_massive.setattr(bars_fetch, "_fetch_intraday_massive", lambda *a: list(payload))
+    assert bars_fetch._fetch_intraday("ANCH", "15", 600) == []
 
 
 # ── D2 ────────────────────────────────────────────────────────────────────────

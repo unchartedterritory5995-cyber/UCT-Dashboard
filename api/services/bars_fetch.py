@@ -2269,35 +2269,86 @@ def _last_known_close(ticker: str, tf: str) -> float | None:
     return None
 
 
-def _prior_close_before(ticker: str, tf: str, payload) -> float | None:
-    """The validation seed for `payload`: the close of the newest STORED bar strictly
-    before the payload's first bar, or None when nothing older is stored.
+# A payload that EXTENDS history (starts before the oldest stored row) and disagrees with
+# the stored rows it overlaps on at least this share of shared timestamps (>2% close apart)
+# is another company (a reused symbol) or another price basis: refused, never stored.
+_OVERLAP_MISMATCH_SHARE = 0.5
+_OVERLAP_MIN_SHARED = 5
 
-    ⛔⛔ THE SEED IS "THE BAR BEFORE THIS PAYLOAD", NOT "THE NEWEST BAR WE HOLD". The
-    chained check compares the payload's first bar to its seed and only advances the
-    reference on a VALID bar, so a seed taken from the wrong time poisons the whole
-    payload. A deep (scroll-back) fetch starts months or years back and is sorted
-    ascending; seeded with today's close, its first bar fails the 50% deviation gate
-    whenever the stock has moved more than 50% since then, the reference never
-    advances, every bar until the price comes back within 50% of today fails, and
-    `_payload_passes_validation` rejects the whole Massive answer (< 50% valid). The
-    chain then falls to FMP/yfinance's shallow windows and the deep history is never
-    stored — measured 2026-11-11 on production: `bars=32000` returned the same depth
-    as the first paint on 60m for 14 of 21 names (ONON 30m/60m began 2026-10-15
-    though it listed in 2021). A tail fetch starts a few days back, where the bar
-    before it IS (about) the newest close, so it is checked exactly as before."""
+
+def _desc_chain_valid(bars, anchor) -> bool:
+    """The chained per-bar check run NEWEST → OLDEST, seeded with `anchor` (the stored
+    tail's close). Each bar's CLOSE is compared to the next-newer bar's OPEN (the bar is
+    handed to `validate_bar` with o/c swapped, so the same rules apply mirrored), and the
+    reference walks back only across valid bars. ≥ `_PARTIAL_VALIDATION_THRESHOLD` valid
+    passes — the threshold `_payload_passes_validation` uses."""
+    pc = anchor
+    valid = total = 0
+    for bar in reversed(bars):
+        if not isinstance(bar, dict):
+            continue
+        total += 1
+        ok, _ = _bar_validation.validate_bar(dict(bar, o=bar.get("c"), c=bar.get("o")), prior_close=pc)
+        if ok:
+            valid += 1
+            pc = bar.get("o", pc)
+    return total > 0 and (valid / total) >= _PARTIAL_VALIDATION_THRESHOLD
+
+
+def _overlap_disagrees(ticker: str, src_tf: str, bars) -> bool:
+    """True when `bars` extends stored history and disagrees WHOLESALE with the stored
+    rows it overlaps (see `_OVERLAP_MISMATCH_SHARE`). A payload that only refreshes the
+    stored range (a tail / delta fetch) is not judged here — a provider re-adjustment of
+    recent bars must still be able to land."""
     try:
-        bars = _extract_bars(payload)
-        first_t = next((int(b["t"]) for b in bars
-                        if isinstance(b, dict) and isinstance(b.get("t"), (int, float))), None)
-        if first_t is None:
-            return _last_known_close(ticker, tf)
-        rows = _sqlite.get_bars_before(ticker.upper(), tf, 1, first_t - 1)
-        if rows:
-            return float(rows[-1][4])
+        first_t = int(bars[0]["t"])
+        last_t = int(bars[-1]["t"])
+        stored_first = _sqlite.get_first_ts(ticker.upper(), src_tf)
+        if stored_first is None or first_t >= int(stored_first):
+            return False
+        stored = {int(r[0]): float(r[4]) for r in _sqlite.get_bars_since(ticker.upper(), src_tf, int(stored_first) - 1)
+                  if int(r[0]) <= last_t}
+        shared = mism = 0
+        for b in bars:
+            sc = stored.get(int(b.get("t", -1)))
+            c = b.get("c")
+            if sc is None or not isinstance(c, (int, float)) or sc == 0:
+                continue
+            shared += 1
+            if abs(float(c) - sc) / abs(sc) > 0.02:
+                mism += 1
+        return shared >= _OVERLAP_MIN_SHARED and mism / shared >= _OVERLAP_MISMATCH_SHARE
     except Exception:
-        pass
-    return None
+        return False
+
+
+def _intraday_payload_valid(ticker: str, src_tf: str, payload, anchor_tfs=()) -> bool:
+    """THE validity question for an intraday provider payload (`fetch_with_validation`'s
+    `validate_for`).
+
+    ⛔⛔ CHAINED FROM TODAY, WALKING BACKWARD (2026-11-11, review of #1116). The old
+    ascending check was seeded with the NEWEST stored close and started at the payload's
+    OLDEST bar: a deep (scroll-back) payload starting months back failed the 50% gate on
+    every bar until the price came back within 50% of today, so Massive's whole deep answer
+    was rejected for any stock that had moved > 50% (production 2026-11-11: `bars=32000`
+    added no depth on 60m for 14 of 21 names). Seeding with "the bar before the payload"
+    fixed that but left a deep payload with NOTHING to agree with. Walking newest → oldest
+    from the stored close keeps the "agrees with today" anchor AND accepts any real long
+    move (each step is checked against its neighbour). And a payload that extends history
+    but disagrees wholesale with the stored rows it overlaps is refused, so a reused symbol
+    or a different price basis can never overwrite good rows."""
+    bars = _extract_bars(payload)
+    bars = [b for b in (bars or []) if isinstance(b, dict) and isinstance(b.get("t"), (int, float))]
+    if not bars:
+        return False
+    anchor = None
+    for tf_ in (src_tf, *anchor_tfs):
+        anchor = _last_known_close(ticker, tf_)
+        if anchor is not None:
+            break
+    if not _desc_chain_valid(bars, anchor):
+        return False
+    return not _overlap_disagrees(ticker, src_tf, bars)
 
 
 def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
@@ -2316,8 +2367,11 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
     _set_intraday_source(None)    # never inherit a previous fetch's source on this thread
     prior_close = _last_known_close(ticker, tf)
 
-    def _seed(payload, _t=ticker, _tf=tf):
-        return _prior_close_before(_t, _tf, payload)
+    def _valid15(payload, _t=ticker, _tf=tf):      # 30m/60m: validated on their 15m source
+        return _intraday_payload_valid(_t, "15", payload, anchor_tfs=(_tf,))
+
+    def _valid(payload, _t=ticker, _tf=tf):
+        return _intraday_payload_valid(_t, _tf, payload)
     # Latest session that should have bars — drives staleness escalation so a
     # valid-but-lagging Massive payload yields to a fresher FMP/yfinance one.
     expected_session = _expected_latest_session_yyyymmdd()
@@ -2339,7 +2393,7 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
         # fetch_with_validation handles the Massive → FMP → yfinance chain for the
         # 15-min source, applying per-bar validation at each hop.
         bars_src = fetch_with_validation(ticker, "15", src, prior_close=prior_close, expected_session=expected_session,
-                                         prior_close_for=_seed)
+                                         validate_for=_valid15)
         if bars_src and not _is_intraday_stale(bars_src):
             out = _resample_derived("60", bars_src)[-max_bars:]
             _logger.warning(
@@ -2363,7 +2417,7 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
         # half-hour bars the 15m feed carries). 30 divides the 09:30 open, so the
         # clock floor IS TradingView's 30m grid on both session views.
         bars_src = fetch_with_validation(ticker, "15", max_bars * 2, prior_close=prior_close, expected_session=expected_session,
-                                         prior_close_for=_seed)
+                                         validate_for=_valid15)
         if bars_src and not _is_intraday_stale(bars_src):
             return _resample_derived("30", bars_src)[-max_bars:]
         _logger.warning(
@@ -2373,7 +2427,7 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
 
     # 1/5/15-min: validating fetch chain
     validated = fetch_with_validation(ticker, tf, max_bars, prior_close=prior_close, expected_session=expected_session,
-                                      prior_close_for=_seed)
+                                      validate_for=_valid)
     if validated and not _is_intraday_stale(validated):
         return validated
 
@@ -5297,15 +5351,14 @@ def fetch_with_validation(
     bars: int,
     prior_close: float | None = None,
     expected_session: int | None = None,
-    prior_close_for=None,
+    validate_for=None,
 ):
     """Fetch from primary; if it fails validation, fall back through alternates.
 
-    ``prior_close_for`` (optional): ``payload -> float | None``, the chained check's
-    seed computed FROM THE PAYLOAD — the close of the stored bar immediately before
-    the payload's first bar. Wins over ``prior_close`` when given. See
-    `_prior_close_before` for why a single "latest close" seed is wrong for a deep
-    payload.
+    ``validate_for`` (optional): ``payload -> bool``, replaces the ascending
+    ``_payload_passes_validation(payload, prior_close)`` check — the intraday caller
+    passes `_intraday_payload_valid` (chained backward from the stored close + the
+    overlap-agreement rule).
 
     Order: Massive → FMP (intraday only) → yfinance.  Returns the first
     payload whose every bar passes validation, or ``None`` if every source
@@ -5360,8 +5413,8 @@ def fetch_with_validation(
     if _scb.is_ok("massive"):
         try:
             payload = _fetch_intraday_massive(ticker, tf, bars)
-            valid = _payload_passes_validation(
-                payload, prior_close_for(payload) if prior_close_for else prior_close)
+            valid = (validate_for(payload) if validate_for
+                     else _payload_passes_validation(payload, prior_close))
             _scb.record_attempt("massive", success=valid)
             if valid:
                 chosen = _accept(payload)
@@ -5379,8 +5432,8 @@ def fetch_with_validation(
     if tf in ("1", "5", "15", "30", "60") and _scb.is_ok("fmp"):
         try:
             payload = _fetch_intraday_fmp(ticker, tf, bars)
-            valid = _payload_passes_validation(
-                payload, prior_close_for(payload) if prior_close_for else prior_close)
+            valid = (validate_for(payload) if validate_for
+                     else _payload_passes_validation(payload, prior_close))
             _scb.record_attempt("fmp", success=valid)
             if valid and not _payload_has_extended_hours(payload):
                 fmp_rth = payload          # RTH-only: yfinance first, this only if it fails
@@ -5400,8 +5453,8 @@ def fetch_with_validation(
     if _scb.is_ok("yfinance"):
         try:
             payload = _fetch_intraday_yfinance(ticker, tf, bars)
-            valid = _payload_passes_validation(
-                payload, prior_close_for(payload) if prior_close_for else prior_close)
+            valid = (validate_for(payload) if validate_for
+                     else _payload_passes_validation(payload, prior_close))
             _scb.record_attempt("yfinance", success=valid)
             if valid:
                 chosen = _accept(payload, "yfinance")
