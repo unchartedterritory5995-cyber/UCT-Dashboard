@@ -311,7 +311,7 @@ export async function idbDeleteIntraday() {
     const req = store.getAllKeys()
     req.onsuccess = () => {
       for (const k of req.result || []) {
-        if (/_(1|5|15|30|60|60e)$/.test(String(k))) { try { store.delete(k) } catch { /* ignore */ } }
+        if (/_(1|5|15|30|60|60e)(@hist)?$/.test(String(k))) { try { store.delete(k) } catch { /* ignore */ } }
       }
     }
     tx.oncomplete = () => resolve()
@@ -367,11 +367,92 @@ export async function idbDelete(sym, tf) {
     await new Promise((resolve) => {
       const tx = db.transaction(STORE, 'readwrite')
       tx.objectStore(STORE).delete(_key(sym, tf))
+      // A poisoned series' deep history is poisoned too (same basis): drop it with it.
+      tx.objectStore(STORE).delete(_histKey(sym, tf))
       tx.oncomplete = resolve
       tx.onerror    = () => resolve()
     })
   } catch {
     // best-effort
+  }
+}
+
+// ── Intraday DEEP HISTORY segment (2026-11-11) ────────────────────────────────────────
+// ⭐ A SEPARATE RECORD, SO THE 3000-BAR TAIL STAYS CHEAP. The tail entry above is written
+// on every poll merge and read on every chart open — capping it (INTRADAY_MAX_BARS) is what
+// keeps scanning fast. Deep history a member scrolled to (or the background prefetch
+// loaded) lives in `<SYM>_<tf>@hist`: written only when history GROWS (a left window
+// landed) or when the tail is about to outrun it, read once AFTER first paint and merged
+// as a left-prepend. So depth survives a reload instead of being truncated to 3000 on
+// write, and the poll path never touches it.
+// Invalidation: same CACHE_LOGIC_VERSION and old-60m-grid rules as the tail; deleted with
+// the tail by idbDelete (basis heal) and idbDeleteIntraday; and on read it is used ONLY if
+// it reaches the tail (`historyReachesTail`) — a gap between the two is never drawn as if
+// contiguous, the segment is just ignored and re-fetched.
+export const HISTORY_SEGMENT_MAX = 20000
+function _histKey(sym, tf) { return `${_key(sym, tf)}@hist` }
+
+/** The bars idbPutHistory persists: the newest HISTORY_SEGMENT_MAX of `bars`. */
+export function _capHistoryForWrite(bars) {
+  if (!Array.isArray(bars)) return []
+  return bars.length > HISTORY_SEGMENT_MAX ? bars.slice(bars.length - HISTORY_SEGMENT_MAX) : bars
+}
+
+/** True when `hist` can be prepended to `tail` without drawing a hole: it holds bars
+ *  older than the tail AND its newest bar reaches the tail's oldest. */
+export function historyReachesTail(hist, tail) {
+  if (!Array.isArray(hist) || !hist.length || !Array.isArray(tail) || !tail.length) return false
+  const h0 = hist[0]?.t, hN = hist[hist.length - 1]?.t, t0 = tail[0]?.t
+  if (typeof h0 !== 'number' || typeof hN !== 'number' || typeof t0 !== 'number') return false
+  return h0 < t0 && hN >= t0
+}
+
+/** Re-write the segment when it would otherwise stop reaching the tail: the newest
+ *  history bar has fallen behind the MIDDLE of the (capped) tail window. */
+export function historyNeedsRefresh(histLastT, series) {
+  if (!Array.isArray(series) || series.length <= INTRADAY_MAX_BARS) return false
+  if (typeof histLastT !== 'number') return true
+  const tail0 = series.length - INTRADAY_MAX_BARS
+  const mid = series[tail0 + Math.floor(INTRADAY_MAX_BARS / 2)]?.t
+  return typeof mid === 'number' && histLastT < mid
+}
+
+export async function idbGetHistory(sym, tf) {
+  if (!['1','5','15','30','60'].includes(logicTfOf(String(tf)))) return null
+  try {
+    const db = await _open()
+    return await new Promise((resolve) => {
+      const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(_histKey(sym, tf))
+      req.onsuccess = () => {
+        const e = req.result
+        if (!e || !e.bars?.length || e.v !== CACHE_LOGIC_VERSION) return resolve(null)
+        if (_hasOldSixtyMinGrid(e.bars, tf)) return resolve(null)
+        resolve(e.bars)
+      }
+      req.onerror = () => resolve(null)
+    })
+  } catch {
+    return null
+  }
+}
+
+export async function idbPutHistory(sym, tf, bars) {
+  if (!['1','5','15','30','60'].includes(logicTfOf(String(tf)))) return
+  if (!Array.isArray(bars) || bars.length <= INTRADAY_MAX_BARS) return   // the tail entry holds it all
+  const out = _capHistoryForWrite(bars)
+  try {
+    const db = await _open()
+    await new Promise((resolve) => {
+      const tx = db.transaction(STORE, 'readwrite')
+      tx.objectStore(STORE).put({
+        key: _histKey(sym, tf), bars: out, lastT: out[out.length - 1]?.t,
+        savedAt: Date.now(), v: CACHE_LOGIC_VERSION,
+      })
+      tx.oncomplete = resolve
+      tx.onerror    = () => resolve()
+    })
+  } catch {
+    // best-effort, like every IDB write
   }
 }
 
