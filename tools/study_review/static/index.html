@@ -20,17 +20,40 @@ body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--bo
 button, textarea, select { font: inherit; color: inherit; }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .wrap { max-width: 780px; margin: 0 auto; padding: 14px 18px 40px; }
-.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
-.top h1 { font: 700 20px var(--display); margin: 0; }
-.progress { font-size: 16px; color: var(--mute); text-align: center; flex: 1; }
+.top { display: flex; align-items: center; gap: 12px; padding-bottom: 10px; }
+.top h1 { font: 700 20px var(--display); margin: 0; flex: 1; }
+.progress { font-size: 15px; color: var(--mute); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .progress b { color: var(--fg); }
 .saved { font-size: 14px; color: var(--good); min-width: 70px; text-align: right; }
+.tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: var(--panel2); border-radius: 12px; padding: 4px; }
+.tab { min-height: 46px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--mute); font: 600 15px var(--body); cursor: pointer; padding: 4px 8px; line-height: 1.2; }
+.tab small { display: block; font: 400 12px var(--body); }
+.tab.on { background: var(--panel); color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,.25); border-color: var(--line); }
 .saved.err { color: var(--bad); font-weight: 700; }
 .menubtn { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-height: 44px; padding: 0 14px; cursor: pointer; font-weight: 700; }
-.bar { height: 6px; background: var(--panel2); border-radius: 4px; margin: 10px 0 18px; overflow: hidden; }
-.bar i { display: block; height: 100%; background: var(--gold); }
+.bar { height: 8px; background: var(--panel2); border-radius: 5px; margin: 12px 0 6px; overflow: hidden; display: flex; }
+.bar i { display: block; height: 100%; transition: width .25s; }
+.bar .k { background: var(--good); } .bar .f { background: var(--warn); } .bar .c { background: var(--bad); }
+.prog { margin-bottom: 16px; }
 .banner { background: var(--panel2); border: 2px solid var(--bad); color: var(--bad); border-radius: 12px; padding: 12px 14px; font-weight: 600; margin-bottom: 14px; }
-.where { color: var(--mute); font-size: 15px; margin-bottom: 8px; }
+.where { color: var(--mute); font-size: 15px; margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.chip { display: inline-block; border: 1px solid var(--line); background: var(--panel2); border-radius: 999px; padding: 0 10px; font-size: 13px; font-weight: 600; color: var(--mute); }
+.lab { font: 700 12px var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--mute); margin: 0 0 6px; }
+.lab.now { color: var(--gold); }
+.was { border: 1px dashed var(--line); border-radius: 12px; padding: 10px 14px 4px; margin: 0 0 14px; background: color-mix(in srgb, var(--panel2) 60%, transparent); opacity: .92; }
+.was .q { font-size: 18px; margin: 0 0 8px; } .was .story { margin-bottom: 8px; }
+.was .choices li { padding: 7px 12px; font-size: 16px; background: transparent; }
+.was .choices li.right { border-width: 1px; }
+.was .fill { font-size: 17px; }
+.new { display: inline-block; font: 700 11px var(--body); text-transform: uppercase; letter-spacing: .06em; color: var(--gold); border: 1px solid var(--gold); border-radius: 999px; padding: 0 7px; margin-left: 8px; vertical-align: middle; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chipbtn { min-height: 40px; border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 0 14px; cursor: pointer; font-size: 15px; }
+.chipbtn:hover { border-color: var(--gold); }
+.srcfirst { margin: 0 0 10px; font-size: 15px; color: var(--mute); }
+.srcfirst q { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; quotes: none; color: var(--fg); border-left: 3px solid var(--gold); padding-left: 10px; font-style: italic; }
+.srcfirst small { display: block; margin: 3px 0 0 13px; }
+.keys { color: var(--mute); font-size: 13px; text-align: center; margin: 6px 0 0; }
+@media (hover: none) { .keys, .act small.kh { display: none; } }
 .flag { background: var(--panel2); border: 2px solid var(--warn); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; }
 .flag b { color: var(--warn); }
 .fyi { color: var(--mute); font-size: 15px; margin: 0 0 12px; }
@@ -55,7 +78,7 @@ details p, details div { margin: 6px 0; }
 .act.good { border-color: var(--good); } .act.change { border-color: var(--warn); } .act.remove { border-color: var(--bad); }
 .act.good:hover { background: var(--good); color: #04140b; } .act.change:hover { background: var(--warn); color: #1c1100; } .act.remove:hover { background: var(--bad); color: #1f0506; }
 .act.on.good { background: var(--good); color: #04140b; } .act.on.change { background: var(--warn); color: #1c1100; } .act.on.remove { background: var(--bad); color: #1f0506; }
-.act.suggest::after { content: "Claude suggests this"; display: block; font: 600 12px var(--body); margin-top: 2px; }
+.act.suggest::after { content: "★ Claude suggests"; display: block; font: 600 12px var(--body); margin-top: 2px; }
 .act:hover small, .act.on small { color: inherit; }
 .noteBox { margin: 18px 0 8px; display: grid; gap: 10px; }
 .noteBox label { font-weight: 700; }
@@ -78,16 +101,49 @@ details p, details div { margin: 6px 0; }
 .tag { display: inline-block; font: 700 12px var(--body); border-radius: 999px; padding: 1px 9px; margin-right: 6px; }
 .tag.fix { background: var(--warn); color: #1c1100; } .tag.cut { background: var(--bad); color: #1f0506; }
 .mono { font-family: Consolas, monospace; font-size: 14px; color: var(--mute); word-break: break-all; }
-@media (max-width: 560px) { .act { font-size: 16px; } .progress { font-size: 14px; } }
+@media (max-width: 560px) { body { font-size: 17px; } .act { font-size: 16px; min-height: 64px; } .progress { font-size: 14px; } .wrap { padding: 10px 14px 28px; } .tab { font-size: 14px; } .choices li { grid-template-columns: 38px 1fr; padding: 10px 12px; } }
+.chipbtn.on { background: var(--gold); color: #1a1405; border-color: var(--gold); font-weight: 700; }
+.guide { background: var(--panel2); border: 1px solid var(--line); border-left: 4px solid var(--gold); border-radius: 12px; padding: 12px 14px; margin: 0 0 14px; font-size: 16px; }
+.guide ol { margin: 6px 0 10px 18px; padding: 0; } .guide li { margin: 3px 0; }
+.rule { border: 1px solid var(--line); border-left: 4px solid var(--gold); border-radius: 12px; padding: 12px 14px 12px; margin: 14px 0; background: var(--panel); }
+.rule .rtext { margin: 2px 0 8px; font-weight: 600; font-size: 17px; }
+.rmeta { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; font-size: 14px; color: var(--mute); margin-bottom: 8px; }
+.st { display: inline-block; font: 700 12px var(--body); border-radius: 999px; padding: 1px 10px; border: 1px solid currentColor; }
+.st.settled { color: var(--good); } .st.proposed { color: var(--warn); } .st.pending-owner { color: var(--bad); }
+.rbtns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.rbtn { min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); cursor: pointer; font-weight: 600; font-size: 15px; }
+.rbtn.on.ok { background: var(--good); color: #04140b; border-color: var(--good); } .rbtn.on.bad { background: var(--warn); color: #1c1100; border-color: var(--warn); }
+.flag.mild { border-color: var(--line); } .flag.mild b { color: var(--gold); }
+.dp { margin: 0 0 10px; } .dp.deflt { border: 2px solid var(--gold); border-radius: 12px; padding: 10px 14px; background: color-mix(in srgb, var(--gold) 12%, var(--panel)); }
+.dp.dmeta { color: var(--mute); font-size: 15px; }
+.tw { overflow-x: auto; margin: 0 0 10px; } .tw table { border-collapse: collapse; font-size: 15px; } .tw td, .tw th { border: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; }
+.dl { margin: 0 0 10px; padding-left: 22px; } code { font-family: Consolas, monospace; font-size: .9em; background: var(--panel2); padding: 0 4px; border-radius: 4px; }
+.act.ask { border-color: var(--gold); } .act.ask:hover, .act.on.ask { background: var(--gold); color: #1a1405; }
+.rl { padding: 7px 0; border-top: 1px solid var(--line); font-size: 15px; color: var(--mute); } .rl b { color: var(--fg); }
+.sm { font-size: 14px; min-height: 32px; padding: 0 4px; }
+.tagrow { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+.tagc { border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; font-size: 14px; background: var(--panel); }
+.tagc b { color: var(--gold); }
+.fbh { font: 700 18px var(--display); margin: 14px 0 6px; }
+.item .tg { display: block; color: var(--gold); font-size: 13px; font-weight: 700; margin-top: 2px; }
+.cnt { color: var(--mute); font-size: 15px; margin: 0; }
+@media (max-width: 560px) { .tab { font-size: 13px; padding: 4px 4px; } .tab small { font-size: 11px; } }
 </style></head><body>
 <div class="wrap">
   <div class="top">
     <h1>Library Review</h1>
-    <div class="progress" id="progress" aria-live="polite"></div>
     <span class="saved" id="saved"></span>
     <button class="menubtn" id="menuBtn" type="button">Menu</button>
   </div>
-  <div class="bar" aria-hidden="true"><i id="barFill" style="width:0"></i></div>
+  <div class="tabs" role="group" aria-label="Which part">
+    <button class="tab" id="tab1" type="button"></button>
+    <button class="tab" id="tab2" type="button"></button>
+    <button class="tab" id="tab3" type="button"></button>
+  </div>
+  <div class="prog">
+    <div class="bar" aria-hidden="true"><i class="k" id="barK"></i><i class="f" id="barF"></i><i class="c" id="barC"></i></div>
+    <div class="progress" id="progress" aria-live="polite"></div>
+  </div>
   <div class="banner" id="saveBanner" hidden></div>
   <main id="main"><p class="where">Loading…</p></main>
 </div>
@@ -97,8 +153,10 @@ details p, details div { margin: 6px 0; }
 (function () {
   'use strict';
   var S = { idx: null, bySlug: {}, ofId: {}, calls: {}, reviews: {}, data: {}, qById: {}, loads: {},
-            stage: 1, queue: [], pos: 0, noteFor: null, file: '', queueOut: [], flushing: false, fails: 0 };
+            stage: 1, queue: [], pos: 0, noteFor: null, file: '', queueOut: [], flushing: false, fails: 0, times: [], rules: {}, decs: [], decById: {}, sideNote: null, noteTags: [], _tagsFor: null, curRule: null };
   var VLABEL = { keep: 'Good as is', fix: 'Change it', cut: 'Remove it' };
+  var REASONS_FIX = ['The right answer is wrong', 'Two answers could be right', 'A wrong answer is obviously wrong', 'Confusing wording', 'Does not match my rules', 'Out of date', 'Too easy', 'Too hard'];
+  var REASONS_CUT = ['Repeats another question', 'Not worth teaching', 'Wrong or unsafe', 'Does not match my rules'];
 
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -118,10 +176,10 @@ details p, details div { margin: 6px 0; }
       el.textContent = 'NOT SAVED YET. ' + S.queueOut.length + ' decision(s) are waiting because the review program is not answering. Do not close this tab. If the black window was closed, double-click Start Library Review again and come back here. This page keeps trying.';
     } else { el.hidden = true; }
   }
-  function persist(id, v, note) {
-    var m = S.ofId[id], q = S.qById[id];
-    var item = { id: id, unit: m.slug, key: q.key, v: v, note: note || '', q: String(q.q || '').slice(0, 160) };
-    S.queueOut = S.queueOut.filter(function (x) { return x.id !== id; }); S.queueOut.push(item); lsSet(QKEY, S.queueOut);
+  function persistRec(item) {
+    item.tags = item.tags || [];
+    S.reviews[item.id] = { v: item.v, note: item.note || '', tags: item.tags, kind: item.kind, unit: item.unit, key: item.key, q: item.q, at: new Date().toISOString() };
+    S.queueOut = S.queueOut.filter(function (x) { return x.id !== item.id; }); S.queueOut.push(item); lsSet(QKEY, S.queueOut);
     setSaved('Saving…'); flush();
   }
   function flush() {
@@ -153,6 +211,7 @@ details p, details div { margin: 6px 0; }
 
   function decided(id) { var r = S.reviews[id]; return !!(r && r.v); }
   function buildQueue(stage) {
+    if (stage === 3) return S.decs.map(function (d) { return 'dec:' + d.id; });
     var ids = [];
     S.idx.units.forEach(function (u) { u.ids.forEach(function (id) { if (stage === 2 || (S.calls[id] && S.calls[id].c === 'look')) ids.push(id); }); });
     return ids;
@@ -173,14 +232,165 @@ details p, details div { margin: 6px 0; }
   }
 
   // ── what you see ─────────────────────────────────────────────────────────────────────────────────────────────
+  function paceLeft(remaining) {
+    var t = S.times, gaps = [];
+    for (var i = 1; i < t.length; i++) { var g = (t[i] - t[i - 1]) / 1000; if (g > 0.5 && g < 180) gaps.push(g); }
+    if (gaps.length < 5 || !remaining) return '';
+    gaps = gaps.slice(-30).sort(function (a, b) { return a - b; });
+    var sec = gaps[Math.floor(gaps.length / 2)] * remaining, min = Math.round(sec / 60);
+    if (min < 1) return 'about a minute left';
+    if (min < 90) return 'about ' + min + ' min left at your pace';
+    return 'about ' + (Math.round(min / 6) / 10) + ' hours left at your pace';
+  }
+  var STAGE_NAME = { 1: 'Part 1 · Claude changed or doubts', 2: 'Part 2 · every question', 3: 'Part 3 · rules waiting on you' };
+  function tabLabel(stage) {
+    var q = buildQueue(stage), d = 0; q.forEach(function (id) { if (decided(id)) d++; });
+    return STAGE_NAME[stage] + '<small>' + (d >= q.length && q.length ? '✓ finished' : nf(d) + ' of ' + nf(q.length) + ' done') + '</small>';
+  }
   function renderProgress() {
-    var qd = 0; S.queue.forEach(function (id) { if (decided(id)) qd++; });
-    var label = S.stage === 1 ? 'Part 1: the questions Claude is unsure about' : 'Part 2: every question, in order';
-    $('progress').innerHTML = label + '<br><b>' + nf(qd) + ' of ' + nf(S.queue.length) + '</b> done';
-    $('barFill').style.width = (S.queue.length ? 100 * qd / S.queue.length : 0) + '%';
+    var n = S.queue.length, k = 0, f = 0, c = 0;
+    S.queue.forEach(function (id) { var r = S.reviews[id]; if (r && r.v) { if (r.v === 'keep') k++; else if (r.v === 'fix') f++; else c++; } });
+    var L = S.stage === 3 ? ['agree', 'change', 'talk about'] : ['good', 'change', 'remove'];
+    var qd = k + f + c, left = paceLeft(n - qd);
+    $('progress').innerHTML = '<span><b>' + nf(qd) + ' of ' + nf(n) + '</b> done' + (qd ? ' · <span style="color:var(--good)">' + nf(k) + ' ' + L[0] + '</span> · <span style="color:var(--warn)">' + nf(f) + ' ' + L[1] + '</span> · <span style="color:' + (S.stage === 3 ? 'var(--gold)' : 'var(--bad)') + '">' + nf(c) + ' ' + L[2] + '</span>' : '') + '</span>' + (left ? '<span>' + left + '</span>' : '');
+    $('barK').style.width = (n ? 100 * k / n : 0) + '%'; $('barF').style.width = (n ? 100 * f / n : 0) + '%'; $('barC').style.width = (n ? 100 * c / n : 0) + '%';
+    $('tab1').innerHTML = tabLabel(1); $('tab2').innerHTML = tabLabel(2); $('tab3').innerHTML = tabLabel(3);
+    [1, 2, 3].forEach(function (i) { $('tab' + i).className = 'tab' + (S.stage === i ? ' on' : ''); });
   }
 
-  function choiceBlock(q) {
+  // ── tags, rules, notes ───────────────────────────────────────────────────────────────────────────────────────
+  var REASONS_RULE = ['The number is wrong', 'Wrong source', 'Too strict', 'Too loose', 'Missing an exception', 'Does not fit how I trade', 'Should be a grade cue, not a gate', 'Should be a gate', 'Unclear wording'];
+  var REASONS_UNIT = ['Missing a topic', 'Too much of one thing', 'Out of order', 'Too easy overall', 'Too hard overall', 'Needs a walk-through', 'Great, do more like this'];
+  var REASONS_GEN = ['Missing topic', 'New rule idea', 'New game idea', 'Variety or format', 'Problem with this page', 'Other'];
+  var REASONS_DEC = ['A different option', 'A different number', 'Depends on the setup', 'Do not teach this', 'Teach it later', 'Needs more thought'];
+  var REASONS_ASK = ['Explain the options', 'Show me examples', 'Show me the data', 'I want to decide together'];
+  function cardBase(p) { return String(p || '').split('/').pop().replace(/\.json$/, ''); }
+  function chipsHtml(list) {
+    return '<div class="chips" id="chips">' + list.map(function (r) {
+      var on = S.noteTags.indexOf(r) >= 0;
+      return '<button type="button" class="chipbtn' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-r="' + esc(r) + '">' + (on ? '✓ ' : '') + esc(r) + '</button>';
+    }).join('') + '</div>';
+  }
+  function bindChips() {
+    var c = $('chips'); if (!c) return;
+    c.onclick = function (e) {
+      var b = e.target.closest ? e.target.closest('.chipbtn') : null; if (!b) return;
+      var r = b.getAttribute('data-r'), i = S.noteTags.indexOf(r), on = i < 0;
+      if (on) S.noteTags.push(r); else S.noteTags.splice(i, 1);
+      b.className = 'chipbtn' + (on ? ' on' : ''); b.setAttribute('aria-pressed', on); b.textContent = (on ? '✓ ' : '') + r;
+    };
+  }
+  function ruleOf(q, m) {
+    var u = S.data[m.unit] || {};
+    if (!q.criterion || !u.card) return null;
+    var key = cardBase(u.card) + ':' + q.criterion, r = S.rules[key];
+    return r ? { key: key, r: r } : null;
+  }
+  var STATUS_TEXT = { 'settled': 'Settled', 'proposed': 'Proposed, not yet your ruling', 'pending-owner': 'Waiting on your decision' };
+  function rulePanel(q, m) {
+    var x = ruleOf(q, m); S.curRule = null; if (!x) return '';
+    var r = x.r, mine = S.reviews['rule:' + x.key] || {}; S.curRule = { key: x.key, r: r, unit: m.slug, crit: q.criterion };
+    var h = '<div class="rule"><div class="lab">The rule behind this question · ' + esc(r.setup) + '</div><p class="rtext">' + esc(r.s) + '</p><div class="rmeta"><span class="st ' + esc(r.st) + '">' + esc(STATUS_TEXT[r.st] || r.st) + '</span>';
+    if (r.nq) h += '<span>' + r.nq + ' question' + (r.nq === 1 ? '' : 's') + ' teach it</span>';
+    (r.oq || []).forEach(function (d) { var dd = S.decById[d]; h += '<button type="button" class="plain sm" data-dec="' + esc(d) + '">' + esc(d) + (dd ? ': ' + esc(dd.title) : '') + '</button>'; });
+    h += '</div>';
+    var det = '';
+    if (r.rec != null) det += '<p><b>Recommended:</b> ' + esc(r.rec) + '</p>';
+    if (r.opts && r.opts.length) det += '<p><b>Options:</b></p><ul class="dl">' + r.opts.map(function (o) { return '<li><b>' + esc(o.v) + '</b>: ' + esc(o.b || '') + '</li>'; }).join('') + '</ul>';
+    if (r.ev) det += '<p><b>Evidence:</b> ' + esc(r.ev) + '</p>';
+    if (r.hr) det += '<p><b>Your own rule:</b> ' + esc(r.hr) + '</p>';
+    if (r.basis) det += '<p><b>Basis:</b> ' + esc(r.basis) + '</p>';
+    if (det) h += '<details><summary>Options, evidence and where it comes from</summary>' + det + '</details>';
+    h += '<div class="rbtns"><button type="button" class="rbtn ok' + (mine.v === 'keep' ? ' on' : '') + '" id="bRuleOk">✓ Rule looks right</button><button type="button" class="rbtn bad' + (mine.v === 'fix' ? ' on' : '') + '" id="bRuleFix">✎ Rule needs work</button>';
+    if (mine.v) h += '<span class="said">' + (mine.v === 'keep' ? 'You said: looks right' : 'You said: needs work' + (mine.tags && mine.tags.length ? ' · ' + esc(mine.tags.join(', ')) : '')) + '</span>';
+    return h + '</div></div>';
+  }
+  function openSide(kind, id, title, unit, key, cardId) {
+    S.noteTags = ((S.reviews[id] || {}).tags || []).slice(); S.noteFor = null;
+    S.sideNote = { kind: kind, id: id, title: title, unit: unit, key: key };
+    renderCard(cardId);
+  }
+  function sideNoteHtml() {
+    var n = S.sideNote, mine = S.reviews[n.id] || {}, isRule = n.kind === 'rule';
+    return '<div class="noteBox"><label for="note">' + (isRule ? 'What is wrong with this rule?' : 'Your note on this whole lesson') + '</label>' +
+      '<p class="fyi" style="margin:0">' + esc(n.title) + '</p>' + chipsHtml(isRule ? REASONS_RULE : REASONS_UNIT) +
+      '<textarea id="note" placeholder="' + (isRule ? 'For example: 30% is too high for flags; use 20%.' : 'For example: this lesson never covers what happens after the breakout.') + '">' + esc(mine.note || '') + '</textarea>' +
+      '<div class="row"><button class="primary" id="saveSide" type="button">Save</button><button class="plain" id="cancelSide" type="button">Cancel</button></div></div>';
+  }
+  function bindSideNote(id) {
+    bindChips();
+    $('saveSide').onclick = function () {
+      var n = S.sideNote, note = $('note').value.trim();
+      if (note || S.noteTags.length) persistRec({ id: n.id, kind: n.kind, unit: n.unit, key: n.key, v: n.kind === 'rule' ? 'fix' : 'note', note: note, tags: S.noteTags.slice(), q: String(n.title).slice(0, 300) });
+      S.sideNote = null; S.noteTags = []; renderCard(id);
+    };
+    $('cancelSide').onclick = function () { S.sideNote = null; S.noteTags = []; renderCard(id); };
+    $('note').focus();
+  }
+  function bindCardExtras(id) {
+    var m = S.ofId[id], q = S.qById[id], un = $('bUnitNote'), ok = $('bRuleOk'), fx = $('bRuleFix'), g = $('guideOk');
+    if (un) un.onclick = function () { openSide('unit', 'unit:' + m.unit, m.unit + ' · ' + m.title, m.unit, m.slug, id); };
+    if (ok) ok.onclick = function () { var c = S.curRule; persistRec({ id: 'rule:' + c.key, kind: 'rule', unit: c.unit, key: c.crit, v: 'keep', note: '', tags: [], q: String(c.r.s).slice(0, 300) }); renderCard(id); };
+    if (fx) fx.onclick = function () { var c = S.curRule; openSide('rule', 'rule:' + c.key, c.r.s, c.unit, c.crit, id); };
+    if (g) g.onclick = function () { lsSet('libreview3.guide', true); renderCard(id); };
+    document.querySelectorAll('[data-dec]').forEach(function (b) {
+      b.onclick = function () { var q3 = buildQueue(3), i = q3.indexOf('dec:' + b.getAttribute('data-dec')); if (i >= 0) setStage(3, i); };
+    });
+  }
+  var GUIDE = '<div class="guide"><b>How this works</b><ol><li>One question at a time, with the right answer already marked in green.</li><li><b>Good as is</b> (Enter), <b>Change it</b> (C) or <b>Remove it</b> (X). For Change and Remove, tap the reasons that fit and add your own words.</li><li>Under each question is <b>the rule it teaches</b>. Say if the rule looks right or needs work. That fixes the rule for every question built on it.</li><li><b>Part 3</b> holds the decisions behind the rules. One answer there settles many rules and questions at once.</li></ol><button class="primary" id="guideOk" type="button">Got it</button></div>';
+
+  // ── Part 3: the decisions ──────────────────────────────────────────────────────────────────────────────────
+  function mdInline(t) { return esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>'); }
+  function mdBlock(b) {
+    var lines = b.split('\n'), cls = /^\*\*Our default/.test(b) ? 'deflt' : (/^\*\*(Setups touched|Questions)/.test(b) ? 'dmeta' : '');
+    if (lines[0].charAt(0) === '|') {
+      var rows = lines.filter(function (l) { return !/^\|[\s:|-]+\|?\s*$/.test(l); }).map(function (l) { return l.replace(/^\||\|\s*$/g, '').split('|'); });
+      return '<div class="tw"><table>' + rows.map(function (r, i) { var t = i ? 'td' : 'th'; return '<tr>' + r.map(function (c) { return '<' + t + '>' + mdInline(c.trim()) + '</' + t + '>'; }).join('') + '</tr>'; }).join('') + '</table></div>';
+    }
+    if (/^[-*] /.test(lines[0])) return '<ul class="dl">' + lines.map(function (l) { return '<li>' + mdInline(l.replace(/^[-*] /, '')) + '</li>'; }).join('') + '</ul>';
+    return '<p class="dp ' + cls + '">' + lines.map(mdInline).join('<br>') + '</p>';
+  }
+  function renderDecision(id) {
+    var d = S.decById[id.slice(4)], mine = S.reviews[id] || {}, main = $('main');
+    if (!d) { main.innerHTML = '<div class="banner">That decision did not load.</div>'; return; }
+    if (S.noteFor && S._tagsFor !== id + S.noteFor) { S.noteTags = (mine.tags || []).slice(); S._tagsFor = id + S.noteFor; }
+    var h = '<div class="where"><span>Decision ' + esc(d.id) + '</span><span class="chip">' + (d.part === 'A' ? 'Shared by many setups' : esc(d.group || 'One setup')) + '</span><span>' + (S.queue.indexOf(id) + 1) + ' of ' + S.queue.length + '</span></div>';
+    h += '<div class="flag mild"><b>Not your ruling yet.</b> The lessons use <b>Our default</b> as a stand-in until you answer. Agree with it, change it, or ask to talk it over. Your answer goes straight into the rules.</div>';
+    var meta = d.blocks.filter(function (b) { return /^\*\*(Setups touched|Questions)/.test(b); }), main3 = d.blocks.filter(function (b) { return !/^\*\*(Setups touched|Questions)/.test(b); });
+    h += '<p class="q">' + esc(d.title) + '</p>' + main3.map(mdBlock).join('');
+    if (meta.length) h += '<details><summary>Which setups this touches</summary>' + meta.map(mdBlock).join('') + '</details>';
+    if (d.nrules) {
+      h += '<details><summary>' + d.nrules + ' rule' + (d.nrules === 1 ? '' : 's') + ' wait on this' + (d.nq ? ', taught by ' + d.nq + ' question' + (d.nq === 1 ? '' : 's') : '') + '</summary>' +
+        d.rules.slice(0, 15).map(function (r) { return '<div class="rl"><b>' + esc(r.setup) + '</b>: ' + esc(r.s) + '</div>'; }).join('') +
+        (d.nrules > 15 ? '<div class="rl">… and ' + (d.nrules - 15) + ' more</div>' : '') + '</details>';
+    }
+    if (S.noteFor) {
+      var ask = S.noteFor === 'ask';
+      h += '<div class="noteBox"><label for="note">' + (ask ? 'What do you want to talk about?' : 'What should it be instead?') + '</label>' + chipsHtml(ask ? REASONS_ASK : REASONS_DEC) +
+        '<textarea id="note" placeholder="' + (ask ? 'For example: show me three charts at 20% and at 30%.' : 'For example: 25%, and only for bases, not flags.') + '">' + esc(mine.note || '') + '</textarea>' +
+        '<div class="row"><button class="primary" id="saveNote" type="button">Save and go to the next</button><button class="plain" id="cancelNote" type="button">Cancel</button></div></div>';
+    } else {
+      h += '<div class="actions">' +
+        '<button class="act good' + (mine.v === 'keep' ? ' on' : '') + '" id="bGood" type="button">✓ Agree with the default<small class="kh">Enter</small></button>' +
+        '<button class="act change' + (mine.v === 'fix' ? ' on' : '') + '" id="bChange" type="button">✎ Change it<small class="kh">C</small></button>' +
+        '<button class="act ask' + (mine.v === 'ask' ? ' on' : '') + '" id="bTalk" type="button">? Talk it over<small class="kh">T</small></button></div>';
+      h += '<div class="nav"><button class="plain" id="bBack" type="button"' + (S.pos === 0 ? ' disabled' : '') + '>← Back</button><span class="said">' + (mine.v ? 'You said: ' + ({ keep: 'Agree', fix: 'Change it', ask: 'Talk it over' }[mine.v] || mine.v) + (mine.note ? ' · ' + esc(mine.note.slice(0, 60)) : '') : '') + '</span><button class="plain" id="bSkip" type="button">Skip →</button></div><p class="keys">Keys: Enter = agree · C = change · T = talk it over · ← → = back / skip</p>';
+    }
+    main.innerHTML = h;
+    if (S.noteFor) {
+      bindChips();
+      $('saveNote').onclick = function () { decide(S.noteFor, $('note').value); };
+      $('cancelNote').onclick = function () { S.noteFor = null; S._tagsFor = null; renderDecision(id); };
+      $('note').focus(); var nb = document.querySelector('.noteBox'); if (nb) nb.scrollIntoView({ block: 'center' });
+    } else {
+      $('bGood').onclick = function () { decide('keep', ''); };
+      $('bChange').onclick = function () { S.noteFor = 'fix'; renderDecision(id); };
+      $('bTalk').onclick = function () { S.noteFor = 'ask'; renderDecision(id); };
+      $('bBack').onclick = back; $('bSkip').onclick = skip; window.scrollTo(0, 0);
+    }
+  }
+
+  function choiceBlock(q, was) {
     var wrong = q.wrong || {};
     if (q.sentence) {
       var h = '<p class="fill">' + esc(q.sentence).replace('___', '<mark>' + esc(q.answer) + '</mark>') + '</p>';
@@ -189,18 +399,33 @@ details p, details div { margin: 6px 0; }
     }
     if (q.choices) {
       return '<ul class="choices">' + q.choices.map(function (c, i) {
-        var right = c === q.answer;
-        return '<li class="' + (right ? 'right' : '') + '"><span class="L">' + 'ABCDEF'[i] + (right ? ' ✓' : '') + '</span><span>' + esc(c) + '</span></li>';
+        var right = c === q.answer, isNew = was && was.choices && was.choices.indexOf(c) < 0;
+        return '<li class="' + (right ? 'right' : '') + '"><span class="L">' + 'ABCDEF'[i] + (right ? ' ✓' : '') + '</span><span>' + esc(c) + (isNew ? '<span class="new">reworded</span>' : '') + '</span></li>';
       }).join('') + '</ul>';
     }
     return '<div class="answerbox">' + esc(q.prefix || '') + esc(q.answer) + esc(q.suffix || '') + '</div>';
   }
+  function wasBlock(w) {
+    var h = '<div class="was"><div class="lab">What it said before</div>';
+    if (w.story) h += '<p class="story">' + esc(w.story) + '</p>';
+    h += '<p class="q">' + esc(w.q || '') + '</p>';
+    if (w.sentence) h += '<p class="fill">' + esc(w.sentence).replace('___', '<mark>' + esc(w.answer) + '</mark>') + '</p>';
+    else if (w.choices) h += '<ul class="choices">' + w.choices.map(function (c, i) {
+      var right = c === w.answer;
+      return '<li class="' + (right ? 'right' : '') + '"><span class="L">' + 'ABCDEF'[i] + (right ? ' ✓' : '') + '</span><span>' + esc(c) + '</span></li>';
+    }).join('') + '</ul>';
+    else if (w.answer) h += '<div class="answerbox">' + esc(w.prefix || '') + esc(w.answer) + esc(w.suffix || '') + '</div>';
+    return h + '</div>';
+  }
+  var TYPE = { scenario: 'Scenario', mcq: 'Multiple choice', tf: 'True or false', numeric: 'A number', fill: 'Fill in the blank' };
   function moreBlock(q) {
     var h = '';
     var wrong = q.wrong || {}, keys = Object.keys(wrong);
     if (keys.length) h += '<details><summary>Why the wrong answers are wrong</summary>' + keys.map(function (k) { return '<p><b>' + esc(k) + '</b>: ' + esc(wrong[k]) + '</p>'; }).join('') + '</details>';
     if (q.cites && q.cites.length) {
-      h += '<details><summary>Where this comes from (' + q.cites.length + ')</summary>' + q.cites.map(function (c) {
+      var f0 = q.cites[0];
+      h += '<div class="srcfirst"><q>' + esc(f0.quote) + '</q><small>' + (f0.house ? 'Our own rulebook' : esc(f0.publisher || '') + (f0.from ? ', ' + esc(f0.from) : '')) + '</small></div>';
+      h += '<details><summary>All sources (' + q.cites.length + ')</summary>' + q.cites.map(function (c) {
         var by = c.house ? 'Our own rulebook' : esc(c.publisher || '') + (c.from ? ', ' + esc(c.from) : '');
         return '<div class="src"><q>' + esc(c.quote) + '</q><small>' + by + '</small>' + (c.url ? ' <a href="' + esc(c.url) + '" target="_blank" rel="noopener">open page</a>' : '') + '</div>';
       }).join('') + '</details>';
@@ -209,16 +434,19 @@ details p, details div { margin: 6px 0; }
   }
 
   function render() {
+    S.sideNote = null;
     renderProgress();
     var main = $('main');
     if (S.pos >= S.queue.length) {
-      var c = counts();
-      main.innerHTML = '<div class="done"><h2>' + (S.stage === 1 ? 'Part 1 is finished' : 'Part 2 is finished') + '</h2><p>' + nf(c.keep) + ' good as is · ' + nf(c.fix) + ' to change · ' + nf(c.cut) + ' to remove.</p><p>Everything is saved on your computer.<br>Tell Claude <b>"review done"</b> and I will make the changes.</p>' +
-        '<div class="row" style="justify-content:center">' + (S.stage === 1 ? '<button class="primary" id="toPart2" type="button">Go on to Part 2</button>' : '') + '<button class="plain" id="toMenu" type="button">Open the menu</button></div></div>';
-      var b2 = $('toPart2'); if (b2) b2.onclick = function () { setStage(2); };
-      $('toMenu').onclick = openMenu;
+      var fb = allFeedback().filter(function (x) { return x.r.v && x.r.v !== 'keep'; }).length;
+      var heads = { 1: 'Part 1 is finished', 2: 'Part 2 is finished', 3: 'Part 3 is finished' };
+      var nextStage = S.stage === 1 ? 2 : S.stage === 2 ? 3 : 0;
+      main.innerHTML = '<div class="done"><h2>' + heads[S.stage] + '</h2><p>' + nf(fb) + ' pieces of feedback saved so far across questions, rules, decisions and notes.</p><p>Everything is saved on your computer.<br>When you are ready, tell Claude <b>"review done"</b> and I will make the changes.</p><div class="row" style="justify-content:center">' + (nextStage ? '<button class="primary" id="toNext" type="button">Go on to Part ' + nextStage + '</button>' : '') + '<button class="plain" id="toFb" type="button">See my feedback</button><button class="plain" id="toMenu" type="button">Open the menu</button></div></div>';
+      var bn = $('toNext'); if (bn) bn.onclick = function () { setStage(nextStage); };
+      $('toFb').onclick = openFeedback; $('toMenu').onclick = openMenu;
       return;
     }
+    if (S.stage === 3) { renderDecision(S.queue[S.pos]); return; }
     var id = S.queue[S.pos];
     main.innerHTML = '<p class="where">Loading…</p>';
     ensure(id).then(function () { if (S.queue[S.pos] === id) renderCard(id); }, function () {
@@ -228,7 +456,8 @@ details p, details div { margin: 6px 0; }
 
   function renderCard(id) {
     var q = S.qById[id], m = S.ofId[id], u = S.data[m.slug] || {}, call = S.calls[id], mine = S.reviews[id] || {};
-    var h = '<div class="where">' + esc(m.unit) + ' · ' + esc(m.title) + ' · question ' + q._i + ' of ' + q._n + '</div>';
+    var h = '<div class="where"><span>' + esc(m.unit) + ' · ' + esc(m.title) + '</span><span class="chip">' + esc(TYPE[q.format] || q.format || 'Question') + '</span><span>question ' + q._i + ' of ' + q._n + ' in this unit</span><button class="plain sm" id="bUnitNote" type="button">✎ Note on this lesson' + (S.reviews['unit:' + m.unit] ? ' ✓' : '') + '</button></div>';
+    if (!lsGet('libreview3.guide', false) && S.stage === 1) h += GUIDE;
     var suggest = null;
     if (call && call.c === 'look') {
       suggest = call.p;
@@ -237,30 +466,41 @@ details p, details div { margin: 6px 0; }
     } else if (call && call.c === 'confirm') {
       h += '<p class="fyi">The question is fine. It teaches a rule that is still only a proposal: ' + esc(call.r) + '.</p>';
     }
+    var was = call && call.k === 'changed' ? call.was : null;
+    if (was) h += wasBlock(was) + '<div class="lab now">Now</div>';
     if (q.story) h += '<p class="story">' + esc(q.story) + '</p>';
-    h += '<p class="q">' + esc(q.q) + '</p>' + choiceBlock(q);
+    h += '<p class="q">' + esc(q.q) + '</p>' + choiceBlock(q, was);
     if (q.why) h += '<p class="why"><b>Why:</b> ' + esc(q.why) + '</p>';
     h += moreBlock(q);
-    if (S.noteFor) {
+    h += rulePanel(q, m);
+    if (S.noteFor && S._tagsFor !== id + S.noteFor) { S.noteTags = (mine.tags || []).slice(); S._tagsFor = id + S.noteFor; }
+    if (S.sideNote) {
+      h += sideNoteHtml();
+    } else if (S.noteFor) {
       var isCut = S.noteFor === 'cut';
       var pre = mine.note || '';
       var agree = call && call.c === 'look' && call.p === S.noteFor;
       h += '<div class="noteBox"><label for="note">' + (isCut ? 'Why should it be removed?' : 'What should change?') + '</label>' + (agree ? '<p class="fyi" style="margin:0">You can leave this empty to agree with the note above.</p>' : '') +
+        chipsHtml(isCut ? REASONS_CUT : REASONS_FIX) +
         '<textarea id="note" placeholder="' + (isCut ? 'For example: it repeats another question.' : 'In plain words, for example: the wrong answer B could also be right.') + '">' + esc(pre) + '</textarea>' +
         '<div class="row"><button class="primary" id="saveNote" type="button">Save and go to the next</button><button class="plain" id="cancelNote" type="button">Cancel</button></div></div>';
     } else {
       h += '<div class="actions">' +
-        '<button class="act good' + (mine.v === 'keep' ? ' on' : '') + (suggest === 'keep' ? ' suggest' : '') + '" id="bGood" type="button">✓ Good as is<small>Enter</small></button>' +
-        '<button class="act change' + (mine.v === 'fix' ? ' on' : '') + (suggest === 'fix' ? ' suggest' : '') + '" id="bChange" type="button">✎ Change it<small>C</small></button>' +
-        '<button class="act remove' + (mine.v === 'cut' ? ' on' : '') + (suggest === 'cut' ? ' suggest' : '') + '" id="bRemove" type="button">✕ Remove it<small>X</small></button></div>';
+        '<button class="act good' + (mine.v === 'keep' ? ' on' : '') + (suggest === 'keep' ? ' suggest' : '') + '" id="bGood" type="button">✓ Good as is<small class="kh">Enter</small></button>' +
+        '<button class="act change' + (mine.v === 'fix' ? ' on' : '') + (suggest === 'fix' ? ' suggest' : '') + '" id="bChange" type="button">✎ Change it<small class="kh">C</small></button>' +
+        '<button class="act remove' + (mine.v === 'cut' ? ' on' : '') + (suggest === 'cut' ? ' suggest' : '') + '" id="bRemove" type="button">✕ Remove it<small class="kh">X</small></button></div>';
       h += '<div class="nav"><button class="plain" id="bBack" type="button"' + (S.pos === 0 ? ' disabled' : '') + '>← Back</button>' +
         '<span class="said">' + (mine.v ? 'You said: ' + VLABEL[mine.v] + (mine.note ? ' · ' + esc(mine.note.slice(0, 60)) : '') : '') + '</span>' +
-        '<button class="plain" id="bSkip" type="button">Skip →</button></div>';
+        '<button class="plain" id="bSkip" type="button">Skip →</button></div><p class="keys">Keys: Enter = good as is · C = change · X = remove · ← → = back / skip</p>';
     }
     $('main').innerHTML = h;
-    if (S.noteFor) {
+    bindCardExtras(id);
+    if (S.sideNote) {
+      bindSideNote(id);
+    } else if (S.noteFor) {
+      bindChips();
       $('saveNote').onclick = function () { decide(S.noteFor, $('note').value); };
-      $('cancelNote').onclick = function () { S.noteFor = null; renderCard(id); };
+      $('cancelNote').onclick = function () { S.noteFor = null; S._tagsFor = null; renderCard(id); };
       $('note').focus();
       $('note').addEventListener('keydown', function (e) { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) decide(S.noteFor, $('note').value); });
     } else {
@@ -270,37 +510,60 @@ details p, details div { margin: 6px 0; }
       $('bBack').onclick = back; $('bSkip').onclick = skip;
     }
     prefetchNext();
-    if (S.noteFor) { var nb = document.querySelector('.noteBox'); if (nb) nb.scrollIntoView({ block: 'center' }); } else window.scrollTo(0, 0);
+    if (S.noteFor || S.sideNote) { var nb = document.querySelector('.noteBox'); if (nb) nb.scrollIntoView({ block: 'center' }); } else window.scrollTo(0, 0);
   }
 
   function decide(v, note) {
-    var id = S.queue[S.pos]; if (!id || !S.qById[id]) return;
-    S.reviews[id] = { v: v, note: note || '', at: new Date().toISOString() };
-    persist(id, v, note);
-    S.noteFor = null; S.pos++; render();
+    var id = S.queue[S.pos]; if (!id) return;
+    var tags = v === 'keep' ? [] : S.noteTags.slice();
+    if (S.stage === 3) {
+      var d = S.decById[id.slice(4)]; if (!d) return;
+      persistRec({ id: id, kind: 'decision', unit: d.group || 'shared', key: d.id, v: v, note: note || '', tags: tags, q: String(d.title).slice(0, 300) });
+    } else {
+      if (!S.qById[id]) return;
+      persistRec({ id: id, kind: 'q', unit: S.ofId[id].slug, key: S.qById[id].key, v: v, note: note || '', tags: tags, q: String(S.qById[id].q || '').slice(0, 160) });
+    }
+    S.times.push(Date.now()); S.noteFor = null; S._tagsFor = null; S.noteTags = []; S.pos++; render();
   }
   function back() { if (S.pos > 0) { S.noteFor = null; S.pos--; render(); } }
   function skip() { if (S.pos < S.queue.length) { S.noteFor = null; S.pos++; render(); } }
 
   // ── the menu ─────────────────────────────────────────────────────────────────────────────────────────────────
   function closeMenu() { $('overlay').hidden = true; }
+  function allFeedback() {
+    var out = [];
+    Object.keys(S.reviews).forEach(function (id) {
+      var r = S.reviews[id]; if (!r || !r.v) return;
+      var kind = r.kind || (S.ofId[id] ? 'q' : id.indexOf('rule:') === 0 ? 'rule' : id.indexOf('dec:') === 0 ? 'decision' : id.indexOf('unit:') === 0 ? 'unit' : id.indexOf('gen:') === 0 ? 'general' : 'q');
+      if (kind === 'q' && !S.ofId[id]) return;
+      out.push({ id: id, kind: kind, r: r });
+    });
+    return out;
+  }
   function openMenu() {
-    var c = counts(), look = buildQueue(1).length;
+    var c = counts(), look = buildQueue(1).length, nd = S.decs.length;
+    var fbn = allFeedback().filter(function (x) { return x.r.v && x.r.v !== 'keep'; }).length;
     var units = S.idx.units.map(function (u) { return '<option value="' + esc(u.slug) + '">' + esc(u.unit) + ' · ' + esc(u.title) + '</option>'; }).join('');
     $('panel').innerHTML = '<div class="row" style="justify-content:space-between"><h2>Menu</h2><button class="menubtn" id="mClose" type="button">Close</button></div>' +
-      '<p class="said">' + nf(c.done) + ' of ' + nf(c.tot) + ' done · ' + nf(c.keep) + ' good · ' + nf(c.fix) + ' to change · ' + nf(c.cut) + ' to remove</p>' +
-      '<button class="big" id="mP1" type="button">Part 1: the ' + look + ' Claude is unsure about<small>Start here. Each one shows what worried Claude.</small></button>' +
+      '<p class="said">' + nf(c.done) + ' of ' + nf(c.tot) + ' questions done · ' + nf(c.keep) + ' good · ' + nf(c.fix) + ' to change · ' + nf(c.cut) + ' to remove</p>' +
+      '<button class="big" id="mP1" type="button">Part 1: the ' + look + ' Claude changed or doubts<small>Start here. Each one shows what changed or worried Claude.</small></button>' +
       '<button class="big" id="mP2" type="button">Part 2: every question, in order<small>Picks up at the first one you have not decided.</small></button>' +
-      '<label for="mUnit"><b>Jump to a unit</b></label><select id="mUnit"><option value="">Choose a unit…</option>' + units + '</select>' +
-      '<button class="big" id="mList" type="button">My changes and removals (' + (c.fix + c.cut) + ')<small>See what you have flagged and open any to look again.</small></button>' +
+      '<button class="big" id="mP3" type="button">Part 3: the ' + nd + ' decisions behind the rules<small>One answer here settles many rules and questions at once.</small></button>' +
+      '<label for="mUnit"><b>Jump to a lesson</b></label><select id="mUnit"><option value="">Choose a lesson…</option>' + units + '</select>' +
+      '<button class="big" id="mList" type="button">My feedback (' + fbn + ')<small>Everything you flagged, counted by reason. Copy it to send to Claude.</small></button>' +
+      '<button class="big" id="mGen" type="button">Write a general note<small>A missing topic, a new rule or game idea, anything else.</small></button>' +
+      '<button class="big" id="mGuide" type="button">How this works</button>' +
       '<button class="big" id="mBackup" type="button">Download a backup copy<small>Everything is already saved on your computer. This is an extra copy.</small></button>' +
       '<p class="mono">Your work is saved in:<br>' + esc(S.file) + '</p>';
     $('overlay').hidden = false;
     $('mClose').onclick = closeMenu;
     $('mP1').onclick = function () { closeMenu(); setStage(1); };
     $('mP2').onclick = function () { closeMenu(); setStage(2); };
+    $('mP3').onclick = function () { closeMenu(); setStage(3); };
     $('mUnit').onchange = function () { var s = this.value; if (!s) return; closeMenu(); jumpUnit(s); };
-    $('mList').onclick = openList;
+    $('mList').onclick = openFeedback;
+    $('mGen').onclick = openGeneral;
+    $('mGuide').onclick = function () { $('panel').innerHTML = '<div class="row" style="justify-content:space-between"><h2>How this works</h2><button class="menubtn" id="gBack" type="button">Back</button></div>' + GUIDE.replace('<button class="primary" id="guideOk" type="button">Got it</button>', ''); $('gBack').onclick = openMenu; };
     $('mBackup').onclick = downloadBackup;
   }
   function jumpUnit(slug) {
@@ -312,28 +575,87 @@ details p, details div { margin: 6px 0; }
     }
     setStage(2, firstOpen >= 0 ? firstOpen : first);
   }
-  function openList() {
-    var rows = [];
-    S.idx.units.forEach(function (u) { u.ids.forEach(function (id) { var r = S.reviews[id]; if (r && (r.v === 'fix' || r.v === 'cut')) rows.push({ id: id, u: u, r: r }); }); });
-    var body = rows.length ? rows.map(function (x, i) {
-      return '<button class="item" type="button" data-i="' + i + '"><div class="t"><span class="tag ' + x.r.v + '">' + (x.r.v === 'fix' ? 'Change' : 'Remove') + '</span>' + esc(x.u.unit) + '</div><div class="n">' + esc(x.r.note || '(no note)') + '</div></button>';
-    }).join('') : '<p class="said">Nothing flagged yet.</p>';
-    $('panel').innerHTML = '<div class="row" style="justify-content:space-between"><h2>My changes and removals</h2><button class="menubtn" id="lBack" type="button">Back to menu</button></div><div class="list">' + body + '</div>';
-    $('lBack').onclick = openMenu;
-    $('panel').querySelectorAll('.item').forEach(function (b) {
+  function openGeneral() {
+    S.noteTags = [];
+    $('panel').innerHTML = '<div class="row" style="justify-content:space-between"><h2>A general note</h2><button class="menubtn" id="gBack" type="button">Back</button></div>' +
+      '<p class="said">Anything that is not about one question: a topic that is missing, a rule you want added, a game idea, a problem with this page.</p>' + chipsHtml(REASONS_GEN) +
+      '<textarea id="gnote" style="min-height:140px;width:100%;background:var(--panel);border:2px solid var(--gold);border-radius:12px;padding:12px" placeholder="Write it in plain words."></textarea>' +
+      '<div class="row"><button class="primary" id="gSave" type="button">Save note</button></div>';
+    bindChips(); $('gBack').onclick = openMenu; $('gnote').focus();
+    $('gSave').onclick = function () {
+      var note = $('gnote').value.trim(); if (!note && !S.noteTags.length) return;
+      persistRec({ id: 'gen:' + Date.now(), kind: 'general', unit: '', key: '', v: 'note', note: note, tags: S.noteTags.slice(), q: note.slice(0, 120) });
+      S.noteTags = []; openMenu();
+    };
+  }
+  function pl(n, w) { return nf(n) + ' ' + w + (n === 1 ? '' : 's'); }
+  function copyText(t, btn) {
+    function done() { btn.textContent = 'Copied ✓'; }
+    function fallback() { var ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch (e) { btn.textContent = 'Could not copy'; } ta.remove(); }
+    try { navigator.clipboard.writeText(t).then(done, fallback); } catch (e) { fallback(); }
+  }
+  function feedbackGroups() {
+    var items = allFeedback(), g = { q: [], rule: [], decision: [], unit: [], general: [] }, agreed = { q: 0, rule: 0, decision: 0 }, tally = {};
+    items.forEach(function (x) {
+      if (x.r.v === 'keep') { if (agreed[x.kind] != null) agreed[x.kind]++; return; }
+      if (!g[x.kind]) return;
+      g[x.kind].push(x);
+      (x.r.tags || []).forEach(function (t) { tally[t] = (tally[t] || 0) + 1; });
+    });
+    var order = {}; S.idx.units.forEach(function (u, i) { u.ids.forEach(function (id, j) { order[id] = i * 10000 + j; }); });
+    g.q.sort(function (a, b) { return (order[a.id] || 0) - (order[b.id] || 0); });
+    ['rule', 'decision', 'unit', 'general'].forEach(function (k) { g[k].sort(function (a, b) { return String(a.r.at).localeCompare(String(b.r.at)); }); });
+    return { g: g, agreed: agreed, tally: tally };
+  }
+  function feedbackText() {
+    var F = feedbackGroups(), g = F.g, L = [];
+    L.push('LIBRARY REVIEW FEEDBACK, ' + new Date().toISOString().slice(0, 10));
+    function tg(x) { return (x.r.tags || []).length ? ' [' + x.r.tags.join('; ') + ']' : ''; }
+    function nt(x) { return x.r.note ? ' — ' + x.r.note : ''; }
+    if (g.q.length) { L.push('', '== QUESTIONS ==');
+      g.q.forEach(function (x) { var m = S.ofId[x.id], q = S.qById[x.id]; L.push((x.r.v === 'cut' ? 'REMOVE' : 'CHANGE') + ' ' + m.unit + ' ' + (q ? q.key : x.r.key) + ': "' + String((q && q.q) || x.r.q || '').slice(0, 110) + '"' + tg(x) + nt(x)); }); }
+    if (g.rule.length) { L.push('', '== RULES THAT NEED WORK =='); g.rule.forEach(function (x) { L.push(x.id.slice(5) + ': "' + String(x.r.q || '').slice(0, 140) + '"' + tg(x) + nt(x)); }); }
+    if (g.decision.length) { L.push('', '== DECISIONS =='); g.decision.forEach(function (x) { L.push(x.id.slice(4) + ' ' + (x.r.v === 'ask' ? 'TALK IT OVER' : 'CHANGE') + ': ' + String(x.r.q || '') + tg(x) + nt(x)); }); }
+    if (g.unit.length) { L.push('', '== LESSON NOTES =='); g.unit.forEach(function (x) { L.push(x.id.slice(5) + ': ' + String(x.r.q || '').slice(0, 80) + tg(x) + nt(x)); }); }
+    if (g.general.length) { L.push('', '== GENERAL NOTES =='); g.general.forEach(function (x) { L.push('General' + tg(x) + nt(x)); }); }
+    L.push('', 'Agreed: ' + F.agreed.q + ' questions, ' + F.agreed.rule + ' rules, ' + F.agreed.decision + ' decisions.');
+    return L.join('\n');
+  }
+  function openFeedback() {
+    var F = feedbackGroups(), g = F.g;
+    var tally = Object.keys(F.tally).sort(function (a, b) { return F.tally[b] - F.tally[a]; });
+    function row(x, label, cls, go, title, sub) {
+      return '<button class="item" type="button"' + (go ? ' data-go="' + esc(go) + '"' : '') + '><div class="t"><span class="tag ' + cls + '">' + esc(label) + '</span>' + esc(title) + '</div>' + (sub ? '<div class="n">' + esc(sub) + '</div>' : '') +
+        ((x.r.tags || []).length ? '<span class="tg">' + esc(x.r.tags.join(' · ')) + '</span>' : '') + (x.r.note ? '<div class="n">' + esc(x.r.note) + '</div>' : '') + '</button>';
+    }
+    var h = '<div class="row" style="justify-content:space-between"><h2>My feedback</h2><button class="menubtn" id="fBack" type="button">Back to menu</button></div>';
+    h += '<p class="cnt">' + pl(g.q.length, 'question') + ' to change or remove · ' + pl(g.rule.length, 'rule') + ' need work · ' + pl(g.decision.length, 'decision') + ' changed or to discuss · ' + pl(g.unit.length, 'lesson note') + ' · ' + pl(g.general.length, 'general note') + '<br>Agreed: ' + pl(F.agreed.q, 'question') + ', ' + pl(F.agreed.rule, 'rule') + ', ' + pl(F.agreed.decision, 'decision') + '.</p>';
+    h += '<div class="row"><button class="primary" id="fCopy" type="button">Copy all as text</button><button class="plain" id="fBackup" type="button">Download backup</button></div>';
+    if (tally.length) h += '<div class="fbh">What keeps coming up</div><div class="tagrow">' + tally.map(function (t) { return '<span class="tagc"><b>' + F.tally[t] + '</b> ' + esc(t) + '</span>'; }).join('') + '</div>';
+    if (g.q.length) {
+      h += '<div class="fbh">Questions</div><div class="list">';
+      var lastU = '';
+      g.q.forEach(function (x) { var m = S.ofId[x.id], q = S.qById[x.id]; h += row(x, x.r.v === 'cut' ? 'Remove' : 'Change', x.r.v, 'q:' + x.id, m.unit + ' · ' + (q ? q.key : x.r.key), (q && q.q) || x.r.q); });
+      h += '</div>';
+    }
+    if (g.rule.length) { h += '<div class="fbh">Rules that need work</div><div class="list">' + g.rule.map(function (x) { var rr = S.rules[x.id.slice(5)]; return row(x, 'Rule', 'fix', '', rr ? rr.setup : x.id.slice(5), x.r.q); }).join('') + '</div>'; }
+    if (g.decision.length) { h += '<div class="fbh">Decisions</div><div class="list">' + g.decision.map(function (x) { return row(x, x.r.v === 'ask' ? 'Talk' : 'Change', 'fix', 'd:' + x.id, x.id.slice(4) + ' · ' + x.r.q, ''); }).join('') + '</div>'; }
+    if (g.unit.length) { h += '<div class="fbh">Lesson notes</div><div class="list">' + g.unit.map(function (x) { return row(x, 'Lesson', 'fix', '', x.r.q || x.id, ''); }).join('') + '</div>'; }
+    if (g.general.length) { h += '<div class="fbh">General notes</div><div class="list">' + g.general.map(function (x) { return row(x, 'Note', 'fix', '', 'General', ''); }).join('') + '</div>'; }
+    if (!allFeedback().some(function (x) { return x.r.v !== 'keep'; })) h += '<p class="said">Nothing flagged yet. Everything you press Change, Remove or Rule needs work on shows up here.</p>';
+    $('panel').innerHTML = h;
+    $('fBack').onclick = openMenu; $('fCopy').onclick = function () { copyText(feedbackText(), this); }; $('fBackup').onclick = downloadBackup;
+    $('panel').querySelectorAll('[data-go]').forEach(function (b) {
       b.onclick = function () {
-        var x = rows[Number(b.getAttribute('data-i'))], q2 = buildQueue(2);
-        closeMenu(); setStage(2, q2.indexOf(x.id));
+        var go = b.getAttribute('data-go'), id = go.slice(2);
+        closeMenu();
+        if (go.charAt(0) === 'q') setStage(2, buildQueue(2).indexOf(id));
+        else setStage(3, buildQueue(3).indexOf('dec:' + id.replace(/^dec:/, '')));
       };
     });
   }
   function downloadBackup() {
-    var lines = [];
-    Object.keys(S.reviews).forEach(function (id) {
-      var r = S.reviews[id], m = S.ofId[id]; if (!r || !r.v || !m) return;
-      var q = S.qById[id];
-      lines.push(JSON.stringify({ item: id, unit: m.unit, key: q ? q.key : '', verdict: r.v, note: r.note, at: r.at }));
-    });
+    var lines = allFeedback().map(function (x) { var r = x.r; return JSON.stringify({ id: x.id, kind: x.kind, unit: r.unit || (S.ofId[x.id] ? S.ofId[x.id].unit : ''), key: r.key || '', verdict: r.v, note: r.note, tags: r.tags || [], q: r.q || '', at: r.at }); });
     var text = lines.join(String.fromCharCode(10)) + String.fromCharCode(10);
     var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
     a.download = 'library-review-backup-' + new Date().toISOString().slice(0, 10) + '.jsonl';
@@ -343,27 +665,35 @@ details p, details div { margin: 6px 0; }
   // ── keys ─────────────────────────────────────────────────────────────────────────────────────────────────────
   document.addEventListener('keydown', function (e) {
     var t = e.target && e.target.tagName;
+    if (e.key === 'Escape' && !$('overlay').hidden) { closeMenu(); return; }
     if (t === 'TEXTAREA' || t === 'SELECT' || e.ctrlKey || e.metaKey || e.altKey || !$('overlay').hidden) return;
-    if (S.noteFor || S.pos >= S.queue.length) return;
-    var id = S.queue[S.pos]; if (!id || !S.qById[id]) return;
-    if (e.key === 'Enter') { e.preventDefault(); decide('keep', ''); }
-    else if (e.key === 'c' || e.key === 'C') { S.noteFor = 'fix'; renderCard(id); e.preventDefault(); }
-    else if (e.key === 'x' || e.key === 'X') { S.noteFor = 'cut'; renderCard(id); e.preventDefault(); }
-    else if (e.key === 'ArrowLeft') back();
-    else if (e.key === 'ArrowRight') skip();
+    if (S.noteFor || S.sideNote || S.pos >= S.queue.length) return;
+    var id = S.queue[S.pos]; if (!id) return;
+    if (S.stage !== 3 && !S.qById[id]) return;
+    var k = e.key, again = function () { if (S.stage === 3) renderDecision(id); else renderCard(id); };
+    if (k === 'Enter') { if (t === 'BUTTON' || t === 'A' || t === 'SUMMARY') return; e.preventDefault(); decide('keep', ''); }
+    else if (k === 'c' || k === 'C') { S.noteFor = 'fix'; again(); e.preventDefault(); }
+    else if ((k === 'x' || k === 'X') && S.stage !== 3) { S.noteFor = 'cut'; again(); e.preventDefault(); }
+    else if ((k === 't' || k === 'T') && S.stage === 3) { S.noteFor = 'ask'; again(); e.preventDefault(); }
+    else if (k === 'ArrowLeft') back();
+    else if (k === 'ArrowRight') skip();
   });
   $('menuBtn').onclick = openMenu;
+  [1, 2, 3].forEach(function (n) { $('tab' + n).onclick = function () { if (S.stage !== n) setStage(n); }; });
 
   // ── start ────────────────────────────────────────────────────────────────────────────────────────────────────
+  function jget(url, dflt) { return fetch(url).then(function (r) { return r.ok ? r.json() : dflt; }).catch(function () { return dflt; }); }
   Promise.all([
     fetch('data/index.json').then(function (r) { return r.json(); }),
     fetch('api/verdicts').then(function (r) { return r.json(); }),
-    fetch('data/calls.json').then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; })
+    jget('data/calls.json', {}), jget('data/rules.json', {}), jget('data/decisions.json', [])
   ]).then(function (res) {
-    S.idx = res[0]; S.calls = res[2] || {}; S.file = res[1].file || '';
+    S.idx = res[0]; S.calls = res[2] || {}; S.file = res[1].file || ''; S.rules = res[3] || {};
+    S.decs = (res[4] || []).filter(function (d) { return d.part === 'A' || d.part === 'B'; });
+    S.decs.forEach(function (d) { S.decById[d.id] = d; });
     S.idx.units.forEach(function (u) { S.bySlug[u.slug] = u; u.ids.forEach(function (id) { S.ofId[id] = { slug: u.slug, unit: u.unit, title: u.title, track: u.track }; }); });
-    Object.keys(res[1].records || {}).forEach(function (id) { var r = res[1].records[id]; if (S.ofId[id]) S.reviews[id] = { v: r.v, note: r.note, at: r.at }; });
-    S.queueOut.forEach(function (it) { if (S.ofId[it.id]) S.reviews[it.id] = { v: it.v, note: it.note, at: '' }; });
+    Object.keys(res[1].records || {}).forEach(function (id) { var r = res[1].records[id]; S.reviews[id] = { v: r.v, note: r.note, tags: r.tags || [], kind: r.kind, unit: r.unit, key: r.key, q: r.q, at: r.at }; });
+    S.queueOut.forEach(function (it) { S.reviews[it.id] = { v: it.v, note: it.note, tags: it.tags || [], kind: it.kind, unit: it.unit, key: it.key, q: it.q, at: '' }; });
     var look = buildQueue(1);
     var stage = look.length && look.some(function (id) { return !decided(id); }) ? 1 : 2;
     setStage(stage); flush();

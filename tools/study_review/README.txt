@@ -37,3 +37,12 @@ IF SOMETHING GOES WRONG
    themselves and the banner goes away.
    "Can't connect": the black window is not running. Double-click Start Library Review.
    Anything else: send Claude  C:\Users\pgosz\StudyReview\server.log
+
+WHAT ELSE IS IN THE PAGE
+- Under every question that teaches a rule you see THE RULE: its wording, whether it is settled, proposed or waiting on
+  you, and the options and evidence. Press "Rule looks right" or "Rule needs work" (tap the reasons, add words).
+- "Note on this lesson" (next to the question number) is for feedback about a whole lesson.
+- Part 3 = the 134 decisions behind the rules. Each shows the question, the options, the evidence and Our default.
+  Agree (Enter), Change it (C) or Talk it over (T). One answer settles many rules and questions at once.
+- Menu > My feedback: everything you flagged, counted by reason ("what keeps coming up"). "Copy all as text" copies it.
+- Menu > Write a general note: a missing topic, a rule or game idea, anything.

@@ -31,7 +31,8 @@ import threading
 import webbrowser
 
 LOCK = threading.Lock()
-VERDICT_VALUES = ("keep", "fix", "cut", "")
+VERDICT_VALUES = ("keep", "fix", "cut", "ask", "note", "")
+KINDS = ("q", "rule", "decision", "unit", "general")
 MAX_BODY = 64 * 1024
 BACKUP_EVERY = 50
 BACKUPS_KEPT = 40
@@ -212,9 +213,14 @@ def make_handler(store: Store, static_dir: str, data_dir: str):
                 v = body.get("v", "")
                 if not rid or v not in VERDICT_VALUES:
                     return self._json(400, {"error": "bad record"})
+                kind = str(body.get("kind") or "q")
+                if kind not in KINDS:
+                    return self._json(400, {"error": "bad kind"})
+                tags = [str(t)[:60] for t in (body.get("tags") or []) if isinstance(t, str)][:12]
                 rec = {
-                    "id": rid, "unit": str(body.get("unit") or "")[:40], "key": str(body.get("key") or "")[:20],
-                    "v": v, "note": str(body.get("note") or "")[:4000], "q": str(body.get("q") or "")[:200], "at": now(),
+                    "id": rid, "kind": kind, "unit": str(body.get("unit") or "")[:40], "key": str(body.get("key") or "")[:20],
+                    "v": v, "note": str(body.get("note") or "")[:4000], "tags": tags,
+                    "q": str(body.get("q") or "")[:300], "at": now(),
                 }
                 try:
                     with LOCK:

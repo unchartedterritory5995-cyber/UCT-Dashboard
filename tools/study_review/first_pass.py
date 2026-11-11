@@ -15,7 +15,12 @@ import glob
 import json
 import os
 import re
+import subprocess
 import sys
+
+# The commit just before Claude's first-pass fixes. The old wording of each changed question is read from it, so the
+# review page can show "was" next to "now".
+FIRST_PASS_BASE = "b0279f8b51^"
 
 REPO = os.path.abspath(sys.argv[1])
 DATA = os.path.abspath(sys.argv[2])
@@ -28,6 +33,26 @@ HELD = re.compile(r"pending|held|re-key|rests on|waiting|waits|owner|proposed|no
 DID = re.compile(r"D-\d{3}")
 KEYTOK = re.compile(r"\bq(\d+)\b")
 NUM = re.compile(r"\d+(?:[.,]\d+)?")
+
+
+_OLD = {}
+
+
+def old_question(unit, key):
+    """The question as it stood before the first-pass fixes, trimmed to the fields a reader compares; None if unknown."""
+    if unit not in _OLD:
+        track = unit.split(".")[0]
+        try:
+            raw = subprocess.run(["git", "show", f"{FIRST_PASS_BASE}:docs/study/courses/{track}/{unit}.json"],
+                                 cwd=REPO, capture_output=True, check=True).stdout.decode("utf-8")
+            _OLD[unit] = {x["key"]: x for x in json.loads(raw).get("questions", [])}
+        except Exception:
+            _OLD[unit] = {}
+    o = _OLD[unit].get(key)
+    if not o:
+        return None
+    keep = {k: o[k] for k in ("story", "q", "sentence", "bank", "choices", "answer", "prefix", "suffix") if o.get(k) not in (None, "", [])}
+    return keep or None
 
 
 def text_of(q):
@@ -139,6 +164,9 @@ def main():
             calls[q["id"]] = {"c": c, "p": p, "r": r}
             if done:
                 calls[q["id"]]["k"] = "changed"
+                was = old_question(u, q["key"])
+                if was:
+                    calls[q["id"]]["was"] = was
             stats[c] += 1
     with open(DATA + "/calls.json", "w", encoding="utf-8", newline="\n") as fh:
         json.dump(calls, fh, ensure_ascii=False, separators=(",", ":"))
