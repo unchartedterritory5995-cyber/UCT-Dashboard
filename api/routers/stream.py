@@ -7,6 +7,7 @@ import asyncio
 import json
 import logging
 import os
+import threading
 import time
 import uuid
 
@@ -223,6 +224,7 @@ def _build_candle_events(tickers, last_state: dict) -> list[dict]:
     Args:
       tickers: iterable of ticker symbols to check
       last_state: dict {sym: (t, c, v)} mutated in-place to track current state
+        (plus last_state["__ohlc__"][sym] = (o, h, l) so bar_close is a full bar)
 
     Returns:
       List of event dicts: {"type": "tick", "sym", "price", "ts", "vol"} or
@@ -235,17 +237,25 @@ def _build_candle_events(tickers, last_state: dict) -> list[dict]:
         if not cur:
             continue
         cur_key = (cur["t"], cur["c"], cur["v"])
+        ohlc = last_state.setdefault("__ohlc__", {})
         prev = last_state.get(sym_u)
         if prev == cur_key:
             continue
         # Detect bar boundary close: prev existed and prev_t != cur_t
         if prev and prev[0] != cur["t"]:
-            # Emit bar_close for the prior bar
+            # Emit bar_close for the prior bar — a FULL OHLCV bar (D1: it used to
+            # carry only {t, c, v}, and the client stored it verbatim, painting
+            # the just-closed 1m candle with undefined o/h/l until the next setData).
+            bar = {"t": prev[0], "c": prev[1], "v": prev[2]}
+            o, h, l = ohlc.get(sym_u) or (None, None, None)
+            bar["o"] = o if o is not None else prev[1]
+            bar["h"] = h if h is not None else max(bar["o"], prev[1])
+            bar["l"] = l if l is not None else min(bar["o"], prev[1])
             events.append({
                 "type": "bar_close",
                 "sym": sym_u,
                 "tf": "1",
-                "bar": {"t": prev[0], "c": prev[1], "v": prev[2]},
+                "bar": bar,
             })
         # Always emit tick on any change
         events.append({
@@ -256,6 +266,7 @@ def _build_candle_events(tickers, last_state: dict) -> list[dict]:
             "vol": cur["v"],
         })
         last_state[sym_u] = cur_key
+        ohlc[sym_u] = (cur.get("o"), cur.get("h"), cur.get("l"))
     return events
 
 
@@ -403,7 +414,17 @@ async def stream_prices(
                             # 15s REST value so the Volume column ticks too.
                             if mp.get("volume") is not None:
                                 entry["volume"] = mp["volume"]
-                            entry["updated_at"] = int(time.time())
+                            # Stamp the TRADE time, not this loop's send time: the
+                            # client buckets the live price into a candle by
+                            # `updated_at`, and send time put a 9:59:59.9 print
+                            # into the 10:00 candle. `trade_ts` (ms) is the exact
+                            # value; send time is only the fallback.
+                            _tts = mp.get("trade_ts")
+                            if _tts:
+                                entry["updated_at"] = int(_tts // 1000)
+                                entry["trade_ts"] = int(_tts)
+                            else:
+                                entry["updated_at"] = int(time.time())
 
                 # Only send if any ticker's price OR live volume actually changed
                 # (volume is included so the Volume column still ticks on a trade
@@ -485,11 +506,63 @@ async def stream_prices(
     )
 
 
+# D8 seed fetches (one provider REST call per newly streamed symbol) run on a
+# SMALL DEDICATED pool, never the shared default executor every to_thread() in
+# the app uses, and are BOUNDED: when _SEED_MAX_INFLIGHT are already queued or
+# running (a fast scan across tickers), further seeds are skipped — the chart
+# still streams, its bucket is "since subscribe" until the next AM-backed bucket.
+_SEED_WORKERS = int(os.environ.get("STREAM_BARS_SEED_WORKERS", "4"))
+_SEED_MAX_INFLIGHT = int(os.environ.get("STREAM_BARS_SEED_MAX_INFLIGHT", "16"))
+_seed_pool = None
+_seed_inflight = 0
+_seed_skipped_total = 0
+_seed_lock = threading.Lock()
+
+
+def _kick_seed(fn, sym: str) -> bool:
+    """Run fn(sym) on the bounded seed pool. Returns False when it was skipped."""
+    global _seed_pool, _seed_inflight, _seed_skipped_total
+    with _seed_lock:
+        if _seed_inflight >= _SEED_MAX_INFLIGHT:
+            _seed_skipped_total += 1
+            return False
+        if _seed_pool is None:
+            from concurrent.futures import ThreadPoolExecutor
+            _seed_pool = ThreadPoolExecutor(max_workers=_SEED_WORKERS, thread_name_prefix="bars-seed")
+        _seed_inflight += 1
+
+    def _run():
+        global _seed_inflight
+        try:
+            fn(sym)
+        except Exception as e:  # noqa: BLE001
+            _logger.debug("[stream_bars] seed failed for %s: %s", sym, type(e).__name__)
+        finally:
+            with _seed_lock:
+                _seed_inflight -= 1
+
+    try:
+        _seed_pool.submit(_run)
+    except Exception:  # noqa: BLE001 — pool shut down at exit
+        with _seed_lock:
+            _seed_inflight -= 1
+        return False
+    return True
+
+
 @router.get("/api/stream/bars")
 async def stream_bars(
     request: Request,
     bars: str = Query(..., description="Comma-separated SYM:TF pairs, e.g. AAPL:5,MSFT:1"),
     _access: dict = Depends(require_bars_access),
+    session: str = Query("rth", description=(
+        "60m bucket alignment, TradingView-style: 'rth' = 9:30, 10:30 ... 15:30 "
+        "(default), 'eth' = clock hours 04:00 ... 19:00. 1-30m are identical in both.")),
+    v: int = Query(1, description=(
+        "Wire version. v=2 opts in to OLDER-t `final` correction frames (a late "
+        "AM re-emitting a closed bucket). v=1 (default) never receives a frame "
+        "older than one it already got, so legacy consumers that take bar.c as "
+        "the live price cannot snap back.")),
     last_event_id: str | None = Query(None, description=(
         "Id of the last event a reconnecting client received (the pooled "
         "manager's door; a browser auto-reconnect sends the Last-Event-ID "
@@ -502,7 +575,9 @@ async def stream_bars(
       es.addEventListener('bar', e => { const {sym, tf, bar} = JSON.parse(e.data) })
 
     Each `event: bar` message contains the latest in-progress (or just-closed) bar
-    for the (sym, tf) pair. Frontend should call series.update(bar) to apply.
+    for the (sym, tf) pair: {sym, tf, bar: {t, o, h, l, c, v, final, trade_ts?}}
+    (+ `session` on 60m). `final: true` = the bucket is closed; a later
+    `final` for the same `t` is an authoritative correction — replace that bar.
 
     Every frame carries `id:`. A reconnect presenting a Last-Event-ID gets an
     `event: resume` first frame declaring resume not applicable (last-value-wins,
@@ -524,6 +599,9 @@ async def stream_bars(
 
     if not pairs:
         return JSONResponse({"error": "No valid sym:tf pairs"}, status_code=400)
+    session = (session if isinstance(session, str) else "rth").strip().lower() or "rth"
+    if session not in ("rth", "eth"):
+        return JSONResponse({"error": "session must be rth or eth"}, status_code=400)
     pairs = pairs[:MAX_BARS_PAIRS]  # cap to prevent runaway subscriptions per connection
 
     # Admission BEFORE the broadcaster subscribe, for the same reason as
@@ -534,8 +612,27 @@ async def stream_bars(
 
     from api.services.bar_broadcaster import get_broadcaster
     bb = get_broadcaster()
-    queues = [(sym, tf, bb.subscribe(sym, tf)) for (sym, tf) in pairs]
+    v2 = isinstance(v, int) and v >= 2
+
+    def _sub(sym, tf):
+        kw = {}
+        if session != "rth":
+            kw["session"] = session
+        if v2:
+            kw["v2"] = True
+        return bb.subscribe(sym, tf, **kw)
+
+    queues = [(sym, tf, _sub(sym, tf)) for (sym, tf) in pairs]
     _logger.info("[stream_bars] subscribed %d pairs: %s", len(pairs), pairs[:10])
+    # D8: fold the day's stored/REST minute bars into each symbol's minute map
+    # (once per upstream subscription) so a mid-bucket subscriber gets the true
+    # bucket-to-date O/H/L/V. Off the event loop; the broadcaster re-emits the
+    # corrected bucket when the seed lands. Best-effort: a failed seed only
+    # means "bucket since subscribe" until the next AM-backed bucket.
+    _seed = getattr(bb, "ensure_seeded", None)
+    if _seed is not None:
+        for _sym in sorted({p[0] for p in pairs}):
+            _kick_seed(_seed, _sym)
 
     resume = _resume_declaration("bars", _requested_last_event_id(request, last_event_id))
 
@@ -578,7 +675,10 @@ async def stream_bars(
         finally:
             unsubscribe("bars", _token)
             for (sym, tf, q) in queues:
-                bb.unsubscribe(sym, tf, q)
+                if session == "rth":
+                    bb.unsubscribe(sym, tf, q)
+                else:
+                    bb.unsubscribe(sym, tf, q, session)
             _logger.info("[stream_bars] disconnected, unsubscribed %d pairs", len(queues))
 
     return StreamingResponse(
