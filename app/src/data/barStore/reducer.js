@@ -527,6 +527,21 @@ function applyLocal(state, action, ctx, source) {
   let rows = ingestRows(p.bars, working, { rev, fin: false, src: 'local' })
   if (!rows.length) return state
 
+  // S8 PROVENANCE: a persisted copy (persist.js) may carry the seals it held. They are
+  // restored only before any server answer, only with the row-series identity and history
+  // they were proven under (cache_key + history_rev; a mismatch was refused above), and
+  // persist.js has already cut every span whose stored rows are not identical to the rows
+  // the store sealed. A restored span means what a server span means: its rows are final,
+  // absences inside it are the server's, and the next request can be a since= delta.
+  const seals = !state.restSeen && Array.isArray(p.sealed_spans) && ck != null && hist != null
+    ? p.sealed_spans : null
+  let spans = state.sealedSpans
+  if (seals) {
+    for (const sp of seals) if (Array.isArray(sp)) spans = addSpan(spans, Number(sp[0]), Number(sp[1]))
+    const sealedSt = { ...working, sealedSpans: spans }
+    for (const r of rows) if (_inSpans(sealedSt, r.t)) { r.src = 'rest'; r._sealed = true }
+  }
+
   if (state.restSeen) {
     // A server answer is held: a local copy only adds DEEPER history (left prepend).
     const first = Math.min(state.restFrom ?? Infinity, state.bars[0]?.t ?? Infinity, state.developing?.t ?? Infinity)
@@ -539,10 +554,14 @@ function applyLocal(state, action, ctx, source) {
   const nowSec = Math.floor((ctx.nowMs ?? Date.now()) / 1000)
   let devIn = null
   const lastRow = rows[rows.length - 1]
-  if (bucketEnd(lastRow.t, working) > nowSec) { devIn = lastRow; rows = rows.slice(0, -1) }
+  if (!lastRow._sealed && bucketEnd(lastRow.t, working) > nowSec) { devIn = lastRow; rows = rows.slice(0, -1) }
   let bars = mergeRows(working, rows)
+  if (spans !== state.sealedSpans) {
+    // Absences inside a restored span are the server's: drop earlier local-only rows there.
+    for (const sp of spans) bars = mergeRows({ ...working, bars, sealedSpans: spans }, [], sp)
+  }
   let dev = state.developing
-  let st = { ...working, bars }
+  let st = { ...working, bars, sealedSpans: spans }
   if (devIn && (!dev || devIn.t > dev.t)) {
     if (dev) { ({ bars } = closeDeveloping(st, bars)); st = { ...st, bars } }
     dev = fromChartDev(mergePushBar(null, toChartBar(devIn, state.sym), { sym: state.sym }).bar, devIn.rev, DEV_SRC.SERVER)
@@ -558,6 +577,9 @@ function applyLocal(state, action, ctx, source) {
     seriesRev: rev != null ? Math.max(rev, state.seriesRev ?? -Infinity) : state.seriesRev,
     historyRev: hist ?? state.historyRev,
     cacheKey: ck ?? state.cacheKey,
+    sealedSpans: spans,
+    // Restored seals make a since= delta sound (deltaFrom starts after the newest seal).
+    ...(spans !== state.sealedSpans ? { needsFull: false } : {}),
     source,
   }, ctx)
 }

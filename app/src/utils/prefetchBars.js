@@ -275,11 +275,15 @@ function _pump() {
   // in-memory only (wiped on reload); the pack fills IDB, the visible chart's own
   // SWR fetch is separate, and a click fetches its one chart. A pending kick retries
   // once the hold lifts (backoff window or pack-stamp), so nothing is lost forever.
+  // BarStore lane (barsLaneRequest): urgent + grid requests go BEFORE the warm queue,
+  // background ones only once it is empty. No waiter ⇒ both calls are no-ops.
+  _drainLane(LANE_RANK.grid)
   if (_holdBackgroundWarm()) { _drainUrgentWhileHeld(); if (_queue.length) _kickSoon(); return }
   while (_active < _MAX_CONCURRENT && _queue.length) {
     if (_holdBackgroundWarm()) { _drainUrgentWhileHeld(); _kickSoon(); return }
     _startFetch(_queue.shift())
   }
+  if (!_queue.length) _drainLane(LANE_RANK.background)
 }
 
 function _kickSoon() {
@@ -479,6 +483,75 @@ export async function _chartLaneFetch(url, signal) {
   throw err
 }
 const _chartLaneInflight = new Map()
+
+// ── THE BarStore's LANE (P2b: data/barStore/network.js) — the SAME gate, not a second one ──
+// Every store request goes through here, so it shares with everything already here:
+//   • dedupe — an in-flight chart-lane request (`_chartLaneInflight`) or warm of the same URL
+//     (`joinPendingBars`, incl. a tail request joining its `&warm=1` twin) is JOINED;
+//   • concurrency — non-visible requests take a slot of THE warm queue's `_MAX_CONCURRENT`;
+//   • backpressure — the server's 503 backoff holds urgent + grid, and background also
+//     waits out the pack-ingest hold (`_holdBackgroundWarm`), exactly like the warm queue.
+// Priorities: visible (the chart on screen — NEVER queued, like StockChart's own fetch)
+//   > urgent > grid > [the warm queue] > background.
+// A joined request ignores the joiner's `signal` (it belongs to its first caller); the
+// store drops a result that lands after its own abort.
+export const LANE_RANK = Object.freeze({ visible: -1, urgent: 0, grid: 1, background: 2 })
+const _laneWaiters = []   // [{ rank, seq, url, signal, resolve, reject }]
+let _laneSeq = 0
+let _laneTimer = null
+function _laneHeld(rank) { return rank >= LANE_RANK.background ? _holdBackgroundWarm() : Date.now() < _warmBackoffUntil }
+function _laneJoin(url) { return _chartLaneInflight.get(url) || joinPendingBars(url) }
+function _laneAbortError() { const e = new Error('aborted'); e.name = 'AbortError'; return e }
+function _laneFetch(url, signal, slot) {
+  if (slot) _active++
+  const req = _chartLaneFetch(url, signal)
+  _chartLaneInflight.set(url, req)
+  const done = () => {
+    if (_chartLaneInflight.get(url) === req) _chartLaneInflight.delete(url)
+    if (slot) { _active--; _pump() }
+  }
+  req.then(done, done)
+  // Background answers drive the shared backoff (a shed holds every warm), as the warm queue's do.
+  if (slot) req.then(_noteWarmResult, (e) => { if (e?.status === 503 || e?.warming) _noteWarmResult({ bars: [], error: 'warming' }) })
+  return req
+}
+function _drainLane(maxRank) {
+  if (!_laneWaiters.length) return
+  _laneWaiters.sort((a, b) => a.rank - b.rank || a.seq - b.seq)
+  for (let i = 0; i < _laneWaiters.length;) {
+    const w = _laneWaiters[i]
+    if (w.rank > maxRank || _laneHeld(w.rank)) { i++; continue }
+    const joined = _laneJoin(w.url)
+    if (!joined && _active >= _MAX_CONCURRENT) break
+    _laneWaiters.splice(i, 1)
+    ;(joined || _laneFetch(w.url, w.signal, true)).then(w.resolve, w.reject)
+  }
+  if (_laneWaiters.length && !_laneTimer) {
+    // Held waiters re-check when the backoff lifts (or the pack stamps), never spin.
+    _laneTimer = setTimeout(() => { _laneTimer = null; _pump() }, Math.max(1000, _warmBackoffUntil - Date.now()))
+  }
+}
+/** One bar request through the shared lane. Resolves with the JSON body; rejects as
+ *  `_chartLaneFetch` does (`status`, `warming`, `retryAfterMs`) or with an AbortError. */
+export function barsLaneRequest(url, { priority = 'visible', signal = null } = {}) {
+  const u = String(url)
+  if (signal?.aborted) return Promise.reject(_laneAbortError())
+  const joined = _laneJoin(u)
+  if (joined) return joined
+  const rank = LANE_RANK[priority] ?? LANE_RANK.background
+  if (rank < 0) return _laneFetch(u, signal, false)
+  return new Promise((resolve, reject) => {
+    const w = { rank, seq: ++_laneSeq, url: u, signal, resolve, reject }
+    signal?.addEventListener?.('abort', () => {
+      const i = _laneWaiters.indexOf(w)
+      if (i >= 0) { _laneWaiters.splice(i, 1); reject(_laneAbortError()) }
+    }, { once: true })
+    _laneWaiters.push(w)
+    _pump()
+  })
+}
+/** Test hook: lane occupancy. */
+export function _laneStats() { return { waiting: _laneWaiters.length, active: _active, inflight: _chartLaneInflight.size } }
 
 /**
  * Daily/weekly/monthly analogue of `prepareForDisplay` for the symbol handoff: get the

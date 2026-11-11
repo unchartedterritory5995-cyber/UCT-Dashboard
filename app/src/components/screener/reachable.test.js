@@ -800,6 +800,16 @@ const AWAITING_A_DECISION = {
     'BarStore P2 — wired in P3 (ARCH-PLAN): status derivation (P2a).',
   'app/src/data/barStore/registry.js':
     'BarStore P2 — wired in P3 (ARCH-PLAN): key → store registry (P2a).',
+  'app/src/data/barStore/persist.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): the only cache reader/writer of the store (P2b).',
+  'app/src/data/barStore/network.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): per-key request loop + the store URL owner (P2b).',
+  'app/src/data/barStore/liveFeed.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): push / tick-fallback / D-W-M fold subscriptions (P2b).',
+  'app/src/data/barStore/index.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): public API (P2b).',
+  'app/src/data/barStore/useBarSnapshot.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): React binding (P2b).',
   }
 
 /**

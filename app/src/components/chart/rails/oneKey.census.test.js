@@ -30,10 +30,14 @@ const now = oneKeyCensus()
 // mirror expectedServerCacheKey); P3 retires the inline copies listed in the baseline.
 const KEY_OWNER_FILES = ['data/barStore/types.js']
 for (const f of KEY_OWNER_FILES) delete now.keyBuilders[f]
+// The BarStore's one /api/bars URL builder (network.js `barsUrl`) is the P2 destination the
+// barsUrls owner line names; like the key owner it is the owner, not a site.
+const URL_OWNER_FILES = ['data/barStore/network.js']
+for (const f of URL_OWNER_FILES) delete now.barsUrls[f]
 
 const OWNERS = {
   keyBuilders: 'data/barStore/types.js (BarStore key owner) + utils/barsMemCache.js + utils/barsIDB.js (cacheKey) -> P1: server-issued key',
-  barsUrls: 'utils/prefetchBars.js (_url) -> P2: BarStore',
+  barsUrls: 'data/barStore/network.js (barsUrl, BarStore URL owner) + utils/prefetchBars.js (_url) -> P2: BarStore',
   freshness: 'utils/marketSession.js',
 }
 
@@ -55,6 +59,7 @@ describe('one key / one url / one freshness (shrink-only allowlists)', () => {
   it('the scan sees the owning modules (it is not blind)', () => {
     expect(now.keyBuilders['utils/barsMemCache.js']).toBeTruthy()
     for (const f of KEY_OWNER_FILES) expect(fs.existsSync(path.join(REPO_ROOT, 'app/src', f)), f).toBe(true)
+    for (const f of URL_OWNER_FILES) expect(fs.existsSync(path.join(REPO_ROOT, 'app/src', f)), f).toBe(true)
     expect(now.barsUrls['utils/prefetchBars.js']).toBeTruthy()
     expect(Object.keys(now.freshness['utils/marketSession.js'] || {})).toContain('classifyIntradayTail')
   })

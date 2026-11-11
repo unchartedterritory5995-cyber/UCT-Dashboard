@@ -64,7 +64,7 @@ A late answer from before a correction / delete can therefore never resurrect a 
 
 | type | rule |
 |---|---|
-| `seed-from-pack` / `idb-hit` / `mem-hit` | before any server answer: seed (last row is `developing` if its bucket has not ended). After one: only rows OLDER than the server-covered region are prepended. Another cache_key / older history_rev ⇒ discarded. Local rows are never sealed; a server row always replaces a local one. |
+| `seed-from-pack` / `idb-hit` / `mem-hit` | before any server answer: seed (last row is `developing` if its bucket has not ended). After one: only rows OLDER than the server-covered region are prepended. Another cache_key / older history_rev ⇒ discarded. Local rows are never sealed — except a persisted copy's verified seals (`sealed_spans`, P2b §Persist), restored only before any server answer; a server row always replaces a non-sealed local one. |
 | `rest-full` | rows ingested once (`foldOffGridBars`, sort, dedupe); P1 `developing` removed from rows and merged into the developing bar; seal = `complete_through`. NULL (before a series' first tail repair; D/W/M, bar-contract.md §8) seals NOTHING: those rows stay ordered by rev, so a revision with the same `history_rev` still lands. Only a LEGACY answer (no contract fields) uses I8 (the answer holds a LATER bucket); absences inside its sealed span remove non-server rows. A risen `history_rev` or changed `cache_key` resets the entry first. |
 | `rest-delta` | as `rest-full` over `[since, …]`; a risen `history_rev` / changed `cache_key` ⇒ bars kept, `needsFull`, `pendingHistoryRev`, `gen`+1 (rows not applied, later deltas refused until the full read). |
 | `rest-error` | `no_data` is terminal (`unavailable`); other errors are recorded, data kept. |
@@ -108,7 +108,7 @@ state may go to `empty` (invalidate); `unavailable` is left only by data.
   extreme; never touch a closed row; a server frame replaces a provisional open.
 - S7 foreign key / symbol / series never touches an entry.
 - S10 frozen, identity-stable, idempotent (re-applying an action is a no-op), legal transitions.
-- S8 (persist) and S9 (network) belong to P2b.
+- S8 (persist) and S9 (network): `persist.test.js`, `network.test.js` (P2b, below).
 
 Coverage: 7 dates (both 2026 DST edges, both half-days, plain days) × RTH/ETH × 1/5/15/30/60m
 (+ a daily series suite). Mutating the seal protection, the sealed-span insertion block, the
@@ -121,5 +121,28 @@ absence rule, the rev gate, the stream-live tick gate or the foreign check each 
   `series_rev` change (`series_rev` rises on every write, including tail growth).
 - Seals are per span carried, not a single threshold: a delta's claim never seals rows it did
   not re-read (`deltaFrom` tells network.js where to start).
-- Hydrated (local) rows are never sealed; the first server answer re-proves them.
+- Hydrated (local) rows are unsealed unless the persisted envelope proves them (P2b §Persist); everything else is re-proved by the first server answer.
 - A delta with a new history keeps the chart and waits for a full read (no blank frame).
+
+## P2b — persist / network / live feed / API
+
+| File | Owns |
+|---|---|
+| `persist.js` | the ONLY cache reader/writer of the store: hydrate (mem, then IDB → `mem-hit` / `idb-hit` with the read's `gen`), writes through the existing `memPutMonotonic` / `idbPutMonotonic` (barsMerge one write rule, `_entryReadable`), pack import facade |
+| `network.js` | per-key loop, ≤1 request in flight per key, AbortController, `gen` on every action, delta vs full, cadence, scroll-back, `barsUrl` (the store's one /api/bars URL builder) |
+| `liveFeed.js` | push frames → `push-bar` / `push-final`; tick fallback (one source, only while push is not delivering); D/W/M fold of the 1m stream |
+| `index.js` / `useBarSnapshot.js` | public API (subscribe / getSnapshot / peek / ensure / prefetch / invalidate / scrollBack / applyLive) and the React binding |
+
+### Persist
+- Writes on a `baseRev` change only, only for a server-backed snapshot (`restSeen` — a copy read FROM the cache is never written back, which would re-stamp its `savedAt`), debounced 1 s then at idle, ≤1 write per key in flight. Rows in the cache's legacy shape (`{t,o,h,l,c,v}`, D/W/M `t` = 'YYYY-MM-DD'); the developing bar is not persisted. Windowed keys never.
+- Provenance envelope `meta` next to the rows: cache_key, grid, history_rev, series_rev, complete_through, verified_through, sealed spans, gen, and a value fingerprint of every SEALED row.
+- Invalidation: any other writer's put replaces the record WITHOUT `meta`; on hydrate a span survives only if the stored rows inside it (clipped to the stored depth) are exactly the sealed rows, same fingerprints; the reducer then refuses another key / cache_key / older history_rev / stale gen. Restored seals clear `needsFull`, so the first request after a reload is a `since=` delta.
+
+### Network
+- Delta (`since = deltaFrom - 1`; the delta's span starts at `deltaFrom`) when a seal is held and no full read is needed; otherwise full. D/W/M always full, every 5 min.
+- Cadence = `intradayTailPoll.nextTailPollMs` (catch-up burst honoring `retry_after`, then 30 s) with `intradayDedupMs` as floor; errors back off 1.5 s → 30 s honoring Retry-After; paused while hidden. Budget per key per hour ≤ 3600/30 + TAIL_CATCHUP_MAX_TRIES (railed for current / unverified / shedding servers).
+- Gate: `prefetchBars.barsLaneRequest` — joins an in-flight chart-lane / warm request of the URL, non-visible requests share the warm queue's `_MAX_CONCURRENT` and 503 backoff (background also the pack-ingest hold). visible (never queued) > urgent > grid > warm queue > background.
+- Scroll-back: `to=<ET date of the oldest bar>&bars=2000`, serialized behind the key's tail request. SEAM: W-S's `utils/historyPrepend` (charts/intraday-deep-history, not on master yet) uses the same primitive; when it lands `historyUrl` delegates to its builder.
+
+### Live feed
+- D/W/M: base = the server's developing period bar; RTH 1m frames since the base's rev fold in (open kept, H/L union, close = newest minute, volume = base + minutes that STARTED after the base's rev minute — never double counted). Rebased on every REST answer.
