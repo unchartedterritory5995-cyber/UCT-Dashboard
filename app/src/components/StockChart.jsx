@@ -8797,8 +8797,11 @@ export default function StockChart({
     }
     const url = since != null ? `${base}&since=${encodeURIComponent(String(since))}` : base
     // A cold open whose exact URL an urgent/intent warm is already fetching joins it.
-    const joined = since == null ? joinPendingBars(url) : null
-    const json = await (joined || instFetcher(url, { sym: req.sym, tf: req.tf, seq }))
+    // (W-L 2026-11-11) …or, for a tail, the scan warm's in-flight `since=` twin. A joined
+    // background warm may be shed (503 warm-shed) where this request would not: fall back.
+    const joined = joinPendingBars(url)
+    const _own = () => instFetcher(url, { sym: req.sym, tf: req.tf, seq })
+    const json = joined ? await joined.catch(_own) : await _own()
     if (json && !json.delta) _tailFullDoneRef.current = base
     return json
   }, [instFetcher])

@@ -15,7 +15,7 @@ import { dirname, join } from 'node:path'
 const idb = vi.hoisted(() => ({ entries: new Map() }))
 vi.mock('./barsIDB', async (orig) => {
   const real = await orig()
-  return { ...real, idbGet: vi.fn(async (sym, tf) => idb.entries.get(`${sym}_${tf}`) ?? null), idbPut: vi.fn(async () => {}) }
+  return { ...real, idbGet: vi.fn(async (sym, tf) => idb.entries.get(`${sym}_${tf}`) ?? null), idbPut: vi.fn(async () => {}), idbPutMonotonic: vi.fn(async () => null) }
 })
 vi.mock('../hooks/useTickerMeta', () => ({ prefetchTickerMeta: vi.fn() }))
 

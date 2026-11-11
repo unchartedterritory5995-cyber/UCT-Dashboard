@@ -12,6 +12,7 @@
 
 import { classifyIntradayTail } from './marketSession'
 import { isOnSixtyMinGrid, logicTfOf } from '../components/chart/barTime'
+import { mergeDelta, mergeMonotonic } from './barsMerge'
 
 const DB_NAME    = 'uct_bars_v1'
 // Stay at v2. The v3 bump caused a deadlock: existing v2 connections held by
@@ -353,6 +354,51 @@ export async function idbPut(sym, tf, bars) {
   }
 }
 
+// ── MONOTONIC WRITES — ONE OWNER FOR "A WRITE NEVER MOVES A CACHE BACKWARDS" ──
+// ⛔⛔ (W-L 2026-11-11, review of #1095) A background warmer reads an entry, awaits the
+// network, and writes. Meanwhile the chart may have written a NEWER series under the same
+// key; a blind put then rolled the cache back to the warmer's older base + tail. Every
+// background writer goes through these instead: the incoming set is merged INTO WHATEVER
+// IS STORED NOW, and on overlapping bars the source with the newer tail wins. So:
+//   tail(result)  = max(tail(stored), tail(incoming))          — never older
+//   bars(result) ⊇ bars(stored) ∪ bars(incoming) by timestamp  — never shallower
+// A DELTA with nothing stored to merge into is not a chart and writes nothing.
+// (P2 seam: StockChart's own idbPut/memPut writers still put blindly — they are the
+// newest writer by construction today, but should move onto these too.)
+
+
+/** Compare-and-write in ONE readwrite transaction (no read/await/write gap). Returns the
+ *  series now stored (capped as idbPut caps it), or null when nothing was written. */
+export async function idbPutMonotonic(sym, tf, bars, { delta = false } = {}) {
+  if (!bars?.length) return null
+  try {
+    const db = await _open()
+    return await new Promise((resolve) => {
+      let out = null
+      const tx = db.transaction(STORE, 'readwrite')
+      const store = tx.objectStore(STORE)
+      const key = _key(sym, tf)
+      const req = store.get(key)
+      req.onsuccess = () => {
+        const e = req.result
+        // An entry idbGet would not hand back (other logic version, the retired 60m
+        // grid) is not a base: it is replaced, never merged into.
+        const cur = (e && e.v === CACHE_LOGIC_VERSION && e.bars?.length && !_hasOldSixtyMinGrid(e.bars, tf)) ? e.bars : null
+        const next = mergeMonotonic(cur, bars, { delta })
+        if (!next?.length || next === cur) { out = cur; return }
+        const capped = _capForWrite(tf, next)
+        store.put({ key, bars: capped, lastT: capped[capped.length - 1]?.t, savedAt: Date.now(), v: CACHE_LOGIC_VERSION })
+        out = capped
+      }
+      tx.oncomplete = () => resolve(out)
+      tx.onerror = () => resolve(null)
+      tx.onabort = () => resolve(null)
+    })
+  } catch {
+    return null
+  }
+}
+
 /**
  * Delete the cached entry for (sym, tf). Used by the render-path basis-mismatch
  * heal: when a browser holds a stale WRONG-BASIS series (a serve-time split /
@@ -616,23 +662,5 @@ function _deltaBatch(db, batch) {
   })
 }
 
-/**
- * Merge a delta (new bars from server) into an existing bar array.
- * Delta bars REPLACE existing bars with the same timestamp — server data
- * is always fresher than a cached developing candle or stale IDB entry.
- */
-export function mergeDelta(existing, delta) {
-  if (!delta?.length) return existing
-  if (!existing?.length) return delta
-  const deltaMap = new Map(delta.map(b => [String(b.t), b]))
-  // Keep existing bars whose timestamp is NOT in the delta (delta wins on conflict)
-  const kept = existing.filter(b => !deltaMap.has(String(b.t)))
-  const merged = [...kept, ...delta]
-  // Sort: ISO date strings sort lexically; unix seconds sort numerically
-  const isDate = typeof merged[0]?.t === 'string'
-  merged.sort((a, b) => isDate
-    ? (a.t > b.t ? 1 : a.t < b.t ? -1 : 0)
-    : a.t - b.t
-  )
-  return merged
-}
+// mergeDelta lives in ./barsMerge (pure, no IndexedDB) and is re-exported here.
+export { mergeDelta, mergeMonotonic }

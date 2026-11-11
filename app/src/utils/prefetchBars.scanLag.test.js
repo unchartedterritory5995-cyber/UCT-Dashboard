@@ -9,12 +9,19 @@ vi.mock('./barsIDB', async (orig) => {
     ...real,
     idbGet: vi.fn(async (sym, tf) => idb.entries.get(`${sym}_${tf}`) ?? null),
     idbPut: vi.fn(async (sym, tf, bars) => { idb.puts.push(`${sym}_${tf}`); idb.entries.set(`${sym}_${tf}`, { bars, lastT: bars[bars.length - 1].t, savedAt: Date.now() }) }),
+    idbPutMonotonic: vi.fn(async (sym, tf, bars, opts) => {
+      const key = `${sym}_${tf}`
+      const next = real.mergeMonotonic(idb.entries.get(key)?.bars ?? null, bars, opts)
+      if (!next?.length) return null
+      idb.puts.push(key); idb.entries.set(key, { bars: next, lastT: next[next.length - 1].t, savedAt: Date.now() })
+      return next
+    }),
   }
 })
 vi.mock('../hooks/useTickerMeta', () => ({ prefetchTickerMeta: vi.fn() }))
 
-const { warmMemFromIDB, prefetchBarsToIDB, prefetchAllTimeframes, setPrefetchShowExtended, _resetRepairCooldown } = await import('./prefetchBars')
-const { memPeek, memClear } = await import('./barsMemCache')
+const { warmMemFromIDB, prefetchBarsToIDB, prefetchAllTimeframes, setPrefetchShowExtended, _resetRepairCooldown, joinPendingBars } = await import('./prefetchBars')
+const { memPeek, memClear, memPut } = await import('./barsMemCache')
 
 // Tue 2026-09-15 (EDT, UTC-4)
 const et = (h, m) => Math.floor(Date.UTC(2026, 8, 15, h + 4, m) / 1000)
@@ -107,5 +114,86 @@ describe('prefetchAllTimeframes lands its answers where the chart reads', () => 
     // Before: eight `&warm=1` fetches whose answers were dropped — nothing in mem/IDB.
     expect(idb.puts).toContain('DDD_5')
     expect(memPeek('DDD', '5')?.length).toBeGreaterThan(0)
+  })
+})
+
+describe('review #1095 — the repair never rolls back a newer chart write', () => {
+  it('chart writes a NEWER series while the warm since= is in flight: mem and IDB keep it', async () => {
+    at(13, 17)
+    idb.entries.set('RACE_5', { bars: bars5(9, 30, 10, 0), lastT: et(10, 0), savedAt: Date.now() })
+    let release
+    vi.stubGlobal('fetch', vi.fn(async (u) => {
+      urls.push(String(u))
+      await new Promise(r => { release = r })
+      return { ok: true, status: 200, json: async () => ({ ticker: 'RACE', tf: '5', bars: bars5(10, 5, 12, 0), delta: true }) }
+    }))
+    prefetchBarsToIDB(['RACE'], '5', { priority: true, immediate: true })
+    await flush()
+    expect(urls.length).toBe(1)
+    // The chart lands the full, newer series under the same key meanwhile.
+    const chart = bars5(9, 30, 13, 15)
+    idb.entries.set('RACE_5', { bars: chart, lastT: et(13, 15), savedAt: Date.now() })
+    memPut('RACE', '5', chart)
+    release(); await flush(60)
+    // Before: idbPut + memPut of mergeDelta(<10:00 base>, <10:05-12:00>) → tail 12:00.
+    expect(idb.entries.get('RACE_5').lastT).toBe(et(13, 15))
+    expect(memPeek('RACE', '5').at(-1).t).toBe(et(13, 15))
+    expect(memPeek('RACE', '5').length).toBe(chart.length)
+  })
+})
+
+describe('review #1095 — repair cooldown', () => {
+  const behind = (sym) => idb.entries.set(`${sym}_5`, { bars: bars5(9, 30, 10, 0), lastT: et(10, 0), savedAt: Date.now() })
+  const answer = (status, body) => vi.stubGlobal('fetch', vi.fn(async (u) => {
+    urls.push(String(u))
+    return { ok: status === 200, status, headers: { get: () => null }, json: async () => body, clone() { return this } }
+  }))
+  it('a SHED repair does not burn the slot: the next selection retries at once', async () => {
+    at(13, 17); behind('SHD')
+    answer(503, { error: 'warming' })
+    prefetchBarsToIDB(['SHD'], '5', { priority: true, immediate: true }); await flush()
+    expect(urls.length).toBe(1)
+    const { _noteWarmResult } = await import('./prefetchBars')
+    _noteWarmResult({ bars: [{ t: 1 }] })   // the server recovered (clear the backoff)
+    answer(200, { ticker: 'SHD', tf: '5', bars: bars5(10, 5, 13, 15), delta: true })
+    prefetchBarsToIDB(['SHD'], '5', { priority: true, immediate: true }); await flush()
+    // Before: the 503 had already stamped the cooldown → no retry for a whole bucket.
+    expect(urls.length).toBe(2)
+  })
+  it('an ANSWERED repair holds the slot for the bucket', async () => {
+    at(13, 17); behind('OKR')
+    answer(200, { ticker: 'OKR', tf: '5', bars: [], delta: true })
+    prefetchBarsToIDB(['OKR'], '5', { priority: true, immediate: true }); await flush()
+    prefetchBarsToIDB(['OKR'], '5', { priority: true, immediate: true }); await flush()
+    expect(urls.length).toBe(1)
+  })
+  it('the slot is per session: an RTH repair does not block the extended view', async () => {
+    at(13, 17); behind('SES')
+    answer(200, { ticker: 'SES', tf: '5', bars: [], delta: true })
+    prefetchBarsToIDB(['SES'], '5', { priority: true, immediate: true }); await flush()
+    setPrefetchShowExtended(true)
+    prefetchBarsToIDB(['SES'], '5', { priority: true, immediate: true }); await flush()
+    expect(urls.length).toBe(2)
+    expect(urls[1]).toMatch(/session=eth/)
+  })
+})
+
+describe('review #1095 — the chart joins the in-flight since= warm', () => {
+  it('joinPendingBars(<chart since url>) returns the in-flight warm request for the same rows', async () => {
+    at(13, 17)
+    idb.entries.set('JNN_5', { bars: bars5(9, 30, 10, 0), lastT: et(10, 0), savedAt: Date.now() })
+    let release
+    vi.stubGlobal('fetch', vi.fn(async (u) => {
+      urls.push(String(u)); await new Promise(r => { release = r })
+      return { ok: true, status: 200, json: async () => ({ ticker: 'JNN', tf: '5', bars: [], delta: true }) }
+    }))
+    prefetchBarsToIDB(['JNN'], '5', { priority: true, immediate: true }); await flush()
+    const warmUrl = urls[0]
+    expect(warmUrl).toMatch(/&warm=1$/)
+    const chartUrl = warmUrl.replace(/&warm=1$/, '')
+    // Before: the chart only joined when since == null, so it sent the same rows again.
+    expect(joinPendingBars(chartUrl)).toBeTruthy()
+    release(); await flush()
+    expect(joinPendingBars(chartUrl)).toBeNull()   // settled: never a stale answer
   })
 })
