@@ -12,6 +12,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { barsBeforeUrl as urlFor } from './prefetchBars'
 import {
+  historyReachesTail, historyLagsTail, TAIL_ENTRY_MAX_BARS,
   prependOlder, wantsOlder, etDateOf, historyWindowUrl, createHistoryLoader,
   HISTORY_WINDOW_BARS, EXHAUSTED_TTL_MS,
 } from './historyPrepend'
@@ -192,7 +193,7 @@ describe('H4 IDB deep-history segment', () => {
     // A later visit: the 3000-bar tail entry + the segment rebuild the whole series.
     const tail = series.slice(series.length - idb.INTRADAY_MAX_BARS)
     const hist = await idb.idbGetHistory('DEEP', '15')
-    expect(idb.historyReachesTail(hist, tail)).toBe(true)
+    expect(historyReachesTail(hist, tail)).toBe(true)
     expect(prependOlder(tail, hist)).toEqual(series)
     // A shallower later write (4000 bars ending later) keeps the deeper stored history.
     const later = series.slice(series.length - 4000)
@@ -215,8 +216,8 @@ describe('H4 IDB deep-history segment', () => {
   it('a segment that does not reach the tail is never spliced (no hole drawn as contiguous)', async () => {
     const idb = await import('./barsIDB')
     const s = history(200, '2025-03-03')
-    expect(idb.historyReachesTail(s.slice(0, 1000), s.slice(2000))).toBe(false)
-    expect(idb.historyReachesTail(s.slice(0, 2001), s.slice(2000))).toBe(true)
+    expect(historyReachesTail(s.slice(0, 1000), s.slice(2000))).toBe(false)
+    expect(historyReachesTail(s.slice(0, 2001), s.slice(2000))).toBe(true)
   })
   it('the basis heal (idbDelete) drops the segment with the tail; daily never gets one', async () => {
     const rows = installFakeIDB()
@@ -227,11 +228,15 @@ describe('H4 IDB deep-history segment', () => {
     expect(rows.has('POI_30@hist')).toBe(false)
     expect(await idb.idbPutHistory('DLY', 'D', history(200))).toBeNull()
   })
+  it('the restated tail cap never drifts from barsIDB', async () => {
+    const idb = await import('./barsIDB')
+    expect(TAIL_ENTRY_MAX_BARS).toBe(idb.INTRADAY_MAX_BARS)
+  })
   it('the tail outrunning the segment triggers a refresh write', async () => {
     const idb = await import('./barsIDB')
     const s = history(300)
     const n = s.length
-    expect(idb.historyLagsTail(s[n - 1].t, s)).toBe(false)
-    expect(idb.historyLagsTail(s[n - idb.INTRADAY_MAX_BARS + 10].t, s)).toBe(true)
+    expect(historyLagsTail(s[n - 1].t, s)).toBe(false)
+    expect(historyLagsTail(s[n - idb.INTRADAY_MAX_BARS + 10].t, s)).toBe(true)
   })
 })

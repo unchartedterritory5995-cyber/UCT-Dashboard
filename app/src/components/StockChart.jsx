@@ -1555,8 +1555,8 @@ import CountdownTimer from './chart/CountdownTimer'
 import styles from './StockChart.module.css'
 import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
-import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT, idbGetHistory, idbPutHistory, historyReachesTail, historyLagsTail, INTRADAY_MAX_BARS } from '../utils/barsIDB'
-import { createHistoryLoader, prependOlder, wantsOlder, PREFETCH_WINDOWS, HISTORY_WINDOW_BARS } from '../utils/historyPrepend'
+import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT, idbGetHistory, idbPutHistory } from '../utils/barsIDB'
+import { createHistoryLoader, prependOlder, wantsOlder, PREFETCH_WINDOWS, HISTORY_PREFETCH_TARGET_BARS, historyReachesTail, historyLagsTail } from '../utils/historyPrepend'
 import { memPeek, memPut, memPeekSavedAt } from '../utils/barsMemCache'
 import { timingStart, timingMark, timingMarkPaint, timingMarkEmpty } from '../utils/intradayTiming'
 import { makeLiveSane } from './chart/liveTickBaseline'
@@ -1791,15 +1791,18 @@ export const _historyLoader = createHistoryLoader({
   urlFor: barsBeforeUrl,
   fetchJson: (url, { background = false } = {}) => fetcher(url, undefined, { background }),
 })
-// Background prefetch after first paint stops once the series holds this many bars;
-// anything deeper loads as the member scrolls toward it (LOOKAHEAD_SCREENS ahead).
-export const HISTORY_PREFETCH_TARGET_BARS = INTRADAY_MAX_BARS + PREFETCH_WINDOWS * HISTORY_WINDOW_BARS
+// Background prefetch stops at HISTORY_PREFETCH_TARGET_BARS (historyPrepend); anything
+// deeper loads as the member scrolls toward it (LOOKAHEAD_SCREENS ahead).
+export { HISTORY_PREFETCH_TARGET_BARS }
 // Deep-history persistence is debounced per series: a burst of windows is one IDB write.
 const _histPersistTimers = new Map()
 function _persistHistorySoon(sym, ck, bars) {
   const k = `${sym}_${ck}`
   clearTimeout(_histPersistTimers.get(k))
-  _histPersistTimers.set(k, setTimeout(() => { _histPersistTimers.delete(k); idbPutHistory(sym, ck, bars) }, 1000))
+  _histPersistTimers.set(k, setTimeout(() => {
+    _histPersistTimers.delete(k)
+    try { Promise.resolve(idbPutHistory(sym, ck, bars)).catch(() => {}) } catch { /* best-effort */ }
+  }, 1000))
 }
 
 // Conservative retry for transient (5xx / aborted-network) failures.
@@ -9234,7 +9237,8 @@ export default function StockChart({
     const key = _depthKey
     let cancelled = false
     ;(async () => {
-      const hist = await idbGetHistory(sym, _barsTf)
+      let hist = null
+      try { hist = await idbGetHistory(sym, _barsTf) } catch { hist = null }   // best-effort, like every IDB read
       if (cancelled || idbReadyForRef.current !== key) return
       if (hist && historyReachesTail(hist, idbBarsRef.current)) {
         // Re-persist only when the tail is about to outrun the segment (historyLagsTail).

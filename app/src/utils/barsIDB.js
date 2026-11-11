@@ -477,25 +477,6 @@ export function _capHistoryForWrite(bars) {
   return bars.length > HISTORY_SEGMENT_MAX ? bars.slice(bars.length - HISTORY_SEGMENT_MAX) : bars
 }
 
-/** True when `hist` can be prepended to `tail` without drawing a hole: it holds bars
- *  older than the tail AND its newest bar reaches the tail's oldest. */
-export function historyReachesTail(hist, tail) {
-  if (!Array.isArray(hist) || !hist.length || !Array.isArray(tail) || !tail.length) return false
-  const h0 = hist[0]?.t, hN = hist[hist.length - 1]?.t, t0 = tail[0]?.t
-  if (typeof h0 !== 'number' || typeof hN !== 'number' || typeof t0 !== 'number') return false
-  return h0 < t0 && hN >= t0
-}
-
-/** Re-write the segment when it would otherwise stop reaching the tail: the newest
- *  history bar has fallen behind the MIDDLE of the (capped) tail window. */
-export function historyLagsTail(histLastT, series) {
-  if (!Array.isArray(series) || series.length <= INTRADAY_MAX_BARS) return false
-  if (typeof histLastT !== 'number') return true
-  const tail0 = series.length - INTRADAY_MAX_BARS
-  const mid = series[tail0 + Math.floor(INTRADAY_MAX_BARS / 2)]?.t
-  return typeof mid === 'number' && histLastT < mid
-}
-
 export async function idbGetHistory(sym, tf) {
   if (!['1','5','15','30','60'].includes(logicTfOf(String(tf)))) return null
   try {
