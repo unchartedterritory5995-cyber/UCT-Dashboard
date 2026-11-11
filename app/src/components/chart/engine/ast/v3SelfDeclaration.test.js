@@ -175,11 +175,15 @@ describe('⭐ engine 49 review note 2 — EVERY name in the built-in exclusion s
   // "Engine-48 path": engine 49 is version-gated and leaves v2 alone (the v1/v2 rails above), and
   // for every one of these names the engine-48 v5 path equalled its v2 path at all four doors
   // (measured on 8f775b6ce4, EVIDENCE.md). So v5 must equal v2 here, and no door may say `pine:cycle`.
-  it('the set is non-empty and holds the names it exists for', () => {
-    expect(PINE_BUILTIN_VARIABLE_NAMES.size).toBeGreaterThan(20)
-    for (const n of ['close', 'open', 'hl2', 'vwap', 'tr', 'bar_index', 'time']) {
-      expect(PINE_BUILTIN_VARIABLE_NAMES.has(n), n).toBe(true)
-    }
+  // ⛔ Iterating the set cannot see a name REMOVED from it (its row just disappears), so this is a
+  // FLOOR: the built-in variables a script can read bare, every one of which must stay excluded.
+  // The set may grow (it also takes `TABLE.series` and `TABLE.clock`); it may not lose one of these.
+  const FLOOR = ['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3', 'ohlc4', 'hlcc4', 'time',
+    'time_close', 'time_tradingday', 'timenow', 'bar_index', 'last_bar_index', 'tr', 'vwap', 'obv',
+    'accdist', 'iii', 'nvi', 'pvi', 'pvt', 'wad', 'wvad', 'na']
+  it('the set is non-empty and holds every name of the floor', () => {
+    expect(PINE_BUILTIN_VARIABLE_NAMES.size).toBeGreaterThanOrEqual(FLOOR.length)
+    for (const n of FLOOR) expect(PINE_BUILTIN_VARIABLE_NAMES.has(n), n).toBe(true)
   })
   const rhs = (text) => parseWholeExpression(lexPine(text).tokens)
   it.each([...PINE_BUILTIN_VARIABLE_NAMES].map((n) => [n]))('`%s = nz(%s[1]) + 1`: not asked; v5 equals v2 at all four doors, none `pine:cycle`', (n) => {
