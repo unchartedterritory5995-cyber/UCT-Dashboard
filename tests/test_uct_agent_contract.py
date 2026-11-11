@@ -30,7 +30,9 @@ _GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layo
              "indicatorAlert": "indicatorAlerts",
              "indicatorTemplate": "chartSetup",
              # Wave 3 (2026-11-03): the coach's own fillLast group (registered only while UCT_AGENT_COACH is on)
-             "coach": "coach", "journal": "coach", "calendar": "calendar"}
+             "coach": "coach", "journal": "coach", "calendar": "calendar",
+             # family C (2026-11-11): the chart's right-click Ask AI + watermark Reset, own words-only group
+             "chartMenu": "chartMenu"}
 #: membership by ACTION NAME (routing.js `actions`), ahead of the domain — hotfix 2026-11-03: agent.undo's own group
 _GROUP_BY_ACTION = {"agent.undo": "undo", "indicatorTemplate.list": "chartSetup", "indicatorTemplate.apply": "chartSetup",
                     "indicatorTemplate.save": "chartSetup", "indicatorTemplate.delete": "chartSetup"}
