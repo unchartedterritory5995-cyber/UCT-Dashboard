@@ -810,6 +810,8 @@ const AWAITING_A_DECISION = {
     'BarStore P2 — wired in P3 (ARCH-PLAN): public API (P2b).',
   'app/src/data/barStore/useBarSnapshot.js':
     'BarStore P2 — wired in P3 (ARCH-PLAN): React binding (P2b).',
+  'app/src/data/barStore/prefetch.js':
+    'BarStore P2 — wired in P3 S1 (ARCH-PLAN): ensure/prefetch/peek + the prefetchBars drop-in facade (P2c).',
   }
 
 /**

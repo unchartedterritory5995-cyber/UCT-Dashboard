@@ -571,8 +571,10 @@ function _drainLane(maxRank) {
   }
 }
 /** One bar request through the shared lane. Resolves with the JSON body; rejects as
- *  `_chartLaneFetch` does (`status`, `warming`, `retryAfterMs`) or with an AbortError. */
-export function barsLaneRequest(url, { priority = 'visible', signal = null } = {}) {
+ *  `_chartLaneFetch` does (`status`, `warming`, `retryAfterMs`) or with an AbortError.
+ *  `front`: the legacy `priority: true` — ahead of every non-front waiter of its rank
+ *  (front waiters keep their own arrival order). */
+export function barsLaneRequest(url, { priority = 'visible', signal = null, front = false } = {}) {
   const u = String(url)
   if (signal?.aborted) return Promise.reject(_laneAbortError())
   const rank = LANE_RANK[priority] ?? LANE_RANK.background
@@ -580,7 +582,7 @@ export function barsLaneRequest(url, { priority = 'visible', signal = null } = {
   if (joined) return _laneAttach(joined, signal)
   if (rank < 0) return _laneAttach(_laneFetch(u, false), signal)
   return new Promise((resolve, reject) => {
-    const w = { rank, seq: ++_laneSeq, url: u, signal, resolve, reject, onAbort: null }
+    const w = { rank, seq: front ? ++_laneSeq - 1e15 : ++_laneSeq, url: u, signal, resolve, reject, onAbort: null }
     w.onAbort = () => {
       const i = _laneWaiters.indexOf(w)
       if (i >= 0) { _laneWaiters.splice(i, 1); reject(_laneAbortError()) }
@@ -589,6 +591,36 @@ export function barsLaneRequest(url, { priority = 'visible', signal = null } = {
     _laneWaiters.push(w)
     _pump()
   })
+}
+/**
+ * Raise a WAITING lane request of `url` to `priority` (a subscriber joined a warm still in the
+ * queue). `to`: REWRITE its URL too — a non-warm joiner turns a queued `&warm=1` warm into its
+ * own non-warm request (the server must not shed the chart's answer). `visible` leaves the
+ * queue at once without a slot, exactly as a visible request would have; a better non-visible
+ * rank re-sorts. Returns how many waiters moved; a request already on the network is not
+ * waiting (0) — the caller then asks again behind it.
+ */
+export function promoteLaneRequest(url, priority, { to = null } = {}) {
+  const u = String(url)
+  const rank = LANE_RANK[priority] ?? LANE_RANK.background
+  let n = 0
+  for (let i = 0; i < _laneWaiters.length;) {
+    const w = _laneWaiters[i]
+    if (w.url !== u || (w.rank <= rank && !to)) { i++; continue }
+    n++
+    if (to) w.url = String(to)
+    const r = Math.min(w.rank, rank)
+    if (r < 0) {
+      _laneWaiters.splice(i, 1)
+      w.signal?.removeEventListener?.('abort', w.onAbort)
+      _laneAttach(_laneJoin(w.url, r) || _laneFetch(w.url, false), w.signal).then(w.resolve, w.reject)
+      continue
+    }
+    w.rank = r
+    i++
+  }
+  if (n) _pump()
+  return n
 }
 /** Test hook: lane occupancy. */
 export function _laneStats() { return { waiting: _laneWaiters.length, active: _active, inflight: _chartLaneInflight.size + _laneInflight.size } }

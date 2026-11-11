@@ -58,7 +58,7 @@ export const ACTION = Object.freeze({
 })
 
 /** Where the developing bar's current value came from. */
-export const DEV_SRC = Object.freeze({ SERVER: 'server', PUSH: 'push', TICK: 'tick' })
+export const DEV_SRC = Object.freeze({ SERVER: 'server', PUSH: 'push', TICK: 'tick', LOCAL: 'local' })
 
 /**
  * @typedef {'1'|'5'|'15'|'30'|'60'|'D'|'W'|'M'} Tf
@@ -100,7 +100,7 @@ export const DEV_SRC = Object.freeze({ SERVER: 'server', PUSH: 'push', TICK: 'ti
  * @property {number} c
  * @property {number} v
  * @property {number|null} rev
- * @property {'server'|'push'|'tick'} src
+ * @property {'server'|'push'|'tick'|'local'} src   'local': restored from mem / IDB, never the server's
  * @property {boolean} [provisional]  I6: opened from a tick; O/H/L do not lock
  * @property {number|null} [authHigh] I7: extremes vouched for by authoritative sources
  * @property {number|null} [authLow]

@@ -37,7 +37,7 @@
 // ⭐ THE ONE /api/bars URL BUILDER of the BarStore is `barsUrl` below (rails: one-url census
 // owner). No other barStore file spells the endpoint.
 
-import { barsLaneRequest, barsBeforeUrl } from '../../utils/prefetchBars'
+import { barsLaneRequest, barsBeforeUrl, promoteLaneRequest } from '../../utils/prefetchBars'
 import { historyWindowUrl, prependOlder, etDateOf, HISTORY_WINDOW_BARS } from '../../utils/historyPrepend'
 import {
   nextTailPollMs, createTailPollState, intradayDedupMs, INTRADAY_POLL_MS, REPAIR_DEDUP_MS,
@@ -67,15 +67,31 @@ export const MUTABLE_WINDOW_S = 8 * 3600
  * FULL only for: the first load (no server answer yet and nothing restored), a pending full
  * read (`needsFull` — cache_key / history_rev change, a voided restored seal), D/W/M and
  * windowed keys (the legacy client reads those whole too). With a seal: `deltaFrom` (the
- * first row after the newest seal). Without one: the held tail minus the mutable window.
+ * first row after the newest seal). Without one: the SERVER's tail minus the mutable window.
  * (The caller still turns an over-budget delta into a full read.)
+ *
+ * ⛔ THE SERVER'S TAIL, NEVER THE HELD ONE (#1125). The server places its mutable-window floor
+ * behind ITS stored tail; a push-fed developing bar (or push / final rows) can run N buckets
+ * ahead of it, and a window measured from there would start N buckets too late — a
+ * correction at the server's floor edge would never be re-read. So the window is measured
+ * from `serverTailOf`: the newest row a REST answer supplied. (A REST row a push frame later
+ * overwrote no longer counts; that only moves the start earlier — a wider, still-correct
+ * window.) No server row held → a full read.
  */
 export function deltaStartFor(s, p = parseKey(s.key)) {
   if (!p || !isIntradayTf(p.tf) || p.window || s.needsFull) return null
   if (s.sealedSpans.length && s.deltaFrom != null) return s.deltaFrom
   if (!s.restSeen) return null
-  const tail = s.developing ? s.developing.t : (s.bars.length ? s.bars[s.bars.length - 1].t : null)
+  const tail = serverTailOf(s)
   return finite(tail) ? tail - MUTABLE_WINDOW_S : null
+}
+
+/** Newest bucket `t` a server (REST) answer supplied to `s`: its developing bar while that is
+ *  still server-sourced, else the newest closed row still carrying `src: 'rest'`; or null. */
+export function serverTailOf(s) {
+  if (s.developing && s.developing.src === 'server' && finite(s.developing.t)) return s.developing.t
+  for (let i = s.bars.length - 1; i >= 0; i--) if (s.bars[i].src === 'rest') return s.bars[i].t
+  return null
 }
 export const PRIORITIES = Object.freeze(['visible', 'urgent', 'grid', 'background'])
 
@@ -139,7 +155,7 @@ const _isAbort = (e) => e?.name === 'AbortError'
  * @param {(url:string, opts:{priority:string, signal:AbortSignal}) => Promise<object>} [o.request]
  */
 export function createNetwork({
-  registry, request = barsLaneRequest,
+  registry, request = barsLaneRequest, promote = promoteLaneRequest,
   setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (h) => clearTimeout(h),
   now = () => Date.now(), isHidden = _defaultHidden, onVisible = _defaultOnVisible,
   dailyPollMs = DAILY_POLL_MS,
@@ -165,7 +181,7 @@ export function createNetwork({
   const _session = (r) => ([...r.sessions.keys()].includes('eth') ? 'eth' : 'rth')
 
   // ── one request ───────────────────────────────────────────────────────────
-  function _tailJob(r, priority) {
+  function _tailJob(r, priority, { warm = false, front = false } = {}) {
     const s = registry.getSnapshot(r.key)
     const p = parseKey(r.key)
     const gen = s.gen
@@ -173,7 +189,9 @@ export function createNetwork({
     const bars = barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session })
     const from = deltaStartFor(s, p)
     const delta = from != null && deltaWithinBudget(p.tf, from, now(), bars)
-    const url = barsUrl(r.key, { bars, since: delta ? from - 1 : null, session })
+    // `&warm=1` (a best-effort warm the server may skip / shed under load) exactly where the
+    // legacy warmers send it; never on a subscriber's own poll.
+    const url = barsUrl(r.key, { bars, since: delta ? from - 1 : null, session }) + (warm ? '&warm=1' : '')
     return _send(r, 'tail', url, priority, async (json) => {
       if (json?.no_data) {
         registry.dispatch(r.key, { type: ACTION.REST_ERROR, key: r.key, gen, payload: { error: 'no_data', terminal: true } })
@@ -186,7 +204,7 @@ export function createNetwork({
       const type = delta ? ACTION.REST_DELTA : ACTION.REST_FULL
       registry.dispatch(r.key, { type, key: r.key, gen, payload: delta ? { ...json, since: from } : json })
       return { ok: true, delta, retryAfterSec: json.retry_after ?? null }
-    }, gen)
+    }, { front })
   }
 
   function _scrollJob(r, opts) {
@@ -203,19 +221,26 @@ export function createNetwork({
       if (prependOlder(before.bars, json.bars) === before.bars) return { ok: true, added: 0, refused: true }
       const after = registry.dispatch(r.key, { type: ACTION.SCROLL_BACK, key: r.key, gen, payload: json })
       return { ok: true, added: after.depth - before.depth }
-    }, gen)
+    })
   }
 
-  function _send(r, kind, url, priority, onJson) {
+  function _send(r, kind, url, priority, onJson, { front = false } = {}) {
     const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
     r.lastStart = now()
     requests++
+    // Read at failure time: the lane may have rewritten a queued warm into a non-warm request.
+    const rec = { ac, kind, promise: null, url, priority, warm: /[?&]warm=1(?:&|$)/.test(url), followUp: null }
+    // ⛔ A SHED WARM IS NOT THE CHART'S ERROR. A best-effort `&warm=1` that failed while a chart
+    // subscribes to the key says nothing about the chart's data: no REST_ERROR (the chart's own
+    // non-warm request, queued behind it, owns the answer).
+    const quiet = () => rec.warm && r.refs > 0
     const promise = (async () => {
       let json
       try {
-        json = await request(url, { priority, signal: ac?.signal ?? null })
+        json = await request(url, { priority, signal: ac?.signal ?? null, ...(front ? { front: true } : {}) })
       } catch (e) {
         if (_isAbort(e) || ac?.signal.aborted) return { aborted: true }
+        if (quiet()) return { error: true, warmShed: true, retryAfterMs: e?.retryAfterMs ?? null }
         const gen = registry.getSnapshot(r.key).gen
         if (kind === 'tail') {
           registry.dispatch(r.key, { type: ACTION.REST_ERROR, key: r.key, gen, payload: { error: e?.warming ? 'warming' : String(e?.status || 'network') } })
@@ -223,9 +248,11 @@ export function createNetwork({
         return { error: true, retryAfterMs: e?.retryAfterMs ?? null }
       }
       if (ac?.signal.aborted) return { aborted: true }   // a joined request outlived our abort
+      if (json?.error && !json.no_data && quiet()) return { error: true, warmShed: true, retryAfterSec: json.retry_after ?? null }
       return onJson(json)
     })()
-    r.inflight = { ac, kind, promise }
+    rec.promise = promise
+    r.inflight = rec
     promise.finally(() => {
       if (r.inflight?.promise === promise) r.inflight = null
       _drain(r)
@@ -237,16 +264,49 @@ export function createNetwork({
   function _drain(r) {
     if (r.inflight || !r.queue.length) return
     const job = r.queue.shift()
-    job.run().then(job.resolve, job.resolve)
+    job.started = job.run()
+    job.started.then(job.resolve, job.resolve)
   }
 
-  /** A tail request for `r` — joins the one in flight. */
-  function _tail(r, priority = r.priority) {
-    if (r.inflight?.kind === 'tail') return r.inflight.promise
-    if (r.inflight) {
-      return new Promise((resolve) => { r.queue.push({ run: () => _tailJob(r, priority), resolve }) })
+  /** A tail request for `r` — joins the one in flight; queued (its `.job`) behind a scroll-back. */
+  function _queueTail(r, priority, opts) {
+    const job = { run: () => _tailJob(r, priority, opts), resolve: null, started: null, waiters: 1 }
+    const out = new Promise((resolve) => { job.resolve = resolve; r.queue.push(job) })
+    out.job = job
+    return out
+  }
+
+  function _tail(r, priority = r.priority, opts = {}) {
+    const inf = r.inflight
+    if (inf?.kind === 'tail') {
+      const best = _best(inf.priority, priority)
+      // ⛔ A NON-WARM CALLER NEVER RIDES A `&warm=1` REQUEST (#1118 finding 4): the server may
+      // shed a warm, and the chart would get 'warming' for its own data.
+      if (inf.warm && !opts.warm) {
+        const plain = inf.url.replace(/&warm=1(?=&|$)/, '')
+        let moved = 0
+        try { moved = promote?.(inf.url, best, { to: plain }) || 0 } catch { moved = 0 }
+        if (moved) {
+          // Still queued in the lane: it now IS the caller's non-warm request.
+          inf.url = plain; inf.warm = false; inf.priority = best
+          return inf.promise
+        }
+        // Already on the network: one non-warm tail right behind it (shared by every non-warm
+        // joiner); the warm's answer, if it comes, merges first.
+        if (inf.followUp && r.queue.includes(inf.followUp.job)) { inf.followUp.job.waiters++; return inf.followUp }
+        inf.followUp = _queueTail(r, priority, { ...opts, warm: false })
+        return inf.followUp
+      }
+      // Joining a request still WAITING in the lane at a worse rank (a warm, then the chart
+      // mounts): it is raised to the joiner's rank — the chart never waits behind the herd.
+      if (best !== inf.priority) {
+        inf.priority = best
+        try { promote?.(inf.url, best) } catch { /* the lane is best-effort here */ }
+      }
+      return inf.promise
     }
-    return _tailJob(r, priority)
+    if (inf) return _queueTail(r, priority, opts)
+    return _tailJob(r, priority, opts)
   }
 
   // ── the loop ──────────────────────────────────────────────────────────────
@@ -328,13 +388,40 @@ export function createNetwork({
       // inside the repair dedupe window — unless it aborted the one in flight.
       _schedule(r, abort ? 0 : Math.max(0, REPAIR_DEDUP_MS - (now() - r.lastStart)))
     },
-    /** One request for `key` (ensure / prefetch), sharing the key's single slot. */
-    fetchOnce(key, { priority = 'urgent', depth = 0, session = 'rth' } = {}) {
+    /**
+     * One request for `key` (ensure / prefetch), sharing the key's single slot.
+     * `signal`: the caller's abort (a symbol switch). One-shot waiters are REF-COUNTED like
+     * the lane's joiners: a caller's abort only detaches that caller, and the tail request in
+     * flight is aborted only when the last one-shot waiter has left AND no subscriber holds
+     * the key — a prefetch or a mounted chart riding the same request never loses it.
+     */
+    fetchOnce(key, { priority = 'urgent', depth = 0, session = 'rth', signal = null, warm = false, front = false } = {}) {
+      if (signal?.aborted) return Promise.resolve({ aborted: true })
       const r = _rec(key)
       r.depth = Math.max(r.depth, depth || 0)
       if (!r.sessions.size) r.sessions.set(session, 0)
-      const out = _tail(r, priority)
-      out.finally(() => _gc(r))
+      // A key a chart is subscribed to is LIVE: a one-shot ask of it rides the chart's rank and
+      // never goes out as a shed-able `&warm=1` warm.
+      const live = r.refs > 0
+      const out = _tail(r, live ? _best(r.priority, priority) : priority, live ? { front } : { warm, front })
+      r.once = (r.once || 0) + 1
+      let left = false
+      const leave = () => { if (!left) { left = true; r.once-- } }
+      const onAbort = () => {
+        leave()
+        // Still QUEUED (behind a scroll-back): the job is this caller's alone — drop it, so it
+        // never reaches the network.
+        const qi = out.job ? r.queue.indexOf(out.job) : -1
+        if (qi >= 0) {
+          if (--out.job.waiters > 0) return            // another caller still waits on it
+          r.queue.splice(qi, 1); out.job.resolve({ aborted: true }); return
+        }
+        if (r.once > 0 || r.refs > 0) return
+        const running = out.job ? out.job.started : out
+        if (r.inflight?.kind === 'tail' && r.inflight.promise === running) { r.inflight.ac?.abort(); r.inflight = null }
+      }
+      signal?.addEventListener?.('abort', onAbort, { once: true })
+      out.finally(() => { signal?.removeEventListener?.('abort', onAbort); leave(); _gc(r) })
       return out
     },
     /** Prepend one older window. Serialized behind the key's tail request. */

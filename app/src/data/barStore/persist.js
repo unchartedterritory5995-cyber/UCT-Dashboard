@@ -129,6 +129,13 @@ export function createPersist({
   const IO = { memPutMonotonic, memPeekEntry, idbPutMonotonic, idbGet, idbImportPack, ...(io || {}) }
   /** key → { refs, unsub, written (baseRev), timer, writing, again, changedAt } */
   const watched = new Map()
+  /** key → savedAt of the record the last hydrate read (bounded, oldest out). */
+  const savedAt = new Map()
+  const _noteSaved = (key, at) => {
+    savedAt.delete(key)
+    savedAt.set(key, Number.isFinite(at) ? at : null)
+    if (savedAt.size > 1000) savedAt.delete(savedAt.keys().next().value)
+  }
 
   function _changed(key, s) {
     const w = watched.get(key)
@@ -139,19 +146,23 @@ export function createPersist({
     w.timer = setTimer(() => { w.timer = null; idle(() => { _write(key) }) }, debounceMs)
   }
 
+  /** THE write of one server-backed snapshot: mem synchronously, then IDB (monotonic both). */
+  async function _put(key, s, startedAt) {
+    const p = parseKey(key)
+    const rows = toCacheRows(s)
+    const opts = { startedAt, meta: encodeMeta(s) }
+    IO.memPutMonotonic(p.sym, p.cacheTf, rows, opts)
+    await IO.idbPutMonotonic(p.sym, p.cacheTf, rows, opts)
+  }
+
   async function _write(key) {
     const w = watched.get(key)
     const s = registry.peek(key)
     if (!w || !s || !s.restSeen || !s.bars.length || s.baseRev === w.written) return
-    const p = parseKey(key)
     w.writing = true
     const rev = s.baseRev
     try {
-      const rows = toCacheRows(s)
-      const meta = encodeMeta(s)
-      const opts = { startedAt: w.changedAt ?? now(), meta }
-      IO.memPutMonotonic(p.sym, p.cacheTf, rows, opts)
-      await IO.idbPutMonotonic(p.sym, p.cacheTf, rows, opts)
+      await _put(key, s, w.changedAt ?? now())
       w.written = rev
     } catch { /* best-effort: the caches are derived data */ }
     w.writing = false
@@ -185,6 +196,20 @@ export function createPersist({
       return () => { if (done) return; done = true; detach(key) }
     },
     detach,
+    /**
+     * Write `key` once, now, when no subscriber's watcher owns it (an ensure / prefetch nobody
+     * is subscribed to). The watcher's rule: server-backed snapshots only (restSeen, rows
+     * held), never a windowed key. The mem half lands before this returns; the IDB half is
+     * the returned promise. A watched key is left to its watcher (no double write).
+     */
+    writeOnce(key, { startedAt = null } = {}) {
+      const p = parseKey(key)
+      const s = registry.peek(key)
+      if (!p || p.window || watched.has(key) || !s || !s.restSeen || !s.bars.length) return Promise.resolve(false)
+      return _put(key, s, startedAt ?? now()).then(() => true, () => false)
+    },
+    /** savedAt of the cache record the last hydrate of `key` read (mem, else IDB), or null. */
+    savedAtOf(key) { return savedAt.get(key) ?? null },
     /** Write every pending key now (page hide / tests). */
     async flush() {
       const keys = [...watched.keys()]
@@ -201,10 +226,23 @@ export function createPersist({
       if (!p || p.window) return registry.getSnapshot(key)
       const gen = registry.getSnapshot(key).gen
       const m = IO.memPeekEntry(p.sym, p.cacheTf)
-      if (m?.bars?.length) registry.dispatch(key, { type: ACTION.MEM_HIT, key, gen, payload: decodeEntry(key, m) })
+      if (m?.bars?.length) {
+        registry.dispatch(key, { type: ACTION.MEM_HIT, key, gen, payload: decodeEntry(key, m) })
+        _noteSaved(key, m.savedAt)
+      }
       let e = null
       try { e = await IO.idbGet(p.sym, p.cacheTf) } catch { e = null }
-      if (e?.bars?.length) registry.dispatch(key, { type: ACTION.IDB_HIT, key, gen, payload: decodeEntry(key, e) })
+      if (e?.bars?.length) {
+        registry.dispatch(key, { type: ACTION.IDB_HIT, key, gen, payload: decodeEntry(key, e) })
+        // IDB → mem promotion (the legacy warmers' `_promote`): the synchronous readers (the
+        // handoff's mem fast path, useDayFacts) see a disk copy once it is hydrated. With its
+        // OWN stamp and envelope, never now (every age rule still judges it by its write
+        // time), and only when mem held nothing for the key.
+        if (!m?.bars?.length) {
+          try { IO.memPutMonotonic(p.sym, p.cacheTf, e.bars, { savedAt: e.savedAt ?? null, meta: e.meta ?? null }) } catch { /* derived */ }
+          _noteSaved(key, e.savedAt)
+        }
+      }
       return registry.peek(key)
     },
     /**

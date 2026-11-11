@@ -166,7 +166,9 @@ function fromChartDev(cb, rev, src, ticked = false) {
 /** The developing bar as a CLOSED row (its bucket ended without a seal/final). */
 function devToRow(d) {
   // A bar a tick has touched (or opened) ranks as a tick: its values are not the server's.
-  const rank = d.src === DEV_SRC.TICK || d.provisional || d.ticked ? 'tick' : (d.src === DEV_SRC.SERVER ? 'rest' : 'push')
+  // A forming row restored from the caches (LOCAL) closes as a local row: it never ranks 'rest'.
+  const rank = d.src === DEV_SRC.TICK || d.provisional || d.ticked ? 'tick'
+    : (d.src === DEV_SRC.SERVER ? 'rest' : (d.src === DEV_SRC.LOCAL ? 'local' : 'push'))
   return freezeBar({ t: d.t, o: d.o, h: d.h, l: d.l, c: d.c, v: d.v, rev: d.rev ?? null, fin: false, src: rank })
 }
 
@@ -496,11 +498,13 @@ function applyRest(state, action, ctx, kind) {
       if (devIn.legacy && !finite(dev.rev)) {
         // Writer D's rule (no revs to order by): server open, H/L union, live close stands.
         const r = reconcileWithServerTail(toChartBar(dev, state.sym), toChartBar(devIn, state.sym), { sym: state.sym })
-        dev = fromChartDev(r.bar, dev.rev, dev.src === DEV_SRC.TICK ? DEV_SRC.SERVER : dev.src)
+        dev = fromChartDev(r.bar, dev.rev, dev.src === DEV_SRC.TICK || dev.src === DEV_SRC.LOCAL ? DEV_SRC.SERVER : dev.src)
       } else if (dev.provisional || dev.ticked || revOf(devIn.rev) > revOf(dev.rev)) {
         const m = mergePushBar(toChartBar(dev, state.sym), toChartBar(devIn, state.sym), { sym: state.sym })
         if (m.kind === 'update') dev = fromChartDev(m.bar, Math.max(revOf(dev.rev), revOf(devIn.rev)), DEV_SRC.SERVER)
       }
+      // The server answered for this very bucket: a restored (LOCAL) forming bar is now its.
+      if (dev && dev.src === DEV_SRC.LOCAL) dev = Object.freeze({ ...dev, src: DEV_SRC.SERVER })
     } else {
       // The push feed is already on a later bucket: the answer's forming bar is closed.
       bars = mergeRows(st, [{ ...devIn, src: 'rest', fin: false, legacy: undefined }].map(_clean))
@@ -595,7 +599,7 @@ function applyLocal(state, action, ctx, source) {
   let st = { ...working, bars, sealedSpans: spans }
   if (devIn && (!dev || devIn.t > dev.t)) {
     if (dev) { ({ bars } = closeDeveloping(st, bars)); st = { ...st, bars } }
-    dev = fromChartDev(mergePushBar(null, toChartBar(devIn, state.sym), { sym: state.sym }).bar, devIn.rev, DEV_SRC.SERVER)
+    dev = fromChartDev(mergePushBar(null, toChartBar(devIn, state.sym), { sym: state.sym }).bar, devIn.rev, DEV_SRC.LOCAL)
   }
   ;({ bars, developing: dev } = settleDeveloping(st, bars, dev))
   // A persisted contract (hydrate ∘ persist = base, S8) restores its claims.

@@ -7,7 +7,8 @@
 //   getSnapshot(key) / peek(key)            frozen, identity-stable snapshots (S10)
 //   ensure(key, {depth, until, signal, priority, session}) → Promise<snapshot>
 //       hydrate + one request, resolved once the status is in `until` (default context |
-//       current | unavailable) or the request settled.
+//       current | unavailable) or the request settled. An answer is persisted even with no
+//       subscriber (persist.writeOnce).
 //   prefetch(keys, {priority, depth})       ensure for many keys at a lower priority
 //   invalidate(key | (key, snap) => bool, reason)   reset + refetch (abort in flight)
 //   scrollBack(key, {bars})                 prepend one older window
@@ -102,16 +103,32 @@ export function createBarStore(o = {}) {
     },
     getSnapshot: (key) => registry.getSnapshot(key),
     peek: (key) => registry.peek(key),
-    async ensure(key, { depth = 0, until = DEFAULT_UNTIL, signal = null, priority = 'urgent', session = 'rth' } = {}) {
+    // `hydrated`: the caller already hydrated the key (prefetch.js) — never read the caches twice.
+    // `warm` / `front`: the request's shed-ability (`&warm=1`) and its place in its lane rank.
+    // ⭐ An answer is PERSISTED whether or not anyone subscribes: with no subscriber (no
+    // watcher) the answer that changed the base is written once through persist.writeOnce —
+    // the same monotonic writers, the same server-backed-only rule — so a warm reaches mem +
+    // IDB and survives the registry's LRU.
+    async ensure(key, {
+      depth = 0, until = DEFAULT_UNTIL, signal = null, priority = 'urgent', session = 'rth',
+      hydrated = false, warm = false, front = false,
+    } = {}) {
       registry.acquire(key)
       try {
         const ok = (s) => until.includes(s.status) && (!depth || s.depth >= depth || s.status === STATUS.UNAVAILABLE)
-        if (!active.has(key)) await persist.hydrate(key)
+        if (!active.has(key) && !hydrated) await persist.hydrate(key)
         let s = registry.getSnapshot(key)
         if (ok(s) && s.restSeen) return s
         if (signal?.aborted) return s
+        const rev0 = s.baseRev
+        const startedAt = now()
+        const req = network.fetchOnce(key, { priority, depth, session, signal, warm, front })
+        req.then(() => {
+          const cur = registry.peek(key)
+          if (cur && cur.baseRev !== rev0 && !active.has(key)) persist.writeOnce?.(key, { startedAt })
+        })
         await Promise.race([
-          network.fetchOnce(key, { priority, depth, session }),
+          req,
           new Promise((resolve) => signal?.addEventListener?.('abort', resolve, { once: true })),
         ])
         return registry.getSnapshot(key)

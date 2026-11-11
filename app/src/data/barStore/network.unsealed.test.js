@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createRegistry } from './registry'
 import { createNetwork, MUTABLE_WINDOW_S, deltaStartFor } from './network'
-import { keyOf } from './types'
+import { keyOf, ACTION } from './types'
 import { INTRADAY_POLL_MS, TAIL_CATCHUP_MAX_TRIES } from '../../utils/intradayTailPoll'
 
 const T0 = Date.UTC(2026, 10, 10, 15, 0)   // Tue 10:00 ET
@@ -14,7 +14,7 @@ beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(T0) })
 afterEach(() => { vi.useRealTimers() })
 
 /** A store-backed 5m series that never seals: 24 h of rows up to now, editable. */
-function server() {
+function server({ lagS = 0 } = {}) {
   const rows = new Map()
   const st = { hist: 1, rev: 1 }
   const sync = () => {
@@ -29,7 +29,7 @@ function server() {
     const m = /since=(\d+)/.exec(url)
     const since = m ? Number(m[1]) : null
     const now = Math.floor(Date.now() / 1000)
-    const bars = [...rows.values()].filter((b) => (since == null || b.t > since) && b.t <= now).sort((a, b) => a.t - b.t)
+    const bars = [...rows.values()].filter((b) => (since == null || b.t > since) && b.t <= now - lagS).sort((a, b) => a.t - b.t)
     return {
       bars, contract: 1, grid: 'eth-clock', session: 'rth', cache_key: 'b1:SIM:5:eth-clock',
       series_rev: st.rev, history_rev: st.hist, verified_through: now, sealed_through: null,
@@ -90,9 +90,43 @@ describe('no seal held → mutable-window since= deltas', () => {
     expect(calls.at(-1)).toMatch(/since=/)        // and back to deltas
   })
 
+  it('#1125: the window is measured from the SERVER tail — a push developing bar N buckets ahead never hides a correction at the server floor edge', async () => {
+    const N = 6
+    const key = keyOf({ sym: 'SIM', tf: '5' })
+    const srv = server({ lagS: N * 300 })              // the server's stored tail lags N buckets
+    const calls = []
+    const registry = createRegistry({ ctx: () => ({ nowMs: Date.now(), streamLive: true }) })
+    const net = createNetwork({
+      registry, isHidden: () => false, onVisible: () => () => {},
+      request: async (url) => { calls.push(url); return srv.answer(url) },
+    })
+    net.start(key)
+    await vi.advanceTimersByTimeAsync(10)
+    const srvTail = registry.getSnapshot(key).bars.at(-1).t
+    // The push stream runs ahead: N closed buckets + a developing one past the server tail.
+    const px = { o: 100, h: 101, l: 99, c: 100.5, v: 10 }
+    for (let i = 1; i <= N; i++) {
+      registry.dispatch(key, { type: ACTION.PUSH_FINAL, key, event: { t: srvTail + i * 300, ...px, rev: Date.now() + i, final: true } })
+    }
+    registry.dispatch(key, { type: ACTION.PUSH_BAR, key, event: { t: srvTail + (N + 1) * 300, ...px, rev: Date.now() + 99 } })
+    const s = registry.getSnapshot(key)
+    const heldTail = s.developing ? s.developing.t : s.bars.at(-1).t
+    expect(heldTail).toBeGreaterThan(srvTail)                       // the push really is ahead
+    expect(deltaStartFor(s)).toBe(srvTail - MUTABLE_WINDOW_S)
+    // A correction exactly at the server's floor edge.
+    const edge = srvTail - MUTABLE_WINDOW_S
+    expect(s.bars.find((b) => b.t === edge)).toBeTruthy()
+    srv.rows.set(edge, { ...srv.rows.get(edge), c: 100.9, h: 101.3 })
+    await vi.advanceTimersByTimeAsync(INTRADAY_POLL_MS + 10)
+    const since = Number(/since=(\d+)/.exec(calls.at(-1))[1])
+    expect(since).toBeLessThan(edge)
+    expect(registry.getSnapshot(key).bars.find((b) => b.t === edge).c).toBe(100.9)
+    net.stop(key)
+  })
+
   it('full reads only where they belong: first load, needsFull, D/W/M, windowed keys', () => {
     const k5 = keyOf({ sym: 'SIM', tf: '5' })
-    const base = { key: k5, sealedSpans: [], deltaFrom: null, needsFull: false, restSeen: true, developing: null, bars: [{ t: 1_700_000_000 }] }
+    const base = { key: k5, sealedSpans: [], deltaFrom: null, needsFull: false, restSeen: true, developing: null, bars: [{ t: 1_700_000_000, src: 'rest' }] }
     expect(deltaStartFor({ ...base, restSeen: false })).toBe(null)
     expect(deltaStartFor({ ...base, needsFull: true })).toBe(null)
     expect(deltaStartFor({ ...base, key: keyOf({ sym: 'SIM', tf: 'D' }) })).toBe(null)
