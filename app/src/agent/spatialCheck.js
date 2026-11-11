@@ -617,15 +617,15 @@ export function everyExceptSet(text, charts = [], sel = null) {
     for (const r of hits) excluded.add(r)
   }
   if (!excluded.size || excluded.has(UNPLACED)) return null
-  const scoped = SCOPE_WORD.test(seg)
+  // the quantifier decides the pool: unscoped, it covers the whole board (the click included); scoped, only the charts that
+  // scope places, and never the click (its anchor)
   let pool = charts
-  if (scoped) {
+  if (!quantifierCoversClick(SCOPE_WORD.test(seg))) {
     const sc = spatialConstraints(t.slice(0, after + ex.index), charts, sel)
     if (!sc.allowed?.size) return null
-    pool = charts.filter(c => sc.allowed.has(c.ref))
+    pool = charts.filter(c => sc.allowed.has(c.ref) && c.ref !== sel)
   }
-  const covers = quantifierCoversClick(scoped)
-  const set = pool.filter(c => !excluded.has(c.ref) && (covers || c.ref !== sel))
+  const set = pool.filter(c => !excluded.has(c.ref))
   if (!set.length || set.length === charts.length) return null
   return { refs: set.map(c => c.ref), excluded: [...excluded] }
 }

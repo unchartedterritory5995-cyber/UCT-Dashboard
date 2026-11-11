@@ -401,7 +401,7 @@ function everyExceptQuestion(host, ops, text) {
     }
     const labels = set.map(c => c.label || c.symbol || c.ref)
     const label = labels.length === 1 ? labels[0] : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`
-    return { text: `Did you mean these ${set.length} charts: ${label}? Nothing has changed yet.`, choice: { ref: `set:${set.map(c => c.ref).join(',')}`, label, ops: out } }
+    return { text: set.length === 1 ? `Did you mean ${label}? Nothing has changed yet.` : `Did you mean these ${set.length} charts: ${label}? Nothing has changed yet.`, choice: { ref: `set:${set.map(c => c.ref).join(',')}`, label, ops: out } }
   } catch { return null }
 }
 // GATE C: a committed plan → session memory, every target as its CHART ref (a kind's `groupOf`), with
