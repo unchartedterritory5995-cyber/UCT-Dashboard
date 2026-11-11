@@ -9,6 +9,7 @@ const FEATURE_METHODS = {
   'window-state': ['onWindowState'],
   'desk-visibility': ['onDeskVisibility'],
   'before-quit': ['onBeforeQuit', 'ackBeforeQuit'],
+  'site-events': ['reportEvent'],
 }
 
 const noop = () => {}
@@ -59,6 +60,16 @@ export function onBeforeQuit(cb) { return subscribe('before-quit', (b) => b.onBe
 export function ackBeforeQuit() {
   if (!hasDesktopFeature('before-quit')) return
   try { getBridge().ackBeforeQuit() } catch { /* the shell closes on its own timer */ }
+}
+
+/**
+ * Tell the shell about an event only the website can see, for its enum-only telemetry (plan 5.1):
+ * 'signed_in' (the shell sends first_signin once per install) or 'desk_restored' (a saved desk came
+ * back at launch). The shell drops any other name. A no-op outside the app or on an older shell.
+ */
+export function reportDesktopEvent(name) {
+  if (!hasDesktopFeature('site-events')) return
+  try { getBridge().reportEvent(name) } catch { /* telemetry never breaks the page */ }
 }
 
 /** { appVersion, platform }, or null outside the app or if the shell cannot answer. */
