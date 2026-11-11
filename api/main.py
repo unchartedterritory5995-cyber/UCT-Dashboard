@@ -6191,6 +6191,10 @@ async def lifespan(app: FastAPI):
             def _initial_pull():
                 import time as _t
                 _skip_boot_pull = False
+                try:   # clustered-layout adoption (data_sync.adopt_clustered_if_requested)
+                    data_sync.adopt_clustered_store()
+                except Exception as _e:
+                    print(f"[startup] adopt-clustered check failed (non-fatal): {_e}")
                 try:
                     import sqlite3 as _sqlite_probe
                     _db_probe_path = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
