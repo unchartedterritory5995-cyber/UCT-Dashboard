@@ -326,7 +326,10 @@ def watch(post=None) -> list[dict]:
 # feature nobody budgeted is visible without opening /admin/ai-spend.
 # Off with LLM_SPEND_DIGEST=0.
 def _segment(door: str) -> str:
-    if door.startswith(("morning-wire/", "uct-intelligence/", "tx-recap/")):
+    # Site code is always attributed to an `api/` module (or "unattributed"); every other
+    # door comes from outside: the PC meter (tools/pc_llm_meter, `<repo>/<entry script>`),
+    # the sibling repos' sub_claude reporters, tx-recap.
+    if not door.startswith("api/") and door != "unattributed":
         return "outside site"
     return "member" if _door_kind(door) in _MEMBER_KINDS else (
         "unlisted" if _door_kind(door) == "unlisted" else "background")
