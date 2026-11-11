@@ -1443,7 +1443,7 @@ def daily_bars_needed_since(lo_iso: str, *, today=None) -> int:
     return max(30, min(need, _DEEP_REQUEST_THRESHOLD - 1))
 
 
-def _mark_history_complete(ticker: str, tf: str) -> None:
+def _mark_history_complete(ticker: str, tf: str, bars: int | None = None) -> None:
     """Record that a full-history (deep) fetch has populated SQLite for this
     (ticker, tf). Without this, a deep backfill whose requested count exceeds
     the stock's actual available bar count (e.g. asking 20000 daily bars for a
@@ -1455,7 +1455,14 @@ def _mark_history_complete(ticker: str, tf: str) -> None:
     ⛔ NEVER ON A FALLBACK INTRADAY ANSWER. yfinance serves 7 days of 1m and FMP a
     shallow RTH-only window; marking either "complete" told the cache gate "this is
     all there is" and locked the truncated depth in for 6h, so the deep Massive pull
-    never re-ran even after Massive recovered."""
+    never re-ran even after Massive recovered.
+
+    ⛔⛔ THE MARKER RECORDS HOW DEEP THE FETCH WAS (2026-11-11). It used to be a bare
+    True: the chart's 3000-bar off-critical-path deep pull (≈75 days of 15m) marked the
+    key "complete", and for the next 6 h every scroll-back ask (`bars=30000`, ≈2 years)
+    was answered from SQLite as if 75 days were the whole history — no fetch ever ran.
+    The value is now the deepest `bars` a successful full fetch was asked for, and
+    `_history_complete(ticker, tf, bars)` only vouches for requests at or under it."""
     if tf in ("1", "5", "15", "30", "60") and _last_intraday_fetch_was_fallback():
         import logging as _log_hc
         _log_hc.getLogger(__name__).info(
@@ -1463,16 +1470,32 @@ def _mark_history_complete(ticker: str, tf: str) -> None:
             ticker, tf, last_intraday_source())
         return
     try:
-        cache.set(f"histfull_{ticker}_{tf}", True, ttl=21600)
+        key = f"histfull_{ticker}_{tf}"
+        depth = int(bars) if bars else _HISTFULL_ANY
+        prev = cache.get(key)
+        if isinstance(prev, int) and not isinstance(prev, bool) and prev > depth:
+            depth = prev
+        cache.set(key, depth, ttl=21600)
     except Exception:
         pass
 
 
-def _history_complete(ticker: str, tf: str) -> bool:
+# A marker set without a depth (a legacy caller) vouches for any request size.
+_HISTFULL_ANY = 1 << 30
+
+
+def _history_complete(ticker: str, tf: str, bars: int | None = None) -> bool:
+    """True when a full fetch at least `bars` deep is recorded (any depth when `bars`
+    is None — the daily seasonality caller)."""
     try:
-        return cache.get(f"histfull_{ticker}_{tf}") is True
+        v = cache.get(f"histfull_{ticker}_{tf}")
     except Exception:
         return False
+    if v is True:                          # pre-depth marker still in a live cache
+        return bars is None
+    if not isinstance(v, int) or isinstance(v, bool):
+        return False
+    return bars is None or v >= int(bars)
 
 
 def _expected_latest_session_yyyymmdd(now=None) -> int:
@@ -2305,6 +2328,104 @@ def _last_known_close(ticker: str, tf: str) -> float | None:
     return None
 
 
+# A payload that EXTENDS history (starts before the oldest stored row) and disagrees with
+# the stored rows it overlaps on at least this share of shared timestamps (>2% close apart)
+# is another company (a reused symbol) or another price basis: refused, never stored.
+_OVERLAP_MISMATCH_SHARE = 0.5
+_OVERLAP_MIN_SHARED = 5
+# Only the stored rows of the newest this-many ET sessions are compared (see below).
+_OVERLAP_RECENT_SESSIONS = 2
+
+
+def _desc_chain_valid(bars, anchor) -> bool:
+    """The chained per-bar check run NEWEST → OLDEST, seeded with `anchor` (the stored
+    tail's close). Each bar's CLOSE is compared to the next-newer bar's OPEN (the bar is
+    handed to `validate_bar` with o/c swapped, so the same rules apply mirrored), and the
+    reference walks back only across valid bars. ≥ `_PARTIAL_VALIDATION_THRESHOLD` valid
+    passes — the threshold `_payload_passes_validation` uses."""
+    pc = anchor
+    valid = total = 0
+    for bar in reversed(bars):
+        if not isinstance(bar, dict):
+            continue
+        total += 1
+        ok, _ = _bar_validation.validate_bar(dict(bar, o=bar.get("c"), c=bar.get("o")), prior_close=pc)
+        if ok:
+            valid += 1
+            pc = bar.get("o", pc)
+    return total > 0 and (valid / total) >= _PARTIAL_VALIDATION_THRESHOLD
+
+
+def _overlap_disagrees(ticker: str, src_tf: str, bars) -> bool:
+    """True when `bars` extends stored history and disagrees WHOLESALE with the stored
+    rows of the NEWEST `_OVERLAP_RECENT_SESSIONS` stored sessions (see
+    `_OVERLAP_MISMATCH_SHARE`). A payload that only refreshes the stored range (a tail /
+    delta fetch) is not judged here — a provider re-adjustment of recent bars must still
+    be able to land.
+
+    ⛔ ONLY THE NEWEST STORED SESSIONS ARE THE REFERENCE (review of #1116). Intraday split
+    heal detects and logs only, so after a split the OLDER stored rows stay on the pre-split
+    basis; comparing a split-adjusted deep payload against them refused exactly the
+    history that corrects them. The newest sessions are on today's basis (the same anchor
+    the backward chain starts from): a reused symbol or a wrong-basis payload disagrees
+    there and is refused; a split-adjusted payload agrees there and overwrites the stale
+    pre-split rows."""
+    try:
+        first_t = int(bars[0]["t"])
+        last_t = int(bars[-1]["t"])
+        stored_first = _sqlite.get_first_ts(ticker.upper(), src_tf)
+        if stored_first is None or first_t >= int(stored_first):
+            return False
+        per_day = (16 * 60) // max(1, int(src_tf))
+        recent = _sqlite.get_bars(ticker.upper(), src_tf, per_day * (_OVERLAP_RECENT_SESSIONS + 1))
+        et = _ZI("America/New_York")
+        days = sorted({datetime.fromtimestamp(int(r[0]), et).date() for r in recent})[-_OVERLAP_RECENT_SESSIONS:]
+        keep = set(days)
+        stored = {int(r[0]): float(r[4]) for r in recent
+                  if int(r[0]) <= last_t and datetime.fromtimestamp(int(r[0]), et).date() in keep}
+        shared = mism = 0
+        for b in bars:
+            sc = stored.get(int(b.get("t", -1)))
+            c = b.get("c")
+            if sc is None or not isinstance(c, (int, float)) or sc == 0:
+                continue
+            shared += 1
+            if abs(float(c) - sc) / abs(sc) > 0.02:
+                mism += 1
+        return shared >= _OVERLAP_MIN_SHARED and mism / shared >= _OVERLAP_MISMATCH_SHARE
+    except Exception:
+        return False
+
+
+def _intraday_payload_valid(ticker: str, src_tf: str, payload, anchor_tfs=()) -> bool:
+    """THE validity question for an intraday provider payload (`fetch_with_validation`'s
+    `validate_for`).
+
+    ⛔⛔ CHAINED FROM TODAY, WALKING BACKWARD (2026-11-11, review of #1116). The old
+    ascending check was seeded with the NEWEST stored close and started at the payload's
+    OLDEST bar: a deep (scroll-back) payload starting months back failed the 50% gate on
+    every bar until the price came back within 50% of today, so Massive's whole deep answer
+    was rejected for any stock that had moved > 50% (production 2026-11-11: `bars=32000`
+    added no depth on 60m for 14 of 21 names). Seeding with "the bar before the payload"
+    fixed that but left a deep payload with NOTHING to agree with. Walking newest → oldest
+    from the stored close keeps the "agrees with today" anchor AND accepts any real long
+    move (each step is checked against its neighbour). And a payload that extends history
+    but disagrees wholesale with the stored rows it overlaps is refused, so a reused symbol
+    or a different price basis can never overwrite good rows."""
+    bars = _extract_bars(payload)
+    bars = [b for b in (bars or []) if isinstance(b, dict) and isinstance(b.get("t"), (int, float))]
+    if not bars:
+        return False
+    anchor = None
+    for tf_ in (src_tf, *anchor_tfs):
+        anchor = _last_known_close(ticker, tf_)
+        if anchor is not None:
+            break
+    if not _desc_chain_valid(bars, anchor):
+        return False
+    return not _overlap_disagrees(ticker, src_tf, bars)
+
+
 def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
     """Fetch intraday bars — routes the Massive → FMP → yfinance source chain
     through ``fetch_with_validation`` so corrupt primary payloads automatically
@@ -2320,6 +2441,12 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
     _logger = _log.getLogger(__name__)
     _set_intraday_source(None)    # never inherit a previous fetch's source on this thread
     prior_close = _last_known_close(ticker, tf)
+
+    def _valid15(payload, _t=ticker, _tf=tf):      # 30m/60m: validated on their 15m source
+        return _intraday_payload_valid(_t, "15", payload, anchor_tfs=(_tf,))
+
+    def _valid(payload, _t=ticker, _tf=tf):
+        return _intraday_payload_valid(_t, _tf, payload)
     # Latest session that should have bars — drives staleness escalation so a
     # valid-but-lagging Massive payload yields to a fresher FMP/yfinance one.
     expected_session = _expected_latest_session_yyyymmdd()
@@ -2340,7 +2467,8 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
         src = max_bars * 4
         # fetch_with_validation handles the Massive → FMP → yfinance chain for the
         # 15-min source, applying per-bar validation at each hop.
-        bars_src = fetch_with_validation(ticker, "15", src, prior_close=prior_close, expected_session=expected_session)
+        bars_src = fetch_with_validation(ticker, "15", src, prior_close=prior_close, expected_session=expected_session,
+                                         validate_for=_valid15)
         if bars_src and not _is_intraday_stale(bars_src):
             out = _resample_derived("60", bars_src)[-max_bars:]
             _logger.warning(
@@ -2363,7 +2491,8 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
         # Massive's native 30-min aggregate is intermittently sparse (it drops
         # half-hour bars the 15m feed carries). 30 divides the 09:30 open, so the
         # clock floor IS TradingView's 30m grid on both session views.
-        bars_src = fetch_with_validation(ticker, "15", max_bars * 2, prior_close=prior_close, expected_session=expected_session)
+        bars_src = fetch_with_validation(ticker, "15", max_bars * 2, prior_close=prior_close, expected_session=expected_session,
+                                         validate_for=_valid15)
         if bars_src and not _is_intraday_stale(bars_src):
             return _resample_derived("30", bars_src)[-max_bars:]
         _logger.warning(
@@ -2372,7 +2501,8 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
         return []
 
     # 1/5/15-min: validating fetch chain
-    validated = fetch_with_validation(ticker, tf, max_bars, prior_close=prior_close, expected_session=expected_session)
+    validated = fetch_with_validation(ticker, tf, max_bars, prior_close=prior_close, expected_session=expected_session,
+                                      validate_for=_valid)
     if validated and not _is_intraday_stale(validated):
         return validated
 
@@ -3429,12 +3559,30 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
     # some OTHER (older) window is stored (e.g. replayed 2012 earlier, now asking for 2015: the
     # 2012 rows are ≤ the 2015 key but are the WRONG window and would serve stale). Empty = fetch.
     _intraday_window_missing = False
+    # ⭐⭐ A SHORT WINDOW IS NOT A COVERED ONE (2026-11-11). The chart's scroll-back asks
+    # this path for "the `bars` bars before my oldest bar" (`to=` = that bar's ET date).
+    # A store holding a few rows just before the cutoff used to count as covering it, so
+    # the ask was answered with those few rows and the provider was never asked for the
+    # rest. Now a read SHORTER than asked (`len < bars * 0.9`) fetches the stretch BEFORE
+    # its oldest row, once per (ticker, tf, to) per `_TO_WINDOW_TTL` — a name whose
+    # history genuinely starts there (a recent listing) is asked once, not per scroll.
+    _win_key = f"towin_{ticker_up}_{tf}_{to_str}_{_depth_tier(bars)}"
+    _intraday_window_short = False
+    _fetch_to_str = str(to_str)
     if not date_tf:
         try:
             _intraday_window_missing = (not rows) or (to_key - int(rows[-1][0]) > 7 * 86400)
         except Exception:
             _intraday_window_missing = not rows
-    if _intraday_window_missing:
+        if (not _intraday_window_missing and rows and len(rows) < int(bars) * 0.9
+                and cache.get(_win_key) is None):
+            _intraday_window_short = True
+            try:
+                _fetch_to_str = datetime.fromtimestamp(
+                    int(rows[0][0]), _ZI("America/New_York")).strftime("%Y-%m-%d")
+            except Exception:
+                _intraday_window_short = False
+    if _intraday_window_missing or _intraday_window_short:
         # Cold INTRADAY replay (e.g. AAPL 5-min at a 2008 cutoff — deep intraday this pod has
         # never fetched). The daily branch above is date_tf-only; without this an old intraday
         # cutoff falls to _get_bars_inner (recent-window) → EMPTY after the client's cutoff
@@ -3450,9 +3598,13 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
             bars_per_day = (16 * 60) // max(mult, 1)
             eff_bars = min(int(bars), _REPLAY_INTRADAY_COLD_BARS)
             lookback_days = min(400, max(10, int(eff_bars / max(bars_per_day, 1) * 1.5) + 5))
-            _to_d = datetime.strptime(str(to_str), "%Y-%m-%d")
+            _to_d = datetime.strptime(_fetch_to_str, "%Y-%m-%d")
             from_ymd = (_to_d - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
-            cold_key = f"replayto::{ticker_up}::{tf}::{to_str}"
+            cold_key = f"replayto::{ticker_up}::{tf}::{_fetch_to_str}"
+            # A window with NOTHING stored waits the deep ceiling (there is nothing else
+            # to paint); a short one already has bars to serve, so it waits briefly and
+            # then answers `filling` instead of holding the request.
+            _win_wait = _DEEP_DEADLINE_SECONDS if _intraday_window_missing else _TO_SHORT_WAIT_SECONDS
             with _inflight_lock:
                 ev = _inflight.get(cold_key)
                 do_fetch = ev is None
@@ -3473,14 +3625,24 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                     def _replay_job(_ev=ev, _key=cold_key):
                         try:
                             _t0 = _time.time()    # this fetch's provider check instant
-                            deep = [b for b in _fetch_intraday_range(ticker_up, tf, from_ymd, str(to_str))
+                            deep = [b for b in _fetch_intraday_range(ticker_up, tf, from_ymd, _fetch_to_str)
                                     if int(b.get("t", 0)) <= to_key]
+                            _stored_ok = True
                             if deep:
                                 try:
                                     with _provider_write(_t0):
                                         _sqlite.put_bars(ticker_up, tf, deep, date_tf=False)
-                                except Exception:
-                                    pass
+                                except Exception as _we:   # noqa: BLE001
+                                    _stored_ok = False
+                                    import logging as _log_tw
+                                    _log_tw.getLogger(__name__).warning(
+                                        "[bars] to= window write failed %s tf=%s to=%s: %s: %s",
+                                        ticker_up, tf, _fetch_to_str, type(_we).__name__, _we)
+                            # The provider has answered AND the answer is stored: what is
+                            # stored now is all there is. A failed fetch or a failed write
+                            # leaves the window un-marked, so the next ask retries it.
+                            if _stored_ok:
+                                cache.set(_win_key, 1, ttl=_TO_WINDOW_TTL)
                         except Exception:     # noqa: BLE001 — background
                             pass
                         finally:
@@ -3496,14 +3658,14 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                         with _inflight_lock:
                             _inflight.pop(cold_key, None)
                         ev.set()
-                    ev.wait(timeout=_bounded_wait(_DEEP_DEADLINE_SECONDS))
+                    ev.wait(timeout=_bounded_wait(_win_wait))
                 else:
                     with _inflight_lock:
                         _inflight.pop(cold_key, None)
                     ev.set()
             else:
                 # another request is fetching this exact window — wait (bounded), then read
-                ev.wait(timeout=_bounded_wait(_DEEP_DEADLINE_SECONDS + 0.5))
+                ev.wait(timeout=_bounded_wait(_win_wait + 0.5))
             rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
             # ⛔ RE-CHECK COVERAGE, not just emptiness (review F1): a store holding an
             # OLDER era (2012 rows for a 2015 cutoff) is non-empty but still does not
@@ -3513,12 +3675,23 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                 _intraday_window_missing = (not rows) or (to_key - int(rows[-1][0]) > 7 * 86400)
             except Exception:
                 _intraday_window_missing = not rows
+            with _inflight_lock:
+                _replay_running = cold_key in _inflight
             if _intraday_window_missing and not warm:
-                with _inflight_lock:
-                    _replay_running = cold_key in _inflight
                 if _replay_running:
                     # Shed, clearly marked: the window is still landing — re-poll the tier.
                     return _replay_warming_response(resp_ticker, tf)
+            elif _intraday_window_short and _replay_running and rows:
+                # ⛔ NEVER EMPTY-HANDED WHEN OLDER DATA EXISTS. The stored part of the
+                # window is real and in order: serve it now, flagged `filling`, and tell
+                # the client when the rest should be there.
+                _mark_serve("to-filling")
+                r = JSONResponse(
+                    content={"ticker": resp_ticker, "tf": tf,
+                             "bars": _fmt_sqlite_bars(rows, tf, ticker_up), "filling": True},
+                    headers={"Cache-Control": "public, max-age=5"})
+                r.headers["Retry-After"] = "3"
+                return r
         except Exception:
             rows = rows or []
     if not rows:
@@ -3529,6 +3702,12 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
     # an honest best effort, not static history: never pin it for an hour.
     _replay_ttl = 30 if (not date_tf and _intraday_window_missing) else 3600
     return JSONResponse(content=payload, headers={"Cache-Control": f"public, max-age={_replay_ttl}"})
+
+
+# How long a fetched `to=` window vouches that the store holds all the provider has for
+# it (see `_get_bars_to_response`). Long: history before a date does not change.
+_TO_WINDOW_TTL = int(_os.environ.get("BARS_TO_WINDOW_TTL_SECONDS", str(6 * 3600)))
+_TO_SHORT_WAIT_SECONDS = 2.0
 
 
 # Timeframes the snapshot warm serves. Custom intraday tfs (2/45/240/…) are
@@ -3838,7 +4017,7 @@ def _do_cold_fetch(ticker_up: str, tf: str, bars: int, date_tf: bool) -> None:
                     _put_fetched_intraday(ticker_up, tf, raw)   # fallback = add-only
                 _record_full_cover(ticker_up, tf, raw, _t0)
             if _deep:
-                _mark_history_complete(ticker_up, tf)
+                _mark_history_complete(ticker_up, tf, bars)
         elif not raw and _faults.clean:
             _record_cold_negative(ticker_up, tf)
             _lg.info("[bars] cold bg fetch %s tf=%s: no provider has data — "
@@ -4226,7 +4405,7 @@ def _start_bounded_fetch_intraday(ticker_up: str, tf: str, bars: int):
                 with _provider_write(_t0):
                     _put_fetched_intraday(ticker_up, tf, raw)   # fallback = add-only
                 _record_full_cover(ticker_up, tf, raw, _t0)
-                _mark_history_complete(ticker_up, tf)       # refuses a fallback answer
+                _mark_history_complete(ticker_up, tf, bars)  # refuses a fallback answer
         except Exception as _e:           # noqa: BLE001
             import logging as _log_bf
             _log_bf.getLogger(__name__).warning(
@@ -4556,7 +4735,7 @@ def serve_warm_from_cache(ticker: str, tf: str, bars: int):
         # Require a COMPLETE-enough set (mirror the serve path's guard) so a warm never
         # seeds the browser a truncated series that the chart would then have to refill.
         if not stored_rows or not (
-            len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf)
+            len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf, bars)
         ):
             return None
         payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(stored_rows, tf, ticker_up)}
@@ -4636,7 +4815,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     _time_ck("live_cov")
     _fresh_needed = _needs_fresh(last_ts, tf, ticker_up) if stored_rows else True
     if stored_rows and not _fresh_needed and (
-        len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf)
+        len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf, bars)
         or (_live and bars <= _bls.LIVE_HISTORY_MAX_BARS and _bls.history_complete(ticker_up, tf))
     ):
         # SQLite has enough fresh data (or holds the full available history,
@@ -4688,7 +4867,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         # backfill of a stock with fewer bars than requested) — then it's NOT
         # partial; only a delta is needed. Without this guard such a chart would
         # re-run the full yfinance/Massive pull on every poll forever.
-        is_partial = len(stored_rows) < bars * 0.9 and not _history_complete(ticker_up, tf)
+        is_partial = len(stored_rows) < bars * 0.9 and not _history_complete(ticker_up, tf, bars)
 
         # Deep INTRADAY pan-backfill is served SYNCHRONOUSLY (2026-07-02).
         # A deep request (bars >= _DEEP_REQUEST_THRESHOLD) on an intraday TF
@@ -4921,7 +5100,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                                 # than the stock's lifetime doesn't re-fetch every
                                 # poll (the len>=bars*0.9 gate would never pass).
                                 if _deep:
-                                    _mark_history_complete(_sym, _tf)
+                                    _mark_history_complete(_sym, _tf, _bars)
                         else:
                             if _tf == "D":
                                 new = _delta_daily(_sym, _last_ts)
@@ -5109,7 +5288,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                     if date_tf or not _is_intraday_stale(raw):
                         _sqlite.put_bars(ticker_up, tf, raw, date_tf=date_tf)
                         if _deep:
-                            _mark_history_complete(ticker_up, tf)
+                            _mark_history_complete(ticker_up, tf, bars)
                 # Slice to the requested count for the response. We stored ALL
                 # fetched bars in SQLite above (so future larger requests don't
                 # have to refetch), but the caller only needs `bars` count back.
@@ -5280,8 +5459,14 @@ def fetch_with_validation(
     bars: int,
     prior_close: float | None = None,
     expected_session: int | None = None,
+    validate_for=None,
 ):
     """Fetch from primary; if it fails validation, fall back through alternates.
+
+    ``validate_for`` (optional): ``payload -> bool``, replaces the ascending
+    ``_payload_passes_validation(payload, prior_close)`` check — the intraday caller
+    passes `_intraday_payload_valid` (chained backward from the stored close + the
+    overlap-agreement rule).
 
     Order: Massive → FMP (intraday only) → yfinance.  Returns the first
     payload whose every bar passes validation, or ``None`` if every source
@@ -5336,7 +5521,8 @@ def fetch_with_validation(
     if _scb.is_ok("massive"):
         try:
             payload = _fetch_intraday_massive(ticker, tf, bars)
-            valid = _payload_passes_validation(payload, prior_close)
+            valid = (validate_for(payload) if validate_for
+                     else _payload_passes_validation(payload, prior_close))
             _scb.record_attempt("massive", success=valid)
             if valid:
                 chosen = _accept(payload)
@@ -5354,7 +5540,8 @@ def fetch_with_validation(
     if tf in ("1", "5", "15", "30", "60") and _scb.is_ok("fmp"):
         try:
             payload = _fetch_intraday_fmp(ticker, tf, bars)
-            valid = _payload_passes_validation(payload, prior_close)
+            valid = (validate_for(payload) if validate_for
+                     else _payload_passes_validation(payload, prior_close))
             _scb.record_attempt("fmp", success=valid)
             if valid and not _payload_has_extended_hours(payload):
                 fmp_rth = payload          # RTH-only: yfinance first, this only if it fails
@@ -5374,7 +5561,8 @@ def fetch_with_validation(
     if _scb.is_ok("yfinance"):
         try:
             payload = _fetch_intraday_yfinance(ticker, tf, bars)
-            valid = _payload_passes_validation(payload, prior_close)
+            valid = (validate_for(payload) if validate_for
+                     else _payload_passes_validation(payload, prior_close))
             _scb.record_attempt("yfinance", success=valid)
             if valid:
                 chosen = _accept(payload, "yfinance")
