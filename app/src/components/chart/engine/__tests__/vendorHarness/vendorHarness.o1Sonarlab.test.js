@@ -23,7 +23,7 @@ import path from 'node:path'
 
 import * as registry from '../../nativeRegistry'
 import { runOurSide, HARNESS_DEF_ID } from './ourSide'
-import { REPO } from './harness'
+import { REPO, gradeCapture, loadCapture, HARNESS_DIR } from './harness'
 
 const SCRIPT = path.join(REPO, 'corpus/committed/sonarlab-order-blocks__0df0d45ee6.pine')
 const CAPTURES = [
@@ -101,4 +101,31 @@ describe('O1 G2a + G2b — sonarlab-order-blocks holds the boxes its Pine semant
       for (const b of held) expect(b.props.right).toBe(b.props.left)
     })
   }
+})
+
+// ⭐⭐ W-C22-DEL r6 — THE WITNESS (objectPool.js C7): sonarlab keeps every box in a
+// `var array<box>` (`max_boxes_count = 20`), and TradingView holds 24 on SPY 1D — the
+// count a collector that does NOT spare array members gives (sparing them: 36). So a
+// box in an array is collected like any other, on BOTH lanes: never withheld whole.
+describe('W-C22-DEL r6 — sonarlab SPY 1D: boxes in a `var array<box>` are collected, 24/24 on both lanes', () => {
+  const ID = 'sonarlab-order-blocks-spy-1d-2026-10-02'
+  const grade = () => {
+    const c = loadCapture(path.join(HARNESS_DIR, `${ID}.json`)).capture
+    expect(c, `${ID} is a v1 capture`).toBeTruthy()
+    return gradeCapture(c).verdict
+  }
+  const boxes = (v) => v.objects.counts.find((r) => r.family === 'boxes')
+  it('host lane (objects pane): boxes 24 / 24, MATCH, nothing withheld', () => {
+    vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+    const v = grade()
+    expect(boxes(v)).toMatchObject({ vendor: 24, ours: 24, agree: true })
+    expect(v.objects.verdict).toBe('MATCH')
+  }, 600000)
+  it('runtime lane (runtime pane on): boxes 24 / 24, MATCH, nothing withheld', () => {
+    vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+    vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
+    const v = grade()
+    expect(boxes(v)).toMatchObject({ vendor: 24, ours: 24, agree: true })
+    expect(v.objects.verdict).toBe('MATCH')
+  }, 600000)
 })

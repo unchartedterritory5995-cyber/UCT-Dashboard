@@ -128,7 +128,8 @@
 /** 44 = VAR-OFF: off-listing `var` values that cannot be known are withheld by name, with new sentences (member-visible output); see the lane's EVIDENCE */
 /** 45 = DIV-4 paint/colour: translator output changes for paints with a foldable non-literal offset (HP-1 does not digest paints); runtime colour reasons name their limit */
 /** 46 = LANE2 (fix/pine-b0-na-seed): the B0 `na` seed lane, with its N1 version gate; see docs/pine/evidence/2026-11-10-lane2-b0/EVIDENCE.md */
-export const SCRIPT_ENGINE_VERSION = 46
+/** 47 = OZ stack: DIV-3 table.cell replace + W-C22-DEL withheld deletes/collector + OZ silent-zero naming */
+export const SCRIPT_ENGINE_VERSION = 47
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
