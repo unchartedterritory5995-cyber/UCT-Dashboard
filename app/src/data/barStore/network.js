@@ -67,15 +67,31 @@ export const MUTABLE_WINDOW_S = 8 * 3600
  * FULL only for: the first load (no server answer yet and nothing restored), a pending full
  * read (`needsFull` — cache_key / history_rev change, a voided restored seal), D/W/M and
  * windowed keys (the legacy client reads those whole too). With a seal: `deltaFrom` (the
- * first row after the newest seal). Without one: the held tail minus the mutable window.
+ * first row after the newest seal). Without one: the SERVER's tail minus the mutable window.
  * (The caller still turns an over-budget delta into a full read.)
+ *
+ * ⛔ THE SERVER'S TAIL, NEVER THE HELD ONE (#1125). The server places its mutable-window floor
+ * behind ITS stored tail; a push-fed developing bar (or push / final rows) can run N buckets
+ * ahead of it, and a window measured from there would start N buckets too late — a
+ * correction at the server's floor edge would never be re-read. So the window is measured
+ * from `serverTailOf`: the newest row a REST answer supplied. (A REST row a push frame later
+ * overwrote no longer counts; that only moves the start earlier — a wider, still-correct
+ * window.) No server row held → a full read.
  */
 export function deltaStartFor(s, p = parseKey(s.key)) {
   if (!p || !isIntradayTf(p.tf) || p.window || s.needsFull) return null
   if (s.sealedSpans.length && s.deltaFrom != null) return s.deltaFrom
   if (!s.restSeen) return null
-  const tail = s.developing ? s.developing.t : (s.bars.length ? s.bars[s.bars.length - 1].t : null)
+  const tail = serverTailOf(s)
   return finite(tail) ? tail - MUTABLE_WINDOW_S : null
+}
+
+/** Newest bucket `t` a server (REST) answer supplied to `s`: its developing bar while that is
+ *  still server-sourced, else the newest closed row still carrying `src: 'rest'`; or null. */
+export function serverTailOf(s) {
+  if (s.developing && s.developing.src === 'server' && finite(s.developing.t)) return s.developing.t
+  for (let i = s.bars.length - 1; i >= 0; i--) if (s.bars[i].src === 'rest') return s.bars[i].t
+  return null
 }
 export const PRIORITIES = Object.freeze(['visible', 'urgent', 'grid', 'background'])
 
@@ -328,13 +344,29 @@ export function createNetwork({
       // inside the repair dedupe window — unless it aborted the one in flight.
       _schedule(r, abort ? 0 : Math.max(0, REPAIR_DEDUP_MS - (now() - r.lastStart)))
     },
-    /** One request for `key` (ensure / prefetch), sharing the key's single slot. */
-    fetchOnce(key, { priority = 'urgent', depth = 0, session = 'rth' } = {}) {
+    /**
+     * One request for `key` (ensure / prefetch), sharing the key's single slot.
+     * `signal`: the caller's abort (a symbol switch). One-shot waiters are REF-COUNTED like
+     * the lane's joiners: a caller's abort only detaches that caller, and the tail request in
+     * flight is aborted only when the last one-shot waiter has left AND no subscriber holds
+     * the key — a prefetch or a mounted chart riding the same request never loses it.
+     */
+    fetchOnce(key, { priority = 'urgent', depth = 0, session = 'rth', signal = null } = {}) {
+      if (signal?.aborted) return Promise.resolve({ aborted: true })
       const r = _rec(key)
       r.depth = Math.max(r.depth, depth || 0)
       if (!r.sessions.size) r.sessions.set(session, 0)
       const out = _tail(r, priority)
-      out.finally(() => _gc(r))
+      r.once = (r.once || 0) + 1
+      let left = false
+      const leave = () => { if (!left) { left = true; r.once-- } }
+      const onAbort = () => {
+        leave()
+        if (r.once > 0 || r.refs > 0) return
+        if (r.inflight?.kind === 'tail' && r.inflight.promise === out) { r.inflight.ac?.abort(); r.inflight = null }
+      }
+      signal?.addEventListener?.('abort', onAbort, { once: true })
+      out.finally(() => { signal?.removeEventListener?.('abort', onAbort); leave(); _gc(r) })
       return out
     },
     /** Prepend one older window. Serialized behind the key's tail request. */

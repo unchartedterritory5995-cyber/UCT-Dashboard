@@ -111,7 +111,7 @@ export function createBarStore(o = {}) {
         if (ok(s) && s.restSeen) return s
         if (signal?.aborted) return s
         await Promise.race([
-          network.fetchOnce(key, { priority, depth, session }),
+          network.fetchOnce(key, { priority, depth, session, signal }),
           new Promise((resolve) => signal?.addEventListener?.('abort', resolve, { once: true })),
         ])
         return registry.getSnapshot(key)
