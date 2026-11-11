@@ -109,8 +109,14 @@ off-calendar purges, reconciliation) and `replace_ticker_tf_rows` always move it
 incl. D/W/M): a client that does a full read whenever `history_rev` differs from the one
 it holds, and otherwise asks `since = held tail - MUTABLE_WINDOW_S` (D/W/M: the tail
 period) and replaces its rows after `since` with the answer, holds rows byte-identical to
-the store over its held span after every poll. The server answers `ts > since`, so the
-row AT `tail - window` is history.
+the store over its held span after every poll (5m, 60m, D, W, M). The server answers
+`ts > since`, so the row AT `tail - window` is history — and the tail repair never
+rewrites it: both sides use ONE boundary, `bars_sqlite.is_held_history` (the repair's
+`_delta_keep_bar` re-emits only rows above the floor, plus missing ones).
+- `BARS_DELTA_HEAL_WINDOW_SECONDS` is clamped (with a warning) to the client contract
+  value `CLIENT_MUTABLE_WINDOW_S` (8 h, `app/src/data/barStore/network.js`): a server
+  window wider than the client's would rewrite rows outside the client's delta without a
+  bump. A narrower one is safe (more rows count as history).
 - While `history_rev` is unchanged, nothing a client holds below its delta start (or at
   or below `complete_through`) has changed.
 - A newer `history_rev` = re-read the window you hold (split re-adjust, heal, merge

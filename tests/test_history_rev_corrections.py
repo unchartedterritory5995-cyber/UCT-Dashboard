@@ -99,6 +99,10 @@ def _days(n, start=date(2026, 10, 1)):
 def _grid(tf, days):
     if tf == "D":
         return [int(d.strftime("%Y%m%d")) for d in days]
+    if tf == "W":                       # the ISO-week Friday
+        return sorted({int((d + timedelta(days=4 - d.weekday())).strftime("%Y%m%d")) for d in days})
+    if tf == "M":                       # the 1st
+        return sorted({int(d.replace(day=1).strftime("%Y%m%d")) for d in days})
     step = {"5": 5, "60": 60}[tf]
     out = []
     for d in days:
@@ -160,11 +164,14 @@ def _write_ops(rng, tf, keys, ticker="AAA"):
     return op
 
 
-@pytest.mark.parametrize("tf", ["5", "60", "D"])
+_H1_DAYS = {"5": 4, "60": 4, "D": 25, "W": 150, "M": 420}
+
+
+@pytest.mark.parametrize("tf", ["5", "60", "D", "W", "M"])
 @pytest.mark.parametrize("seed", range(12))
 def test_H1_a_client_following_the_poll_rule_stays_identical_to_the_store(store, tf, seed):
     rng = random.Random(seed * 101 + len(tf))
-    keys = _grid(tf, _days(25 if tf == "D" else 4))
+    keys = _grid(tf, _days(_H1_DAYS[tf], **({"start": date(2025, 9, 1)} if tf in ("W", "M") else {})))
     # A seeded series with holes in it (thin names have them; so do failed fetches).
     start = len(keys) // 3
     first = [k for k in keys[start:start + len(keys) // 3] if rng.random() > 0.15]
@@ -202,9 +209,7 @@ def test_H1_old_rule_would_diverge(store):
 def test_H2_tail_repairs_inside_the_window_never_move_history_rev(store, tf, seed):
     rng = random.Random(seed)
     if tf in ("W", "M"):
-        days = _days(130)
-        keys = sorted({int((d + timedelta(days=4 - d.weekday())).strftime("%Y%m%d")) if tf == "W"
-                       else int(d.replace(day=1).strftime("%Y%m%d")) for d in days})
+        keys = _grid(tf, _days(130))
     else:
         keys = _grid(tf, _days(25 if tf == "D" else 4))
     n0 = len(keys) // 2
@@ -348,3 +353,63 @@ def test_history_probe_reads_only_the_written_series(store):
         "EXPLAIN QUERY PLAN WITH w(t) AS (VALUES (?),(?)) SELECT w.t, (SELECT ts FROM ohlcv "
         "WHERE ticker=w.t AND tf=? ORDER BY ts DESC LIMIT 1) FROM w", ("A", "B", "5"))]
     assert not any(re.match(r"SCAN (ohlcv)\b", p) for p in plan), plan
+
+
+# ── review #1125 F2: one boundary for the repair and the history rule ───────────
+
+def test_the_repair_never_rewrites_the_boundary_row():
+    """`_delta_keep_bar` keeps exactly the rows that are NOT held history (one definition,
+    `bars_sqlite.is_held_history`), so a repair can never change a row without a bump."""
+    tail = et(2026, 11, 10, 15, 55)
+    floor = bs.history_floor("5", tail)
+    stored = {floor, floor + 300}
+    assert bs.is_held_history(floor, floor) and not bs.is_held_history(floor + 300, floor)
+    for ts in range(floor - 900, tail + 301, 300):
+        kept = bf._delta_keep_bar(ts, floor, stored)
+        assert kept == (not bs.is_held_history(ts, floor) or ts not in stored), ts
+    assert not bf._delta_keep_bar(floor, floor, stored)          # the boundary row
+    assert bf._delta_keep_bar(floor + 300, floor, stored)
+
+
+class _FakeClient:
+    _api_key = "test"
+
+
+def test_a_repair_whose_provider_changed_only_the_boundary_row_does_not_bump(store):
+    from unittest.mock import patch
+    tail = et(2026, 11, 10, 19, 55)
+    keys = list(range(tail - W - 1500, tail + 1, 300))
+    bs.put_bars("AAA", "5", [bar(k) for k in keys])
+    h0 = hrev()
+    # The provider answers the whole window with the boundary row CHANGED.
+    raw = [{"t": k * 1000, "o": 10, "h": 11, "l": 9, "c": (3.0 if k == tail - W else 10.0),
+            "v": 100} for k in keys]
+    with patch.object(bf, "_get_client", return_value=_FakeClient()), \
+         patch.object(bf, "_paginate_massive_aggs", return_value=raw):
+        out = bf._delta_intraday("AAA", "5", tail)
+    assert tail - W not in {b["t"] for b in out}
+    bs.put_bars("AAA", "5", out)
+    assert hrev() == h0
+
+
+def test_the_client_delta_covers_every_row_the_repair_can_rewrite(store):
+    """`since = tail - W` and the server answers `ts > since`: every row the repair keeps
+    (not held history) is in the client's delta."""
+    tail = et(2026, 11, 10, 15, 55)
+    floor = bs.history_floor("5", tail)
+    since = tail - W                                    # the client's rule
+    for ts in range(floor - 900, tail + 301, 300):
+        if bf._delta_keep_bar(ts, floor, None):
+            assert ts > since, ts
+
+
+# ── review #1125 F5: the server window never exceeds the client's ───────────────
+
+def test_the_env_window_is_clamped_to_the_client_contract(caplog):
+    assert bs.CLIENT_MUTABLE_WINDOW_S == W
+    with caplog.at_level("WARNING"):
+        assert bs._mutable_window_from_env(str(12 * 3600)) == W
+    assert "clamped" in caplog.text
+    assert bs._mutable_window_from_env(str(4 * 3600)) == 4 * 3600     # narrower is safe
+    assert bs._mutable_window_from_env(None) == W
+    assert bs._mutable_window_from_env("junk") == W

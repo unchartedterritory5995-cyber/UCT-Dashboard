@@ -2802,9 +2802,12 @@ def _delta_keep_bar(ts: int, heal_floor: int, stored_ts: "set | None") -> bool:
     window (heal recent partials) OR it is missing from storage (restore a hole).
     `stored_ts is None` disables gap-fill (kill-switch) → exact pre-2026-07-14
     trailing-only behaviour. Pure + module-level so it's unit-testable."""
+    # The boundary is the store's (`bars_sqlite.is_held_history`): the row AT the floor is
+    # held history — a client polling `since = tail - window` never re-reads it, so the
+    # repair must not rewrite it either (it would change it without a history_rev bump).
     if stored_ts is None:
-        return ts >= heal_floor
-    return ts >= heal_floor or ts not in stored_ts
+        return not _sqlite.is_held_history(ts, heal_floor)
+    return not _sqlite.is_held_history(ts, heal_floor) or ts not in stored_ts
 
 
 def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = None,
@@ -2856,7 +2859,8 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = 
         gap_days = max(gap_days, min(_DELTA_GAPFILL_DAYS, _GAPFILL_CAP_BY_TF.get(tf, 14)))
     # Floor below which we don't bother re-emitting (already-final history).
     # last_ts==0 (cold) → floor 0 → return everything fetched (full populate).
-    heal_floor = max(0, last_ts - _DELTA_HEAL_WINDOW_SECONDS) if last_ts else 0
+    # Rows strictly ABOVE it are rewritten (`_delta_keep_bar`); cold (last_ts==0) → -1.
+    heal_floor = max(0, _sqlite.history_floor(tf, last_ts)) if last_ts else -1
     from_date = (datetime.utcnow() - timedelta(days=gap_days)).strftime("%Y-%m-%d")
     # ⛔ "2 CALENDAR DAYS" IS NOT "TODAY AND YESTERDAY'S SESSION". On a Monday (or the
     # day after a holiday) the 1m cap of 2 days reached back to Saturday, so a hole in
@@ -2873,7 +2877,7 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = 
             _fd = datetime.strptime(from_date, "%Y-%m-%d")
             _fd_start = int(datetime(_fd.year, _fd.month, _fd.day,
                                      tzinfo=_ZI("America/New_York")).timestamp())
-            status["window_start"] = max(heal_floor, _fd_start)
+            status["window_start"] = max(heal_floor + 1, _fd_start)
             if gapfill_on:
                 # The gap-fill restores every MISSING row from `from_date` on (rows the
                 # store lacks are re-emitted below the heal floor too): deleted rows

@@ -488,11 +488,33 @@ def _sealed_through_many(c: sqlite3.Connection, tf: str, tickers: list) -> dict:
     return out
 
 
-#: ⭐ THE MUTABLE WINDOW (one owner; `bars_fetch._DELTA_HEAL_WINDOW_SECONDS` and the
-#: client's `MUTABLE_WINDOW_S` are this value). The stretch behind a series' stored tail
-#: that a tail repair may still rewrite and that a client re-reads on every poll
-#: (`since = held tail - window`). Rows OLDER than it change only with `history_rev`.
-MUTABLE_WINDOW_S = int(os.environ.get("BARS_DELTA_HEAL_WINDOW_SECONDS", str(8 * 3600)))
+#: ⭐ THE MUTABLE WINDOW (one owner; `bars_fetch._DELTA_HEAL_WINDOW_SECONDS` is this
+#: value). The stretch behind a series' stored tail that a tail repair may still rewrite
+#: and that a client re-reads on every poll (`since = held tail - window`). Rows at or
+#: below its floor change only with `history_rev`.
+#: CLIENT_MUTABLE_WINDOW_S is the CLIENT's contract value (app/src/data/barStore/
+#: network.js `MUTABLE_WINDOW_S`): a server window WIDER than it would leave rows the
+#: repair rewrites without a history bump but outside the client's delta, so the env
+#: value is clamped to it (narrower is safe: more rows count as history).
+CLIENT_MUTABLE_WINDOW_S = 8 * 3600
+
+
+def _mutable_window_from_env(raw) -> int:
+    try:
+        w = int(raw) if raw not in (None, "") else CLIENT_MUTABLE_WINDOW_S
+    except (TypeError, ValueError):
+        _logger.warning("[sqlite] BARS_DELTA_HEAL_WINDOW_SECONDS=%r is not an int; using %d",
+                        raw, CLIENT_MUTABLE_WINDOW_S)
+        return CLIENT_MUTABLE_WINDOW_S
+    if w > CLIENT_MUTABLE_WINDOW_S:
+        _logger.warning("[sqlite] BARS_DELTA_HEAL_WINDOW_SECONDS=%d exceeds the client "
+                        "contract window %d; clamped (a wider server window under-bumps "
+                        "history_rev)", w, CLIENT_MUTABLE_WINDOW_S)
+        return CLIENT_MUTABLE_WINDOW_S
+    return max(0, w)
+
+
+MUTABLE_WINDOW_S = _mutable_window_from_env(os.environ.get("BARS_DELTA_HEAL_WINDOW_SECONDS"))
 _DATE_TFS = ("D", "W", "M")
 
 
@@ -508,6 +530,14 @@ def history_floor(tf: str, tail) -> int | None:
     if tf in _DATE_TFS:
         return int(tail) - 1
     return int(tail) - int(MUTABLE_WINDOW_S)
+
+
+def is_held_history(key, floor) -> bool:
+    """⭐ THE window boundary, used by both sides: `_history_keys` (a change here moves
+    history_rev) and the tail repair (`bars_fetch._delta_keep_bar` rewrites only rows that
+    are NOT held history). The row AT the floor is history: the client asks
+    `since = tail - window` and the server answers `ts > since`."""
+    return floor is not None and int(key) <= int(floor)
 
 
 def _series_ends(c: sqlite3.Connection, tf: str, tickers: list, *, newest: bool) -> dict:
@@ -567,7 +597,7 @@ def _history_keys(c: sqlite3.Connection, tf: str, written, *, replace: bool = Tr
         hits = []
         for r in rs:
             k = int(r[2])
-            if k <= floor:
+            if is_held_history(k, floor):
                 hits.append(r)
             elif st is not None:
                 b = bar_contract.bucket_bounds(tf, k, grid)
