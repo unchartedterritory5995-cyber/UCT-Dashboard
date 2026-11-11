@@ -830,10 +830,15 @@ export function prefetchAllTimeframes(sym) {
 // the user is waiting on. 1-min is left out (heaviest, rarely the first click) — it fetches
 // on demand if clicked.
 const REPLAY_WARM_TFS = ['5', '15', '30', '60']
+/** THE "bars ending at a date" URL (`to=` — replay's pre-cutoff window and the chart's
+ *  scroll-back left window, `utils/historyPrepend.js`). One builder for both askers. */
+export function barsBeforeUrl(sym, tf, bars, toIso, q = '') {
+  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bars}${q}&to=${encodeURIComponent(toIso)}`
+}
 export function prefetchReplayTimeframes(sym, cutoffIso, { bars = 4000 } = {}) {
   if (!sym || !cutoffIso) return
   for (const tf of REPLAY_WARM_TFS) {
-    _enqueue(`/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bars}${barsGridQuery(tf, _prefetchShowExtended)}&to=${encodeURIComponent(cutoffIso)}&warm=1`, false)
+    _enqueue(`${barsBeforeUrl(sym, tf, bars, cutoffIso, barsGridQuery(tf, _prefetchShowExtended))}&warm=1`, false)
   }
 }
 

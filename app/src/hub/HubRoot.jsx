@@ -167,7 +167,7 @@ function HubShell({ setToastMsg }) {
   }), [mode, symbol, timeframe, activeScan, selectedPosition, chartRef, livePrice, isStreaming,
     lastSection, navigateTo])
 
-  const goHome = useCallback(() => navigateTo('/dashboard'), [navigateTo])
+  const goHome = useCallback(() => navigateTo('/charts'), [navigateTo])
 
   // The one place every navigate/run/confirm/home action resolves — fed by
   // BOTH doors an action can fire from: `useJoystick`'s `onFire` (a gesture)

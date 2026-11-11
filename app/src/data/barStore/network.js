@@ -28,15 +28,17 @@
 // chart-lane / warm requests of the same URL, shares the warm queue's concurrency and the
 // server's 503 backoff). Priorities: visible (never queued) > urgent > grid > background.
 //
-// ⭐ SCROLL-BACK — the "N bars before my oldest bar" window (`to=` = the ET date of the oldest
-// held bar), the primitive W-S's charts/intraday-deep-history (utils/historyPrepend) uses.
-// SEAM: that branch is not on master yet; when it lands, `historyUrl` delegates to its
-// `historyWindowUrl` / prefetchBars `barsBeforeUrl` (one `to=` URL builder) — same shape.
+// ⭐ SCROLL-BACK — the "N bars before my oldest bar" window of #1116 (utils/historyPrepend):
+// its `historyWindowUrl` over prefetchBars `barsBeforeUrl` (the one `to=` URL builder),
+// `HISTORY_WINDOW_BARS`, and its `prependOlder` basis/seam rule — a window whose seam bar
+// disagrees >2% with the oldest held bar (a split / re-basis since) is refused whole.
+// Intraday only (#1116's scope); D/W/M depth comes from the full read.
 //
 // ⭐ THE ONE /api/bars URL BUILDER of the BarStore is `barsUrl` below (rails: one-url census
 // owner). No other barStore file spells the endpoint.
 
-import { barsLaneRequest } from '../../utils/prefetchBars'
+import { barsLaneRequest, barsBeforeUrl } from '../../utils/prefetchBars'
+import { historyWindowUrl, prependOlder, etDateOf, HISTORY_WINDOW_BARS } from '../../utils/historyPrepend'
 import {
   nextTailPollMs, createTailPollState, intradayDedupMs, INTRADAY_POLL_MS, REPAIR_DEDUP_MS,
 } from '../../utils/intradayTailPoll'
@@ -52,19 +54,9 @@ export const ERROR_RETRY_MS = 1500
 export const ERROR_RETRY_MAX_MS = 30_000
 /** A terminal `no_data` key is re-asked this rarely (a listing can start trading). */
 export const NO_DATA_POLL_MS = 300_000
-/** Bars per scroll-back window (= historyPrepend.HISTORY_WINDOW_BARS on W-S's branch). */
-export const HISTORY_WINDOW_BARS = 2000
 export const PRIORITIES = Object.freeze(['visible', 'urgent', 'grid', 'background'])
 
 const finite = (x) => typeof x === 'number' && Number.isFinite(x)
-
-let _etFmt = null
-/** ET calendar date (YYYY-MM-DD) of a unix-seconds time (DST-correct, Intl). */
-export function etDateOf(unixSec) {
-  if (!finite(unixSec)) return null
-  if (!_etFmt) _etFmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' })
-  return _etFmt.format(new Date(unixSec * 1000))
-}
 
 /** Bars to ask for: the chart's first-paint count, or the depth a caller ensured. */
 export function barsCountFor(key, { depth = 0, session = 'rth' } = {}) {
@@ -101,10 +93,12 @@ export function barsUrl(key, { bars, since = null, to = null, session = 'rth' } 
   return u
 }
 
-/** The left (older) window ending at the ET date of `oldestT` — see SEAM above. */
+/** The left (older) window ending at the ET date of `oldestT` (#1116's builder). */
 export function historyUrl(key, oldestT, { bars = HISTORY_WINDOW_BARS, session = 'rth' } = {}) {
-  const d = etDateOf(oldestT)
-  return d ? barsUrl(key, { bars, to: d, session }) : null
+  const p = parseKey(key)
+  if (!p || !isIntradayTf(p.tf) || p.window) return null
+  const eth = p.session ? p.session === 'eth' : session === 'eth'
+  return historyWindowUrl(barsBeforeUrl, p.sym, p.tf, oldestT, barsSessionQuery(p.tf, eth), bars)
 }
 
 const _defaultHidden = () => typeof document !== 'undefined' && !!document.hidden
@@ -178,9 +172,12 @@ export function createNetwork({
     if (!finite(oldest)) return Promise.resolve({ empty: true })
     const gen = s.gen
     const url = historyUrl(r.key, oldest, { bars: opts.bars, session: _session(r) })
+    if (!url) return Promise.resolve({ empty: true })
     return _send(r, 'scroll', url, opts.priority || 'urgent', async (json) => {
       if (!json || !Array.isArray(json.bars)) return { error: true }
       const before = registry.getSnapshot(r.key)
+      // #1116's seam rule: nothing older, or a window on another basis ⇒ refused whole.
+      if (prependOlder(before.bars, json.bars) === before.bars) return { ok: true, added: 0, refused: true }
       const after = registry.dispatch(r.key, { type: ACTION.SCROLL_BACK, key: r.key, gen, payload: json })
       return { ok: true, added: after.depth - before.depth }
     }, gen)
@@ -343,3 +340,5 @@ export function createNetwork({
 
 const _RANK = { visible: 0, urgent: 1, grid: 2, background: 3 }
 function _best(a, b) { return (_RANK[b] ?? 3) < (_RANK[a] ?? 3) ? b : a }
+
+export { etDateOf, HISTORY_WINDOW_BARS }

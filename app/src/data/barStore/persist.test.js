@@ -10,7 +10,7 @@ import { createPersist, toCacheRows, encodeMeta, decodeEntry, rowHash, PERSIST_D
 import { forSeeds, simulateIntraday, rng } from './__fixtures__/seededSeries'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
 import { memClear, memPeekEntry, memPutMonotonic } from '../../utils/barsMemCache'
-import { idbGet, idbPut } from '../../utils/barsIDB'
+import { idbGet, idbPut, idbPutMonotonic } from '../../utils/barsIDB'
 import { keyOf } from './types'
 
 const N = Number(globalThis.process?.env?.BARSTORE_SEEDS || 300)
@@ -280,6 +280,17 @@ describe('persist.js — the real write path (barsMemCache + barsIDB on a fake I
     expect((await idbGet('SIM', '5'))?.meta).toBeUndefined()
     memPutMonotonic('SIM', '5', rows.map((r) => ({ ...r })))   // a legacy writer, same values
     expect(memPeekEntry('SIM', '5')?.meta ?? null).toBe(null)
+  })
+
+  it('the envelope never goes on the #1116 @hist segment record', async () => {
+    const t0 = Date.UTC(2026, 10, 10, 14, 30) / 1000
+    const rows = Array.from({ length: 5 }, (_, i) => ({ t: t0 + i * 300, o: 1, h: 1, l: 1, c: 1, v: 1 }))
+    await idbPutMonotonic('HSEG', '5', rows, { segment: 'history', meta: { v: 1, key: 'HSEG_5' } })
+    const hist = fakeDb._rows().get('HSEG_5@hist')
+    expect(hist).toBeTruthy()
+    expect(hist.meta).toBeUndefined()
+    await idbPutMonotonic('HSEG', '5', rows, { meta: { v: 1, key: 'HSEG_5' } })
+    expect(fakeDb._rows().get('HSEG_5').meta).toEqual({ v: 1, key: 'HSEG_5' })
   })
 
   it('writes only on a baseRev change, debounced, and never for a local-only copy', async () => {

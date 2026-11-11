@@ -10,7 +10,7 @@
  * retry a hung import — the only real recovery is a document reload.
  *
  * So: after STALL_MS of CONTINUOUS mounting, swap the splash for a compact
- * recovery panel (reload + a full-navigation escape to /dashboard —
+ * recovery panel (reload + a full-navigation escape to /charts —
  * client-side nav cannot fix a hung chunk). The timer lives HERE, in the
  * fallback itself, because Suspense unmounts the fallback the moment the
  * route resolves — that unmount is what makes the timer correct: a route
@@ -79,7 +79,7 @@ export default function StalledLoadFallback({ label = 'Loading page', stallMs = 
             promise is cached inside React.lazy, so only a fresh document gets
             a fresh import. Same idiom as AppErrorFallback's goHome. */}
         <button
-          onClick={() => { window.location.href = '/dashboard' }}
+          onClick={() => { window.location.href = '/charts' }}
           style={{
             background: 'transparent',
             color: '#e5e1d3',
@@ -92,7 +92,7 @@ export default function StalledLoadFallback({ label = 'Loading page', stallMs = 
             letterSpacing: '0.3px',
           }}
         >
-          Back to dashboard
+          Back to Charts
         </button>
       </div>
     </div>

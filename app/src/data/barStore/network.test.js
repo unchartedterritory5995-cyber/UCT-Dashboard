@@ -267,6 +267,46 @@ describe('what is asked', () => {
     expect(rec.calls[0].url).not.toMatch(/since=/)
   })
 
+  it('prod nulls (history_rev / complete_through / series_rev null): a restored seal is voided ONCE, then the plain cadence — no full-read loop', async () => {
+    const key = keyOf({ sym: 'SIM', tf: '5' })
+    const rec = recorder(async () => answer(key, { extra: { history_rev: null, complete_through: null, series_rev: null } }))
+    const w = world({ request: rec.fn })
+    const t = bucketStartUnix(Math.floor(Date.now() / 1000), 5, {}) - 900
+    w.registry.dispatch(key, { type: 'idb-hit', payload: {
+      bars: [0, 300].map((d) => ({ t: t + d, o: 1, h: 1, l: 1, c: 1, v: 1 })),
+      cache_key: 'b1:SIM:5:eth-clock', history_rev: 1, series_rev: 1, sealed_spans: [[t, t + 600]], complete_through: t + 600,
+    } })
+    let voided = 0
+    w.registry.subscribe(key, (s) => { if (s.invalidatedFor === 'restored_seal' && s.needsFull) voided++ })
+    w.net.start(key)
+    await vi.advanceTimersByTimeAsync(HOUR)
+    expect(rec.calls[0].url).toMatch(/since=/)                    // asked on the restored seal
+    expect(rec.calls[1].url).not.toMatch(/since=/)                // voided → one full read at once
+    expect(rec.calls[1].at - rec.calls[0].at).toBeLessThan(2000)
+    expect(voided).toBe(1)
+    expect(rec.calls.slice(1).every((c) => !/since=/.test(c.url))).toBe(true)   // nothing sealed: full reads...
+    expect(rec.calls.length).toBeLessThanOrEqual(BUDGET_PER_HOUR + 1)           // ...on the cadence, never a loop
+    const s = w.registry.getSnapshot(key)
+    expect(s.restSeen).toBe(true)
+    expect(s.sealedSpans.length).toBe(0)
+  })
+
+  it('a restored seal PROVEN by the first answer (same cache_key + history_rev) survives a null complete_through and keeps deltas', async () => {
+    const key = keyOf({ sym: 'SIM', tf: '5' })
+    const rec = recorder(async (url) => answer(key, { extra: { history_rev: 1, complete_through: null }, since: /since=(\d+)/.exec(url) ? Number(/since=(\d+)/.exec(url)[1]) : null }))
+    const w = world({ request: rec.fn })
+    const t = bucketStartUnix(Math.floor(Date.now() / 1000), 5, {}) - 900
+    w.registry.dispatch(key, { type: 'idb-hit', payload: {
+      bars: [0, 300].map((d) => ({ t: t + d, o: 100, h: 101, l: 99, c: 100.5, v: 10 })),
+      cache_key: 'b1:SIM:5:eth-clock', history_rev: 1, series_rev: 1, sealed_spans: [[t, t + 600]], complete_through: t + 600,
+    } })
+    w.net.start(key)
+    await vi.advanceTimersByTimeAsync(5 * 60_000)
+    expect(rec.calls.length).toBeGreaterThan(3)
+    expect(rec.calls.every((c) => /since=/.test(c.url))).toBe(true)
+    expect(w.registry.getSnapshot(key).sealedSpans.length).toBeGreaterThan(0)
+  })
+
   it('a delta that reveals a NEW history triggers the full read at once', async () => {
     const key = keyOf({ sym: 'SIM', tf: '5' })
     let hist = 1
@@ -315,5 +355,21 @@ describe('what is asked', () => {
     expect(rec.calls.at(-1).url).toMatch(/to=2026-11-10/)
     expect(res.added).toBe(1)
     expect(w.registry.getSnapshot(key).bars[0].t).toBe(old)
+  })
+
+  it('scroll-back obeys #1116 prependOlder: a window on another basis (seam close >2% off) is refused whole', async () => {
+    const key = keyOf({ sym: 'SIM', tf: '5' })
+    const old = Date.UTC(2026, 10, 9, 20, 55) / 1000
+    const first = Date.UTC(2026, 10, 10, 14, 30) / 1000
+    const rec = recorder(async (url) => (/to=/.test(url)
+      ? { bars: [{ t: old, o: 50, h: 51, l: 49, c: 50, v: 3 }, { t: first, o: 50, h: 51, l: 49, c: 50, v: 3 }], series_rev: 1, history_rev: 1, cache_key: 'b1:SIM:5:eth-clock' }
+      : answer(key)))
+    const w = world({ request: rec.fn })
+    w.net.start(key)
+    await vi.advanceTimersByTimeAsync(0)
+    const before = w.registry.getSnapshot(key)
+    const res = await w.net.scrollBack(key)
+    expect(res.refused).toBe(true)
+    expect(w.registry.getSnapshot(key).bars).toBe(before.bars)
   })
 })
