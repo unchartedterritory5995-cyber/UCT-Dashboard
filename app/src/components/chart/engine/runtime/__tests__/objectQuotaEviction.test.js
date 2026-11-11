@@ -181,7 +181,24 @@ describe('⛔⛔ the drawing quota evicts the OLDEST, as Pine does', () => {
 
     const r = runOver(src, bars, seriesOf(bars))
     expect(r.status, `the run refused: ${r.reason}`).toBe(OBJECT_STATUS.OK)
-    expect(r.live.length, 'the quota stopped holding while the array grew').toBe(heldAfter(LONG, 50))
+
+    // ⭐⭐ W-C22-DEL (2026-11-10 re-pin) — THE QUOTA STILL HOLDS, BUT THE FAMILY IS
+    // WITHHELD BY NAME. Every line here sits in a `var` array, and whether
+    // TradingView's collector SPARES a line held only in an array is unmeasured:
+    // the C7 probes (`vw-object-gc-*`) never put a line or a label in an array that
+    // reaches its trigger, liquidity-pools / makuchaku FVG (RC-B's measurements)
+    // hold their drawings in variables, and the one array witness,
+    // `sonarlab-order-blocks-spy-1d`, is BOXES (objectPool.js C7). The Pine
+    // reference states no container exemption either way. So the collector still
+    // runs and splices the array (the run stays OK, and the evicted lines are
+    // counted under `withheld`), but none is drawn: `objects:collector-all`.
+    // Capture queue Q-C22-1 (`docs/pine/capture-queue-2026-11-10-c22-array-gc.md`)
+    // settles it; when it lands, this returns to `live.length === heldAfter(…)`.
+    expect(r.withheld && r.withheld.line, 'the quota stopped holding while the array grew')
+      .toBe(heldAfter(LONG, 50))
+    expect(r.live.length, 'a line in an array was drawn though no capture shows the collector takes it')
+      .toBe(0)
+    expect(r.withheldBy).toEqual({ 'objects:collector-all': ['line'] })
   })
 
   it('⛔⛔ A LINEFILL DIES WITH ITS LINES — it is not an independent object', () => {
