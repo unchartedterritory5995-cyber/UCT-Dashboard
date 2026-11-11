@@ -376,106 +376,270 @@ def _ts(y, m, d, hh, mm, tz=_ET):
 
 
 class TestBucket60EtUnixSeconds:
-    """The canonical 60min ET-anchored bucket. Used by REST resample AND
-    (post-Step-3) the WebSocket bar broadcaster — they MUST agree forever."""
+    """The canonical 60min ET-anchored bucket. Used by REST resample AND the
+    WebSocket bar broadcaster — they MUST agree forever.
+
+    2026-11-10: the grid is TradingView's session grid (09:30, 10:30 … 15:30),
+    confirmed against the vendor captures
+    tests/fixtures/vendor/harness/vw-time-session-spy-60-{rth,ext}-2026-09-28.json."""
 
     def test_rth_open_930_anchored(self):
-        """9:30 ET is the start-of-RTH anchor, NOT 9:00 ET. The first
-        hourly bar is a 30-min bar so the open candle is clean."""
         t = _ts(2026, 5, 22, 9, 30)
         assert bucket_60_et_unix_seconds(t) == _ts(2026, 5, 22, 9, 30)
 
-    def test_rth_open_945_still_anchored_to_930(self):
-        """A 30-min bar at 9:45 ET (mid-opening-bucket) buckets to 9:30 ET."""
-        t = _ts(2026, 5, 22, 9, 45)
-        assert bucket_60_et_unix_seconds(t) == _ts(2026, 5, 22, 9, 30)
+    def test_opening_hour_runs_to_1030(self):
+        """09:30-10:29 is ONE bucket (was 09:30-09:59 then a 10:00 clock hour)."""
+        for hh, mm in ((9, 45), (10, 0), (10, 15), (10, 29)):
+            assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, hh, mm)) == _ts(2026, 5, 22, 9, 30)
+        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 10, 30)) == _ts(2026, 5, 22, 10, 30)
 
-    def test_rth_morning_floors_to_clock_hour(self):
-        t = _ts(2026, 5, 22, 10, 15)
-        assert bucket_60_et_unix_seconds(t) == _ts(2026, 5, 22, 10, 0)
-        t = _ts(2026, 5, 22, 11, 45)
-        assert bucket_60_et_unix_seconds(t) == _ts(2026, 5, 22, 11, 0)
+    def test_rth_hours_on_the_half_hour(self):
+        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 11, 45)) == _ts(2026, 5, 22, 11, 30)
+        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 13, 0)) == _ts(2026, 5, 22, 12, 30)
+        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 13, 30)) == _ts(2026, 5, 22, 13, 30)
+        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 15, 29)) == _ts(2026, 5, 22, 14, 30)
 
-    def test_rth_afternoon_floors_to_clock_hour(self):
-        """The 1pm/2pm/3pm hours — the exact data the noon-cutoff bug was
-        eating. Must bucket to 13:00, 14:00, 15:00 ET respectively."""
-        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 13, 0)) == _ts(2026, 5, 22, 13, 0)
-        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 13, 30)) == _ts(2026, 5, 22, 13, 0)
-        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 15, 45)) == _ts(2026, 5, 22, 15, 0)
-
-    def test_rth_close_16_00(self):
-        """16:00 ET is the after-hours bucket start (RTH ended at 16:00)."""
+    def test_last_rth_bar_is_a_30_min_1530(self):
+        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 15, 30)) == _ts(2026, 5, 22, 15, 30)
+        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 15, 59)) == _ts(2026, 5, 22, 15, 30)
         assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 16, 0)) == _ts(2026, 5, 22, 16, 0)
 
-    def test_premarket_clock_aligned(self):
-        """Pre-market 30-min bars (07:30 ET) bucket to clock-hour (07:00 ET).
-        9:00-9:29 is also pre-market and floors to 9:00 ET (NOT the 9:30 anchor
-        — that anchor only applies once we're at h==9 AND m>=30)."""
+    def test_premarket_clock_aligned_0900_ends_at_open(self):
         assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 7, 30)) == _ts(2026, 5, 22, 7, 0)
         assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 9, 0)) == _ts(2026, 5, 22, 9, 0)
-        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 9, 15)) == _ts(2026, 5, 22, 9, 0)
-        # The instant we cross 9:30 we flip to the anchor:
         assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 9, 29)) == _ts(2026, 5, 22, 9, 0)
-        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 9, 30)) == _ts(2026, 5, 22, 9, 30)
+        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 4, 0)) == _ts(2026, 5, 22, 4, 0)
 
     def test_postmarket_clock_aligned(self):
-        """After-hours (17:00, 18:00, 19:00 ET) buckets to clock-hour."""
         assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 17, 30)) == _ts(2026, 5, 22, 17, 0)
-        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 19, 0)) == _ts(2026, 5, 22, 19, 0)
+        assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 19, 59)) == _ts(2026, 5, 22, 19, 0)
 
-    def test_winter_est_offset(self):
-        """During EST (UTC-5) the bucket must still anchor in ET wall-clock,
-        not drift by the offset change. Mid-January exercises EST."""
-        t = _ts(2026, 1, 15, 13, 30)
-        assert bucket_60_et_unix_seconds(t) == _ts(2026, 1, 15, 13, 0)
+    def test_half_day_13_00_close(self):
+        """2026-11-27 closes 13:00: 09:30, 10:30, 11:30, 12:30 (30 min), then
+        post-market clock hours — 13:00-13:29 is NEVER fused into 12:30."""
+        d = (2026, 11, 27)
+        assert bucket_60_et_unix_seconds(_ts(*d, 12, 59)) == _ts(*d, 12, 30)
+        assert bucket_60_et_unix_seconds(_ts(*d, 13, 0)) == _ts(*d, 13, 0)
+        assert bucket_60_et_unix_seconds(_ts(*d, 13, 29)) == _ts(*d, 13, 0)
+        assert bucket_60_et_unix_seconds(_ts(*d, 14, 10)) == _ts(*d, 14, 0)
 
-    def test_dst_spring_forward(self):
-        """Spring-forward Sunday (March 8, 2026): 02:00 ET → 03:00 ET. Bars
-        in the immediate aftermath (08:00 EDT etc.) must bucket correctly."""
-        # 08:30 EDT post-spring-forward
-        t = _ts(2026, 3, 9, 8, 30)  # Monday after spring-forward weekend
-        assert bucket_60_et_unix_seconds(t) == _ts(2026, 3, 9, 8, 0)
+    def test_clock_grid_is_tradingview_extended(self):
+        for hh, mm, want in ((9, 15, 9), (9, 45, 9), (10, 29, 10), (15, 45, 15), (4, 0, 4), (19, 59, 19)):
+            assert bucket_60_et_unix_seconds(_ts(2026, 9, 28, hh, mm), grid="clock") == _ts(2026, 9, 28, want, 0)
 
-    def test_dst_fall_back(self):
-        """Fall-back Sunday (Nov 1, 2026): 02:00 EDT → 01:00 EST. Bars
-        the Monday after must still bucket to the right ET wall-clock hour."""
-        t = _ts(2026, 11, 2, 10, 15)  # Monday after fall-back
-        assert bucket_60_et_unix_seconds(t) == _ts(2026, 11, 2, 10, 0)
+    def test_both_dst_sides(self):
+        for d in ((2026, 3, 6), (2026, 3, 9), (2026, 10, 30), (2026, 11, 2), (2026, 1, 15)):
+            assert bucket_60_et_unix_seconds(_ts(*d, 10, 15)) == _ts(*d, 9, 30)
+            assert bucket_60_et_unix_seconds(_ts(*d, 8, 30)) == _ts(*d, 8, 0)
+            assert bucket_60_et_unix_seconds(_ts(*d, 15, 50)) == _ts(*d, 15, 30)
 
-    def test_minute_within_bucket_doesnt_change_output(self):
-        """Property check: for any minute within the [bucket_start, bucket_start+60min)
-        window, the function returns the same bucket_start. Smoke-tests 60+ cases
-        across a few representative bucket windows."""
-        # 10:00-10:59 ET → 10:00 ET bucket
-        expected = _ts(2026, 5, 22, 10, 0)
-        for minute in range(60):
-            t = _ts(2026, 5, 22, 10, minute)
-            assert bucket_60_et_unix_seconds(t) == expected, f"failed at 10:{minute:02d}"
-        # 9:30-9:59 → 9:30 anchor; 10:00 flips to 10:00 bucket
-        anchor = _ts(2026, 5, 22, 9, 30)
-        for minute in range(30, 60):
-            assert bucket_60_et_unix_seconds(_ts(2026, 5, 22, 9, minute)) == anchor
+    def test_matches_vendor_captures(self):
+        """The bucket starts TradingView itself served for SPY 60m on 2026-09-28."""
+        import json
+        import os
+        here = os.path.dirname(__file__)
+        root = os.path.abspath(os.path.join(here, "..", ".."))
+        for name, grid in (("vw-time-session-spy-60-rth-2026-09-28.json", "session"),
+                           ("vw-time-session-spy-60-ext-2026-09-28.json", "clock")):
+            doc = json.load(open(os.path.join(root, "tests", "fixtures", "vendor", "harness", name)))
+            rows = doc["bars"]["rows"]
+            ti = doc["bars"]["fields"].index("t") if "t" in doc["bars"]["fields"] else 0
+            ts = [int(r[ti] / 1000) if r[ti] > 1e11 else int(r[ti]) for r in rows]
+            assert ts
+            for t in ts:
+                assert bucket_60_et_unix_seconds(t, grid=grid) == t, (name, t)
 
-    def test_property_random_minutes_span_year(self):
-        """Run 1000 random minutes across a full year (including BOTH DST
-        transitions) and assert the bucket is always exactly the floor of
-        the ET hour (or the 9:30 anchor when relevant). If the function
-        ever drifts on a DST edge, this catches it."""
-        import random
-        random.seed(42)
+    def test_property_every_minute_of_a_year(self):
+        """Every session minute (04:00-20:00 ET) of 2026, both DST transitions:
+        the bucket starts at or before t, within 60 min, on the same ET day, and
+        an RTH minute's bucket is 09:30 + whole hours."""
         start = datetime(2026, 1, 1, tzinfo=_ET)
-        for _ in range(1000):
-            minutes_offset = random.randint(0, 365 * 24 * 60)
-            dt = start + timedelta(minutes=minutes_offset)
-            t = int(dt.timestamp())
-            got = bucket_60_et_unix_seconds(t)
-            # Compute expected by the same rules:
-            dt_et = datetime.fromtimestamp(t, tz=_ET)
-            if dt_et.hour == 9 and dt_et.minute >= 30:
-                expected = int(datetime(dt_et.year, dt_et.month, dt_et.day, 9, 30, tzinfo=_ET).timestamp())
-            else:
-                expected = int(datetime(dt_et.year, dt_et.month, dt_et.day, dt_et.hour, 0, tzinfo=_ET).timestamp())
-            assert got == expected, f"drift at {dt_et}: got {got}, expected {expected}"
+        for day in range(365):
+            d0 = start + timedelta(days=day)
+            if d0.weekday() >= 5:
+                continue
+            for minute in range(4 * 60, 20 * 60, 7):
+                t = int(datetime(d0.year, d0.month, d0.day, minute // 60, minute % 60, tzinfo=_ET).timestamp())
+                b = bucket_60_et_unix_seconds(t)
+                assert 0 <= t - b < 3600
+                b_et = datetime.fromtimestamp(b, tz=_ET)
+                assert b_et.date() == d0.date()
+                bm = b_et.hour * 60 + b_et.minute
+                if 570 <= minute < 780:
+                    assert (bm - 570) % 60 == 0 and bm >= 570
+
+
+class TestSessionResample:
+    def _bars15(self, d, start=(4, 0), end=(20, 0)):
+        out = []
+        t = _ts(*d, *start)
+        stop = _ts(*d, *end)
+        while t < stop:
+            out.append({"t": t, "o": 1.0, "h": 2.0, "l": 0.5, "c": 1.5, "v": 10})
+            t += 900
+        return out
+
+    def _labels(self, bars):
+        return [datetime.fromtimestamp(b["t"], tz=_ET).strftime("%H:%M") for b in bars]
+
+    def test_60m_from_15m_regular_day(self):
+        from api.services.bars_fetch import _session_resample_hourly
+        out = _session_resample_hourly(self._bars15((2026, 11, 2)))
+        assert self._labels(out) == ["04:00", "05:00", "06:00", "07:00", "08:00", "09:00",
+                                     "09:30", "10:30", "11:30", "12:30", "13:30", "14:30", "15:30",
+                                     "16:00", "17:00", "18:00", "19:00"]
+        by = {lab: b for lab, b in zip(self._labels(out), out)}
+        assert by["09:30"]["v"] == 40 and by["15:30"]["v"] == 20 and by["09:00"]["v"] == 20
+
+    def test_60m_clock_grid(self):
+        from api.services.bars_fetch import _session_resample_hourly
+        out = _session_resample_hourly(self._bars15((2026, 10, 30)), grid="clock")
+        assert self._labels(out) == [f"{h:02d}:00" for h in range(4, 20)]
+        assert all(b["v"] == 40 for b in out)
+
+    def test_60m_half_day(self):
+        from api.services.bars_fetch import _session_resample_hourly
+        out = _session_resample_hourly(self._bars15((2026, 11, 27), end=(17, 0)))
+        labs = self._labels(out)
+        assert labs[labs.index("09:30"):] == ["09:30", "10:30", "11:30", "12:30", "13:00", "14:00", "15:00", "16:00"]
+
+    def test_30m_from_15m(self):
+        from api.services.bars_fetch import _resample_minutes
+        bars = self._bars15((2026, 11, 27), start=(9, 0), end=(13, 30))
+        bars = [b for b in bars if datetime.fromtimestamp(b["t"], tz=_ET).strftime("%H:%M") != "10:15"]
+        out = _resample_minutes(bars, 30)
+        assert self._labels(out) == ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00"]
+        by = dict(zip(self._labels(out), out))
+        assert by["10:00"]["v"] == 10 and by["10:30"]["v"] == 20   # a missing 15m bar thins, never deletes, its 30m
+
+    def test_null_volume_counts_zero(self):
+        from api.services.bars_fetch import _session_resample_hourly
+        bars = self._bars15((2026, 11, 2), start=(9, 30), end=(10, 30))
+        bars[1]["v"] = None
+        out = _session_resample_hourly(bars)
+        assert len(out) == 1 and out[0]["v"] == 30
+
+
+class TestThirtyMinFromFifteen:
+    def test_cold_fetch_resamples_15m(self, monkeypatch):
+        seen = {}
+
+        def fake_fwv(ticker, tf, n, **kw):
+            seen["tf"], seen["n"] = tf, n
+            t0 = _ts(2026, 11, 2, 9, 30)
+            return [{"t": t0 + i * 900, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1} for i in range(26)]
+
+        monkeypatch.setattr(_bf, "fetch_with_validation", fake_fwv)
+        monkeypatch.setattr(_bf, "_is_intraday_stale", lambda bars: False)
+        monkeypatch.setattr(_bf, "_last_known_close", lambda *a, **k: None)
+        out = _bf._fetch_intraday("SPY", "30", 100)
+        assert seen == {"tf": "15", "n": 200}
+        assert len(out) == 13 and all(b["v"] == 2 for b in out)
+
+
+class TestOldGrid60mMigration:
+    def test_detects_only_old_layout_rth_hours(self):
+        from api.services.bars_sqlite import is_old_grid_60m_ts
+        d = (2026, 10, 30)
+        for hh in (10, 11, 12, 13, 14, 15):
+            assert is_old_grid_60m_ts(_ts(*d, hh, 0))
+        for hh, mm in ((9, 0), (9, 30), (10, 30), (15, 30), (16, 0), (4, 0), (19, 0)):
+            assert not is_old_grid_60m_ts(_ts(*d, hh, mm))
+        # half-day: 13:00 is post-market (new layout), 12:00 was an old RTH hour
+        assert is_old_grid_60m_ts(_ts(2026, 11, 27, 12, 0))
+        assert not is_old_grid_60m_ts(_ts(2026, 11, 27, 13, 0))
+
+    def test_new_resample_never_looks_old(self):
+        from api.services.bars_fetch import _session_resample_hourly
+        from api.services.bars_sqlite import is_old_grid_60m_ts
+        bars = TestSessionResample()._bars15((2026, 11, 27)) + TestSessionResample()._bars15((2026, 11, 2))
+        assert not any(is_old_grid_60m_ts(b["t"]) for b in _session_resample_hourly(bars))
+
+    def _db(self, tmp_path, monkeypatch):
+        import sqlite3
+        from api.services import bars_sqlite as bs
+        db = sqlite3.connect(str(tmp_path / "b.db"), check_same_thread=False)
+        db.execute("CREATE TABLE ohlcv (ticker TEXT, tf TEXT, ts INTEGER, o REAL, h REAL, l REAL, c REAL, v INTEGER, PRIMARY KEY(ticker, tf, ts))")
+        db.commit()
+        monkeypatch.setattr(bs, "_conn", lambda: db)
+        monkeypatch.setattr(bs, "_invalidate_60m_caches", lambda tkr: None)
+        return db, bs
+
+    @staticmethod
+    def _put(db, tkr, tf, tss, v=1):
+        for t in tss:
+            db.execute("INSERT OR REPLACE INTO ohlcv VALUES (?, ?, ?, 1, 2, 0.5, 1, ?)", (tkr, tf, t, v))
+        db.commit()
+
+    def test_rebuild_from_local_15m_and_30m_no_provider(self, tmp_path, monkeypatch):
+        """Old-grid 60m is re-derived from the ticker's OWN stored 15m (recent day)
+        and 30m (older day); a day neither covers is dropped; no network."""
+        db, bs = self._db(tmp_path, monkeypatch)
+        monkeypatch.setattr(_bf, "_get_client", lambda: (_ for _ in ()).throw(AssertionError("no provider")))
+        old_days = [(2026, 10, 28), (2026, 10, 29), (2026, 10, 30)]
+        for d in old_days:
+            self._put(db, "AAA", "60", [_ts(*d, 9, 30)] + [_ts(*d, h, 0) for h in range(10, 16)])
+        d15, d30 = (2026, 10, 30), (2026, 10, 29)        # 10-28 has no finer source
+        self._put(db, "AAA", "15", [_ts(*d15, 9, 30) + i * 900 for i in range(26)])
+        self._put(db, "AAA", "30", [_ts(*d30, 9, 30) + i * 1800 for i in range(13)])
+        out = _bf.rebuild_sixty_min_grid("AAA")
+        assert out == {"days": 3, "rebuilt": 14, "dropped_days": 1}
+        ts = [r[0] for r in db.execute("SELECT ts FROM ohlcv WHERE ticker='AAA' AND tf='60' ORDER BY ts")]
+        labels = [datetime.fromtimestamp(t, tz=_ET).strftime("%m-%d %H:%M") for t in ts]
+        assert labels == [f"{d} {hm}" for d in ("10-29", "10-30")
+                          for hm in ("09:30", "10:30", "11:30", "12:30", "13:30", "14:30", "15:30")]
+        assert not bs.ticker_has_old_grid_60m(db, "AAA")
+        vols = [r[0] for r in db.execute("SELECT v FROM ohlcv WHERE ticker='AAA' AND tf='60' ORDER BY ts")]
+        assert vols[:7] == [2, 2, 2, 2, 2, 2, 1] and vols[7:] == [4, 4, 4, 4, 4, 4, 2]
+
+    def test_sweep_rebuilds_then_marks_clean(self, tmp_path, monkeypatch):
+        db, bs = self._db(tmp_path, monkeypatch)
+        d = (2026, 10, 30)
+        self._put(db, "OLD", "60", [_ts(*d, 9, 30), _ts(*d, 10, 0), _ts(*d, 11, 0)])
+        self._put(db, "OLD", "15", [_ts(*d, 9, 30) + i * 900 for i in range(8)])
+        self._put(db, "NEW", "60", [_ts(*d, 9, 30), _ts(*d, 10, 30), _ts(*d, 11, 30)])
+        bs.purge_mis_keyed_weekly_rows()
+        assert not bs.ticker_has_old_grid_60m(db, "OLD")
+        assert [r[0] for r in db.execute("SELECT COUNT(*) FROM ohlcv WHERE ticker='NEW' AND tf='60'")] == [3]
+        assert not bs._sixty_grid_clean(db)          # this pass still found one
+        bs.purge_mis_keyed_weekly_rows()
+        assert bs._sixty_grid_clean(db)              # next pass found none → one-time marker
+        calls = []
+        monkeypatch.setattr(bs, "ticker_has_old_grid_60m", lambda *a, **k: calls.append(a) or False)
+        bs.purge_mis_keyed_weekly_rows()
+        assert calls == []                           # marker: no more per-ticker probes
+
+    def test_snapshot_merge_refuses_old_grid_60m(self, tmp_path):
+        """A worker snapshot still on the old layout must not re-poison a rebuilt
+        store (deploy order must not matter); new-grid pairs merge as before."""
+        import sqlite3
+        from api.services import data_sync
+        ddl = "CREATE TABLE ohlcv (ticker TEXT, tf TEXT, ts INTEGER, o REAL, h REAL, l REAL, c REAL, v INTEGER, PRIMARY KEY(ticker, tf, ts))"
+        local, snap = str(tmp_path / "local.db"), str(tmp_path / "snap.db")
+        for p in (local, snap):
+            c = sqlite3.connect(p)
+            c.execute(ddl)
+            c.commit()
+            c.close()
+        d, e = (2026, 10, 29), (2026, 10, 30)
+        c = sqlite3.connect(local)
+        for t in (_ts(*d, 9, 30), _ts(*d, 10, 30)):
+            c.execute("INSERT INTO ohlcv VALUES ('AAA','60',?,1,2,0.5,1,1)", (t,))
+        c.commit()
+        c.close()
+        c = sqlite3.connect(snap)
+        for t in (_ts(*e, 9, 30), _ts(*e, 10, 0)):                       # OLD layout
+            c.execute("INSERT INTO ohlcv VALUES ('AAA','60',?,1,2,0.5,1,1)", (t,))
+        for t in (_ts(*e, 9, 30), _ts(*e, 10, 30)):                      # new layout
+            c.execute("INSERT INTO ohlcv VALUES ('BBB','60',?,1,2,0.5,1,1)", (t,))
+        c.execute("INSERT INTO ohlcv VALUES ('AAA','15',?,1,2,0.5,1,1)", (_ts(*e, 9, 30),))
+        c.commit()
+        c.close()
+        data_sync._merge_ohlcv_from(snap, local)
+        c = sqlite3.connect(local)
+        got = c.execute("SELECT ticker, tf, COUNT(*) FROM ohlcv GROUP BY 1, 2 ORDER BY 1, 2").fetchall()
+        c.close()
+        assert got == [("AAA", "15", 1), ("AAA", "60", 2), ("BBB", "60", 2)]
 
 
 # ── FMP timestamp regression ─────────────────────────────────────────────────

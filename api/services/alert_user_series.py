@@ -405,6 +405,9 @@ def _withheld_reason(codes: Sequence[str]) -> str:
     if any(c.startswith("time-") for c in codes):
         parts.append("it reads `time(<timeframe>)` / `time_close(<timeframe>)`, a "
                      "clock the bars this lane is handed do not carry")
+    if any(c.startswith("var-origin:") for c in codes):
+        parts.append("it reads a `var` that holds what it was given on the symbol's "
+                     "first bar, which a window of bars cannot know")
     return ("; ".join(parts) or "the lane withholds it on every bar") + "."
 
 

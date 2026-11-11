@@ -302,7 +302,8 @@ describe('C36 · parity with the Python lane — one fixture, both lanes', () =>
     // (nor, since 2026-11-09, the two `running-total:` codes — `barIndexShift.test.js` holds them)
     // and have their own fixture, both lanes (`bar_index_shift_parity.json`).
     expect([...codes].sort()).toEqual(Object.keys(CHART_CLOCK_WITHHELD)
-      .filter((k) => k !== 'time-anchor:other-bars' && !k.startsWith('bar-index:') && !k.startsWith('running-total:')).sort())
+      .filter((k) => k !== 'time-anchor:other-bars' && !k.startsWith('bar-index:') && !k.startsWith('running-total:')
+        && !k.startsWith('var-origin:')).sort())
     for (const code of codes) expect(typeof CHART_CLOCK_WITHHELD[code]('5')).toBe('string')
     for (const code of CHART_CLOCK_WHOLE) expect(Object.keys(CHART_CLOCK_WITHHELD)).toContain(code)
   })

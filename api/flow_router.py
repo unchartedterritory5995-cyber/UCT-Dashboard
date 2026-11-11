@@ -2608,6 +2608,76 @@ def ticker_types_status():
     return JSONResponse(_ttr.status())
 
 
+@flow_router.post("/schwab-token/install")
+async def schwab_token_install(request: Request,
+                               _auth: dict = Depends(require_flow_admin)):
+    """Receive the Schwab ACCESS token replicated from web.
+
+    ⚰️ EXISTS BECAUSE THE RE-AUTH ONLY EVER REACHED ONE POD. Schwab's OAuth callback can
+    only land on web and `/data` is a PER-SERVICE volume, so a login wrote web's copy and
+    nothing else. Measured 2026-11-09: web 0.0 days old, this pod **113.4 days** old and
+    failing `invalid_grant` on every cycle while the Massive OI fallback quietly covered
+    for it. `/data` survives deploys — the missing piece was never persistence, it was
+    propagation.
+
+    ⛔⛔ THIS INSTALLS A 30-MINUTE BEARER CREDENTIAL, NOT A GRANT. The refresh token is
+    stripped unconditionally by `install_pushed_token`, so this pod cannot refresh and
+    therefore cannot invalidate web's grant. See that module's docstring — it is the rail,
+    not an oversight.
+
+    AUTH FIRST, BEFORE THE BODY IS READ — `require_flow_admin` is a dependency, so an
+    unauthenticated caller is rejected before any parsing. The bearer comparison is
+    constant-time (flow_admin_auth).
+
+    The sender is authenticated but NOT trusted on content: the receiver refuses a replay
+    of an older document, one already expired on arrival, and one whose `saved_at` is in
+    the future. Response is small and operational — never the credential echoed back.
+    """
+    from api import schwab_token_replica as _str
+    if not _str.receive_enabled():
+        return JSONResponse({"status": "rejected", "reason": "receive disabled"},
+                            status_code=503)
+    # Bound the body BEFORE reading it. A token document is a few hundred bytes; this pod
+    # is a single process that has OOM'd before.
+    try:
+        declared = int(request.headers.get("content-length") or 0)
+    except ValueError:
+        declared = 0
+    if declared and declared > _str._MAX_PUSH_BYTES:
+        return JSONResponse({"status": "rejected", "reason": "body too large"},
+                            status_code=413)
+    raw = await request.body()
+    if len(raw) > _str._MAX_PUSH_BYTES:
+        return JSONResponse({"status": "rejected", "reason": "body too large"},
+                            status_code=413)
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        # ⛔ NEVER log the body — it carries a live access token and this repo is public.
+        return JSONResponse({"status": "rejected", "reason": "invalid json"},
+                            status_code=400)
+    out = _str.install_pushed_token(payload)
+    code = 200 if out.get("status") in ("accepted", "already-current") else 400
+    return JSONResponse(out, status_code=code)
+
+
+@flow_router.get("/schwab-token-status")
+def schwab_token_status(_auth: dict = Depends(require_flow_admin)):
+    """Does this pod hold a usable Schwab access token, and how old is it?
+
+    ⚰️ EXISTS BECAUSE THE 113-DAY FREEZE WAS INVISIBLE. flow-worker ran on a dead grant
+    for ~4 months and the only tell in the log was `[oi-snapshot] Massive fallback: N of M
+    Schwab misses resolved`, which reads like normal operation. Watch `age_seconds` and
+    `expired`. The sender reads this before every push, so a current pod transfers nothing.
+
+    ⛔ ADMIN-GATED, unlike `/ticker-types-status`. That one reports a dataset generation;
+    this one reports the state of a credential, and `holds_refresh_token` in particular is
+    a fact about this pod's blast radius that no member should be able to read.
+    """
+    from api import schwab_token_replica as _str
+    return JSONResponse(_str.status())
+
+
 # ── Prepare the first paint BEFORE a member asks for it ────────────────────
 #
 # THE PROBLEM THIS SOLVES, measured rather than assumed. A cold parts build for

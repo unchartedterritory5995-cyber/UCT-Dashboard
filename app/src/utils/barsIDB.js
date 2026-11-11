@@ -10,6 +10,7 @@
  */
 
 import { classifyIntradayTail } from './marketSession'
+import { isOnSixtyMinGrid } from '../components/chart/barTime'
 
 const DB_NAME    = 'uct_bars_v1'
 // Stay at v2. The v3 bump caused a deadlock: existing v2 connections held by
@@ -59,6 +60,11 @@ const STORE      = 'bars'
 // time with a heal-on-mismatch guard in the RENDER path too (StockChart _idbBasisMismatch),
 // not just the pack importer — so a chart rendering straight from IDB before any pack
 // re-ingest also self-heals a future re-basis without another bump.
+//
+// ⛔ NOT bumped for the 2026-11-10 60m grid move (TradingView 09:30, 10:30 …
+// 15:30; was 09:30 then clock hours). A bump would drop EVERY timeframe in
+// every browser at once — the 2026-05-24 herd below. Old-layout 60m entries
+// are discarded individually on read instead (`_hasOldSixtyMinGrid`).
 const CACHE_LOGIC_VERSION = 7
 
 // Intraday freshness is judged by BAR-DATA age against the last CLOSED trading session
@@ -125,6 +131,27 @@ function _key(sym, tf) {
   return `${sym.toUpperCase()}_${tf}`
 }
 
+/**
+ * A 60m entry written before the 2026-11-10 grid move (09:30, 10:00, 11:00 …)
+ * carries off-grid bucket starts; merging a new-grid delta into it would put
+ * 10:00 AND 10:30 candles side by side. Such an entry is treated as absent →
+ * ONE full 60m refetch for that chart, spread over chart opens (no herd).
+ * Probes both ends (an entry is wholly one layout: a mixed one is discarded
+ * the first time it is read).
+ */
+export function _hasOldSixtyMinGrid(bars, tf) {
+  if (String(tf) !== '60' || !Array.isArray(bars) || !bars.length) return false
+  const n = bars.length
+  const idx = []
+  for (let i = Math.max(0, n - 120); i < n; i++) idx.push(i)
+  for (let i = 0; i < Math.min(40, n); i++) idx.push(i)
+  for (const i of idx) {
+    const t = bars[i]?.t
+    if (typeof t === 'number' && !isOnSixtyMinGrid(t, false)) return true
+  }
+  return false
+}
+
 // Detect mid-session gaps in cached intraday bar series. mergeDelta can only
 // ADD bars and cannot fill a gap older than the latest cached timestamp, so
 // any gap that slipped in (FMP-shifted ts, dropped write, network failure
@@ -144,9 +171,11 @@ function _key(sym, tf) {
 // window outage (verified 2026-05-24 incident, reverted in dd5ce85).
 // Without the bump, this detector heals affected users gradually on each
 // chart open instead of all at once.
-function _hasIntradayGap(bars, tf) {
-  if (!['1','5','15','30','60'].includes(tf)) return false
-  if (!bars || bars.length < 2) return false
+// ⭐ (2026-11-10) RETURNS WHERE THE HOLE STARTS (unix sec of the bar before it), or null.
+// The caller no longer discards the cache on a hole — see idbGet.
+export function _intradayGapStart(bars, tf) {
+  if (!['1','5','15','30','60'].includes(tf)) return null
+  if (!bars || bars.length < 2) return null
 
   // Max acceptable in-session gap. Tuned to catch a real interior hole without
   // false-flagging normal spacing or the 30-min open-bar adjustment on hourly
@@ -174,15 +203,26 @@ function _hasIntradayGap(bars, tf) {
     const currEtDate = new Date(bars[i].t * 1000)
       .toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
     if (prevEtDate !== currEtDate) continue
-    return true
+    return bars[i - 1].t
   }
-  return false
+  return null
 }
 
 /**
  * Read cached bars for (sym, tf).
  * Returns { bars, lastT, savedAt } or null if not found / stale.
  */
+export { INTRADAY_MAX_BARS }
+
+/** The bars idbPut persists: intraday capped to the newest INTRADAY_MAX_BARS (what
+ *  idbGet reads back); D/W/M untouched. */
+export function _capForWrite(tf, bars) {
+  if (Array.isArray(bars) && ['1','5','15','30','60'].includes(String(tf)) && bars.length > INTRADAY_MAX_BARS) {
+    return bars.slice(bars.length - INTRADAY_MAX_BARS)
+  }
+  return bars
+}
+
 export async function idbGet(sym, tf) {
   try {
     const db = await _open()
@@ -226,11 +266,22 @@ export async function idbGet(sym, tf) {
         if (isIntraday && bars.length > INTRADAY_MAX_BARS) {
           bars = bars.slice(bars.length - INTRADAY_MAX_BARS)
         }
-        // Mid-session gap guard: delta-merge cannot heal interior gaps, so a cached series
-        // with one is permanently broken until a full refetch. Treat as absent → caller
-        // refetches without `since`.
-        if (_hasIntradayGap(bars, tf)) return resolve(null)
-        resolve(bars === entry.bars ? entry : { ...entry, bars, lastT: bars[bars.length - 1]?.t })
+        // Mid-session gap guard: a `since=<tail>` delta cannot heal an interior hole.
+        // ⛔⛔ BUT A HOLE IS NOT A REASON TO THROW THE CACHE AWAY (2026-11-10). On a thin
+        // name a same-day hole is usually LEGITIMATE (no prints for 20 minutes), and
+        // nulling the entry made every open of that name a cold full refetch with nothing
+        // on screen — forever, because the hole comes straight back from the server. Keep
+        // the bars (the tail may well be current and paintable) and report where the hole
+        // starts: the chart asks `since=<repairFromT-1>`, which returns every row after
+        // it — the hole's bars if they exist, an empty stretch if the name simply did not
+        // trade. `lastT` stays the TRUE tail so currentness is judged on what we hold.
+        // 60m grid move (2026-11-10): an old-layout entry is refetched, per chart, never in bulk.
+        if (_hasOldSixtyMinGrid(entry.bars, tf)) return resolve(null)
+        const repairFromT = _intradayGapStart(bars, tf)
+        const out = (bars === entry.bars && repairFromT == null)
+          ? entry
+          : { ...entry, bars, lastT: bars[bars.length - 1]?.t, ...(repairFromT != null ? { repairFromT } : {}) }
+        resolve(out)
       }
       req.onerror = () => resolve(null)
     })
@@ -269,6 +320,13 @@ export async function idbDeleteIntraday() {
  */
 export async function idbPut(sym, tf, bars) {
   if (!bars?.length) return
+  // ⛔ WRITE WHAT idbGet CAN READ BACK (2026-11-10). idbGet hands the chart only the
+  // newest INTRADAY_MAX_BARS, so persisting a 9k-32k scroll-back series bought nothing
+  // on the next open — yet every 30s poll merge rewrote all of it (a multi-MB
+  // structured clone per poll), and the deep warmer, comparing a 3000-bar read against
+  // a 30000 target, re-downloaded deep history on every pass. Persist the window that
+  // is read; deep scroll-back is a network fetch by design.
+  bars = _capForWrite(tf, bars)
   try {
     const db  = await _open()
     const lastT = bars[bars.length - 1]?.t
@@ -336,20 +394,40 @@ export async function idbDelete(sym, tf) {
 // pack self-heal: a stamped-but-empty store (an ingest that reported success on failed
 // shards, or IDB evicted under storage pressure while the tiny localStorage stamp
 // survived) reads far below the universe size, so the client re-ingests instead of
-// trusting the stamp and staying cold forever. Never throws — returns 0 on any failure.
+// trusting the stamp and staying cold forever. Returns 0 if the database cannot open; a failed read rejects.
+//
+// ⛔ THE READ IS IN PIECES ON PURPOSE. One getAllKeys() over the 45-47k keys took 1.1-3.0 s, each of
+// the three packs ran one per load, and IndexedDB work queues behind it. A chart's idbGet then outlasted
+// StockChart's 600 ms first-paint wait, which abandons a full local cache for a server fetch. Each piece
+// is short and a macrotask runs between pieces, so a chart read gets through. The packs share one walk.
+const KEY_WALK_PIECE = 1000
+let _keyWalk = null
+
+async function _readAllKeys(db) {
+  const all = []
+  let after
+  for (;;) {
+    const range = after === undefined ? undefined : IDBKeyRange.lowerBound(after, true)
+    const piece = await new Promise((resolve, reject) => {
+      const req = db.transaction(STORE, 'readonly').objectStore(STORE).getAllKeys(range, KEY_WALK_PIECE)
+      req.onsuccess = () => resolve(req.result || [])
+      req.onerror = () => reject(req.error)
+    })
+    for (const k of piece) all.push(k)
+    if (piece.length < KEY_WALK_PIECE) return all
+    after = piece[piece.length - 1]
+    await new Promise((r) => setTimeout(r, 0))
+  }
+}
+
 export async function idbCountKeys(suffix = '') {
   let db
   try { db = await _open() } catch { return 0 }
-  return new Promise((resolve) => {
-    let tx
-    try { tx = db.transaction(STORE, 'readonly') } catch { return resolve(0) }
-    const req = tx.objectStore(STORE).getAllKeys()
-    req.onsuccess = () => {
-      const keys = req.result || []
-      resolve(suffix ? keys.filter((k) => String(k).endsWith(suffix)).length : keys.length)
-    }
-    req.onerror = () => resolve(0)
-  })
+  if (!_keyWalk) _keyWalk = _readAllKeys(db).finally(() => { _keyWalk = null })
+  // A failed walk REJECTS instead of counting 0. "Could not read" is not "empty": a 0 here told every
+  // pack sharing the walk to re-download the universe. _packDataPresent's catch reads it as unverified.
+  const keys = await _keyWalk
+  return suffix ? keys.filter((k) => String(k).endsWith(suffix)).length : keys.length
 }
 
 export async function idbImportPack(entries, { batchSize = 250, yieldBetween = false, replaceIfNewer = false } = {}) {

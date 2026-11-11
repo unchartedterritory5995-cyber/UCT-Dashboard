@@ -2503,6 +2503,18 @@
       ]
     },
     {
+      "key": "uct.screener.lastScreen:*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "state",
+      "label": "The screen the Screener reopens on, per member",
+      "pattern": true,
+      "files": [
+        "app/src/pages/screener/focus/landing.js"
+      ]
+    },
+    {
       "key": "uct.screener.layout",
       "store": "localStorage",
       "scope": "device-local",

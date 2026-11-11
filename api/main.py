@@ -195,6 +195,9 @@ from api.routers import admin_twitter as admin_twitter_router
 from api.routers import admin_purge as admin_purge_router
 from api.routers import desk as desk_router
 from api.routers import admin_api_health as admin_api_health_router
+from api.routers import admin_llm_usage as admin_llm_usage_router  # /admin/ai-spend: every Claude call, by feature
+from api.services import llm_usage as _llm_usage
+_llm_usage.install()  # hook the Anthropic SDK once: every model call lands in the AI-spend ledger
 from api.routers import provider_coverage as provider_coverage_router
 from api.routers import fmp_adapter_status as fmp_adapter_status_router
 from api.routers import massive_adapter_status as massive_adapter_status_router
@@ -1191,6 +1194,18 @@ def _buzz_poll() -> None:
         discord_buzz_digest.catch_up()
     except Exception as e:  # noqa: BLE001
         log.warning("[buzz] digest catch-up error: %s", e)
+
+
+def _llm_budget_watch() -> None:
+    """AI-spend watchdog (api/services/llm_budget.py): posts to the ops channel once per
+    (day, budget, level) at 80% / 100% / projected-over. Never raises."""
+    try:
+        from api.services import llm_budget
+        sent = llm_budget.watch()
+        if sent:
+            logging.getLogger(__name__).warning("[llm-budget] alerts sent: %s", [s["door"] for s in sent])
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).warning("[llm-budget] watch failed", exc_info=True)
 
 
 def _tsdr_lessons_tick() -> None:
@@ -5152,6 +5167,45 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule reconciliation_worker: %s", e)
 
+    # ── Schwab proactive token refresh ───────────────────────────────────────
+    #
+    # ⚰️ `schwab_service.start_auto_refresh()` HAS EXISTED AND HAS NEVER BEEN CALLED.
+    # Measured 2026-11-09: zero callers anywhere in the tree, while
+    # `_auto_refresh_loop`'s own docstring claims "As long as the app is running, users
+    # never need to re-authenticate." Two separate false claims in one function — the
+    # loop never ran, AND Schwab caps the refresh token at 7 days regardless, so a
+    # weekly manual OAuth is unavoidable either way.
+    #
+    # The observable consequence, measured the same evening: web's access token sat
+    # **53.4 minutes old** with an unchanged value, i.e. expired (they live 1800s),
+    # because the ONLY thing that ever refreshed was an on-demand `get_valid_token()`
+    # call and nothing had asked after hours.
+    #
+    # ⛔ WHY IT MATTERS NOW, AND WHY IT IS HERE RATHER THAN IN THE PUSHER. The token
+    # replication added alongside this ships ONLY the access token to flow-worker, and
+    # flow-worker cannot refresh by design (it never holds a refresh token). So
+    # flow-worker's coverage is exactly as fresh as web's last refresh. The pusher
+    # deliberately refuses to ship an expired token, so without a proactive refresh on
+    # web there are windows where there is nothing good to send. Refreshing from the
+    # pusher was rejected: it runs on a BackgroundScheduler THREAD, and driving an
+    # async refresh from there means a second event loop touching `_TOKEN_REFRESH_LOCK`
+    # — a second authority over the one thing that must stay single-flight.
+    #
+    # ⛔ MUST be created here, inside the async lifespan: `start_auto_refresh` calls
+    # `asyncio.create_task`, which needs the running loop.
+    #
+    # DARK by default — arm with the replication flags, not before, since its only
+    # purpose here is keeping the replicated token fresh.
+    try:
+        if os.environ.get("SCHWAB_AUTO_REFRESH_ENABLED", "0") == "1":
+            from api import schwab_service as _schwab
+            _schwab.start_auto_refresh()
+            logging.getLogger(__name__).info(
+                "[startup] schwab auto-refresh task started (25 min cadence)")
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            "[startup] failed to start schwab auto-refresh: %s", e)
+
     # Live options-flow SSE tailer (2026-07-08) — the instant-tape backend.
     # Reads flow.db for new prints and pushes them to connected browsers. Inert
     # unless MASSIVE_STREAM_ENABLED=1 (dark by default); decoupled from the OPRA
@@ -5702,7 +5756,7 @@ async def lifespan(app: FastAPI):
         "fmp_tz_fix=on yfinance_tz_fix=on heal_v1=ran-once heal_v2=ran-once heal_v3_60day=ran-once "
         "needs_fresh_post_market=on "
         "swr_refresh_interval=30s_intraday "
-        "tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds "
+        "tf60_ws_streaming=on bucket_canonical=bar_rollup.tv_bucket_bounds(via bars_fetch.bucket_60_et_unix_seconds,grid=rth) "
         f"delta_intraday_filter=>= idb_cache_logic_version={_idb_ver if _idb_ver is not None else 'unreadable'} "
         "weekly_dating=friday-close heal_weekly_close=ran-once "
         f"reconciliation_worker={'on' if os.environ.get('RECONCILE_ENABLED', '1') != '0' else 'off'}"
@@ -7283,6 +7337,52 @@ async def lifespan(app: FastAPI):
                                id="optionsflow_etf_replica_reconcile",
                                max_instances=1, coalesce=True, replace_existing=True)
 
+        # ── Schwab access token -> flow-worker ────────────────────────────────
+        #
+        # ⚰️ WHY THIS EXISTS. Schwab's OAuth callback can only land on `web`, and
+        # `/data/schwab_token.json` is on a PER-SERVICE volume. Measured 2026-11-09,
+        # minutes after a successful re-auth: web's token 0.0 days old, flow-worker's
+        # **113.4 days** old and failing `invalid_grant` on every cycle, silently
+        # covered by the Massive OI fallback. The owner read that as "every deploy I
+        # have to log in again" — the login fixed the pod they were looking at and
+        # never the one serving the data. `/data` survives deploys; nothing propagated.
+        #
+        # ⛔ NOT FOLDED INTO THE TICKER_TYPES BLOCK ABOVE, and not under its flag.
+        # Those carry datasets on a daily/30-min cadence; this carries a 30-MINUTE
+        # CREDENTIAL and must run far more often. Its own flag, its own job id, its
+        # own try/except — a fault in either must not stop the other.
+        #
+        # ⛔ A PUSH IS NOT THE PRIMARY PATH — `save_tokens` already pushes on every
+        # login and every refresh. This is the self-healing cadence, and it is what
+        # covers the case the owner actually hits: a flow-worker DEPLOY, which boots
+        # with whatever token the volume last held and cannot pull (web is IPv4-only
+        # on an IPv6 private network, so pull was disproved). A current pod costs one
+        # status probe and transfers nothing.
+        #
+        # ⚠️ THIS DOES NOT REMOVE THE WEEKLY RE-AUTH. Schwab caps the refresh token at
+        # 7 days and refreshing does not extend it. One manual OAuth per week on web
+        # is unavoidable; what this removes is the per-pod and per-deploy half.
+        #
+        # DARK until SCHWAB_TOKEN_PUSH_ENABLED=1 on web AND
+        # SCHWAB_TOKEN_REPLICA_RECEIVE_ENABLED=1 on flow-worker.
+        try:
+            def _schwab_token_push():
+                try:
+                    from api.services import schwab_token_push
+                    schwab_token_push.reconcile()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning(
+                        "[schwab-token-push] reconcile raised: %s", _e)
+
+            _scheduler.add_job(
+                _schwab_token_push, "interval",
+                minutes=int(os.environ.get("SCHWAB_TOKEN_PUSH_INTERVAL_MIN", "5")),
+                id="schwab_token_replica_push",
+                max_instances=1, coalesce=True, replace_existing=True)
+        except Exception as _e:
+            logging.getLogger(__name__).warning(
+                "[schwab-token-push] could not register job: %s", _e)
+
         # Breadth live -- rebuild the day's reference levels BEFORE the open.
         #
         # Levels are cached per session day, keyed on the last completed
@@ -8079,6 +8179,13 @@ async def lifespan(app: FastAPI):
                 misfire_grace_time=300, max_instances=1, coalesce=True,
             )
             print("[startup] tsdr video lessons scheduled (every 15 min)")
+            _scheduler.add_job(
+                _llm_budget_watch,
+                trigger=CronTrigger(minute="2,17,32,47", timezone=_ET),
+                id="llm_budget_watch", replace_existing=True,
+                misfire_grace_time=300, max_instances=1, coalesce=True,
+            )
+            print("[startup] AI-spend budget watchdog scheduled (every 15 min)")
         except Exception as e:
             print(f"[scheduler] tsdr lessons registration error: {e}")
         if os.environ.get("THEME_INDEX_PREWARM_ENABLED", "1") != "0":
@@ -10959,6 +11066,8 @@ app.include_router(admin_twitter_router.router)
 app.include_router(admin_purge_router.router)
 app.include_router(desk_router.router)
 app.include_router(admin_api_health_router.router)
+app.include_router(admin_llm_usage_router.router)
+app.include_router(admin_llm_usage_router.internal_router)  # PUSH_SECRET ingest from other services / sibling repos
 app.include_router(provider_coverage_router.router, dependencies=_OPEN_READS)  # /api/admin/provider-coverage — Task 22/23
 app.include_router(fmp_adapter_status_router.router, dependencies=_OPEN_READS)  # /api/admin/fmp-adapter-status — D1 §7.3
 app.include_router(massive_adapter_status_router.router, dependencies=_OPEN_READS)  # /api/admin/massive-adapter-status — D1 §7.3
@@ -13251,14 +13360,7 @@ def serve_indexes_csv():
     return _csv_response(os.path.join(PUBLIC, "Indexes-data.csv"), "Indexes-data.csv")
 
 # --- Serve React build (JS/CSS assets + SPA fallback) ------------------------
-class _ImmutableStaticFiles(StaticFiles):
-    async def get_response(self, path, scope):
-        response = await super().get_response(path, scope)
-        if response.status_code == 200:
-            response.headers["Cache-Control"] = (
-                "public, max-age=31536000, immutable, no-transform"
-            )
-        return response
+from api.services.static_assets import ImmutableStaticFiles as _ImmutableStaticFiles  # noqa: E402
 
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
 

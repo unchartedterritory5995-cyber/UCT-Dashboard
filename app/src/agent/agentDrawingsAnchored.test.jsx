@@ -14,7 +14,6 @@ import { routeManifest } from './routing'
 import { resolveDateWord, dayWord } from './dateWords'
 import { setupPanel, TWO } from './testing/panelHarness'
 import * as store from '../components/chart/drawingsStore'
-import { ET_OFFSET } from '../components/chart/barTime'
 import { UCT_DRAW_GOLD } from '../components/chart/drawingColors'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
@@ -145,7 +144,7 @@ describe('drawing.addTrendline — the toolbar\'s own trendline, placed from two
     expect(p.ok).toBe(true)
     await commitPlan(h5, p, { env })
     const [d] = drawings()
-    expect(d.points.map(x => x.time)).toEqual([Date.UTC(2026, 9, 15, 13, 30) / 1000 + ET_OFFSET, Date.UTC(2026, 9, 16, 13, 30) / 1000 + ET_OFFSET])
+    expect(d.points.map(x => x.time)).toEqual([Date.UTC(2026, 9, 15, 13, 30) / 1000, Date.UTC(2026, 9, 16, 13, 30) / 1000])   // RAW unix 09:30 EDT
     expect(await refuse(h5, 'drawing.addTrendline', { from: pt('2026-10-15', 1), to: pt('2999-10-16', 2), color: null, style: null })).toMatch(/future/)
     SYM = `${SYM}W`
     const hw = host({ tf: 'W' })

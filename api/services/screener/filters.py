@@ -506,6 +506,10 @@ FILTERS = dict([
     _open_range("avg_volume_50d", "Avg Volume (50d)", "technical", "avg_volume_50d",
                 description="Mean daily volume of the last 50 sessions, the last one included. Blank if any of "
                             "them has no volume. " + _LAST_SESSION),
+    _open_range("min_volume_3d_prior", "Min Volume (3d, prior)", "technical", "min_volume_3d_prior",
+                description="The lowest daily volume of the three sessions before the last one (TC2000's "
+                            "MINV3.1). The last session is left out, so one heavy day cannot lift it. Blank if "
+                            "any of the three has no volume. " + _LAST_SESSION),
     _open_range("vol_trend_pct", "Volume Trend (5d vs 20d)", "technical", "vol_trend_pct", unit="%",
                 description="Percent the 5-session average volume stands above (+) or below (-) the 20-session "
                             "average, both ending at the last session. Blank if any of those sessions has no "

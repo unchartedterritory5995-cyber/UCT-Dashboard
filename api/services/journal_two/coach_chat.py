@@ -4,6 +4,7 @@ The streaming Anthropic loop and tool dispatch land in Tasks 6 + 7.
 This file ships only the storage primitives that those layers build on.
 """
 from __future__ import annotations
+from api.services import llm_models
 import json
 import os
 import sqlite3
@@ -479,7 +480,7 @@ class _TurnDeadline:
 class AnthropicChatClient:
     """Thin streaming wrapper. Returns an event iterator compatible with the
     orchestrator's expectations."""
-    DEFAULT_MODEL = "claude-sonnet-4-6"
+    DEFAULT_MODEL = llm_models.SONNET
 
     def __init__(self, api_key: str | None = None, timeout: float | None = None):
         import anthropic
@@ -528,7 +529,7 @@ class AnthropicChatClient:
         return client.messages.stream(
             model=self.DEFAULT_MODEL,
             max_tokens=2000,
-            temperature=0.4,
+            **llm_models.plain(self.DEFAULT_MODEL, temperature=0.4),
             metadata={"user_id": f"compass_chat:{user_id}"},
             system=system_blocks,
             messages=messages,
@@ -1099,14 +1100,14 @@ class _DefaultSummaryClient:
             max_retries=0,
         )
         msg = client.messages.create(
-            model="claude-sonnet-4-6",
+            model=llm_models.SONNET,
             max_tokens=600,
-            temperature=0.2,
+            **llm_models.plain(llm_models.SONNET, temperature=0.2),
             metadata={"user_id": f"compass_chat_summary:{user_id}"},
             system="You compress trading-coach conversations. Preserve any user-stated focus, behavioral commitments, or Compass observations of trader patterns. Drop tool-call mechanics. ≤500 tokens.",
             messages=[{"role": "user", "content": text}],
         )
-        return msg.content[0].text if msg.content else ""
+        return llm_models.text_of(msg)
 
 
 def _audit_ground_truth(_conn, row) -> dict:

@@ -475,7 +475,7 @@ export function registerDrawingCapabilities() {
 // What the overlay writes when a member finishes placing a tool (ChartDrawingOverlay, the "finish"
 // block): { type, points, color, lineWidth, lineStyle, pane: PRICE, ...newDrawingProps(type, byTool) }.
 // The Agent writes the same keys. A point's `time` is what `drawingTimeFor(day, tf)` gives for the
-// symbol's chart timeframe ('YYYY-MM-DD' on D/W/M, ET-shifted 09:30 seconds intraday) — never a time
+// symbol's chart timeframe ('YYYY-MM-DD' on D/W/M, the 09:30 ET open as RAW unix seconds intraday, `tb: 'unix'`) — never a time
 // the Agent computed itself. The chart's overlay places a daily anchor that is not a bar on the
 // containing bar (its toPixel fallback), so a weekend date on a trendline still lands; the AVWAP
 // renderer looks its anchor up by EXACT bar time, so its anchor must be a weekday (a market holiday
@@ -521,6 +521,8 @@ function newDrawing(st, type, points, { color, style, extra = {} }) {
     id: `${TEMP}${st.n + 1}`,
     type,
     points: points.map(a => ({ time: a.time, price: a.price })),
+    // intraday points are raw unix (drawingTimeFor); the stamp says so (drawingTimeBase.js)
+    ...(points.some(a => typeof a.time === 'number') ? { tb: 'unix' } : {}),
     color: color != null ? normalizeColor(color) : (st.defaults?.color || UCT_DRAW_GOLD),
     lineWidth: st.defaults?.width || 1,
     ...(style && style !== 'solid' ? { lineStyle: style } : {}),

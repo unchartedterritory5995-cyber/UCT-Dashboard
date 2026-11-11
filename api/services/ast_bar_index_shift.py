@@ -52,6 +52,11 @@ RECURRENCES: Mapping[str, Any] = recurrences()
 
 BAR_INDEX_LEAVES = ("barindex", "lastbarindex")
 
+#: 2026-11-09 -- ``barstate.isfirst``: true on the first bar of the symbol's
+#: history on TradingView, i.e. ``bar_index < 1``. Mirrors
+#: ``barIndexShift.js::FIRST_BAR_LEAVES``; read as that THRESHOLD, never as an index.
+FIRST_BAR_LEAVES = ("isfirst",)
+
 #: The ``series``-lookback entries that are an INDEX into the series, not a total.
 _SERIES_INDEX_CALLS = ("valuewhenOccurrence",)
 
@@ -369,10 +374,28 @@ def bar_index_class(tree: Any) -> str:
     return bar_index_verdict(tree)["cls"]
 
 
+def reads_first_bar(tree: Any) -> bool:
+    """Does this tree read ``isfirst`` (``barIndexShift.js::readsFirstBar``)? Iterative."""
+    stack = [tree]
+    seen = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if node.get("type") == "series" and node.get("name") in FIRST_BAR_LEAVES:
+            return True
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return False
+
+
 def bar_index_verdict(tree: Any) -> dict:
     """``barIndexShift.js::barIndexVerdict`` -- the class, and the threshold
-    comparisons it rests on: ``{"cls", "thresholds": [(node, sign)]}``."""
-    if not reads_bar_index(tree) and not reads_running_total(tree):
+    comparisons it rests on: ``{"cls", "thresholds": [(node, sign)]}``. An
+    ``isfirst`` leaf is listed as its own threshold (``bar_index < 1``)."""
+    if not reads_bar_index(tree) and not reads_first_bar(tree) and not reads_running_total(tree):
         return {"cls": "inv", "thresholds": []}
     thresholds: List[tuple] = []
     alg = _BarIndexAlgebra()
@@ -417,6 +440,9 @@ def bar_index_verdict(tree: Any) -> dict:
                 return self_["sym"]
             if node.get("name") in BAR_INDEX_LEAVES:
                 return lin(alg.atom(node), alg.constant(1))
+            if node.get("name") in FIRST_BAR_LEAVES:
+                if not any(t[0] is node for t in thresholds):
+                    thresholds.append((node, 1))
             return fixed(node)
         if kind == "offset":
             x = sub(args[0])
