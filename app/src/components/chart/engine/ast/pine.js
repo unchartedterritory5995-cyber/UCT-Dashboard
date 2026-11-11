@@ -100,7 +100,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf } from './interpret.js'
+import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
 import { memberNumber } from './memberValue.js'
 import { timeInputDefaultOf, isTimeInputCall } from '../runtime/runtimeInputs.js'
@@ -3995,6 +3995,20 @@ export { containsFreeSelfSeries }
 
 export function seedAndUpdateOf(body, table) {
   return ternarySeedAndUpdate(body, table) || nzSeedAndUpdate(body, table)
+}
+
+/** ⭐⭐ LANE B0 — the ternary spelling whose seed is Pine's `na` literal and whose
+ *  test is a BARE history read (`na(x[k])`): `na` on every bar in Pine (see the
+ *  call site). Only that test: `na(nz(x[1]))` is never true, and its bar 0 runs
+ *  the update instead. */
+export function naSeededSelfReference(body, parts, table) {
+  if (!parts || !isStaticNa(parts.seed) || !ternarySeedAndUpdate(body, table)) return false
+  const spec = table && table.functions && table.functions.accum
+  const bind = spec && spec.recurrence && spec.recurrence.binds
+  const read = body.args[0].args && body.args[0].args[0]
+  return !!read && ((read.type === 'series' && read.name === bind)
+    || (read.type === 'offset' && read.args && read.args[0]
+      && read.args[0].type === 'series' && read.args[0].name === bind))
 }
 
 /** `na(self…) ? SEED : UPDATE` — the spelling the docblock above describes. */
@@ -8446,6 +8460,16 @@ export class Resolver {
             + 'first-bar value the way `na(' + name + '[1]) ? … : …` does',
             bound.at || locate(tok))
         }
+        // ⭐⭐ LANE B0 — `x = na(x[k]) ? na : U`: Pine reads `x[k]` as `na` on bar 0,
+        // takes the `na` arm, and so `x[k]` is `na` again on every later bar — the
+        // value is `na` on EVERY bar, whatever `U` says. Written as that constant,
+        // which is exactly Pine's, and which keeps the one rule the listing pass
+        // reads (`interpret.js::historySeedReading`: an unmarked `na` seed is a
+        // history seed whose bar 0 runs the update) true of every `accum` this
+        // translator writes.
+        // ⛔ r1 — only where bar 0's history is pinned (v3+, `listingSeedIsUnpinned`): for v1/v2
+        // (and no pragma) Pine's `x[1]` on bar 0 may be `0`, which is unwitnessed (W34-I4b).
+        if (!listingSeedIsUnpinned(this.pineVersion) && naSeededSelfReference(body, parts, this.table)) return parts.seed
         // 🔴🔴 THE SAME CONVERGENCE GATE AS THE MUTABLE FORM, asked of the UPDATE
         // ARM ALONE — the seed arm is what the accumulator re-seeds WITH, so
         // asking it to forget itself is asking the wrong question. Routing around
