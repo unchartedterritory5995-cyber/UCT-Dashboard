@@ -42,6 +42,7 @@ beforeEach(() => {
   memClear()
   _noteWarmResult({ bars: [{ t: 1 }] })
   world.idb = {}; world.packUsable = false; world.packBars = {}
+  try { localStorage.removeItem('barspack.version') } catch { /* jsdom */ }
 })
 afterEach(() => { vi.unstubAllGlobals() })
 
@@ -55,6 +56,15 @@ describe('warmTypedSymbol', () => {
     expect(String(f.mock.calls[0][0])).toBe(URL_FOR('NVDA'))
     expect(memPeek('NVDA', 'D')).toHaveLength(2)
     expect(memPeekSavedAt('NVDA', 'D')).toBeGreaterThanOrEqual(t0)   // stamped NOW
+  })
+
+  it('on a browser holding the pack, uncached text is a PREFIX, not a ticker: no request', async () => {
+    const f = vi.fn(async () => answer('GOO'))
+    vi.stubGlobal('fetch', f)
+    localStorage.setItem('barspack.version', '2026-11-10')
+    await expect(warmTypedSymbol('GOO', 'D')).resolves.toBe('unknown')
+    expect(f).not.toHaveBeenCalled()
+    expect(memPeek('GOO', 'D')).toBeNull()
   })
 
   it('a pack-seeded name WITH a today seed: promoted to memory, NO request', async () => {

@@ -508,7 +508,8 @@ export async function prepareDailyForDisplay(sym, tf, { signal } = {}) {
 //      tail sessions behind. By Enter the authoritative set is usually in memory
 //      (stamped NOW, which the paint authority accepts); an answer still in flight is
 //      JOINED by the handoff (`prepareDailyForDisplay`) and by the chart's SWR key.
-// ⚠️ COST. No request at all when the cache will paint; otherwise one shallow request
+// ⚠️ COST. No request when the cache will paint, nor for uncached text on a browser that
+// holds the pack (a prefix, not a ticker); otherwise one shallow request
 // (~14 KB, a mem/sqlite hit server-side) per settled text, deduped per URL, skipped
 // while a network-fresh set is in memory. D/W/M only: intraday has `prepareForDisplay`.
 const TYPED_FRESH_MS = 60_000
@@ -523,6 +524,10 @@ export function _typedCachePaints(sym, tf, lastT, savedAt) {
   let hasSeed = false
   try { hasSeed = todayPackUsable() && !!getTodayBar(sym) } catch { hasSeed = false }
   return dailyCachePaintVerdict(lastT, savedAt, { hasSeed }) === 'ok'
+}
+
+function _packStamped() {
+  try { return !!localStorage.getItem('barspack.version') } catch { return false }
 }
 
 export function warmTypedSymbol(sym, tf = 'D') {
@@ -549,6 +554,12 @@ export function warmTypedSymbol(sym, tf = 'D') {
       }
     }
     if (lastT != null && _typedCachePaints(S, tf, lastT, savedAt)) return 'cache'
+    // ⛔ A PREFIX IS NOT A TICKER. Typing GOOGL settles on G, GO, GOO, GOOG on the way; on a
+    // browser holding the whole-universe pack, text with NO cached set is almost always a
+    // partial word, and asking /api/bars for it would send unknown symbols to the origin
+    // (a possible cold provider lookup each). Only a browser without the pack (a new member)
+    // warms an uncached name.
+    if (lastT == null && _packStamped()) return 'unknown'
     const json = await _warmLoad(url)
     if (!_isAuthoritativeAnswer(json, S, tf).ok || json.delta || !json.bars?.length) return false
     // Keep any DEEPER history already in memory; the server wins every overlapping bar.
