@@ -80,7 +80,9 @@ export const GROUPS = [
       // temporary reachability; replace with description-driven discovery
       /\b(?:range|show|frame|zoom)\b.*\b(?:3m|6m|ytd|1y|5y|year to date|(?:one|1|last|past|five|5) years?|(?:three|3|six|6) months)\b|\bsince (?:the )?ipo\b/,
       /\breset (?:the |this |my |chart |chart's )*(?:view|zoom)\b|\bdefault view\b/,
-      /\b(?:hide|show|bring back|turn (?:off|on)|unhide)\b.*\b(?:all|every)\b.*\b(?:indicators?|moving averages?|mas|overlays)\b/] },
+      /\b(?:hide|show|bring back|turn (?:off|on)|unhide)\b.*\b(?:all|every)\b.*\b(?:indicators?|moving averages?|mas|overlays)\b/,
+      // C1-127: OPENING a chart's own Chart Settings dialog (chartSetup.openSettings) — an open verb and the chart's settings
+      /\b(?:open|show|bring up|pull up|pop up|pop open|launch|display)\b.*\b(?:chart'?s? settings|settings (?:dialog|panel|window|modal)|settings (?:for|of|on) (?:the |this |that |my )?(?:\w+ )?(?:\w+ )?chart)\b/] },
   // ⭐ live test 2026-10-28: N tickers as N equal charts (reuse, add, re-tile — one change, one Undo) — its OWN group
   // (one action), so neither the NL-1 core nor the workspace group grows: core + workspace is exactly the budget.
   { id: 'chartGrid', title: 'Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells', domains: ['chartGrid'], fillLast: true,
