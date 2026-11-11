@@ -1,0 +1,1396 @@
+LinkType: focused batch 1 (25 files, no lock)
+Wed Nov 11 05:45:47 UTC 2026
+df7b7cd08d
++ uncommitted routing/discovery/coverage
+
+ RUN  v4.0.18 C:/w/pl-ocs/app
+
+ ✓ src/agent/agentChartViewControls.test.jsx (19 tests) 17957ms
+     ✓ offers exactly the buttons the bar has: each one reaches the chart's applyRange with the bar's own value and is read back  1749ms
+     ✓ a span with no button refuses and moves nothing  987ms
+     ✓ a range the chart already shows is a no-op  992ms
+     ✓ ⛔ a chart that did not land on the range gets no success  1274ms
+     ✓ no view to read yet: refuses, the chart is not told to move  996ms
+     ✓ Undo puts back the exact window and view lock the range replaced, from a chart held by a pan and from a free one  1353ms
+     ✓ Undo goes back to the range the member was on, so the chart still reads as showing it  1151ms
+     ✓ a member who panned off the range keeps their view: Undo refuses as stale and moves nothing  1055ms
+     ✓ a view that never read back offers no Undo, and the receipt says so  1015ms
+     ✓ reaches the chart's reset and is read back; settings are untouched  1040ms
+     ✓ says it has no Undo, and declares none: a reset also drops a dragged price scale, which nothing reads back  1030ms
+     ✓ the receipt says the price scale was reset, and the chart's reset really drops a dragged scale  1038ms
+     ✓ already at the default view: a no-op  979ms
+     ✓ hides, reads back, Undo brings them back; nothing is stored  1151ms
+     ✓ through the panel: every moving average hidden in the stored chart (the overlay slots are adopted instances); Undo restores it byte for byte  1148ms
+     ✓ a chart with none refuses  995ms
+ ✓ src/agent/agentOpenChartSettings.test.jsx (26 tests | 1 skipped) 21452ms
+     ✓ one chart: "open chart settings" opens its dialog, with no model call  1111ms
+     ✓ "open the chart settings" is the same door  1005ms
+     ✓ "show me the chart settings" is the same door  1021ms
+     ✓ "bring up chart settings" is the same door  1011ms
+     ✓ "open the settings dialog" is the same door  1025ms
+     ✓ "show me the settings panel" is the same door  1043ms
+     ✓ "open this chart's settings" is the same door  1042ms
+     ✓ "pull up the settings for this chart" is the same door  1026ms
+     ✓ names the AAPL chart: only that chart opens  995ms
+     ✓ names a position: "show me the settings panel for the top-left chart"  1013ms
+     ✓ ⛔ two charts, none named or clicked: it asks which, and opens nothing  978ms
+     ✓ two charts, one clicked: "this chart" is the clicked one  1013ms
+     ✓ ⛔ excluded: "the chart that is not NVDA" — the model aiming at NVDA anyway opens nothing, and asks  998ms
+     ✓ ⛔ excluded: "the other chart" (NVDA clicked) — the model aiming at the clicked chart opens nothing there  1007ms
+     ✓ excluded control: "the other chart" (NVDA clicked), the model on AMD: AMD opens  1040ms
+     ✓ a chart with no settings door here (Multi Chart cell, a read-only surface) refuses and calls nothing  978ms
+     ✓ ⛔ a dialog that did not open gets no success  3108ms
+     ✓ already open: says so and calls nothing  976ms
+     ✓ says there is no Undo (nothing changed), and declares none  1027ms
+ ✓ src/agent/qa/capabilityRegression/corpus.deterministic.test.js (644 tests) 2132ms
+ ✓ src/noRegexLookbehind.test.js (6 tests) 2081ms
+     ✓ no product file under app/src uses one  1910ms
+ ✓ src/agent/qa/fastPathCorpus.test.jsx (33 tests) 32733ms
+     ✓ CONTROL: the fast path DOES claim a phrase it knows (a saved screen: 0 model turns, 1 scan)  1063ms
+     ✓ CONTROL: "show me my strongest stocks" is refused LOCALLY (0 model turns, no scan)  960ms
+     ✓ d01: top RS names near 52-week highs  1005ms
+     ✓ d02: stocks with RS rank above 90  978ms
+     ✓ d03: show me the leaders making new highs  995ms
+     ✓ d04: what's ripping this month  996ms
+     ✓ d05: best 3-month performers over $10  995ms
+     ✓ d06: unusual volume in semis  995ms
+     ✓ d07: stocks trading at least 3x their average volume  992ms
+     ✓ d08: names trading over $50M a day  984ms
+     ✓ d09: volume dried up to a 4-week low  978ms
+     ✓ d10: high ADR stocks, above 5%  974ms
+     ✓ d11: movers with real range, ADR 4 to 8 percent  1006ms
+     ✓ d12: tight consolidations above the 50-day  996ms
+     ✓ d13: NR7 days in strong stocks  993ms
+     ✓ d14: pullbacks to the 20 EMA in uptrends  992ms
+     ✓ d15: EMA stack intact and RS line trending up  1008ms
+     ✓ d16: stocks within 3% of their 20-day high  979ms
+     ✓ d17: gapping up more than 4% today  995ms
+     ✓ d18: RSI over 70  993ms
+     ✓ d19: oversold large caps  993ms
+     ✓ d20: EPS growth above 25% and revenue growth above 20%  981ms
+     ✓ d21: fast growers in software  969ms
+     ✓ d22: small caps under $2B with short float over 20%  985ms
+     ✓ d23: reporting earnings in the next 5 days  996ms
+     ✓ d24: energy stocks above the 50-day  999ms
+     ✓ d25: strongest sectors' leaders  1027ms
+     ✓ d26: chip stocks up today  992ms
+     ✓ r01: EMA 9 crossing above EMA 20  980ms
+     ✓ r02: run my custom squeeze indicator as a scan  976ms
+     ✓ r03: stocks where MACD just turned positive  979ms
+     ✓ r04: screen on put/call ratio above 2  981ms
+     ✓ r05: dark pool prints over $10M  993ms
+stderr | src/agent/agentGuide.test.jsx > S · Show me highlights the real control and changes nothing > S6b Escape is one press, one action > a sheet owns the press, whether or not it stays open
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/charts/widgets/ChartWidget.agent.test.jsx (9 tests) 2409ms
+     ✓ Undo after the migration: from a centred mark, back to centred  491ms
+     ✓ Undo after the migration: a hand-placed mark gets its own x/y and its own anchor back, and nothing re-derives it  869ms
+     ✓ a real later edit still refuses: the member dragged the mark somewhere else  440ms
+     ✓ the read-back itself: a receipt taken after the migration landed still counts as landed  432ms
+stderr | src/agent/agentGuide.test.jsx > S · Show me highlights the real control and changes nothing > S6b Escape is one press, one action > the palette or a dialog owns the press, whether or not it stays open
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuide.test.jsx > S · Show me highlights the real control and changes nothing > S6b Escape is one press, one action > a popup that closes on Escape owns the press, whether or not it stays open
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/qa/capabilityRegression/corpus.routingV2.test.js (646 tests) 1095ms
+ ✓ src/agent/agentCore.test.js (32 tests) 865ms
+ ✓ src/agent/agentChartSettingsTruth.test.jsx (17 tests) 16250ms
+     ✓ the height: writes the pref the chart sizes from (not the blob), and what the chart would draw changes  1117ms
+     ✓ the height: Undo puts an unset pref back unset  1150ms
+     ✓ the height: a server that refuses the write leaves no success behind  1036ms
+     ✓ the height: hidden Volume refuses (there is no pane to size) and writes nothing  1090ms
+     ✓ own pane: /charts forces it, so the request refuses either way and changes nothing  1047ms
+     ✓ writes opts.watermarkPos, the position the chart draws (cs.watermark.x/y untouched); the other axis keeps its spot  1228ms
+     ✓ a hand-placed mark moves too: its pixel anchor is dropped, or it would out-vote the new fraction  1039ms
+     ✓ Undo puts a centred watermark back to centred  1149ms
+     ✓ a value already there is a no-op (read from where the chart reads it)  992ms
+     ✓ textColor: nothing reads it on /charts, so it refuses and stores nothing  980ms
+     ✓ volume.maLineStyle: nothing reads it on /charts, so it refuses and stores nothing  997ms
+     ✓ watermark.opacity: the value /charts treats as unset refuses; a neighbouring value writes  1103ms
+     ✓ a Sunrise canvas: background, grid and candle colors refuse and store nothing  1120ms
+     ✓ the light palette: the canvas color refuses; candle colors, which it keeps, still write  1085ms
+     ✓ a timeframe that does not draw it: saved, and the receipt says it cannot be seen here; one that does says nothing extra  1114ms
+ ✓ src/agent/qa/capabilityRegression/corpus.routing.test.js (646 tests) 408ms
+stdout | src/agent/agentRouting.test.jsx > routing — offline accuracy over the benchmark messages > routing actually narrows: most cases send far fewer capabilities than the full manifest
+[routing] 43/43 routed; mean 23.4 of 158 capabilities; 0 full
+
+ ✓ src/agent/agentRoutingS6.test.js (20 tests) 383ms
+ ❯ src/agent/agentRouting.test.jsx (15 tests | 1 failed) 222ms
+     ✓ every registered capability belongs to exactly one routing group (a new domain fails here) 3ms
+     ✓ nothing recognised → the FULL manifest (the pre-routing behaviour), never a guess 1ms
+     ✓ M1: an indicator word (EMA, SMA, RSI…) is recognised now — the indicators group (agreed with Indicators), the model may still just answer 0ms
+     ✓ a recognised request gets its groups plus the always-on agent group, and names the rest 1ms
+     ✓ multi-intent requests select every group they touch 0ms
+     ✓ follow-ups keep the groups of a pending proposal and of the last change 1ms
+     ✓ a ticker in a symbol request routes to charts (case-sensitive on the raw text) 0ms
+     ✓ the kill switch sends the full manifest 0ms
+     ✓ a reroute ADDS the requested groups 0ms
+     ✓ every case gets the groups its correct plan needs (100% — a miss would cost a reroute) 0ms
+     ✓ routing actually narrows: most cases send far fewer capabilities than the full manifest 1ms
+     ✓ deterministic commands still never reach the model (fast paths unchanged by routing) 24ms
+     ✓ need_groups → ONE more call with those groups added (marked reroute); the plan then runs once 151ms
+     ✓ a second need_groups is NOT chased again — one bounded retry, then an honest sentence 32ms
+     × each group can be sent (by its words or a reroute) within the per-request limit, and the groups cover the whole catalog 6ms
+ ✓ src/pages/charts/widgets/ChartWidget.openSettings.test.jsx (4 tests) 181ms
+ ✓ src/agent/settingsLiveness.test.js (13 tests) 137ms
+ ✓ src/agent/qa/capabilityRegression/inventory.test.js (676 tests) 193ms
+ ✓ src/agent/agentCoachRoutingParity.test.js (22 tests) 34ms
+ ✓ src/agent/qa/capabilityRegression/routingCollisionV2.test.js (35 tests) 73ms
+ ✓ src/agent/agentSurfaces.test.js (6 tests) 50ms
+ ✓ src/agent/qa/capabilityRegression/routingCollision.test.js (35 tests) 33ms
+ ✓ src/agent/agentContracts.test.js (14 tests) 37ms
+ ✓ src/agent/agentGuide.test.jsx (42 tests) 48645ms
+     ✓ What's the difference between a chart indicator and a condition?  1048ms
+     ✓ what is a layout?  991ms
+     ✓ what are link colours  972ms
+     ✓ explain the drawing tools  981ms
+     ✓ What is RSI?  964ms
+     ✓ Explain RSI  966ms
+     ✓ What does ADR mean?  980ms
+     ✓ What is MACD?  979ms
+     ✓ What is an EMA?  980ms
+     ✓ rsi vs macd  981ms
+     ✓ more than the catalog says goes to the model, which answers — nothing is invented locally and nothing changes: what is the difference between an ema and an sma  1024ms
+     ✓ more than the catalog says goes to the model, which answers — nothing is invented locally and nothing changes: what does a dead cat bounce mean?  1022ms
+     ✓ more than the catalog says goes to the model, which answers — nothing is invented locally and nothing changes: what is rsi telling me about nvda right now  989ms
+     ✓ more than the catalog says goes to the model, which answers — nothing is invented locally and nothing changes: what's a good setting for rsi on the 5 minute  995ms
+     ✓ the model can ask for UCT's own catalog wording (guide.explain) — a query: an answer, no receipt, no change  1039ms
+     ✓ S1 "Where do I change the timeframe?" — the real timeframe bar, two steps, Next / Done; the board is untouched  1254ms
+     ✓ S2 several charts: the walkthrough is on the chart the member clicked, and says which  994ms
+     ✓ S3 a control that is NOT on screen is never claimed — it says so and explains instead  979ms
+     ✓ S4 a step that needs the member: "open the gear" waits for THEIR click (the settings opening), then moves on by itself  1289ms
+     ✓ S4b context-aware: with Chart settings ALREADY open on the Indicators tab, the walkthrough starts at its search box — never "open the gear"  993ms
+     ✓ S5 the control disappears mid-walkthrough → it pauses and says why, carries on if it returns, and only then gives up (never points at nothing)  5580ms
+     ✓ a new command typed to the Agent mid-walkthrough ends the walkthrough  1135ms
+       ✓ with nothing else open, it ends the guide  1012ms
+       ✓ with focus still in the Agent's message box after asking, it ends the guide  1010ms
+       ✓ Ctrl, Alt, Meta or Shift + Escape is not the guide's  1037ms
+       ✓ a text field's Escape is the field's  1044ms
+       ✓ a field that closes itself on Escape still owned the press, though focus has left it by the bubble phase  1026ms
+       ✓ a sheet owns the press, whether or not it stays open  1076ms
+       ✓ the palette or a dialog owns the press, whether or not it stays open  1084ms
+       ✓ a popup that closes on Escape owns the press, whether or not it stays open  1076ms
+       ✓ a press a board handler stopped or prevented, with nothing of its own to close, still ends the guide  994ms
+       ✓ an armed drawing tool owns the press: the guide stays  1043ms
+       ✓ a menu the press closed had it: the Widgets menu goes, the guide stays  1034ms
+       ✓ a menu that ignores Escape does not keep the guide from ending  986ms
+       ✓ after the layer has gone, the next Escape ends the guide  1076ms
+     ✓ S6 Escape and Exit end it; a new walkthrough replaces the old one  1424ms
+     ✓ S7 the card never takes a click away from the board: the ring is pointer-events none, the card is not modal  992ms
+     ✓ D1 "Where do I change the timeframe?" → "Now do it for me" → which timeframe? → Weekly: changed, receipted, undoable  1324ms
+     ✓ D2 a feature whose action needs the member's words says what to say — nothing runs on a guess  1004ms
+     ✓ D3 "do it for me" with no walkthrough shown is NOT a guide action — nothing changes  965ms
+     ✓ D4 a direct command is just done — "Change my chart to the weekly timeframe" (no walkthrough)  1035ms
+     ✓ D5 the indicator walkthrough → do it for me → RSI: added through indicator.add (receipt, Undo)  1263ms
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.2.test.jsx > (c) final state · indicatorAlert.threshold > "alert me when RSI goes above 70"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.2.test.jsx > (c) final state · indicatorAlert.threshold > "ping me when the RSI is above 70"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.2.test.jsx > (c) final state · indicatorAlert.threshold > "let me know when RSI gets over 70"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.2.test.jsx > (c) final state · indicatorAlert.threshold > "set an RSI alert above 70"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.2.test.jsx > (c) final state · indicatorAlert.threshold > "notify me if RSI rises above 70"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.2.test.jsx > (c) final state · indicatorAlert.delete > "delete my RSI alert"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.2.test.jsx > (c) final state · indicatorAlert.delete > "remove the NVDA RSI alert"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.2.test.jsx > (c) final state · indicatorAlert.delete > "get rid of my RSI indicator alert"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.2.test.jsx > (c) final state · indicatorAlert.delete > "cancel the RSI alert"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.1.test.jsx > (c) final state · indicatorAlert.toggle > "pause my RSI alert"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.1.test.jsx > (c) final state · indicatorAlert.toggle > "pause the NVDA RSI alert"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.1.test.jsx > (c) final state · indicatorAlert.toggle > "turn off my RSI alert for now"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.1.test.jsx > (c) final state · indicatorAlert.toggle > "mute the RSI alert"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.1.test.jsx > (c) final state · indicatorAlert.toggle > undo: "pause my RSI alert" then "undo" puts it back
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.0.test.jsx > (c) final state · indicatorAlert.ma-cross-multichart > "mark when the 9 ema crosses above the 20 on the NVDA chart"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.0.test.jsx > (c) final state · indicatorAlert.ma-cross-multichart > "alert me when NVDA's 9 ema crosses above its 20"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.0.test.jsx > (c) final state · indicatorAlert.ma-cross-multichart > "on the NVDA chart, alert me when the 9 ema crosses the 20 to the upside"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.3.test.jsx > (c) final state · indicatorAlert.ma-cross > "mark when the 9 ema crosses above the 20 on this chart"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.3.test.jsx > (c) final state · indicatorAlert.ma-cross > "alert me when the 9 ema crosses above the 20 ema"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.3.test.jsx > (c) final state · indicatorAlert.ma-cross > "tell me when the 9 crosses over the 20"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.3.test.jsx > (c) final state · indicatorAlert.ma-cross > "notify me on a 9/20 ema cross up"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.3.test.jsx > (c) final state · indicatorAlert.ma-cross > "set an alert for the 9 ema crossing above the 20"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.2.test.jsx > (c) final state · bqa1.colour.named-chart > "make the 20 ema on the NVDA chart red"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.2.test.jsx > (c) final state · bqa1.colour.named-chart > "make the EMA 20 on the NVDA chart red"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.1.test.jsx > (c) final state · bqa1.remove.named-chart > "remove the 200 sma from the NVDA chart"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.2.test.jsx > (c) final state · bqa1.colour.named-chart > undo: "make the 20 ema on the NVDA chart red" then "undo" puts it back
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.1.test.jsx > (c) final state · bqa1.remove.named-chart > "remove the SMA 200 from the NVDA chart"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.1.test.jsx > (c) final state · bqa1.remove.named-chart > "delete the 200 sma off the NVDA chart"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.0.test.jsx > (c) final state · bqa1.hide.named-chart > "hide the 50 sma on the NVDA chart"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.0.test.jsx > (c) final state · bqa1.hide.named-chart > "hide the SMA 50 on the NVDA chart"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.0.test.jsx > (c) final state · bqa1.hide.named-chart > "turn off the 50 sma on the NVDA chart"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.0.test.jsx > (c) final state · bqa1.hide.named-chart > "hide the 50 sma on the bottom-left chart"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.0.test.jsx > (c) final state · bqa1.hide.named-chart > undo: "hide the 50 sma on the NVDA chart" then "undo" puts it back
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.1.test.jsx > (c) final state · indicatorAlert.list > "show my indicator alerts"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.1.test.jsx > (c) final state · indicatorAlert.list > "list my indicator alerts"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.1.test.jsx > (c) final state · indicatorAlert.list > "what indicator alerts do I have"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/corpus.finalState.1.test.jsx > (c) final state · indicatorAlert.list > "which indicator alerts are on my account"
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/qa/capabilityRegression/corpus.finalState.2.test.jsx (168 tests) 185404ms
+     ✓ "Put four charts on my screen."  1405ms
+     ✓ "Create four charts."  1254ms
+     ✓ "Make a 2×2 chart layout."  1226ms
+     ✓ "give me a 2x2 grid of charts"  1243ms
+     ✓ "I want four equal charts on the board"  1201ms
+     ✓ "four charts, same size, please"  1227ms
+     ✓ "5 minute chart"  1042ms
+     ✓ "switch to 5 min"  1039ms
+     ✓ "change to the 5-minute timeframe"  1015ms
+     ✓ "show me the 5m"  1056ms
+     ✓ "go to five minute candles"  1029ms
+     ✓ "describe the setup on nvda"  996ms
+     ✓ "describe this setup"  1007ms
+     ✓ "what's the setup here"  1010ms
+     ✓ "walk me through the setup on NVDA"  1024ms
+     ✓ "summarize the NVDA setup"  1008ms
+     ✓ "describe the chart setup for NVDA"  1012ms
+     ✓ "any news on tsla"  1024ms
+     ✓ "latest headlines for TSLA"  1009ms
+     ✓ "what's the news on TSLA"  1010ms
+     ✓ "show me TSLA news"  998ms
+     ✓ "TSLA headlines"  1003ms
+     ✓ "how far off its high is NVDA"  982ms
+     ✓ "how far is NVDA off its high"  1011ms
+     ✓ "NVDA distance from the 52-week high"  1015ms
+     ✓ "compare with AMD"  1038ms
+     ✓ "overlay AMD on this chart"  1055ms
+     ✓ "compare NVDA to AMD"  1054ms
+     ✓ "add AMD as a comparison"  1059ms
+     ✓ undo: "compare with AMD" then "undo" puts it back  1182ms
+     ✓ "hide the 50 sma"  1101ms
+     ✓ "hide the SMA 50"  1075ms
+     ✓ "turn off the 50 day moving average"  1102ms
+     ✓ "hide the 50 day"  1096ms
+     ✓ undo: "hide the 50 sma" then "undo" puts it back  1270ms
+     ✓ "delete my NVDA alert"  1207ms
+     ✓ "remove the NVDA alert"  1101ms
+     ✓ "cancel my alert on NVDA"  1116ms
+     ✓ "get rid of the NVDA price alert"  1130ms
+     ✓ "what are the catalysts for NVDA"  1006ms
+     ✓ "NVDA catalysts"  999ms
+     ✓ "any upcoming catalysts on NVDA"  1022ms
+     ✓ "show me NVDA's catalysts"  998ms
+     ✓ "open my Momentum layout"  1030ms
+     ✓ "switch to the Momentum layout"  1030ms
+     ✓ "load Momentum"  1037ms
+     ✓ "go to my Momentum layout"  1039ms
+     ✓ "pull up the Momentum layout"  1039ms
+     ✓ "swap the two charts"  1060ms
+     ✓ "switch places between the NVDA and AMD charts"  1050ms
+     ✓ "swap NVDA and AMD"  1058ms
+     ✓ "trade places with the left and right charts"  1040ms
+     ✓ undo: "swap the two charts" then "undo" puts it back  1176ms
+     ✓ "alert me when RSI goes above 70"  1102ms
+     ✓ "ping me when the RSI is above 70"  1140ms
+     ✓ "let me know when RSI gets over 70"  1123ms
+     ✓ "set an RSI alert above 70"  1111ms
+     ✓ "notify me if RSI rises above 70"  1104ms
+     ✓ "delete my RSI alert"  1085ms
+     ✓ "remove the NVDA RSI alert"  1104ms
+     ✓ "get rid of my RSI indicator alert"  1103ms
+     ✓ "cancel the RSI alert"  1181ms
+     ✓ "make the line red"  1291ms
+     ✓ "color that line red"  1194ms
+     ✓ "change the 200 line to red"  1192ms
+     ✓ "turn the horizontal line red"  1188ms
+     ✓ "rename the Swing tab to Position"  1197ms
+     ✓ "call the Swing tab Position instead"  1195ms
+     ✓ "change the Swing tab's name to Position"  1198ms
+     ✓ "rename that tab to Position"  1196ms
+     ✓ undo: "rename the Swing tab to Position" then "undo" puts it back  1309ms
+     ✓ "make the up candles blue and the down candles orange"  1047ms
+     ✓ "blue up candles, orange down candles"  1059ms
+     ✓ "change my candle colors to blue and orange"  1045ms
+     ✓ "color the green candles blue and the red ones orange"  1134ms
+     ✓ undo: "make the up candles blue and the down candles orange" then "undo" puts it back  1182ms
+     ✓ "make my default timeframe weekly"  1046ms
+     ✓ "set the default chart timeframe to weekly"  1041ms
+     ✓ "new charts should open on the weekly"  995ms
+     ✓ "change my default timeframe to W"  1061ms
+     ✓ undo: "make my default timeframe weekly" then "undo" puts it back  1164ms
+     ✓ "delete my Clean template"  1088ms
+     ✓ "remove the Clean chart template"  1102ms
+     ✓ "get rid of my Clean template"  1099ms
+     ✓ "delete the chart template called Clean"  1096ms
+     ✓ "make a copy of my Momentum Screen called Momentum Copy"  1116ms
+     ✓ "duplicate the Momentum Screen as Momentum Copy"  1101ms
+     ✓ "copy my Momentum Screen and name it Momentum Copy"  1090ms
+     ✓ "clone the Momentum Screen into Momentum Copy"  1093ms
+     ✓ "clear my Momentum list"  1212ms
+     ✓ "empty the Momentum watchlist"  1165ms
+     ✓ "remove everything from my Momentum list"  1110ms
+     ✓ "wipe the Momentum list"  1183ms
+     ✓ "rename my Momentum layout to Momentum Trades"  1105ms
+     ✓ "call the Momentum layout Momentum Trades"  1093ms
+     ✓ "change the Momentum layout name to Momentum Trades"  1121ms
+     ✓ "rename layout Momentum to Momentum Trades"  1084ms
+     ✓ "what layouts do I have"  999ms
+     ✓ "list my layouts"  1009ms
+     ✓ "show me my saved layouts"  1008ms
+     ✓ "which layouts have I saved"  997ms
+     ✓ "hide the volume"  1011ms
+     ✓ "turn off volume on this chart"  1091ms
+     ✓ "hide the volume pane"  1056ms
+     ✓ "no volume please"  1043ms
+     ✓ undo: "hide the volume" then "undo" puts it back  1142ms
+     ✓ "draw a trendline on nvda from oct 9 at 150 to oct 28 at 180"  1070ms
+     ✓ "trendline from 150 on oct 9 to 180 on oct 28"  1058ms
+     ✓ "connect oct 9 at 150 to oct 28 at 180 with a trend line"  1027ms
+     ✓ "draw a line from the oct 9 150 level to 180 on oct 28"  1043ms
+     ✓ undo: "draw a trendline on nvda from oct 9 at 150 to oct 28 at 180" then "undo" puts it back  1155ms
+     ✓ "draw a fib from sep 2 at 100 to oct 28 at 180"  1088ms
+     ✓ "fibonacci retracement from 100 on sep 2 to 180 on oct 28"  1076ms
+     ✓ "fib retracement sep 2 100 to oct 28 180"  1121ms
+     ✓ "put a fib from the sep 2 100 low to the oct 28 180 high"  1065ms
+     ✓ undo: "draw a fib from sep 2 at 100 to oct 28 at 180" then "undo" puts it back  1177ms
+     ✓ "turn off the grid"  1029ms
+     ✓ "hide the grid lines"  1072ms
+     ✓ "no grid on this chart"  1088ms
+     ✓ "remove the gridlines"  1059ms
+     ✓ undo: "turn off the grid" then "undo" puts it back  1165ms
+     ✓ "add a 2 hour timeframe"  1036ms
+     ✓ "make a custom 2h timeframe and switch to it"  1081ms
+     ✓ "create a 2-hour chart interval"  1034ms
+     ✓ "add 2 hours as a timeframe"  1054ms
+     ✓ undo: "add a 2 hour timeframe" then "undo" puts it back  1174ms
+     ✓ "add a chart for META and make it a line chart"  1162ms
+     ✓ "make the 20 ema on the NVDA chart red"  1083ms
+     ✓ "make the EMA 20 on the NVDA chart red"  1091ms
+     ✓ undo: "make the 20 ema on the NVDA chart red" then "undo" puts it back  1264ms
+     ✓ "sort them by 3-month performance"  1102ms
+     ✓ "rank those by three month change"  1173ms
+     ✓ "order the results by 3 month performance, best first"  1130ms
+     ✓ "show me the preview"  1193ms
+     ✓ "preview it on the chart"  1192ms
+     ✓ "let me see what it looks like on the chart"  1197ms
+     ✓ "show me how it looks"  1199ms
+     ✓ "make it thicker"  1393ms
+     ✓ "make it a bit thicker"  1345ms
+     ✓ "make that thicker"  1318ms
+     ✓ undo: "make it thicker" then "undo" puts it back  1496ms
+     ✓ "duplicate the 20 ema"  1056ms
+     ✓ "make a copy of the 20 ema"  1100ms
+     ✓ "clone the 20 ema"  1115ms
+     ✓ undo: "duplicate the 20 ema" then "undo" puts it back  1271ms
+     ✓ "find stocks up 20% this month near 52-week highs with volume above average"  998ms
+     ✓ "stocks up 20% in a month within 5% of their 52-week high, volume above average"  1009ms
+     ✓ "show me names up 20%+ this month close to 52 week highs with above average volume"  1009ms
+     ✓ "what indicator templates do I have"  997ms
+     ✓ "list my indicator templates"  1008ms
+     ✓ "show my indicator templates"  1005ms
+     ✓ "sort my watchlist by RVOL"  1089ms
+     ✓ "sort this list by relative volume, highest first"  1105ms
+     ✓ "put the biggest RVOL at the top of my watchlist"  1089ms
+     ✓ "sort the Momentum list by RVOL high to low"  1081ms
+     ✓ undo: "sort my watchlist by RVOL" then "undo" puts it back  1248ms
+     ✓ "add NVDA to my flagged list"  1087ms
+     ✓ "put NVDA on my flagged list"  1071ms
+     ✓ "add NVDA to flagged"  1074ms
+     ✓ undo: "add NVDA to my flagged list" then "undo" puts it back  1239ms
+     ✓ "hide the 78.6 level on that fib"  1181ms
+     ✓ "remove the 0.786 level from the fib drawing"  1193ms
+     ✓ "turn off the 78.6 fib level"  1175ms
+     ✓ "open chart settings"  1040ms
+     ✓ "open the settings for this chart"  1035ms
+     ✓ "show me the chart settings panel"  1036ms
+     ✓ "bring up this chart's settings"  1041ms
+     ✓ "keep a copy of that one"  1010ms
+ ✓ src/agent/qa/capabilityRegression/corpus.finalState.1.test.jsx (173 tests) 188587ms
+     ✓ "Create four charts in a 2×2 grid: SPY, QQQ, NVDA, and TSLA, all on the daily timeframe."  1220ms
+     ✓ "2x2 grid of SPY, QQQ, NVDA, TSLA on the daily"  1053ms
+     ✓ "four daily charts: SPY, QQQ, NVDA and TSLA"  1069ms
+     ✓ "Put SPY, QQQ, NVDA and TSLA on four charts, all daily, all the same size."  1055ms
+     ✓ "switch to weekly"  1044ms
+     ✓ "make it weekly"  1043ms
+     ✓ "weekly chart please"  1041ms
+     ✓ "change the timeframe to weekly"  1042ms
+     ✓ "show me the weekly"  1040ms
+     ✓ "go to the weekly chart"  1046ms
+     ✓ "Change the NVDA chart to the weekly timeframe."  1056ms
+     ✓ "put NVDA on the weekly"  1061ms
+     ✓ "weekly"  1043ms
+     ✓ undo: "switch to weekly" then "undo" puts it back  1192ms
+     ✓ "alert me if nvda goes above 150"  1196ms
+     ✓ "set an alert on NVDA at 150 to the upside"  1117ms
+     ✓ "ping me when NVDA crosses above 150"  1262ms
+     ✓ "let me know if NVDA breaks above 150"  1118ms
+     ✓ "notify me when nvda rises to 150"  1101ms
+     ✓ "create a price alert for NVDA above $150"  1118ms
+     ✓ "find stocks with ADR above 5%"  1000ms
+     ✓ "screen for stocks with an ADR over 5%"  1003ms
+     ✓ "show me names with ADR greater than 5 percent"  1014ms
+     ✓ "scan for ADR > 5%"  1026ms
+     ✓ "which stocks have an ADR above 5%"  1012ms
+     ✓ "show me NVDA's recent pullbacks"  1010ms
+     ✓ "nvda pullbacks"  1007ms
+     ✓ "how far has NVDA pulled back"  1008ms
+     ✓ "NVDA drawdowns this year"  1027ms
+     ✓ "show extended hours"  1042ms
+     ✓ "turn on extended hours"  1041ms
+     ✓ "show pre-market and after hours"  1058ms
+     ✓ "switch to the extended session"  1053ms
+     ✓ undo: "show extended hours" then "undo" puts it back  1177ms
+     ✓ "change the 9 ema to a 10"  1115ms
+     ✓ "make the 9 ema a 10 ema"  1097ms
+     ✓ "change the 9 ema's period to 10"  1118ms
+     ✓ "set the 9 ema to 10"  1098ms
+     ✓ "switch the 9 ema to a 10 period"  1099ms
+     ✓ undo: "change the 9 ema to a 10" then "undo" puts it back  1270ms
+     ✓ "show my alerts"  985ms
+     ✓ "what alerts do I have"  987ms
+     ✓ "list my price alerts"  996ms
+     ✓ "which alerts are set"  1003ms
+     ✓ "show me all my alerts"  993ms
+     ✓ "compare NVDA and AMD fundamentals"  1013ms
+     ✓ "how does NVDA stack up against AMD"  1023ms
+     ✓ "NVDA vs AMD on valuation"  1008ms
+     ✓ "compare the fundamentals of NVDA versus AMD"  994ms
+     ✓ "when did nh/nl last go negative"  996ms
+     ✓ "when was net new highs last below zero"  1006ms
+     ✓ "last time new highs minus new lows went negative"  1009ms
+     ✓ "when did net new highs last turn negative"  1009ms
+     ✓ "open charts for AAPL and MSFT"  1132ms
+     ✓ "add charts for AAPL and MSFT"  1150ms
+     ✓ "open AAPL and MSFT in new charts"  1144ms
+     ✓ "give me new charts for AAPL and MSFT"  1120ms
+     ✓ undo: "open charts for AAPL and MSFT" then "undo" puts it back  1248ms
+     ✓ "create a new watchlist called Semis"  1104ms
+     ✓ "make a list named Semis"  1102ms
+     ✓ "start a new watchlist Semis"  1101ms
+     ✓ "new watchlist: Semis"  1135ms
+     ✓ "pause my RSI alert"  1052ms
+     ✓ "pause the NVDA RSI alert"  1048ms
+     ✓ "turn off my RSI alert for now"  1054ms
+     ✓ "mute the RSI alert"  1067ms
+     ✓ undo: "pause my RSI alert" then "undo" puts it back  1172ms
+     ✓ "move the line to 210"  1229ms
+     ✓ "move the 200 line up to 210"  1196ms
+     ✓ "set that level to 210"  1184ms
+     ✓ "drag the line to 210"  1165ms
+     ✓ undo: "move the line to 210" then "undo" puts it back  1307ms
+     ✓ "add a tab called Swing to this chart"  1047ms
+     ✓ "give this chart another tab named Swing"  1043ms
+     ✓ "new chart tab called Swing"  1046ms
+     ✓ "open a Swing tab on this chart"  1075ms
+     ✓ undo: "add a tab called Swing to this chart" then "undo" puts it back  1194ms
+     ✓ "make the background black"  1032ms
+     ✓ "set the chart background to black"  1042ms
+     ✓ "black background please"  1057ms
+     ✓ "change the chart's background colour to black"  1105ms
+     ✓ undo: "make the background black" then "undo" puts it back  1164ms
+     ✓ "switch to light mode"  1042ms
+     ✓ "change the app theme to light"  1024ms
+     ✓ "use the light theme"  1035ms
+     ✓ "turn on light mode"  1060ms
+     ✓ undo: "switch to light mode" then "undo" puts it back  1185ms
+     ✓ "apply my Clean template"  1104ms
+     ✓ "use the Clean template on this chart"  1121ms
+     ✓ "switch this chart to my Clean template"  1107ms
+     ✓ "load the Clean chart template"  1148ms
+     ✓ "delete my Momentum Screen"  1135ms
+     ✓ "remove the saved screen Momentum Screen"  1077ms
+     ✓ "get rid of my Momentum Screen"  1137ms
+     ✓ "delete the Momentum Screen scan"  1106ms
+     ✓ "rename my Momentum list to Leaders"  1119ms
+     ✓ "call the Momentum watchlist Leaders"  1140ms
+     ✓ "change the name of my Momentum list to Leaders"  1133ms
+     ✓ "rename the Momentum watchlist Leaders"  1166ms
+     ✓ "what watchlists do I have"  995ms
+     ✓ "list my watchlists"  995ms
+     ✓ "show me all my lists"  997ms
+     ✓ "which watchlists have I made"  1011ms
+     ✓ "create a new empty layout called Scalps"  1090ms
+     ✓ "make a new layout named Scalps"  1150ms
+     ✓ "start a fresh layout called Scalps"  1090ms
+     ✓ "new layout: Scalps"  1111ms
+     ✓ "how many times has the percent above the 50 day gone below 20%"  1023ms
+     ✓ "how often has breadth above the 50 day been under 20%"  1012ms
+     ✓ "count the times the % of stocks above the 50dma fell below 20%"  1014ms
+     ✓ "how many episodes below 20% above the 50 day"  1011ms
+     ✓ "link the right chart to group B"  1061ms
+     ✓ "put the AMD chart in link group B"  1074ms
+     ✓ "set the right chart's link color to B"  1091ms
+     ✓ "move the right chart to the B link group"  1072ms
+     ✓ "draw a box from oct 1 at 140 to oct 20 at 160"  1051ms
+     ✓ "rectangle from oct 1 140 to oct 20 160"  1086ms
+     ✓ "put a rectangle between oct 1 at 140 and oct 20 at 160"  1056ms
+     ✓ "mark a box from 140 on oct 1 to 160 on oct 20"  1044ms
+     ✓ undo: "draw a box from oct 1 at 140 to oct 20 at 160" then "undo" puts it back  1165ms
+     ✓ "turn the gradient off on this chart"  1039ms
+     ✓ "turn off the gradient background"  1029ms
+     ✓ "make the background solid instead of a gradient"  1035ms
+     ✓ "no gradient on this chart"  1058ms
+     ✓ undo: "turn the gradient off on this chart" then "undo" puts it back  1166ms
+     ✓ "go to march 2 2026"  1044ms
+     ✓ "scroll the chart to march 2 2026"  1054ms
+     ✓ "jump to 2026-03-02"  1050ms
+     ✓ "take me to march 2nd 2026 on the chart"  1274ms
+     ✓ "open TSLA on a new chart and switch it to the weekly"  1081ms
+     ✓ "remove the 200 sma from the NVDA chart"  1152ms
+     ✓ "remove the SMA 200 from the NVDA chart"  1139ms
+     ✓ "delete the 200 sma off the NVDA chart"  1199ms
+     ✓ "drop anything under $10"  1093ms
+     ✓ "exclude stocks below $10"  1108ms
+     ✓ "get rid of anything under 10 dollars"  1090ms
+     ✓ "no stocks under $10"  1082ms
+     ✓ "chart the top 3"  1353ms
+     ✓ "open charts for the top three"  1276ms
+     ✓ "put the first 3 on new charts"  1281ms
+     ✓ "draft an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average"  1068ms
+     ✓ "help me build an indicator that marks days where close is above the 21 EMA on 1.5x the 50-day average volume, don't save it yet"  1057ms
+     ✓ "let's work on an indicator: close above the 21 ema and volume above 1.5 times the 50 day average"  1054ms
+     ✓ undo: "draft an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average" then "undo" puts it back  1187ms
+     ✓ "discard the draft"  1240ms
+     ✓ "never mind, throw that draft away"  1270ms
+     ✓ "scrap the indicator draft"  1253ms
+     ✓ "put the 50 sma in its own pane"  1092ms
+     ✓ "move the 50 sma to a separate pane"  1085ms
+     ✓ "give the SMA 50 its own pane"  1102ms
+     ✓ undo: "put the 50 sma in its own pane" then "undo" puts it back  1260ms
+     ✓ "add two new charts for SPY and QQQ"  1057ms
+     ✓ "open two more charts: SPY and QQQ"  1037ms
+     ✓ "add another two charts for SPY and QQQ"  1044ms
+     ✓ undo: "add two new charts for SPY and QQQ" then "undo" puts it back  1165ms
+     ✓ "show my indicator alerts"  1011ms
+     ✓ "list my indicator alerts"  1099ms
+     ✓ "what indicator alerts do I have"  999ms
+     ✓ "which indicator alerts are on my account"  1009ms
+     ✓ "delete my Swing Setup indicator template"  1104ms
+     ✓ "remove the Swing Setup indicator template"  1103ms
+     ✓ "get rid of my Swing Setup indicator template"  1099ms
+     ✓ "what's at the top of my watchlist"  1028ms
+     ✓ "what does this watchlist show right now"  1008ms
+     ✓ "read me the tickers on this list in order"  989ms
+     ✓ "make that drawing a large arrow"  1193ms
+     ✓ "set the arrow size on that drawing to large"  1174ms
+     ✓ "use a large arrow size on the drawing"  1176ms
+     ✓ "reset the view"  1055ms
+     ✓ "reset the chart view"  1056ms
+     ✓ "reset the zoom on this chart"  1057ms
+     ✓ "put this chart back to its default view"  1069ms
+     ✓ "how is that one set right now"  1010ms
+ ✓ src/agent/qa/capabilityRegression/corpus.finalState.3.test.jsx (183 tests) 205467ms
+     ✓ "undo"  1283ms
+     ✓ "undo that"  1176ms
+     ✓ "Undo the last change you made to my charts."  1162ms
+     ✓ "revert that"  1164ms
+     ✓ "take that back"  1138ms
+     ✓ "put it back the way it was"  1198ms
+     ✓ "roll back what you just did"  1164ms
+     ✓ "can you undo that for me?"  1135ms
+     ✓ "undo the timeframe change"  1168ms
+     ✓ "never mind, undo it"  1182ms
+     ✓ "scratch that"  1200ms
+     ✓ "go back to how it was before"  1166ms
+     ✓ "add the 9 and 20 EMAs"  1223ms
+     ✓ "add the 9 and 20 ema"  1196ms
+     ✓ "put the 9 and 20 ema on"  1211ms
+     ✓ "throw the 9 and 20 ema on my chart"  1200ms
+     ✓ "add a 9 ema and a 20 ema"  1160ms
+     ✓ "9 and 20 EMA please"  1198ms
+     ✓ "add EMA 9 and EMA 20"  1197ms
+     ✓ "put the 9/20 emas on this chart"  1208ms
+     ✓ undo: "add the 9 and 20 EMAs" then "undo all of that" puts it back  1466ms
+     ✓ "what's the breadth like"  994ms
+     ✓ "how's market breadth today"  993ms
+     ✓ "show me breadth"  998ms
+     ✓ "what does breadth look like right now"  1024ms
+     ✓ "how are the market internals"  1009ms
+     ✓ "hows breadth today"  995ms
+     ✓ "whats the breadth like"  995ms
+     ✓ "switch to AMD"  1039ms
+     ✓ "show me AMD"  1059ms
+     ✓ "pull up AMD"  1054ms
+     ✓ "chart AMD"  1050ms
+     ✓ "put AMD on the chart"  1054ms
+     ✓ "change the symbol to AMD"  1050ms
+     ✓ undo: "switch to AMD" then "undo" puts it back  1181ms
+     ✓ "undo the last change you made to my charts"  1191ms
+     ✓ "undo the change you made to my layout"  1193ms
+     ✓ "undo that"  1176ms
+     ✓ "put my layout back"  1171ms
+     ✓ "add a news widget"  1084ms
+     ✓ "put a news panel on the board"  1106ms
+     ✓ "open the news widget"  1076ms
+     ✓ "I want news on my board"  1076ms
+     ✓ undo: "add a news widget" then "undo" puts it back  1192ms
+     ✓ "show the 50 sma again"  1242ms
+     ✓ "unhide the 50 sma"  1276ms
+     ✓ "turn the 50 day back on"  1269ms
+     ✓ "show the SMA 50"  1228ms
+     ✓ "whats nvda at"  1008ms
+     ✓ "what's NVDA trading at"  992ms
+     ✓ "NVDA price"  992ms
+     ✓ "how much is NVDA right now"  1014ms
+     ✓ "quote NVDA"  986ms
+     ✓ "close the right chart"  1028ms
+     ✓ "remove the chart on the right"  1045ms
+     ✓ "get rid of the AMD chart"  1056ms
+     ✓ "close the AMD chart"  1040ms
+     ✓ "delete the right-hand chart"  1071ms
+     ✓ undo: "close the right chart" then "undo" puts it back  1213ms
+     ✓ "save this layout as Swing 2"  1293ms
+     ✓ "save this as a new layout called Swing 2"  1096ms
+     ✓ "save the board as Swing 2"  1103ms
+     ✓ "save a copy of this layout named Swing 2"  1103ms
+     ✓ "duplicate this chart"  1062ms
+     ✓ "make a copy of the NVDA chart"  1057ms
+     ✓ "clone this chart"  1056ms
+     ✓ "duplicate the NVDA chart"  1026ms
+     ✓ undo: "duplicate this chart" then "undo" puts it back  1150ms
+     ✓ "mark when the 9 ema crosses above the 20 on this chart"  1121ms
+     ✓ "alert me when the 9 ema crosses above the 20 ema"  1122ms
+     ✓ "tell me when the 9 crosses over the 20"  1093ms
+     ✓ "notify me on a 9/20 ema cross up"  1092ms
+     ✓ "set an alert for the 9 ema crossing above the 20"  1137ms
+     ✓ "draw a horizontal line at 200"  1062ms
+     ✓ "put a line at $200"  1057ms
+     ✓ "add a horizontal level at 200"  1056ms
+     ✓ "draw a price line at 200 on this chart"  1057ms
+     ✓ "mark the 200 level with a line"  1093ms
+     ✓ undo: "draw a horizontal line at 200" then "undo" puts it back  1225ms
+     ✓ "delete that line"  1197ms
+     ✓ "remove the line at 200"  1163ms
+     ✓ "get rid of the horizontal line"  1240ms
+     ✓ "erase the 200 line"  1188ms
+     ✓ undo: "delete that line" then "undo" puts it back  1320ms
+     ✓ "close the Swing tab"  1195ms
+     ✓ "remove the Swing tab"  1184ms
+     ✓ "get rid of the Swing tab"  1265ms
+     ✓ "close that tab"  1255ms
+     ✓ undo: "close the Swing tab" then "undo" puts it back  1325ms
+     ✓ "find me an indicator for volatility"  1014ms
+     ✓ "search the indicators for volatility"  1010ms
+     ✓ "what indicators measure volatility"  995ms
+     ✓ "are there any volatility indicators"  1002ms
+     ✓ "turn off alert sounds"  1054ms
+     ✓ "mute the alert sound"  1057ms
+     ✓ "no sound for alerts please"  1089ms
+     ✓ "disable the alert sound"  1058ms
+     ✓ undo: "turn off alert sounds" then "undo" puts it back  1183ms
+     ✓ "save this screen as ADR Leaders"  1214ms
+     ✓ "save that scan as ADR Leaders"  1264ms
+     ✓ "save these results as a screen called ADR Leaders"  1209ms
+     ✓ "keep this screen, call it ADR Leaders"  1169ms
+     ✓ "what screens have I saved"  983ms
+     ✓ "list my saved screens"  993ms
+     ✓ "show me my saved scans"  997ms
+     ✓ "which screens do I have"  981ms
+     ✓ "delete my Earnings watchlist"  1152ms
+     ✓ "remove the Earnings list"  1139ms
+     ✓ "get rid of my Earnings watchlist"  1212ms
+     ✓ "delete the watchlist called Earnings"  1124ms
+     ✓ "delete my Momentum layout"  1239ms
+     ✓ "remove the Momentum layout"  1097ms
+     ✓ "get rid of the Momentum layout"  1103ms
+     ✓ "delete the layout called Momentum"  1077ms
+     ✓ "what percent of stocks are above the 50 day"  993ms
+     ✓ "how many stocks are above their 50 day moving average"  1011ms
+     ✓ "% of stocks above the 50dma"  996ms
+     ✓ "what share of stocks are over the 50 day"  981ms
+     ✓ "what indicators are on this chart"  987ms
+     ✓ "what's on this chart"  995ms
+     ✓ "list the indicators on my chart"  996ms
+     ✓ "which studies do I have on here"  997ms
+     ✓ "draw a ray from oct 9 at 150 through oct 28 at 180"  1047ms
+     ✓ "ray on nvda from 150 on oct 9 through 180 on oct 28"  1056ms
+     ✓ "extend a ray from oct 9 150 through oct 28 180"  1242ms
+     ✓ "put a ray from oct 9 at 150 to oct 28 at 180"  1049ms
+     ✓ undo: "draw a ray from oct 9 at 150 through oct 28 at 180" then "undo" puts it back  1168ms
+     ✓ "add a note that says breakout at 150 on oct 15"  1046ms
+     ✓ "put the text breakout on oct 15 at 150"  1138ms
+     ✓ "write breakout on the chart at oct 15, 150"  1045ms
+     ✓ "drop a text label breakout at 150 on oct 15"  1045ms
+     ✓ undo: "add a note that says breakout at 150 on oct 15" then "undo" puts it back  1167ms
+     ✓ "show me this chart as of march 2 2026"  1052ms
+     ✓ "replay the chart from march 2 2026"  1043ms
+     ✓ "go back to march 2 2026 and hide what came after"  1073ms
+     ✓ "start replay mode on 2026-03-02"  1041ms
+     ✓ "what's on the calendar this week"  1003ms
+     ✓ "which stocks report earnings this week"  1006ms
+     ✓ "who's reporting this week"  1007ms
+     ✓ "add a chart for AMD and put the 50 SMA on it"  1197ms
+     ✓ "find stocks up 20% this month near 52-week highs with volume above average"  986ms
+     ✓ "scan for names up 20%+ over the last month, near their 52 week highs, with above average volume"  1006ms
+     ✓ "show me stocks that are up 20% in a month, close to 52-week highs, volume above average"  1023ms
+     ✓ "which stocks are up 20% this month and near their 52-week high with above-average volume"  1048ms
+     ✓ "add those to my Momentum list"  1261ms
+     ✓ "put all of them on the Momentum watchlist"  1216ms
+     ✓ "add the results to Momentum"  1255ms
+     ✓ "save it as Thrust Days"  1215ms
+     ✓ "save the indicator as Thrust Days"  1257ms
+     ✓ "save this as Thrust Days"  1178ms
+     ✓ "ok save it, call it Thrust Days"  1229ms
+     ✓ "only show it on the daily"  1351ms
+     ✓ "show it on daily charts only"  1395ms
+     ✓ "make it daily only"  1357ms
+     ✓ "hide it on every timeframe except the daily"  1351ms
+     ✓ undo: "only show it on the daily" then "undo" puts it back  1492ms
+     ✓ "add a 2x2 of SPY QQQ IWM DIA"  1039ms
+     ✓ "add a 2x2 grid of SPY, QQQ, IWM and DIA"  1056ms
+     ✓ "add SPY, QQQ, IWM and DIA on four charts"  1121ms
+     ✓ "add four charts for SPY QQQ IWM DIA"  1032ms
+     ✓ undo: "add a 2x2 of SPY QQQ IWM DIA" then "undo" puts it back  1163ms
+     ✓ "stocks within 0 to 5% of their 52-week high"  1005ms
+     ✓ "find stocks between 0 and 5 percent below the 52 week high"  1007ms
+     ✓ "scan for names 0-5% off their 52-week highs"  1005ms
+     ✓ "apply my Swing Setup indicator template to this chart"  1101ms
+     ✓ "add the Swing Setup indicator template to this chart"  1107ms
+     ✓ "put my Swing Setup indicator template on this chart"  1102ms
+     ✓ undo: "apply my Swing Setup indicator template to this chart" then "undo" puts it back  1289ms
+     ✓ "add the RVOL column to my watchlist and hide the volume column"  1108ms
+     ✓ "show RVOL and hide Volume on this watchlist"  1145ms
+     ✓ "on my watchlist add an RVOL column and take off volume"  1096ms
+     ✓ undo: "add the RVOL column to my watchlist and hide the volume column" then "undo" puts it back  1278ms
+     ✓ "keep only NVDA on my Momentum watchlist"  1133ms
+     ✓ "remove everything from Momentum except NVDA"  1137ms
+     ✓ "clear Momentum except for NVDA"  1152ms
+     ✓ "alert me if it breaks below this trendline"  1269ms
+     ✓ "set an alert when price loses that trendline"  1231ms
+     ✓ "alert me when NVDA breaks below that trendline"  1255ms
+     ✓ "hide all indicators on this chart"  1028ms
+     ✓ "hide all my indicators for now"  1055ms
+     ✓ "hide every indicator on the chart"  1058ms
+     ✓ "hide all of the indicators and volume for a second"  1089ms
+     ✓ undo: "hide all indicators on this chart" then "undo" puts it back  1169ms
+ ✓ src/agent/qa/capabilityRegression/corpus.finalState.0.test.jsx (189 tests) 212245ms
+     ✓ "Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size."  1175ms
+     ✓ "Show SPY, QQQ, NVDA and TSLA in four equal panels."  1113ms
+     ✓ "Give me four equally sized charts with those tickers."  1148ms
+     ✓ "Make a 2×2 chart layout with SPY, QQQ, NVDA and TSLA."  1056ms
+     ✓ "Create four charts for SPY, QQQ, NVDA and TSLA"  1043ms
+     ✓ "put spy, qqq, nvda and tsla on four charts"  1057ms
+     ✓ "Show 4 charts: SPY, QQQ, NVDA, TSLA"  1057ms
+     ✓ "SPY, QQQ, NVDA and TSLA in a 2x2 grid"  1026ms
+     ✓ "four charts, all the same size: SPY, QQQ, NVDA, TSLA"  1055ms
+     ✓ "split my screen into SPY, QQQ, NVDA and TSLA"  1045ms
+     ✓ undo: "Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size." then "undo" puts it back  1203ms
+     ✓ "Change the NVDA chart to the weekly timeframe, then undo that change."  1101ms
+     ✓ "switch to weekly, then undo it"  1089ms
+     ✓ "change NVDA to weekly then undo"  1100ms
+     ✓ "make it weekly and then undo that"  1102ms
+     ✓ "change nvda to weekly, then revert it"  1117ms
+     ✓ "add rsi"  1169ms
+     ✓ "put RSI on the chart"  1116ms
+     ✓ "add the relative strength index"  1085ms
+     ✓ "show me RSI on this chart"  1103ms
+     ✓ "can you add an RSI"  1092ms
+     ✓ "when does nvda report earnings"  1020ms
+     ✓ "nvda earnings date"  999ms
+     ✓ "when is NVDA's next earnings"  1009ms
+     ✓ "when does nvda report"  997ms
+     ✓ "NVDA earnings"  996ms
+     ✓ "what did NVDA report last quarter"  1008ms
+     ✓ "make it a line chart"  1038ms
+     ✓ "switch to line"  1027ms
+     ✓ "line chart please"  1041ms
+     ✓ "show it as a line"  1057ms
+     ✓ "change the chart type to line"  1043ms
+     ✓ "log scale"  1054ms
+     ✓ "switch to log scale"  1051ms
+     ✓ "use a logarithmic price scale"  1054ms
+     ✓ "make the chart log"  1050ms
+     ✓ "turn on log scale"  1057ms
+     ✓ undo: "log scale" then "undo" puts it back  1175ms
+     ✓ "remove the 200 sma"  1285ms
+     ✓ "take off the 200 day moving average"  1162ms
+     ✓ "get rid of the 200"  1139ms
+     ✓ "delete the SMA 200 from this chart"  1115ms
+     ✓ "remove the 200 day"  1122ms
+     ✓ "make the 9 ema red"  1092ms
+     ✓ "color the 9 ema red"  1076ms
+     ✓ "change the 9 ema's colour to red"  1099ms
+     ✓ "turn the 9 ema red"  1086ms
+     ✓ "paint the 9 ema red"  1103ms
+     ✓ undo: "make the 9 ema red" then "undo" puts it back  1245ms
+     ✓ "give me a quick profile on TSM"  1005ms
+     ✓ "what does TSM do"  1010ms
+     ✓ "TSM profile"  992ms
+     ✓ "tell me about TSM the company"  1009ms
+     ✓ "run my Momentum Screen"  1025ms
+     ✓ "run the Momentum Screen"  998ms
+     ✓ "show me the results of my Momentum Screen"  999ms
+     ✓ "open my saved Momentum Screen and run it"  1020ms
+     ✓ "add AMD to my Momentum list"  1102ms
+     ✓ "put AMD on the Momentum watchlist"  1101ms
+     ✓ "add AMD to Momentum"  1058ms
+     ✓ "throw AMD on my Momentum watchlist"  1103ms
+     ✓ undo: "add AMD to my Momentum list" then "undo" puts it back  1306ms
+     ✓ "remove TSLA from my Momentum list"  1121ms
+     ✓ "take TSLA off the Momentum watchlist"  1066ms
+     ✓ "drop TSLA from Momentum"  1070ms
+     ✓ "delete TSLA from my Momentum list"  1089ms
+     ✓ undo: "remove TSLA from my Momentum list" then "undo" puts it back  1231ms
+     ✓ "mark when the 9 ema crosses above the 20 on the NVDA chart"  1136ms
+     ✓ "alert me when NVDA's 9 ema crosses above its 20"  1120ms
+     ✓ "on the NVDA chart, alert me when the 9 ema crosses the 20 to the upside"  1118ms
+     ✓ "list my drawings"  1151ms
+     ✓ "what drawings are on this chart"  1138ms
+     ✓ "show me the drawings on NVDA"  1141ms
+     ✓ "which lines have I drawn"  1121ms
+     ✓ "clear all my drawings"  1245ms
+     ✓ "clear every drawing on NVDA"  1264ms
+     ✓ "wipe the drawings off this chart"  1246ms
+     ✓ "remove all drawings"  1244ms
+     ✓ "use the nord chart theme"  1055ms
+     ✓ "switch the chart to the Nord theme"  1091ms
+     ✓ "apply the nord theme to this chart"  1040ms
+     ✓ "make this chart nord"  1042ms
+     ✓ undo: "use the nord chart theme" then "undo" puts it back  1178ms
+     ✓ "Create a custom indicator that shows the difference between the 9ema and 20ema as a percentage. Put it in a separate pane."  1255ms
+     ✓ "build me an indicator that shows the 9 EMA vs 20 EMA spread as a percent, in its own pane"  1143ms
+     ✓ "create a custom indicator: (EMA 9 minus EMA 20) divided by EMA 20 times 100, in a separate pane"  1164ms
+     ✓ "make me a new indicator plotting the percentage difference between the 9 and 20 EMA in a separate pane"  1163ms
+     ✓ undo: "Create a custom indicator that shows the difference between the 9ema and 20ema as a percentage. Put it in a separate pane." then "undo" puts it back  1340ms
+     ✓ "save this chart as a template called Swing"  1104ms
+     ✓ "save this chart's look as a template named Swing"  1075ms
+     ✓ "make a chart template called Swing from this chart"  1055ms
+     ✓ "save these chart settings as my Swing template"  1048ms
+     ✓ undo: "save this chart as a template called Swing" then "undo" puts it back  1182ms
+     ✓ "rename my Momentum Screen to Momentum Leaders"  1073ms
+     ✓ "call the Momentum Screen Momentum Leaders instead"  1110ms
+     ✓ "change the name of my Momentum Screen to Momentum Leaders"  1103ms
+     ✓ "rename the saved screen Momentum Screen to Momentum Leaders"  1102ms
+     ✓ "put TSLA at the top of my Momentum list"  1074ms
+     ✓ "move TSLA to the top of Momentum"  1073ms
+     ✓ "TSLA first on my Momentum watchlist"  1086ms
+     ✓ "bump TSLA to the top of the Momentum list"  1077ms
+     ✓ undo: "put TSLA at the top of my Momentum list" then "undo" puts it back  1222ms
+     ✓ "add a note to NVDA on my Momentum list: earnings next week"  1097ms
+     ✓ "note on NVDA in Momentum: earnings next week"  1103ms
+     ✓ "put the note earnings next week on NVDA in my Momentum list"  1078ms
+     ✓ "set the NVDA note in Momentum to earnings next week"  1085ms
+     ✓ "make a copy of my Swing layout called Swing Copy"  1091ms
+     ✓ "duplicate the Swing layout as Swing Copy"  1122ms
+     ✓ "copy Swing into a new layout named Swing Copy"  1104ms
+     ✓ "clone my Swing layout as Swing Copy"  1122ms
+     ✓ "what percent of nasdaq stocks are above the 200 day"  995ms
+     ✓ "nasdaq breadth above the 200 day"  998ms
+     ✓ "how many nasdaq names are over their 200 day moving average"  1010ms
+     ✓ "% of nasdaq stocks above the 200dma"  1008ms
+     ✓ "hide all my drawings"  1208ms
+     ✓ "hide every drawing on this chart"  1196ms
+     ✓ "turn off all drawings"  1169ms
+     ✓ "hide the drawings"  1196ms
+     ✓ "put a horizontal ray at 100 on nvda starting oct 15"  1056ms
+     ✓ "horizontal ray at 100 from oct 15"  1043ms
+     ✓ "draw a horizontal ray at $100 starting on oct 15"  1052ms
+     ✓ "add a horizontal ray from oct 15 at 100"  1040ms
+     ✓ undo: "put a horizontal ray at 100 on nvda starting oct 15" then "undo" puts it back  1182ms
+     ✓ "anchored vwap on nvda from oct 1"  1042ms
+     ✓ "avwap from oct 1"  1049ms
+     ✓ "add an anchored vwap starting oct 1"  1053ms
+     ✓ "anchor a vwap to oct 1"  1076ms
+     ✓ undo: "anchored vwap on nvda from oct 1" then "undo" puts it back  1174ms
+     ✓ "exit replay"  1173ms
+     ✓ "leave replay mode"  1195ms
+     ✓ "stop the replay"  1216ms
+     ✓ "turn replay off"  1163ms
+     ✓ "averages for the S&P"  990ms
+     ✓ "how are the moving averages looking for the market"  1012ms
+     ✓ "market averages breadth"  989ms
+     ✓ "hide the 50 sma on the NVDA chart"  1105ms
+     ✓ "hide the SMA 50 on the NVDA chart"  1121ms
+     ✓ "turn off the 50 sma on the NVDA chart"  1098ms
+     ✓ "hide the 50 sma on the bottom-left chart"  1081ms
+     ✓ undo: "hide the 50 sma on the NVDA chart" then "undo" puts it back  1240ms
+     ✓ "only tech"  1117ms
+     ✓ "now just technology stocks"  1112ms
+     ✓ "keep only the tech names"  1115ms
+     ✓ "narrow it down to technology"  1133ms
+     ✓ "put these in a new watchlist called Leaders"  1343ms
+     ✓ "make a new list called Leaders with these"  1293ms
+     ✓ "create a watchlist named Leaders from those results"  1306ms
+     ✓ "make an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average"  1162ms
+     ✓ "create an indicator that flags days when price closes above the 21 EMA on volume at least 1.5 times its 50-day average"  1142ms
+     ✓ "build me a custom indicator marking closes above the 21 ema with volume over 1.5x the 50 day average"  1175ms
+     ✓ undo: "make an indicator that marks days where close is above the 21 EMA and volume is 1.5x the 50-day average" then "undo" puts it back  1333ms
+     ✓ "apply it"  1353ms
+     ✓ "add it to my chart"  1385ms
+     ✓ "ok, put it on the chart"  1579ms
+     ✓ undo: "apply it" then "undo" puts it back  1558ms
+     ✓ "apply it to my other chart"  1352ms
+     ✓ "put it on the other chart too"  1338ms
+     ✓ "copy it to the SPY chart"  1346ms
+     ✓ undo: "apply it to my other chart" then "undo" puts it back  1662ms
+     ✓ "add a 2x2 of SPY QQQ IWM DIA"  1050ms
+     ✓ "add a 2x2 grid of SPY, QQQ, IWM and DIA"  1055ms
+     ✓ "add SPY, QQQ, IWM and DIA on four charts"  1050ms
+     ✓ "add four charts for SPY QQQ IWM DIA"  1051ms
+     ✓ undo: "add a 2x2 of SPY QQQ IWM DIA" then "undo" puts it back  1165ms
+     ✓ "only tech"  1104ms
+     ✓ "just the technology names"  1118ms
+     ✓ "keep only tech stocks"  1129ms
+     ✓ "save these indicators as an indicator template called Momentum"  1055ms
+     ✓ "save the indicators on this chart as my Momentum indicator template"  1067ms
+     ✓ "make an indicator template called Momentum from this chart"  1063ms
+     ✓ undo: "save these indicators as an indicator template called Momentum" then "undo" puts it back  1190ms
+     ✓ "next ticker in my watchlist"  1081ms
+     ✓ "go to the next name on this list"  1102ms
+     ✓ "next one on my watchlist"  1044ms
+     ✓ undo: "next ticker in my watchlist" then "undo" puts it back  1275ms
+     ✓ "drag the arrow's end point up to 200"  1220ms
+     ✓ "drag this drawing's end point up to 200"  1223ms
+     ✓ "drag the end point of the drawing to 200"  1158ms
+     ✓ undo: "drag the arrow's end point up to 200" then "undo" puts it back  1322ms
+     ✓ "show one year on this chart"  1103ms
+     ✓ "set the chart range to 1Y"  1109ms
+     ✓ "frame this chart on the last year"  1057ms
+     ✓ "show 1Y on the chart"  1040ms
+     ✓ undo: "show one year on this chart" then "undo" puts it back  1151ms
+     ✓ "hide all moving averages"  1058ms
+     ✓ "hide every moving average on this chart"  1041ms
+     ✓ "hide all my moving averages"  1068ms
+     ✓ "turn off all the moving averages"  1048ms
+     ✓ undo: "hide all moving averages" then "undo" puts it back  1164ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent/agentRouting.test.jsx > release audit: every registered action is reachable through routing > each group can be sent (by its words or a reroute) within the per-request limit, and the groups cover the whole catalog
+AssertionError: expected 158 to be 157 // Object.is equality
+
+- Expected
++ Received
+
+- 157
++ 158
+
+ ❯ src/agent/agentRouting.test.jsx:203:25
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 24 passed (25)
+      Tests  1 failed | 3671 passed | 1 todo (3673)
+   Start at  00:45:48
+   Duration  219.95s (transform 35.20s, setup 4.65s, import 70.55s, tests 939.07s, environment 13.96s)
+
