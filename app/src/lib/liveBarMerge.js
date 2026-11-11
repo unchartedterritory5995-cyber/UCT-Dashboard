@@ -21,7 +21,7 @@
 // Bar shape here is the chart's: { time, open, high, low, close, volume, sym?, tradeTs? }
 // where `time` is the chart-series time (already ET-offset — the caller converts).
 
-import { bucketEndChartTime } from '../components/chart/barTime'
+import { bucketEndChartTime } from '../components/chart/liveBuckets'
 
 const finitePos = (v) => Number.isFinite(v) && v > 0
 
