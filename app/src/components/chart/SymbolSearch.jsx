@@ -69,6 +69,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   // this is true — a mouse hovering a row must NOT hijack Enter away from the typed
   // symbol (typing TSLA + Enter goes to TSLA even if the cursor sits on another row).
   const navByKbdRef = useRef(false)
+  const lastIntentRef = useRef(null)   // the text last reported through onTypedIntent
 
   // Imperative open-with-text — used by ChartPane so typing a letter on the
   // chart opens the search with that letter already entered.
@@ -213,9 +214,17 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     if (!q) return undefined
     const clean = canonicalTicker(q, breadthAll)
     if (!clean || !/^[A-Z0-9][A-Z0-9.^-]{0,11}$/i.test(clean) || clean.toUpperCase() === String(sym || '').toUpperCase()) return undefined
-    const t = setTimeout(() => { try { onTypedIntent(clean.toUpperCase()) } catch { /* a warm never breaks search */ } }, TYPED_INTENT_SETTLE_MS)
+    const text = clean.toUpperCase()
+    // Once per text: a re-run for another reason (the breadth catalogue landing) is not new intent.
+    if (lastIntentRef.current === text) return undefined
+    const t = setTimeout(() => {
+      lastIntentRef.current = text
+      try { onTypedIntent(text) } catch { /* a warm never breaks search */ }
+    }, TYPED_INTENT_SETTLE_MS)
     return () => clearTimeout(t)
   }, [query, open, chip, onTypedIntent, breadthAll, sym])
+  // A new search session may warm the same text again.
+  useEffect(() => { if (!open) lastIntentRef.current = null }, [open])
 
   // Auto-scroll active item into view during keyboard navigation
   useEffect(() => {

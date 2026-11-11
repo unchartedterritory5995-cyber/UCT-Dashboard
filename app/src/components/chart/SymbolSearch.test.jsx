@@ -113,4 +113,8 @@ test('a burst of keys settles into ONE intent for the final text', async () => {
   for (const v of ['G', 'GO', 'GOO', 'GOOG', 'GOOGL']) fireEvent.change(input, { target: { value: v } })
   await new Promise((r) => setTimeout(r, 120))
   expect(onTypedIntent.mock.calls).toEqual([['GOOGL']])
+  // An unrelated re-render (the breadth catalogue landing) is not new intent.
+  fireEvent.change(input, { target: { value: 'GOOGL' } })
+  await new Promise((r) => setTimeout(r, 120))
+  expect(onTypedIntent).toHaveBeenCalledTimes(1)
 })
