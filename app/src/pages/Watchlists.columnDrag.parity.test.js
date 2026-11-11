@@ -11,7 +11,8 @@ import { fileURLToPath } from 'node:url'
 import { movedColumnCfg, resizedColumnCfg, DEFAULT_COL_ORDER } from './watchlist/watchlistColumns'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
-const SRC = readFileSync(resolve(HERE, 'Watchlists.jsx'), 'utf8')
+// line endings normalised first: a Windows checkout (core.autocrlf) has CRLF, and the block regex below reads LF
+const SRC = readFileSync(resolve(HERE, 'Watchlists.jsx'), 'utf8').replace(/\r\n/g, '\n')
 const block = /\nconst COL_META = (\{[\s\S]*?\n\})\n/.exec(SRC)
 const COL_META = new Function(`return ${block[1]}`)()   // eslint-disable-line no-new-func -- the product's own literal
 
