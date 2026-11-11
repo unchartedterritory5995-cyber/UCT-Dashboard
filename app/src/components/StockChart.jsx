@@ -4,6 +4,7 @@ import { withoutGuardIds } from './chart/engine/ast/guardIdText'
 import { computeBarTime, toChartTime, fromChartTime, isOnSixtyMinGrid, seriesCacheTf, barsSessionQuery, barsGridQuery, sixtyMinGridFor, etMinuteOfDay, rthCloseMinuteOf, RTH_OPEN_MIN } from './chart/barTime'
 import { composeDevelopingTail } from './chart/developingTail'
 import { liveStreamSession } from './chart/liveBuckets'
+import { lastCandlePos, pinNewestRange } from './chart/rightMargin'
 import { foldOffGridBars } from './chart/offGridBars'
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
 import { markChartLayoutPresentational } from '../utils/chartLayoutTable'
@@ -1301,23 +1302,8 @@ export const _IDB_TAIL_WAIT_MS = 120
 // Module-wide load number for the intraday tail SWR key — unique across chart instances.
 let _tailLoadNonce = 0
 let _browserHasCachedBars = false
-// Default-zoom: place the LAST candle at this fraction of the plot width on EVERY
-// timeframe so flipping D/W/M/intraday never drifts it left/right. (A fixed
-// bars-of-right-pad drifts because bar spacing widens as fewer bars show.)
-const LAST_CANDLE_POS = 0.95
-// …but 4% of the plot is ~40px on a full-width chart and only ~12px inside a
-// narrow workspace widget, which parks the newest candle right on top of the
-// price-scale tags (most visibly the pre-market "Pre" label). So treat the gap
-// as a PIXEL minimum instead of a pure fraction: wide charts keep the exact
-// 0.96 anchor, narrow ones give the last candle real clearance. Capped so a
-// very thin widget doesn't spend a sixth of its width on blank space.
-const MIN_RIGHT_GAP_PX = 34
-const MAX_RIGHT_GAP_FRAC = 0.16
-function lastCandlePos(plotWidthPx) {
-  if (!Number.isFinite(plotWidthPx) || plotWidthPx <= 0) return LAST_CANDLE_POS
-  const gap = Math.min(MAX_RIGHT_GAP_FRAC, Math.max(1 - LAST_CANDLE_POS, MIN_RIGHT_GAP_PX / plotWidthPx))
-  return 1 - gap
-}
+// Default-zoom right margin (newest candle at LAST_CANDLE_POS of the plot width, a pixel
+// minimum gap, a thin-widget cap): ONE owner, ./chart/rightMargin.js — imported, not copied.
 // The candle plot's own width in px (excludes the right price axis). On a cold
 // mount the time scale can still report 0, and falling through to the fixed
 // fraction there would leave a freshly-opened narrow widget with no clearance —
@@ -1332,18 +1318,26 @@ function plotWidthOf(chart, containerEl = null) {
   return Number.isFinite(cw) && cw > 70 ? cw - 62 : null
 }
 
-// ⭐ THE ONE "NEWEST CANDLE PINNED RIGHT" FRAME (TC2000 rule, W-R 2026-11-11). Every arm that
+// ⭐ THE ONE "NEWEST CANDLE PINNED RIGHT" FRAME (TC2000 rule, W-R 2026-11-11): every arm that
 // pins the newest candle — symbol switch (typed / watchlist / scan / Agent all change `sym`),
 // timeframe switch, the settling re-assert on each load phase, the drift net and the
-// never-blank backstop — builds its logical range HERE, so the newest REAL bar sits exactly
-// `width * (1 - lastCandlePos(plotPx))` bars left of the right edge at spacing plot/width,
-// whatever path or data state produced the frame. `reserve` is non-zero only for D/W/M, where
-// it is backed by a slot seeded into the candle series (_intradayLoadReserve); intraday never
-// reserves future-session slots: the visible right margin is constant, not "the rest of
-// today's session" (the future-whitespace series only extends the axis for scroll-right).
-export function pinNewestRange(lastIdx, width, plotWidthPx, reserve = 0) {
-  const to = lastIdx + (reserve > 0 ? reserve : 0) + width * (1 - lastCandlePos(plotWidthPx))
-  return { from: to - width, to }
+// never-blank backstop — builds its logical range with rightMargin.pinNewestRange, so the
+// newest REAL bar sits a constant margin from the right edge at spacing plot/width, whatever
+// path or data state produced the frame. `reserve` is non-zero only for D/W/M (a slot seeded
+// into the candle series, _intradayLoadReserve); intraday never reserves future-session slots.
+
+// The logical index of the newest REAL candle on the time scale (the axis every series
+// shares — a compare/overlay series adds interior times, so the candle count is not it).
+// Falls back to the candle count when the time scale cannot answer (mid-load / stand-ins).
+function newestLogicalIndex(chart, candleSeries, fallbackCount) {
+  try {
+    const d = candleSeries?.data?.() || []
+    let i = d.length - 1
+    while (i >= 0 && isWhitespacePoint(d[i])) i--
+    if (i < 0) return fallbackCount - 1
+    const ix = chart?.timeScale?.().timeToIndex?.(d[i].time, false)
+    return (typeof ix === 'number' && Number.isFinite(ix)) ? ix : i
+  } catch { return fallbackCount - 1 }
 }
 
 // Per-timeframe default number of visible bars (Daily on the workspace is
@@ -12689,7 +12683,9 @@ export default function StockChart({
       try {
         const _r = chartRef.current?.timeScale().getVisibleLogicalRange()
         if (_r && _r.to > _r.from) {
-          paintedGeomRef.current = { ro: _r.to - (lastBarCountRef.current - 1) - paintedRsvRef.current, width: _r.to - _r.from }
+          // `_r` is a LOGICAL range → measure against the newest candle's LOGICAL index.
+          const _ni = newestLogicalIndex(chartRef.current, candleSeriesRef.current, lastBarCountRef.current)
+          paintedGeomRef.current = { ro: _r.to - _ni - paintedRsvRef.current, width: _r.to - _r.from }
         }
       } catch { /* no chart yet */ }
     }
@@ -13057,14 +13053,7 @@ export default function StockChart({
           },
           // Logical index of the newest REAL candle on the candle series (the framing rail,
           // tools/intraday_symswitch_framing_harness.py: right margin = visibleRange().to - this).
-          newestIndex: () => {
-            try {
-              const d = candleSeriesRef.current?.data?.() || []
-              let i = d.length - 1
-              while (i >= 0 && isWhitespacePoint(d[i])) i--
-              return i
-            } catch { return null }
-          },
+          newestIndex: () => newestLogicalIndex(chartRef.current, candleSeriesRef.current, 0),
           // Read-only: what each ENGINE series actually handed the renderer
           // (the fundamentals acceptance harness reads plotted values from here).
           engineSeries: () => {

@@ -179,21 +179,6 @@ function agg(bars, tf) {
 const wait = (ms) => act(() => new Promise((r) => setTimeout(r, ms)))
 
 let reqs
-function serve({ latency = 400 } = {}) {
-  vi.stubGlobal('fetch', vi.fn((url) => {
-    const u = String(url)
-    if (!u.includes('/api/bars/')) return Promise.resolve({ ok: true, status: 200, json: async () => ({}) })
-    const m = u.match(/\/api\/bars\/([^?]+)\?tf=([^&]+)/)
-    const since = (u.match(/[?&]since=(\d+)/) || [])[1]
-    reqs.push({ url: u, since })
-    const all = agg(truth1m(), m[2])
-    const body = since
-      ? { ticker: 'SYN', tf: m[2], delta: true, bars: all.filter(b => b.t > Number(since)) }
-      : { ticker: 'SYN', tf: m[2], bars: all }
-    return new Promise((res) => setTimeout(() => res({ ok: true, status: 200, json: async () => body }), latency))
-  }))
-}
-
 const candle = () => T.series.find(s => s.__ctor === real().CandlestickSeries) || T.series[0]
 let _real = null
 const real = () => _real
@@ -262,7 +247,8 @@ beforeEach(async () => {
   try { localStorage.setItem('barspack.version', '2026-11-10') } catch { /* */ }
 })
 
-const { pinNewestRange, _intradayLoadReserve } = await import('./StockChart')
+const { _intradayLoadReserve } = await import('./StockChart')
+const { pinNewestRange } = await import('./chart/rightMargin')
 
 describe('pinNewestRange: the one pinned-right frame', () => {
   it('places the newest bar a constant fraction of the width from the right edge, independent of the bar count', () => {
