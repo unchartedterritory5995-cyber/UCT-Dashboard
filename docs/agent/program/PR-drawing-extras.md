@@ -66,13 +66,13 @@ is the drawingExtras group listing, 30 requests × 1 entry; its own commit).
 - capreg corpus intents `drawing.positionCalculator` (TIMED), `drawing.saveDefaults` (TIMED, after a dashed trendline),
   `drawing.favoriteTool` (DRAW), each with Undo; the corpus runner gained a `favoriteTools` expectation.
 - `nlm1Routing.test.js`: OWN_WORDS for the group plus 26 v1/v2 cases (own words and controls).
-- Discovery: a `drawingExtras` topic (the three actions), next to `drawings`.
+- Discovery: the three actions join the `drawings` topic's caps (a new line above #1076's lines; a separate topic moved SAT-1 beyond the group listing, so it was dropped). Its canDo / known text is left for the re-merge (see Merge notes).
 - Focused runs and pytest: see the report in this PR's final section (filled from the runs, not from memory).
 
 ## Merge notes
 
-- #1076 (`drawingOps`) edits the `drawings` discovery topic's `known` line, which still says "Save as default … done on the chart".
-  After both merge, drop "Save as default" from that line (left alone here to avoid editing #1076's lines).
+- #1076 (`drawingOps`) edits the `drawings` discovery topic's canDo / `known` lines; `known` still says "Save as default … done on the chart".
+  After both merge: drop "Save as default" from `known` and add the calculator, Save as default and tool favourites to canDo (left alone here to avoid editing #1076's lines).
 - Both PRs bump the same two count pins (`agentRouting` / `agentScreener`): add 2 + 3 at re-merge.
 - One phrasing in a test draft ("save it as the default on the tsla chart") was answered by an instant (fast-path) reading with
   "There is nothing on this workspace for that to change." before the model; the test uses another phrasing. Not investigated.

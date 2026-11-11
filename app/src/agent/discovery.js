@@ -103,19 +103,12 @@ export const TOPICS = [
     caps: ['drawing.addLevel', 'drawing.setLevel', 'drawing.style', 'drawing.setVisible', 'drawing.lock', 'drawing.setAllVisible', 'drawing.remove', 'drawing.clear', 'drawing.list',
       // W1-B: the time-anchored tools, from the dates and prices the member gives
       'drawing.addTrendline', 'drawing.addRay', 'drawing.addHorizontalRay', 'drawing.addRectangle', 'drawing.addFib', 'drawing.addText', 'drawing.addAvwap',
+      // drawing extras (capabilities/drawingExtras.js): the toolbar's Position Calculator, a drawing's Save as default, a tool's ★
+      'drawing.positionCalculator', 'drawing.saveDefaults', 'drawing.favoriteTool',
       // the family: any other toolbar tool, anchors, every menu setting, Fibonacci levels, a line's alert
       'drawing.add', 'drawing.setAnchors', 'drawing.setProps', 'drawing.setFibLevels', 'drawing.setAlert'], productHas: true,
     canDo: 'draw a horizontal line at a price you give me and move it to a new price; draw any tool on the drawing toolbar from the dates and prices you give me (a date like Oct 15 or "last Friday", within the history the chart has loaded), including channels, pitchforks, arrows, Fibonacci extensions and Measure; move any point of a drawing; change one drawing\'s colour, line style, width and the other settings in its menu (each tool has its own), and a Fibonacci\'s levels and fills; set an alert that follows a line or a Fibonacci level (always shown to you first); show or hide one drawing or all of them, lock or unlock one, remove one drawing (not one with an alert attached), clear every drawing on a symbol (always shown to you first; locked drawings and ones with alerts are kept), and list the drawings on a chart — each with Undo',
     known: () => ['duplicating a drawing, Save as default, reordering drawings and switching Drawing Boards — those are done on the chart'],
-    planned: null,
-  },
-  // drawing extras (capabilities/drawingExtras.js): the toolbar's Position Calculator, a drawing's Save as default, a tool's ★
-  {
-    id: 'drawingExtras', title: 'Position Calculator, default drawing style and favourite drawing tools',
-    words: [/\bposition (?:calculator|calc|siz\w*)\b/, /\bdefault (?:drawing )?style\b/, /\bfavou?rite (?:drawing )?tools?\b/],
-    caps: ['drawing.positionCalculator', 'drawing.saveDefaults', 'drawing.favoriteTool'], productHas: true,
-    canDo: 'open the Position Calculator on one chart with the entry, stop and target you give me (long or short comes from where the stop is); make one drawing\'s style the default for new drawings on that chart (its menu\'s Save as default); star or unstar a drawing tool as a favourite — each with Undo',
-    known: () => [],
     planned: null,
   },
   {
