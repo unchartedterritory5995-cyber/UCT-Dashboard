@@ -526,7 +526,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-141 | Drawing | Cup curve | VERIFIED | drawingFamily: cup: the right symbol | pass 1/1 | panel, scripted model |
 | C1-142 | Drawing | Anchored VWAP | VERIFIED | c:drawing.avwap | pass 5/5 | panel, scripted model |
 | C1-143 | Drawing | Text note | VERIFIED | c:drawing.text | pass 5/5 | panel, scripted model |
-| C1-144 | Drawing | Position calculator | PARTIAL (SIMULATED) — covered: the calculator inputs (positionCalc.accountSize / riskPct, read back, Undo); not covered: placing the position-calculator drawing (drawing family) | chartSettings.outcome.test.jsx: C1-144 "set my position calculator to a 25k account risking half a percent" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-144 | Drawing | Position calculator | VERIFIED (drawing extras) — calculator inputs: chartSettings.outcome.test.jsx C1-144; placing it: drawing.positionCalculator opens the toolbar's Position tool with entry / stop / target on ONE chart (the 3-point position DRAWING is retired), side from entry vs stop, missing / unreadable price refused, exact Undo, wrong-target control | chartSettings.outcome.test.jsx: C1-144; drawingExtras.outcome.test.jsx: C1-144 (4 cases); capreg corpus drawing.positionCalculator | pass 4/4 + 33/33 | panel, scripted model |
 | C1-145 | Drawing | Eraser | VERIFIED | c:drawing.remove | pass 5/5 | panel, scripted model |
 | C1-146 | Drawing | Delete selected (Del, button) | VERIFIED | c:drawing.remove; drawings.outcome: one visible drawing goes at once | pass 6/6 | panel, scripted model |
 | C1-147 | Drawing | Recolour | VERIFIED | c:drawing.style | pass 4/4 | panel, scripted model |
@@ -542,12 +542,12 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-157 | Drawing | Duplicate | MISSING | none | n/a | none |
 | C1-158 | Drawing | Lock/unlock | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx | pass 48/48 | runtime, no panel |
 | C1-159 | Drawing | Hide/show one | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx | pass 48/48 | runtime, no panel |
-| C1-160 | Drawing | Save as default | MISSING | none | n/a | none |
+| C1-160 | Drawing | Save as default | VERIFIED (drawing extras) — drawing.saveDefaults: the menu row's own payload (drawingSaveDefaults.js, shared with the row) merged into ONE chart's drawingDefaults; exact Undo; wrong-target and retired-type refusals | drawingExtras.outcome.test.jsx: C1-160 (3 cases); capreg corpus drawing.saveDefaults | pass 3/3 | panel, scripted model |
 | C1-161 | Drawing | Reorder (front/back) | UNMAPPED | none | n/a | none |
 | C1-162 | Drawing | Undo/redo a drawing | BLOCKED | none | n/a | none |
 | C1-163 | Drawing | Magnet for drawing | UNMAPPED | none | n/a | none |
 | C1-164 | Drawing | Repeat drawing mode | BLOCKED | none | n/a | none |
-| C1-165 | Drawing | Customise tool favourites | MISSING | none | n/a | none |
+| C1-165 | Drawing | Customise tool favourites | VERIFIED (drawing extras) — favourites only (drawing.favoriteTool: the menu's star through drawToolFavorites, read back from storage, exact Undo); hiding a tool from the toolbar not built | drawingExtras.outcome.test.jsx: C1-165 (3 cases); capreg corpus drawing.favoriteTool | pass 3/3 | panel, scripted model |
 | C1-166 | Drawing | Nudge selected with arrows | BLOCKED | none | n/a | none |
 | C1-167 | Boards | Switch drawing board | MISSING | agentDrawings.test.jsx | pass 13/13 | none |
 | C1-168 | Boards | Create a board | MISSING | none | n/a | none |

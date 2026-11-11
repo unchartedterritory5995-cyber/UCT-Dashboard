@@ -109,6 +109,15 @@ export const TOPICS = [
     known: () => ['duplicating a drawing, Save as default, reordering drawings and switching Drawing Boards — those are done on the chart'],
     planned: null,
   },
+  // drawing extras (capabilities/drawingExtras.js): the toolbar's Position Calculator, a drawing's Save as default, a tool's ★
+  {
+    id: 'drawingExtras', title: 'Position Calculator, default drawing style and favourite drawing tools',
+    words: [/\bposition (?:calculator|calc|siz\w*)\b/, /\bdefault (?:drawing )?style\b/, /\bfavou?rite (?:drawing )?tools?\b/],
+    caps: ['drawing.positionCalculator', 'drawing.saveDefaults', 'drawing.favoriteTool'], productHas: true,
+    canDo: 'open the Position Calculator on one chart with the entry, stop and target you give me (long or short comes from where the stop is); make one drawing\'s style the default for new drawings on that chart (its menu\'s Save as default); star or unstar a drawing tool as a favourite — each with Undo',
+    known: () => [],
+    planned: null,
+  },
   {
     id: 'chartSettings', title: 'Chart appearance and settings',
     words: [/\b(chart )?settings?\b/, /\b(theme|colou?rs?|background|candles?|grid|crosshair|legend|watermark|labels?|markers?|countdown|swing)\b/],
