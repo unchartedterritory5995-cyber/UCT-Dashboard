@@ -336,8 +336,8 @@ def write_timings(path, files_ms: dict, sources: list) -> None:
         "sources": list(sources),
         "files_ms": {k: files_ms[k] for k in sorted(files_ms)},
     }
-    pathlib.Path(path).write_text(json.dumps(doc, indent=1, sort_keys=False) + "\n",
-                                  encoding="utf-8")
+    with open(path, "w", encoding="utf-8", newline="\n") as fh:   # LF on every OS
+        fh.write(json.dumps(doc, indent=1, sort_keys=False) + "\n")
 
 
 # --------------------------------------------------------------------------- self-check
