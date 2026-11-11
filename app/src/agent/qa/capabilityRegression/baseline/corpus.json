@@ -10715,7 +10715,7 @@
         "ops": [
           {
             "action": "drawing.favoriteTool",
-            "target": "$drawToolFavorites[0]",
+            "target": "$charts[0]",
             "args": {
               "tool": "fib",
               "favorite": true

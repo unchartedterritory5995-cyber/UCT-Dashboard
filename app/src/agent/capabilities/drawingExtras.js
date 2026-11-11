@@ -18,11 +18,11 @@
 // ⛔ WHAT THE TOOLBAR DOES NOT OFFER, THE AGENT DOES NOT DO: a retired type has no Save as default (its menu has no row),
 // and a tool id that is not a toolbar button cannot be starred.
 
-import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
+import { registerCapability } from '../capabilities'
 import { controlIdsFor, isRetired } from '../../components/chart/drawingSettingsSchema'
 import { TYPE_NAMES, objectTypeName } from '../../components/chart/drawingObjects'
 import { saveDefaultsPayloadFor, mergeDrawingDefaults } from '../../components/chart/drawingSaveDefaults'
-import { readFavoriteTools, toggledFavorites, writeFavoriteTools } from '../../components/chart/drawToolFavorites'
+import { toggledFavorites } from '../../components/chart/drawToolFavorites'
 import * as drawingsStore from '../../components/chart/drawingsStore'
 import { colorName } from './chart'
 
@@ -50,36 +50,13 @@ export function positionPlan({ entry, stop, target, side }) {
 }
 const posSig = (p) => (p ? JSON.stringify([!!p.open, ...['entry', 'stop', 'target'].map(k => (p[k] === '' || p[k] == null ? null : Number(p[k])))]) : null)
 
-// ── drawing-tool favourites, as a target ──
+// ── drawing-tool favourites: the toolbar buttons that can be starred (the chart kind reads and writes the list) ──
 export const FAVORITE_TOOLS = Object.freeze(Object.keys(TYPE_NAMES))
-const favSnap = () => ({ ref: 'drawToolFavorites', label: 'Your favourite drawing tools (the ★ in the drawing-tools menu; the floating favourites bar)', favorites: readFavoriteTools() })
-export const drawToolFavoritesKind = {
-  name: 'drawToolFavorites',
-  boardScoped: false,                  // per browser, the same on every layout
-  selfDescribing: true,
-  list: (host) => (host?.charts ? [favSnap()] : []),
-  read: (host, ref) => (ref === 'drawToolFavorites' && host?.charts ? favSnap() : null),
-  stateOf: (s) => ({ favorites: s.favorites }),
-  patch: (before, after) => (sameJson(before.favorites, after.favorites) ? null : { write: after.favorites, prev: before.favorites }),
-  // the toggle's own writer (it tells every mounted toolbar); true only once storage holds the list
-  async commit(host, ref, patch) {
-    if (!writeFavoriteTools(patch.write)) throw new Error('this browser did not keep the change (its storage is blocked), so nothing is saved')
-    return true
-  },
-  landed: (s, patch) => !!s && sameJson(s.favorites, patch.write),
-  undoPatch: (item) => (item.patch?.write ? { write: item.patch.prev, prev: item.patch.write } : null),
-  fingerprint: (s) => (s ? JSON.stringify(s.favorites) : 'gone'),
-}
 
 let registered = false
 export function registerDrawingExtras() {
   if (registered) return
   registered = true
-  registerTargetKind(drawToolFavoritesKind)
-  registerContextProvider({
-    key: 'drawToolFavorites',
-    build: (host, refFor) => (host?.charts ? [{ ref: refFor('drawToolFavorites', 'drawToolFavorites'), label: 'Your favourite drawing tools (star or unstar a toolbar tool here)', favorites: readFavoriteTools() }] : undefined),
-  })
   const chartCommon = { target: 'chart', surfaces: ['charts'], available: onCharts }
 
   // ── C1-144: the Position Calculator on ONE chart ──
@@ -159,22 +136,22 @@ export function registerDrawingExtras() {
   const favPlan = (st, { tool, favorite }) => {
     if (!FAVORITE_TOOLS.includes(tool)) return { why: `“${tool}” isn't a drawing tool on the toolbar. The tools are: ${FAVORITE_TOOLS.map(toolName).join(', ')}.` }
     if (typeof favorite !== 'boolean') return { why: `Add the ${toolName(tool)} to your favourites, or take it off?` }
-    const on = st.favorites.includes(tool)
-    return { on, next: on === favorite ? st.favorites : toggledFavorites(st.favorites, tool) }
+    const on = st.favoriteTools.includes(tool)
+    return { on, next: on === favorite ? st.favoriteTools : toggledFavorites(st.favoriteTools, tool) }
   }
   registerCapability({
-    target: 'drawToolFavorites', surfaces: ['charts'], available: onCharts,
+    ...chartCommon,
     name: 'drawing.favoriteTool',
     summary: 'Star or unstar a DRAWING TOOL as a favourite (the ★ in the drawing toolbar\'s tools menu): starred tools sit on the floating favourites bar on every chart in this browser. Undo puts the favourites back.',
-    hints: 'target = the drawToolFavorites entry; tool = the toolbar tool\'s id; favorite = true to star, false to unstar. Only for a drawing TOOL — flagging or starring a ticker is the watchlist\'s flag (watchlist.setFlag), never this.',
+    hints: 'target = the chart whose toolbar they mean (the selected one; the list is the same on every chart); tool = the toolbar tool\'s id; favorite = true to star, false to unstar. Only for a drawing TOOL — flagging or starring a ticker is the watchlist\'s flag (watchlist.setFlag), never this.',
     args: { type: 'object', properties: { tool: { type: 'string', enum: [...FAVORITE_TOOLS] }, favorite: { type: 'boolean' } }, required: ['tool', 'favorite'], additionalProperties: false },
     check(st, args) { return favPlan(st, args).why || null },
     apply(st, args) {
       const { next } = favPlan(st, args)
-      return next === st.favorites ? st : { ...st, favorites: next }
+      return next === st.favoriteTools ? st : { ...st, favoriteTools: next }
     },
     describe(b, a, { tool, favorite }) {
-      if (sameJson(a.favorites, b.favorites)) return null
+      if (sameJson(a.favoriteTools, b.favoriteTools)) return null
       return favorite
         ? `Added the ${toolName(tool)} to your favourite drawing tools — it's on the floating favourites bar on every chart in this browser`
         : `Took the ${toolName(tool)} off your favourite drawing tools`

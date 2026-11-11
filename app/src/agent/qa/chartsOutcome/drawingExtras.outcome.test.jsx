@@ -105,11 +105,11 @@ describe('C1-160 Save as default: the menu row\'s payload onto ONE chart\'s draw
 })
 
 describe('C1-165 drawing tool favourites: the toolbar menu\'s ★, read back from storage', () => {
-  const FAV = (c, tool, favorite) => ({ action: 'drawing.favoriteTool', target: must(c.drawToolFavorites?.[0]?.ref, 'favourites entry'), args: { tool, favorite } })
+  const FAV = (c, tool, favorite) => ({ action: 'drawing.favoriteTool', target: selectedChart(c).ref, args: { tool, favorite } })
   it('star appends the tool after the existing favourites; unstar removes only it; Undo restores the exact list each time', async () => {
     const m = quad()
     localStorage.setItem(LS_FAV, JSON.stringify(['measure']))      // (after mounting: the harness starts on clean storage)
-    await m.say('add the fib tool to my favourites', (c) => { expect(c.drawToolFavorites[0].favorites).toEqual(['measure']); return [FAV(c, 'fib', true)] })
+    await m.say('add the fib tool to my favourites', (c) => [FAV(c, 'fib', true)])
     await waitFor(() => expect(readFavoriteTools()).toEqual(['measure', 'fib']))
     expect(m.lastReceipt().textContent).toMatch(/Added the Fibonacci Retracement to your favourite drawing tools/)
     await m.say('undo')

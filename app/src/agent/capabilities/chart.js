@@ -46,6 +46,7 @@ import { MAX_COMPARISONS } from '../../components/chart/chartCeilings'
 import { isPronounToken, isReservedWord, groundSymbols, groundingOf, resolvedTicker, candidatesText, suggestionText } from '../nl/tickers'
 import { plainSymbolWord } from '../nl/lexicon'
 import { matchName } from '../nl/match'
+import { readFavoriteTools, writeFavoriteTools } from '../../components/chart/drawToolFavorites'
 
 // The chart types and the timeframes UCT charts natively are the PRODUCT's lists
 // (chartDefaults.CHART_TYPE_OPTIONS, timeframes.NATIVE_TFS) — imported, never copied, so a new
@@ -315,7 +316,9 @@ function withMemberState(host, snap) {
   if (!snap) return null
   const prefs = host?.prefs?.read?.() || null
   const raw = prefs?.[VOL_PANE_PREF]
-  return { ...snap, volPanePref: raw == null || raw === '' ? null : String(raw), volPanePct: paneVolumePct(prefs), prefsWritable: typeof host?.prefs?.write === 'function' }
+  return { ...snap, volPanePref: raw == null || raw === '' ? null : String(raw), volPanePct: paneVolumePct(prefs), prefsWritable: typeof host?.prefs?.write === 'function',
+    // C1-165: the member's favourite drawing tools (the toolbar's ★, per browser — drawToolFavorites), as volPanePref is a member pref
+    favoriteTools: readFavoriteTools() }
 }
 
 // ── target kind ─────────────────────────────────────────────────────────────
@@ -345,7 +348,7 @@ export const chartKind = {
   // `replay`: the workspace's Replay Mode cutoff (W1-B B-06) — undefined when the host has none (then chart.replay refuses)
   stateOf: (snap) => ({ cs: snap.cs, tf: snap.tf, symbol: snap.symbol, drawSym: snap.drawSym || snap.symbol, goto: null, replay: snap.replay,
     watermarkPos: snap.watermarkPos ?? null, volPanePref: snap.volPanePref ?? null, volPanePct: snap.volPanePct, prefsWritable: !!snap.prefsWritable,
-    canvasTheme: snap.canvasTheme ?? null, view: snap.view ?? null, viewDo: null,
+    canvasTheme: snap.canvasTheme ?? null, view: snap.view ?? null, viewDo: null, favoriteTools: snap.favoriteTools || [],
     // C1-127: the chart's own Chart Settings door — may it open here (absent = no door: false), and is it open now
     canOpenSettings: snap.canOpenSettings === true, settingsOpen: !!snap.settingsOpen, openSettings: null }),
   patch(before, after) {
@@ -357,6 +360,7 @@ export const chartKind = {
     if (after.replay !== before.replay) p.replay = after.replay ?? null
     if (after.watermarkPos !== before.watermarkPos) p.watermarkPos = after.watermarkPos
     if (after.volPanePref !== before.volPanePref) p.volPanePref = after.volPanePref
+    if (after.favoriteTools !== before.favoriteTools) p.favoriteTools = after.favoriteTools
     if (after.viewDo != null) p.viewDo = after.viewDo
     if (after.openSettings === true) p.openSettings = true
     return Object.keys(p).length ? p : null
@@ -365,7 +369,7 @@ export const chartKind = {
   // the Time Navigator's own goToDate, then wait for the view to arrive (a jump past the loaded
   // history loads it first) — the receipt only claims what the chart then shows.
   async commit(host, ref, patch) {
-    const { goto, replay, volPanePref, viewDo, openSettings, ...rest } = patch
+    const { goto, replay, volPanePref, viewDo, openSettings, favoriteTools, ...rest } = patch
     let ok = true
     if (Object.keys(rest).length) ok = host.charts.commit(ref, rest)
     // The drag's own pref (setPref → true only once the server accepted it); '' clears it, as Reset does (ChartsWorkspace)
@@ -374,6 +378,8 @@ export const chartKind = {
       const t0 = Date.now()
       while (Date.now() - t0 < 2000 && (chartKind.read(host, ref)?.volPanePref ?? null) !== (volPanePref ?? null)) await new Promise(r => setTimeout(r, 50))
     }
+    // C1-165: the toolbar's ★ writer (drawToolFavorites.writeFavoriteTools — it tells every mounted toolbar); true once storage holds it
+    if ('favoriteTools' in patch && ok && !writeFavoriteTools(favoriteTools)) throw new Error('this browser did not keep the change (its storage is blocked), so nothing is saved')
     // Replay Mode: ChartsWorkspace's own startReplay / exitReplayMode (a VIEW on every linked chart; nothing is saved)
     if ('replay' in patch && ok) ok = !!host.charts.setReplay?.(replay)
     // The chart's own view control; a long range may load history first (its "Loading chart history…", capped at 6s)
@@ -408,6 +414,7 @@ export const chartKind = {
     if ('replay' in patch && (snap.replay ?? null) !== patch.replay) return false
     if ('watermarkPos' in patch && !sameJson(watermarkSpot(snap.watermarkPos), watermarkSpot(patch.watermarkPos))) return false
     if ('volPanePref' in patch && (snap.volPanePref ?? null) !== (patch.volPanePref ?? null)) return false
+    if ('favoriteTools' in patch && !sameJson(snap.favoriteTools, patch.favoriteTools)) return false
     if ('viewDo' in patch && !viewDone(snap.view, patch.viewDo)) return false
     if ('openSettings' in patch && !snap.settingsOpen) return false
     return true
@@ -427,6 +434,7 @@ export const chartKind = {
     if ('replay' in item.patch) p.replay = item.before.replay ?? null
     if ('watermarkPos' in item.patch) p.watermarkPos = item.before.watermarkPos ?? null
     if ('volPanePref' in item.patch) p.volPanePref = item.before.volPanePref ?? null
+    if ('favoriteTools' in item.patch) p.favoriteTools = item.before.favoriteTools || []
     // A range goes back to the window and the view lock it replaced (never read = no Undo, and `undoNote` says so).
     // A reset has no way back: it also drops a dragged price scale, which nothing reads back (undo: 'none').
     if ('viewDo' in item.patch) {
@@ -464,6 +472,8 @@ export const chartKind = {
     // x/y, never the anchor the chart derives from them a moment later (derivedOpts.js)
     ...('watermarkPos' in (item?.patch || {}) ? [watermarkSpot(snap.watermarkPos)] : []),
     ...('volPanePref' in (item?.patch || {}) ? [snap.volPanePref ?? null] : []),
+    // a ★ Undo is stale once the member starred or unstarred a tool themselves
+    ...('favoriteTools' in (item?.patch || {}) ? [snap.favoriteTools || []] : []),
     // a range's Undo is stale once the member panned or zoomed off it
     // a step's Undo is stale once the member moved the window themselves (pan, zoom, another step)
     ...('viewDo' in (item?.patch || {}) ? [viewFp(snap, item.patch.viewDo.op)] : [])]),
