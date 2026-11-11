@@ -1,0 +1,89 @@
+{
+  "//": [
+    "P0 single-writer census ratchet. Growth FAILS; a drop passes with a reminder. Lower a count (or delete",
+    "a row) when a writer / cache / gate is removed; never raise one. How to update: rails/README.md."
+  ],
+  "totals": {
+    "setData": 25,
+    "seriesUpdate": 37,
+    "candleWrites": 22,
+    "liveRefAssign": 23,
+    "barCacheImports": 23,
+    "swrCaches": 13,
+    "idbOpen": 1
+  },
+  "files": {
+    "components/StockChart.jsx": {
+      "setData": 20,
+      "seriesUpdate": 37,
+      "candleWrites": 22,
+      "liveRefAssign": 23,
+      "barCacheImports": 5,
+      "swrCaches": 11
+    },
+    "components/chart/ChartSettingsIndicators.jsx": {
+      "setData": 2
+    },
+    "components/chart/engine/binder.js": {
+      "setData": 3
+    },
+    "hooks/useNeighborWarm.js": {
+      "barCacheImports": 1
+    },
+    "hooks/useSessionExtBars.js": {
+      "barCacheImports": 1
+    },
+    "hooks/useSymbolHandoff.js": {
+      "barCacheImports": 2
+    },
+    "lib/barsPack.worker.js": {
+      "barCacheImports": 1
+    },
+    "lib/barsPackClient.js": {
+      "barCacheImports": 1
+    },
+    "lib/barsPackIngest.js": {
+      "barCacheImports": 1
+    },
+    "lib/barsPackWorkerClient.js": {
+      "barCacheImports": 1
+    },
+    "pages/charts/grid/MultiChartGrid.jsx": {
+      "barCacheImports": 1
+    },
+    "pages/charts/review/useReviewSession.js": {
+      "barCacheImports": 1
+    },
+    "pages/charts/widgets/ChartWidget.jsx": {
+      "barCacheImports": 2
+    },
+    "pages/charts/widgets/EtfHoldingsResults.jsx": {
+      "barCacheImports": 1
+    },
+    "pages/charts/widgets/PeriodSortResults.jsx": {
+      "barCacheImports": 1
+    },
+    "pages/charts/widgets/ScatterWidget.jsx": {
+      "barCacheImports": 1
+    },
+    "utils/barsIDB.js": {
+      "idbOpen": 1
+    },
+    "utils/prefetchBars.js": {
+      "barCacheImports": 3,
+      "swrCaches": 2
+    }
+  },
+  "pctConstants": [
+    "components/StockChart.jsx:BARS_HISTORY_FIRST_PAINT_PCT",
+    "components/StockChart.jsx:BARS_HISTORY_SPLIT_ROLLOUT_PCT",
+    "components/StockChart.jsx:BARS_PUSH_ROLLOUT_PCT",
+    "components/StockChart.jsx:INTRADAY_FIRST_PAINT_PCT",
+    "components/StockChart.jsx:INTRADAY_LOAD_ANCHOR_PCT",
+    "components/StockChart.jsx:INTRADAY_SMOOTH_SWITCH_PCT",
+    "components/StockChart.jsx:SEED_LIVE_PCT",
+    "components/StockChart.jsx:SWITCH_ABORT_PCT",
+    "components/StockChart.jsx:SWITCH_RESERVE_PCT",
+    "utils/marketSession.js:INTRADAY_COMPLETENESS_PCT"
+  ]
+}
