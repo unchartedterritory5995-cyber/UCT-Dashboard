@@ -2274,6 +2274,8 @@ def _last_known_close(ticker: str, tf: str) -> float | None:
 # is another company (a reused symbol) or another price basis: refused, never stored.
 _OVERLAP_MISMATCH_SHARE = 0.5
 _OVERLAP_MIN_SHARED = 5
+# Only the stored rows of the newest this-many ET sessions are compared (see below).
+_OVERLAP_RECENT_SESSIONS = 2
 
 
 def _desc_chain_valid(bars, anchor) -> bool:
@@ -2297,17 +2299,31 @@ def _desc_chain_valid(bars, anchor) -> bool:
 
 def _overlap_disagrees(ticker: str, src_tf: str, bars) -> bool:
     """True when `bars` extends stored history and disagrees WHOLESALE with the stored
-    rows it overlaps (see `_OVERLAP_MISMATCH_SHARE`). A payload that only refreshes the
-    stored range (a tail / delta fetch) is not judged here — a provider re-adjustment of
-    recent bars must still be able to land."""
+    rows of the NEWEST `_OVERLAP_RECENT_SESSIONS` stored sessions (see
+    `_OVERLAP_MISMATCH_SHARE`). A payload that only refreshes the stored range (a tail /
+    delta fetch) is not judged here — a provider re-adjustment of recent bars must still
+    be able to land.
+
+    ⛔ ONLY THE NEWEST STORED SESSIONS ARE THE REFERENCE (review of #1116). Intraday split
+    heal detects and logs only, so after a split the OLDER stored rows stay on the pre-split
+    basis; comparing a split-adjusted deep payload against them refused exactly the
+    history that corrects them. The newest sessions are on today's basis (the same anchor
+    the backward chain starts from): a reused symbol or a wrong-basis payload disagrees
+    there and is refused; a split-adjusted payload agrees there and overwrites the stale
+    pre-split rows."""
     try:
         first_t = int(bars[0]["t"])
         last_t = int(bars[-1]["t"])
         stored_first = _sqlite.get_first_ts(ticker.upper(), src_tf)
         if stored_first is None or first_t >= int(stored_first):
             return False
-        stored = {int(r[0]): float(r[4]) for r in _sqlite.get_bars_since(ticker.upper(), src_tf, int(stored_first) - 1)
-                  if int(r[0]) <= last_t}
+        per_day = (16 * 60) // max(1, int(src_tf))
+        recent = _sqlite.get_bars(ticker.upper(), src_tf, per_day * (_OVERLAP_RECENT_SESSIONS + 1))
+        et = _ZI("America/New_York")
+        days = sorted({datetime.fromtimestamp(int(r[0]), et).date() for r in recent})[-_OVERLAP_RECENT_SESSIONS:]
+        keep = set(days)
+        stored = {int(r[0]): float(r[4]) for r in recent
+                  if int(r[0]) <= last_t and datetime.fromtimestamp(int(r[0]), et).date() in keep}
         shared = mism = 0
         for b in bars:
             sc = stored.get(int(b.get("t", -1)))

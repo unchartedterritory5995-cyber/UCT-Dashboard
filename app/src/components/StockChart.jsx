@@ -9249,7 +9249,7 @@ export default function StockChart({
       // standalone chart). Grid cells (`backgroundWarm=false`) still hydrate their persisted
       // segment above and load windows when SCROLLED, but a 16-cell open must not fire
       // 16 × PREFETCH_WINDOWS provider-backed `to=` asks (the 2026-05-24 herd class).
-      if (!backgroundWarm) return
+      if (!backgroundWarm && !deepWarm) return      // a maximized cell (deepWarm) prefetches too
       for (let i = 0; i < PREFETCH_WINDOWS && !cancelled; i++) {
         if ((idbBarsRef.current?.length || 0) >= HISTORY_PREFETCH_TARGET_BARS) break
         const res = await _loadOlder(true)
@@ -9257,7 +9257,7 @@ export default function StockChart({
       }
     })()
     return () => { cancelled = true }
-  }, [_histPrependOn, _intradayDeepArmed, _histHasBase, sym, _barsTf, _loadOlder, backgroundWarm])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [_histPrependOn, _intradayDeepArmed, _histHasBase, sym, _barsTf, _loadOlder, backgroundWarm, deepWarm])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Background prefetch — all other timeframes when sym changes ───────────
   // After the primary chart loads, fetch every other TF into IDB so switching

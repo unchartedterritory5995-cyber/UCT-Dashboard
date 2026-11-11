@@ -137,6 +137,31 @@ def test_an_unadjusted_split_payload_is_rejected_and_not_stored(store, only_mass
     assert [r[4] for r in bars_sqlite.get_bars("SPLT2", "15", 1000)] == [b["c"] for b in stored]
 
 
+def test_a_split_adjusted_payload_over_stale_pre_split_rows_is_accepted_and_corrects_them(store, only_massive):
+    """After a 2:1 split the store holds OLD pre-split rows (~100) and the newest sessions
+    post-split (~50) — split heal only logs. A split-adjusted deep payload (~50 throughout)
+    must be accepted and must leave every stored row on the new basis."""
+    day = 86400
+    t_new = _et(2026, 11, 9, 9, 30)
+    post = [{"t": t_new + d * day + k * 900, "o": 50.0, "h": 50.0, "l": 50.0, "c": 50.0, "v": 1}
+            for d in (0, 1) for k in range(26)]                        # Mon 11-09 + Tue 11-10
+    t_old = _et(2026, 10, 26, 9, 30)
+    pre = [{"t": t_old + d * day + k * 900, "o": 100.0, "h": 100.0, "l": 100.0, "c": 100.0, "v": 1}
+           for d in range(5) for k in range(26)]                       # the week of 10-26, pre-split basis
+    bars_sqlite.put_bars("SPLA", "15", pre + post)
+    deep0 = _walk(400, 48.0, 50.0, _et(2026, 9, 1, 9, 30), seed=7)   # older history, adjusted
+    payload = sorted({b["t"]: b for b in deep0 + [dict(b, c=50.0, o=50.0, h=50.0, l=50.0) for b in pre] + post}.values(),
+                     key=lambda b: b["t"])
+    only_massive.setattr(bars_fetch, "_fetch_intraday_massive", lambda *a: list(payload))
+    bars_fetch._set_intraday_source(None)
+    out = bars_fetch._fetch_intraday("SPLA", "15", len(payload))
+    assert len(out) == len(payload)
+    bars_fetch._put_fetched_intraday("SPLA", "15", out)
+    stored = {int(r[0]): r[4] for r in bars_sqlite.get_bars("SPLA", "15", 100000)}
+    assert all(stored[b["t"]] == 50.0 for b in pre)                    # stale pre-split rows corrected
+    assert len(stored) == len(payload)
+
+
 def test_a_deep_payload_far_from_todays_anchor_is_rejected_without_overlap(store, only_massive):
     """Nothing stored overlaps, but the payload's NEWEST bar is nowhere near the stored
     close: the backward chain has no valid starting point."""
