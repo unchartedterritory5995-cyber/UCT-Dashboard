@@ -140,7 +140,11 @@ _SCHEMA_KEYS = {"type", "properties", "required", "additionalProperties", "enum"
 # The model is told which groups exist but were not given; if it needs one it sets
 # `need_groups` and plans nothing, and the browser asks once more with those groups.
 _GROUP_ID = re.compile(r"^[a-z][a-zA-Z]{1,23}$")
-MAX_GROUPS = 24
+# MAX_GROUPS bounds an untrusted browser payload (each title cut to 160 chars below), not the catalog: groups past it
+# are dropped SILENTLY from the "other action groups" list and the `need_groups` enum. Master reached exactly 24 on
+# 2026-11-11 (the 25th group would have dropped `guide`), so 32 gives every family headroom and stays bounded
+# (32 × 160 chars). Rail: app/src/agent/routingMaxGroups.test.js fails when routing.js GROUPS outgrows this.
+MAX_GROUPS = 32
 
 
 def validate_routing(routing: Any) -> dict | None:
