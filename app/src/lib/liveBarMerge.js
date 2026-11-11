@@ -20,10 +20,11 @@
 //   I6  AUTHORITY. A bucket opened from the first tick/quote a writer happened to see
 //       (a mid-bucket mount / tf or symbol switch, a quote-synthesised open) is
 //       PROVISIONAL (`provisional: true`): it shows the best value we have, but none of
-//       its O/H/L may LOCK. The first AUTHORITATIVE bucket-to-date observation (a push
-//       frame / its subscribe seed, the fetched server bar) REPLACES its open, high and
-//       low; I1/I2 (widen-only, open-once) apply only AMONG authoritative values. The
-//       result is authoritative (`provisional` dropped).
+//       its O/H/L may LOCK. The first AUTHORITATIVE bucket-to-date observation REPLACES
+//       its open — a push frame / its subscribe seed replaces O/H/L outright; a (lagging)
+//       fetched bar replaces the open and unions H/L with what the live bar observed.
+//       I1/I2 (widen-only, open-once) apply only AMONG authoritative values. The result is
+//       authoritative (`provisional` dropped).
 //
 // Bar shape here is the chart's: { time, open, high, low, close, volume, sym?, tradeTs? }
 // where `time` is the chart-series time (already ET-offset — the caller converts).
@@ -168,12 +169,16 @@ export function reconcileWithServerTail(live, server, { sym = null, periodSec = 
   if (live.time === server.time) {
     if (live.final) return { bar: { ...live, sym }, ahead: false }
     if (live.provisional) {
-      // I6: the fetched bucket-to-date bar replaces the provisional open/H/L; the live
-      // close (newer than the server snapshot) stands and may only widen the range.
+      // I6: only the OPEN of a tick-opened bar is suspect — the fetched bucket-to-date bar
+      // replaces it. The highs/lows the live bar OBSERVED after opening are real prints the
+      // (lagging) poll snapshot may not hold yet, so H/L are the union of both; the live
+      // close (newer than the snapshot) stands.
       const { provisional: _p, ...rest } = live
       const close = finitePos(live.close) ? live.close : server.close
+      const lh = finitePos(live.high) ? live.high : server.high
+      const ll = finitePos(live.low) ? live.low : server.low
       return {
-        bar: { ...rest, open: server.open, high: Math.max(server.high, close), low: Math.min(server.low, close), close,
+        bar: { ...rest, open: server.open, high: Math.max(server.high, lh, close), low: Math.min(server.low, ll, close), close,
           volume: Math.max(srv.volume, _vol(live.volume)), sym },
         ahead: false,
       }

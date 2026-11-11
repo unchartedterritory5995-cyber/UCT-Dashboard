@@ -5246,6 +5246,7 @@ export default function StockChart({
   const vertMarginsRef = useRef(null) // Captured proportional candle placement {top,bottom}; null = default headroom
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
   const liveBarRef = useRef(null)     // Developing bar OHLCV tracked tick-by-tick (survives setData)
+  const tfSwitchHoldRef = useRef(false)  // render → updateChart: a tf-switch hold is active (keep the old series)
   const liveBarSeriesRef = useRef(null) // `${sym}|${tf}` the held liveBarRef was seeded for (see the updateChart seed)
   const _onScreenSrcRef = useRef(null)   // { sym, tf, ext, bars } — the intraday series last on screen
   const _switchSrcRef = useRef(null)     // the outgoing tf's series captured at a tf switch (see _switchSourceFor)
@@ -9556,6 +9557,14 @@ export default function StockChart({
     const sw = _switchSrcRef.current
     return (sw && sw.forTf === tf0 && sw.sym === s0 && sw.ext === ext0) ? sw.src : null
   }
+  // Invalidation (F3): once the server has answered THIS key the switch is over — the source is
+  // retired (kept as a tombstone on the same `from` so it is not re-captured from that frame).
+  {
+    const sw = _switchSrcRef.current
+    if (sw && sw.src && sw.forTf === resolvedTf && data && (!data.ticker || data.ticker === _symU)) {
+      _switchSrcRef.current = { ...sw, src: null }
+    }
+  }
   const _localLayer = !!_barsChosen && isIntraday && !_isCustomTf && !_hasOverride && !replayCutoff
     && (_barsChosen === _memBars || _barsChosen === _staleContext || _barsChosen === idbBars
       || _barsChosen === _idbProvisional || _barsChosen === _idbHistoryContext || _barsChosen === _memBarsRaw)
@@ -9590,10 +9599,27 @@ export default function StockChart({
   // Only a same-symbol, same-view timeframe switch with a frame already on screen holds; a
   // symbol switch keeps the instant context paint, and an error releases the hold.
   const _onScr = _onScreenSrcRef.current
+  // Hold ONLY when the local tail is provably incomplete (F1b): it does not reach the bucket
+  // forming now, or it was saved before that bucket began (its developing bar is missing). A
+  // cache that holds the forming bucket and was written during it paints at once, as before.
+  const _localTailComplete = (() => {
+    if (!_localLayer) return true
+    const forming = expectedFormingBar(resolvedTf, Date.now(), { session: showExtended ? 'extended' : 'rth' })
+    if (forming == null) return true
+    const lt = _barsChosen[_barsChosen.length - 1]?.t
+    if (typeof lt !== 'number' || lt < forming) return false
+    const savedAt = (_barsChosen === _memBars || _barsChosen === _memBarsRaw) ? memPeekSavedAt(sym, _barsTf)
+      : (_barsChosen === idbBars ? idbSavedAtRef.current : null)
+    return Number.isFinite(savedAt) && savedAt / 1000 >= forming
+  })()
   // `!data`: only until the server has answered THIS key (any answer — even an empty delta —
   // ends the hold, so it can never outlive the request).
-  const _tfSwitchHold = _localLayer && !_composedBars && !error && !data
+  // Also when there is NOTHING local for the new tf: the previous frame stays rather than a
+  // black chart for the round trip (review F1).
+  const _tfSwitchHold = isIntraday && !_isCustomTf && !_hasOverride && !replayCutoff && !error && !data
+    && (_barsChosen == null || (_localLayer && !_composedBars && !_localTailComplete))
     && !!_onScr && _onScr.sym === sym && _onScr.ext === showExtended && _onScr.tf !== resolvedTf
+  tfSwitchHoldRef.current = _tfSwitchHold
   const bars = _tfSwitchHold ? null : (_composedBars || _barsChosen)
   // ── SCOPE OF THE STALE-TODAY REPAIR ────────────────────────────────────────
   // ⚰️ THE REPAIR WAS UNCONDITIONAL, AND THAT WALKED THE CLOSE BACKWARDS. It rewrites
@@ -12622,6 +12648,9 @@ export default function StockChart({
     // Without this, switching tickers leaves the OLD ticker's candles drawn
     // until the new SWR fetch returns — that's the "blended data" the user
     // sees flipping between charts.
+    // A timeframe-switch HOLD (see `_tfSwitchHold`) keeps the PREVIOUS timeframe's series on
+    // screen untouched until the new tf's complete answer lands — never the black frame below.
+    if (!filteredBars?.length && tfSwitchHoldRef.current) return
     if (!filteredBars?.length) {
       // ⭐ COUNTED, NOT REASONED ABOUT. This arm is the black frame: every series
       // is emptied, so whatever the member was looking at is gone and nothing has

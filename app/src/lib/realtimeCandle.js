@@ -75,11 +75,12 @@ export function applyTick(sym, price, vol, ts) {
   if (prev && Number.isFinite(prev.t) && t < prev.t) return;
   _lastTickAt.set(sym, Date.now());
   if (!prev || prev.t !== t) {
-    // `partial`: the registry joined this minute mid-way (no tick seen for the symbol
-    // before it opened), so its o/h/l are only "since we subscribed" — the chart treats
-    // such a minute as PROVISIONAL (lib/liveBarMerge I6). A minute opened by the first
-    // tick AFTER a prior minute was tracked is the real first trade.
-    symState["1"] = { t, o: price, h: price, l: price, c: price, v: vol || 0, partial: !prev };
+    // `partial`: unless the registry was tracking the symbol through the IMMEDIATELY
+    // preceding minute, it may have joined this one mid-way (first subscribe, or a
+    // resubscribe after the feed dropped the symbol — _state survives that), so its
+    // o/h/l are only "since we saw it": the chart treats the minute as PROVISIONAL
+    // (lib/liveBarMerge I6). Continuity, not mere existence, proves the open.
+    symState["1"] = { t, o: price, h: price, l: price, c: price, v: vol || 0, partial: !(prev && prev.t === t - 60) };
   } else {
     symState["1"] = {
       ...prev,

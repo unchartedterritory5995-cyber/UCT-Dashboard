@@ -130,7 +130,7 @@ beforeEach(async () => {
   try { localStorage.removeItem('uct.barsPush.enabled') } catch { /* jsdom */ }
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) })))
   StockChart = StockChart || (await import('./StockChart')).default
-})
+}, 60000)   // the first test pays the cold StockChart import (~10 s on a loaded machine)
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals() })
 
 async function mount(lastBar) {

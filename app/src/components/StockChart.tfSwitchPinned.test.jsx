@@ -196,13 +196,14 @@ const candle = () => T.series.find(s => s.__ctor === real().CandlestickSeries) |
 let _real = null
 const real = () => _real
 // One sampled "painted frame": where the newest REAL candle sits on screen and its OHLC.
+// A chart with no real candle is a BLANK frame — recorded, never skipped (review F1).
 function frame() {
   const ts = T.ts
   const c = candle()
-  if (!c || ts.base == null) return null
+  if (!c) return null   // not mounted yet
   const d = c.__data.filter(p => p.open !== undefined)
   const last = d[d.length - 1]
-  if (!last) return null
+  if (!last || ts.base == null) return { blank: true }
   const idx = ts.points.indexOf(last.time)
   const x = 600 - (ts.base + ts.rightOffset - idx + 0.5) * ts.barSpacing
   return { time: last.time, x: Math.round(x * 100) / 100, sp: Math.round(ts.barSpacing * 1000) / 1000, o: last.open, h: last.high, l: last.low, c: last.close }
@@ -223,6 +224,9 @@ const devBar = (tf) => {
 }
 
 beforeEach(async () => {
+  // Every test starts at the same instant: the shifted clock keeps running, and a file
+  // that drifts past the minute would make the synthetic "now" stale.
+  clock.retarget(NOW_ISO)
   cleanup(); memClear(); reqs = []
   T.series.length = 0
   _real = await vi.importActual('lightweight-charts')
@@ -243,7 +247,7 @@ describe('tf switch: first frame pinned + complete developing bar', () => {
       const before = frame()
       expect(before.time).toBe(devBar(from).time)
       // The target tf was viewed ~1h ago: its cached tail stops at 11:45 (sound, behind).
-      memPut('SYN', to, agg(truth1m(et(11, 11, 45)), to))
+      memPut('SYN', to, agg(truth1m(et(11, 11, 45)), to), { savedAt: (et(11, 11, 45) + 20) * 1000 })
       serve({ latency: 400 })
       const rec = recorder()
       view.rerender(<StockChart sym="SYN" tf={to} backgroundWarm={false} forceExtendedHours={false} />)
@@ -252,7 +256,7 @@ describe('tf switch: first frame pinned + complete developing bar', () => {
       while (rec.frames.length && JSON.stringify(rec.frames[0]) === JSON.stringify(before)) rec.frames.shift()
       expect(frame()).toMatchObject({ time: devBar(to).time, o: devBar(to).o, h: devBar(to).h, l: devBar(to).l, c: devBar(to).c })
       const dev = devBar(to)
-      const fr = rec.frames.filter(f => f.sp > 0)
+      const fr = rec.frames
       // Every frame after the switch: the newest real candle IS the developing bucket,
       // at the outgoing x, outgoing spacing, with the full bucket-to-date OHLC.
       for (const f of fr) {
@@ -266,7 +270,7 @@ describe('tf switch: first frame pinned + complete developing bar', () => {
     const view = await mountAt('5')
     const before = frame()
     // Cached at 12:35: the 12:30 hour bar holds only 12:30-12:35.
-    memPut('SYN', '60', agg(truth1m(et(11, 12, 35)), '60'))
+    memPut('SYN', '60', agg(truth1m(et(11, 12, 35)), '60'), { savedAt: (et(11, 12, 35) + 20) * 1000 })
     serve({ latency: 400 })
     const rec = recorder()
     view.rerender(<StockChart sym="SYN" tf="60" backgroundWarm={false} forceExtendedHours={false} />)
@@ -302,8 +306,8 @@ describe('invariant: newest-bar x + developing OHLC across random tf-switch sequ
         while (next === tf) next = TFS[Math.floor(r() * TFS.length)]
         const cache = ['none', 'behind', 'partial', 'current'][Math.floor(r() * 4)]
         memClear()
-        if (cache === 'behind') memPut('SYN', next, agg(truth1m(et(11, 11, 40)), next))
-        if (cache === 'partial') memPut('SYN', next, agg(truth1m(NOW - 50), next))
+        if (cache === 'behind') memPut('SYN', next, agg(truth1m(et(11, 11, 40)), next), { savedAt: (et(11, 11, 40) + 20) * 1000 })
+        if (cache === 'partial') memPut('SYN', next, agg(truth1m(NOW - 50), next), { savedAt: (NOW - 50) * 1000 })
         if (cache === 'current') memPut('SYN', next, agg(truth1m(), next))
         serve({ latency: 150 + Math.floor(r() * 400) })
         const rec = recorder()
@@ -313,12 +317,56 @@ describe('invariant: newest-bar x + developing OHLC across random tf-switch sequ
         while (rec.frames.length && JSON.stringify(rec.frames[0]) === JSON.stringify(before)) rec.frames.shift()
         const dev = devBar(next)
         const ctx = `${tf}→${next} cache=${cache}`
-        for (const f of [...rec.frames, frame()]) {
-          expect({ ctx, time: f.time, x: f.x, sp: f.sp }).toEqual({ ctx, time: dev.time, x: before.x, sp: before.sp })
-          expect({ ctx, ohlc: [f.o, f.h, f.l, f.c] }).toEqual({ ctx, ohlc: [dev.o, dev.h, dev.l, dev.c] })
+        // The one allowed non-final value (review F1b, instant paint): switching to a FINER tf
+        // with a cache written DURING the forming bucket paints that cache's developing bar (an
+        // earlier observation of the same bucket — live writers keep it moving) until the
+        // answer lands. Everything else must be the authoritative bucket-to-date bar.
+        const okOhlc = [[dev.o, dev.h, dev.l, dev.c]]
+        if (cache === 'partial' && Number(next) < Number(tf)) {
+          const pb = agg(truth1m(NOW - 50), next).at(-1)
+          if (toChartTime(pb.t) === dev.time) okOhlc.push([pb.o, pb.h, pb.l, pb.c])
         }
+        const all = [...rec.frames, frame()]
+        for (const f of all) {
+          expect({ ctx, time: f.time, x: f.x, sp: f.sp }).toEqual({ ctx, time: dev.time, x: before.x, sp: before.sp })
+          expect({ ctx, ok: okOhlc.some(o => JSON.stringify(o) === JSON.stringify([f.o, f.h, f.l, f.c])) }).toEqual({ ctx, ok: true })
+        }
+        const fin = all[all.length - 1]
+        expect({ ctx, ohlc: [fin.o, fin.h, fin.l, fin.c] }).toEqual({ ctx, ohlc: [dev.o, dev.h, dev.l, dev.c] })
         tf = next
       }
     }, 20000)
   }
+})
+
+describe('review F1/F1b: a switch never blanks, and a COMPLETE finer cache still paints instantly', () => {
+  for (const [from, to] of [['60', '5'], ['30', '1'], ['5', '1']]) {
+    it(`${from}m → ${to}m with NO cache: the previous frame stays on screen (never blank) until the complete answer`, async () => {
+      const view = await mountAt(from)
+      const before = frame()
+      serve({ latency: 400 })
+      const rec = recorder()
+      view.rerender(<StockChart sym="SYN" tf={to} backgroundWarm={false} forceExtendedHours={false} />)
+      await wait(900)
+      rec.stop()
+      expect(rec.frames.filter(f => f.blank)).toEqual([])
+      while (rec.frames.length && JSON.stringify(rec.frames[0]) === JSON.stringify(before)) rec.frames.shift()
+      const dev = devBar(to)
+      for (const f of [...rec.frames, frame()]) {
+        expect({ time: f.time, x: f.x, sp: f.sp }).toEqual({ time: dev.time, x: before.x, sp: before.sp })
+        expect([f.o, f.h, f.l, f.c]).toEqual([dev.o, dev.h, dev.l, dev.c])
+      }
+    })
+  }
+
+  it('5m → 1m with a CURRENT 1m mem cache written during the forming minute paints BEFORE the network answers', async () => {
+    const view = await mountAt('5')
+    const before = frame()
+    memPut('SYN', '1', agg(truth1m(), '1'))   // savedAt = now, inside the forming minute
+    serve({ latency: 2000 })
+    view.rerender(<StockChart sym="SYN" tf="1" backgroundWarm={false} forceExtendedHours={false} />)
+    await wait(150)
+    const dev = devBar('1')
+    expect(frame()).toEqual({ time: dev.time, x: before.x, sp: before.sp, o: dev.o, h: dev.h, l: dev.l, c: dev.c })
+  })
 })

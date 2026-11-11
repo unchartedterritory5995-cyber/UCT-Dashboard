@@ -47,3 +47,14 @@ describe('liveBarMerge I6 (provisional never locks)', () => {
     expect(k.provisional).toBeUndefined()
   })
 })
+
+describe('I6 poll: only the OPEN is replaced; observed highs/lows survive a lagging snapshot', () => {
+  it('a high/low the live bar printed after its provisional open is kept', () => {
+    let live = provisionalOpen(T0, 20.5)
+    live = foldPrice(live, 21.2, null, '5').bar      // traded up after we joined
+    live = foldPrice(live, 20.9, null, '5').bar
+    const { bar } = reconcileWithServerTail(live, { time: T0, open: 20.0, high: 20.8, low: 19.7, close: 20.6 }, { periodSec: 300 })
+    expect(bar).toMatchObject({ open: 20.0, high: 21.2, low: 19.7, close: 20.9 })
+    expect(bar.provisional).toBeUndefined()
+  })
+})
