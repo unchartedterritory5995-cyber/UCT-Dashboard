@@ -10315,6 +10315,74 @@
       ]
     },
     {
+      "id": "chartMenu.resetWatermark",
+      "source": "C1-061 (family C, 11-11): Chart Settings → Watermark → Reset to center (opts.watermarkPos = null)",
+      "capabilities": [
+        "chartMenu.resetWatermark"
+      ],
+      "board": "WATERMARK",
+      "needs": [
+        "chartMenu.resetWatermark"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartMenu.resetWatermark",
+            "target": "$charts[0]",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "watermarkPos": null,
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "reset the watermark on this chart",
+        "put the watermark back in the center",
+        "recenter the watermark"
+      ]
+    },
+    {
+      "id": "chartMenu.askAi",
+      "source": "C1-178 (family C, 11-11): the chart right-click Ask AI about {sym} (/research/:sym?section=ai)",
+      "capabilities": [
+        "chartMenu.askAi"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartMenu.askAi"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartMenu.askAi",
+            "target": "$charts[0]",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "askAiOpened": [
+          "/research/NVDA?section=ai"
+        ],
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "ask ai about this chart",
+        "ask the ai about the stock on this chart",
+        "open the ai on this chart"
+      ]
+    },
+    {
       "id": "chartSetup.stepBars",
       "source": "C1-032 (pl-exec4): the Time Navigator's one-bar step buttons",
       "capabilities": [

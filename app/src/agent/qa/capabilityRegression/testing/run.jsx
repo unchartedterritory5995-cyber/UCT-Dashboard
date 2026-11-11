@@ -210,6 +210,9 @@ export function checkExpect(ctx, e, label) {
   if (e.view) for (const [k, v] of Object.entries(e.view)) expect(ctx.st.views[chartsOf(board)[0]?.id]?.[k], `${label}: the chart's view ${k}`).toEqual(v)
   // C1-127: the first chart's Chart Settings dialog open (or not), as the pane reads it back
   if ('settingsOpen' in e) expect(!!ctx.st.settingsOpen?.[chartsOf(board)[0]?.id], `${label}: Chart Settings open`).toBe(e.settingsOpen)
+  // family C: the first chart's hand-placed watermark as the chart reads it back (null = Reset to center); the Ask AI routes opened
+  if ('watermarkPos' in e) expect(h.charts.read(chartsOf(board)[0]?.id)?.watermarkPos ?? null, `${label}: the watermark position`).toEqual(e.watermarkPos)
+  if ('askAiOpened' in e) expect(ctx.st.askAi || [], `${label}: Ask AI opened`).toEqual(e.askAiOpened)
   // is any moving average on the first chart showing (the same answer Ctrl+M reads)
   if ('movingAveragesOn' in e) expect(anyAverageOn(mergeChartSettings(chartsOf(board)[0]?.opts?.settings ?? null), nativeRegistry.getDefinition), `${label}: a moving average showing`).toBe(e.movingAveragesOn)
   if (e.indicators) {

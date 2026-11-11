@@ -149,7 +149,12 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     watchlistShow: ['put my flagged list in the watchlist widget', 'export my momentum list to excel', 'make the price column wider in the watchlist'],
     // #1073: chartSetup.compareGroup's own words — a compare/remove verb governing the group noun, or a group noun with its overlay/scale
     compareGroups: ['compare this chart with the semiconductor industry group', 'remove the energy sector from this chart', 'set the software theme overlay to a percent scale'],
+    // family C (C1-178 / C1-061): Ask AI with about / on / for or a chart word; the watermark with a reset / back / default word
+    chartMenu: ['ask ai about this chart', 'open the ai on the nvda chart', 'reset the watermark on this chart', 'put the watermark back where it was'],
   }
+  // family C: "ask" / "watermark" / "journal" / "header" alone never select chartMenu (the words are used elsewhere)
+  it.each(['make the watermark bigger', 'hide the watermark', 'send this chart to my journal', 'ask about nvda earnings', 'show the header', 'reset the view'])
+  ('"%s": not chartMenu\'s words', (msg) => expect(wordsSelect('chartMenu', msg)).toBe(false))
   it('there is a words-only group, and every one has phrases of its own words here', () => {
     expect(wordsOnly.length).toBeGreaterThan(0)
     for (const g of wordsOnly) expect(OWN_WORDS[g.id]?.length, `${g.id}: add phrases of its own words to OWN_WORDS`).toBeGreaterThan(0)
