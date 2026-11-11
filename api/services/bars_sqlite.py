@@ -1269,6 +1269,8 @@ def purge_off_calendar_daily(ticker: str, c: sqlite3.Connection | None = None,
     with _WRITE_LOCK:
         qs = ",".join("?" for _ in bad)
         cur = c.execute(f"DELETE FROM ohlcv WHERE ticker=? AND tf='D' AND ts IN ({qs})", [tkr, *bad])
+        if cur.rowcount:
+            bump_series_revs(c, [(tkr, "D")], deleted=True)
         c.commit()
     n = cur.rowcount
     _logger.warning("[sqlite] %s: deleted %d non-trading-day daily row(s): %s", tkr, n, bad[:5])

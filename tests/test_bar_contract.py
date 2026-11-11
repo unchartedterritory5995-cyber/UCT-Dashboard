@@ -402,10 +402,9 @@ def test_property_complete_through_is_bounded_monotonic_and_final(store, monkeyp
 # ── B. every serve branch carries the contract ──────────────────────────────
 
 def _serve_labels() -> set[str]:
-    labels = set()
-    for p in ("api/services/bars_fetch.py", "api/routers/bars.py"):
-        labels |= set(re.findall(r'_mark_serve\(\s*"([^"]+)"', (ROOT / p).read_text(encoding="utf-8")))
-    return labels
+    """THE declared serve-label enum (P0 rail, `api/services/serve_labels.py`)."""
+    from api.services.serve_labels import SERVE_LABELS
+    return set(SERVE_LABELS)
 
 
 def test_the_label_census_is_not_vacuous():
@@ -417,7 +416,12 @@ def _body(resp):
     return orjson.loads(resp.body)
 
 
-@pytest.mark.parametrize("label", sorted(_serve_labels() - {"entry", "warm-shed"}))
+#: Labels that never describe a 200 /api/bars answer with rows: the router's reset value,
+#: the 503 shed, and the /api/bars-history literal (a different endpoint).
+_NOT_A_BARS_ANSWER = {"entry", "warm-shed", "history-read"}
+
+
+@pytest.mark.parametrize("label", sorted(_serve_labels() - _NOT_A_BARS_ANSWER))
 @pytest.mark.parametrize("tf", ["5", "60", "D"])
 def test_every_serve_branch_answers_with_the_contract(store, monkeypatch, label, tf):
     """Whatever branch served the rows (named by its Server-Timing label), the answer
