@@ -630,6 +630,12 @@ function ChartPane({
     setSettingsTarget(typeof target === 'string' ? target : null)
     setSettingsOpen(true)
   }, [])
+  // ⭐ UCT Agent (C1-127): read through refs by the imperative handle, so the Agent's door never goes stale:
+  // is the dialog open NOW (the read-back), and does this pane show the gear at all (not mini, not the own-chart surface)
+  const settingsOpenRef = useRef(false)
+  settingsOpenRef.current = settingsOpen
+  const settingsDoorRef = useRef(false)
+  settingsDoorRef.current = !mini && !isOwnChartSurface
   // ⭐ A1.2 — the indicator Undo stack this pane's chart shares (StockChart toasts from it).
   // ONLY the Chart Settings modal's own edits are recorded here (and template applies, via
   // `applySettingsRecorded`); `applySettings` stays unrecorded. The Agent writes through
@@ -866,6 +872,9 @@ function ChartPane({
 
   useImperativeHandle(ref, () => ({
     openSettings,
+    // ⭐ UCT Agent (C1-127): the gear's own predicate, and the dialog's open state (ChartWidget's adapter)
+    canOpenSettings: () => settingsDoorRef.current,
+    isSettingsOpen: () => settingsOpenRef.current,
     // Apply a whole settings blob to THIS chart — same path the settings modal's
     // onChange uses. Lets the right-click "Chart template" menu drop a saved
     // template straight onto the chart without opening the modal.
@@ -893,9 +902,9 @@ function ChartPane({
     stepBar: (dir) => dateNavApiRef.current?.stepBar?.(dir),
     ensureFullHistory: () => dateNavApiRef.current?.ensureFullHistory?.(),
     getDateMeta: () => (dateNavApiRef.current?.getDateMeta?.() || null),
-    // ⭐ UCT Agent: the range bar (and its Undo), Reset view and hide-all-indicators, read back through getDateMeta. A VIEW; nothing saved here.
+    // ⭐ UCT Agent: the range bar (and its Undo), Reset view, hide-all-indicators, the ◀ / ▶ step and Auto-scale, read back through getDateMeta. A VIEW; nothing saved here.
     viewDo: (op, arg) => {
-      const fn = ['applyRange', 'restoreView', 'resetView', 'setIndicatorsHidden'].includes(op) ? dateNavApiRef.current?.[op] : null
+      const fn = ['applyRange', 'restoreView', 'resetView', 'setIndicatorsHidden', 'stepBar', 'autoScale'].includes(op) ? dateNavApiRef.current?.[op] : null
       if (!fn) return false
       fn(arg)
       return true

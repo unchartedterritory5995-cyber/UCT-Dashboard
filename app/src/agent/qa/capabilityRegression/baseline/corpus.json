@@ -1376,6 +1376,53 @@
       ]
     },
     {
+      "id": "compare.group.aiChips",
+      "source": "C1-035/037/040 (pl-exec): the Compare panel's group controls",
+      "capabilities": [
+        "chartSetup.compareGroup"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chartSetup.compareGroup"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.compareGroup",
+            "target": "$charts[0]",
+            "args": {
+              "action": "add",
+              "group": "AI Chips",
+              "groupType": "any",
+              "scale": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "settingSome": {
+          "key": "comparisonSymbols",
+          "match": {
+            "sym": "AMD",
+            "group": "AI Chips"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "compare this chart against the AI Chips theme",
+        "overlay the AI Chips group on this chart",
+        "compare NVDA with the AI Chips theme"
+      ]
+    },
+    {
       "id": "widget.news",
       "capabilities": [
         "widget.add"
@@ -4816,6 +4863,39 @@
         "list my watchlists",
         "show me all my lists",
         "which watchlists have I made"
+      ]
+    },
+    {
+      "id": "watchlist.showList",
+      "source": "pl-exec watchlist group A (C3-065): one Watchlist widget shows the Flagged list exactly as its picker picks it; Undo puts back what it showed",
+      "capabilities": [
+        "watchlist.showList"
+      ],
+      "board": "WLW",
+      "needs": [
+        "watchlist.showList"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.showList",
+            "target": "$board",
+            "args": {
+              "widget": null,
+              "source": "flagged",
+              "name": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "put the Flagged list in my watchlist widget",
+        "switch my watchlist over to the flagged one",
+        "show Flagged in the watchlist"
       ]
     },
     {
@@ -10332,6 +10412,126 @@
       ]
     },
     {
+      "id": "chartSetup.openSettings",
+      "source": "C1-127 (11-11): open the chart's own Chart Settings dialog (gear / right-click / Alt+,)",
+      "capabilities": [
+        "chartSetup.openSettings"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartSetup.openSettings"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.openSettings",
+            "target": "$charts[0]",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "settingsOpen": true,
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "open chart settings",
+        "open the settings for this chart",
+        "show me the chart settings panel",
+        "bring up this chart's settings"
+      ]
+    },
+    {
+      "id": "chartSetup.stepBars",
+      "source": "C1-032 (pl-exec4): the Time Navigator's one-bar step buttons",
+      "capabilities": [
+        "chartSetup.stepBars"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartSetup.stepBars"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.stepBars",
+            "target": "$charts[0]",
+            "args": {
+              "direction": "back",
+              "bars": 5
+            }
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "frame": {
+            "fromRight": 125,
+            "toRight": -3,
+            "activeRange": null,
+            "locked": false,
+            "lock": null
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "view": {
+            "frame": {
+              "fromRight": 120,
+              "toRight": -8,
+              "activeRange": null,
+              "locked": false,
+              "lock": null
+            }
+          }
+        }
+      },
+      "phrasings": [
+        "step this chart back 5 bars",
+        "go back five bars on the chart",
+        "scroll the chart back 5 bars",
+        "move the chart back 5 bars"
+      ]
+    },
+    {
+      "id": "chartSetup.autoScale",
+      "source": "C1-025 (pl-exec4): the price axis menu's Auto-scale",
+      "capabilities": [
+        "chartSetup.autoScale"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartSetup.autoScale"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.autoScale",
+            "target": "$charts[0]",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "priceAuto": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "auto scale this chart",
+        "auto-scale the price axis",
+        "fit the price scale to the bars again",
+        "put the price axis back on auto"
+      ]
+    },
+    {
       "id": "chartSetup.setIndicatorsHidden",
       "source": "PR #825 (11-05): the chart's own view controls and Ctrl+M",
       "capabilities": [
@@ -10449,7 +10649,7 @@
         "refusal": false
       },
       "phrasings": [
-        {"text": "how is that one set right now", "gaps": {"a": {"id": "GAP-WIDGET-READ-ROUTE", "reason": "a BUDGET CUT under routing v2 (production): the message wants boardEdit, but charts 21 + workspace 13 + lists 17 + agent 1 = 52 leave no room for boardEdit (5) under the 55-action budget (routeReachability.test.js). Under v1 (the kill-switch fallback, which this level runs) boardEdit has no words of its own; the model can still ask for the group (need_groups)", "owner": "agent-lead", "mode": "\"how is that one set right now\" → widget.readOptions"}}}
+        {"text": "how is that one set right now", "gaps": {"a": {"id": "GAP-WIDGET-READ-ROUTE", "router": "v1", "reason": "v1 ONLY (the kill-switch fallback): boardEdit has no v1 words in this message (workspace + agent only); the model can still ask for the group (need_groups). Routing v2 (production) reaches it since the budget-cut tie rule (routingV2.js TIE)", "owner": "agent-lead", "mode": "\"how is that one set right now\" → widget.readOptions"}}}
       ]
     },
     {
@@ -12197,6 +12397,66 @@
                 "inputs.color": "#7b68ee"
               }
             }
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.exportList-no-menu",
+      "source": "pl-widget (watchlist group D, carried from pl-exec): a Watchlist widget with no list menu mounted (no door) has nothing to copy or export; nothing is downloaded, no receipt (agentWatchlistOut.test.jsx has the door)",
+      "capabilities": [
+        "watchlist.exportList"
+      ],
+      "board": "WLW",
+      "steps": [
+        {
+          "say": "export my watchlist as a csv",
+          "model": {
+            "ops": [
+              {
+                "action": "watchlist.exportList",
+                "target": "$board",
+                "args": {
+                  "widget": "wl1",
+                  "format": "csv"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "unchanged": true,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.arrangeColumns-standin",
+      "source": "pl-widget (C3-085 / C3-086): a list widget that publishes no column-drag results (the stand-in view) is refused, never written; listControl.outcome.test.jsx moves and resizes on the real widget",
+      "capabilities": [
+        "watchlist.arrangeColumns"
+      ],
+      "board": "LISTVIEW",
+      "steps": [
+        {
+          "say": "move % change before price",
+          "model": {
+            "ops": [
+              {
+                "action": "watchlist.arrangeColumns",
+                "target": "$listViews[0]",
+                "args": {
+                  "column": "% change",
+                  "before": "price",
+                  "after": null,
+                  "width": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "unchanged": true,
+            "receipt": false
           }
         }
       ]

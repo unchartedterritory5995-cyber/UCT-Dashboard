@@ -198,7 +198,7 @@ describe('periodSort.dock — the panel\'s own Dock', () => {
   })
 })
 
-describe('routing: the tool\'s words reach boardEdit (where periodSort.* route)', () => {
+describe('routing: the tool\'s words reach its own words-only periodSort group (#1082 re-merge)', () => {
   it.each([
     'run a custom period sort from Oct 1 to today',
     'period sort sectors since Sep 15',
@@ -206,7 +206,18 @@ describe('routing: the tool\'s words reach boardEdit (where periodSort.* route)'
     'rank the themes between 2026-09-01 and 2026-10-01',
     'dock that ranking',
   ])('%s', (q) => {
-    expect(selectGroups(q).selected).toContain('boardEdit')
+    expect(selectGroups(q).selected).toContain('periodSort')
+  })
+  // #1082 re-merge: with a Period Sort widget docked, the tool's name WITH dates is a new run (not that widget's Refresh)…
+  it.each(['period sort sectors, Oct 1 to Oct 30', 'run a custom period sort of themes from 2026-09-01 to 2026-10-01'])
+  ('docked widget, "%s": periodSort, and the widget\'s name alone brings no boardEdit', (q) => {
+    const s = selectGroups(q, { names: { widgetTypes: ['periodsort'] } }).selected
+    expect(s).toContain('periodSort')
+    expect(s).not.toContain('boardEdit')
+  })
+  // …while its own control (Refresh) still routes the widget's one-control action (#1027, boardEdit)
+  it('docked widget, "refresh the period sort": boardEdit', () => {
+    expect(selectGroups('refresh the period sort', { names: { widgetTypes: ['periodsort'] } }).selected).toContain('boardEdit')
   })
 })
 

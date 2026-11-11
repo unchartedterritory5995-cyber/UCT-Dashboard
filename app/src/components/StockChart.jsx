@@ -6952,6 +6952,25 @@ export default function StockChart({
   const resetViewRef = useRef(null)
   resetViewRef.current = doResetView
 
+  // The price axis menu's Auto-scale, lifted to the component body so the menu row AND the UCT Agent
+  // (chartSetup.autoScale, through onDateNavApi) share ONE writer. It fits the price scale only: the time window stays.
+  const doAutoScale = () => {
+    try {
+      // Clear any locked vertical placement and restore the default candle band.
+      vertMarginsRef.current = null
+      // Also release a manual price-axis drag pin (see resetView) — otherwise its
+      // autoscaleInfoProvider forces the dragged range back and autoScale is a no-op.
+      priceManualRef.current = false
+      priceManualRangeRef.current = null
+      mainPriceScale()?.applyOptions({
+        autoScale: true,
+        scaleMargins: _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volumePaneExists ? priceScaleBottomMargin : null),
+      })
+    } catch {}
+  }
+  const autoScaleRef = useRef(null)
+  autoScaleRef.current = doAutoScale
+
   // Position the floating "scroll to present" button JUST ABOVE the grey upcoming-
   // earnings badge (which pins to the right edge at the bottom of the price pane when
   // today is off-screen). Uses the badge primitive's live pixel rect; falls back to
@@ -7040,20 +7059,8 @@ export default function StockChart({
     // Same implementation as the floating "scroll to present" button (doResetView,
     // lifted to the component body so both share ONE reset).
     const resetView = () => resetViewRef.current?.()
-    const autoScale = () => {
-      try {
-        // Clear any locked vertical placement and restore the default candle band.
-        vertMarginsRef.current = null
-        // Also release a manual price-axis drag pin (see resetView) — otherwise its
-        // autoscaleInfoProvider forces the dragged range back and autoScale is a no-op.
-        priceManualRef.current = false
-        priceManualRangeRef.current = null
-        mainPriceScale()?.applyOptions({
-          autoScale: true,
-          scaleMargins: _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volumePaneExists ? priceScaleBottomMargin : null),
-        })
-      } catch {}
-    }
+    // one writer with the UCT Agent's chartSetup.autoScale (doAutoScale, in the component body)
+    const autoScale = () => autoScaleRef.current?.()
     const settingsLink = (id, label) =>
       showDrawingTools ? [{ id, label, onSelect: openSettings }] : []
     // ⭐ THE THIRD ENTRY POINT ONTO THE LIBRARY (spec §6: *labelled toolbar
@@ -9766,11 +9773,6 @@ export default function StockChart({
       }
     }
   }, [livePrices, sym])
-
-  // Bar-correction flash (P4-7): pulses briefly when SSE bar_correction event
-  // fires for the current symbol, signaling minute-close reconciliation
-  // overrode the WS-built bar.
-  const [correctionFlash, setCorrectionFlash] = useState(false)
 
   // ── Memoized data transforms (only recompute when bars change) ─────────────
 
@@ -20183,18 +20185,6 @@ export default function StockChart({
     setSelectedId(null)
   }, [sym, resolvedTf])
 
-  // ── Bar-correction flash subscription (P4-7) ──
-  // Fires the visible "Bar corrected" pill for 2s when minute-close
-  // reconciliation overrides the WS-built bar for this symbol.
-  useEffect(() => {
-    if (!sym) return
-    const unsub = realtimeCandle.onCorrection(sym, () => {
-      setCorrectionFlash(true)
-      setTimeout(() => setCorrectionFlash(false), 2000)
-    })
-    return unsub
-  }, [sym])
-
   // ── Tick-by-tick developing-candle update via realtimeCandle registry ──
   // (Plan 4 / Goal 3) — drive series.update() on every SSE tick instead of
   // waiting for the 2s REST poll cycle. Coexists with the REST-driven live-
@@ -20694,8 +20684,15 @@ export default function StockChart({
           locked: !!userViewLockedRef.current, lock: userLockedViewRef.current ? { ...userLockedViewRef.current } : null }
       }
     } catch { /* noop */ }
+    // ⭐ UCT Agent's Auto-scale read-back: the price scale fits the bars only when no hand-set pin, no locked vertical
+    // placement, and the scale itself is on autoScale. Unreadable → left out (the Agent reports it unavailable).
+    let priceAuto
+    try {
+      const o = mainPriceScale()?.options?.()
+      if (o && typeof o.autoScale === 'boolean') priceAuto = o.autoScale && !priceManualRef.current && vertMarginsRef.current == null
+    } catch { /* disposed */ }
     return {
-      firstMs, lastMs, rightMs, activeRange, atDefaultView, frame,
+      firstMs, lastMs, rightMs, activeRange, atDefaultView, frame, priceAuto,
       indicatorsHidden: !!indicatorsHiddenRef.current,
       firstYear: Number.isFinite(firstMs) ? new Date(firstMs).getUTCFullYear() : null,
       lastYear: Number.isFinite(lastMs) ? new Date(lastMs).getUTCFullYear() : null,
@@ -20718,7 +20715,7 @@ export default function StockChart({
   }
   useEffect(() => {
     if (typeof onDateNavApi !== 'function') return undefined
-    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden })
+    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden, autoScale: () => autoScaleRef.current?.() })
     return () => onDateNavApi(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onDateNavApi, barCount, isValidating, fetchDepth, originLoading])
@@ -20735,36 +20732,10 @@ export default function StockChart({
           <UIcon name="skipBack" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />REPLAY {Math.round(((replayIndex ?? 0) / Math.max(1, sessionBars.length - 1)) * 100)}%
         </div>
       )}
-      {liveUpdates && realtimeTfEligible && (
-        // ⛔ ● LIVE requires the feed AND the candles. A connected feed over bars that
-        // fail the currentness contract reads UPDATING (repair in progress) or DELAYED
-        // (fast retries spent, still retrying) — never LIVE.
-        <div
-          className={liveBadge === 'live' ? styles.liveIndicator : styles.staleIndicator}
-          data-testid="chart-live-state"
-          data-live-badge={liveBadge}
-          title={
-            liveBadge === 'reconnecting' ? 'Reconnecting to the live feed…'
-            : liveBadge === 'stale' ? 'Live feed has paused — last tick is older than expected'
-            : liveBadge === 'delayed' ? 'Chart data is delayed — the newest bars have not arrived yet. Retrying automatically.'
-            : liveBadge === 'unavailable' ? 'No current bars are available for this symbol.'
-            : liveBadge === 'updating' ? 'Updating — fetching the newest bars for this session.'
-            : 'Live feed connected'
-          }
-        >
-          {liveBadge === 'live' ? '● LIVE'
-            : liveBadge === 'updating' ? '⟳ UPDATING'
-            : liveBadge === 'delayed' ? <><UIcon name="pause" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />DELAYED</>
-            : liveBadge === 'unavailable' ? 'NO DATA'
-            : liveBadge === 'reconnecting' ? '⟳ RECONNECTING'
-            : <><UIcon name="pause" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />STALE</>}
-        </div>
-      )}
-      {correctionFlash && (
-        <div className={styles.correctionFlash} title="Server corrected this bar after reconciliation">
-          ↻ Bar corrected
-        </div>
-      )}
+      {/* Owner 2026-11-11: the top-right status pill (● LIVE / UPDATING / DELAYED / NO DATA /
+          RECONNECTING / STALE) and the "↻ Bar corrected" flash are intentionally NOT rendered.
+          The currentness state stays exposed as data-bar-currentness / data-bar-tail /
+          data-live-badge on the wrapper for tests, the Agent and the harnesses. */}
       {cs.countdown && !hideCountdown && countdownTfSec && currentBarStart && (
         <div className={styles.countdownPosition}>
           <CountdownTimer barStartTime={currentBarStart} tfSeconds={countdownTfSec} />

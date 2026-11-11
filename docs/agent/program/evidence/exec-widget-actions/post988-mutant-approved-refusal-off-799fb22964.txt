@@ -1,0 +1,427 @@
+# head 799fb22964 2026-11-11T09:12:49Z mutant: approved-refusal-off
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+# cmd: cd app && npx vitest run src/agent/agentExcludedApproved.test.jsx
+
+ RUN  v4.0.18 C:/w/pl-widget/app
+
+ ❯ src/agent/agentExcludedApproved.test.jsx (27 tests | 24 failed) 29361ms
+     × "log on this row except the TSLA one" (clicked ML, ML excluded), approved by the Apply button 1286ms
+     × "log on this row except the TSLA one" (clicked ML, ML excluded), approved by typed "do it" 1091ms
+     × "log on this row except the TSLA one" (clicked ML, ML excluded), approved by typed "yes" 1032ms
+     × "log on this row except the TSLA one" (clicked ML, ML excluded), approved by typed "apply it" 1056ms
+     × "log scale on this row except the TSLA one" (clicked ML, ML excluded), approved by the Apply button 1104ms
+     × "log scale on this row except the TSLA one" (clicked ML, ML excluded), approved by typed "do it" 1074ms
+     × "log scale on this row except the TSLA one" (clicked ML, ML excluded), approved by typed "yes" 1074ms
+     × "log scale on this row except the TSLA one" (clicked ML, ML excluded), approved by typed "apply it" 1071ms
+     × "log on this row except the TSLA one" (clicked MM, ML excluded), approved by the Apply button 1105ms
+     × "log on this row except the TSLA one" (clicked MM, ML excluded), approved by typed "do it" 1067ms
+     × "log on this row except the TSLA one" (clicked MM, ML excluded), approved by typed "yes" 1055ms
+     × "log on this row except the TSLA one" (clicked MM, ML excluded), approved by typed "apply it" 1073ms
+     × "log scale on this row except the TSLA one" (clicked MM, ML excluded), approved by the Apply button 1088ms
+     × "log scale on this row except the TSLA one" (clicked MM, ML excluded), approved by typed "do it" 1073ms
+     × "log scale on this row except the TSLA one" (clicked MM, ML excluded), approved by typed "yes" 1058ms
+     × "log scale on this row except the TSLA one" (clicked MM, ML excluded), approved by typed "apply it" 1071ms
+     × "log on this row except the TSLA one" (clicked BL, BM excluded), approved by the Apply button 1086ms
+     × "log on this row except the TSLA one" (clicked BL, BM excluded), approved by typed "do it" 1057ms
+     × "log on this row except the TSLA one" (clicked BL, BM excluded), approved by typed "yes" 1069ms
+     × "log on this row except the TSLA one" (clicked BL, BM excluded), approved by typed "apply it" 1068ms
+     × "log scale on this row except the TSLA one" (clicked BL, BM excluded), approved by the Apply button 1085ms
+     × "log scale on this row except the TSLA one" (clicked BL, BM excluded), approved by typed "do it" 1063ms
+     × "log scale on this row except the TSLA one" (clicked BL, BM excluded), approved by typed "yes" 1059ms
+     × "log scale on this row except the TSLA one" (clicked BL, BM excluded), approved by typed "apply it" 1060ms
+     ✓ control: a card WITHOUT the excluded chart (clicked ML, ML excluded) is applied as approved  1149ms
+     ✓ control: a card WITHOUT the excluded chart (clicked MM, ML excluded) is applied as approved  1162ms
+     ✓ control: a card WITHOUT the excluded chart (clicked BL, BM excluded) is applied as approved  1123ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 24 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log on this row except the TSLA one" (clicked ML, ML excluded), approved by the Apply button
+AssertionError: expected 'UCT Agent4:12 AMHey, I’m UCT Agent. …' to match /excludes/
+
+- Expected: 
+/excludes/
+
++ Received: 
+"UCT Agent4:12 AMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?User4:12 AMlog on this row except the TSLA oneUCT Agent4:12 AMProposed changesChart (ML): Change scale to LogarithmicChart (MM): Change scale to LogarithmicChart (MR): Change scale to LogarithmicApprovedThat proposal can’t run as you approved it — what it would do is no longer what I showed you — so nothing was changed — ask again and I’ll show you the current version."
+
+ ❯ src/agent/agentExcludedApproved.test.jsx:64:26
+     62|     expect(logged(m.board), `${ex} applied: ${transcript()}`).not.toCo…
+     63|     expect(logged(m.board), `the card ran in part: ${transcript()}`).t…
+     64|     expect(transcript()).toMatch(/excludes/)
+       |                          ^
+     65|   }, 40000)
+     66|   it.each(SCOPES)('control: a card WITHOUT the excluded chart (clicked…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/24]⎯
+
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log on this row except the TSLA one" (clicked ML, ML excluded), approved by typed "do it"
+AssertionError: expected 'UCT Agent4:12 AMHey, I’m UCT Agent. …' to match /excludes/
+
+- Expected: 
+/excludes/
+
++ Received: 
+"UCT Agent4:12 AMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?User4:12 AMlog on this row except the TSLA oneUCT Agent4:12 AMProposed changesChart (ML): Change scale to LogarithmicChart (MM): Change scale to LogarithmicChart (MR): Change scale to LogarithmicApprovedUser4:12 AMdo itUCT Agent4:12 AMThat proposal can’t run as you approved it — what it would do is no longer what I showed you — so nothing was changed — ask again and I’ll show you the current version."
+
+ ❯ src/agent/agentExcludedApproved.test.jsx:64:26
+     62|     expect(logged(m.board), `${ex} applied: ${transcript()}`).not.toCo…
+     63|     expect(logged(m.board), `the card ran in part: ${transcript()}`).t…
+     64|     expect(transcript()).toMatch(/excludes/)
+       |                          ^
+     65|   }, 40000)
+     66|   it.each(SCOPES)('control: a card WITHOUT the excluded chart (clicked…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/24]⎯
+
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log on this row except the TSLA one" (clicked ML, ML excluded), approved by typed "yes"
+AssertionError: expected 'UCT Agent4:12 AMHey, I’m UCT Agent. …' to match /excludes/
+
+- Expected: 
+/excludes/
+
++ Received: 
+"UCT Agent4:12 AMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?User4:12 AMlog on this row except the TSLA oneUCT Agent4:12 AMProposed changesChart (ML): Change scale to LogarithmicChart (MM): Change scale to LogarithmicChart (MR): Change scale to LogarithmicApprovedUser4:12 AMyesUCT Agent4:12 AMThat proposal can’t run as you approved it — what it would do is no longer what I showed you — so nothing was changed — ask again and I’ll show you the current version."
+
+ ❯ src/agent/agentExcludedApproved.test.jsx:64:26
+     62|     expect(logged(m.board), `${ex} applied: ${transcript()}`).not.toCo…
+     63|     expect(logged(m.board), `the card ran in part: ${transcript()}`).t…
+     64|     expect(transcript()).toMatch(/excludes/)
+       |                          ^
+     65|   }, 40000)
+     66|   it.each(SCOPES)('control: a card WITHOUT the excluded chart (clicked…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/24]⎯
+
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log on this row except the TSLA one" (clicked ML, ML excluded), approved by typed "apply it"
+AssertionError: expected 'UCT Agent4:12 AMHey, I’m UCT Agent. …' to match /excludes/
+
+- Expected: 
+/excludes/
+
++ Received: 
+"UCT Agent4:12 AMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?User4:13 AMlog on this row except the TSLA oneUCT Agent4:13 AMProposed changesChart (ML): Change scale to LogarithmicChart (MM): Change scale to LogarithmicChart (MR): Change scale to LogarithmicApprovedUser4:13 AMapply itUCT Agent4:13 AMThat proposal can’t run as you approved it — what it would do is no longer what I showed you — so nothing was changed — ask again and I’ll show you the current version."
+
+ ❯ src/agent/agentExcludedApproved.test.jsx:64:26
+     62|     expect(logged(m.board), `${ex} applied: ${transcript()}`).not.toCo…
+     63|     expect(logged(m.board), `the card ran in part: ${transcript()}`).t…
+     64|     expect(transcript()).toMatch(/excludes/)
+       |                          ^
+     65|   }, 40000)
+     66|   it.each(SCOPES)('control: a card WITHOUT the excluded chart (clicked…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/24]⎯
+
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log scale on this row except the TSLA one" (clicked ML, ML excluded), approved by the Apply button
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log scale on this row except the TSLA one" (clicked MM, ML excluded), approved by the Apply button
+AssertionError: expected 'UCT Agent4:13 AMHey, I’m UCT Agent. …' to match /excludes/
+
+- Expected: 
+/excludes/
+
++ Received: 
+"UCT Agent4:13 AMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?User4:13 AMlog scale on this row except the TSLA oneUCT Agent4:13 AMProposed changesChart (ML): Change scale to LogarithmicChart (MM): Change scale to LogarithmicChart (MR): Change scale to LogarithmicApprovedThat proposal can’t run as you approved it — what it would do is no longer what I showed you — so nothing was changed — ask again and I’ll show you the current version."
+
+ ❯ src/agent/agentExcludedApproved.test.jsx:64:26
+     62|     expect(logged(m.board), `${ex} applied: ${transcript()}`).not.toCo…
+     63|     expect(logged(m.board), `the card ran in part: ${transcript()}`).t…
+     64|     expect(transcript()).toMatch(/excludes/)
+       |                          ^
+     65|   }, 40000)
+     66|   it.each(SCOPES)('control: a card WITHOUT the excluded chart (clicked…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/24]⎯
+
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log scale on this row except the TSLA one" (clicked ML, ML excluded), approved by typed "do it"
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log scale on this row except the TSLA one" (clicked MM, ML excluded), approved by typed "do it"
+AssertionError: expected 'UCT Agent4:13 AMHey, I’m UCT Agent. …' to match /excludes/
+
+- Expected: 
+/excludes/
+
++ Received: 
+"UCT Agent4:13 AMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?User4:13 AMlog scale on this row except the TSLA oneUCT Agent4:13 AMProposed changesChart (ML): Change scale to LogarithmicChart (MM): Change scale to LogarithmicChart (MR): Change scale to LogarithmicApprovedUser4:13 AMdo itUCT Agent4:13 AMThat proposal can’t run as you approved it — what it would do is no longer what I showed you — so nothing was changed — ask again and I’ll show you the current version."
+
+ ❯ src/agent/agentExcludedApproved.test.jsx:64:26
+     62|     expect(logged(m.board), `${ex} applied: ${transcript()}`).not.toCo…
+     63|     expect(logged(m.board), `the card ran in part: ${transcript()}`).t…
+     64|     expect(transcript()).toMatch(/excludes/)
+       |                          ^
+     65|   }, 40000)
+     66|   it.each(SCOPES)('control: a card WITHOUT the excluded chart (clicked…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/24]⎯
+
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log scale on this row except the TSLA one" (clicked ML, ML excluded), approved by typed "yes"
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log scale on this row except the TSLA one" (clicked MM, ML excluded), approved by typed "yes"
+AssertionError: expected 'UCT Agent4:13 AMHey, I’m UCT Agent. …' to match /excludes/
+
+- Expected: 
+/excludes/
+
++ Received: 
+"UCT Agent4:13 AMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?User4:13 AMlog scale on this row except the TSLA oneUCT Agent4:13 AMProposed changesChart (ML): Change scale to LogarithmicChart (MM): Change scale to LogarithmicChart (MR): Change scale to LogarithmicApprovedUser4:13 AMyesUCT Agent4:13 AMThat proposal can’t run as you approved it — what it would do is no longer what I showed you — so nothing was changed — ask again and I’ll show you the current version."
+
+ ❯ src/agent/agentExcludedApproved.test.jsx:64:26
+     62|     expect(logged(m.board), `${ex} applied: ${transcript()}`).not.toCo…
+     63|     expect(logged(m.board), `the card ran in part: ${transcript()}`).t…
+     64|     expect(transcript()).toMatch(/excludes/)
+       |                          ^
+     65|   }, 40000)
+     66|   it.each(SCOPES)('control: a card WITHOUT the excluded chart (clicked…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/24]⎯
+
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log scale on this row except the TSLA one" (clicked ML, ML excluded), approved by typed "apply it"
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log scale on this row except the TSLA one" (clicked MM, ML excluded), approved by typed "apply it"
+AssertionError: expected 'UCT Agent4:13 AMHey, I’m UCT Agent. …' to match /excludes/
+
+- Expected: 
+/excludes/
+
++ Received: 
+"UCT Agent4:13 AMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?User4:13 AMlog scale on this row except the TSLA oneUCT Agent4:13 AMProposed changesChart (ML): Change scale to LogarithmicChart (MM): Change scale to LogarithmicChart (MR): Change scale to LogarithmicApprovedUser4:13 AMapply itUCT Agent4:13 AMThat proposal can’t run as you approved it — what it would do is no longer what I showed you — so nothing was changed — ask again and I’ll show you the current version."
+
+ ❯ src/agent/agentExcludedApproved.test.jsx:64:26
+     62|     expect(logged(m.board), `${ex} applied: ${transcript()}`).not.toCo…
+     63|     expect(logged(m.board), `the card ran in part: ${transcript()}`).t…
+     64|     expect(transcript()).toMatch(/excludes/)
+       |                          ^
+     65|   }, 40000)
+     66|   it.each(SCOPES)('control: a card WITHOUT the excluded chart (clicked…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/24]⎯
+
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log on this row except the TSLA one" (clicked MM, ML excluded), approved by the Apply button
+AssertionError: expected 'UCT Agent4:13 AMHey, I’m UCT Agent. …' to match /excludes/
+
+- Expected: 
+/excludes/
+
++ Received: 
+"UCT Agent4:13 AMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?User4:13 AMlog on this row except the TSLA oneUCT Agent4:13 AMProposed changesChart (ML): Change scale to LogarithmicChart (MM): Change scale to LogarithmicChart (MR): Change scale to LogarithmicApprovedThat proposal can’t run as you approved it — what it would do is no longer what I showed you — so nothing was changed — ask again and I’ll show you the current version."
+
+ ❯ src/agent/agentExcludedApproved.test.jsx:64:26
+     62|     expect(logged(m.board), `${ex} applied: ${transcript()}`).not.toCo…
+     63|     expect(logged(m.board), `the card ran in part: ${transcript()}`).t…
+     64|     expect(transcript()).toMatch(/excludes/)
+       |                          ^
+     65|   }, 40000)
+     66|   it.each(SCOPES)('control: a card WITHOUT the excluded chart (clicked…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/24]⎯
+
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log on this row except the TSLA one" (clicked MM, ML excluded), approved by typed "do it"
+AssertionError: expected 'UCT Agent4:13 AMHey, I’m UCT Agent. …' to match /excludes/
+
+- Expected: 
+/excludes/
+
++ Received: 
+"UCT Agent4:13 AMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?User4:13 AMlog on this row except the TSLA oneUCT Agent4:13 AMProposed changesChart (ML): Change scale to LogarithmicChart (MM): Change scale to LogarithmicChart (MR): Change scale to LogarithmicApprovedUser4:13 AMdo itUCT Agent4:13 AMThat proposal can’t run as you approved it — what it would do is no longer what I showed you — so nothing was changed — ask again and I’ll show you the current version."
+
+ ❯ src/agent/agentExcludedApproved.test.jsx:64:26
+     62|     expect(logged(m.board), `${ex} applied: ${transcript()}`).not.toCo…
+     63|     expect(logged(m.board), `the card ran in part: ${transcript()}`).t…
+     64|     expect(transcript()).toMatch(/excludes/)
+       |                          ^
+     65|   }, 40000)
+     66|   it.each(SCOPES)('control: a card WITHOUT the excluded chart (clicked…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/24]⎯
+
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log on this row except the TSLA one" (clicked MM, ML excluded), approved by typed "yes"
+AssertionError: expected 'UCT Agent4:13 AMHey, I’m UCT Agent. …' to match /excludes/
+
+- Expected: 
+/excludes/
+
++ Received: 
+"UCT Agent4:13 AMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?User4:13 AMlog on this row except the TSLA oneUCT Agent4:13 AMProposed changesChart (ML): Change scale to LogarithmicChart (MM): Change scale to LogarithmicChart (MR): Change scale to LogarithmicApprovedUser4:13 AMyesUCT Agent4:13 AMThat proposal can’t run as you approved it — what it would do is no longer what I showed you — so nothing was changed — ask again and I’ll show you the current version."
+
+ ❯ src/agent/agentExcludedApproved.test.jsx:64:26
+     62|     expect(logged(m.board), `${ex} applied: ${transcript()}`).not.toCo…
+     63|     expect(logged(m.board), `the card ran in part: ${transcript()}`).t…
+     64|     expect(transcript()).toMatch(/excludes/)
+       |                          ^
+     65|   }, 40000)
+     66|   it.each(SCOPES)('control: a card WITHOUT the excluded chart (clicked…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/24]⎯
+
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log on this row except the TSLA one" (clicked MM, ML excluded), approved by typed "apply it"
+AssertionError: expected 'UCT Agent4:13 AMHey, I’m UCT Agent. …' to match /excludes/
+
+- Expected: 
+/excludes/
+
++ Received: 
+"UCT Agent4:13 AMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?User4:13 AMlog on this row except the TSLA oneUCT Agent4:13 AMProposed changesChart (ML): Change scale to LogarithmicChart (MM): Change scale to LogarithmicChart (MR): Change scale to LogarithmicApprovedUser4:13 AMapply itUCT Agent4:13 AMThat proposal can’t run as you approved it — what it would do is no longer what I showed you — so nothing was changed — ask again and I’ll show you the current version."
+
+ ❯ src/agent/agentExcludedApproved.test.jsx:64:26
+     62|     expect(logged(m.board), `${ex} applied: ${transcript()}`).not.toCo…
+     63|     expect(logged(m.board), `the card ran in part: ${transcript()}`).t…
+     64|     expect(transcript()).toMatch(/excludes/)
+       |                          ^
+     65|   }, 40000)
+     66|   it.each(SCOPES)('control: a card WITHOUT the excluded chart (clicked…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/24]⎯
+
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log on this row except the TSLA one" (clicked BL, BM excluded), approved by the Apply button
+AssertionError: expected 'UCT Agent4:13 AMHey, I’m UCT Agent. …' to match /excludes/
+
+- Expected: 
+/excludes/
+
++ Received: 
+"UCT Agent4:13 AMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?User4:13 AMlog on this row except the TSLA oneUCT Agent4:13 AMProposed changesChart (BL): Change scale to LogarithmicChart (BM): Change scale to LogarithmicChart (BR): Change scale to LogarithmicApprovedThat proposal can’t run as you approved it — what it would do is no longer what I showed you — so nothing was changed — ask again and I’ll show you the current version."
+
+ ❯ src/agent/agentExcludedApproved.test.jsx:64:26
+     62|     expect(logged(m.board), `${ex} applied: ${transcript()}`).not.toCo…
+     63|     expect(logged(m.board), `the card ran in part: ${transcript()}`).t…
+     64|     expect(transcript()).toMatch(/excludes/)
+       |                          ^
+     65|   }, 40000)
+     66|   it.each(SCOPES)('control: a card WITHOUT the excluded chart (clicked…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/24]⎯
+
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log on this row except the TSLA one" (clicked BL, BM excluded), approved by typed "do it"
+AssertionError: expected 'UCT Agent4:13 AMHey, I’m UCT Agent. …' to match /excludes/
+
+- Expected: 
+/excludes/
+
++ Received: 
+"UCT Agent4:13 AMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?User4:13 AMlog on this row except the TSLA oneUCT Agent4:13 AMProposed changesChart (BL): Change scale to LogarithmicChart (BM): Change scale to LogarithmicChart (BR): Change scale to LogarithmicApprovedUser4:13 AMdo itUCT Agent4:13 AMThat proposal can’t run as you approved it — what it would do is no longer what I showed you — so nothing was changed — ask again and I’ll show you the current version."
+
+ ❯ src/agent/agentExcludedApproved.test.jsx:64:26
+     62|     expect(logged(m.board), `${ex} applied: ${transcript()}`).not.toCo…
+     63|     expect(logged(m.board), `the card ran in part: ${transcript()}`).t…
+     64|     expect(transcript()).toMatch(/excludes/)
+       |                          ^
+     65|   }, 40000)
+     66|   it.each(SCOPES)('control: a card WITHOUT the excluded chart (clicked…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/24]⎯
+
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log on this row except the TSLA one" (clicked BL, BM excluded), approved by typed "yes"
+AssertionError: expected 'UCT Agent4:13 AMHey, I’m UCT Agent. …' to match /excludes/
+
+- Expected: 
+/excludes/
+
++ Received: 
+"UCT Agent4:13 AMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?User4:13 AMlog on this row except the TSLA oneUCT Agent4:13 AMProposed changesChart (BL): Change scale to LogarithmicChart (BM): Change scale to LogarithmicChart (BR): Change scale to LogarithmicApprovedUser4:13 AMyesUCT Agent4:13 AMThat proposal can’t run as you approved it — what it would do is no longer what I showed you — so nothing was changed — ask again and I’ll show you the current version."
+
+ ❯ src/agent/agentExcludedApproved.test.jsx:64:26
+     62|     expect(logged(m.board), `${ex} applied: ${transcript()}`).not.toCo…
+     63|     expect(logged(m.board), `the card ran in part: ${transcript()}`).t…
+     64|     expect(transcript()).toMatch(/excludes/)
+       |                          ^
+     65|   }, 40000)
+     66|   it.each(SCOPES)('control: a card WITHOUT the excluded chart (clicked…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/24]⎯
+
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log on this row except the TSLA one" (clicked BL, BM excluded), approved by typed "apply it"
+AssertionError: expected 'UCT Agent4:13 AMHey, I’m UCT Agent. …' to match /excludes/
+
+- Expected: 
+/excludes/
+
++ Received: 
+"UCT Agent4:13 AMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?User4:13 AMlog on this row except the TSLA oneUCT Agent4:13 AMProposed changesChart (BL): Change scale to LogarithmicChart (BM): Change scale to LogarithmicChart (BR): Change scale to LogarithmicApprovedUser4:13 AMapply itUCT Agent4:13 AMThat proposal can’t run as you approved it — what it would do is no longer what I showed you — so nothing was changed — ask again and I’ll show you the current version."
+
+ ❯ src/agent/agentExcludedApproved.test.jsx:64:26
+     62|     expect(logged(m.board), `${ex} applied: ${transcript()}`).not.toCo…
+     63|     expect(logged(m.board), `the card ran in part: ${transcript()}`).t…
+     64|     expect(transcript()).toMatch(/excludes/)
+       |                          ^
+     65|   }, 40000)
+     66|   it.each(SCOPES)('control: a card WITHOUT the excluded chart (clicked…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/24]⎯
+
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log scale on this row except the TSLA one" (clicked BL, BM excluded), approved by the Apply button
+AssertionError: expected 'UCT Agent4:13 AMHey, I’m UCT Agent. …' to match /excludes/
+
+- Expected: 
+/excludes/
+
++ Received: 
+"UCT Agent4:13 AMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?User4:13 AMlog scale on this row except the TSLA oneUCT Agent4:13 AMProposed changesChart (BL): Change scale to LogarithmicChart (BM): Change scale to LogarithmicChart (BR): Change scale to LogarithmicApprovedThat proposal can’t run as you approved it — what it would do is no longer what I showed you — so nothing was changed — ask again and I’ll show you the current version."
+
+ ❯ src/agent/agentExcludedApproved.test.jsx:64:26
+     62|     expect(logged(m.board), `${ex} applied: ${transcript()}`).not.toCo…
+     63|     expect(logged(m.board), `the card ran in part: ${transcript()}`).t…
+     64|     expect(transcript()).toMatch(/excludes/)
+       |                          ^
+     65|   }, 40000)
+     66|   it.each(SCOPES)('control: a card WITHOUT the excluded chart (clicked…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/24]⎯
+
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log scale on this row except the TSLA one" (clicked BL, BM excluded), approved by typed "do it"
+AssertionError: expected 'UCT Agent4:13 AMHey, I’m UCT Agent. …' to match /excludes/
+
+- Expected: 
+/excludes/
+
++ Received: 
+"UCT Agent4:13 AMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?User4:13 AMlog scale on this row except the TSLA oneUCT Agent4:13 AMProposed changesChart (BL): Change scale to LogarithmicChart (BM): Change scale to LogarithmicChart (BR): Change scale to LogarithmicApprovedUser4:13 AMdo itUCT Agent4:13 AMThat proposal can’t run as you approved it — what it would do is no longer what I showed you — so nothing was changed — ask again and I’ll show you the current version."
+
+ ❯ src/agent/agentExcludedApproved.test.jsx:64:26
+     62|     expect(logged(m.board), `${ex} applied: ${transcript()}`).not.toCo…
+     63|     expect(logged(m.board), `the card ran in part: ${transcript()}`).t…
+     64|     expect(transcript()).toMatch(/excludes/)
+       |                          ^
+     65|   }, 40000)
+     66|   it.each(SCOPES)('control: a card WITHOUT the excluded chart (clicked…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/24]⎯
+
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log scale on this row except the TSLA one" (clicked BL, BM excluded), approved by typed "yes"
+AssertionError: expected 'UCT Agent4:13 AMHey, I’m UCT Agent. …' to match /excludes/
+
+- Expected: 
+/excludes/
+
++ Received: 
+"UCT Agent4:13 AMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?User4:13 AMlog scale on this row except the TSLA oneUCT Agent4:13 AMProposed changesChart (BL): Change scale to LogarithmicChart (BM): Change scale to LogarithmicChart (BR): Change scale to LogarithmicApprovedUser4:13 AMyesUCT Agent4:13 AMThat proposal can’t run as you approved it — what it would do is no longer what I showed you — so nothing was changed — ask again and I’ll show you the current version."
+
+ ❯ src/agent/agentExcludedApproved.test.jsx:64:26
+     62|     expect(logged(m.board), `${ex} applied: ${transcript()}`).not.toCo…
+     63|     expect(logged(m.board), `the card ran in part: ${transcript()}`).t…
+     64|     expect(transcript()).toMatch(/excludes/)
+       |                          ^
+     65|   }, 40000)
+     66|   it.each(SCOPES)('control: a card WITHOUT the excluded chart (clicked…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/24]⎯
+
+ FAIL  src/agent/agentExcludedApproved.test.jsx > an approved card that carries an excluded chart never runs > "log scale on this row except the TSLA one" (clicked BL, BM excluded), approved by typed "apply it"
+AssertionError: expected 'UCT Agent4:13 AMHey, I’m UCT Agent. …' to match /excludes/
+
+- Expected: 
+/excludes/
+
++ Received: 
+"UCT Agent4:13 AMHey, I’m UCT Agent. 👋Think of me as your personal, full-time trading assistant. I’m here to help you research, analyze, build, and manage your trading workflow—all in one place.Here’s what I can help you with:Research & Analyze — Explore stocks, market trends, technical setups, and price action.Scan & Discover — Find trading opportunities based on your own criteria.Build Indicators — Create and customize indicators using plain English.Develop & Backtest — Turn trading ideas into strategies and test them against historical data.Manage Your Workspace — Customize charts, layouts, watchlists, and settings.Monitor & Alert — Track stocks, market conditions, and important price levels.Review & Improve — Analyze your trades and uncover ways to improve your trading.You focus on trading. I’ll handle the heavy lifting.What can I help you with today?User4:13 AMlog scale on this row except the TSLA oneUCT Agent4:13 AMProposed changesChart (BL): Change scale to LogarithmicChart (BM): Change scale to LogarithmicChart (BR): Change scale to LogarithmicApprovedUser4:13 AMapply itUCT Agent4:13 AMThat proposal can’t run as you approved it — what it would do is no longer what I showed you — so nothing was changed — ask again and I’ll show you the current version."
+
+ ❯ src/agent/agentExcludedApproved.test.jsx:64:26
+     62|     expect(logged(m.board), `${ex} applied: ${transcript()}`).not.toCo…
+     63|     expect(logged(m.board), `the card ran in part: ${transcript()}`).t…
+     64|     expect(transcript()).toMatch(/excludes/)
+       |                          ^
+     65|   }, 40000)
+     66|   it.each(SCOPES)('control: a card WITHOUT the excluded chart (clicked…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/24]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  24 failed | 3 passed (27)
+   Start at  04:12:49
+   Duration  35.64s (transform 4.34s, setup 260ms, import 5.51s, tests 29.36s, environment 393ms)
+

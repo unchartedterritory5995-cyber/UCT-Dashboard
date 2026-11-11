@@ -80,7 +80,19 @@ export const GROUPS = [
       // temporary reachability; replace with description-driven discovery
       /\b(?:range|show|frame|zoom)\b.*\b(?:3m|6m|ytd|1y|5y|year to date|(?:one|1|last|past|five|5) years?|(?:three|3|six|6) months)\b|\bsince (?:the )?ipo\b/,
       /\breset (?:the |this |my |chart |chart's )*(?:view|zoom)\b|\bdefault view\b/,
-      /\b(?:hide|show|bring back|turn (?:off|on)|unhide)\b.*\b(?:all|every)\b.*\b(?:indicators?|moving averages?|mas|overlays)\b/] },
+      /\b(?:hide|show|bring back|turn (?:off|on)|unhide)\b.*\b(?:all|every)\b.*\b(?:indicators?|moving averages?|mas|overlays)\b/,
+      // C1-127: OPENING a chart's own Chart Settings dialog (chartSetup.openSettings) — an open verb and the chart's settings
+      /\b(?:open|show|bring up|pull up|pop up|pop open|launch|display)\b.*\b(?:chart'?s? settings|settings (?:dialog|panel|window|modal)|settings (?:for|of|on) (?:the |this |that |my )?(?:\w+ )?(?:\w+ )?chart)\b/] },
+  // C1-035 / C1-037 / C1-040: chartSetup.compareGroup in its OWN one-action group, WORDS-ONLY (as #1027's watchlistShow), so the chartSetup group keeps
+  // master's size: a 19th chartSetup action made it outsize the lists group, and the per-request budget then cut chartSetup
+  // for a template message ("add the Swing Setup indicator template to this chart", corpus indicatorTemplate.apply).
+  { id: 'compareGroups', title: 'Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['chartSetup.compareGroup'],
+    words: [
+      // C1-035 / C1-037 / C1-040: a whole group compared, removed or re-scaled ("compare against the semis group", "remove the semis overlay").
+      // The verb (compare… / overlay / remove / drop / take off / clear) must govern the group noun within six words: a bare
+      // "vs … themes" or a plural "overlays … group" (indicator talk) never reaches this group.
+      /\b(?:compar\w*|overlay|remove|drop|take off|clear)\s+(?:[\w’'-]+\s+){0,6}?(?:groups?|sectors?|industr(?:y|ies)|themes?)\b|\b(?:groups?|sectors?|industr(?:y|ies)|themes?|semis)\b.*\b(?:overlays?|scale|comparisons?)\b/] },
   // ⭐ live test 2026-10-28: N tickers as N equal charts (reuse, add, re-tile — one change, one Undo) — its OWN group
   // (one action), so neither the NL-1 core nor the workspace group grows: core + workspace is exactly the budget.
   { id: 'chartGrid', title: 'Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells', domains: ['chartGrid'], fillLast: true,
@@ -92,16 +104,15 @@ export const GROUPS = [
       MULTI_CHARTS, EQUAL_SIZE, GRID_CELLS] },
   // ⭐ PHASE 3: two widgets trading places, a chart duplicated into half its cell — their OWN small group (as chartGrid), so
   // neither the NL-1 core nor the workspace group grows past the per-request budget
-  { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; Period Sort (rank stocks, themes, sectors or industries between two dates; dock the ranking)', domains: ['board', 'periodSort'], fillLast: true,
+  { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale', domains: ['board'], fillLast: true,
     // W1-B B-05: widget.setOption here by action name — the workspace group was exactly at the NL-1 reroute budget
-    actions: ['widget.setOption', 'widget.readOptions', 'widget.sendToJournal'],
-    // C3-205..207 (pl-exec6): Tools → Custom-Period Sort (periodSort.run / periodSort.dock) by DOMAIN, here — not a group of its
-    // own (a new group changes every unmatched message's group list), not the NL-1 core's screener group (sent on every request).
-    // Words: the tool's name; a rank / sort said over DATES (a month-day, M/D or an ISO day after from / since / between); a dock of it.
+    // pl-exec4 (C1-025/C1-032): a chart's ◀ / ▶ step and Auto-scale here by action name too — chartSetup at 18 would pack
+    // after the lists group and be cut beside indicators + workspace; a new group would change every unmatched routing
+    actions: ['widget.setOption', 'widget.readOptions', 'widget.sendToJournal', 'chartSetup.stepBars', 'chartSetup.autoScale'],
     words: [/\b(swap|switch places|trade places|exchange)\b/, /\b(duplicate|clone)\b/, /\b(a |another )?(copy|duplicate) of\b/, /\bmove\b.*\bto the (left|right|top|bottom)\b/, /\bother side\b/,
-      /\bperiod[\s-]?sort\b|\bcustom[\s-]period\b/,
-      /\b(?:rank|ranking|sort)\b.*\b(?:from|since|between)\b.*(?:\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.? \d{1,2}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\b)/,
-      /\bdock\b.*\b(?:ranking|sort|sorted results)\b/] },
+      // "go back 5 bars", "nudge it forward a bar", "auto scale", "fit the price axis"
+      /\b(?:step|go|move|scroll|nudge|shift|pan)\b.*\b(?:back|backwards?|forwards?|ahead|left|right)\b.*\bbars?\b|\b(?:back|forwards?|ahead)\b.*\b(?:a|one|\d{1,3}|two|three|four|five|ten) (?:more )?bars?\b/,
+      /\bauto[- ]?scal\w*\b|\b(?:re-?)?fit\b.*\bprice (?:scale|axis)\b|\bprice (?:scale|axis)\b.*\b(?:fit|auto)\b/] },
   { id: 'workspace', title: 'Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)', domains: ['widget'],
     // CG-14 / CG-16 (corpus #769): "get rid of the AMD chart", "give me new charts for AAPL and MSFT" (widget.addCharts — the
     // existing charts stay; chartGrid.set only with a count, grid or equal-size words, or a replace)
@@ -242,7 +253,7 @@ export const GROUPS = [
   // W2-B2: `history.afterEvent` too ("how has X behaved after …", "what happens after …")
   { id: 'data', title: 'Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)', domains: ['stock', 'news', 'research', 'history'],
     // CG-21 (corpus #774): "news" — not the News WIDGET ("add a news widget")
-    words: [/\bnews\b(?! (?:widget|panel|tab|window)s?\b)/, /\b(headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sector|industry|market cap|float|why is|what does .+ do|what'?s driving|what is driving|off (its|the) (52[\s-]?week )?highs?)\b/,
+    words: [/\bnews\b(?! (?:widget|panel|tab|window)s?\b)/, /\b(headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sectors?|industry|market cap|float|why is|what does .+ do|what'?s driving|what is driving|off (its|the) (52[\s-]?week )?highs?)\b/,
       /\b(how (has|did|does) \S+ (behaved?|do|done|perform(ed)?|react(ed)?|trade[d]?) after|what (happens|happened) (to|with) \S+ after|after .*\b(gaps?|gapped|cross(es|ed)?)\b)\b/,
       // PKG2: an event study said another way ("in the weeks after gapping up 8%", "after 20-day breakouts", "after new 50-day highs")
       /\b(?:after|following) .*\b(?:gapping|gaps? (?:up|down)|breakouts?|break(?:s|ing)? out|new \d{1,3}[- ]?(?:day|week|session) (?:closing )?highs?)\b/,
@@ -299,6 +310,23 @@ export const GROUPS = [
       // W2 (CG-9): "put my layout back", "put the charts back"
       /\bput (?:my|the) (?:layout|board|charts?|workspace|widgets) back\b/,
       /\btake (?:it|that|this|them|those|everything|all (?:of )?(?:that|it|this)) (?:all )?back\b|\btake back (?:that|what (?:you|u)|the last|my last|your last|those changes|that change|everything|whatever (?:you|u))\b/] },
+  // watchlist group A (pl-exec): what ONE Watchlist widget shows — its own, UCT's prebuilt, community or Flagged lists, or back to
+  // its picker. Its OWN one-action group by action name, WORDS-ONLY (never a filler: the lists group and every request keep their size)
+  // AUDIT #1027 (NL-1 first-call coverage, corpus.json): the size rule above holds for EVERY action this PR adds. NL-1 sends
+  // core 37 + lists 17 = 54 of its 55 (nl1/selection.js), so one more action in `lists` cost the requests that need lists beside
+  // another 18-action group ("…put the top 10 in a new list": workspace won the tie). watchlist.arrangeColumns acts on ONE Watchlist
+  // widget's own view (a list-view op, like showList), so it is in this group, not in lists. And "on my watchlist" is the ADD idiom
+  // ("put tsla on my watchlist": watchlist.add), so "on" names the widget only with its position or the word widget; a list is
+  // shown IN a watchlist.
+  { id: 'watchlistShow', title: 'What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget',
+    domains: [], actions: ['watchlist.showList', 'watchlist.exportList', 'watchlist.arrangeColumns'], fillLast: true, wordsOnly: true,
+    words: [/\b(?:list\s+)?picker\b/, /\b(?:prebuilt|community|public|flagged|uct['’]s)\b.*\b(?:lists?|watch ?lists?|widget|tickers)\b|\b(?:lists?|watch ?lists?)\b.*\b(?:prebuilt|community|flagged)\b/,
+      /\b(?:switch|change|put|show|open|load)\b.*\bwatch ?list(?:\s+widget)?\b.*\bto\b|\b(?:in|into)\s+(?:my|the|this)\s+(?:left |right |top |bottom |other )?watch ?list\b|\bon\s+(?:my|the|this)\s+(?:(?:left|right|top|bottom|other)\s+watch ?list\b|watch ?list\s+widget\b)/,
+      // group C: a column moved (the header drag) or its width set (the gridline) — a column word beside a place or a width
+      /\b(?:move|drag|reorder)\b.*\bcolumns?\b|\bcolumns?\b.*\b(?:to the (?:left|right)|before|after|ahead of)\b|\b(?:wider|narrower|widen|narrow|shrink|resize|width)\b.*\bcolumns?\b|\bcolumns?\b.*\b(?:wider|narrower|width|\d+\s*(?:px|pixels?))\b/,
+      /\b(?:red|blue|green|yellow|orange|purple|pink)\s+(?:tags?|tag list)\b/,
+      // group D: a list out of the widget (the list menu's Copy / Export)
+      /\b(?:copy|export|download|save)\b.*\b(?:lists?|watch ?lists?|tickers)\b|\b(?:csv|excel|xlsx|clipboard)\b/] },
   // ⭐ PHASE 2 Workstream B: EXPLAIN a term or feature, SHOW ME where a control is — both change nothing
   { id: 'guide', title: 'Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing', domains: ['guide'],
     // (show-me words only: an explanation question is the model's to answer, as before — it may reroute to this group)
@@ -309,6 +337,17 @@ export const GROUPS = [
     // review B1: EMPTY here — capabilities/coach.js arms COACH_ROUTE_WORDS only while the coach capabilities are
     // registered, so on a dark server routing is byte-identical to the base (a coach word never narrows the catalog)
     words: [] },
+  // C3-205..207 (pl-exec6, #1082): Tools → Custom-Period Sort (periodSort.run / periodSort.dock) in its OWN two-action group,
+  // WORDS-ONLY (as compareGroups / watchlistShow), so boardEdit and every other group stay character-identical to master:
+  // in boardEdit (by domain) it changed v2's lexical scores and its fill, and 5 first calls lost the action they needed.
+  // Words need context: the tool's name; a rank / sort said over DATES (a month-day, M/D or an ISO day after from / since /
+  // between); a Dock of the ranking. LAST in the catalog: the server names at most turn.MAX_GROUPS (24) groups and master
+  // sends 24, so until that cap is raised (#1089) this group, not one of master's, is the one left unnamed.
+  { id: 'periodSort', title: 'Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget',
+    domains: [], actions: ['periodSort.run', 'periodSort.dock'], fillLast: true, wordsOnly: true,
+    words: [/\bperiod[\s-]?sort\b|\bcustom[\s-]period\b/,
+      /\b(?:rank|ranking|sort)\b.*\b(?:from|since|between)\b.*(?:\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.? \d{1,2}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\b)/,
+      /\bdock\b.*\b(?:ranking|sort|sorted results)\b/] },
 ]
 
 const SYMBOL_VERB = /\b(switch|change|put|show|pull up|load|open|chart)\b/
@@ -366,7 +405,11 @@ function namedGroups(q, names) {
       if (w.length >= 3 && text.includes(` ${w} `)) { out.add(id); break }
     }
   }
-  if (names?.widgetTypes?.length && controlledWidgetTypes(q, names.widgetTypes, surfaceWord).length) out.add('boardEdit')
+  // #1082 re-merge: a docked Period Sort widget's controls (Refresh) never take a date, so "period sort sectors, Oct 1 to Oct 30"
+  // (dates beside the tool's name) asks for a NEW run (the periodSort group), not that widget: it alone does not bring boardEdit
+  const runsPeriodSort = /\bperiod[\s-]?sort\b|\bcustom[\s-]period\b/.test(q)
+    && /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.? \d{1,2}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\b/.test(q)
+  if (names?.widgetTypes?.length && controlledWidgetTypes(q, names.widgetTypes, surfaceWord).some(t => !(runsPeriodSort && t === 'periodsort'))) out.add('boardEdit')
   if (names?.widgetItems?.length && itemNamedTypes(q, names.widgetItems).length) out.add('boardEdit')
   return out
 }
@@ -437,7 +480,10 @@ export function selectGroups(message, { pendingActions = [], recentActions = [],
   // recognised, every group is a candidate in catalog order (charts first — the page's own
   // controls), so a catalog bigger than one request still sends as much as fits, not just the
   // always-on group; the rest are named and the model can ask for them.
-  const own = matched ? GROUPS.map(g => g.id).filter(id => hits.has(id)) : [...addOnlyHits, ...soft, ...GROUPS.map(g => g.id)]
+  // `wordsOnly` (Lead 2026-11-09): a NICHE group is sent only when the words name it — never as filler for a message nothing
+  // recognised (or a knowledge-only one), so adding one never displaces what such a request packs
+  const filler = GROUPS.filter(g => !g.wordsOnly || hits.has(g.id)).map(g => g.id)
+  const own = matched ? GROUPS.map(g => g.id).filter(id => hits.has(id)) : [...addOnlyHits, ...soft, ...filler]
   const priority = [...new Set([...always, ...followUps, ...own])]
   return { selected: GROUPS.map(g => g.id).filter(id => priority.includes(id)), priority, matched, soft }
 }

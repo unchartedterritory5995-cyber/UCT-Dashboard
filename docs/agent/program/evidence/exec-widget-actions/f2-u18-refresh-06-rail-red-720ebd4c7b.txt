@@ -1,0 +1,100 @@
+node_modules LinkType/Target: Junction -> C:\w\pl-mc-fw\app\node_modules
+
+ RUN  v4.0.18 C:/w/pl-widget/app
+
+ ❯ src/agent/whichWidget.rules.rail.test.js (21 tests | 2 failed) 10ms
+     ✓ "put Leaders in the NVDA watchlist" (plan picked the left one): aimed at the one linked to NVDA, no question 2ms
+     ✓ the plan already on it: acted as planned, no question 0ms
+     ✓ control: a ticker neither widget is linked to names none: asked 0ms
+     ✓ "put Leaders in the left SPY watchlist" (plan picked the right one): aimed left, no question 0ms
+     ✓ "put Leaders in the SPY watchlist": the ticker names neither: asked 0ms
+     ✓ words undefined with two Watchlist widgets: asked, never the planner's pick 0ms
+     ✓ words null with two Watchlist widgets: asked, never the planner's pick 0ms
+     ✓ words  with two Watchlist widgets: asked, never the planner's pick 0ms
+     ✓ control: one Watchlist widget and no words: nothing to ask 0ms
+     ✓ approved, words name none: runs on the widget it carries (no question) 0ms
+     ✓ control: the same words, not approved: asked 0ms
+     ✓ "hide the logos, but don't touch the watchlist" (plan: the Watchlist): refused in words; no other widget is asked about or aimed at 1ms
+     × the refusal says it won't guess; a widget the words never name (the Scanner) is not named in it 3ms
+     × the words name a widget of another type ("…, just reload the scanner"): the refusal names it too, and still won't guess 0ms
+     ✓ control: the same op without the negation acts on the Watchlist, no question 0ms
+     ✓ plan widget R, words name none: the one switchable widget, no question 0ms
+     ✓ plan widget null, words name none: the one switchable widget, no question 0ms
+     ✓ control: with no `can` (a setOption on the same board), both are candidates: asked 0ms
+     ✓ the view of Swing (the plan is right): acted on, no question 1ms
+     ✓ the plan aimed at Momentum: re-aimed at Swing, no question 0ms
+     ✓ control: "the right one" side by side is still a place 0ms
+ ❯ src/agent/agentWhichWidget.rail.test.jsx (7 tests | 1 failed) 7169ms
+     ✓ "refresh the scanner" (the plan picked the top one): asked which, and neither door is pressed  1088ms
+     ✓ "don't touch the period sort, just reload the scanner", planned on the Period Sort: the Period Sort gets NO refetch, nothing is claimed  996ms
+     × u18-refresh-06: the refusal names the Period Sort AND the Scanner, and says it won't guess 961ms
+     ✓ u18-show-05 "put Long Term on the Swing watchlist widget": the Swing widget shows Long Term; the other is untouched; no question  1037ms
+     ✓ u18-export-04 "export the Swing watchlist as a csv file": the Swing widget's own Export CSV, no question  1033ms
+     ✓ "refresh the IPOs scanner" with two Scanners: that one only  1028ms
+     ✓ "refresh the scanner" with ONE Scanner (and a Period Sort): it acts  1026ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent/agentWhichWidget.rail.test.jsx > (d) u18-refresh-06: an EXCLUDED widget is never acted on > u18-refresh-06: the refusal names the Period Sort AND the Scanner, and says it won't guess
+AssertionError: expected 'UCT Agent10:51 PMYou asked me to leav…' to match /Scanner/
+
+- Expected: 
+/Scanner/
+
++ Received: 
+"UCT Agent10:51 PMYou asked me to leave the Period Sort alone, so I didn’t touch it. Nothing changed."
+
+ ❯ src/agent/agentWhichWidget.rail.test.jsx:75:17
+     73|     expect(s.calls, out).toEqual([])
+     74|     expect(out).toMatch(/leave the Period Sort alone/)
+     75|     expect(out).toMatch(/Scanner/)
+       |                 ^
+     76|     expect(out).toMatch(/won.t guess/)
+     77|     expect(out).toMatch(/Nothing changed\./)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/agent/whichWidget.rules.rail.test.js > NEVER ACROSS TYPES: a widget set aside that is the only one of its type is refused, never re-aimed at another type > the refusal says it won't guess; a widget the words never name (the Scanner) is not named in it
+AssertionError: expected 'You asked me to leave the Watchlist a…' to match /won.t guess/
+
+- Expected: 
+/won.t guess/
+
++ Received: 
+"You asked me to leave the Watchlist alone, so I didn’t touch it. Nothing changed."
+
+ ❯ src/agent/whichWidget.rules.rail.test.js:74:23
+     72|   it('the refusal says it won\'t guess; a widget the words never name …
+     73|     const r = whichWidget(logos, H, 'hide the logos, but don\'t touch …
+     74|     expect(r?.refuse).toMatch(/won.t guess/)
+       |                       ^
+     75|     expect(r?.refuse).not.toMatch(/Scanner/)
+     76|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/agent/whichWidget.rules.rail.test.js > NEVER ACROSS TYPES: a widget set aside that is the only one of its type is refused, never re-aimed at another type > the words name a widget of another type ("…, just reload the scanner"): the refusal names it too, and still won't guess
+AssertionError: expected 'You asked me to leave the Watchlist a…' to match /Scanner/
+
+- Expected: 
+/Scanner/
+
++ Received: 
+"You asked me to leave the Watchlist alone, so I didn’t touch it. Nothing changed."
+
+ ❯ src/agent/whichWidget.rules.rail.test.js:80:23
+     78|     const r = whichWidget(logos, H, 'don\'t touch the watchlist, just …
+     79|     expect(r?.refuse).toMatch(/leave the Watchlist alone/)
+     80|     expect(r?.refuse).toMatch(/Scanner/)
+       |                       ^
+     81|     expect(r?.refuse).toMatch(/won.t guess/)
+     82|     expect(r.args).toBeUndefined()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  3 failed | 25 passed (28)
+   Start at  22:51:41
+   Duration  12.93s (transform 4.53s, setup 507ms, import 5.79s, tests 7.18s, environment 767ms)
+

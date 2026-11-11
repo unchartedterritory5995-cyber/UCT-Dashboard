@@ -31,8 +31,8 @@ _GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layo
              "indicatorTemplate": "chartSetup",
              # Wave 3 (2026-11-03): the coach's own fillLast group (registered only while UCT_AGENT_COACH is on)
              "coach": "coach", "journal": "coach", "calendar": "calendar",
-             # C3-205..207 (pl-exec6): Tools → Custom-Period Sort, by domain in boardEdit (app/src/agent/routing.js)
-             "periodSort": "boardEdit"}
+             # C3-205..207 (pl-exec6): Tools → Custom-Period Sort, its own words-only group (app/src/agent/routing.js)
+             "periodSort": "periodSort"}
 #: membership by ACTION NAME (routing.js `actions`), ahead of the domain — hotfix 2026-11-03: agent.undo's own group
 _GROUP_BY_ACTION = {"agent.undo": "undo", "indicatorTemplate.list": "chartSetup", "indicatorTemplate.apply": "chartSetup",
                     "indicatorTemplate.save": "chartSetup", "indicatorTemplate.delete": "chartSetup"}
