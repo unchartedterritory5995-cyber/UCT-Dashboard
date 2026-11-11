@@ -199,3 +199,36 @@ describe('the mount in App.jsx', () => {
     expect(code).not.toMatch(/useContext\(/)
   })
 })
+
+describe('telemetry site events', () => {
+  const eventsBridge = () => makeBridge({ capabilities: ['window-state', 'before-quit', 'site-events'], reportEvent: vi.fn() })
+
+  it('reports signed_in once a member is signed in, in the main window', async () => {
+    const bridge = eventsBridge()
+    window.uctDesktop = bridge
+    render(<DesktopBridgeSync />)
+    await act(async () => {})
+    expect(bridge.reportEvent).not.toHaveBeenCalled()
+    await act(async () => { publishPrefsUser('u1') })
+    expect(bridge.reportEvent).toHaveBeenCalledWith('signed_in')
+  })
+
+  it('a pop-out window (it has an opener) never reports', async () => {
+    const bridge = eventsBridge()
+    window.uctDesktop = bridge
+    window.opener = {}
+    publishPrefsUser('u1')
+    render(<DesktopBridgeSync />)
+    await act(async () => {})
+    expect(bridge.reportEvent).not.toHaveBeenCalled()
+  })
+
+  it('an older shell without the capability is never called', async () => {
+    const bridge = makeBridge({ reportEvent: vi.fn() })
+    window.uctDesktop = bridge
+    publishPrefsUser('u1')
+    render(<DesktopBridgeSync />)
+    await act(async () => {})
+    expect(bridge.reportEvent).not.toHaveBeenCalled()
+  })
+})
