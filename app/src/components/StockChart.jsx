@@ -1,7 +1,8 @@
 // app/src/components/StockChart.jsx — TradingView Lightweight Charts v5 wrapper
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
-import { computeBarTime, toChartTime, fromChartTime, isOnSixtyMinGrid, seriesCacheTf, barsSessionQuery, barsGridQuery } from './chart/barTime'
+import { computeBarTime, toChartTime, fromChartTime, isOnSixtyMinGrid, seriesCacheTf, barsSessionQuery, barsGridQuery, sixtyMinGridFor, etMinuteOfDay, rthCloseMinuteOf, RTH_OPEN_MIN } from './chart/barTime'
+import { composeDevelopingTail } from './chart/developingTail'
 import { liveStreamSession } from './chart/liveBuckets'
 import { foldOffGridBars } from './chart/offGridBars'
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
@@ -241,7 +242,7 @@ import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStor
 import { _packStillIngesting, joinPendingBars, setPrefetchShowExtended } from '../utils/prefetchBars'
 import useRealtimeBars from '../hooks/useRealtimeBars'
 import * as realtimeCandle from '../lib/realtimeCandle'
-import { mergePushBar, reconcileWithServerTail, foldPrice, mergeRegistryMinute, isCompleteOhlc, LIVE_PERIOD_SECONDS } from '../lib/liveBarMerge'
+import { mergePushBar, reconcileWithServerTail, foldPrice, mergeRegistryMinute, isCompleteOhlc, LIVE_PERIOD_SECONDS, provisionalOpen } from '../lib/liveBarMerge'
 import * as barsStreamManager from '../lib/barsStreamManager'
 import { publishChartReadout } from '../lib/chartReadoutStore'
 import { shouldApplyRange, rangeFitsBars, rangeBarsEnd, viewMostlyBars } from '../pages/charts/grid/rangeGuard'
@@ -1366,6 +1367,16 @@ function rangeDescribesOldExtent(oldRange, oldCount, newCount) {
 // a CONSTANT fraction (LAST_CANDLE_POS) of the plot width, showing the timeframe's
 // default history. Shared by the initial framing, the snap-back safety guard, and
 // the right-click "Reset view" so all three land on the exact same window.
+// How long a timeframe-switch hold (see `_tfSwitchHold`) keeps the previous frame before the
+// loading skeleton is shown over it. UX only — the hold itself ends when the server answers.
+const TF_SWITCH_HOLD_SKELETON_MS = 1200
+
+// RTH window test for a unix-`t` intraday bar (half-day aware) — the view filter for a mem source.
+function _inRthWindow(t) {
+  const m = etMinuteOfDay(t)
+  return m >= RTH_OPEN_MIN && m < rthCloseMinuteOf(t)
+}
+
 function computeDefaultLogicalRange(barsLen, tf, { dailyDefaultBars = null, leftBarPad = 0, rightPadBars = 3, visibleBarsOverride = null, plotWidthPx = null, rightReserve = 0 } = {}) {
   // visibleBarsOverride wins on ANY timeframe (the Sunday Scan hourly export
   // wants a wider window than the interactive default); dailyDefaultBars stays
@@ -1547,7 +1558,7 @@ import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
 import { memPeek, memPut, memPeekSavedAt } from '../utils/barsMemCache'
 import { timingStart, timingMark, timingMarkPaint, timingMarkEmpty } from '../utils/intradayTiming'
-import { etMinutesOfUnix, classifyIntradayTail, isCurrentEnoughForPaint, isDailyTodayCloseProvisionalForPaint, isDailyTodayBarStaleForPaint, dailyMissingSessionsForPaint, isTradingSessionTodayET, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
+import { etMinutesOfUnix, classifyIntradayTail, isCurrentEnoughForPaint, expectedFormingBar, isDailyTodayCloseProvisionalForPaint, isDailyTodayBarStaleForPaint, dailyMissingSessionsForPaint, isTradingSessionTodayET, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
 import { createTailPollState, nextTailPollMs, tailRetriesExhausted, watchdogGapMs, intradayDedupMs, liveBadgeState } from '../utils/intradayTailPoll'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
@@ -5235,6 +5246,11 @@ export default function StockChart({
   const vertMarginsRef = useRef(null) // Captured proportional candle placement {top,bottom}; null = default headroom
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
   const liveBarRef = useRef(null)     // Developing bar OHLCV tracked tick-by-tick (survives setData)
+  const heldPushRef = useRef(null)      // { key: `${sym}|${tf}`, frames: Map<bar.t, frame> } — push frames held during a tf-switch hold
+  const tfSwitchHoldRef = useRef(false)  // render → updateChart: a tf-switch hold is active (keep the old series)
+  const liveBarSeriesRef = useRef(null) // `${sym}|${tf}` the held liveBarRef was seeded for (see the updateChart seed)
+  const _onScreenSrcRef = useRef(null)   // { sym, tf, ext, bars } — the intraday series last on screen
+  const _switchSrcRef = useRef(null)     // the outgoing tf's series captured at a tf switch (see _switchSourceFor)
   const lastServerCloseRef = useRef(null)  // Last close from CLEAN server bars — poison-proof live-tick baseline
   // ── colorByNetChange (TC2000/StockCharts coloring) ── Track the closes needed to
   // color the DEVELOPING bar on live ticks: netPrevCloseRef = close of the bar BEFORE
@@ -9457,7 +9473,7 @@ export default function StockChart({
       ? spliceDeepLeftOfFresh(idbBars, data.bars) : null),
     [_netMatches, data, idbBars, _splitDeepSpliceable, _idbFresh, _splitDeepPaintable],
   )
-  const bars = _isCustomTf
+  const _barsChosen = _isCustomTf
     ? customBars   // custom TF: the resampled base bars (null until the base loads)
     : _overrideArr
     ? barsOverride
@@ -9512,6 +9528,100 @@ export default function StockChart({
                                 // rather than a "Failed to load" over usable bars.
                                 || _staleContext
                                 || ((error && isIntraday) ? (_idbHistoryContext || (_memSound ? _memBarsRaw : null) || null) : null)))))))))
+  // ⭐ RIGHT EDGE COMPLETE FROM MEMORY (W-O 2026-11-11 — chart/developingTail.js). A LOCAL
+  // layer (mem / IDB / behind-cache context) ends where it was cached: its last bar was still
+  // forming then, and buckets after it are missing. On a timeframe switch the timeframe the
+  // member was JUST on is in memory, current, with its live developing bar — rebuild every
+  // missing/partial target bucket from it (or from a current finer mem entry), so the FIRST
+  // frame is complete through now: the developing bar has its true bucket-to-date O/H/L/C
+  // (no wick-less candle) and the series already ends at the developing bucket (the framing
+  // anchor is final at first paint — no right-edge insertion when the network lands).
+  // Network answers are never touched (the server is the authority once it has answered).
+  // The outgoing timeframe's on-screen series (+ its live developing bar), captured ONCE on the
+  // render that switches timeframe. Invalidation: it belongs to (sym, view, target tf) only —
+  // a symbol/view change or the next timeframe switch replaces it, and every use re-proves it
+  // is current (composeDevelopingTail refuses a source that does not reach the forming bucket).
+  const _switchSourceFor = (s0, tf0, ext0) => {
+    const on = _onScreenSrcRef.current
+    const cur = _switchSrcRef.current
+    if (on && on.sym === s0 && on.ext === ext0 && on.tf !== tf0 && !(cur && cur.forTf === tf0 && cur.from === on)) {
+      let bars0 = on.bars
+      const lb = lastBarRef.current
+      const lt = (lb && lastBarSymRef.current === s0 && Number.isFinite(lb.time)) ? fromChartTime(lb.time) : null
+      const tail = bars0[bars0.length - 1]
+      if (lt != null && isCompleteOhlc(lb) && tail && lt >= tail.t) {
+        const live = { t: lt, o: lb.open, h: lb.high, l: lb.low, c: lb.close, v: Number(lb.volume) || 0 }
+        bars0 = lt === tail.t ? bars0.slice(0, -1).concat([{ ...live, v: Math.max(live.v, Number(tail.v) || 0) }]) : bars0.concat([live])
+      }
+      _switchSrcRef.current = { forTf: tf0, sym: s0, ext: ext0, from: on, src: { tf: on.tf, bars: bars0 } }
+    }
+    const sw = _switchSrcRef.current
+    return (sw && sw.forTf === tf0 && sw.sym === s0 && sw.ext === ext0) ? sw.src : null
+  }
+  // Invalidation (F3): once the server has answered THIS key the switch is over — the source is
+  // retired (kept as a tombstone on the same `from` so it is not re-captured from that frame).
+  {
+    const sw = _switchSrcRef.current
+    if (sw && sw.src && sw.forTf === resolvedTf && data && (!data.ticker || data.ticker === _symU)) {
+      _switchSrcRef.current = { ...sw, src: null }
+    }
+  }
+  const _localLayer = !!_barsChosen && isIntraday && !_isCustomTf && !_hasOverride && !replayCutoff
+    && (_barsChosen === _memBars || _barsChosen === _staleContext || _barsChosen === idbBars
+      || _barsChosen === _idbProvisional || _barsChosen === _idbHistoryContext || _barsChosen === _memBarsRaw)
+  const _switchSrc = _localLayer ? _switchSourceFor(sym, resolvedTf, showExtended) : null
+  const _memSrc1 = _localLayer && Number(resolvedTf) > 1 ? memPeek(sym, '1') : null
+  const _memSrc5 = _localLayer && Number(resolvedTf) > 5 ? memPeek(sym, '5') : null
+  const _memSrc15 = _localLayer && Number(resolvedTf) > 15 ? memPeek(sym, '15') : null
+  const _memSrc30 = _localLayer && Number(resolvedTf) > 30 ? memPeek(sym, '30') : null
+  const _composedBars = useMemo(() => {
+    if (!_localLayer) return null
+    const session = showExtended ? 'extended' : 'rth'
+    const nowMs = Date.now()
+    if (expectedFormingBar(resolvedTf, nowMs, { session }) == null) return null   // nothing forming → nothing to complete
+    const rth = (b) => !showExtended ? _inRthWindow(b.t) : true
+    const sources = []
+    if (_switchSrc) sources.push(_switchSrc)
+    for (const [f, m] of [['1', _memSrc1], ['5', _memSrc5], ['15', _memSrc15], ['30', _memSrc30]]) {
+      if (Array.isArray(m) && m.length) sources.push({ tf: f, bars: showExtended ? m : m.filter(rth) })
+    }
+    if (!sources.length) return null
+    const out = composeDevelopingTail(_barsChosen, resolvedTf, sources, {
+      nowSec: nowMs / 1000, grid: resolvedTf === '60' ? sixtyMinGridFor(session) : 'session',
+    })
+    return out === _barsChosen ? null : out
+  }, [_localLayer, _barsChosen, _switchSrc, _memSrc1, _memSrc5, _memSrc15, _memSrc30, resolvedTf, showExtended])  // eslint-disable-line react-hooks/exhaustive-deps
+  // ⭐ A TIMEFRAME SWITCH NEVER PAINTS AN INCOMPLETE RIGHT EDGE (TC2000 rule). When the local
+  // layer could not be completed from memory (switching to a FINER tf: the developing bucket's
+  // open/high/low exist only on the server), the first frame of the new tf would be a cache
+  // whose right edge is missing or partial — then the network answer inserts/reshapes it and
+  // the frame jumps. Keep the PREVIOUS timeframe's frame on screen instead until the server
+  // answers (no skeleton: `_tfSwitchHold`), so the first new-tf frame is complete and final.
+  // Only a same-symbol, same-view timeframe switch with a frame already on screen holds; a
+  // symbol switch keeps the instant context paint, and an error releases the hold.
+  const _onScr = _onScreenSrcRef.current
+  // Hold ONLY when the local tail is provably incomplete (F1b): it does not reach the bucket
+  // forming now, or it was saved before that bucket began (its developing bar is missing). A
+  // cache that holds the forming bucket and was written during it paints at once, as before.
+  const _localTailComplete = (() => {
+    if (!_localLayer) return true
+    const forming = expectedFormingBar(resolvedTf, Date.now(), { session: showExtended ? 'extended' : 'rth' })
+    if (forming == null) return true
+    const lt = _barsChosen[_barsChosen.length - 1]?.t
+    if (typeof lt !== 'number' || lt < forming) return false
+    const savedAt = (_barsChosen === _memBars || _barsChosen === _memBarsRaw) ? memPeekSavedAt(sym, _barsTf)
+      : (_barsChosen === idbBars ? idbSavedAtRef.current : null)
+    return Number.isFinite(savedAt) && savedAt / 1000 >= forming
+  })()
+  // `!data`: only until the server has answered THIS key (any answer — even an empty delta —
+  // ends the hold, so it can never outlive the request).
+  // Also when there is NOTHING local for the new tf: the previous frame stays rather than a
+  // black chart for the round trip (review F1).
+  const _tfSwitchHold = isIntraday && !_isCustomTf && !_hasOverride && !replayCutoff && !error && !data
+    && (_barsChosen == null || (_localLayer && !_composedBars && !_localTailComplete))
+    && !!_onScr && _onScr.sym === sym && _onScr.ext === showExtended && _onScr.tf !== resolvedTf
+  tfSwitchHoldRef.current = _tfSwitchHold
+  const bars = _tfSwitchHold ? null : (_composedBars || _barsChosen)
   // ── SCOPE OF THE STALE-TODAY REPAIR ────────────────────────────────────────
   // ⚰️ THE REPAIR WAS UNCONDITIONAL, AND THAT WALKED THE CLOSE BACKWARDS. It rewrites
   // today's slot from the freshest LOCAL source and runs on every evaluation of the
@@ -9593,9 +9703,11 @@ export default function StockChart({
   const [showSkeleton, setShowSkeleton] = useState(false)
   useEffect(() => {
     if (!loading) { setShowSkeleton(false); return undefined }
-    const id = setTimeout(() => setShowSkeleton(true), 150)
+    // A timeframe-switch hold keeps the previous frame on screen; the skeleton appears only
+    // if the server is genuinely slow (a cold fetch), never for a warm ~0.3s answer.
+    const id = setTimeout(() => setShowSkeleton(true), _tfSwitchHold ? TF_SWITCH_HOLD_SKELETON_MS : 150)
     return () => clearTimeout(id)
-  }, [loading])
+  }, [loading, _tfSwitchHold])
   // Basis-mismatch purge: once a re-based (wrong-basis) IDB entry is detected, the
   // render already falls back to the fresh network (via _idbFresh=false), but the
   // poisoned entry lingers and would feed a `since=` delta on the next open. Drop it
@@ -10119,6 +10231,11 @@ export default function StockChart({
   // current bars without re-publishing the API on every data poll.
   const filteredBarsRef = useRef(null)
   filteredBarsRef.current = filteredBars
+  // What THIS timeframe shows, for the next timeframe switch to complete its right edge from.
+  if (isIntraday && !_isCustomTf && !_hasOverride && !replayCutoff && !replayMode && Array.isArray(filteredBars) && filteredBars.length
+      && typeof filteredBars[filteredBars.length - 1]?.t === 'number') {
+    _onScreenSrcRef.current = { sym, tf: resolvedTf, ext: showExtended, bars: filteredBars }
+  }
 
   // ⭐⭐ CALCULATION-TIMEFRAME FRAMES (2026-09-28). The canonical bars each higher
   // calculation timeframe on this chart needs — one `secondaryBars` window per
@@ -11776,6 +11893,7 @@ export default function StockChart({
     lastBarRef.current = null
     lastBarSymRef.current = null   // developing bar no longer belongs to any sym until updateChart re-seeds it
     liveBarRef.current = null
+    liveBarSeriesRef.current = null
     barStartVolRef.current = 0
     latestLiveRef.current = null
   }, [sym, resolvedTf, _barsTf])
@@ -11960,8 +12078,11 @@ export default function StockChart({
         // candle's range to the current print (lastBarRef can lag liveBarRef by a bucket).
         const _lbA = liveBarRef.current
         const _keepA = isIntradayTf && _lbA && _lbA.time === barTime && isCompleteOhlc(_lbA)
+        // Intraday: a quote is not the bucket's first trade, so the open we draw from it is
+        // PROVISIONAL (lib/liveBarMerge I6) — the push seed / fetched bucket replaces it.
         liveBarRef.current = _keepA
           ? { ...foldPrice(_lbA, price, null, resolvedTf).bar }
+          : isIntradayTf ? provisionalOpen(barTime, price)
           : { time: barTime, open: openPrice, high: highPrice, low: lowPrice, close: price }
         barStartVolRef.current = liveData.volume || 0
         // D/W/M: the developing bar spans the whole day, so the live cumulative DAY
@@ -12084,6 +12205,21 @@ export default function StockChart({
     // here too (belt-and-suspenders against any future pool regression).
     if (data?.sym && String(data.sym).toUpperCase() !== String(sym).toUpperCase()) return
     if (data?.tf != null && String(data.tf) !== String(resolvedTf)) return
+    // ⛔ A TIMEFRAME-SWITCH HOLD OWNS THE CANVAS. The series on screen is still the OUTGOING
+    // tf's, and the developing-bar refs were reset for the new one — a push frame (the new
+    // tf's subscribe seed often lands before REST) would be planted as a "new" bar on the
+    // held old series (a 5m candle beside the 60m bar). Buffer the latest frame per bucket
+    // for THIS series and fold it once the new tf's real paint lands (effect after updateChart).
+    if (tfSwitchHoldRef.current) {
+      if (data?.bar && Number.isFinite(data.bar.t)) {
+        const k = `${sym}|${resolvedTf}`
+        if (!heldPushRef.current || heldPushRef.current.key !== k) heldPushRef.current = { key: k, frames: new Map() }
+        const fr = heldPushRef.current.frames
+        fr.delete(data.bar.t); fr.set(data.bar.t, data)
+        while (fr.size > 4) fr.delete(fr.keys().next().value)
+      }
+      return
+    }
     // Writer B of the single-writer invariant (index @ barsPushActiveRef decl) — B IS the
     // push writer, so it paints ONLY when push is AUTHORITATIVE (delivering). In the transient
     // connected-but-not-yet-delivering window (the first bar; a flap near the recency boundary)
@@ -12528,6 +12664,9 @@ export default function StockChart({
     // Without this, switching tickers leaves the OLD ticker's candles drawn
     // until the new SWR fetch returns — that's the "blended data" the user
     // sees flipping between charts.
+    // A timeframe-switch HOLD (see `_tfSwitchHold`) keeps the PREVIOUS timeframe's series on
+    // screen untouched until the new tf's complete answer lands — never the black frame below.
+    if (!filteredBars?.length && tfSwitchHoldRef.current) return
     if (!filteredBars?.length) {
       // ⭐ COUNTED, NOT REASONED ABOUT. This arm is the black frame: every series
       // is emptied, so whatever the member was looking at is gone and nothing has
@@ -13489,6 +13628,15 @@ export default function StockChart({
       // fuse when this != their sym (the cross-ticker developing-bar contamination guard).
       const _lbOwnerSym = lastBarSymRef.current   // who the held developing bar belonged to
       lastBarSymRef.current = sym
+      // ⛔ THE HELD DEVELOPING BAR BELONGS TO ONE SERIES (sym + tf), NOT JUST ONE SYMBOL.
+      // The reset effect below the writers is PASSIVE, so on a timeframe switch this seed
+      // runs first while liveBarRef still holds the OUTGOING tf's developing bar. Same sym,
+      // so every sym guard passed, and reconcile kept it as "one bucket ahead" — the old
+      // tf's candle (e.g. a 15m 12:45 bar, off the 30m grid) was re-topped onto the new
+      // tf's series: a bogus extra right-edge candle that shifted the frame and vanished on
+      // the next setData. A bar held for another series is no bar at all here.
+      if (liveBarSeriesRef.current !== `${sym}|${resolvedTf}`) liveBarRef.current = null
+      liveBarSeriesRef.current = `${sym}|${resolvedTf}`
       // Trustworthy baseline for live-tick sanity gates: server bars are
       // validated/quarantined upstream and proven clean. Unlike
       // lastBarRef (which a bad tick can bake bad, then good ticks get
@@ -16004,6 +16152,19 @@ export default function StockChart({
   useEffect(() => {
     updateChart()
   }, [updateChart])
+  // Fold push frames buffered during a timeframe-switch hold (see onRealtimeBar) onto the new
+  // tf's first real paint — the subscribe seed is never lost. Runs after the updateChart effect
+  // above (same commit), so the developing-bar refs are already seeded from the painted series.
+  useEffect(() => {
+    if (_tfSwitchHold) return
+    const h = heldPushRef.current
+    if (!h) return
+    heldPushRef.current = null
+    if (h.key !== `${sym}|${resolvedTf}` || !filteredBars?.length) return
+    for (const d of [...h.frames.values()].sort((a, b) => a.bar.t - b.bar.t)) {
+      try { onRealtimeBar(d) } catch { /* a refused frame — the next push / poll carries it */ }
+    }
+  }, [updateChart, _tfSwitchHold])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // A priceFormat can arrive AFTER the price series exists: ChartRender decides a breadth
   // count's whole-number format only once its bars land, and the chart was already built on
