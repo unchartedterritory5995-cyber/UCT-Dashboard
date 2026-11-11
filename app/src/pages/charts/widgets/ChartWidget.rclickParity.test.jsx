@@ -1,5 +1,5 @@
 import { render, act, screen, cleanup, waitFor } from '@testing-library/react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { vi, test, expect, beforeEach } from 'vitest'
 import { WorkspaceContext } from '../WorkspaceContext'
@@ -53,8 +53,8 @@ registerBuiltins()
 
 let api
 let optsLog
-let where
-function Where() { where = useLocation(); return null }
+const loc = { current: null }
+function Where() { const l = useLocation(); useEffect(() => { loc.current = l }); return null }
 function Wrap({ initialOpts }) {
   const [opts, setOpts] = useState(initialOpts)
   const [groupSyms, setGroupSyms] = useState({ A: 'NVDA', B: 'AMD', C: null, D: null })
@@ -104,7 +104,7 @@ function openMenu() {
 }
 const chartPlan = (host, action) => planOps(collectTargets(host, ['chart']), [{ action, target: 'w1', args: {} }], {}, { surface: 'charts' })
 
-beforeEach(() => { optsLog = []; sent.calls = []; captured.props = null; where = null })
+beforeEach(() => { optsLog = []; sent.calls = []; captured.props = null; loc.current = null })
 
 test('C1-176: widget.sendToJournal sends exactly what the right-click "Send to Journal" sends, to the same default place', async () => {
   render(<Wrap initialOpts={{ tf: 'D' }} />)
@@ -141,12 +141,12 @@ test('C1-178: chartMenu.askAi reaches the menu\'s own Ask AI opener: the same /r
   render(<Wrap initialOpts={{ tf: 'D' }} />)
   const menu = openMenu()
   act(() => { menu.querySelector('[data-menu-id="ask-ai"]').click() })
-  const viaMenu = `${where.pathname}${where.search}`
+  const viaMenu = `${loc.current.pathname}${loc.current.search}`
   expect(viaMenu).toBe('/research/NVDA?section=ai')
   // back on Charts; the Agent's turn
   cleanup()
   render(<Wrap initialOpts={{ tf: 'D' }} />)
-  expect(`${where.pathname}`).toBe('/charts')
+  expect(`${loc.current.pathname}`).toBe('/charts')
   const host = hostOf()
   expect(host.charts.read('w1')).toMatchObject({ canAskAi: true, symbol: 'NVDA' })
   const plan = chartPlan(host, 'chartMenu.askAi')
@@ -154,8 +154,8 @@ test('C1-178: chartMenu.askAi reaches the menu\'s own Ask AI opener: the same /r
   expect(plan.lines.join(' ')).toMatch(/Ask AI about NVDA/)
   const res = await offAct(() => commitPlan(host, plan))
   expect(res.ok).toBe(true)
-  expect(where.pathname).toBe('/charts')                   // the receipt first: the page has not changed yet
-  await waitFor(() => expect(`${where.pathname}${where.search}`).toBe(viaMenu), { timeout: 3000 })
+  expect(loc.current.pathname).toBe('/charts')                   // the receipt first: the page has not changed yet
+  await waitFor(() => expect(`${loc.current.pathname}${loc.current.search}`).toBe(viaMenu), { timeout: 3000 })
   expect(optsLog).toEqual([])                              // nothing on the chart was written
   expect(getCapability('chartMenu.askAi').undo).toBe('none')
 })

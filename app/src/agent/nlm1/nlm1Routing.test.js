@@ -153,8 +153,7 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     chartMenu: ['ask ai about this chart', 'open the ai on the nvda chart', 'reset the watermark on this chart', 'put the watermark back where it was'],
   }
   // family C: "ask" / "watermark" / "journal" / "header" alone never select chartMenu (the words are used elsewhere)
-  it.each(['make the watermark bigger', 'hide the watermark', 'send this chart to my journal', 'ask about nvda earnings', 'show the header', 'reset the view'])
-  ('"%s": not chartMenu\'s words', (msg) => expect(wordsSelect('chartMenu', msg)).toBe(false))
+  it.each(['make the watermark bigger', 'hide the watermark', 'send this chart to my journal', 'ask about nvda earnings', 'show the header', 'reset the view'])('"%s": not chartMenu\'s words', (msg) => expect(wordsSelect('chartMenu', msg)).toBe(false))
   it('there is a words-only group, and every one has phrases of its own words here', () => {
     expect(wordsOnly.length).toBeGreaterThan(0)
     for (const g of wordsOnly) expect(OWN_WORDS[g.id]?.length, `${g.id}: add phrases of its own words to OWN_WORDS`).toBeGreaterThan(0)

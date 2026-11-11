@@ -113,9 +113,7 @@ describe('chartMenu: contract and routing', () => {
     expect(groupOfAction('chartMenu.resetWatermark')).toBe('chartMenu')
   })
   it.each(['ask ai about this chart', 'open the ai on nvda', 'ask the ai about the stock on this chart', 'reset the watermark',
-    'put the watermark back where it was', 'recenter the watermark on the left chart', 'move the watermark back to the default spot'])
-  ('selected by its own words: "%s"', (t) => expect(wordsSelect('chartMenu', t)).toBe(true))
+    'put the watermark back where it was', 'recenter the watermark on the left chart', 'move the watermark back to the default spot'])('selected by its own words: "%s"', (t) => expect(wordsSelect('chartMenu', t)).toBe(true))
   it.each(['make the watermark bigger', 'hide the watermark', 'send this chart to my journal', 'ask about nvda earnings',
-    'what does the ai search widget say', 'reset the view', 'show the header', 'is this a good setup', 'add the rsi'])
-  ('NEGATIVE: not its words: "%s"', (t) => expect(wordsSelect('chartMenu', t)).toBe(false))
+    'what does the ai search widget say', 'reset the view', 'show the header', 'is this a good setup', 'add the rsi'])('NEGATIVE: not its words: "%s"', (t) => expect(wordsSelect('chartMenu', t)).toBe(false))
 })
