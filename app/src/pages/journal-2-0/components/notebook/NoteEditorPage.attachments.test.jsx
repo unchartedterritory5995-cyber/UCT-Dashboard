@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
@@ -143,7 +143,8 @@ describe('NoteEditorPage — Wave I live attachment authoring', () => {
     expect(chip.closest('a').getAttribute('download')).toBe('report.pdf')  // confirms the exact hazard this test guards
 
     fireEvent.click(chip)
-    expect(screen.getByRole('dialog', { name: 'Preview of report.pdf' })).toBeInTheDocument()
+    // The preview is its own chunk (first-open bytes, perf-budgets.md 2026-11-10): it lands after the press.
+    expect(await screen.findByRole('dialog', { name: 'Preview of report.pdf' })).toBeInTheDocument()
   })
 
   it('clicking a non-PDF AttachmentChip does nothing special (no preview Sheet)', async () => {
@@ -161,6 +162,9 @@ describe('NoteEditorPage — Wave I live attachment authoring', () => {
     fireEvent.change(input, { target: { files: [new File(['a,b'], 'data.csv', { type: 'text/csv' })] } })
     const chip = await screen.findByText('data.csv')
     fireEvent.click(chip)
+    // Let a (wrongly) opened preview's lazy chunk land before asserting it is absent, or this passes vacuously.
+    const { sourceSheetLoaders } = await import('./NoteEditorPage')
+    await act(async () => { await sourceSheetLoaders.documentPreview(); await new Promise((r) => setTimeout(r, 20)) })
     expect(screen.queryByRole('dialog', { name: 'Preview of data.csv' })).not.toBeInTheDocument()
   })
 

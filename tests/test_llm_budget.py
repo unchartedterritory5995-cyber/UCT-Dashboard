@@ -143,3 +143,42 @@ def test_budget_endpoints(env):
     assert c.delete("/api/admin/llm-usage/budgets", params={"door": BACKGROUND_DOOR}).json() == {"deleted": True}
     summary = c.get("/api/admin/llm-usage/summary?days=1").json()
     assert any(b["door"] == "*" for b in summary["budgets"])
+
+
+# ── daily digest ─────────────────────────────────────────────────────────────
+
+def _spend_on(door, usd, day_iso, model="claude-sonnet-5-5", kind="sync", ok=True):
+    llm_usage.record(door=door, model=model, cost_usd=usd, kind=kind, ok=ok, at=f"{day_iso}T17:00:00+00:00")
+
+
+def test_digest_ranks_features_splits_segments_and_compares_to_yesterday(env):
+    _spend_on(BACKGROUND_DOOR, 3.0, "2026-11-09")
+    _spend_on(BACKGROUND_DOOR, 6.0, "2026-11-10")
+    _spend_on(MEMBER_DOOR, 2.0, "2026-11-10", model="claude-opus-5-5")
+    _spend_on("morning-wire/morning_wire_engine.py", 1.0, "2026-11-10", kind="batch")
+    _spend_on("api/services/never_listed.py", 0.5, "2026-11-10", ok=False)
+    llm_usage.flush()
+    d = llm_budget.digest_data("2026-11-10")
+    assert d["total"] == pytest.approx(9.5) and d["prev_total"] == pytest.approx(3.0)
+    assert [x["door"] for x in d["doors"]][:2] == [BACKGROUND_DOOR, MEMBER_DOOR]
+    assert d["segments"] == pytest.approx({"background": 6.0, "member": 2.0, "outside site": 1.0, "unlisted": 0.5})
+    assert d["batch_usd"] == pytest.approx(1.0) and d["failed_usd"] == pytest.approx(0.5)
+    text = llm_budget.digest_text(d)
+    assert "$9.50" in text and "yesterday $3.00 (+217%)" in text
+    assert "ai_search_dossier: $6.00 (63%" in text and "+100% vs yday" in text
+    assert "NEW vs yday" in text and "/admin/ai-spend" in text
+
+
+def test_digest_posts_once_per_day_and_can_be_switched_off(env, monkeypatch):
+    _spend_on(BACKGROUND_DOOR, 1.0, "2026-11-10")
+    llm_usage.flush()
+    sent = []
+    assert llm_budget.digest("2026-11-10", post=lambda t: sent.append(t) or True)
+    assert llm_budget.digest("2026-11-10", post=lambda t: sent.append(t) or True) is None
+    assert len(sent) == 1
+    # a failed post is retried on the next run rather than marked done
+    assert llm_budget.digest("2026-11-11", post=lambda t: False) is None
+    assert llm_budget.digest("2026-11-11", post=lambda t: sent.append(t) or True)
+    monkeypatch.setenv("LLM_SPEND_DIGEST", "0")
+    assert llm_budget.digest("2026-11-12", post=lambda t: sent.append(t) or True) is None
+    assert len(sent) == 2
