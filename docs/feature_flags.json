@@ -3592,10 +3592,10 @@
       ],
       "owner": "pine parity programme",
       "owner_decision": "owner ruling 2026-11-01: saved scripts pick up engine accuracy fixes automatically (PR #610); default ON. Same day the owner set '0' on Railway web as a HOLD before the build-arg fix (recorded in e2fe145fcb on fix/pine-610-build-flag, which never reached master). The hold is lifted by REMOVING the variable (unset = ON) once F-15 (#617) is live: F-15 is the defect that bites once the upgrade is ON (an Agent delete -> Undo restored a saved Pine indicator without its stored script and engine stamp, and reported it confirmed, so that indicator silently stopped picking up engine upgrades).",
-      "railway_value": "'0' on web (owner hold since 2026-11-01); removal follows this PR's deploy (#617, F-15). Unset on every other service.",
-      "baked_value": "'0' expected in the live bundle (set on web and declared as a Dockerfile.web ARG by f7c55f0383); NOT re-measured by #617 - measure the served JS after the variable is removed",
-      "baked_measured_on": "not measured since the 2026-11-01 hold; the 2026-11-01 entry was read from Dockerfile.web's ARG list, not the served bundle",
-      "last_changed": "2026-11-01 (owner set '0' on web as a hold; ledger corrected 2026-11-10 in #617)",
+      "railway_value": "unset on every service. The owner removed the web hold on 2026-11-11 after F-15 (#617) went live (`railway variable delete` then `railway redeploy`, deploy 86cea38b SUCCESS 12:59Z).",
+      "baked_value": "'' (empty string), which reads as ON. Dockerfile.web's ENV line turns an unset ARG into an empty string, so the bundle inlines `VITE_SAVED_SCRIPT_UPGRADE:\"\"`, not an absent key. The single reader does `(x ?? '1') !== '0'` and `'' !== '0'` is true. Before the removal the served bundle read `VITE_SAVED_SCRIPT_UPGRADE:\"0\"`.",
+      "baked_measured_on": "2026-11-11, from the served main bundle (/assets/index-*.js) before (index-DZQQI9J1.js: \"0\") and after (index-Bre-B7a9.js: \"\") the redeploy",
+      "last_changed": "2026-11-11 (owner removed the web hold after #617 went live; the hold was set 2026-11-01)",
       "note": "Kill switch for saved-script auto-upgrade, read in ONE place: app/src/components/chart/builder/memberPane/savedScriptUpgrade.js::savedScriptUpgradeEnabled as `(env.VITE_SAVED_SCRIPT_UPGRADE ?? '1') !== '0'`. ON (unset): a saved Pine doc whose meta.engineVersion is older than SCRIPT_ENGINE_VERSION and that carries its stored source is re-translated after first paint and written back once. Rollback: set the variable to 0 on web and redeploy (build constant). Declared as a build ARG in Dockerfile.web because Railway drops undeclared build args silently."
     }
   },

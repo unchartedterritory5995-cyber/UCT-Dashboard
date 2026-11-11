@@ -10,7 +10,7 @@
 // session." Outside `hasCoverage`'s covered years this degrades EXACTLY to the
 // prior weekday-only/16:00 behavior — never a guess, never a throw.
 import { hasCoverage, holidayOn, earlyCloseOn } from '../lib/marketClock/nyseCalendar'
-import { bucketStartUnix as _sharedBucketStartUnix, RTH_OPEN_MIN as _VIEW_RTH_OPEN, rthCloseMinuteOf as _viewRthClose } from '../components/chart/barTime'
+import { bucketStartUnix as _sharedBucketStartUnix, isRthBar } from '../components/chart/barTime'
 
 const _pad = (n) => String(n).padStart(2, '0')
 
@@ -148,7 +148,7 @@ export function expectedDailyTailForPaintET(nowMs = Date.now()) {
   const mins = nowET.getHours() * 60 + nowET.getMinutes()
   // RTH (weekday 09:30–16:00 ET): the server carries today's developing bar, so the
   // expected paint tail is TODAY.
-  if (dow >= 1 && dow <= 5 && mins >= 570 && mins < 960) {
+  if (dow >= 1 && dow <= 5 && mins >= 570 && mins < _effectiveCloseMinutesET(nowET)) {
     const p = (n) => String(n).padStart(2, '0')
     return `${nowET.getFullYear()}-${p(nowET.getMonth() + 1)}-${p(nowET.getDate())}`
   }
@@ -593,8 +593,7 @@ export function viewTailT(bars, lastT, { session = 'rth' } = {}) {
   for (let i = bars.length - 1, n = 0; i >= 0 && n < 2000; i--, n++) {
     const t = bars[i]?.t
     if (typeof t !== 'number') continue
-    const m = etMinutesOfUnix(t)
-    if (m >= _VIEW_RTH_OPEN && m < _viewRthClose(t)) return t
+    if (isRthBar(t)) return t
   }
   return lastT
 }
@@ -661,7 +660,7 @@ export function classifyIntradayTail(lastTUnixSec, tf) {
     const tfMin = Math.max(1, Number(tf) || 5)
     const tailD = new Date(new Date(lastTUnixSec * 1000).toLocaleString('en-US', { timeZone: 'America/New_York' }))
     const tailMin = tailD.getHours() * 60 + tailD.getMinutes()
-    if (tailMin < 960 - tfMin) return 'behind'
+    if (tailMin < _effectiveCloseMinutesET(tailD) - tfMin) return 'behind'
   }
   return 'fresh'
 }

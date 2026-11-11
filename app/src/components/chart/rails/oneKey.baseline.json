@@ -4,7 +4,7 @@
     "(or lower n) when a site moves onto its owner; never add one. `at` is informational. See rails/README.md."
   ],
   "owners": {
-    "keyBuilders": "utils/barsMemCache.js + utils/barsIDB.js (cacheKey) -> P1: server-issued key",
+    "keyBuilders": "data/barStore/types.js (BarStore key owner) + utils/barsMemCache.js + utils/barsIDB.js (cacheKey) -> P1: server-issued key",
     "barsUrls": "utils/prefetchBars.js (_url) -> P2: BarStore",
     "freshness": "utils/marketSession.js"
   },

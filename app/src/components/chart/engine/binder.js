@@ -116,27 +116,18 @@ import { serverDeclares } from './serverCompute'
 import { setObjectRenderDrops, renderDroppedCount, renderHeldCount } from './objectRenderNotice'
 import { runtimeWithheldWhy, stoppedRunSentence, STOPPED_KEY } from './ast/objectLoss'
 import { ThinVolumeSeries } from '../thinVolumeSeries'
+import { isRthBar } from '../barTime'
 
 /** RTH filter for an intraday FRAME on a chart that hides extended hours — the same
- *  09:30–16:00 ET window `StockChart.sessionBars` applies to the chart's own bars, so
+ *  regular-session window (09:30 to the day's close, half-days included: barTime.isRthBar)
+ *  `StockChart.sessionBars` applies to the chart's own bars, so
  *  a 1h RSI on an RTH 5m chart is computed from the same session a 1h RTH chart
  *  would show. Memoised per frame array. */
 const _rthMemo = new WeakMap()
-const _rthFmt = (() => {
-  try {
-    return new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit' })
-  } catch { return null }
-})()
 function rthFrameBars(fbars) {
   let hit = _rthMemo.get(fbars)
   if (hit) return hit
-  hit = fbars.filter((b) => {
-    if (!b || typeof b.t !== 'number') return true
-    if (!_rthFmt) return true
-    const [h, m] = _rthFmt.format(new Date(b.t * 1000)).split(':').map(Number)
-    const mins = (h % 24) * 60 + m
-    return mins >= 570 && mins < 960
-  })
+  hit = fbars.filter((b) => !b || typeof b.t !== 'number' || isRthBar(b.t))
   _rthMemo.set(fbars, hit)
   return hit
 }
