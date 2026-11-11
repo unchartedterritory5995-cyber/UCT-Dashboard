@@ -17,7 +17,8 @@ import { memHas as _memHasRaw, memPut as _memPutRaw, memPeek as _memPeekRaw, mem
 import { seriesCacheTf, barsSessionQuery, barsGridQuery } from '../components/chart/barTime'
 import { setViewShowExtended } from './viewSession'
 import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor } from './barsBackfill'
-import { isDailyTailStale, isDailyTodayCloseProvisionalForPaint, isCurrentEnoughForPaint, classifyIntradayTail } from './marketSession'
+import { isDailyTailStale, isDailyTodayCloseProvisionalForPaint, dailyCachePaintVerdict, isCurrentEnoughForPaint, classifyIntradayTail } from './marketSession'
+import { getTodayBar, todayPackUsable } from '../lib/todayPackClient'
 
 // ⛔ D10 (2026-11-10): a non-OK body is NOT data. `r.json()` on a 404/429/500 handed the
 // error body ({detail:…}) to the caller as if it were bars. Both fetchers now throw the
@@ -462,6 +463,8 @@ const _chartLaneInflight = new Map()
  */
 export async function prepareDailyForDisplay(sym, tf, { signal } = {}) {
   if (!sym || !tf) return 'error'
+  // Enter on a typed text: its in-flight warm now belongs to this chart — never abort it.
+  _keepTypedWarm(_url(sym, tf, false))
   try {
     const have = await idbGet(sym, tf)
     if (have?.bars?.length) {
@@ -470,7 +473,8 @@ export async function prepareDailyForDisplay(sym, tf, { signal } = {}) {
     }
     if (signal?.aborted) return 'error'
     const url = _url(sym, tf, false)
-    let req = _chartLaneInflight.get(url)
+    // A type-to-search warm of this exact URL already in flight is JOINED, never repeated.
+    let req = _chartLaneInflight.get(url) || _pendingBars.get(url) || null
     if (!req) {
       req = _chartLaneFetch(url, signal).finally(() => { _chartLaneInflight.delete(url) })
       _chartLaneInflight.set(url, req)
@@ -493,6 +497,105 @@ export async function prepareDailyForDisplay(sym, tf, { signal } = {}) {
   } catch {
     return 'error'
   }
+}
+
+// ── TYPE-TO-SEARCH WARM (D/W/M) ──────────────────────────────────────────────
+// ⭐ (2026-11-11) THE SWITCH IS PREPARED WHILE THE MEMBER IS STILL TYPING.
+//   1. The symbol's cached set is promoted IndexedDB → memory, so on Enter the handoff
+//      finds it synchronously and commits in the same tick (no IDB read after Enter).
+//   2. When that cache could NOT be the first frame on its own — a daily chart paints
+//      its cache only if today's bar can be supplied locally (`_typedCachePaints`, the
+//      chart's paint authority restated) — the chart's own URL is fetched now: a name
+//      never opened, the today-pack aged past its 90 s seed ceiling after a pause, a
+//      tail sessions behind. By Enter the authoritative set is usually in memory
+//      (stamped NOW, which the paint authority accepts); an answer still in flight is
+//      JOINED by the handoff (`prepareDailyForDisplay`) and by the chart's SWR key.
+// ⚠️ COST. No request when the cache will paint, nor for uncached text on a browser that
+// holds the pack (a prefix, not a ticker); otherwise one shallow request
+// (~14 KB, a mem/sqlite hit server-side) per settled text, deduped per URL, skipped
+// while a network-fresh set is in memory. D/W/M only: intraday has `prepareForDisplay`.
+const TYPED_FRESH_MS = 60_000
+
+/** Would the chart paint this cached set as its FIRST frame without the network? Asks the
+ *  chart's own authority (`dailyCachePaintVerdict`); the seed it can count on before Enter is
+ *  the today-pack (the live-store seed is per-symbol and usually absent for a typed name —
+ *  missing it only costs one unneeded request, never a wrong frame). */
+export function _typedCachePaints(sym, tf, lastT, savedAt) {
+  if (String(tf) !== 'D') return true                       // W/M paint their cache as is
+  if (typeof lastT !== 'string' || lastT.length < 10) return false
+  let hasSeed = false
+  try { hasSeed = todayPackUsable() && !!getTodayBar(sym) } catch { hasSeed = false }
+  return dailyCachePaintVerdict(lastT, savedAt, { hasSeed }) === 'ok'
+}
+
+function _packStamped() {
+  try { return !!localStorage.getItem('barspack.version') } catch { return false }
+}
+
+// ONE typed warm is live at a time: the latest text. A newer text ABORTS the previous warm's
+// request unless the handoff has already joined it (`kept` — the member pressed Enter on it).
+let _typedLatest = null   // { url, ctl, kept }
+function _typedSuperseded(url) { return !_typedLatest || _typedLatest.url !== url }
+/** @internal the handoff joined this URL's warm: it now belongs to a chart, never abort it. */
+function _keepTypedWarm(url) { if (_typedLatest && _typedLatest.url === url) _typedLatest.kept = true }
+/** @internal test seam */
+export function __resetTypedWarm() { _typedLatest = null }
+
+export function warmTypedSymbol(sym, tf = 'D') {
+  if (!sym || !tf || !['D', 'W', 'M'].includes(String(tf))) return null
+  const S = String(sym).trim().toUpperCase()
+  if (!/^[A-Z0-9][A-Z0-9.^-]{0,11}$/.test(S)) return null
+  const url = _url(S, tf, false)
+  // A newer text supersedes the previous one at once — its request is aborted (GOO -> GOOGL).
+  if (_typedLatest && _typedLatest.url !== url) {
+    if (!_typedLatest.kept) { try { _typedLatest.ctl?.abort() } catch { /* ignore */ } }
+    _typedLatest = null
+  }
+  const saved = memPeekSavedAt(S, tf)
+  if (memHas(S, tf) && Number.isFinite(saved) && Date.now() - saved < TYPED_FRESH_MS) return null
+  if (_typedLatest && _typedLatest.url === url) return null   // this text is already being warmed
+  const ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null
+  _typedLatest = { url, ctl, kept: false }
+  return (async () => {
+    let lastT = null
+    let savedAt = null
+    const inMem = memPeek(S, tf)
+    if (inMem?.length) {
+      lastT = inMem[inMem.length - 1]?.t ?? null
+      savedAt = memPeekSavedAt(S, tf)
+    } else {
+      const have = await idbGet(S, tf)
+      if (_typedSuperseded(url)) return 'superseded'   // a newer text arrived: no promote, no fetch
+      if (have?.bars?.length) {
+        // Promoted with its OWN stamp, so the paint gate still judges it by when it was written.
+        if (!memHas(S, tf)) memPut(S, tf, have.bars, { savedAt: have.savedAt ?? null })
+        lastT = have.bars[have.bars.length - 1]?.t ?? null
+        savedAt = have.savedAt ?? null
+      }
+    }
+    if (lastT != null && _typedCachePaints(S, tf, lastT, savedAt)) return 'cache'
+    // ⛔ A PREFIX IS NOT A TICKER. Typing GOOGL settles on G, GO, GOO, GOOG on the way; on a
+    // browser holding the whole-universe pack, text with NO cached set is almost always a
+    // partial word, and asking /api/bars for it would send unknown symbols to the origin
+    // (a possible cold provider lookup each). Only a browser without the pack (a new member)
+    // warms an uncached name.
+    if (lastT == null && _packStamped()) return 'unknown'
+    const startedAt = Date.now()
+    const json = await _warmLoad(url, ctl ? ((u) => _chartLaneFetch(u, ctl.signal)) : warmFetcher)
+    if (!_isAuthoritativeAnswer(json, S, tf).ok || json.delta || !json.bars?.length) return false
+    // NEWER WINS: a set written for this key after this request began (the chart's own fetch,
+    // a later warm) is at least as current — a late warm answer never overwrites it.
+    const curSaved = memPeekSavedAt(S, tf)
+    if (Number.isFinite(curSaved) && curSaved > startedAt) return 'stale-answer'
+    // Keep any DEEPER history already in memory; the server wins every overlapping bar.
+    const cur = memPeek(S, tf)
+    const next = (cur?.length > json.bars.length && cur[0]?.t <= json.bars[0]?.t)
+      ? mergeDelta(cur, json.bars) : json.bars
+    memPut(S, tf, next)
+    return 'network'
+  })().catch(() => false).finally(() => {
+    if (_typedLatest && _typedLatest.url === url && _typedLatest.ctl === ctl) _typedLatest = null
+  })
 }
 
 /**

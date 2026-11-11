@@ -287,7 +287,11 @@ async function runCase(name, expectSource, settleMs = 700, opts = {}) {
   // cache paint, including the one with no cache at all. Same dead-observation trap
   // as the setData-only reducer, in a different costume.
   world.sym = `B${++_caseNo}`
+  // `priorScale`: the symbol the member is LEAVING trades at a different price level
+  // (META -> GOOGL, NFLX -> AMD). The default (1) keeps the original matrix unchanged.
+  const _ps = opts.priorScale || 1
   const PRIOR = seriesEndingAt(FRONTIER, 200)
+    .map((b) => (_ps === 1 ? b : { ...b, o: b.o * _ps, h: b.h * _ps, l: b.l * _ps, c: b.c * _ps }))
   caught.error = null
   const { rerender, unmount } = render(<Boundary><StockChart sym="AAA" barsOverride={PRIOR} {...PANE_PROPS} /></Boundary>)
   await waitFor(() => expect(spy.setVisibleLogicalRange).toHaveBeenCalled(), { timeout: 5000 })
@@ -438,6 +442,23 @@ describe('DAILY first-paint acceptance', () => {
     report(await runCase('NO-IDB cold', 'network'))
   }, 30000)
 
+  // ⭐ INVARIANT: the first frame of the symbol switched TO never depends on the price of the
+  // symbol switched FROM. Swept over price ratios on both sides of the 50% phantom guard.
+  it('INVARIANT — D1 paints from cache whatever the price of the symbol left (seed judged against THIS symbol)', async () => {
+    // ⛔⛔ THE WEB "SOMETIMES ~0.5 s ON A LIQUID TICKER" (2026-11-11). The seed's phantom
+    // guard compared the new symbol's today price with `lastServerCloseRef` — still the
+    // PREVIOUS symbol's close in the render that first carries the new one. Any switch
+    // between names >50% apart refused a perfectly good cache + fresh pack and waited a
+    // full /api/bars round trip. Same stimulus as D1, prior symbol priced 0.05x .. 25x.
+    for (const ratio of [0.05, 0.4, 1.6, 25]) {
+      world.idbEntry = { bars: seriesEndingAt(sessionsBack(1)), lastT: sessionsBack(1), savedAt: Date.now() }
+      world.packBar = FRESH_TODAY; world.packUsable = true
+      const r = report(await runCase(`D1 idb-1 + pack, prior ${ratio}x`, 'cache', 400, { priorScale: ratio }))
+      expect(r.verdict, `${r.name}: ${JSON.stringify(r.flags || r.why)}`).toBe('PASS')
+      expect(r.paintedSource).toBe('cache')
+    }
+  }, 60000)
+
   it('PACK-EXPIRED — IDB one session behind and no local current-session source', async () => {
     world.idbEntry = { bars: seriesEndingAt(sessionsBack(1)), lastT: sessionsBack(1), savedAt: Date.now() }
     world.packUsable = false; world.packBar = null
@@ -582,6 +603,8 @@ describe('DAILY first-paint acceptance', () => {
           `ops ${r.postOps}`,
         ].join(' | ')
     )).join('\n'))
-    expect(RESULTS.length).toBe(18)   // +1 (2026-10-16): the after-bell row split into mid-session vs sealed
+    // +1 (2026-10-16): the after-bell row split into mid-session vs sealed
+    // +4 (2026-11-11): D1 switched to from symbols priced 0.05x .. 25x
+    expect(RESULTS.length).toBe(22)
   })
 })
