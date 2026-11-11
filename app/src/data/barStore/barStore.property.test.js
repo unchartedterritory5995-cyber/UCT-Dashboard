@@ -43,7 +43,7 @@ function checkSnapshot(s, sim) {
   }
   if (s.developing) {
     const last = s.bars[s.bars.length - 1]
-    check(!last || s.developing.t > last.t, 'S3 developing after every closed row')
+    check(!last || s.developing.t > last.t, () => `S3 developing ${s.developing.t}/${s.developing.src} after closed row ${last.t}/${last.src}`)
     check(Object.isFrozen(s.developing), 'S10 developing frozen')
   }
   check(s.depth === s.bars.length, 'depth = bars.length')
@@ -53,27 +53,33 @@ function checkSnapshot(s, sim) {
 function run(sim, events, { nowMs, stepClock = false } = {}) {
   let s = initialState(sim.key, { nowMs })
   for (const e of events) {
-    const ctx = { nowMs: stepClock ? Math.max(e.at, 0) : nowMs, streamLive: true }
+    const ctx = { nowMs: stepClock ? Math.max(e.at, 0) : nowMs, streamLive: true, ...(e.ctx || {}) }
     const prev = s
     s = reduce(s, e.action, ctx)
     checkSnapshot(s, sim)
     check(isLegalTransition(prev.status, s.status), () => `S10 illegal ${prev.status} -> ${s.status}`)
-    // S2: completeThrough and the last sealed t never decrease (no invalidate here).
-    if (prev.completeThrough != null) check(s.completeThrough >= prev.completeThrough, 'S2 completeThrough decreased')
+    // S2: completeThrough and the last sealed t never decrease — except across an
+    // invalidate or a new history (history_rev rose: the server replaced sealed history).
+    const reset = s.gen !== prev.gen || s.historyRev !== prev.historyRev
+    if (!reset && prev.completeThrough != null) check(s.completeThrough >= prev.completeThrough, 'S2 completeThrough decreased')
     const a = lastSealedT(prev), b = lastSealedT(s)
-    if (a != null) check(b != null && b >= a, 'S2 last sealed t decreased')
+    if (!reset && a != null) check(b != null && b >= a, 'S2 last sealed t decreased')
+    // Never a stale history: once a history_rev is held, nothing older is ever applied.
+    if (prev.historyRev != null && s.historyRev != null) check(s.historyRev >= prev.historyRev, 'history_rev went back')
     // S4: within one developing bucket H↑ L↓ open-once V↑.
     const d0 = prev.developing, d1 = s.developing
-    if (d0 && d1 && d0.t === d1.t && !d0.provisional) {
+    if (d0 && d1 && d0.t === d1.t && !d0.provisional && !d0.ticked && d0.src !== 'tick' && !reset) {
       check(d1.h >= d0.h && d1.l <= d0.l, 'S4 developing range shrank')
       check(d1.o === d0.o, 'S4 developing open moved')
       check(d1.v >= d0.v, 'S4 developing volume fell')
     }
     // S10: a change ⇒ new identity with bumped revs; no change ⇒ same identity.
     if (s !== prev) check(s.baseRev > prev.baseRev || s.devRev > prev.devRev || s.status !== prev.status
-      || s.source !== prev.source || s.tailStatus !== prev.tailStatus || s.needsFull !== prev.needsFull, 'S10 new identity without a change')
+      || s.source !== prev.source || s.tailStatus !== prev.tailStatus || s.needsFull !== prev.needsFull || s.gen !== prev.gen, 'S10 new identity without a change')
     // S10 idempotence: re-applying the same action is a no-op.
-    check(reduce(s, e.action, ctx) === s, () => `S10 re-applying ${e.action.type} changed the snapshot`)
+    if (e.action.type !== 'invalidate' && e.action.type !== 'tick-fallback') {
+      check(reduce(s, e.action, ctx) === s, () => `S10 re-applying ${e.action.type} changed the snapshot`)
+    }
   }
   return s
 }
@@ -120,6 +126,36 @@ describe('BarStore property suite (seeded)', () => {
       }
       for (const [t] of sim.truth) {
         if (inSealedSpan(settled, t) && bucketEnd(t, settled) <= sim.nowSec) check(sealed.some((b) => b.t === t), () => `sealed truth bucket ${t} missing`)
+      }
+    })
+  })
+
+  it(`eventual convergence with corrections / deletes / stale-history races / ct=null / scroll-back / local hits / ticks / invalidate (${N} seeds)`, () => {
+    forSeeds(N, 30000, (r, seed) => {
+      const sim = simulateIntraday(r, { rich: true })
+      const nowMs = sim.nowSec * 1000
+      vi.setSystemTime(nowMs)
+      const sealedCanon = (s) => JSON.stringify({
+        rows: s.bars.filter((b) => inSealedSpan(s, b.t)).map((b) => [b.t, b.o, b.h, b.l, b.c, b.v, b.src]), C: s.completeThrough,
+      })
+      let want = null
+      for (let k = 0; k < 4; k++) {
+        const evs = k === 0 ? sim.events : withDuplicates(r, shuffled(r, sim.events), 0.25)
+        const s = run(sim, evs, { nowMs })
+        const settled = reduce(s, sim.settle, { nowMs, streamLive: true })
+        checkSnapshot(settled, sim)
+        const got = sealedCanon(settled)
+        if (want == null) want = got
+        check(got === want, () => `order ${k} diverged after the settling answer (seed ${seed})\nwant ${want}\n got ${got}`)
+        for (const b of settled.bars) {
+          if (!inSealedSpan(settled, b.t) || bucketEnd(b.t, settled) > sim.nowSec) continue
+          const tr = sim.truth.get(b.t)
+          check(tr && b.src === 'rest' && b.o === tr.o && b.h === tr.h && b.l === tr.l && b.c === tr.c && b.v === tr.v,
+            () => `sealed ${b.t} != truth (corr ${JSON.stringify(sim.corr)})`)
+        }
+        if (sim.corr?.kind === 'delete' && inSealedSpan(settled, sim.corr.t)) {
+          check(!settled.bars.some((b) => b.t === sim.corr.t), 'a deleted row resurrected')
+        }
       }
     })
   })

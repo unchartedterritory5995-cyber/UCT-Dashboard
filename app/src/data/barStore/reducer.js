@@ -73,6 +73,7 @@ export function initialState(key, ctx = {}) {
     cacheKey: null, grid: null, tailStatus: null, restFrom: null, sealedSpans: EMPTY_SPANS, deltaFrom: null,
     status: 'empty', baseRev: 0, devRev: 0, depth: 0,
     source: null, restSeen: false, needsFull: true, error: null, invalidatedFor: null,
+    gen: 0, pendingHistoryRev: null, depthFloor: 0,
   }
   s.status = deriveStatus(s, { ...ctx, session: ctx.session ?? p.session ?? 'rth' })
   return Object.freeze(s)
@@ -103,7 +104,7 @@ export function normT(t, tf) {
   }
   if (!finite(t)) return NaN
   let s = t > 1e11 ? Math.floor(t / 1000) : Math.floor(t)
-  if (isDateTf(tf) && s % 86400 !== 0) s = dateLabelToUnix(computeBarTime('D', s))
+  if (isDateTf(tf) && s % 86400 !== 0) s = dateLabelToUnix(computeBarTime(tf, s))
   return s
 }
 
@@ -152,8 +153,9 @@ function toChartBar(b, sym) {
   return out
 }
 
-function fromChartDev(cb, rev, src) {
+function fromChartDev(cb, rev, src, ticked = false) {
   const d = { t: cb.time, o: cb.open, h: cb.high, l: cb.low, c: cb.close, v: _vol(cb.volume), rev: finite(rev) ? rev : null, src }
+  if (ticked) d.ticked = true
   if (cb.provisional) d.provisional = true
   if (finite(cb.authHigh)) d.authHigh = cb.authHigh
   if (finite(cb.authLow)) d.authLow = cb.authLow
@@ -163,7 +165,8 @@ function fromChartDev(cb, rev, src) {
 
 /** The developing bar as a CLOSED row (its bucket ended without a seal/final). */
 function devToRow(d) {
-  const rank = d.src === DEV_SRC.TICK || d.provisional ? 'tick' : (d.src === DEV_SRC.SERVER ? 'rest' : 'push')
+  // A bar a tick has touched (or opened) ranks as a tick: its values are not the server's.
+  const rank = d.src === DEV_SRC.TICK || d.provisional || d.ticked ? 'tick' : (d.src === DEV_SRC.SERVER ? 'rest' : 'push')
   return freezeBar({ t: d.t, o: d.o, h: d.h, l: d.l, c: d.c, v: d.v, rev: d.rev ?? null, fin: false, src: rank })
 }
 
@@ -306,17 +309,25 @@ function isForeign(state, obj) {
 // ── snapshot finalize (identity-stable, frozen, status) ──────────────────────
 
 const BASE_FIELDS = ['completeThrough', 'verifiedThrough', 'seriesRev', 'historyRev', 'cacheKey', 'grid', 'restFrom', 'sealedSpans']
-const META_FIELDS = ['tailStatus', 'source', 'restSeen', 'needsFull', 'error', 'invalidatedFor', 'deltaFrom']
+const META_FIELDS = ['tailStatus', 'source', 'restSeen', 'needsFull', 'error', 'invalidatedFor', 'deltaFrom', 'gen', 'pendingHistoryRev', 'depthFloor']
 
 function finalize(prev, next, ctx) {
   const n = { ...prev, ...next }
   let { bars } = n
+  // Depth cap: trims the OLDEST rows on tail growth, but never below the depth the user
+  // scrolled back to (`depthFloor`, raised by scroll-back) — deep history a scroll just
+  // fetched is not thrown away again. Memory is bounded by the registry's bar budget.
   const cap = ctx?.depthCap
-  if (finite(cap) && cap > 0 && bars.length > cap) {
-    bars = bars.slice(bars.length - cap)
-    n.bars = bars
-    if (n.restFrom != null && bars.length && n.restFrom < bars[0].t) n.restFrom = bars[0].t
+  if (finite(cap) && cap > 0) {
+    const limit = Math.max(cap, n.depthFloor || 0)
+    if (bars.length > limit) {
+      bars = bars.slice(bars.length - limit)
+      if (n.restFrom != null && bars.length && n.restFrom < bars[0].t) n.restFrom = bars[0].t
+      n.bars = bars
+    }
   }
+  // Same rows (by identity) => same array: a no-op trim / merge never bumps baseRev.
+  if (n.bars !== prev.bars && n.bars.length === prev.bars.length && n.bars.every((b, i) => b === prev.bars[i])) n.bars = prev.bars
   const baseChanged = n.bars !== prev.bars || BASE_FIELDS.some((f) => n[f] !== prev[f])
   const devChanged = n.developing !== prev.developing
   if (baseChanged && n.bars !== prev.bars && !Object.isFrozen(n.bars)) Object.freeze(n.bars)
@@ -351,13 +362,30 @@ function settleDeveloping(state, bars, dev) {
   return { bars, developing: dev }
 }
 
+// ── one guard for every server-sourced action ────────────────────────────────
+
+/**
+ * Why a server payload must be refused whole, or null. ONE rule for rest-full, rest-delta,
+ * rest-error, scroll-back and local copies:
+ *   • `gen`: it was requested before the entry's last invalidate (P2b stamps every request);
+ *   • `history_rev` older than what we hold (or are waiting for): a late answer from before a
+ *     correction / delete — merging it would resurrect rows the newer history removed.
+ */
+function staleReason(state, p, action) {
+  if (action.gen != null && action.gen !== state.gen) return 'gen'
+  const h = numOrNull(p.history_rev ?? p.historyRev)
+  const held = Math.max(revOf(state.historyRev), revOf(state.pendingHistoryRev))
+  if (h != null && finite(held) && h < held) return 'history_rev'
+  return null
+}
+
 // ── REST answers ─────────────────────────────────────────────────────────────
 
 const _hasContract = (p) => p && (p.contract != null || 'complete_through' in p || 'developing' in p)
 
 function applyRest(state, action, ctx, kind) {
   const p = action.payload || {}
-  if (isForeign(state, p)) return state
+  if (isForeign(state, p) || staleReason(state, p, action)) return state
   const contract = _hasContract(p)
   const inCk = p.cache_key ?? null
   const inHist = numOrNull(p.history_rev)
@@ -368,11 +396,20 @@ function applyRest(state, action, ctx, kind) {
   const ckChanged = inCk != null && state.cacheKey != null && inCk !== state.cacheKey
   const histRose = inHist != null && state.historyRev != null && inHist > state.historyRev
   if ((ckChanged || histRose) && kind === 'delta') {
-    return invalidate(state, ckChanged ? 'cache_key' : 'history_rev', ctx)
+    // The held window is no longer the server's history. Keep showing it (no blank chart)
+    // while a FULL read is fetched; refuse further deltas until it lands, and bump the
+    // generation so requests issued against the old history are dropped.
+    if (state.pendingHistoryRev != null && !ckChanged && inHist <= state.pendingHistoryRev) return state
+    return finalize(state, {
+      needsFull: true, invalidatedFor: ckChanged ? 'cache_key' : 'history_rev',
+      pendingHistoryRev: inHist ?? state.pendingHistoryRev, gen: state.gen + 1,
+    }, ctx)
   }
+  if (kind === 'delta' && state.pendingHistoryRev != null) return state   // only a full read now
   if (ckChanged || histRose) {
-    state = { ...initialState(state.key, ctx), baseRev: state.baseRev + 1, devRev: state.devRev + 1 }
-    state = Object.freeze({ ...state, invalidatedFor: ckChanged ? 'cache_key' : 'history_rev' })
+    // The full answer of the new history replaces the entry ATOMICALLY (one snapshot).
+    state = Object.freeze({ ...initialState(state.key, ctx), baseRev: state.baseRev + 1, devRev: state.devRev + 1,
+      gen: state.gen, depthFloor: state.depthFloor, invalidatedFor: ckChanged ? 'cache_key' : 'history_rev' })
   }
   // A grid the rows were not built on cannot merge (the server owns row identity).
   const stGrid = inGrid ?? state.grid
@@ -401,11 +438,14 @@ function applyRest(state, action, ctx, kind) {
   }
 
   // What this answer seals.
-  // P1 `complete_through` when the answer carries one; when it is absent (legacy) or null
-  // (a series before its first tail repair; D/W/M — bar-contract.md §8) the legacy proof,
-  // liveBarMerge I8: a row is complete when the answer holds a LATER bucket.
-  let sealedIn = contract ? numOrNull(p.complete_through) : null
-  if (sealedIn == null) {
+  // A contract answer seals exactly its `complete_through`; NULL means nothing is
+  // guaranteed (bar-contract.md §2/§9: before a series' first tail repair; D/W/M, §8) — its
+  // rows stay unsealed and ordered by rev, so a later correction (series_rev up, same
+  // history_rev) still lands. Only a LEGACY answer (no contract fields) uses liveBarMerge
+  // I8: a row is complete when the answer holds a LATER bucket.
+  let sealedIn
+  if (contract) sealedIn = numOrNull(p.complete_through)
+  else {
     const all = devIn ? [...rows, devIn] : rows
     sealedIn = all.length >= 2 ? bucketEnd(all[all.length - 2].t, working) : null
   }
@@ -441,7 +481,7 @@ function applyRest(state, action, ctx, kind) {
         // Writer D's rule (no revs to order by): server open, H/L union, live close stands.
         const r = reconcileWithServerTail(toChartBar(dev, state.sym), toChartBar(devIn, state.sym), { sym: state.sym })
         dev = fromChartDev(r.bar, dev.rev, dev.src === DEV_SRC.TICK ? DEV_SRC.SERVER : dev.src)
-      } else if (dev.provisional || revOf(devIn.rev) > revOf(dev.rev)) {
+      } else if (dev.provisional || dev.ticked || revOf(devIn.rev) > revOf(dev.rev)) {
         const m = mergePushBar(toChartBar(dev, state.sym), toChartBar(devIn, state.sym), { sym: state.sym })
         if (m.kind === 'update') dev = fromChartDev(m.bar, Math.max(revOf(dev.rev), revOf(devIn.rev)), DEV_SRC.SERVER)
       }
@@ -465,6 +505,7 @@ function applyRest(state, action, ctx, kind) {
     tailStatus: (p.tail_status != null && (inSeries == null || state.seriesRev == null || inSeries >= state.seriesRev))
       ? p.tail_status : state.tailStatus,
     source: 'rest', restSeen: true, needsFull: false, error: null,
+    pendingHistoryRev: kind === 'full' ? null : state.pendingHistoryRev,
   }, ctx)
 }
 
@@ -480,7 +521,7 @@ function applyLocal(state, action, ctx, source) {
   const hist = numOrNull(p.history_rev ?? p.historyRev)
   // S8: a copy of another row series / of older sealed history is discarded whole.
   if (ck != null && state.cacheKey != null && ck !== state.cacheKey) return state
-  if (hist != null && state.historyRev != null && hist < state.historyRev) return state
+  if (staleReason(state, p, action)) return state
   const rev = numOrNull(p.series_rev ?? p.seriesRev)
   const working = { ...state, grid: p.grid ?? state.grid }
   let rows = ingestRows(p.bars, working, { rev, fin: false, src: 'local' })
@@ -488,8 +529,8 @@ function applyLocal(state, action, ctx, source) {
 
   if (state.restSeen) {
     // A server answer is held: a local copy only adds DEEPER history (left prepend).
-    const first = state.restFrom ?? (state.bars[0]?.t ?? Infinity)
-    rows = rows.filter((r) => r.t < first && (!state.bars.length || r.t < state.bars[0].t))
+    const first = Math.min(state.restFrom ?? Infinity, state.bars[0]?.t ?? Infinity, state.developing?.t ?? Infinity)
+    rows = rows.filter((r) => r.t < first)
     if (!rows.length) return state
     return finalize(state, { bars: mergeRows(state, rows) }, ctx)
   }
@@ -574,7 +615,7 @@ function applyPush(state, action, ctx, isFinal) {
 
   const inc = { time: f.t, open: f.o, high: f.h, low: f.l, close: f.c, volume: f.v }
   if (dev && f.t === dev.t) {
-    if (!dev.provisional && dev.src !== DEV_SRC.TICK && f.rev != null && dev.rev != null && f.rev <= dev.rev) {
+    if (!dev.provisional && !dev.ticked && dev.src !== DEV_SRC.TICK && f.rev != null && dev.rev != null && f.rev <= dev.rev) {
       if (!final) return state
       // An older FINAL still CLOSES the bucket (the feed moved on); its values compete with
       // the newer observation we hold as closed rows, by rev.
@@ -631,7 +672,7 @@ function applyTick(state, action, ctx) {
   if (dev && t === dev.t) {
     const r = foldPrice(toChartBar(dev, state.sym), price, null, state.tf)
     if (r.kind !== 'update') return state
-    const nd = fromChartDev(r.bar, dev.rev, dev.src)
+    const nd = fromChartDev(r.bar, dev.rev, dev.src, true)
     if (_sameDev(nd, dev)) return state
     return finalize(state, { developing: nd }, ctx)
   }
@@ -652,13 +693,23 @@ function applyScrollBack(state, action, ctx) {
   if (isForeign(state, p)) return state
   const ck = p.cache_key ?? null
   if (ck != null && state.cacheKey != null && ck !== state.cacheKey) return state
-  const first = state.bars.length ? state.bars[0].t : Infinity
+  if (staleReason(state, p, action)) return state
+  const h = numOrNull(p.history_rev)
+  if (h != null && state.historyRev != null && h > state.historyRev) {
+    // Deeper history from a NEWER history: the window we hold is stale — re-read it whole.
+    if (state.pendingHistoryRev != null && h <= state.pendingHistoryRev) return state
+    return finalize(state, {
+      needsFull: true, invalidatedFor: 'history_rev',
+      pendingHistoryRev: Math.max(h, revOf(state.pendingHistoryRev)), gen: state.gen + 1,
+    }, ctx)
+  }
+  const first = Math.min(state.bars.length ? state.bars[0].t : Infinity, state.developing?.t ?? Infinity)
   const rows = ingestRows(p.bars, state, { rev: numOrNull(p.series_rev), fin: false, src: 'rest' })
     .filter((r) => r.t < first)
   if (!rows.length) return state
   const bars = mergeRows(state, rows)
   const restFrom = state.restFrom == null ? null : Math.min(state.restFrom, rows[0].t)
-  return finalize(state, { bars, restFrom }, ctx)
+  return finalize(state, { bars, restFrom, depthFloor: Math.max(state.depthFloor || 0, bars.length) }, ctx)
 }
 
 /** Drop everything held for the key (the one exception to S2's monotonicity). */
@@ -666,12 +717,13 @@ export function invalidate(state, reason, ctx = {}) {
   const fresh = initialState(state.key, ctx)
   return finalize(state, {
     ...fresh, baseRev: state.baseRev, devRev: state.devRev,
-    needsFull: true, invalidatedFor: reason || 'invalidate',
+    needsFull: true, invalidatedFor: reason || 'invalidate', gen: state.gen + 1,
   }, ctx)
 }
 
 function applyError(state, action, ctx) {
   const p = action.payload || {}
+  if (action.gen != null && action.gen !== state.gen) return state
   const error = p.terminal || p.error === 'no_data' ? 'no_data' : String(p.error || p.status || 'error')
   if (error === state.error) return state
   // A terminal no-data answer IS a server answer (the entry never returns to local-only).

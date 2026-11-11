@@ -32,6 +32,8 @@ export function deriveStatus(s, ctx = {}) {
   if (s.error === 'no_data' && !hasBars) return STATUS.UNAVAILABLE
   if (!hasBars) return STATUS.EMPTY   // a non-terminal error is retried, not a state
   const tailT = s.developing ? s.developing.t : s.bars[s.bars.length - 1].t
+  // The held window predates the server's current history; a full read is in flight.
+  if (s.restSeen && s.pendingHistoryRev != null) return STATUS.UPDATING
 
   if (isDateTf(s.tf)) {
     let behind = false

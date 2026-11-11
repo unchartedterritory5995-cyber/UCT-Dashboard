@@ -69,7 +69,7 @@ function aggregate(trades, t) {
  * Simulate one intraday session.
  * @returns {{key, tf, session, grid, buckets, nowSec, truth: Map<t, bar>, events: object[], settle: object}}
  */
-export function simulateIntraday(r, { tf = r.pick(INTRADAY), session = r.pick(['rth', 'eth']), date = r.pick(DATES), sym = 'SIM' } = {}) {
+export function simulateIntraday(r, { tf = r.pick(INTRADAY), session = r.pick(['rth', 'eth']), date = r.pick(DATES), sym = 'SIM', rich = false } = {}) {
   const key = keyOf({ sym, tf, session })
   const grid = tf === '60' ? (session === 'eth' ? 'clock' : 'session') : undefined
   const close = rthCloseMinuteOf(etUnix(date, 600))
@@ -146,11 +146,39 @@ export function simulateIntraday(r, { tf = r.pick(INTRADAY), session = r.pick(['
   const nW = r.int(1, 5)
   const writes = new Set()
   for (let i = 0; i < nW; i++) writes.add(r.int(win[0].t + 1, nowSec))
+  // Before the series' first tail repair the server claims nothing (complete_through null).
+  const repairAt = r.chance(0.4) ? r.int(win[0].t, nowSec) : -Infinity
+  // rich: the provider REVISES (or the store DELETES) one closed bucket at `wc`. Inside the
+  // sealed region that is a history change (history_rev + 1, bar-contract.md §2); before
+  // the seal it is a plain revision (series_rev only).
+  let corr = null
+  if (rich) {
+    const closed = win.filter((b) => b.end + 2 < nowSec && aggAt(b, Infinity))
+    if (closed.length && r.chance(0.7)) {
+      const b = r.pick(closed)
+      const wc = r.int(b.end + 1, Math.max(b.end + 1, nowSec))
+      const kind = r.chance(0.3) ? 'delete' : 'revise'
+      const bump = kind === 'delete' || (wc >= repairAt && wc - SEAL_LAG >= b.end)
+      corr = { t: b.t, wc, kind, bump }
+      writes.add(wc); writes.add(Math.max(win[0].t + 1, wc - r.int(1, 60)))
+      const a = aggAt(b, Infinity)
+      if (kind === 'delete') truth.delete(b.t)
+      else truth.set(b.t, { ...a, c: Math.round((a.l + a.h) / 2 * 100) / 100, v: a.v + 11 })
+    }
+  }
+  const storeRow = (b, w) => {
+    const a = aggAt(b, w * 1000)
+    if (!a || !corr || corr.t !== b.t || w < corr.wc) return a
+    if (corr.kind === 'delete') return null
+    return truth.get(b.t)
+  }
+  const histAt = (w) => 7 + (corr && corr.bump && w >= corr.wc ? 1 : 0)
   const answer = (w, kind) => {
     const rows = []
-    for (const b of win) { if (b.t > w) break; const a = aggAt(b, w * 1000); if (a) rows.push(a) }
+    for (const b of win) { if (b.t > w) break; const a = storeRow(b, w); if (a) rows.push(a) }
     let C = null
     for (const x of rows) { const e = win.find((b) => b.t === x.t).end; if (e <= w - SEAL_LAG) C = e }
+    if (w < repairAt) C = null
     const devB = win.find((b) => b.t <= w && w < b.end)
     const dev = devB ? rows.find((x) => x.t === devB.t) : null
     let bars = rows
@@ -165,7 +193,7 @@ export function simulateIntraday(r, { tf = r.pick(INTRADAY), session = r.pick(['
       payload: {
         bars, contract: 1, grid: tf === '60' ? (session === 'eth' ? 'eth-clock' : 'rth-tv') : 'eth-clock',
         session, cache_key: `b1:${sym}:${tf}:${tf === '60' ? (session === 'eth' ? 'eth-clock' : 'rth-tv') : 'eth-clock'}`,
-        series_rev: srev, history_rev: 7, verified_through: w - SEAL_LAG, sealed_through: w - SEAL_LAG,
+        series_rev: srev, history_rev: histAt(w), verified_through: w - SEAL_LAG, sealed_through: w < repairAt ? null : w - SEAL_LAG,
         complete_through: C, developing: dev ? { ...dev, rev: srev } : null, tail_status: 'verified',
         ...(since != null ? { since } : {}),
       },
@@ -175,10 +203,31 @@ export function simulateIntraday(r, { tf = r.pick(INTRADAY), session = r.pick(['
     events.push({ at: w * 1000 + 1, action: answer(w, 'full') })
     if (r.chance(0.6)) events.push({ at: w * 1000 + 2, action: answer(w, 'delta') })
   }
+  if (rich) {
+    // Deeper history (scroll-back) for buckets before the window, a local (IDB) copy of an
+    // early answer, fallback ticks while the stream is down, and an invalidate.
+    const before = buckets.slice(Math.max(0, w0 - 2), w0)
+    if (before.length) {
+      const w = r.int(win[0].t + 1, nowSec)
+      const old = before.map((b, i) => ({ t: b.t, o: px, h: px * 1.001, l: px * 0.999, c: px, v: 3 + i }))
+      events.push({ at: w * 1000 + 3, action: { type: 'scroll-back', payload: { bars: old, series_rev: rev(w * 1000, 'store'), history_rev: histAt(w), cache_key: answer(w, 'full').payload.cache_key } } })
+    }
+    const w1 = Math.min(...writes)
+    events.push({ at: r.int(win[0].t, nowSec) * 1000, action: { type: 'idb-hit', payload: { bars: answer(w1, 'full').payload.bars, history_rev: histAt(w1) } } })
+    for (let i = r.int(0, 4); i > 0; i--) {
+      const ms = r.int(win[0].t * 1000, nowSec * 1000)
+      events.push({ at: ms, ctx: { streamLive: false }, action: { type: 'tick-fallback', event: { price: px * (1 + r.float(-0.003, 0.003)), ts: ms } } })
+    }
+    if (r.chance(0.3)) events.push({ at: r.int(win[0].t, nowSec) * 1000, action: { type: 'invalidate', reason: 'test' } })
+  }
   events.sort((a, b) => a.at - b.at)
   // A late answer once every closed bucket is sealed (used for the correctness check).
-  const settleW = Math.max(nowSec, lastB.end + SEAL_LAG + 1)
-  return { key, sym, tf, session, grid, win, nowSec, truth, events, ghosted, settle: answer(settleW, 'full'), aggAt }
+  const settleW = Math.max(nowSec, lastB.end + SEAL_LAG + 1, corr ? corr.wc + 1 : 0)
+  const settle = answer(settleW, 'full')
+  if (settleW >= repairAt && settle.payload.complete_through == null && settle.payload.bars.length) {
+    settle.payload.complete_through = win.find((b) => b.t === settle.payload.bars[settle.payload.bars.length - 1].t).end
+  }
+  return { key, sym, tf, session, grid, win, nowSec, truth, events, ghosted, corr, settle, aggAt }
 }
 
 /** Randomly duplicate some events (at-least-once delivery). */

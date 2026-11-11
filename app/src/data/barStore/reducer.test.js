@@ -46,14 +46,18 @@ describe('BarStore reducer', () => {
     expect(s.status).toBe('context')
   })
 
-  it('rest-delta whose history_rev rose invalidates and demands a full read', () => {
+  it('rest-delta whose history_rev rose keeps the chart (no blank), demands a full read, swaps atomically', () => {
     const s1 = reduce(initialState(K5, ctx), { type: 'rest-full', payload: contract([bar(T(600)), bar(T(605))], { complete_through: T(605) }) }, ctx)
     const s2 = reduce(s1, { type: 'rest-delta', payload: contract([bar(T(605))], { since: T(605), history_rev: 6, series_rev: 2000 }) }, ctx)
-    expect(s2.bars).toHaveLength(0)
-    expect(s2.needsFull).toBe(true)
-    expect(s2.invalidatedFor).toBe('history_rev')
-    expect(s2.completeThrough).toBeNull()
-    expect(s2.baseRev).toBeGreaterThan(s1.baseRev)
+    expect(s2.bars).toBe(s1.bars)                         // still painted
+    expect([s2.needsFull, s2.invalidatedFor, s2.pendingHistoryRev, s2.status]).toEqual([true, 'history_rev', 6, 'updating'])
+    expect(s2.gen).toBe(s1.gen + 1)
+    // further deltas (old or new history) are refused until the full read lands
+    expect(reduce(s2, { type: 'rest-delta', payload: contract([bar(T(610))], { since: T(610), history_rev: 6, series_rev: 2100 }) }, ctx)).toBe(s2)
+    expect(reduce(s2, { type: 'rest-full', payload: contract([bar(T(600))], { history_rev: 5, series_rev: 2200 }) }, ctx)).toBe(s2)
+    const s3 = reduce(s2, { type: 'rest-full', payload: contract([bar(T(600), 90, 91, 89, 90), bar(T(605))], { history_rev: 6, series_rev: 2300, complete_through: T(605) }) }, ctx)
+    expect(s3.bars.map((b) => [b.t, b.o])).toEqual([[T(600), 90], [T(605), 100]])
+    expect([s3.needsFull, s3.pendingHistoryRev, s3.historyRev]).toEqual([false, null, 6])
   })
 
   it('rest-full with a new history_rev or cache_key replaces the series wholesale', () => {
@@ -63,13 +67,57 @@ describe('BarStore reducer', () => {
     expect(s2.invalidatedFor).toBe('history_rev')
   })
 
-  it('contract answer with complete_through null (pre-first-repair, D/W/M) falls back to I8', () => {
+  it('a late answer of an OLDER history is refused everywhere (deleted rows never resurrect)', () => {
+    const old = contract([bar(T(595)), bar(T(600)), bar(T(605))], { complete_through: T(605), history_rev: 5 })
+    const s1 = reduce(initialState(K5, ctx), { type: 'rest-full', payload: contract([bar(T(600)), bar(T(605))], { complete_through: T(605), history_rev: 6, series_rev: 3000 }) }, ctx)
+    expect(reduce(s1, { type: 'rest-full', payload: old }, ctx)).toBe(s1)
+    expect(reduce(s1, { type: 'rest-delta', payload: { ...old, since: T(595) } }, ctx)).toBe(s1)
+    expect(reduce(s1, { type: 'scroll-back', payload: { bars: [bar(T(590))], history_rev: 5 } }, ctx)).toBe(s1)
+    expect(reduce(s1, { type: 'mem-hit', payload: { bars: [bar(T(590))], history_rev: 5 } }, ctx)).toBe(s1)
+  })
+
+  it('generation: a network answer requested before an invalidate is dropped', () => {
+    const s1 = reduce(initialState(K5, ctx), { type: 'rest-full', payload: contract([bar(T(600))]) }, ctx)
+    const s2 = reduce(s1, { type: 'invalidate', reason: 'split' }, ctx)
+    expect(s2.gen).toBe(s1.gen + 1)
+    const late = { type: 'rest-full', gen: s1.gen, payload: contract([bar(T(600))]) }
+    expect(reduce(s2, late, ctx)).toBe(s2)
+    expect(reduce(s2, { type: 'rest-error', gen: s1.gen, payload: { error: 'no_data' } }, ctx)).toBe(s2)
+    expect(reduce(s2, { ...late, gen: s2.gen }, ctx).bars).toHaveLength(1)
+  })
+
+  it('contract answer with complete_through null seals NOTHING; a later correction (same history_rev) lands', () => {
     const rows = [bar(T(595)), bar(T(600)), bar(T(605)), bar(T(610))]
     const s = reduce(initialState(K5, ctx), { type: 'rest-full', payload: contract(rows, {
       complete_through: null, developing: { ...bar(T(610)), rev: 1000 },
     }) }, ctx)
-    expect(s.completeThrough).toBe(bucketEnd(T(605), s))
-    expect(s.developing.t).toBe(T(610))
+    expect(s.completeThrough).toBeNull()
+    expect(s.sealedSpans).toHaveLength(0)
+    expect(s.deltaFrom).toBe(T(595))                     // nothing sealed: re-read from the start
+    const fix = reduce(s, { type: 'rest-full', payload: contract([bar(T(595), 100, 101, 99, 99.9, 77), bar(T(600)), bar(T(605))], {
+      complete_through: null, series_rev: 1500, developing: null,
+    }) }, ctx)
+    expect([fix.bars[0].c, fix.bars[0].v]).toEqual([99.9, 77])
+    // D: always null claim — yesterday's correction lands too
+    const kd = keyOf({ sym: 'SIM', tf: 'D' })
+    const d1 = reduce(initialState(kd, ctx), { type: 'rest-full', payload: { contract: 1, grid: 'plain', complete_through: null, series_rev: 10, history_rev: 1,
+      bars: [{ ...bar(0), t: '2026-11-09' }, { ...bar(0), t: '2026-11-10' }], developing: { ...bar(0), t: '2026-11-10', rev: 10 } } }, ctx)
+    const d2 = reduce(d1, { type: 'rest-full', payload: { contract: 1, grid: 'plain', complete_through: null, series_rev: 20, history_rev: 1,
+      bars: [{ ...bar(0, 100, 101, 99, 100.9, 50), t: '2026-11-09' }, { ...bar(0), t: '2026-11-10' }], developing: { ...bar(0), t: '2026-11-10', rev: 20 } } }, ctx)
+    expect([d2.bars[0].c, d2.bars[0].v]).toEqual([100.9, 50])
+  })
+
+  it('a tick folded into a server developing bar is ranked as a tick once closed', () => {
+    const s1 = reduce(initialState(K5, ctx), { type: 'rest-full', payload: contract([bar(T(600)), bar(T(605)), bar(T(610))], {
+      complete_through: T(605), developing: { ...bar(T(610)), rev: 1000 } }) }, ctx)
+    const down = { nowMs: NOW, streamLive: false }
+    const s2 = reduce(s1, { type: 'tick-fallback', event: { price: 101.6, ts: NOW } }, down)
+    expect(s2.developing.ticked).toBe(true)
+    const s3 = reduce(s2, { type: 'push-bar', event: { bar: { ...bar(T(615)), t: T(615) * 1000 }, rev: 2000 } }, ctx)
+    expect(s3.bars.find((b) => b.t === T(610)).src).toBe('tick')
+    // ... so the server row for that bucket (even an older rev) is not outranked at a tie
+    const s4 = reduce(s3, { type: 'rest-delta', payload: contract([bar(T(610), 100, 101, 99, 100.5, 10)], { since: T(610), series_rev: 1000 }) }, ctx)
+    expect(s4.bars.find((b) => b.t === T(610)).src).toBe('rest')
   })
 
   it('a seal is claimed only over rows the answer carries (an empty answer claims nothing)', () => {
@@ -179,6 +227,18 @@ describe('BarStore reducer', () => {
     const s = reduce(initialState(kd, ctx), { type: 'rest-full', payload: { bars: [{ ...bar(0), t: '2026-11-09' }, { ...bar(0), t: '2026-11-10' }] } }, ctx)
     expect(s.bars[0].t).toBe(dateLabelToUnix('2026-11-09'))
     expect(s.developing.t).toBe(dateLabelToUnix('2026-11-10'))
+  })
+
+  it('depth cap never trims history a scroll-back just fetched; no-op trims keep identity', () => {
+    const c = { ...ctx, depthCap: 4 }
+    const rows = Array.from({ length: 4 }, (_, i) => bar(T(580 + 5 * i)))
+    const s1 = reduce(initialState(K5, c), { type: 'rest-full', payload: contract(rows, { complete_through: T(595) }) }, c)
+    const s2 = reduce(s1, { type: 'scroll-back', payload: { bars: [bar(T(570)), bar(T(575))] } }, c)
+    expect(s2.bars.map((b) => b.t)).toEqual([T(570), T(575), ...rows.map((b) => b.t)])
+    expect(s2.depthFloor).toBe(6)
+    // a local deep copy beyond the cap is a no-op: same snapshot, no baseRev churn
+    const s3 = reduce(s1, { type: 'idb-hit', payload: { bars: [bar(T(560)), bar(T(565))] } }, c)
+    expect(s3).toBe(s1)
   })
 
   it('depth cap trims the oldest bars', () => {

@@ -133,6 +133,9 @@ export const DEV_SRC = Object.freeze({ SERVER: 'server', PUSH: 'push', TICK: 'ti
  * @property {boolean} needsFull  the next request must be a FULL read (delta refused)
  * @property {string|null} error
  * @property {string|null} invalidatedFor  reason of the last invalidate
+ * @property {number} gen   bumped by every invalidate / history change; network actions carry it
+ * @property {number|null} pendingHistoryRev  a newer history_rev seen on a delta; full read pending
+ * @property {number} depthFloor  depth a scroll-back reached (the depth cap never trims below)
  */
 
 /** Normalize any accepted tf spelling ('5', 5, '60e', 'd') to a logic Tf, or null. */
