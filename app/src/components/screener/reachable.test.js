@@ -784,6 +784,8 @@ const AWAITING_A_DECISION = {
   // as NEW FILES ONLY with no live behavior change; StockChart starts consuming these in P3
   // (S1 source switch, S3 diffRenderer + framing). types/reducer/status/registry land with
   // P2a (PR #1105) — this PR (#1108) must merge with or after it.
+  'app/src/components/chart/rightMargin.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): right-margin policy owner; framing.js imports it, StockChart adopts it (W-R / P3-S3).',
   'app/src/data/barStore/adapter.js':
     'BarStore P2 — wired in P3 (ARCH-PLAN): snapshot → series adapter.',
   'app/src/data/barStore/diffRenderer.js':

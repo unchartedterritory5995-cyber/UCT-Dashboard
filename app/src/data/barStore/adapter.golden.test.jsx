@@ -135,6 +135,53 @@ function daily() {
   }
   return out
 }
+// 1m: Nov 10 04:00-20:00 + Nov 11 04:00-12:46 (the developing minute).
+function intraday1m() {
+  const out = []
+  let k = 0
+  for (const [d, endMin] of [[10, 20 * 60], [11, 12 * 60 + 47]]) {
+    for (let mins = 4 * 60; mins < endMin; mins++) out.push({ t: etUnix(2026, 11, d, Math.floor(mins / 60), mins % 60), ...px(k++) })
+  }
+  return out
+}
+const BDAYS = [[10, 29], [10, 30], [11, 2], [11, 3], [11, 4], [11, 5], [11, 6], [11, 9], [11, 10], [11, 11]]
+// 60m on the RTH SESSION grid (09:30 … 15:30) plus clock-hour pre/post rows the RTH view drops.
+function sixtySession() {
+  const out = []
+  let k = 0
+  for (const [mo, d] of BDAYS) {
+    const last = d === 11 && mo === 11
+    for (const [h, m] of [[4, 0], [7, 0], [9, 30], [10, 30], [11, 30], [12, 30], [13, 30], [14, 30], [15, 30], [16, 0], [18, 0]]) {
+      if (last && (h > 12 || (h === 12 && m > 30))) break
+      out.push({ t: etUnix(2026, mo, d, h, m), ...px(k++) })
+    }
+  }
+  return out
+}
+// 60m on the ETH CLOCK grid (60e): 04:00 … 19:00 clock hours.
+function sixtyClock() {
+  const out = []
+  let k = 0
+  for (const [mo, d] of BDAYS) {
+    for (let h = 4; h < 20; h++) {
+      if (mo === 11 && d === 11 && h > 12) break
+      out.push({ t: etUnix(2026, mo, d, h, 0), ...px(k++) })
+    }
+  }
+  return out
+}
+function weekly() {
+  const out = []
+  let k = 5
+  for (let d = Date.UTC(2025, 0, 3); d <= Date.UTC(2026, 10, 13); d += 7 * 86400000) out.push({ t: new Date(d).toISOString().slice(0, 10), ...px(k++) })
+  return out
+}
+function monthly() {
+  const out = []
+  let k = 9
+  for (let y = 2021; y <= 2026; y++) for (let m = 0; m < 12; m++) { if (y === 2026 && m > 10) break; out.push({ t: y + '-' + String(m + 1).padStart(2, '0') + '-01', ...px(k++) }) }
+  return out
+}
 // A store snapshot of the same bars: sealed = all but the newest, developing = the newest.
 function snapshotOf(key, bars, baseRev = 1) {
   const sealed = bars.slice(0, -1)
@@ -181,6 +228,13 @@ describe('golden part 1: adapter ≡ the real StockChart (barsOverride)', () => 
     { name: 'daily business-day strings', tf: 'D', bars: daily, ext: false, settings: NO_HA },
     { name: 'daily Heikin-Ashi', tf: 'D', bars: daily, ext: false, settings: HA },
     { name: 'daily replayCutoff 2026-10-15', tf: 'D', bars: daily, ext: false, settings: NO_HA, replayCutoff: '2026-10-15' },
+    { name: '1m extended hours', tf: '1', bars: intraday1m, ext: true, settings: NO_HA },
+    { name: '1m regular hours', tf: '1', bars: intraday1m, ext: false, settings: NO_HA },
+    { name: '60m RTH session grid (09:30 … 15:30)', tf: '60', bars: sixtySession, ext: false, settings: NO_HA },
+    { name: '60e ETH clock grid', tf: '60', bars: sixtyClock, ext: true, settings: NO_HA },
+    { name: 'weekly (Friday labels)', tf: 'W', bars: weekly, ext: false, settings: NO_HA },
+    { name: 'monthly (1st labels)', tf: 'M', bars: monthly, ext: false, settings: NO_HA },
+    { name: 'weekly Heikin-Ashi', tf: 'W', bars: weekly, ext: false, settings: HA },
   ]
   for (const c of cases) {
     it(c.name, async () => {
@@ -193,9 +247,9 @@ describe('golden part 1: adapter ≡ the real StockChart (barsOverride)', () => 
       expect(got.candles).toEqual(golden.candles)
       expect(got.volume).toEqual(golden.volume)
       // P2a store unit: a D/W/M t is UNIX at 00:00 UTC of the label date — same output.
-      if (c.tf === 'D') {
+      if (['D', 'W', 'M'].includes(c.tf)) {
         const unixBars = bars.map(b => ({ ...b, t: Date.parse(b.t + 'T00:00:00Z') / 1000 }))
-        const gotU = adapterPoints(snapshotOf('SYN_D', unixBars, 7), { tf: 'D', showExtended: c.ext, heikinAshi: c.settings.heikinAshi, replayCutoff: c.replayCutoff })
+        const gotU = adapterPoints(snapshotOf(`SYN_${c.tf}`, unixBars, 7), { tf: c.tf, showExtended: c.ext, heikinAshi: c.settings.heikinAshi, replayCutoff: c.replayCutoff })
         expect(gotU.candles).toEqual(golden.candles)
         expect(gotU.volume).toEqual(golden.volume)
       }
@@ -203,7 +257,7 @@ describe('golden part 1: adapter ≡ the real StockChart (barsOverride)', () => 
       const view = { tf: c.tf, showExtended: c.ext, heikinAshi: c.settings.heikinAshi, replayCutoff: c.replayCutoff }
       const snap = snapshotOf(`SYN_${c.tf}`, bars)
       expect(adapterPoints(snap, { ...view, heikinAshi: !view.heikinAshi }).candles).not.toEqual(golden.candles)
-      if (c.tf === '5') expect(adapterPoints(snap, { ...view, showExtended: !view.showExtended }).candles.length).not.toBe(golden.candles.length)
+      if (['1', '5'].includes(c.tf) || (c.tf === '60' && !c.ext)) expect(adapterPoints(snap, { ...view, showExtended: !view.showExtended }).candles.length).not.toBe(golden.candles.length)
       if (c.replayCutoff) expect(adapterPoints(snap, { ...view, replayCutoff: null }).candles.length).toBeGreaterThan(golden.candles.length)
     })
   }

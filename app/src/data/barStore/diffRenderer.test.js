@@ -186,6 +186,8 @@ describe('diffRenderer × fake LWC: random snapshot sequences', () => {
         }
         // seal / tick while right-anchored: LWC's shiftVisibleRangeOnNewBar keeps newest x
         if ((kind === 'seal' || kind === 'tick') && !beforeFrame.blank && !f.blank) expect({ ctx, x: f.x }).toEqual({ ctx, x: beforeFrame.x })
+        // P3: no historical update ever landed on a time the series lacked (LWC 5.2 would corrupt a row)
+        expect({ ctx, corrupted: candle.corrupted || volume.corrupted }).toEqual({ ctx, corrupted: false })
         // F3
         expect({ ctx, blank: !!f.blank }).toEqual({ ctx, blank: false })
         painted = true
@@ -274,7 +276,7 @@ describe('framing contract (pure)', () => {
     for (const [W, px] of [[65, 900], [390, 600], [52, 300], [120, 180]]) {
       const n = 500
       const pin = { from: (n - 1) + W * (1 - lastCandlePos(px)) - W, to: (n - 1) + W * (1 - lastCandlePos(px)) }   // W-R pinNewestRange(n-1, W, px)
-      expect(frameAfterKeyChange({ n, prevRange: { from: 0, to: W }, plotWidthPx: px })).toEqual(pin)
+      expect(frameAfterKeyChange({ newestIndex: n - 1, prevRange: { from: 0, to: W }, plotWidthPx: px })).toEqual(pin)
     }
   })
   it('K1: newest x is a function of (W, pad, width) only — invariant over n', () => {
@@ -285,7 +287,7 @@ describe('framing contract (pure)', () => {
       const xs = new Set()
       for (let j = 0; j < 5; j++) {
         const n = 1 + Math.floor(r() * 30000)
-        const range = frameAfterKeyChange({ n, prevRange, plotWidthPx: 600 })
+        const range = frameAfterKeyChange({ newestIndex: n - 1, prevRange, plotWidthPx: 600 })
         xs.add(Math.round(xOfLogical(range, n - 1, 600) * 1e9))
         expect(range.to - range.from).toBe(W)
         expect(range.to).toBe(n - 1 + rightMarginBars(W, 600))

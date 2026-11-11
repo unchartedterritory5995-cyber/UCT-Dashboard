@@ -125,12 +125,16 @@ const _legacyBarsMemo = new WeakMap()
  *  engine keep receiving a stable array between store revisions. */
 export function legacyBars(snapshot, tf = tfOfSnapshot(snapshot, null)) {
   if (!snapshot) return null
-  const hit = _legacyBarsMemo.get(snapshot)
+  // Keyed per (snapshot, tf): the same snapshot read under another tf labels D/W/M
+  // differently. legacyBars depends on no view input, so the view is not part of the key.
+  let byTf = _legacyBarsMemo.get(snapshot)
+  if (!byTf) { byTf = new Map(); _legacyBarsMemo.set(snapshot, byTf) }
+  const hit = byTf.get(tf)
   if (hit) return hit
   const sealed = legacySealed(snapshot, tf)
   const dev = legacyDeveloping(snapshot, tf, sealed)
   const out = dev ? [...sealed, dev] : sealed
-  _legacyBarsMemo.set(snapshot, out)
+  byTf.set(tf, out)
   return out
 }
 

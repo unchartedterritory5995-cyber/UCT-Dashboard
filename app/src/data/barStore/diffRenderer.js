@@ -18,7 +18,7 @@
 // half-applied incremental on screen.
 
 import { composePoints } from './adapter'
-import { frameAfterKeyChange, frameAfterPrepend } from './framing'
+import { frameAfterKeyChange, frameAfterPrepend, indexOfTime } from './framing'
 
 export const MAX_HISTORICAL_UPDATES = 4
 
@@ -76,7 +76,10 @@ function planSuffix(painted, desired, lastTime) {
     const p = held.get(d.time)
     if (p && pointEqual(p, d)) continue
     if (last == null || !before(d.time, last)) { ops.push([d, false]); last = d.time; continue }
-    if (!p || ++hist > MAX_HISTORICAL_UPDATES) return null      // R3
+    // R3 guard. ⛔ LWC 5.2's update(p, true) on a time the series does NOT hold does not
+    // throw — it overwrites the wrong row (integrator review of the 5.2 source). This check
+    // is the only protection, so a time that is not held is always a full setData.
+    if (!p || ++hist > MAX_HISTORICAL_UPDATES) return null
     ops.push([d, true])
   }
   return ops
@@ -144,39 +147,54 @@ export function createSeriesPainter(series) {
  * contract. `render(result)` takes an adapter.toSeries result.
  *   opts.candleField — 'candles' (OHLC types) | 'closes' (line/area)
  *   opts.allowEmpty  — paint an empty series on a key change (status 'unavailable')
+ *   opts.overlays    — [{ id, series, input }] painted in the SAME call, before framing,
+ *                      because their times join the time scale's logical index space
+ *   opts.reserve     — seeded future slots right of the newest candle (framing K1)
+ * plotWidthPx: number | () => number — the candle plot width (right-margin policy).
+ *
+ * Replay / HA / any view-transform change: a new vtid ⇒ one full setData per series and
+ * NO reframe (the logical range is kept; only a key change reframes). Each replay step is
+ * therefore one setData — today's behavior too.
  */
-// plotWidthPx: number | () => number — the candle plot width (right margin policy, framing.js).
-export function createDiffRenderer({ timeScale, candle, volume = null, defaultVisibleBars = null, plotWidthPx = null, rightPadBars = null } = {}) {
+export function createDiffRenderer({ timeScale, candle, volume = null, defaultVisibleBars = null, plotWidthPx = null } = {}) {
   const main = createSeriesPainter(candle)
   const vol = volume ? createSeriesPainter(volume) : null
   const overlays = new Map()
   const idsOf = (r) => ({ key: r.key, frameId: r.frameId ?? `${r.key}|${r.tf}`, vtid: r.vtid, baseRev: r.baseRev })
+  const paintOverlay = (id, series, input) => {
+    let p = overlays.get(id)
+    if (!p || p.series !== series) { p = { series, painter: createSeriesPainter(series) }; overlays.set(id, p) }
+    return p.painter.paint(input, { allowEmpty: true })
+  }
 
   return {
-    render(result, { candleField = 'candles', allowEmpty = false } = {}) {
+    render(result, { candleField = 'candles', allowEmpty = false, overlays: ovs = [], reserve = 0 } = {}) {
       const ids = idsOf(result)
       const hadFrame = !!main.state?.n
+      const oldNewest = main.state?.lastTime ?? null
       let prevRange = null
       try { prevRange = timeScale?.getVisibleLogicalRange?.() ?? null } catch { prevRange = null }
+      const prevNewestIdx = indexOfTime(timeScale, oldNewest)
       const c = main.paint({ ...ids, base: result.base[candleField], tail: result.tail[candleField] }, { allowEmpty })
-      if (c.op === 'hold') return { candle: c, volume: null, held: true, range: null }
+      if (c.op === 'hold') return { candle: c, volume: null, overlays: [], held: true, range: null }
       const v = vol ? vol.paint({ ...ids, base: result.base.volume, tail: result.tail.volume }, { allowEmpty: true }) : null
+      const o = ovs.map(({ id, series, input }) => paintOverlay(id, series, input))
       let range = null
       if (c.keyChange && c.n > 0) {
+        // The newest candle's index FROM THE TIME SCALE: other series' times share the space.
+        const newestIndex = indexOfTime(timeScale, main.state.lastTime) ?? c.n - 1
         const px = typeof plotWidthPx === 'function' ? plotWidthPx() : plotWidthPx
-        range = frameAfterKeyChange({ n: c.n, prevRange: hadFrame ? prevRange : null, defaultVisibleBars, plotWidthPx: px, rightPadBars })
+        range = frameAfterKeyChange({ newestIndex, prevRange: hadFrame ? prevRange : null, defaultVisibleBars, plotWidthPx: px, reserve })
       } else if (c.op === 'prepend') {
-        range = frameAfterPrepend(prevRange, c.added)
+        const nowIdx = indexOfTime(timeScale, oldNewest)
+        const shift = (prevNewestIdx != null && nowIdx != null) ? nowIdx - prevNewestIdx : c.added
+        range = frameAfterPrepend(prevRange, shift)
       }
       if (range) timeScale.setVisibleLogicalRange(range)   // same call ⇒ same frame
-      return { candle: c, volume: v, held: false, range }
+      return { candle: c, volume: v, overlays: o, held: false, range }
     },
-    /** Overlay hook (MAs, compare, indicator columns): same diff rules, own painter. */
-    paintOverlay(id, series, input) {
-      let p = overlays.get(id)
-      if (!p || p.series !== series) { p = { series, painter: createSeriesPainter(series) }; overlays.set(id, p) }
-      return p.painter.paint(input, { allowEmpty: true })
-    },
+    /** Overlay hook outside a render (e.g. a live MA tick): same diff rules, own painter. */
+    paintOverlay,
     removeOverlay(id) { overlays.delete(id) },
     reset() { main.reset(); vol?.reset(); overlays.clear() },
     get state() { return { candle: main.state, volume: vol?.state ?? null } },
