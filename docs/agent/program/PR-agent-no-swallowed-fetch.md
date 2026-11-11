@@ -38,7 +38,7 @@ All runs used `python ../tools/agent_suite_lock.py run --who pl-grid -- powershe
   - Result: `Test Files 4 failed (4)`, `Tests 5 failed | 19 passed (24)`.
   - The 5 failures are: the stock case, the calendar case, the two scanRefine cases, and the census.
 - **Census, compared at the offender level against master:**
-  - master, 6 files: `agent/capabilities/calendar.js 0->1`, `agent/capabilities/scanRefine.js 0->2`, `agent/capabilities/stock.js 0->1`, `pages/breadth/drill/longHistory.js 0->1`, `pages/journal-2-0/tabs/NotebookTab.jsx 0->1`, `testing/agent/acceptance/lib.mjs 0->2`.
+  - master `292983f4bc` (this branch's base before the re-merge), 6 files: `agent/capabilities/calendar.js 0->1`, `agent/capabilities/scanRefine.js 0->2`, `agent/capabilities/stock.js 0->1`, `pages/breadth/drill/longHistory.js 0->1`, `pages/journal-2-0/tabs/NotebookTab.jsx 0->1`, `testing/agent/acceptance/lib.mjs 0->2`.
   - this head, 2 files: `pages/breadth/drill/longHistory.js 0->1`, `pages/journal-2-0/tabs/NotebookTab.jsx 0->1`. Both are non-Agent and were already red on master. They aren't touched here, and their owners are outside the Agent.
 - **Fix** (commit `165f6c0938`):
   - Scope: 48 files, every Agent test that names `stock.profile`, `calendar.day`/`nextReport`, `screener.run` or `lastScreen`, plus the census.
@@ -57,8 +57,8 @@ The merge was clean. Runs were vitest under node, BelowNormal, ≤25 files, **no
 
 - **Focused, 23 files:** `agentNoSwallowedFetch`, `agentScanRefine`, `agentPageCalendar`, the census, and 19 stock / screener tests that import the changed capabilities. Result: `Test Files 1 failed | 22 passed (23)`, `Tests 1 failed | 431 passed | 1 skipped (433)`. The one failure is the census (`focused-head.txt`).
 - **Census offenders, head vs master at the same SHA** (`census-print.test.js.txt`, the census's own regex and comment strip, copied into the tree for the run only):
-  - master `75421184a3`, 7 files: `agent/capabilities/calendar.js 0->1`, `agent/capabilities/scanRefine.js 0->2`, `agent/capabilities/stock.js 0->1`, `components/StockChart.jsx 0->1`, `pages/breadth/drill/longHistory.js 0->1`, `pages/journal-2-0/tabs/NotebookTab.jsx 0->1`, `testing/agent/acceptance/lib.mjs 0->2`.
-  - this head, 3 files: `components/StockChart.jsx 0->1`, `pages/breadth/drill/longHistory.js 0->1`, `pages/journal-2-0/tabs/NotebookTab.jsx 0->1`. All three are on master's list, and this PR touches none of them. `StockChart.jsx` is NEW on master since `292983f4bc` (it came with the merge). It is not an Agent file.
+  - master `75421184a3` (the same SHA as the merged head's master), 7 files / 9 sites (calendar 1, scanRefine 2, stock 1, StockChart 1, longHistory 1, NotebookTab 1, acceptance/lib.mjs 2): `agent/capabilities/calendar.js 0->1`, `agent/capabilities/scanRefine.js 0->2`, `agent/capabilities/stock.js 0->1`, `components/StockChart.jsx 0->1`, `pages/breadth/drill/longHistory.js 0->1`, `pages/journal-2-0/tabs/NotebookTab.jsx 0->1`, `testing/agent/acceptance/lib.mjs 0->2`.
+  - this head, 3 files / 3 sites (StockChart 1, longHistory 1, NotebookTab 1): `components/StockChart.jsx 0->1`, `pages/breadth/drill/longHistory.js 0->1`, `pages/journal-2-0/tabs/NotebookTab.jsx 0->1`. All three are on master's list, and this PR touches none of them. `StockChart.jsx` is NEW on master since `292983f4bc` (it came with the merge). It is not an Agent file.
 - **No new swallow in the diff:** `git diff origin/master...HEAD` has 0 added CODE lines matching `.catch(() => null | undefined | {})`. The 6 added lines that match are comments or this doc. The two added `.catch(` lines are `catch(e => fundamentalsUnread(sym, e))` and `catch(() => PASS_THROUGH)`.
 - **Mutants, re-run** (`mutants.json`, each a whole-line replace applied alone, then `git checkout`). Kill set: `agentNoSwallowedFetch`, `agentScanRefine` and `agentPageCalendar`, 19 tests. **5 of 5 killed:**
 

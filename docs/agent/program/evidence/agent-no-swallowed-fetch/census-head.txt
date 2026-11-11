@@ -1,3 +1,4 @@
+# census print at #1033 head 6a1bd84649 (tree 6027e57191; its app/ is identical to 50ee141f69), clean apart from the copied print test src/lib/zzCensusPrint.test.js (untracked, deleted after)
 # pl-widget no lock, BelowNormal, label census-head 
 node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
 6a1bd84649

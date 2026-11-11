@@ -1,3 +1,4 @@
+# census print at origin/master 75421184a3 (tree e391d2ca87), run in C:\w\pl-widget-pre3 detached at 75421184a3, clean apart from the copied print test src/lib/zzCensusPrint.test.js (untracked, deleted after)
 # master 75421184a3 no lock
 
  RUN  v4.0.18 C:/w/pl-widget-pre3/app
