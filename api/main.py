@@ -86,6 +86,7 @@ from api.routers import journal_two as journal_two_router
 from api.routers import notebook_insights as notebook_insights_router
 from api.routers import client_errors as client_errors_router
 from api.routers import desktop_events as desktop_events_router
+from api.routers import perf_beacon as perf_beacon_router
 from api.routers import notebook_soak as notebook_soak_router
 from api.routers import notebook_link_preview as notebook_link_preview_router
 from api.routers import hub_planned_trades as hub_planned_trades_router
@@ -3235,7 +3236,17 @@ def register_company_news_jobs(scheduler):
         ticker outside it -- LITE, for one -- could never receive a filing no
         matter how long the service ran. The offset persists in the store, so
         the sweep resumes where it left off across restarts.
+
+        ⚡ It skips a run that would overlap the opening or closing rush (desktop
+        speed plan 10.5): measured 2026-11-11 at 09:38-09:45 ET, 390 s wall and
+        42.5 s of this pod's CPU while members loaded every page. Coverage is
+        not time-critical; the next 20-minute interval runs after the rush.
         """
+        from api.services import market_rush
+        rush = market_rush.should_wait(datetime.now(_ET), 8)
+        if rush:
+            print(f"[news] per-company sweep skipped: {rush} rush")
+            return
         try:
             from api.services.news import ingest
             syms = ingest._active_universe(SEC_SYMS, rotate="sec_sweep")
@@ -10770,6 +10781,44 @@ def _bundle_build_id() -> str:
     return result
 
 
+_EARLY_HINTS_CACHE = None  # None = not read yet; "" = read, nothing usable
+
+
+def early_hint_link_header() -> str:
+    """The `Link` header for index.html (desktop speed plan 10.3), read once from the build manifest.
+
+    Cloudflare has Early Hints ON (zone setting `early_hints`): it remembers the Link
+    preloads on a page's response and sends them as a 103 before the next request's page
+    arrives, so the browser starts the entry script, its two vendor chunks and the CSS while
+    the HTML is still on its way (about one round trip sooner on a first visit; repeat visits
+    already have these immutable files cached). Every hint carries `crossorigin` because
+    index.html loads each of them with `crossorigin`: a hint whose mode differs is fetched
+    TWICE. Returns "" on any failure; the page is served the same either way.
+    """
+    global _EARLY_HINTS_CACHE
+    cached = _EARLY_HINTS_CACHE
+    if cached is not None:
+        return cached
+    result = ""
+    try:
+        import json as _json
+
+        with open(os.path.join(DIST, ".vite", "manifest.json"), encoding="utf-8") as f:
+            manifest = _json.load(f)
+        entry = manifest.get("index.html")
+        if isinstance(entry, dict) and entry.get("isEntry") and isinstance(entry.get("file"), str):
+            scripts = [entry["file"]] + [manifest[k]["file"] for k in entry.get("imports", [])
+                                         if isinstance(manifest.get(k), dict) and isinstance(manifest[k].get("file"), str)]
+            styles = [c for c in entry.get("css", []) if isinstance(c, str)]
+            parts = [f"</{f.lstrip('/')}>; rel=preload; as=script; crossorigin" for f in scripts]
+            parts += [f"</{c.lstrip('/')}>; rel=preload; as=style; crossorigin" for c in styles]
+            result = ", ".join(parts)
+    except Exception:
+        result = ""
+    _EARLY_HINTS_CACHE = result
+    return result
+
+
 @app.get("/api/health")
 def health():
     from api.services.cache import cache
@@ -11127,6 +11176,7 @@ app.include_router(notebook_insights_router.router)
 app.include_router(client_errors_router.router)
 # Desktop plan 5.1: the desktop shell's enum-only telemetry door (session optional) + admin read.
 app.include_router(desktop_events_router.router)
+app.include_router(perf_beacon_router.router)
 # Wave 9 lane 9C (controller wiring): GET /api/admin/notebook-soak -- the soak's
 # one admin read (ruling D-9C2). Must precede the SPA catch-all like every /api route.
 app.include_router(notebook_soak_router.router)
@@ -13635,6 +13685,9 @@ def spa_index_response(full_path: str):
     it from a temp DIST; `spa_fallback` below is exactly `return spa_index_response(...)`
     (tests/test_public_note_headers.py pins that by AST)."""
     headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
+    hints = early_hint_link_header()
+    if hints:
+        headers["Link"] = hints
     if is_public_note_path(full_path):
         headers.update(PUBLIC_NOTE_HEADERS)
     return FileResponse(os.path.join(DIST, "index.html"), headers=headers)
