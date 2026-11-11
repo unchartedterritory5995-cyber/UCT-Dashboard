@@ -1138,6 +1138,15 @@ def main():
         target=_purge_then_start_uploader, name="weekly-purge", daemon=True
     ).start()
 
+    # Off-grid intraday rows (trade-time stamped yfinance live rows, 2026-11-10): this
+    # store is the snapshot source, so repair it here. Background, paced, idempotent;
+    # the merge gate keeps any row it has not reached yet out of the other tiers.
+    try:
+        from api.services import intraday_grid as _grid
+        _grid.sweep_async(delay_s=60)
+    except Exception as e:
+        log.warning(f"off-grid sweep did not start (non-fatal): {e}")
+
     _start_prewarmer()
     _start_universe_crawler()
     _start_bars_freshness_watchdog()

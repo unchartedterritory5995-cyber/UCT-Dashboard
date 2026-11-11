@@ -1,0 +1,35 @@
+// Off-grid intraday bars never draw as their own candle (prod 2026-11-10: SPY 5m
+// 16:35:50 beside 16:35:00). Invented round-number prices only.
+import { describe, it, expect } from 'vitest'
+import { foldOffGridBars } from './offGridBars'
+
+// 2026-11-06 16:35:00 ET (EST, UTC-5) = 21:35:00Z
+const B = Date.UTC(2026, 10, 6, 21, 35) / 1000
+const bar = (t, o = 10, h = 11, l = 9, c = 10, v = 100) => ({ t, o, h, l, c, v })
+
+describe('foldOffGridBars', () => {
+  it('folds a trade-time stamped row into its bucket (no extra candle)', () => {
+    const out = foldOffGridBars([bar(B - 300), bar(B), bar(B + 50, 10, 12, 8, 11, 7), bar(B + 300)], '5')
+    expect(out.map(b => b.t)).toEqual([B - 300, B, B + 300])
+    expect(out[1]).toEqual({ t: B, o: 10, h: 12, l: 8, c: 11, v: 107 })
+  })
+
+  it('re-keys a lone off-grid row to its bucket start', () => {
+    const out = foldOffGridBars([bar(B - 300), bar(B + 41)], '5')
+    expect(out.map(b => b.t)).toEqual([B - 300, B])
+  })
+
+  it('handles 1m / 15m and 60m seconds', () => {
+    expect(foldOffGridBars([bar(B), bar(B + 33)], '1').map(b => b.t)).toEqual([B])
+    expect(foldOffGridBars([bar(B - 1200), bar(B - 1200 + 31)], '15').map(b => b.t)).toEqual([B - 1200])
+    const H = Date.UTC(2026, 10, 5, 22, 0) / 1000   // 17:00 ET
+    expect(foldOffGridBars([bar(H), bar(H + 41)], '60').map(b => b.t)).toEqual([H])
+  })
+
+  it('returns the same array for a clean series and ignores daily', () => {
+    const clean = [bar(B), bar(B + 300)]
+    expect(foldOffGridBars(clean, '5')).toBe(clean)
+    const daily = [{ t: '2026-11-06', o: 1, h: 1, l: 1, c: 1 }]
+    expect(foldOffGridBars(daily, 'D')).toBe(daily)
+  })
+})

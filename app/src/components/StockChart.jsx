@@ -3,6 +3,7 @@
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
 import { computeBarTime, toChartTime, fromChartTime, isOnSixtyMinGrid } from './chart/barTime'
 import { liveStreamSession } from './chart/liveBuckets'
+import { foldOffGridBars } from './chart/offGridBars'
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
 import { markChartLayoutPresentational } from '../utils/chartLayoutTable'
 import { Fragment, useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo, useId, useSyncExternalStore } from 'react'
@@ -9935,15 +9936,19 @@ export default function StockChart({
 
   // Filter bars to regular session only when extended hours hidden
   const sessionBars = useMemo(() => {
-    if (!bars || !_intradayLike || showExtended) return bars
+    if (!bars || !_intradayLike) return bars
+    // An off-grid bar (trade-time stamped, e.g. 16:35:50 beside 16:35:00) is never its
+    // own candle — folded into its bucket. Same array when the series is clean.
+    const gridBars = isIntraday ? foldOffGridBars(bars, resolvedTf, { showExtended }) : bars
+    if (showExtended) return gridBars
 
-    return bars.filter(b => {
+    return gridBars.filter(b => {
       if (typeof b.t !== 'number') return true
       const mins = etMinutesOfUnix(b.t)
       // All intraday RTH: 9:30 AM (570 min) to 4:00 PM (960 min) ET
       return mins >= 570 && mins < 960
     })
-  }, [bars, _intradayLike, showExtended, resolvedTf])
+  }, [bars, _intradayLike, isIntraday, showExtended, resolvedTf])
 
   // ── Replay / Time Machine state ──
   const [replayMode, setReplayMode] = useState(false)
