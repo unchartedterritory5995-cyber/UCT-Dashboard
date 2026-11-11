@@ -332,11 +332,12 @@ _META_DDL = (
     " PRIMARY KEY (ticker, tf)) WITHOUT ROWID",
     "CREATE TABLE IF NOT EXISTS store_meta (k TEXT PRIMARY KEY, v REAL)",
 )
-# `history_rev`: the rev of the newest write that changed SEALED history — a row older
-# than the series' stored tail, or the tail itself once proven (`_history_keys`), or any
-# delete. A client holding history_rev H only needs `since=` deltas while H is current;
-# a newer history_rev means re-read the window (a correction: split re-adjust, heal,
-# merge correction, reconciliation).
+# `history_rev`: the rev of the newest write that changed HELD history — a row at or
+# below the series' history floor (stored tail - MUTABLE_WINDOW_S; D/W/M: before the tail
+# period) or inside its seal, whose values changed or whose empty in-span bucket got a
+# row (`_history_keys`), or any delete. A client holding history_rev H only needs
+# `since = tail - window` deltas while H is current; a newer history_rev means re-read the
+# window (a correction: split re-adjust, heal, merge correction, reconciliation).
 _REV_SET = "rev = max(series_meta.rev + 1, excluded.rev)"
 _HIST_SET = "history_rev = max(series_meta.rev + 1, excluded.rev)"
 _REV_UPSERT_SQL = (
@@ -487,42 +488,139 @@ def _sealed_through_many(c: sqlite3.Connection, tf: str, tickers: list) -> dict:
     return out
 
 
+#: ⭐ THE MUTABLE WINDOW (one owner; `bars_fetch._DELTA_HEAL_WINDOW_SECONDS` is this
+#: value). The stretch behind a series' stored tail that a tail repair may still rewrite
+#: and that a client re-reads on every poll (`since = held tail - window`). Rows at or
+#: below its floor change only with `history_rev`.
+#: CLIENT_MUTABLE_WINDOW_S is the CLIENT's contract value (app/src/data/barStore/
+#: network.js `MUTABLE_WINDOW_S`): a server window WIDER than it would leave rows the
+#: repair rewrites without a history bump but outside the client's delta, so the env
+#: value is clamped to it (narrower is safe: more rows count as history).
+CLIENT_MUTABLE_WINDOW_S = 8 * 3600
+
+
+def _mutable_window_from_env(raw) -> int:
+    try:
+        w = int(raw) if raw not in (None, "") else CLIENT_MUTABLE_WINDOW_S
+    except (TypeError, ValueError):
+        _logger.warning("[sqlite] BARS_DELTA_HEAL_WINDOW_SECONDS=%r is not an int; using %d",
+                        raw, CLIENT_MUTABLE_WINDOW_S)
+        return CLIENT_MUTABLE_WINDOW_S
+    if w > CLIENT_MUTABLE_WINDOW_S:
+        _logger.warning("[sqlite] BARS_DELTA_HEAL_WINDOW_SECONDS=%d exceeds the client "
+                        "contract window %d; clamped (a wider server window under-bumps "
+                        "history_rev)", w, CLIENT_MUTABLE_WINDOW_S)
+        return CLIENT_MUTABLE_WINDOW_S
+    return max(0, w)
+
+
+MUTABLE_WINDOW_S = _mutable_window_from_env(os.environ.get("BARS_DELTA_HEAL_WINDOW_SECONDS"))
+_DATE_TFS = ("D", "W", "M")
+
+
+def history_floor(tf: str, tail) -> int | None:
+    """The newest stored key that is HELD HISTORY for a series whose stored tail is
+    `tail`: a client polling `since = tail - window` (server answers `ts > since`) never
+    re-reads a row keyed at or below it, so a write that changes such a row must move
+    `history_rev`. Intraday: `tail - MUTABLE_WINDOW_S`. D/W/M (YYYYMMDD keys; the daily
+    delta rewrites only the tail period, `_delta_daily` & co.): every row before the
+    tail. None = empty series (nothing is held)."""
+    if tail is None:
+        return None
+    if tf in _DATE_TFS:
+        return int(tail) - 1
+    return int(tail) - int(MUTABLE_WINDOW_S)
+
+
+def is_held_history(key, floor) -> bool:
+    """⭐ THE window boundary, used by both sides: `_history_keys` (a change here moves
+    history_rev) and the tail repair (`bars_fetch._delta_keep_bar` rewrites only rows that
+    are NOT held history). The row AT the floor is history: the client asks
+    `since = tail - window` and the server answers `ts > since`."""
+    return floor is not None and int(key) <= int(floor)
+
+
+def _series_ends(c: sqlite3.Connection, tf: str, tickers: list, *, newest: bool) -> dict:
+    """{TICKER: newest (or oldest) stored key} for many series — one PK seek each, one
+    statement per 400 series."""
+    out: dict = {}
+    order = "DESC" if newest else "ASC"
+    for i in range(0, len(tickers), 400):
+        chunk = tickers[i:i + 400]
+        vals = ",".join("(?)" for _ in chunk)
+        for t, k in c.execute(
+                f"WITH w(t) AS (VALUES {vals}) SELECT w.t, (SELECT ts FROM ohlcv "
+                f"WHERE ticker=w.t AND tf=? ORDER BY ts {order} LIMIT 1) FROM w",
+                [*chunk, tf]).fetchall():
+            if k is not None:
+                out[t] = int(k)
+    return out
+
+
 def _history_keys(c: sqlite3.Connection, tf: str, written, *, replace: bool = True) -> set:
     """The (TICKER, tf) keys among `written` row tuples (ticker, tf, ts, o, h, l, c, v)
-    whose write changes SEALED history: a row whose bucket ENDED at or before the
-    series' `sealed_through` (the region `complete_through` calls final) and whose stored
-    values differ (`replace`) or whose bucket was empty. Completing a provisional row,
-    growing the tail and updating the developing bar never count. Read under the
-    caller's write lock, before the write; bounded by the rows being written."""
+    whose write changes HELD HISTORY — a row a client may hold and will not re-read
+    through `since=` deltas:
+      * a row keyed at or below `history_floor(tf, stored tail)` (older than the mutable
+        window, sealed or not — split re-adjust, merge, gap-fill, rebuild, deep write), or
+      * a row whose bucket ENDED at or before the series' `sealed_through` (the region
+        `complete_through` calls final),
+    whose stored values differ (`replace`) or whose bucket was EMPTY inside the stored
+    span (a hole: a client may hold the absence). A row older than the series' oldest
+    stored row (prepending history) is not a change to anything held. Rows inside the
+    mutable window and past the seal never count: deltas carry them (tail repairs, live
+    updates, completing provisional rows). The stored tail is read BEFORE the write.
+    Read under the caller's write lock; bounded by the rows being written (one PK seek
+    per series + the written keys)."""
     by_t: dict = {}
     for r in written:
         by_t.setdefault(r[0], []).append(r)
     out = set()
     if not by_t:
         return out
-    sealed = _sealed_through_many(c, tf, list(by_t))
-    if not sealed:
-        return out
-    from api.services import bar_contract
-    grid = bar_contract.grid_for(tf)
+    tickers = list(by_t)
+    tails = _series_ends(c, tf, tickers, newest=True)
+    if not tails:
+        return out                        # every series empty: nothing is held
+    sealed = _sealed_through_many(c, tf, [t for t in tickers if t in tails])
+    grid = None
+    if sealed:
+        from api.services import bar_contract
+        grid = bar_contract.grid_for(tf)
+    heads: dict | None = None
     for tkr, rs in by_t.items():
-        st = sealed.get(tkr)
-        if st is None:
+        tail = tails.get(tkr)
+        if tail is None:
             continue
+        floor = history_floor(tf, tail)
+        st = sealed.get(tkr)
         hits = []
         for r in rs:
-            b = bar_contract.bucket_bounds(tf, int(r[2]), grid)
-            if b is not None and b[1] <= st:
+            k = int(r[2])
+            if is_held_history(k, floor):
                 hits.append(r)
+            elif st is not None:
+                b = bar_contract.bucket_bounds(tf, k, grid)
+                if b is not None and b[1] <= st:
+                    hits.append(r)
         if not hits:
             continue
-        qs = ",".join("?" for _ in hits)
-        stored = {int(t): v for t, *v in c.execute(
-            f"SELECT ts,o,h,l,c,v FROM ohlcv WHERE ticker=? AND tf=? AND ts IN ({qs})",
-            [tkr, tf, *[int(r[2]) for r in hits]]).fetchall()}
+        stored = {}
+        for i in range(0, len(hits), 400):
+            part = hits[i:i + 400]
+            qs = ",".join("?" for _ in part)
+            stored.update({int(t): v for t, *v in c.execute(
+                f"SELECT ts,o,h,l,c,v FROM ohlcv WHERE ticker=? AND tf=? AND ts IN ({qs})",
+                [tkr, tf, *[int(r[2]) for r in part]]).fetchall()})
         for r in hits:
             old = stored.get(int(r[2]))
-            if old is None or (replace and _differs(tuple(old), tuple(r[3:8]))):
+            if old is None:
+                if heads is None:
+                    heads = _series_ends(c, tf, [t for t in tickers if t in tails], newest=False)
+                if int(r[2]) > heads.get(tkr, tail):   # a hole inside the stored span
+                    out.add((tkr, tf))
+                    break
+            elif replace and _differs(tuple(old), tuple(r[3:8])):
                 out.add((tkr, tf))
                 break
     return out
