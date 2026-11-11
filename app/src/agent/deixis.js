@@ -12,6 +12,8 @@
 import { addableRows } from './capabilities/indicatorEdits'
 import { resolvedTicker } from './nl/tickers'
 import { sanitizeChartTabs } from '../pages/charts/chartTabs'
+import { CLICK_ACT_NP } from './clickRef'
+import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated, negatedClick, withoutExclusions } from './spatialCheck'
 
 // Words that point at "the chart in front of me". "it" counts only for a CHART-kind op ("make it
 // weekly"), never on its own ("put it in Momentum", "what is it" are not about a chart).
@@ -39,9 +41,9 @@ const REL_ANCHOR_NOUN = '(?:chart|one|cell|pane|panel|ticker|stock|symbol|graph|
 // ⛔ no lookbehind (iOS 16 floor — this string is compiled into RELATIVE; agentNoLookbehindStrings.test.js): "this/that, then a
 // word that is NOT one of these" is a lookahead on the word itself (that word is the whole letter run, so the two agree)
 const REL_ANCHOR = `(?:(?:this|that)(?:\\s+${REL_ANCHOR_NOUN}\\b|(?![\\s-]+(?!(?:to|on|in|and|then|please|for|with|as|into|onto|now|weekly|daily|monthly|hourly|intraday|instead|too|also|here)\\b)[a-z]+\\b)\\b)`
-  + `|it\\b|the\\s+(?:selected|clicked|current|highlighted|active|focused)(?:\\s+${REL_ANCHOR_NOUN})?\\b`
+  + `|it\\b|here\\b|the\\s+(?:selected|clicked|current|highlighted|active|focused)(?:\\s+${REL_ANCHOR_NOUN})?\\b`
   + `|the\\s+one\\s+(?:that\\s+)?(?:i|you)(?:'ve|\\s+have|\\s+just)?\\s*(?:clicked|selected|picked|chose|chosen|highlighted|tapped)(?:\\s+on)?\\b)`
-export const RELATIVE = new RegExp(`\\b(?:(?:right|just|directly|immediately|exactly)\\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to\\s+the\\s+|on\\s+the\\s+)?(left|right)\\s+of|(next\\s+to|beside|alongside)|(adjacent\\s+to|near|nearest(?:\\s+to)?|closest\\s+to))\\s+(?:(?:right|just|directly|immediately)\\s+)?${REL_ANCHOR}`, 'i')
+export const RELATIVE = new RegExp(`\\b(?:(?:right|just|directly|immediately|exactly)\\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to\\s+the\\s+|on\\s+the\\s+)?(left|right)\\s+of|(next\\s+(?:door\\s+)?to|beside|alongside)|(adjacent\\s+to|near|nearest(?:\\s+to)?|closest\\s+to))\\s+(?:(?:right|just|directly|immediately)\\s+)?${REL_ANCHOR}`, 'i')
 // …and it is about a CHART: the anchor itself names one ("this one", "the selected chart", "the one I clicked"), or the thing
 // meant is named before the relation ("the chart / the one / the ticker / whatever … above it"). "alert above it" and "a line
 // under it" relate a price or a drawing to "it", not a chart to the click: no relation here.
@@ -52,16 +54,277 @@ const REL_MEANT = new RegExp(`\\b(?:the|which|whichever|any)\\s+(?:[a-z]+\\s+)?$
 // target, which stands in for it): with a click and no other context that is the natural reading. Only on a CHART noun, and never
 // followed by "of …", a number or a price ("the one above 50" is a value). No click → no neighbour → asked, as before.
 // Groups as RELATIVE's: 1 above/below, 2 left/right (3, 4 never match here).
-const RELATIVE_BARE = /\b(?:the|that)\s+(?:chart|one|cell|pane|panel|graph)\s+(?:(?:right|just|directly|immediately)\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to|on)\s+(?:the|its)\s+(left|right)(?:[-\s]+hand(?:\s+side)?)?)(?:(x(?!x)x)|(x(?!x)x))?\b(?!\s*(?:of\b|it\b|this\b|that\b|the\b|my\b|[$\d]))/i
-/** The relation match, or null when the words relate nothing to the clicked CHART. */
-export function relationMatch(text) {
+const RELATIVE_BARE = /\b(?:the|that)\s+(?:(?:second|third|next[-\s]but[-\s]one)\s+)?(?:chart|one|cell|pane|panel|graph|neighbou?r)\s+(?:(?:one|two|three|four|five|[1-9])\s+(?:(?:charts?|cells?|panes?|panels?|places?|spots?|positions?|slots?|spaces?)\s+)?(?:over\s+(?=(?:to|on)\s))?)?(?:(?:right|just|directly|immediately)\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to|on)\s+(?:the|its)\s+(left|right)(?:[-\s]+hand(?:\s+side)?)?)(?:(x(?!x)x)|(x(?!x)x))?\b(?!\s*(?:of\b|it\b|this\b|that\b|the\b|my\b|[$\d]))/i
+// unseen9 P1: the DIAGONAL of the click — "diagonally opposite / across from this", "across the diagonal from this", "kitty-corner
+// (catty-corner) from / to this" (a chart noun may sit between: "the kitty corner chart from this one"), "opposite this one".
+// The click is the anchor, never the target. The match carries `diagonal` (relativeChart reads the cell from the grid).
+const DIAG_WORD = `(?:corner\\s+(?:opposite|diagonal(?:ly)?)(?:\\s+(?:from|to))?|(?:in\\s+the\\s+)?far\\s+corner\\s+(?:from|to)|diagonal(?:ly)?\\s+(?:opposite|across)(?:\\s+(?:from|to))?|across\\s+the\\s+diagonal\\s+(?:from|to)|(?:kitty|catty|cater)[-\\s]?corner(?:ed)?(?:\\s+(?:${REL_ANCHOR_NOUN})s?)?\\s+(?:from|to)|(?:in\\s+the\\s+)?opposite\\s+corner(?:\\s+(?:${REL_ANCHOR_NOUN})s?)?\\s+(?:from|to)|(?:directly\\s+)?across\\s+from|opposite(?:\\s+(?:from|to))?)`
+export const DIAGONAL = new RegExp(`\\b${DIAG_WORD}\\s+${REL_ANCHOR}`, 'i')
+// anchorless ("the chart diagonally opposite", "the one in the opposite corner"): the click is the anchor, as RELATIVE_BARE
+const DIAGONAL_BARE = /\b(?:the|that)\s+(?:chart|one|cell|pane|panel|graph)\s+(?:(?:diagonally|directly)\s+(?:opposite|across)|(?:kitty|catty|cater)[-\s]?corner(?:ed)?|in\s+the\s+opposite\s+corner)\b(?!\s*(?:from|to|of)\b)/i
+// AUDIT #988: the relation as a MODIFIER before the chart noun ("the opposite-corner chart", "the diagonal one", "the kitty corner
+// cell", "the far-corner panel"), hyphenated or not: anchorless, so the click is the anchor
+const DIAGONAL_PRE = /\b(?:the|that)\s+(?:opposite[-\s]+corner(?:ed)?|diagonal(?:ly[-\s]+opposite)?|(?:kitty|catty|cater)[-\s]?corner(?:ed)?|far[-\s]+corner)\s+(?:chart|one|cell|pane|panel|graph)\b/i
+// AUDIT GO (2): a relation word UCT cannot place on the grid ("facing this one", "on the far side of this chart"), anchored on the
+// click: the click is still only the ANCHOR, so the reference resolves to no chart (asked with the real names), never the click
+const UNPLACED_RELATION = new RegExp(`\\b(?:facing|mirroring|(?:on\\s+)?the\\s+(?:far|other)\\s+side\\s+of|opposite|across|diagonal(?:ly)?|corner(?:ed)?)\\s+(?:(?:from|to|of)\\s+)?${REL_ANCHOR}`, 'i')
+const chartWordIn = (s) => /\b(?:chart|one|cell|pane|panel|graph|corner)\b/i.test(s)
+// unseen10: a TWO-AXIS diagonal step ("diagonally up and to the left of this one") and the FAR END of the click's line ("the chart
+// at the far end from this one")
+const DIAG_STEP = new RegExp(`\\bdiagonally\\s+(up|down|above|below)\\s+(?:and\\s+)?(?:to\\s+the\\s+)?(left|right)(?:\\s+of)?\\s+${REL_ANCHOR}`, 'i')
+const FAR_END = new RegExp(`\\b(?:at\\s+)?the\\s+(?:far(?:thest)?|other|opposite)\\s+end\\s+(?:(?:of\\s+the\\s+(?:row|column)\\s+)?from|of)\\s+${REL_ANCHOR}`, 'i')
+// AUDIT condition on the STRUCTURAL rule: a CHART reference ("the one / chart / cell / panel … <spatial word> … <anchor>", "both
+// neighbours of this one", "<spatial word> … this one / this chart") with ANY spatial word never resolves to the click; it is only
+// the anchor. A relation word on a non-chart noun (a line, a level, an MA, a price, an alert) is not this rule.
+// (relational words only: a verb particle — "pull UP nvidia on this one", "switch OVER" — or a time word — "the PAST year on this
+// chart" — is not one; "far / other" only with end / side / corner, "row / column" only as "same / next row")
+const SPATIAL_WORD = '(?:left|right|above|below|under(?:neath)?|beneath|next\\s+(?:to|door)|beside|adjacent|neighbou?rs?|corner|opposite|diagonal\\w*|across|facing|beyond|behind|(?:far|farthest|furthest|other)\\s+(?:end|side|corner)|(?:same|next)\\s+(?:row|column)|past(?=\\s+(?:this|that|it|here)\\b))'
+const SPATIAL_VALUE = new RegExp(`\\b${SPATIAL_WORD}\\s+(?:the\\s+)?\\$?\\d`, 'i')     // "above the 20", "under 30", "over $150"
+const STRUCT_CHART = new RegExp(`\\b(?:the|that|which|any|both|all|either)\\s+(?:[a-z-]+\\s+){0,3}?(?:chart|one|cell|pane|panel|graph|neighbou?rs?)s?\\b[^.;,]{0,40}?\\b${SPATIAL_WORD}\\b[^.;,]{0,30}?\\b(?:this|that|here|it|the\\s+(?:selected|clicked|current|highlighted|active|focused)|the\\s+one\\s+(?:that\\s+)?(?:i|you))\\b`, 'i')
+const STRUCT_NEIGHBOURS = new RegExp(`\\b(?:both|all|either|the|its|my)\\s+(?:two\\s+)?neighbou?rs?\\s+(?:of|to|beside)\\s+(?:this|that|here|it|the\\s+(?:selected|clicked|current|highlighted|active|focused)|the\\s+one\\s+(?:that\\s+)?(?:i|you))\\b`, 'i')
+const STRUCT_TAIL = new RegExp(`\\b${SPATIAL_WORD}\\b[^.;,]{0,24}?\\b(?:this|that)\\s+(?:one|chart|cell|pane|panel|graph)\\b`, 'i')
+// AUDIT #988 (belt and braces): a COUNT with a DIRECTION anywhere in the words ("2 spaces left of here", "a couple over to the
+// right", "3 over") is a relation from the click even when its shape is not one UCT can place: the click is its anchor, so it is
+// never applied and never offered (the reference resolves to no chart and is asked about without the anchor)
+const COUNT_DIRECTION = /\b(?:two|three|four|five|six|[2-9]|second|third|2nd|3rd|a\s+couple(?:\s+of)?|next[-\s]but[-\s]one)\s+(?:(?:charts?|cells?|panes?|panels?|places?|spots?|positions?|slots?|spaces?|ones?)\s+)?(?:(?:over|across)\b|(?:(?:to|on)\s+the\s+)?(?:left|right)\b|above\b|below\b|under\b|beneath\b)/i
+// AUDIT #988 (possessive anchor): "its / it's / this one's / this chart's / the selected one's" before a RELATIONAL noun or phrase
+// makes the click a REFERENCE POINT, as R1: "the neighbour on its left" = the cell to the click's left, "its right neighbour", "its
+// diagonal", "its row's far end", "both of its neighbours". Rewritten to the anchored phrase the readers below already resolve; a
+// possessive on any other relational word is still a relation UCT cannot place (asked without the anchor). "its" on a THING ("its
+// level", "its signal line", "its price scale on the right") is no relation.
+const POSS = "(?:its|it['’]s|(?:this|that)\\s+(?:one|chart)['’]s|the\\s+(?:selected|clicked|current|highlighted|active|focused)\\s+(?:one|chart)['’]s)"
+const POSS_SIDE = new RegExp(`\\b(on|to)\\s+${POSS}\\s+(left|right)(?:[-\\s]+hand)?(?:[-\\s]+side)?\\b`, 'gi')
+const POSS_SIDE_NB = new RegExp(`\\b${POSS}\\s+(left|right)(?:[-\\s]+hand)?(?:[-\\s]+side)?\\s+(?:neighbou?r|chart|one|cell|pane|panel)\\b`, 'gi')
+const POSS_NBS = new RegExp(`\\b(?:(?:both|all|each|either)\\s+(?:of\\s+)?)?${POSS}\\s+(?:two\\s+)?neighbou?rs\\b`, 'gi')
+const POSS_FAR = new RegExp(`\\b(?:the\\s+(?:chart|one|cell)\\s+at\\s+)?(?:${POSS}\\s+(row|column)['’]s\\s+(?:far(?:thest)?|other|opposite)\\s+end|the\\s+(?:far(?:thest)?|other|opposite)\\s+end\\s+of\\s+${POSS}\\s+(row|column))\\b`, 'gi')
+const POSS_DIAG = new RegExp(`\\b${POSS}\\s+(?:diagonal(?:ly\\s+opposite)?|opposite\\s+corner|far\\s+corner|(?:kitty|catty|cater)[-\\s]?corner)(?:\\s+(?:chart|one|cell|pane|panel|neighbou?r))?\\b`, 'gi')
+const POSS_REL = new RegExp(`\\b${POSS}\\s+(?:[a-z-]+\\s+)?(?:(?:left|right)(?=[-\\s]+(?:hand|side|neighbou?r|chart|one|cell))|sides?|neighbou?rs?|corner|diagonal|(?:far|other|opposite)\\s+end|row|column)\\b`, 'i')
+/** The words with a possessive anchor on a relation rewritten to the phrase the readers resolve: a SIDE to the canonical "its" form
+ *  RELATIVE_BARE reads from the click ("this chart's right side" → "its right": no second "this one", so a two-target clause
+ *  "this one and the one to its left" keeps both), the rest to the anchored phrase. Idempotent; no possessive → unchanged. */
+export function possessiveAnchor(text) {
   const s = String(text || '')
+  if (!/['’]s\b|\bits\b/i.test(s)) return s
+  return s.replace(POSS_FAR, (m, r1, r2) => `the chart at the far end of the ${(r1 || r2).toLowerCase()} from this one`)
+    .replace(POSS_DIAG, 'the chart diagonally opposite this one')
+    .replace(POSS_NBS, 'both neighbours of this one')
+    .replace(POSS_SIDE_NB, (m, side) => `the one to its ${side.toLowerCase()}`)
+    .replace(POSS_SIDE, (m, pre, side) => `${pre} its ${side.toLowerCase()}`)
+}
+const FAR_LINE = /\bthe\s+(row|column)\s+from\s+this\s+one\b/i
+// relrefs-steps (#988): a WALK from the click, the click being its anchor whether it is named or not (AUDIT's R3) — N rows up /
+// down ("one row up from this one", "up one row", "a row below"), N over / columns to the left / right ("two over to the left",
+// "one column left of this one"; "two over" alone: whichever side is that deep), the OTHER SIDE of its row / column, and a CORNER
+// on the same side / row / column. Read from where the charts sit (relativeChart): one chart → it; none or several → asked with the
+// real candidates, never the click. Units are grid units only: "two bars to the left", "one pane up" are no walk.
+const MOVE_VERB = /\b(?:move|moving|shift|drag|slide|push|nudge|swap|scroll|pan)\b/i
+// a COUNT, never a pronoun: "a / an / one" only after a chart noun or a verb particle ("the chart one over", "up one row", "the one
+// one over") — not "the top one over", "the next-but-one chart"; 2–4 never inside a hyphenated word.
+// ⛔ NO LOOKBEHIND (iOS 16.0–16.3, #988 AUDIT L1): the word BEFORE the count is checked in code (countOk), on the text before
+// the match — a rejected count retries one character on, as the regex engine would (walkExec)
+const N_WORD = '(a|an|one|two|three|four|[1-4])'
+const COUNT_ARTICLE_AFTER = /\b(?:chart|charts|one|cell|cells|pane|panel|graph|neighbou?r|up|down|it|just|only|exactly|by|is|sits?)\s$/i
+const countOk = (before, w) => (/^(?:a|an|one)$/i.test(w) ? COUNT_ARTICLE_AFTER.test(before) : !/[-\w]$/.test(before))
+/** The first match of a walk regex whose count (group `g`, starting `lead(m)` characters into the match) passes countOk. */
+function walkExec(re, s, g = 1, lead = () => 0) {
+  const r = new RegExp(re.source, `${re.flags}g`)
+  for (let m; (m = r.exec(s));) {
+    if (countOk(s.slice(0, m.index + lead(m)), m[g])) return m
+    r.lastIndex = m.index + 1
+  }
+  return null
+}
+const V2_LEAD = (m) => /^(?:up|down)\s+/i.exec(m[0])[0].length
+// the walk's own anchor, when the words name it ("one row up FROM THIS ONE"): part of the walk, not another pointer at the click
+const WALK_FROM = `(?:\\s+(?:(?:away\\s+)?(?:from|of|to|than|as)\\s+)?(?:this|that|here|it|the\\s+(?:selected|clicked|current|highlighted|active|focused)(?:\\s+(?:chart|one))?|the\\s+one\\s+(?:that\\s+)?(?:i|you)(?:'ve|\\s+have|\\s+just)?\\s*(?:clicked|selected|picked|chose|chosen|highlighted|tapped)(?:\\s+on)?)(?:\\s+(?:chart|one|cell|pane|panel))?\\b)?`
+const N_OF = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4 }
+const GRID_UNIT = '(?:columns?|charts?|cells?|spots?|places?|positions?|slots?|spaces?)'
+const WALK_V1 = new RegExp(`\\b${N_WORD}\\s+rows?\\s+(up|down|higher|lower|above|below)\\b${WALK_FROM}`, 'i')
+const WALK_V2 = new RegExp(`\\b(up|down)\\s+${N_WORD}\\s+rows?\\b${WALK_FROM}`, 'i')
+const WALK_H1 = new RegExp(`\\b${N_WORD}\\s+(?:${GRID_UNIT}\\s+)?(?:over\\s+)?(?:(?:to|on)\\s+the\\s+)?(left|right)\\b(?!\\s+(?:above|below|under|over|beneath)\\b)${WALK_FROM}`, 'i')
+const WALK_H2 = new RegExp(`\\b${N_WORD}\\s+(?:${GRID_UNIT}\\s+)?over\\b${WALK_FROM}`, 'i')
+/** (test hook) the walk regexes' first match on `s` — the #988 no-lookbehind equivalence rail compares it with the old forms */
+export const _walkExec = (kind, s) => ({ V1: () => walkExec(WALK_V1, s), V2: () => walkExec(WALK_V2, s, 2, V2_LEAD), H1: () => walkExec(WALK_H1, s), H2: () => walkExec(WALK_H2, s) })[kind]()
+const OTHER_SIDE = /\b(?:the\s+other\s+side\s+of|across)\s+the\s+(row|column)\b/i
+const SAME_CORNER = new RegExp(`\\bcorner\\s+(?:on|in|along|at)\\s+the\\s+same\\s+(side|row|column)\\b${WALK_FROM}`, 'i')
+// AUDIT probe-16 shapes (#988): "the <ordinal / position> chart in / of / on <a row or column>" and "same <axis> but the other <axis>".
+// "this / that row" is the CLICK's line (a relation: the click is a reference, the target only when the ordinal lands on it);
+// "the top / bottom / left / right / middle / first / last … row" is ABSOLUTE (ordinalChart: no click needed).
+const LINE_POS = '(first|second|third|last|middle|cent(?:er|re)|left(?:most)?|right(?:most)?|top(?:most)?|bottom(?:most)?|upper(?:most)?|lower(?:most)?)'
+const LINE_WHICH = '(top|bottom|upper|lower|middle|cent(?:er|re)|first|second|third|last|left|right)'
+export const LINE_REF = new RegExp(`\\b(?:the\\s+)?${LINE_POS}\\s+(?:chart|one|cell|pane|panel|graph)\\s+(?:in|of|on|along|from)\\s+(?:(this|that)|the|my)\\s+(?:${LINE_WHICH}\\s+)?(row|column)\\b`, 'i')
+// ...and with the line FIRST, as a possessive: "the top row's middle chart", "this column's last one" (same groups as LINE_REF)
+const LINE_REF_POSS = new RegExp(`\\b(?:(this|that)|the|my)\\s+(?:${LINE_WHICH}\\s+)?(row|column)['’]s\\s+${LINE_POS}\\s+(?:chart|one|cell|pane|panel|graph)\\b`, 'i')
+/** A line reference in either order → a match whose groups are LINE_REF's ([1] place, [2] this/that, [3] which line, [4] axis). */
+function lineRefExec(s) {
+  const a = LINE_REF.exec(s)
+  if (a) return a
+  const b = LINE_REF_POSS.exec(s)
+  if (!b) return null
+  const m = [b[0], b[4], b[1], b[2], b[3]]
+  m.index = b.index
+  m.input = b.input
+  return m
+}
+const SAME_BUT = /\bsame\s+(row|column)\s*,?\s*(?:but|and)?\s+(?:the\s+other|a\s+different|another|the\s+opposite)\s+(row|column)\b/i
+const ORD_AT = { first: 0, second: 1, third: 2 }
+/** The chart at `pos` in `line` (sorted along it) → the chart, or null (no such place in that line). */
+function atPos(line, pos, axis) {
+  const p = String(pos).toLowerCase().replace(/most$/, '')
+  const n = line.length
+  if (p in ORD_AT) return line[ORD_AT[p]] || null
+  if (p === 'last') return line[n - 1] || null
+  if (/^(?:middle|cent(?:er|re))$/.test(p)) return n >= 3 && n % 2 === 1 ? line[(n - 1) / 2] : null
+  const start = axis === 'row' ? ['left'] : ['top', 'upper'], end = axis === 'row' ? ['right'] : ['bottom', 'lower']
+  if (start.includes(p)) return line[0] || null
+  if (end.includes(p)) return line[n - 1] || null
+  return null                                                   // "the top chart in a row": no such place
+}
+/** The charts of one row / column, in order along it: the line through `through`, or the absolute one `which` names. */
+function lineOf(charts, axis, { through = null, which = null } = {}) {
+  const all = charts.filter(c => c.cell)
+  const along = (c) => (axis === 'row' ? c.cell.x : c.cell.y)
+  if (through) return all.filter(c => (axis === 'row' ? yOverlap(c, through) : xOverlap(c, through))).sort((a, b) => along(a) - along(b))
+  // the board's lines across the other axis, in order
+  const key = (c) => (axis === 'row' ? c.cell.y : c.cell.x)
+  const keys = [...new Set(all.map(key))].sort((a, b) => a - b)
+  const w = String(which || '').toLowerCase()
+  const i = /^(?:top|upper|first|left)$/.test(w) ? 0 : /^(?:bottom|lower|last|right)$/.test(w) ? keys.length - 1
+    : w in ORD_AT ? ORD_AT[w] : /^(?:middle|cent(?:er|re))$/.test(w) && keys.length % 2 === 1 ? (keys.length - 1) / 2 : -1
+  if ((axis === 'row' && /^(?:left|right)$/.test(w)) || (axis === 'column' && /^(?:top|upper|bottom|lower)$/.test(w))) return null
+  if (i < 0 || i >= keys.length) return null
+  return all.filter(c => key(c) === keys[i]).sort((a, b) => along(a) - along(b))
+}
+/** An ABSOLUTE line reference ("the last one in the bottom row") → { ref } | { ask } | null (not one). */
+export function absoluteLineChart(text, charts = []) {
+  const m = lineRefExec(String(text || ''))
+  if (!m || m[2] || !m[3]) return null
+  const line = lineOf(charts, m[4].toLowerCase(), { which: m[3] })
+  const hit = line ? atPos(line, m[1], m[4].toLowerCase()) : null
+  return hit ? { ref: hit.ref, word: m[1].toLowerCase(), match: m, line: true }
+    : { ask: { text: 'Which chart do you mean? Pick one:', choices: charts.map(c => ({ ref: c.ref, label: c.label })) }, match: m, line: true }
+}
+function walkMatch(s) {
+  const at = (m, set) => { if (!m || placesNonChart(s.slice(0, m.index), m[0])) return null; Object.assign(m, set); return m }
+  const n = (w) => N_OF[String(w).toLowerCase()] || Number(w)
+  const vDir = (w) => (/^(up|higher|above)$/i.test(w) ? 'above' : 'below')
+  let m = _walkExec('V1', s)
+  if (m) return at(m, { walk: { dirs: [vDir(m[2])], n: n(m[1]) } })
+  m = _walkExec('V2', s)
+  if (m) return at(m, { walk: { dirs: [vDir(m[1])], n: n(m[2]) } })
+  m = _walkExec('H1', s)
+  if (m) return at(m, { walk: { dirs: [m[2].toLowerCase()], n: n(m[1]) } })
+  m = _walkExec('H2', s)
+  if (m) return at(m, { walk: { dirs: ['left', 'right'], n: n(m[1]) } })
+  m = lineRefExec(s)
+  if (m && m[2]) return at(m, { line: { axis: m[4].toLowerCase(), pos: m[1] } })
+  m = SAME_BUT.exec(s)
+  if (m && m[1].toLowerCase() !== m[2].toLowerCase()) return at(m, { sameBut: m[1].toLowerCase() })
+  m = OTHER_SIDE.exec(s)
+  if (m) return at(m, { farLine: m[1].toLowerCase() })
+  m = SAME_CORNER.exec(s)
+  if (m) return at(m, { corner: m[1].toLowerCase() })
+  return null
+}
+// AUDIT probe 17 negatives (#988): a relation span never runs across into the NEXT clause's own command ("leave the left column
+// alone AND PUT this chart on weekly" is no relation from the click: "left" belongs to the first clause, "this chart" to the second)
+const CROSS_CLAUSE = /(?:[,;]\s*|\s+)(?:and|then|but)\s+(?:put|make|set|switch|change|add|move|turn|show|hide|remove|give|apply|take|drop|flip)\b/i
+/** The relation match, or null when the words relate nothing to the clicked CHART. */
+export function relationMatch(text0) {
+  // (H5, probe 19) a clause that says a chart already is so relates nothing (blanked: positions kept)
+  // (AUDIT probe 3) an imperative negation of the click relates nothing either: blanked (the click is excluded by the check)
+  const text = blankStated(negatedClick(text0).text)
+  const r0 = relationMatchIn(text)
+  // pl-auto unseen12 (#988): the click's own line said as a relation ("the rest of this row", "same column, other row", "same row, far
+  // end", "one column right from this chart", "this one, the first chart in its row") — read where the relation readers find
+  // nothing they can place, or only an unordered corner pair (spatialCheck.clickLineMatch / clickLineHits)
+  const cl0 = clickLineMatch(possessiveAnchor(text)) || clickLineMatch(text)
+  const cl = cl0 && !(cl0.clickLine.kind === 'step' && MOVE_VERB.test(String(text || ''))) ? cl0 : null   // a move of the click names its destination
+  const r = cl && (!r0 || r0.unplaced || (cl.clickLine.kind === 'corner' && r0.corner) || ['appos', 'counted', 'lineRel', 'diag2'].includes(cl.clickLine.kind) || (cl.clickLine.kind === 'rest' && cl.clickLine.n != null)) ? cl : r0
+  if (!r) return null
+  const x = CROSS_CLAUSE.exec(r[0])
+  if (!x) return r
+  // the relation, if any, is in the clause that starts at that command: read again from there (index kept on the whole text)
+  const s = possessiveAnchor(text)
+  const start = r.index + x.index + x[0].search(/(?:and|then|but)\s/i)
+  const rest = relationMatch(s.slice(start))
+  if (!rest) return null
+  rest.index += start
+  return rest
+}
+function relationMatchIn(text) {
+  const s = possessiveAnchor(text)
+  // a MOVE of the click ("move this one up one row", "shift this chart two over") names where it goes, not another chart
+  const moving = MOVE_VERB.test(s)
+  const w = moving ? null : walkMatch(s)
+  if (w) return w
+  const r = relationMatchOf(s)
+  if (r) return r
+  const c = moving ? null : COUNT_DIRECTION.exec(s)
+  if (c) { c.unplaced = true; return c }
+  // the STRUCTURAL rule: a spatial word on a CHART reference anchored on the click (not on a non-chart noun: placesNonChart, and a
+  // bare "one" that stands for a thing, S2-B) → a relation UCT may not place: the click is only its anchor
+  const chartRef = (x) => !!x && !placesNonChart(s.slice(0, x.index), x[0]) && !(/^\s*(?:the|that)\s+one\b/i.test(x[0]) && oneStandsForAThing(s.slice(0, x.index)))
+    && !PLACED_IN.test(x[0]) && !x[0].toLowerCase().split(/[^a-z0-9%]+/).some(w => w && !SPAN_STOP.has(w) && (PLACED.test(w) || isIndicatorWord(w)))
+    // (#988, AUDIT on the #1022 baseline diff) a spatial word on a VALUE ("crosses above the 20 on this chart", "closes under 30 on
+    // this one"): a level or an average's period on the click, never a chart relation
+    && !SPATIAL_VALUE.test(x[0])
+  // plurals: "both neighbours of this one", "both charts on either side of this one" — the set on both sides of the click
+  const nb = STRUCT_NEIGHBOURS.exec(s) || EITHER_SIDE.exec(s)
+  if (nb && chartRef(nb)) { nb.neighbours = true; return nb }
+  const sm = STRUCT_CHART.exec(s) || STRUCT_TAIL.exec(s)
+  if (chartRef(sm)) { sm.unplaced = true; return sm }
+  // R1 (grammatical): the anchor as the OBJECT of a preposition / relational head after a chart reference ("the chart furthest FROM
+  // this one", "the chart around this one", "the same row AS this one") is a REFERENCE POINT: never the target, never offered
+  const pp = REF_POINT.exec(s)
+  if (chartRef(pp)) { pp.unplaced = true; return pp }
+  // R3: an ANCHORLESS relation on a chart reference with no target deictic ("the chart next door", "the other end of the row"):
+  // the click is the implicit anchor
+  if (!/\b(?:this|it|here)\b/i.test(s)) {
+    const ia = IMPLICIT_NEIGHBOUR.exec(s)
+    if (chartRef(ia)) { ia.neighbours = 'one'; return ia }
+    const ie = IMPLICIT_FAR_END.exec(s)
+    if (chartRef(ie)) { ie.farEnd = true; return ie }
+  }
+  // a possessive on a relational word the rewrite could not place ("its upper side"): the click is only the anchor
+  const pr = POSS_REL.exec(s)
+  if (pr && !placesNonChart(s.slice(0, pr.index), pr[0])) { pr.unplaced = true; return pr }
+  return null
+}
+// grammar words inside a span are never an indicator's name ("from", "the", "one" appear in indicator titles)
+const SPAN_STOP = new Set(['the', 'a', 'an', 'from', 'of', 'to', 'on', 'in', 'at', 'by', 'with', 'and', 'or', 'as', 'than', 'this', 'that', 'it', 'here',
+  'one', 'ones', 'chart', 'charts', 'cell', 'cells', 'pane', 'panel', 'graph', 'side', 'sides', 'end', 'corner', 'row', 'column', 'board', 'up', 'down',
+  'over', 'away', 'across', 'out', 'selected', 'clicked', 'current', 'i', 'you', 'directly', 'just', 'right', 'left', 'two', 'three', 'same', 'other'])
+const ANCHOR_OBJ = '(?:this|that|here|it|the\\s+(?:selected|clicked|current|highlighted|active|focused)(?:\\s+(?:chart|one))?|the\\s+one\\s+(?:that\\s+)?(?:i|you))'
+// R2: the anchor as the object of a preposition / relational head, wherever it sits (no chart reference needed): a plan is never
+// redirected onto the click then
+const REF_PP_ANY = new RegExp(`\\b(?:(?:away|up|down|over|across|out)\\s+from|from|than|as|beside|opposite|across|next\\s+to|near|nearest\\s+to|closest\\s+to|beyond|past|around|below|above|under|over|behind)\\s+${ANCHOR_OBJ}\\b`, 'i')
+// …unless what stands before it is a placed thing ("stick the stochastic below this one": a pane on the click, AUDIT's rule)
+const refPointAny = (t) => { const s = possessiveAnchor(t); const m = REF_PP_ANY.exec(s); return !!m && !placesNonChart(s.slice(0, m.index), m[0]) }
+const EITHER_SIDE = new RegExp(`\\b(?:both|the|the\\s+two)\\s+(?:charts?|ones|cells|panels)\\s+(?:on\\s+)?(?:either|each|both)\\s+sides?\\s+of\\s+${ANCHOR_OBJ}\\b`, 'i')
+const REF_POINT = new RegExp(`\\b(?:the|that|which|any|both|all|either)\\s+(?:[a-z-]+\\s+){0,4}?(?:chart|one|cell|pane|panel|graph|side|end|corner)s?\\b[^.;,]{0,40}?\\b(?:(?:away|up|down|over|across|out)\\s+from|from|of|than|as|beside|opposite|across|next\\s+to|near|nearest\\s+to|closest\\s+to|beyond|past|around|below|above|under|over|behind)\\s+${ANCHOR_OBJ}\\b`, 'i')
+const IMPLICIT_NEIGHBOUR = /\b(?:the|that)\s+(?:(?:next[-\s]door|neighbou?ring|adjacent|nearby)\s+(?:chart|one|cell|pane|panel)|(?:chart|one|cell|pane|panel)\s+next\s+door)\b/i
+const IMPLICIT_FAR_END = /\b(?:the\s+(?:other|far(?:thest)?|opposite)\s+end\s+of\s+the\s+(?:row|board)|(?:the|that)\s+(?:chart|one|cell|pane|panel)\s+at\s+the\s+(?:far|other)\s+end(?:\s+of\s+the\s+(?:row|board))?)\b/i
+// a non-chart noun inside the matched span ("the one with the line above it", "the chart where the MA is below this") makes it no
+// chart relation either
+const PLACED_IN = /\b(?:lines?|levels?|indicators?|studies|study|volume|alerts?|labels?|markers?|notes?|drawings?|bands?|overlays?|averages?|ma|ema|sma|50-day|200-day|price|prices|trendlines?|candles?|bars?)\b/i
+function relationMatchOf(text) {
+  const s = String(text || '')
+  const aboutChart = (x) => !placesNonChart(s.slice(0, x.index), x[0]) && (REL_CHART_ANCHOR.test(x[0]) || placementNP(s.slice(0, x.index), x[0]) || REL_MEANT.test(s.slice(0, x.index)) || chartWordIn(x[0]))
+  const st = DIAG_STEP.exec(s)
+  if (st && aboutChart(st)) { st.step = { v: /^(up|above)$/i.test(st[1]) ? 'above' : 'below', h: st[2].toLowerCase() }; return st }
+  const fe = FAR_END.exec(s)
+  if (fe && aboutChart(fe)) { fe.farEnd = true; return fe }
+  const d = DIAGONAL.exec(s) || DIAGONAL_BARE.exec(s) || DIAGONAL_PRE.exec(s)
+  if (d && aboutChart(d)) { d.diagonal = true; return d }
   const m = RELATIVE.exec(s)
   // ⛔ AUDIT S2-B: the same rule for an anchored relation — "the alert and the one above it": a bare "one" coordinated with a
   // non-chart noun stands for that thing, so no chart relation (the click is read as it would be without one)
   if (m) { const pre = /\b(?:the|that)\s+one\s*$/i.exec(s.slice(0, m.index)); if (pre && oneStandsForAThing(s.slice(0, pre.index))) return null }
-  if (m && !placesNonChart(s.slice(0, m.index)) && (REL_CHART_ANCHOR.test(m[0]) || REL_MEANT.test(s.slice(0, m.index)))) return m
+  if (m && !placesNonChart(s.slice(0, m.index), m[0]) && (REL_CHART_ANCHOR.test(m[0]) || REL_MEANT.test(s.slice(0, m.index)))) return m
   if (m) return null
+  const u = UNPLACED_RELATION.exec(s)
+  if (u && aboutChart(u)) { u.unplaced = true; return u }
   const b = RELATIVE_BARE.exec(s)
   if (!b) return null
   // its noun IS the chart related ("a macd on the chart above" puts the MACD on that chart), so nothing placed before it counts —
@@ -112,7 +375,22 @@ function isIndicatorWord(w) {
   }
   return indicatorWords.has(w)
 }
-function placesNonChart(before) {
+// pl-auto u12 (#988): the chart a PLACEMENT preposition (on / onto / to / into / for) introduces is the TARGET noun phrase; a thing
+// named BEFORE that preposition ("put RSI on …", "add an alert to …") is what is placed, never part of the chart reference. So the
+// words from that preposition to the relation are read as the chart reference, whatever its head noun ("the corner opposite here",
+// "its left neighbour"). Not when that phrase itself names a placed thing: then the thing is placed on the click, as before.
+const PLACE_NP = /\b(?:on|onto|to|into|for)\s+((?:(?:the|that|which|any|both|all|either|its|my)\b[^,;.!?]*)?)$/i
+/** Do the words from the clause's last placement preposition through `span` form the chart reference that preposition introduces? */
+function placementNP(before, span = '') {
+  const pp = PLACE_NP.exec(String(before || '').split(CLAUSE_SPLIT_LOCAL).pop())
+  if (!pp) return false
+  const np = `${pp[1]}${span}`
+  const words = pp[1].toLowerCase().split(/[^a-z0-9%]+/).filter(Boolean)
+  return /^\s*(?:the|that|which|any|both|all|either|its|my)\b/i.test(np) && words.length <= 4
+    && !words.some(w => !SPAN_STOP.has(w) && (PLACED.test(w) || isIndicatorWord(w)))
+}
+function placesNonChart(before, span = '') {
+  if (placementNP(before, span)) return false
   const clause = String(before || '').split(CLAUSE_SPLIT_LOCAL).pop()
   const words = clause.toLowerCase().split(/[^a-z0-9%]+/).filter(Boolean).slice(-3)
   for (let i = words.length - 1; i >= 0; i--) {
@@ -132,6 +410,30 @@ function sideOf(charts, s, side) {
   if (side === 'below') return pick(o.filter(c => xo(c) && c.cell.y >= s.cell.y + s.cell.h), c => c.cell.y, Math.min)
   if (side === 'left') return pick(o.filter(c => yo(c) && c.cell.x + c.cell.w <= s.cell.x), c => c.cell.x + c.cell.w, Math.max)
   return pick(o.filter(c => yo(c) && c.cell.x >= s.cell.x + s.cell.w), c => c.cell.x, Math.min)
+}
+// unseen9 P1: the charts on the click's DIAGONAL (sharing neither a column nor a row with it). One → that chart. Several (a
+// 3×3 grid) → the one at the click's mirror point through the board's centre, when exactly one is there; otherwise all of them,
+// so the caller asks with their names. None (one row of charts) → none: the caller asks, never the click.
+const xOverlap = (a, b) => overlaps(a.cell.x, a.cell.x + a.cell.w, b.cell.x, b.cell.x + b.cell.w)
+const yOverlap = (a, b) => overlaps(a.cell.y, a.cell.y + a.cell.h, b.cell.y, b.cell.y + b.cell.h)
+/** The board's CORNER charts: a chart that touches both a left / right edge and a top / bottom edge of the whole board. */
+function cornersOf(charts) {
+  const all = charts.filter(c => c.cell)
+  if (!all.length) return []
+  const x0 = Math.min(...all.map(c => c.cell.x)), x1 = Math.max(...all.map(c => c.cell.x + c.cell.w))
+  const y0 = Math.min(...all.map(c => c.cell.y)), y1 = Math.max(...all.map(c => c.cell.y + c.cell.h))
+  return all.filter(c => (c.cell.x === x0 || c.cell.x + c.cell.w === x1) && (c.cell.y === y0 || c.cell.y + c.cell.h === y1))
+}
+function diagonalOf(charts, s) {
+  const o = charts.filter(c => c.ref !== s.ref && c.cell)
+  const diag = o.filter(c => !overlaps(c.cell.x, c.cell.x + c.cell.w, s.cell.x, s.cell.x + s.cell.w) && !overlaps(c.cell.y, c.cell.y + c.cell.h, s.cell.y, s.cell.y + s.cell.h))
+  if (diag.length <= 1) return diag
+  const all = charts.filter(c => c.cell)
+  const x0 = Math.min(...all.map(c => c.cell.x)), x1 = Math.max(...all.map(c => c.cell.x + c.cell.w))
+  const y0 = Math.min(...all.map(c => c.cell.y)), y1 = Math.max(...all.map(c => c.cell.y + c.cell.h))
+  const mx = x0 + x1 - (s.cell.x + s.cell.w / 2), my = y0 + y1 - (s.cell.y + s.cell.h / 2)
+  const at = diag.filter(c => mx > c.cell.x && mx < c.cell.x + c.cell.w && my > c.cell.y && my < c.cell.y + c.cell.h)
+  return at.length === 1 ? at : diag
 }
 // ⛔ AUDIT R5 (2026-11-07): a relation is one chart reference among the sentence's others. Read per CLAUSE (split at , ; . and
 // and / then / but / while / also):
@@ -160,22 +462,122 @@ export function relationRole(text, m) {
  *  (hits may be 0 or several), else null. `hits` is what the relation makes the TARGET: none when it is negated or when another
  *  clause points at the click too; `excluded` is what a negated relation names, which nothing may touch. */
 export function relativeChart(text, charts = [], sel = null) {
+  // (AUDIT probe 3) the relation's ROLE is read without the click's own negation: "leave this alone and make the one under it
+  // weekly" — "this" there is the excluded click, never a second target (alsoClick)
+  text = possessiveAnchor(blankStated(negatedClick(text).text))
   const m = relationMatch(text)
   if (!m) return null
   const role = relationRole(text, m)
   const s = sel ? charts.find(c => c.ref === sel && c.cell) : null
   if (!s) return { hits: [], match: m, ...role, excluded: [] }
+  if (m.clickLine) {
+    const h = clickLineHits(m, charts, s)
+    // an appositive that describes the click IS the click ("also" the target); every other click-line relation is anchored on it
+    return { hits: h.hits, match: m, ...role, alsoClick: h.onClick, negated: false, excluded: [], plural: h.plural }
+  }
+  if (m.unplaced) return { hits: [], match: m, ...role, excluded: [] }       // a relation, but no cell UCT can place: asked
+  if (m.walk || m.farLine || m.corner || m.line || m.sameBut) {
+    let hits = []
+    if (m.line) {
+      // the click's own row / column; the ordinal may land on the click (then it is the chart meant)
+      const hit = atPos(lineOf(charts, m.line.axis, { through: s }), m.line.pos, m.line.axis)
+      hits = hit ? [hit] : []
+    } else if (m.sameBut) {
+      hits = charts.filter(c => c.cell && c.ref !== s.ref && (m.sameBut === 'column' ? xOverlap(c, s) && !yOverlap(c, s) : yOverlap(c, s) && !xOverlap(c, s)))
+    } else if (m.walk) {
+      // each direction walked N unique steps; the directions that get there are the candidates
+      for (const dir of m.walk.dirs) {
+        let cur = s
+        for (let i = 0; cur && i < m.walk.n; i++) { const nx = sideOf(charts, cur, dir); cur = nx.length === 1 ? nx[0] : null }
+        if (cur) hits.push(cur)
+      }
+    } else if (m.farLine) {
+      const far = (dir) => { let at = s, last = null; for (let i = 0; i < charts.length; i++) { const nx = sideOf(charts, at, dir); if (nx.length !== 1) break; last = at = nx[0] } return last }
+      hits = (m.farLine === 'row' ? [far('left'), far('right')] : [far('above'), far('below')]).filter(Boolean)
+    } else {
+      hits = cornersOf(charts).filter(c => c.ref !== s.ref && (m.corner !== 'column' && yOverlap(c, s) || m.corner !== 'row' && xOverlap(c, s)))
+    }
+    if (role.negated) return { hits: [], match: m, ...role, excluded: hits }
+    if (role.alsoClick) return { hits: [], match: m, ...role, excluded: [] }
+    return { hits, match: m, ...role, excluded: [] }
+  }
+  if (m.neighbours) {
+    // the click's neighbours in its row: "both neighbours / either side" = the SET (plural); an implicit "the chart next door" =
+    // the one neighbour, when there is exactly one (else asked)
+    const set = [...sideOf(charts, s, 'left'), ...sideOf(charts, s, 'right')]
+    if (role.negated) return { hits: [], match: m, ...role, excluded: set }
+    if (m.neighbours === 'one') return { hits: set.length === 1 ? set : [], match: m, ...role, excluded: [] }
+    return { hits: set.length === 2 ? set : [], match: m, ...role, excluded: [], plural: set.length === 2 }
+  }
+  if (m.step || m.farEnd) {
+    // a two-axis step: one cell vertically, then one horizontally (each a unique neighbour); the far end: the farthest chart in the
+    // click's row, else its column (both, or neither → no chart: asked)
+    let hits = []
+    if (m.step) { const v = sideOf(charts, s, m.step.v); const h = v.length === 1 ? sideOf(charts, v[0], m.step.h) : []; hits = h.length === 1 ? h : [] }
+    else {
+      const far = (dir) => { let at = s, last = null; for (let i = 0; i < charts.length; i++) { const n = sideOf(charts, at, dir); if (n.length !== 1) break; last = at = n[0] } return last }
+      const row = [far('left'), far('right')].filter(Boolean), col = [far('above'), far('below')].filter(Boolean)
+      const line = FAR_LINE.exec(m[0])?.[1]?.toLowerCase()
+      hits = line === 'row' ? (row.length === 1 ? row : []) : line === 'column' ? (col.length === 1 ? col : [])
+        : row.length === 1 && !col.length ? row : col.length === 1 && !row.length ? col : []
+    }
+    if (role.negated) return { hits: [], match: m, ...role, excluded: hits }
+    if (role.alsoClick) return { hits: [], match: m, ...role, excluded: [] }
+    return { hits, match: m, ...role, excluded: [] }
+  }
+  if (m.diagonal) {
+    const hits = diagonalOf(charts, s)
+    if (role.negated) return { hits: [], match: m, ...role, excluded: hits }
+    if (role.alsoClick) return { hits: [], match: m, ...role, excluded: [] }
+    return { hits, match: m, ...role, excluded: [] }
+  }
   const v = m[1] && m[1].toLowerCase()
   const side = v ? (['above', 'over'].includes(v) ? 'above' : 'below') : m[2] ? m[2].toLowerCase() : null
   // "next to / beside": either side; "adjacent to / near": any side. More than one fits → asked (the caller), never a guess
-  const hits = side ? sideOf(charts, s, side)
+  let hits = side ? sideOf(charts, s, side)
     : m[4] ? ['above', 'below', 'left', 'right'].flatMap(x => sideOf(charts, s, x))
       : [...sideOf(charts, s, 'left'), ...sideOf(charts, s, 'right')]
+  // ported from r8-integration 7e3e9bb6a6 (counted part only): a COUNTED relation ("the chart two to the left", "the second chart
+  // to the right of this", "the next-but-one chart below") walks that many cells in the one direction, one unique neighbour at a
+  // time; none, or a fork, → no chart (asked). Never the anchor.
+  const count = side ? relationCount(String(text || ''), m) : 1
+  // ported from r8-integration 7e3e9bb6a6 (plural part): "both charts to the right of this one" = every chart on that side in line
+  const plural = side ? relationPlural(String(text || ''), m) : false
+  if (side && plural) hits = lineFrom(charts, s, side)
+  else if (side && count > 1) hits = stepFrom(charts, s, side, count)
   if (role.negated) return { hits: [], match: m, ...role, excluded: hits }
   if (role.alsoClick) return { hits: [], match: m, ...role, excluded: [] }
-  return { hits, match: m, ...role, excluded: [] }
+  return { hits, match: m, ...role, excluded: [], plural: !!(side && plural) }
 }
-const knownIndicator = (word) => { try { return addableRows().some(r => String(r.defId).toLowerCase() === String(word).toLowerCase()) } catch { return false } }
+const relationPlural = (s, m) => /\b(?:both|all(?:\s+(?:of\s+)?the)?|every|the\s+(?:two|three|four|[2-4]))\s+(?:charts|ones|cells|panes|panels|graphs)\s*$/i.test(s.slice(0, m.index))
+function lineFrom(charts, s, side) {
+  const out = []
+  let at = s
+  for (let i = 0; i < charts.length; i++) { const next = sideOf(charts, at, side); if (next.length !== 1) break; out.push(next[0]); at = next[0] }
+  return side === 'left' || side === 'above' ? out.reverse() : out
+}
+const NUM_WORD = { one: 1, two: 2, three: 3, four: 4, five: 5, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, second: 2, third: 3 }
+const COUNT_NOUN = '(?:chart|one|cell|pane|panel|graph)'
+// AUDIT #988 probe 13: the unit a count may carry ("two PLACES to the left", "2 charts over to the right")
+const COUNT_UNIT = '(?:charts?|cells?|panes?|panels?|places?|spots?|positions?|slots?|spaces?)'
+// the count a relation carries: inside a bare match ("the chart two to the left"), or right before the relation ("the chart two
+// above this", "the second chart to the right of this", "the next-but-one chart below this")
+function relationCount(s, m) {
+  const scope = `${s.slice(0, m.index)}${m[0]}`
+  const at = (re) => re.exec(scope)
+  const c = at(new RegExp(`\\b${COUNT_NOUN}\\s+(one|two|three|four|five|[1-9])\\s+(?:${COUNT_UNIT}\\s+)?(?:over\\s+)?(?:(?:right|just|directly|immediately)\\s+)?(?:above|over|below|under|underneath|beneath|to|on)\\b`, 'i'))
+    || at(new RegExp(`\\b(second|third)\\s+${COUNT_NOUN}\\s+(?:(?:right|just|directly|immediately)\\s+)?(?:above|over|below|under|underneath|beneath|to|on)\\b`, 'i'))
+    // unseen10: the count with its unit and no noun before it ("the chart two charts below this one")
+    || at(new RegExp(`\\b(two|three|four|five|[2-9])\\s+${COUNT_UNIT}\\s+(?:over\\s+)?(?:(?:right|just|directly|immediately)\\s+)?(?:above|over|below|under|underneath|beneath|to|on)\\b`, 'i'))
+  if (c) return NUM_WORD[c[1].toLowerCase()] || 1
+  return at(new RegExp(`\\bnext[-\\s]but[-\\s]one\\s+${COUNT_NOUN}\\b`, 'i')) ? 2 : 1
+}
+function stepFrom(charts, s, side, n) {
+  let at = s
+  for (let i = 0; i < n; i++) { const next = sideOf(charts, at, side); if (next.length !== 1) return []; at = next[0] }
+  return [at]
+}
+const knownIndicator =(word) => { try { return addableRows().some(r => String(r.defId).toLowerCase() === String(word).toLowerCase()) } catch { return false } }
 const carries = (c, word) => (c?.cs?.indicatorInstances || []).some(i => i && !i.deleted && String(i.defId || '').toLowerCase() === String(word).toLowerCase())
 function tfOfWord(w) {
   const s = String(w || '').toLowerCase().trim()
@@ -257,6 +659,8 @@ export function describedCharts(text, charts = []) {
 export function pointsAtChart(text, { chartOp = false, charts = null } = {}) {
   const s = String(text || '')
   return !!relationMatch(s) || POINTS.test(s) || NAMED.test(s) || TF_NAMED.test(s) || (chartOp && IT.test(s)) || (!!charts && describedCharts(s, charts) != null)
+    // AUDIT probe 18 (G1): a relation from a chart named by its SYMBOL ("the one next to the SPY one") points at a chart too
+    || (!!charts && !!namedAnchorRelation(s, charts))
 }
 
 /** The chart ref behind a target of any chart-backed kind (chart itself, a chart's indicators…). */
@@ -290,7 +694,16 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
   }
   if (candidates.length === 1) return { ref: candidates[0].ref }
   // "the one above this": the clicked chart's neighbour on that side, and only it. ⛔ The click is the anchor, never the target.
-  const rel = relativeChart(text, live, selectedChart(host))
+  // (G4, AUDIT probe 18) "the SPY chart …, and the one to its right": the relation is read from the chart the words named before it
+  const anc = relationAnchor(text, live, selectedChart(host))
+  const rel = relativeChart(text, live, anc)
+  // ...and that named chart is a TARGET too (its own clause says the change): the words name the SET of it and its neighbour
+  if (anc && anc !== selectedChart(host) && rel?.hits?.length && !rel.negated) {
+    const set = new Set([anc, ...rel.hits.map(c => c.ref)])
+    const fits = backed.filter(b => set.has(b.chart))
+    if (fits.length > 1) return { refs: fits.map(b => b.c.ref) }
+    if (fits.length === 1) return { ref: fits[0].c.ref }
+  }
   // a NEGATED relation beside a clause that points at the click ("this one weekly, leave the one below it alone"): the click is
   // the chart meant, and the chart the negated clause names is never it
   if (rel?.negated && rel.alsoClick) {
@@ -301,13 +714,29 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
   if (rel) {
     const refs = new Set(rel.hits.map(c => c.ref))
     const fits = backed.filter(b => refs.has(b.chart))
+    // a PLURAL relation names a SET: { refs } (a plan whose targets are all in it stands; anything else is asked)
+    if (rel.plural && fits.length > 1) return { refs: fits.map(b => b.c.ref) }
     if (fits.length === 1) return { ref: fits[0].c.ref }
-    return { ask: { text: rel.hits.length || selectedChart(host) ? 'Which chart do you mean?' : 'Which chart do you mean? Click a chart to select it, or pick one:',
-      choices: (fits.length ? fits.map(b => b.c) : candidates).map(c => ({ ref: c.ref, label: c.label })) } }
+    // AUDIT (#988): the click is the relation's ANCHOR, so it is never offered as the chart meant
+    const anchor = selectedChart(host)
+    const pool = fits.length ? fits : backed.filter(b => !anchor || b.chart !== anchor)
+    return { ask: { text: rel.hits.length || anchor ? 'Which chart do you mean?' : 'Which chart do you mean? Click a chart to select it, or pick one:',
+      choices: pool.map(b => b.c).map(c => ({ ref: c.ref, label: c.label })) } }
+  }
+  // AUDIT probe 17 (F-b, #988): a relation from a NAMED anchor ("the chart beside the top-left one", "the one above the
+  // bottom-middle chart") — R1 with the anchor named by position, order or symbol: the anchor is never the target (whether or
+  // not it is the click). One neighbour on that side → it; several or none → asked, without the anchor.
+  const nar = namedAnchorRelation(text, live)
+  if (nar) {
+    const fits = backed.filter(b => nar.hits.includes(b.chart))
+    if (fits.length === 1) return { ref: fits[0].c.ref }
+    const pool = fits.length ? fits : backed.filter(b => b.chart !== nar.anchor)
+    return { ask: { text: 'Which chart do you mean?', choices: pool.map(b => b.c).map(c => ({ ref: c.ref, label: c.label })) } }
   }
   // "this NVDA chart" / "the 5 minute chart" / "the empty one": the charts the words describe. One → it. Several → the clicked
   // one only if it is among them. ⛔ Otherwise the member picks from those: the clicked chart never stands in for a description.
-  const said = describedCharts(text, live)
+  // (G5, AUDIT probe 18) a clause that says a chart is fine names no target: "this one …, the QQQ chart next to SPY is fine"
+  const said = describedCharts(activeText(text) || text, live)
   const sel = selectedChart(host)
   if (said) {
     const refs = new Set(said.map(c => c.ref))
@@ -327,8 +756,10 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
 // own words, click or answer identified — on a board of several charts, never the model's guess ──
 const POS_WORDS = /\b(top-left|top-right|bottom-left|bottom-right|top left|top right|bottom left|bottom right|left|right|top|bottom|upper|lower)\b/gi
 // "both", "all (four) charts", "every chart", "all of them" — a SET of charts (never "remove all comparisons")
-const MANY_COUNT = /\b(?:(both)\b|(?:all|every|each)(?:\s+(?:the|of the))?(?:\s+(two|three|four|five|six|seven|eight|nine|ten|\d{1,2}))?\s+(?:charts?|of them|ones)\b)/i
+// (probe 19) "everything (but / except …)", "all of these": the whole board, an exclusion taken out by the constraint check
+const MANY_COUNT = /\b(?:(both)\b|(?:all|every|each)(?:\s+(?:the|of the))?(?:\s+(two|three|four|five|six|seven|eight|nine|ten|\d{1,2}))?\s+(?:charts?|of them|ones)\b|everything\b(?!\s+(?:else\s+)?(?:in|on|along)\s+(?:this|that|its|my)\b)|all\s+of\s+(?:these|them)\b)/i
 const OTHER_CHARTS = /\b(?:(?:my|the|all(?: my| the)?|every) )?other charts\b/i
+const REST_OF_BOARD = /\b(?:(?:all\s+)?the\s+(?:rest|others|other\s+ones)|everything\s+else|all\s+(?:the\s+)?others|every\s+other\s+(?:one|chart))\b/i
 const OTHER_CHART = /\b(?:my|the|that|this) other (?:chart|one)\b/i
 // …and "a different chart", "another chart", "some other chart": a chart that is NOT the clicked one, not yet which
 const DIFFERENT_CHART = /\b(?:a|another|some|any)\s+(?:different|other)\s+(?:chart|one)\b|\banother\s+(?:chart|one)\b|\bone\s+other\b/i
@@ -383,8 +814,12 @@ const ORD_WORDS = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6
 // ("chart 5" is an ordinal only when no unit follows: "the chart 5 min" is a timeframe, never the fifth chart)
 export const ORD_RE = /\b(?:the\s+)?(first|second|third|fourth|fifth|sixth|1st|2nd|3rd|4th|5th|6th|last|middle|center|centre)\s+(?:chart|one)\b|\bchart\s+(?:#\s*)?([1-9])\b(?!\s*(?:(?:m|min|mins|minutes?|h|hr|hrs|hours?|d|days?|w|wk|wks|weeks?|mo|months?|x)\b|[%.:/-]))/i
 export function ordinalChart(text, charts = []) {
+  const abs = absoluteLineChart(text, charts)
+  if (abs) return abs
   const m = ORD_RE.exec(String(text || ''))
   if (!m) return null
+  // "the second chart to the right of this": a COUNT of a relation from the click, not the board's second chart
+  if (m[1] && /^\s+(?:(?:right|just|directly|immediately)\s+)?(?:to\s+the\s+(?:left|right)|on\s+the\s+(?:left|right)|above|over|below|under|underneath|beneath)\b/i.test(String(text).slice(m.index + m[0].length))) return null
   const n = charts.length
   const word = (m[1] || `chart ${m[2]}`).toLowerCase()
   if (!n) return { ask: { text: 'There are no charts on this board.', choices: [] }, match: m }
@@ -393,6 +828,26 @@ export function ordinalChart(text, charts = []) {
   else if (word === 'last') idx = n - 1
   else if (['middle', 'center', 'centre'].includes(word)) {
     const cells = charts.map(c => c.cell).filter(Boolean)
+    // unseen9 P2 (pl-teach's trace): a ROW word ("the middle chart on the bottom row", "the bottom middle chart") or a COLUMN word
+    // ("the middle one in the left column") names a line first; its middle is the chart meant when the line holds an odd number
+    // (3 or more). Any other line → asked, as before. The guide's namedChart reads the same function.
+    const t = String(text || '')
+    const rowW = /\b(top|upper|bottom|lower)\b/i.exec(t)
+    const colW = /\b(left|right)\s+(?:column|side)\b/i.exec(t)
+    if (cells.length === n && (rowW || colW)) {
+      const ask = { ask: { text: 'Which chart is the middle one here? Pick one:', choices: charts.map(c => ({ ref: c.ref, label: c.label })) }, match: m }
+      let line
+      if (colW) {
+        const xs = charts.map(c => c.cell.x)
+        const want = colW[1].toLowerCase() === 'left' ? Math.min(...xs) : Math.max(...xs)
+        line = charts.filter(c => c.cell.x === want).sort((a, b) => a.cell.y - b.cell.y)
+      } else {
+        const ys = charts.map(c => c.cell.y)
+        const want = /^(?:top|upper)$/i.test(rowW[1]) ? Math.min(...ys) : Math.max(...ys)
+        line = charts.filter(c => c.cell.y === want).sort((a, b) => a.cell.x - b.cell.x)
+      }
+      return line.length >= 3 && line.length % 2 === 1 ? { ref: line[(line.length - 1) / 2].ref, word, match: m } : ask
+    }
     const oneRow = cells.length === n && new Set(cells.map(c => c.y)).size === 1
     const oneCol = cells.length === n && new Set(cells.map(c => c.x)).size === 1
     idx = (n === 3 || n === 5) && (oneRow || oneCol) ? (n - 1) / 2 : null
@@ -412,7 +867,9 @@ export function chartsNamedBy(text, charts = [], sel = null) {
   // P1: "the second chart", "chart 3", "the middle chart" — only with the word CHART ("the first one" is as often a
   // list item or a result as a chart, so it never identifies a chart for a model plan)
   const ord = ordinalChart(s, charts)
-  if (ord?.ref && /chart/i.test(ord.match[0])) named.add(ord.ref)
+  // ⛔ an ABSOLUTE line place ("the middle one of the top row") names its cell whatever the noun: the row / column words make it
+  // a chart reference, so the click never answers for it (AUDIT GO run 23b99fc0a1, 85/86)
+  if (ord?.ref && (/chart/i.test(ord.match[0]) || ord.line)) named.add(ord.ref)
   // what the chart IS right now (chartQualifier), when that fits exactly one chart ("the empty one", "the one with RSI")
   const q = chartQualifier(s, charts)
   if (q?.hits.length === 1) named.add(q.hits[0].ref)
@@ -465,7 +922,7 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
     const list = kind.list(host) || []
     const snap = list.find(s => s.ref === o.target)
     const chart = snap ? chartRefOf(kind, snap) : null
-    if (chart) targets.set(chart, { list, action: o.action })
+    if (chart) targets.set(chart, { list, action: o.action, kind })
   }
   if (!targets.size) return null
   // "all / every / both (four) charts": the member named the set — but a COUNT they said must match
@@ -489,18 +946,33 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   // chart there is unidentified like any other. A bare "this" still means the clicked chart, and a position word fitting several
   // charts counts the click only if it is one of them.
   const sel = selectedChart(host)
-  const said = chartPositions(words)
+  // (#988) a position said only to EXCLUDE a chart ("log on the one I selected, not the left one") is no place the request names
+  const said = chartPositions(withoutExclusions(words))
   const answered = (pickedRefs || []).some(Boolean)
   // ⛔ AUDIT (single clause): a plain "the other one / the other chart" on a board of TWO names the chart that is NOT the click,
   // and the click is EXCLUDED: a plan on the other chart runs, a plan on the click is asked (unless "this" names it too)
   const otherOne = !answered && sel && charts.length === 2 && otherOneIsChart(words) ? charts.find(c => c.ref !== sel)?.ref || null : null
   if (otherOne) named.add(otherOne)
-  if (sel && (/\bthis\b/i.test(otherOne ? words.replace(OTHER_CHART, ' ') : words) || (!otherOne && !answered && !chartsNamedBy(`${words.replace(POS_WORDS, ' ')} ${said.join(' ')}`, charts).size && clickFits(said, charts, sel)))) named.add(sel)
+  // ⛔ AUDIT GO run (23b99fc0a1): an ABSOLUTE line place ("the middle one of the top row", "the top row's middle chart") names one
+  // cell with no anchor. Stripping its row / column words (below) must not turn it into a bare command the click answers: the
+  // click counts only when it IS that cell (then it is already named).
+  const absLine = ordinalChart(words, charts)
+  // AUDIT probe 17 (F-a): a WHOLE absolute line ("the top row", "the left column") names every cell in it — a set, like "both
+  // charts" — and, like a place, it is never a bare command the click answers
+  const lineSet = wholeLinesNamed(words, charts)
+  for (const r of lineSet) named.add(r)
+  const lineNamed = !!absLine?.line || lineSet.size > 0
+  // (#988, AUDIT probe 20 a) "other than the one I'm looking at, put THE REST on log": with the click negated, "the rest / the
+  // others / everything else" names every chart but the click (a plan on the click is excluded by the negation screens)
+  if (sel && !answered && REST_OF_BOARD.test(words) && negatedPointer(words)) for (const c of charts) if (c.ref !== sel) named.add(c.ref)
+  if (sel && (/\bthis\b/i.test(otherOne ? words.replace(OTHER_CHART, ' ') : words) || (!otherOne && !answered && !lineNamed && !chartsNamedBy(`${words.replace(POS_WORDS, ' ')} ${said.join(' ')}`, charts).size && clickFits(said, charts, sel)))) named.add(sel)
   const unnamed = [...targets.keys()].filter(c => !named.has(c))
   if (!unnamed.length) return null
   if (targets.size === 1) {
-    const { list, action } = targets.get(unnamed[0])
-    return { ask: { text: 'Which chart do you mean? Click a chart to select it, or pick one:', choices: list.map(c => ({ ref: c.ref, label: c.label })), action } }
+    const { list, action, kind } = targets.get(unnamed[0])
+    // a line or a place the words name: only its cells are offered (AUDIT probe 17 F-a), never the whole board
+    const offer = lineNamed ? list.filter(c => named.has(chartRefOf(kind, c))) : []
+    return { ask: { text: offer.length ? 'Which chart do you mean?' : 'Which chart do you mean? Click a chart to select it, or pick one:', choices: (offer.length ? offer : list).map(c => ({ ref: c.ref, label: c.label })), action } }
   }
   const label = (ref) => charts.find(c => c.ref === ref)?.label || 'a chart'
   return { propose: true, note: `I wasn't sure you meant ${unnamed.map(label).join(' and ')}, so check this first — nothing has changed yet.` }
@@ -569,8 +1041,15 @@ export function closedTabNamed(text, host) {
 // pl-auto u-target-05/08 (BROWSER-MOCK-MODEL): a NEGATED pointer — "everything except this one", "not this chart", "all but
 // this one", "other than this" — EXCLUDES the clicked chart. It is never aimed at nor stood in for: a plan on the other charts
 // runs where it is planned, and an op on the click itself is asked about.
-const NEG_POINTER = /(?:\b(?:except(?:\s+for)?|not|other\s+than|besides|apart\s+from|aside\s+from|excluding|minus|save\s+for)|\b(?:all|every\w*|them|others?|charts?|ones)\s+but(?:\s+not)?)\s+(?:this|that|it|the\s+(?:selected|clicked|current|highlighted|active|focused)\s+(?:chart|one))\b/i
-export const negatedPointer = (text) => NEG_POINTER.exec(String(text || ''))
+// (#988, pl-grid / AUDIT probe 20) …and the click named by the ACT: "not the one I clicked", "instead of the chart I'm on", "other
+// than the one I'm looking at" (clickRef.js CLICK_ACT_NP)
+const NEG_POINTER = new RegExp('(?:\\b(?:except(?:\\s+for)?|not|other\\s+than|besides|apart\\s+from|aside\\s+from|excluding|minus|save\\s+for|instead\\s+of|rather\\s+than)'
+  + '|\\b(?:all|every\\w*|them|others?|charts?|ones)\\s+but(?:\\s+not)?)\\s+(?:this|that|it|the\\s+(?:selected|clicked|current|highlighted|active|focused)\\s+(?:chart|one)|'
+  + CLICK_ACT_NP + ')\\b', 'i')
+// (#988, AUDIT probe 2) the reply quotes a negation ("You said not …") only when the words HAVE one; a click excluded by a stative
+// clause ("the one I selected stays daily") or an imperative ("leave this alone", "all but this one") is said as left out
+const NEG_WORD = /\b(?:not|never|except|excluding|besides|minus|other\s+than|instead\s+of|rather\s+than|apart\s+from|aside\s+from|save\s+for)\b|n['’]t\b/i
+export const negatedPointer = (text) => NEG_POINTER.exec(String(text || '')) || (negatedClick(text).excludes ? [String(text || '')] : null)
 // ⭐ round 3 (pl-exec): PER-CLAUSE TARGETS — "make the NVDA chart weekly and this one log". A sentence of several clauses, each
 // naming ONE chart (a description, a ticker, a position) or pointing at the click (this one / this chart / here / it), and each
 // saying ONE change the capability's own instant reader recognises once the chart words are lifted off. Each op of the plan is
@@ -594,6 +1073,7 @@ function clauseReads(text, host, parse) {
   if (parts.length < 2 || typeof parse !== 'function') return null
   const charts = host?.charts?.list?.() || []
   const sel = selectedChart(host)
+  const relAnchor = relationAnchor(s, charts, sel)                       // (G4) "… and the one to its right"
   const out = []
   for (const part of parts) {
     const negated = NEGATION.test(part)
@@ -601,7 +1081,7 @@ function clauseReads(text, host, parse) {
     //   a relation in it ("the chart below it") → the single neighbour on that side of the click
     //   "the other one / chart" on a board of two with a click → the chart that is not the click
     //   a name (one) → that chart; a pointer alone (this one / here / it) → the click
-    const rel = relationMatch(part) ? relativeChart(part, charts, sel) : null
+    const rel = relationMatch(part) ? relativeChart(part, charts, /\b(?:its|it)\b/i.test(part) ? relAnchor : sel) : null
     const other = OTHER_IN_CLAUSE.test(part) ? (charts.length === 2 && sel ? charts.find(c => c.ref !== sel)?.ref || null : null) : undefined
     const named = [...chartsNamedBy(part, charts, sel)]
     const pointer = CLAUSE_POINTER.test(part)
@@ -616,6 +1096,16 @@ function clauseReads(text, host, parse) {
     // "to the hourly", "on the weekly": the article a chart word left behind is no part of the change
     ops = read(core) || read(core.replace(/^(?:the|a|an)\s+/i, '')) || read(bare.replace(OTHER_IN_CLAUSE, ' ').replace(CHART_WORDS, ' ').replace(/[:]/g, ' ').replace(/\s+/g, ' ').trim())
     out.push({ part, negated, chart, ops, core })
+  }
+  // pl-auto unseen12 (#988): "step one row down from this chart AND MAKE IT weekly" — a back-reference ("it", "that one", "that
+  // chart", never "this") in a clause right after one that named a chart by a relation from the click, and said no change of its
+  // own, is THAT chart: the click is only the relation's anchor
+  for (let i = 1; i < out.length; i++) {
+    const r = out[i], prev = out[i - 1]
+    // (pl-auto V2 fb6170315e: "… and make THAT weekly", "… the one THERE" are the same back-reference)
+    const back = /\b(?:it|that(?:\s+(?:one|chart))?|there)\b/i.test(r.part) && !/\bthis\b|\bhere\b/i.test(r.part)
+    if (r.negated || prev.negated || !sel || !back || (r.chart !== sel && r.chart != null) || prev.ops?.length || !prev.chart || prev.chart === sel) continue
+    if (relationMatch(prev.part)) r.chart = prev.chart
   }
   // ⭐ 2026-11-07 (pl-auto u4-clauses-04/06/08/10): ONE change said once for two charts — "the TSLA chart to the hourly and this one
   // too", "draw a line at 120 on this one and on the TSLA chart", "this one and the one to its left on the weekly". A clause that
@@ -639,6 +1129,13 @@ function clauseTargets({ host, ops, text, getTargetKind, getCapability, parse })
   // the family itself: one affirmative clause points at the click, another names a different chart
   const sel = selectedChart(host)
   if (!affirm.some(r => r.chart && r.chart === sel) || !affirm.some(r => r.chart && r.chart !== sel)) return null
+  // ⛔ (pl-auto V2): no question ever NAMES the click when the words relate a chart to it (it is that relation's anchor): the
+  // question is then asked without it
+  const rc = sel ? relativeChart(String(text || ''), host?.charts?.list?.() || [], sel) : null
+  const anchor = rc && !rc.alsoClick && !rc.negated ? sel : null
+  const askMeant = (meant, list, kind, action) => (meant && anchor && chartRefOf(kind, meant) === anchor
+    ? { ask: { text: 'Which chart do you mean?', choices: list.filter(c => chartRefOf(kind, c) !== anchor).map(c => ({ ref: c.ref, label: c.label })), action } }
+    : { ask: { text: `Did you mean ${meant?.label || 'that chart'} for that change?`, choices: list.filter(c => !anchor || chartRefOf(kind, c) !== anchor).map(c => ({ ref: c.ref, label: c.label })), action } })
   let any = false
   const used = new Set()
   for (const o of ops || []) {
@@ -655,12 +1152,12 @@ function clauseTargets({ host, ops, text, getTargetKind, getCapability, parse })
     if (says.length > 1 && mine.length !== 1) {
       if (says.some(r => !r.chart)) return null
       const meant = list.find(x => chartRefOf(kind, x) === says.find(r => !used.has(r))?.chart)
-      return { ask: { text: `Did you mean ${meant?.label || 'that chart'} for that change?`, choices: list.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
+      return askMeant(meant, list, kind, o.action)
     }
     if (mine.length !== 1 || !mine[0].chart) return null                      // not certain: the gates below decide
     if (mine[0].chart !== chart) {
       const meant = list.find(x => chartRefOf(kind, x) === mine[0].chart)
-      return { ask: { text: `Did you mean ${meant?.label || 'that chart'} for that change?`, choices: list.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
+      return askMeant(meant, list, kind, o.action)
     }
     any = true
     used.add(mine[0])
@@ -692,7 +1189,7 @@ export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability
       const snap = list.find(x => x.ref === o.target)
       if (snap && sel && chartRefOf(kind, snap) === sel) {
         const others = list.filter(x => chartRefOf(kind, x) && chartRefOf(kind, x) !== sel)
-        return { ask: { text: 'You said not the chart you clicked. Which chart do you mean?', choices: others.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
+        return { ask: { text: NEG_WORD.test(String(text || '')) ? 'You said not the chart you clicked. Which chart do you mean?' : 'You asked me to leave out the chart you clicked. Which chart do you mean?', choices: others.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
       }
     }
     return null
@@ -728,13 +1225,33 @@ export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability
     if (!snap || !chartRefOf(kind, snap) || list.length < 2) continue
     const r = resolveDeictic({ host, kind, candidates: list, text, chartOp: true })
     if (r?.ask) return { ask: { ...r.ask, action: o.action } }
+    if (r?.refs) {
+      // a PLURAL relation: the plan stands only when its charts are exactly that set (never one of it, never the anchor)
+      const planned = new Set((ops || []).map(x => { const k = getTargetKind(getCapability(x?.action)?.target); return k ? chartRefOf(k, (k.list(host) || []).find(y => y.ref === x.target)) : null }).filter(Boolean))
+      const set = new Set(r.refs.map(ref => chartRefOf(kind, list.find(y => y.ref === ref))))
+      if ([...set].every(c => planned.has(c)) && [...planned].every(c => set.has(c))) continue
+      return { ask: { text: 'Which chart do you mean? Your words name all of these:', choices: list.filter(y => set.has(chartRefOf(kind, y))).map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
+    }
     // "this chart" with a chart clicked is settled: the plan goes there, no question (production 11-05: "Did you mean" the right chart).
     // ⛔ Only then: anything else in the words may be naming another chart, so a plan that disagrees is still asked about.
     const onClicked = !!r?.ref && r.ref !== o.target && chartRefOf(kind, list.find(s => s.ref === r.ref)) === selectedChart(host)
-    if (onClicked && onlyPointer(text, host?.charts?.list?.() || [])) { aimed.set(o, r.ref); continue }
+    // R2 (AUDIT): NEVER REDIRECT a plan onto the click when the words relate a chart to it (the click is a reference point there)
+    // (independent of any relation reader: the anchor as the object of a preposition anywhere in the words)
+    const refPoint = !!relationMatch(text) || refPointAny(String(text || ''))
+    if (onClicked && !refPoint && onlyPointer(text, host?.charts?.list?.() || [])) { aimed.set(o, r.ref); continue }
+    if (onClicked && refPoint) {
+      const anchor = selectedChart(host)
+      return { ask: { text: 'Which chart do you mean?', choices: list.filter(y => chartRefOf(kind, y) !== anchor).map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
+    }
     if (r?.ref && r.ref !== o.target) {
       const meant = list.find(s => s.ref === r.ref)
-      return { ask: { text: `Did you mean ${meant?.label || 'the selected chart'}?`, choices: list.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
+      // AUDIT (#988): when the words relate a chart to the click, the click is the anchor and is never offered back as a choice
+      // ...and when they relate it to a NAMED chart (AUDIT probe 17 F-b), that named anchor is never offered either
+      const anchor = relationMatch(text) ? selectedChart(host) : (namedAnchorRelation(text, host?.charts?.list?.() || [])?.anchor ?? null)
+      const offer = list.filter(c => !anchor || chartRefOf(kind, c) !== anchor)
+      // AUDIT #988 (3): the headline never names the anchor either
+      const namesAnchor = !!anchor && chartRefOf(kind, meant) === anchor
+      return { ask: { text: namesAnchor ? 'Which chart do you mean?' : `Did you mean ${meant?.label || 'the selected chart'}?`, choices: offer.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
     }
   }
   return aimed.size ? { aim: ops.map(o => (aimed.has(o) ? { ...o, target: aimed.get(o) } : o)) } : null
