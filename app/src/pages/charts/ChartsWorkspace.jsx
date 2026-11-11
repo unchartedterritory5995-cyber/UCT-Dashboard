@@ -2050,10 +2050,29 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // "Pick on chart": close the dialog + arm the drag so the chart is visible to click on.
   const armReplayPick = useCallback(() => { setReplayOpen(false); setReplayArmPick(true) }, [])
 
+  // Custom-Period Sort → Sort: the config popover's own write, ONE function shared with UCT Agent (periodSort.run). Opens
+  // the floating results panel for [start, end] (YYYYMMDD) and `group`; sets or CLEARS the shared Replay cutoff (End date)
+  // and the start marker exactly as the popover always has; switches every chart to `tf` only when one is given (the
+  // popover always gives one; the Agent never does).
+  const runPeriodSort = useCallback((start, end, replay, group, tf, markStart) => {
+    setPeriodSortPanel({ start, end, group: group || null })
+    // Replay: cut every linked chart off at the End date (ISO). Off = clear it.
+    const s = String(end)
+    setReplayCutoff(replay ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : null)
+    // Mark start date on every chart: gold vertical line ('line') or gold start
+    // candle ('candle'). 'off' → no marker.
+    const st = String(start)
+    setStartMarker(markStart && markStart !== 'off' ? `${st.slice(0, 4)}-${st.slice(4, 6)}-${st.slice(6, 8)}` : null)
+    if (markStart === 'line' || markStart === 'candle') setStartMarkerStyle(markStart)
+    // Timeframe: switch every chart to the chosen D/W/M (composes with replay).
+    applyTfToCharts(tf)
+  }, [applyTfToCharts])
   // Custom-Period Sort → dock the floating results as a real grid widget (carrying the
   // highlighted range), or fold it into an existing widget as a Period-Sort tab.
+  // Returns the new widget's id (UCT Agent's periodSort.dock reads it back and its Undo removes exactly it).
   const handleDockPeriodSort = useCallback((start, end, group = null) => {
     setPeriodSortPanel(null)
+    const id = `w-periodsort-${Date.now()}`
     setLayout(prev => {
       const defaults = WIDGET_DEFAULTS.periodsort
       const fit = findPlacement(prev.widgets, defaults, COLS.lg, FIXED_ROWS)
@@ -2074,7 +2093,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       }
       const color = pickWidgetColor(widgets, groupSyms, extraGroupsOnRef.current)
       const newWidget = {
-        id: `w-periodsort-${Date.now()}`,
+        id,
         type: 'periodsort', color,
         x: place.x, y: place.y, w: place.w, h: place.h,
         opts: { start, end, group: group || null },
@@ -2083,6 +2102,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       scheduleSave(next)
       return next
     })
+    return id
   }, [scheduleSave, groupSyms])
   const handlePeriodSortToTab = useCallback((widgetId, start, end, group = null) => {
     setPeriodSortPanel(null)
@@ -3433,6 +3453,26 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // change / exitReplayMode) and the shared cutoff, read through a ref so the host memo stays dependency-free.
   const agentReplayRef = useRef(null)
   agentReplayRef.current = { cutoff: replayCutoff, start: startReplay, exit: exitReplayMode }
+  // Custom-Period Sort for UCT Agent (periodSort.run / periodSort.dock): the popover's own runPeriodSort, the panel's own
+  // Dock (handleDockPeriodSort), and the state they write, read through a ref (the host memo stays dependency-free).
+  const agentPeriodSortRef = useRef(null)
+  agentPeriodSortRef.current = {
+    panel: periodSortPanel, cutoff: replayCutoff, marker: startMarker, markerStyle: startMarkerStyle,
+    run: runPeriodSort, dock: handleDockPeriodSort, widgets: () => layoutRef.current?.widgets || [],
+    // Undo of a run: the panel, cutoff and marker exactly as they were (the same setters the popover and Exit replay use)
+    restore: (was) => {
+      setPeriodSortPanel(was.panel ? { ...was.panel } : null)
+      setReplayCutoff(was.cutoff ?? null)
+      setStartMarker(was.marker ?? null)
+      if (was.markerStyle) setStartMarkerStyle(was.markerStyle)
+    },
+    // Undo of a Dock: the board writer the Agent's widget changes use (remove the docked widget, put back any widget the
+    // dock's split resized), then the floating panel it came from
+    undock: ({ remove, set, panel }) => {
+      agentWidgetOpsRef.current.applyBoard({ remove: [remove], set: set || {} })
+      setPeriodSortPanel(panel ? { ...panel } : null)
+    },
+  }
   const inRouter = useInRouterContext()
   const agentHost = useMemo(() => buildWorkspaceHost({
     chartApiById: chartApiByIdRef,
@@ -3491,6 +3531,19 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         : Promise.resolve(false)),
     },
     navigate: (to) => agentNavRef.current?.(to),
+    periodSort: {
+      read: () => {
+        const r = agentPeriodSortRef.current
+        if (!r) return null
+        return { panel: r.panel ? { ...r.panel } : null, cutoff: r.cutoff ?? null, marker: r.marker ?? null, markerStyle: r.markerStyle || 'line' }
+      },
+      run: (a) => { const r = agentPeriodSortRef.current; if (!r) return false; r.run(a.start, a.end, !!a.replay, a.group || null, null, a.markStart || 'off'); return true },
+      restore: (was) => { const r = agentPeriodSortRef.current; if (!r) return false; r.restore(was); return true },
+      // the panel's own Dock, on the panel that is open now; the new widget's id (null when no panel is open)
+      dock: () => { const r = agentPeriodSortRef.current; const p = r?.panel; return p ? r.dock(p.start, p.end, p.group) : null },
+      widgets: () => agentPeriodSortRef.current?.widgets?.() || [],
+      undock: (u) => { const r = agentPeriodSortRef.current; if (!r) return false; r.undock(u); return true },
+    },
     replay: {
       read: () => agentReplayRef.current?.cutoff ?? null,
       set: (iso) => { const r = agentReplayRef.current; if (!r) return; if (iso) r.start(iso, null); else r.exit() },
@@ -4181,17 +4234,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
             onCancel={() => setPeriodSortSel(null)}
             onSort={(start, end, replay, group, tf, markStart) => {
               setPeriodSortSel(null)
-              setPeriodSortPanel({ start, end, group: group || null })
-              // Replay: cut every linked chart off at the End date (ISO). Off = clear it.
-              const s = String(end)
-              setReplayCutoff(replay ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : null)
-              // Mark start date on every chart: gold vertical line ('line') or gold start
-              // candle ('candle'). 'off' → no marker.
-              const st = String(start)
-              setStartMarker(markStart && markStart !== 'off' ? `${st.slice(0, 4)}-${st.slice(4, 6)}-${st.slice(6, 8)}` : null)
-              if (markStart === 'line' || markStart === 'candle') setStartMarkerStyle(markStart)
-              // Timeframe: switch every chart to the chosen D/W/M (composes with replay).
-              applyTfToCharts(tf)
+              runPeriodSort(start, end, replay, group, tf, markStart)
             }}
           />
         )}

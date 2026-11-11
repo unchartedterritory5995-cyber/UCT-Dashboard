@@ -92,10 +92,16 @@ export const GROUPS = [
       MULTI_CHARTS, EQUAL_SIZE, GRID_CELLS] },
   // ⭐ PHASE 3: two widgets trading places, a chart duplicated into half its cell — their OWN small group (as chartGrid), so
   // neither the NL-1 core nor the workspace group grows past the per-request budget
-  { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal', domains: ['board'], fillLast: true,
+  { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; Custom-Period Sort (rank stocks, themes, sectors or industries between two dates; dock the ranking)', domains: ['board', 'periodSort'], fillLast: true,
     // W1-B B-05: widget.setOption here by action name — the workspace group was exactly at the NL-1 reroute budget
     actions: ['widget.setOption', 'widget.readOptions', 'widget.sendToJournal'],
-    words: [/\b(swap|switch places|trade places|exchange)\b/, /\b(duplicate|clone)\b/, /\b(a |another )?(copy|duplicate) of\b/, /\bmove\b.*\bto the (left|right|top|bottom)\b/, /\bother side\b/] },
+    // C3-205..207 (pl-exec6): Tools → Custom-Period Sort (periodSort.run / periodSort.dock) by DOMAIN, here — not a group of its
+    // own (a new group changes every unmatched message's group list), not the NL-1 core's screener group (sent on every request).
+    // Words: the tool's name; a rank / sort said over DATES (a month-day, M/D or an ISO day after from / since / between); a dock of it.
+    words: [/\b(swap|switch places|trade places|exchange)\b/, /\b(duplicate|clone)\b/, /\b(a |another )?(copy|duplicate) of\b/, /\bmove\b.*\bto the (left|right|top|bottom)\b/, /\bother side\b/,
+      /\bperiod[\s-]?sort\b|\bcustom[\s-]period\b/,
+      /\b(?:rank|ranking|sort)\b.*\b(?:from|since|between)\b.*(?:\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.? \d{1,2}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\b)/,
+      /\bdock\b.*\b(?:ranking|sort|sorted results)\b/] },
   { id: 'workspace', title: 'Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)', domains: ['widget'],
     // CG-14 / CG-16 (corpus #769): "get rid of the AMD chart", "give me new charts for AAPL and MSFT" (widget.addCharts — the
     // existing charts stay; chartGrid.set only with a count, grid or equal-size words, or a replace)
