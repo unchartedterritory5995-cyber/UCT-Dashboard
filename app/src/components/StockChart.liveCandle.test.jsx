@@ -151,6 +151,9 @@ describe('developing intraday candle — push writer (B) + poll re-top (D)', () 
   })
 
   it('poll landing mid-bucket with a LOWER server high keeps the live H/L and close', async () => {
+    // ⚠️ REGRESSION (review of #1100): the file clock (14:07) is PAST this bucket's end, and
+    // the poll still carries a partial snapshot. Without the server's proof that the bucket
+    // is sealed (verified_through), the client clock must NOT shrink the live H/L.
     const view = await mount({ o: 20.0, h: 20.3, l: 19.9, c: 20.1, v: 5000 })
     push(T1400, 20.0, 20.9, 19.5, 20.6, 7000)
     expect(tail()).toMatchObject({ high: 20.9, low: 19.5, close: 20.6 })
