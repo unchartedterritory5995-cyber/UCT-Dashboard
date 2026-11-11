@@ -102,7 +102,7 @@ import WatchlistSettingsPanel from './watchlist/WatchlistSettingsPanel'
 import TickerCombobox from '../components/watchlist/TickerCombobox'
 import { exportQuota, downloadExport } from '../lib/dataExport'
 import SymbolSearch from '../components/chart/SymbolSearch'
-import { OPTIONAL_COLS, EXTRA_COLS, DEFAULT_COL_ORDER, COL_LABELS, TEXT_COLS, withColumn, firstSortDir } from './watchlist/watchlistColumns'
+import { OPTIONAL_COLS, EXTRA_COLS, DEFAULT_COL_ORDER, COL_LABELS, TEXT_COLS, withColumn, firstSortDir, movedColumnCfg, resizedColumnCfg, columnMinWidth } from './watchlist/watchlistColumns'
 import { publishListView } from './watchlist/watchlistViews'
 import { useWidgetDoor } from './charts/widgetDoors'
 import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, WATCHLIST_BASE_FONT_PX, mergeWatchlistSettings, watchlistStyleVars, watchlistDefaultsForTheme } from './watchlist/watchlistSettings'
@@ -1115,8 +1115,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   }
 
   function handleCopyList(symbols) {
-    navigator.clipboard.writeText(symbols.join(', '))
+    const wrote = navigator.clipboard.writeText(symbols.join(', '))
     setCtxMenu(null)
+    return wrote
   }
 
   const { user, watchlistCopyOrLinkEnabled } = useAuth()
@@ -1874,12 +1875,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // ── Configurable + sortable columns ── (colCfg STATE is declared earlier, above
   // the meta/perf/theme fetches, so those fetches can gate on which columns show.)
   const saveColCfg = useCallback((next) => {
-    setColCfg(next)
+    // next === null: NO saved layout (the UCT Agent's Undo of a change made when none was saved). The key is removed,
+    // never written as {} or as a copy of the defaults, so the caller's defaults draw again and stay the defaults.
+    setColCfg(next ?? (defaultColCfg || {}))
     // ephemeralCols: in-session edits still apply, but nothing persists (so the next run
     // reverts to the default column view).
     if (ephemeralCols) return
-    try { localStorage.setItem(_colKey, JSON.stringify(next)) } catch { /* ignore */ }
-  }, [_colKey, ephemeralCols])
+    try { if (next == null) localStorage.removeItem(_colKey); else localStorage.setItem(_colKey, JSON.stringify(next)) } catch { /* ignore */ }
+  }, [_colKey, ephemeralCols, defaultColCfg])
   const [liveResize, setLiveResize] = useState(null)   // {key,width} during a drag
   const [colMenu, setColMenu] = useState(null)         // {x,y} right-click menu
   const resizingRef = useRef(false)                    // suppress the header sort-click after a resize
@@ -1918,6 +1921,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     if (com) return { id: com.id, isOwner: false, symbols: (com.items || []).map(i => i.sym) }
     return null
   })()
+  // The title the member sees on a picked list. On Flagged it is the Flagged list's OWN name (useFlagged), not the name the list
+  // had when it was picked (pickName = opts.watchName), so a Rename (the title menu's, or the Agent's) shows on the face at once
+  // (AUDIT #1027 F4, u18-flagged-01/02). The Agent's door reads this same title back.
+  const pickTitle = (pickList === 'flagged' ? (flaggedName || pickName || 'Flagged') : pickName) || 'Watchlist'
   const openTitleMenu = (x, y) => {
     if (!titleMenuList) return
     setCtxMenu({ x: Math.min(x, window.innerWidth - 220), y: Math.min(y, window.innerHeight - 300), ...titleMenuList, fromTitle: true })
@@ -1974,7 +1981,6 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     return colCfg.widths?.[k] ?? COL_META[k]?.def
   }
   // Columns in the user's chosen ORDER; flag + sym always shown, price/vol/chg unless hidden.
-  const colOrder = (Array.isArray(colCfg.order) && colCfg.order.length ? colCfg.order : DEFAULT_COL_ORDER).filter(k => COL_META[k])
   // Memoized so its reference is stable across selection-change re-renders (WatchRow is
   // React.memo — a new array here would break row memoization on every keypress).
   const orderedKeys = useMemo(() => {
@@ -2125,18 +2131,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     else saveColCfg(withColumn({ ...colCfg, order: curOrder }, key))
   }, [colCfg, saveColCfg])
 
-  // Drag a header column onto another to reorder the columns.
-  const moveColumn = (fromKey, toKey) => {
-    if (!fromKey || fromKey === toKey) return
-    const order = [...colOrder]
-    DEFAULT_COL_ORDER.forEach(k => { if (!order.includes(k)) order.push(k) })
-    const from = order.indexOf(fromKey)
-    const to = order.indexOf(toKey)
-    if (from < 0 || to < 0) return
-    order.splice(from, 1)
-    order.splice(to, 0, fromKey)
-    saveColCfg({ ...colCfg, order })
-  }
+  // Drag a header column onto another to reorder the columns; drag a gridline to resize. The rules are pure
+  // (watchlist/watchlistColumns.js), shared with UCT Agent's watchlist.arrangeColumns through the listView below.
+  const movedColCfg = (cfg, fromKey, toKey) => movedColumnCfg(cfg, fromKey, toKey, COL_META)
+  const moveColumn = (fromKey, toKey) => { const next = movedColCfg(colCfg, fromKey, toKey); if (next) saveColCfg(next) }
+  const colMinWidth = (key) => columnMinWidth(key, COL_META)
+  const resizedColCfg = (cfg, key, w) => resizedColumnCfg(cfg, key, w, COL_META)
 
   // Drag a gridline (an independent divider overlaid on the header, NOT tied to a
   // header cell — so dragging never sorts/selects the column) to resize the column to
@@ -2146,7 +2146,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     resizingRef.current = true
     const startX = e.clientX
     const startW = colWidth(key)
-    const min = COL_META[key]?.min || 40
+    const min = colMinWidth(key)
     // Widths are stored UNSCALED but painted scaled — convert the cursor delta back
     // into unscaled space so the gridline tracks the pointer 1:1 while shrunk-to-fit.
     const rawTotal = orderedKeys.reduce((a, k) => a + colWidth(k), 0)
@@ -2159,7 +2159,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       window.removeEventListener('mouseup', onUp)
       const w = calc(ev)
       setLiveResize(null)
-      saveColCfg({ ...colCfg, widths: { ...(colCfg.widths || {}), [key]: w } })
+      saveColCfg(resizedColCfg(colCfg, key, w))
       setTimeout(() => { resizingRef.current = false }, 0)   // let the trailing click be swallowed first
     }
     window.addEventListener('mousemove', onMove)
@@ -2384,6 +2384,15 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     cfg: colCfg, sort: colSort, columns: orderedKeys, fixedColumns: !!isAllIdxList, persisted: !ephemeralCols,
     selected: selectedSym, active: !!(activeRef && widgetKey && activeRef.current === widgetKey),
     saveCols: saveColCfg,
+    // UCT Agent (an Undo): the layout this widget's storage key holds now, null when none is saved; undefined when the
+    // widget keeps none (ephemeralCols), so its Undo puts back the in-session columns
+    savedCfg: () => {
+      if (ephemeralCols) return undefined
+      try { const s = JSON.parse(localStorage.getItem(_colKey)); return s && typeof s === 'object' ? s : null } catch { return null }
+    },
+    // UCT Agent (watchlist.arrangeColumns): the header drag's and the gridline's own results, and each column's width now
+    movedCfg: movedColCfg, resizedCfg: resizedColCfg, minWidthOf: colMinWidth,
+    widthOf: (cfg, k) => cfg.widths?.[k] ?? COL_META[k]?.def ?? null,
     select: (sym) => { setSelectedSym(sym); setHubSym(sym) },
   }
 
@@ -2392,6 +2401,41 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     capture: () => {
       const rows = listViewRef.current?.rows() || []
       return rows.length ? { kind: 'watchlist', capture: buildListCapture(pickList, pickName, rows), label: pickName } : null
+    },
+    // UCT Agent (watchlist group D): the list menu's own Copy / Export items, under the menu's own conditions and handlers
+    listOut: () => (titleMenuList ? {
+      name: pickName || null, own: !!titleMenuList.isOwner && titleMenuList.id !== 'flagged',
+      csv: !!titleMenuList.isOwner && titleMenuList.id !== 'flagged', xlsx: !!serverExport && !!titleMenuList.isOwner && titleMenuList.id !== 'flagged',
+      quota: serverExport || null,
+    } : null),
+    copyList: () => (titleMenuList ? handleCopyList(titleMenuList.symbols) : null),
+    exportList: (format) => {
+      if (!titleMenuList || !titleMenuList.isOwner || titleMenuList.id === 'flagged') return null
+      if (format === 'csv') { const wl = myLists?.find(w => w.id === titleMenuList.id); if (wl) { exportCSV(wl); return true } return null }
+      if (format === 'xlsx' && serverExport) return downloadExport(`/api/exports/watchlists/${encodeURIComponent(titleMenuList.id)}`, { format: 'xlsx' })
+      return null
+    },
+    // UCT Agent (watchlist group C / B, widgets/widgetControls.js): the ⚙ panel's own appearance writer (patchSettings), its
+    // look templates (apply / save / delete, as its Templates menu does) and, on the Flagged list, the title menu's Rename
+    read: () => ({
+      showLogos: !!wlSettings.showLogos, tint: !!wlSettings.tintEnabled, canvasColor: wlSettings.bgMode === 'solid' ? wlSettings.bg : null,
+      textColor: wlSettings.textColor, gainColor: wlSettings.upColor, lossColor: wlSettings.downColor,
+      look: wlTemplates.find(t => t.settings && Object.entries(t.settings).every(([k, v]) => JSON.stringify(wlSettings[k]) === JSON.stringify(v)))?.id ?? null,
+      looks: wlTemplates.map(t => ({ id: t.id, name: t.name })),
+      ...(titleMenuList?.id === 'flagged' ? { flaggedName: pickTitle } : {}),   // the title on the face (F4), not the hook alone
+    }),
+    options: () => ({ look: wlTemplates.map(t => ({ value: t.id, label: t.name })) }),
+    write: (key, value) => {
+      if (key === 'look') { const tpl = wlTemplates.find(t => t.id === value); if (tpl) applyWlTemplate(tpl); return }
+      if (key === 'looks') {
+        if (value?.op === 'create' && value.name) saveWlTemplate({ name: value.name, settings: wlSettings })
+        if (value?.op === 'delete' && value.id) removeWlTemplate(value.id)
+        return
+      }
+      if (key === 'flaggedName') { if (titleMenuList?.id === 'flagged') renameFlagged(String(value || '')); return }
+      const field = { showLogos: 'showLogos', tint: 'tintEnabled', textColor: 'textColor', gainColor: 'upColor', lossColor: 'downColor' }[key]
+      if (key === 'canvasColor') patchSettings({ bgMode: 'solid', bg: value })   // the panel's solid canvas swatch
+      else if (field) patchSettings({ [field]: value })
     },
   }))
 
@@ -3000,7 +3044,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   data-guide="watchlist.title"
                   onContextMenu={titleMenuList ? (e => { e.preventDefault(); e.stopPropagation(); openTitleMenu(e.clientX, e.clientY) }) : undefined}
                   {...(titleMenuList ? longPressMenu(e => ({ x: Math.min(e.clientX, window.innerWidth - 220), y: Math.min(e.clientY, window.innerHeight - 300), ...titleMenuList, fromTitle: true })) : {})}
-                >{pickName || 'Watchlist'}</span>
+                >{pickTitle}</span>
               </span>
             )}
             {titleMenuList && (

@@ -1,0 +1,32 @@
+# head 799fb22964 2026-11-11T09:11:41Z mutant: base
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+# cmd: cd app && npx vitest run src/agent/agentWhichWidget.rail.test.jsx src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx src/agent/qa/chartsOutcome/listColsUndo.outcome.test.jsx
+
+ RUN  v4.0.18 C:/w/pl-widget/app
+
+stderr | src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx > F1 (c) u18-cols-07: two Watchlists, "move the volume column after the symbol": asked, no column moved > control: "move the volume column after the symbol in Momentum" names it: moved, no question
+[uct-agent] routing budget cut: indicators not sent (indicator.list, indicator.add, indicator.remove, indicator.update, indicator.show, indicator.hide)
+
+ ✓ src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx (3 tests) 3231ms
+     ✓ the plan picked the left one: a question, and neither widget's look changed  1137ms
+     ✓ the plan picked Momentum's view: a question, and no saved column layout  1008ms
+     ✓ control: "move the volume column after the symbol in Momentum" names it: moved, no question  1084ms
+ ✓ src/agent/qa/chartsOutcome/listColsUndo.outcome.test.jsx (4 tests) 5189ms
+     ✓ a Watchlist with nothing saved: sort, then Undo leaves NO saved layout (never `{}`), and the default columns draw  1384ms
+     ✓ a Watchlist with nothing saved: add a column, then Undo leaves NO saved layout  1289ms
+     ✓ a Scanner with nothing saved: sort by price, then Undo removes its layout and its own default (RVOL, high to low) is back  1239ms
+     ✓ control: a layout that WAS saved is put back exactly by the Undo  1275ms
+ ✓ src/agent/agentWhichWidget.rail.test.jsx (7 tests) 7220ms
+     ✓ "refresh the scanner" (the plan picked the top one): asked which, and neither door is pressed  1087ms
+     ✓ "don't touch the period sort, just reload the scanner", planned on the Period Sort: the Period Sort gets NO refetch, nothing is claimed  988ms
+     ✓ u18-refresh-06: the refusal names the Period Sort AND the Scanner, and says it won't guess  996ms
+     ✓ u18-show-05 "put Long Term on the Swing watchlist widget": the Swing widget shows Long Term; the other is untouched; no question  1039ms
+     ✓ u18-export-04 "export the Swing watchlist as a csv file": the Swing widget's own Export CSV, no question  1040ms
+     ✓ "refresh the IPOs scanner" with two Scanners: that one only  1025ms
+     ✓ "refresh the scanner" with ONE Scanner (and a Period Sort): it acts  1043ms
+
+ Test Files  3 passed (3)
+      Tests  14 passed (14)
+   Start at  04:11:42
+   Duration  13.10s (transform 11.49s, setup 839ms, import 15.63s, tests 15.64s, environment 1.45s)
+

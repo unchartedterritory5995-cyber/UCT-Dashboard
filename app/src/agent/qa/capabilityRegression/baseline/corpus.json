@@ -4819,6 +4819,39 @@
       ]
     },
     {
+      "id": "watchlist.showList",
+      "source": "pl-exec watchlist group A (C3-065): one Watchlist widget shows the Flagged list exactly as its picker picks it; Undo puts back what it showed",
+      "capabilities": [
+        "watchlist.showList"
+      ],
+      "board": "WLW",
+      "needs": [
+        "watchlist.showList"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.showList",
+            "target": "$board",
+            "args": {
+              "widget": null,
+              "source": "flagged",
+              "name": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "put the Flagged list in my watchlist widget",
+        "switch my watchlist over to the flagged one",
+        "show Flagged in the watchlist"
+      ]
+    },
+    {
       "id": "layout.rename",
       "source": "Batch E3 (11-04): saved layouts (rename, delete, copy, create, list) on the Layout Dock fixture (approval; a protected layout is refused: GW-07)",
       "capabilities": [
@@ -12189,6 +12222,66 @@
                 "inputs.color": "#7b68ee"
               }
             }
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.exportList-no-menu",
+      "source": "pl-widget (watchlist group D, carried from pl-exec): a Watchlist widget with no list menu mounted (no door) has nothing to copy or export; nothing is downloaded, no receipt (agentWatchlistOut.test.jsx has the door)",
+      "capabilities": [
+        "watchlist.exportList"
+      ],
+      "board": "WLW",
+      "steps": [
+        {
+          "say": "export my watchlist as a csv",
+          "model": {
+            "ops": [
+              {
+                "action": "watchlist.exportList",
+                "target": "$board",
+                "args": {
+                  "widget": "wl1",
+                  "format": "csv"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "unchanged": true,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.arrangeColumns-standin",
+      "source": "pl-widget (C3-085 / C3-086): a list widget that publishes no column-drag results (the stand-in view) is refused, never written; listControl.outcome.test.jsx moves and resizes on the real widget",
+      "capabilities": [
+        "watchlist.arrangeColumns"
+      ],
+      "board": "LISTVIEW",
+      "steps": [
+        {
+          "say": "move % change before price",
+          "model": {
+            "ops": [
+              {
+                "action": "watchlist.arrangeColumns",
+                "target": "$listViews[0]",
+                "args": {
+                  "column": "% change",
+                  "before": "price",
+                  "after": null,
+                  "width": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "unchanged": true,
+            "receipt": false
           }
         }
       ]

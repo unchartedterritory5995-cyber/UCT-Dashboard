@@ -94,3 +94,23 @@ export function resolveColumn(word, extra = []) {
 
 /** The column's name in a sentence. */
 export const columnLabel = (key) => COL_LABELS[key]?.[0] || CATALOG.find(c => c.key === key)?.label || key
+
+// ── The header drag and the gridline drag, as pure edits of a column config (AUDIT #1027: moved verbatim out of Watchlists.jsx
+// so the member's drag and UCT Agent's watchlist.arrangeColumns are one rule; `meta` = Watchlists' COL_META, {key: {def, min}}).
+// Watchlists.columnDrag.parity.test.js pins them to the inline code they replace. ──
+/** A header dropped on another: the dragged column takes the drop target's place. null = no move (as the drop did nothing). */
+export function movedColumnCfg(cfg, fromKey, toKey, meta) {
+  if (!fromKey || fromKey === toKey) return null
+  const order = (Array.isArray(cfg.order) && cfg.order.length ? cfg.order : DEFAULT_COL_ORDER).filter(k => meta[k])
+  DEFAULT_COL_ORDER.forEach(k => { if (!order.includes(k)) order.push(k) })
+  const from = order.indexOf(fromKey)
+  const to = order.indexOf(toKey)
+  if (from < 0 || to < 0) return null
+  order.splice(from, 1)
+  order.splice(to, 0, fromKey)
+  return { ...cfg, order }
+}
+/** A column's minimum width (the gridline never goes under it). */
+export const columnMinWidth = (key, meta) => meta[key]?.min || 40
+/** A gridline let go at `w` px: the column's width, rounded, never under its minimum. */
+export const resizedColumnCfg = (cfg, key, w, meta) => ({ ...cfg, widths: { ...(cfg.widths || {}), [key]: Math.max(columnMinWidth(key, meta), Math.round(w)) } })

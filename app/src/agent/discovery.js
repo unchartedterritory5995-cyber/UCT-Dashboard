@@ -144,7 +144,7 @@ export const TOPICS = [
   {
     id: 'watchlists', title: 'Watchlists',
     words: [/\bwatch ?lists?\b/, /\blists?\b/],
-    caps: ['watchlist.list', 'watchlist.show', 'watchlist.add', 'watchlist.remove', 'watchlist.create', 'watchlist.rename', 'watchlist.clear', 'watchlist.keepOnly', 'watchlist.sortColumn', 'watchlist.setColumns', 'watchlist.step', 'watchlist.readView', 'watchlist.setFlag', 'watchlist.delete', 'watchlist.open', 'watchlist.reorder', 'watchlist.setNote'], productHas: true,
+    caps: ['watchlist.list', 'watchlist.show', 'watchlist.add', 'watchlist.remove', 'watchlist.create', 'watchlist.rename', 'watchlist.clear', 'watchlist.keepOnly', 'watchlist.sortColumn', 'watchlist.setColumns', 'watchlist.arrangeColumns', 'watchlist.step', 'watchlist.readView', 'watchlist.setFlag', 'watchlist.delete', 'watchlist.open', 'watchlist.reorder', 'watchlist.setNote', 'watchlist.showList', 'watchlist.exportList'], productHas: true,
     canDo: 'show, create, rename, add to, remove from, clear and delete your watchlists, keep only the tickers you name, sort one A–Z or put tickers at the top, write a note on a ticker, copy one into a new list, and open one in your workspace; on a Watchlist or Scanner widget, sort by a column, add or hide columns, go to the next or previous ticker and read what it shows; and flag or unflag tickers',
     known: () => ['sorting a list by price, change or other data', 'flagging (starring) tickers', 'tags and colours'],
     planned: null,

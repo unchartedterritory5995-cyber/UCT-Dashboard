@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 179,
-  "withProductionKinds": 170,
+  "all": 182,
+  "withProductionKinds": 173,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 179,
-  "withAnyRegressionCase": 127,
+  "capabilities": 182,
+  "withAnyRegressionCase": 130,
   "perProtection": {
    "nl": {
-    "covered": 127,
-    "applicable": 179
+    "covered": 128,
+    "applicable": 182
    },
    "routing": {
-    "covered": 124,
-    "applicable": 179
+    "covered": 125,
+    "applicable": 182
    },
    "args": {
-    "covered": 127,
-    "applicable": 179
+    "covered": 130,
+    "applicable": 182
    },
    "execution": {
-    "covered": 127,
-    "applicable": 179
+    "covered": 128,
+    "applicable": 182
    },
    "receipt": {
-    "covered": 99,
-    "applicable": 179
+    "covered": 100,
+    "applicable": 182
    },
    "refusal": {
-    "covered": 31,
-    "applicable": 179
+    "covered": 33,
+    "applicable": 182
    },
    "permission": {
-    "covered": 172,
-    "applicable": 179
+    "covered": 175,
+    "applicable": 182
    },
    "undo": {
     "covered": 57,
-    "applicable": 112
+    "applicable": 114
    },
    "multiStep": {
     "covered": 36,
-    "applicable": 179
+    "applicable": 182
    },
    "phrasings": {
-    "covered": 123,
-    "applicable": 179
+    "covered": 124,
+    "applicable": 182
    }
   }
  },
@@ -7924,6 +7924,48 @@
     "phrasings": []
    }
   },
+  "watchlist.arrangeColumns": {
+   "domain": "watchlist",
+   "group": "watchlistShow",
+   "target": "listView",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": true,
+    "execution": false,
+    "receipt": false,
+    "refusal": true,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [
+     "refuse.arrangeColumns-standin"
+    ],
+    "execution": [],
+    "receipt": [],
+    "refusal": [
+     "refuse.arrangeColumns-standin"
+    ],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "watchlist.clear": {
    "domain": "watchlist",
    "group": "lists",
@@ -8102,6 +8144,48 @@
     "permission": [
      "watchlist.delete: waits for Apply"
     ],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.exportList": {
+   "domain": "watchlist",
+   "group": "watchlistShow",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": true,
+    "execution": false,
+    "receipt": false,
+    "refusal": true,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [
+     "refuse.exportList-no-menu"
+    ],
+    "execution": [],
+    "receipt": [],
+    "refusal": [
+     "refuse.exportList-no-menu"
+    ],
+    "permission": [],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -8667,6 +8751,58 @@
     "args": [],
     "execution": [],
     "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.showList": {
+   "domain": "watchlist",
+   "group": "watchlistShow",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "watchlist.showList: \"put the Flagged list in my watchlist widget\"",
+     "watchlist.showList: \"switch my watchlist over to the flagged one\"",
+     "watchlist.showList: \"show Flagged in the watchlist\""
+    ],
+    "routing": [
+     "watchlist.showList: \"put the Flagged list in my watchlist widget\"",
+     "watchlist.showList: \"switch my watchlist over to the flagged one\"",
+     "watchlist.showList: \"show Flagged in the watchlist\""
+    ],
+    "args": [
+     "corpus watchlist.showList"
+    ],
+    "execution": [
+     "watchlist.showList (c)"
+    ],
+    "receipt": [
+     "watchlist.showList (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],

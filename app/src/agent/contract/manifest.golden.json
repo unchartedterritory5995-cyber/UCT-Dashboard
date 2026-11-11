@@ -1644,6 +1644,55 @@
    "shape": "{\"add\":[\"RVOL\"],\"hide\":[\"Volume\"],\"reset\":false}"
   },
   {
+   "name": "watchlist.arrangeColumns",
+   "domain": "watchlist",
+   "target": "listView",
+   "summary": "Move a column on a Watchlist or Scanner widget (as dragging its header does) or set its width in pixels (as dragging its gridline does). Undo puts the old columns back.",
+   "hints": "target = the ref of the listViews entry: the one marked active for \"this list\", the one named as the list they name (\"my Momentum list\"; for \"the one I just made\", the watchlists entry marked recent), the only entry for \"my watchlist\"; several could be meant → clarify by name or position. No entry means no such widget is on this board: say so, offer watchlist.open. column = a column that shows; before / after = another showing column (one of them, or neither); width = pixels (a column's minimum to 600), or null.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "column": {
+      "type": "string"
+     },
+     "before": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "after": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "width": {
+      "type": [
+       "number",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "column",
+     "before",
+     "after",
+     "width"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "watchlist.step",
    "domain": "watchlist",
    "target": "listView",
@@ -3613,6 +3662,96 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "watchlist.showList",
+   "domain": "watchlist",
+   "target": "board",
+   "summary": "Make ONE Watchlist widget show a list exactly as its picker does: one of the member's lists, a UCT prebuilt or community list, Flagged — or go back to its list picker. Undo puts back what it showed.",
+   "hints": "target = the board entry; widget = the Watchlist widget's id, or null when only one; source = mine | prebuilt | community | flagged | picker (tag = a colour tag: refused); name = the list's name as said, null for flagged / picker.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "mine",
+       "prebuilt",
+       "community",
+       "flagged",
+       "picker",
+       "tag"
+      ]
+     },
+     "name": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "source",
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "watchlist.exportList",
+   "domain": "watchlist",
+   "target": "board",
+   "summary": "Copy the list ONE Watchlist widget shows to the clipboard, or download it as CSV or Excel — the list menu's own Copy / Export. Excel uses an export from the member's quota.",
+   "hints": "target = the board entry; widget = the Watchlist widget's id, or null when only one; format = clipboard | csv | xlsx.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "format": {
+      "type": "string",
+      "enum": [
+       "clipboard",
+       "csv",
+       "xlsx"
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "format"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
    "query": false,
    "argAliases": null,
    "coerce": null,

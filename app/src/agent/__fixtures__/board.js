@@ -7,7 +7,7 @@ import { planPlacement } from '../../pages/charts/placement/place'
 import { buildWidgetSource, buildLayoutSource, buildWatchlistSource, buildWidgetSync, positionWord } from '../host'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 
-export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null, layouts = null, watchlists = null, minOf = null, repack = null, resize = null } = {}) {
+export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null, layouts = null, watchlists = null, minOf = null, repack = null, resize = null, catalog = null } = {}) {
   const state = { widgets: widgets.map(w => ({ color: 'A', opts: {}, ...w })), groupSyms: { ...groupSyms } }
   let n = 0
   let adds = 0
@@ -194,6 +194,9 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
       const path = url.split('?')[0]
       server.calls.push([method, path, body])
       if (server.failOn && server.failOn(method, path, body)) return nope(500, 'server error')
+      // the picker's catalogue (watchlistCatalog.js): UCT's prebuilt directory and the community lists, names only
+      if (method === 'GET' && path === '/api/watchlists/prebuilt') return catalog ? ok(catalog.prebuilt || []) : nope(404, 'not found')
+      if (method === 'GET' && path === '/api/watchlists/public') return catalog ? ok(catalog.community || []) : nope(404, 'not found')
       if (method === 'GET' && path === '/api/watchlists') return ok(server.lists.map(l => ({ id: l.id, name: l.name, item_count: l.items.length })))
       if (method === 'POST' && path === '/api/watchlists') {
         const row = { id: `wl${++seq}`, name: body.name, items: [] }

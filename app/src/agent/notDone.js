@@ -39,7 +39,9 @@ const PARTS = [
   {
     id: 'export',
     test: (t) => /\bexport\b[^.?!]*\b(?:excel|xlsx|csv|spreadsheet|sheets?|file|pdf)\b|\b(?:to|into|in) (?:an? )?(?:excel|spreadsheet|google sheets?|csv|xlsx)(?: file| sheet)?\b|\bdownload\b[^.?!]*\b(?:excel|csv|spreadsheet|pdf)\b/i.test(t),
-    coveredBy: [],
+    // u18-export-04: a watchlist's own Export CSV / Excel (C3-095) covers it; a format that export lacks (PDF) is still not done
+    coveredBy: ['watchlist.exportList'],
+    still: /\bpdf\b/i,
     text: 'Not done: I can’t export to Excel or other files from UCT Agent.',
   },
 ]
@@ -51,5 +53,5 @@ const PARTS = [
 export function notDoneLines(text, { actions = [] } = {}) {
   const raw = String(text || '')
   const planned = new Set(actions || [])
-  return PARTS.filter(p => !p.coveredBy.some(a => planned.has(a)) && p.test(raw)).map(p => p.text)
+  return PARTS.filter(p => (!p.coveredBy.some(a => planned.has(a)) || p.still?.test(raw)) && p.test(raw)).map(p => p.text)
 }

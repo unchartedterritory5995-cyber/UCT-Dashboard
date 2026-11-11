@@ -1,0 +1,92 @@
+applied r1-position line 34
+ app/src/agent/whichWidget.js | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  2 failed | 5 passed (7)
+      Tests  5 failed | 80 passed (85)
+== r1-position
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/agent/agentWatchlistShow.test.jsx > two Watchlist widgets: the one meant, or asked > held-out "show the Leaders list in the left watchlist"
+ FAIL  src/agent/agentWatchlistShow.test.jsx > two Watchlist widgets: the one meant, or asked > held-out "put my flagged list in the right watchlist widget"
+ FAIL  src/agent/watchlistTarget.rail.test.js > (a) only Watchlist widget ops are ever retargeted > "show Leaders in the right watchlist": every non-watchlist op in a mixed plan comes back byte-identical
+ FAIL  src/agent/watchlistTarget.rail.test.js > (a) only Watchlist widget ops are ever retargeted > "put Leaders in the left watchlist": every non-watchlist op in a mixed plan comes back byte-identical
+ FAIL  src/agent/watchlistTarget.rail.test.js > (b) a widget the words exclude is never picked > control: a plain name still acts (no regression)
+      Tests  5 failed | 80 passed (85)
+applied r2-shown-name line 30
+ app/src/agent/whichWidget.js | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  2 failed | 5 passed (7)
+      Tests  4 failed | 81 passed (85)
+== r2-shown-name
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/agent/agentWhichWidget.rail.test.jsx > over-asks (AUDIT 3): a widget named by the list it shows acts with no question > u18-show-05 "put Long Term on the Swing watchlist widget": the Swing widget shows Long Term; the other is untouched; no question
+ FAIL  src/agent/agentWhichWidget.rail.test.jsx > over-asks (AUDIT 3): a widget named by the list it shows acts with no question > u18-export-04 "export the Swing watchlist as a csv file": the Swing widget's own Export CSV, no question
+ FAIL  src/agent/agentWhichWidget.rail.test.jsx > controls (AUDIT 5): a uniquely named widget, or the only one of its kind, acts with no question > "refresh the IPOs scanner" with two Scanners: that one only
+ FAIL  src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx > F1 (c) u18-cols-07: two Watchlists, "move the volume column after the symbol": asked, no column moved > control: "move the volume column after the symbol in Momentum" names it: moved, no question
+      Tests  4 failed | 81 passed (85)
+applied r3a-linked-ticker-dropped line 32
+ app/src/agent/whichWidget.js | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+ Test Files  7 passed (7)
+      Tests  85 passed (85)
+== r3a-linked-ticker-dropped
+      Tests  85 passed (85)
+applied r3b-ticker-not-unique line 32
+ app/src/agent/whichWidget.js | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+ Test Files  7 passed (7)
+      Tests  85 passed (85)
+== r3b-ticker-not-unique
+      Tests  85 passed (85)
+applied r4-fail-open-no-words line 40
+ app/src/agent/whichWidget.js | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+ Test Files  7 passed (7)
+      Tests  85 passed (85)
+== r4-fail-open-no-words
+      Tests  85 passed (85)
+applied r5-across-types line 103
+ app/src/agent/whichWidget.js | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+ Test Files  7 passed (7)
+      Tests  85 passed (85)
+== r5-across-types
+      Tests  85 passed (85)
+applied r6-approved-reasked line 40
+ app/src/agent/whichWidget.js | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+ Test Files  7 passed (7)
+      Tests  85 passed (85)
+== r6-approved-reasked
+      Tests  85 passed (85)
+applied r7-no-can-filter line 47
+ app/src/agent/whichWidget.js | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+ Test Files  7 passed (7)
+      Tests  85 passed (85)
+== r7-no-can-filter
+      Tests  85 passed (85)
+applied r8-unaimed-skipped line 49
+ app/src/agent/whichWidget.js | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  2 failed | 5 passed (7)
+      Tests  4 failed | 81 passed (85)
+== r8-unaimed-skipped
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/agent/agentWatchlistOut.test.jsx > watchlist.exportList: the list menu's own Copy / Export > two Watchlist widgets and none named: asked, nothing called
+ FAIL  src/agent/agentWatchlistShow.test.jsx > two Watchlist widgets: the one meant, or asked > held-out "show the Leaders list in the watchlist"
+ FAIL  src/agent/agentWatchlistShow.test.jsx > two Watchlist widgets: the one meant, or asked > held-out "show the Leaders list in the left watchlist"
+ FAIL  src/agent/agentWatchlistShow.test.jsx > two Watchlist widgets: the one meant, or asked > held-out "put my flagged list in the right watchlist widget"
+      Tests  4 failed | 81 passed (85)
+MUT2-DONE
