@@ -94,6 +94,7 @@ describe('the layout bar: pin, take off, reorder (the dock\'s own writer, read b
     const host = mount([UCT_DEFAULT_ID, 1, 2])
     const ops = opsOf(host, 'move Breadth to the front of the bar')
     expect(ops[0]).toMatchObject({ action: 'layout.moveOnBar', args: { layout: '2', to: 'front' } })
+    expect(opsOf(host, 'put my Main Trading layout first on the layouts bar')[0]).toMatchObject({ action: 'layout.moveOnBar', args: { layout: '1', to: 'first' } })
     const res = await run(host, ops)
     expect(bar()).toEqual([2, UCT_DEFAULT_ID, 1])
     expect(shown()).toEqual(['Breadth', 'UCT Default', 'Main Trading'])
