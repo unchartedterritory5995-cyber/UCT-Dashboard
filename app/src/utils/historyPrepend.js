@@ -22,6 +22,8 @@
 // helpers + a small per-key loader (≤1 window in flight per key, cancelable, exhaustion
 // memory). StockChart wires it today; the store absorbs it unchanged later.
 
+import { _closeMismatch } from './barsMerge'
+
 /** Bars per left window. Under the server's cold window cap (REPLAY_INTRADAY_COLD_BARS
  *  = 4000) so one window is one bounded provider call; ~10 screens at the default zoom. */
 export const HISTORY_WINDOW_BARS = 2000
@@ -67,12 +69,19 @@ export function historyWindowUrl(sym, tf, oldestT, sessQ = '', bars = HISTORY_WI
  * Invariants (property-tested): the result ends with `cur` exactly (same objects, same
  * order) — so the right edge, the developing bar and every server-owned bar are
  * untouched; it is strictly increasing in `t`; and its length is ≥ cur's.
+ *
+ * ⛔ A window on a DIFFERENT BASIS is refused whole: the window carries cur's oldest day,
+ * so it shares cur[0]'s timestamp, and a >2% close mismatch there (barsMerge
+ * `_closeMismatch` — the same seam rule `mergeMonotonic` uses: a split or re-adjustment
+ * since this series was cached) means splicing would draw a cliff that never traded.
  */
 export function prependOlder(cur, win) {
   if (!Array.isArray(win) || !win.length) return cur
   if (!Array.isArray(cur) || !cur.length) return cur
   const first = cur[0]?.t
   if (typeof first !== 'number') return cur
+  const seam = win.find(b => b?.t === first)
+  if (seam && _closeMismatch(cur[0], seam)) return cur
   const older = []
   let last = -Infinity
   // Windows arrive ascending; sort defensively without trusting it.

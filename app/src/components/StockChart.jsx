@@ -1555,7 +1555,8 @@ import CountdownTimer from './chart/CountdownTimer'
 import styles from './StockChart.module.css'
 import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
-import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
+import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT, idbGetHistory, idbPutHistory, historyReachesTail, historyNeedsRefresh, INTRADAY_MAX_BARS } from '../utils/barsIDB'
+import { createHistoryLoader, prependOlder, wantsOlder, PREFETCH_WINDOWS, HISTORY_WINDOW_BARS } from '../utils/historyPrepend'
 import { memPeek, memPut, memPeekSavedAt } from '../utils/barsMemCache'
 import { timingStart, timingMark, timingMarkPaint, timingMarkEmpty } from '../utils/intradayTiming'
 import { makeLiveSane } from './chart/liveTickBaseline'
@@ -1782,6 +1783,23 @@ export const fetcher = async (url, extSignal, { background = false } = {}) => {
 // says no price history was found. The retry schedule below spends ~100s on 12
 // polls; a genuine cold fetch lands in a few seconds, so 75s is generous.
 export const WARMING_GIVE_UP_MS = 75000
+
+// ── Intraday deep history: ONE page-wide left-window loader (utils/historyPrepend.js) ──
+// <=1 window in flight per series key across every chart on the page; background windows
+// take BACKGROUND fetch slots, so they never queue the chart a member is looking at.
+export const _historyLoader = createHistoryLoader({
+  fetchJson: (url, { background = false } = {}) => fetcher(url, undefined, { background }),
+})
+// Background prefetch after first paint stops once the series holds this many bars;
+// anything deeper loads as the member scrolls toward it (LOOKAHEAD_SCREENS ahead).
+export const HISTORY_PREFETCH_TARGET_BARS = INTRADAY_MAX_BARS + PREFETCH_WINDOWS * HISTORY_WINDOW_BARS
+// Deep-history persistence is debounced per series: a burst of windows is one IDB write.
+const _histPersistTimers = new Map()
+function _persistHistorySoon(sym, ck, bars) {
+  const k = `${sym}_${ck}`
+  clearTimeout(_histPersistTimers.get(k))
+  _histPersistTimers.set(k, setTimeout(() => { _histPersistTimers.delete(k); idbPutHistory(sym, ck, bars) }, 1000))
+}
 
 // Conservative retry for transient (5xx / aborted-network) failures.
 // Cold Massive fetches can legitimately take 5–15s, so aggressive 1s
@@ -8977,27 +8995,52 @@ export default function StockChart({
     : null
   const { data: compareData } = useSWR(compareSwrUrl, instFetcher, { dedupingInterval: 60_000, revalidateOnFocus: false })
 
-  // ── Phase 3' Part 3: intraday deep-backfill (OFF the critical path) ──
-  // First paint is the shallow tail SWR above (instant, cold-safe). Once the sym/tf has been stable
-  // ~900ms (_intradayDeepArmed) we pull the deep window in ONE fetch and prepend it via mergeDelta
-  // (the effect below). Gated so it never runs on a quick flip (armed only after the dwell), never
-  // on override/replay/pinned/overlay/custom charts, and stops firing once idb is already deep. It
-  // does NOT touch fetchDepth → the 30s tail poll stays a tiny since= delta.
-  const _intradayDeepFire = isIntraday && !_isCustomTf && _intradayDeepBackfillEnabled()
-    && !_hasOverride && !replayCutoff && !_pinnedFull && !_overlayActive
-    && _intradayDeepArmed
-    && !!sym && idbLoaded && idbReadyForRef.current === `${sym}_${_barsTf}`
-    && (idbBars?.length || 0) < INTRADAY_DEFAULT_BARS
-  const _intradayDeepUrl = _intradayDeepFire
-    ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${INTRADAY_DEFAULT_BARS}${_sessQ}`
-    : null
-  const { data: _intradayDeepData } = useSWR(_intradayDeepUrl, instFetcher, {
-    dedupingInterval: 60_000,
-    revalidateOnFocus: false,
-    refreshInterval: 0,          // one-shot deep pull; the tail SWR owns freshness + the live bar
-    refreshWhenHidden: false,
-    onErrorRetry: barsSwrOnErrorRetry,
-  })
+  // ── Intraday deep history = LEFT-PREPEND windows (2026-11-11, utils/historyPrepend.js) ──
+  // ⛔ Replaces the one-shot `bars=3000` deep pull AND the scroll-back `setFetchDepth` x8
+  // whole-series re-download: both asked `/api/bars?bars=N`, whose deep branch answers from
+  // what SQLite already holds (production 2026-11-11: no added depth on 60m for 14 of 21
+  // names). Every deeper bar now arrives as "the N bars before my oldest bar"
+  // (`&to=<ET date of oldest>`), merged by `prependOlder` — older bars only, so the newest
+  // bar, the developing candle and the tail poll's bars are never touched (the right edge
+  // cannot move) and `fetchDepth` never grows (the poll stays a `since=` delta).
+  // Order after the ~900 ms dwell: (1) the persisted `@hist` segment from IDB (no network),
+  // (2) background windows up to HISTORY_PREFETCH_TARGET_BARS, (3) further windows as the
+  // visible left edge comes within LOOKAHEAD_SCREENS of the oldest bar (effect next to the
+  // pan-backfill). Gate kept from the old deep pull: `_intradayDeepBackfillEnabled` (the
+  // existing 100% flag) — it is the instant revert, no new flag.
+  const _histPrependOn = isIntraday && !_isCustomTf && _intradayDeepBackfillEnabled()
+    && !_hasOverride && !replayCutoff && !_pinnedFull && !_overlayActive && !!sym
+  const _histLoadRef = useRef(null)
+  _histLoadRef.current = { on: _histPrependOn, key: `${sym}_${_barsTf}`, sym, tf: resolvedTf, ck: _barsTf, sessQ: _sessQ }
+  // Merge one window into THIS chart's series (same cross-ticker guard as every bars merge).
+  const _applyOlderRef = useRef(null)
+  _applyOlderRef.current = (key, win, { persist = true } = {}) => {
+    if (idbReadyForRef.current !== key || _histLoadRef.current?.key !== key) return false
+    const cur = idbBarsRef.current
+    const merged = prependOlder(cur, win)
+    if (merged === cur) return false
+    idbBarsRef.current = merged
+    setIdbBars(merged)
+    memPut(sym, _barsTf, merged)
+    if (persist) _persistHistorySoon(sym, _barsTf, merged)
+    return true
+  }
+  const _loadOlder = useCallback((background, attempt = 0) => {
+    const r = _histLoadRef.current
+    if (!r?.on || idbReadyForRef.current !== r.key) return Promise.resolve(null)
+    const oldestT = idbBarsRef.current?.[0]?.t
+    if (typeof oldestT !== 'number') return Promise.resolve(null)
+    return _historyLoader.loadOlder(r.key, { sym: r.sym, tf: r.tf, sessQ: r.sessQ, oldestT, background })
+      .then((res) => {
+        if (!res || _histLoadRef.current?.key !== r.key) return null
+        const added = res.bars?.length ? _applyOlderRef.current(r.key, res.bars) : false
+        // `filling` / warming: the server is fetching the older stretch — ask again once it lands.
+        if (res.retryAfterMs && attempt < 3) {
+          setTimeout(() => { if (_histLoadRef.current?.key === r.key) _loadOlder(background, attempt + 1) }, res.retryAfterMs)
+        }
+        return { ...res, added }
+      })
+  }, [])
 
   // Persist to IDB and merge delta when SWR returns.
   useEffect(() => {
@@ -9175,38 +9218,36 @@ export default function StockChart({
     if (!_intradayDeepBackfillEnabled()) return undefined
     if (!isIntraday || !sym || _isCustomTf) return undefined
     if (_intradayDeepArmed) return undefined
-    if ((idbBarsRef.current?.length || 0) >= INTRADAY_DEFAULT_BARS) return undefined
+    // (No "already deep" skip: the armed step first reads the persisted history and stops on
+    // its own at HISTORY_PREFETCH_TARGET_BARS, so arming a deep series costs nothing.)
     const id = setTimeout(() => _setIntradayDeepArmed(true), 900)
     return () => clearTimeout(id)
   }, [sym, resolvedTf, isIntraday, _isCustomTf, _intradayDeepArmed])
 
-  // ── Phase 3' Part 3: fold the intraday DEEP window into idbBars (off the critical path) ──
-  // Mirrors the daily edge split-fetch merge above, but the deep intraday history comes from
-  // /api/bars (there's no sealed edge endpoint intraday). Older bars are PREPENDED via mergeDelta
-  // (the fresher tail wins the overlap); the right-anchored default view holds so there's no jump.
-  // fetchDepth is untouched → the tail SWR keeps polling a tiny since= delta, and its deeperInIdb
-  // branch keeps this deep set if a full tail fetch ever lands. Same cross-ticker guards as the tail.
+  // ── Deep history after the dwell: persisted segment first, then background windows ──
+  // Needs a series to prepend to (`idbBars` set for THIS key — the first network answer sets
+  // it on a cold open), so it re-checks when that lands. Cancelled on sym/tf change.
+  const _histHasBase = idbLoaded && idbReadyForRef.current === `${sym}_${_barsTf}` && (idbBars?.length || 0) > 0
   useEffect(() => {
-    if (!_intradayDeepData?.bars?.length || !sym || !resolvedTf) return
-    if (_intradayDeepData.ticker && _intradayDeepData.ticker !== sym.toUpperCase()) return
-    if (idbReadyForRef.current !== `${sym}_${_barsTf}`) return
-    const cur = idbBarsRef.current
-    if (!cur?.length) {
-      idbBarsRef.current = _intradayDeepData.bars
-      setIdbBars(_intradayDeepData.bars)
-      idbSinceRef.current = _intradayDeepData.bars[_intradayDeepData.bars.length - 1]?.t ?? idbSinceRef.current
-      idbSavedAtRef.current = Date.now()        // healed from the server — see above
-      idbPut(sym, _barsTf, _intradayDeepData.bars)
-      memPut(sym, _barsTf, _intradayDeepData.bars)
-      return
-    }
-    const merged = mergeDelta(_intradayDeepData.bars, cur)
-    if (merged.length === cur.length) return                       // no older bars added — nothing to repaint
-    idbBarsRef.current = merged
-    setIdbBars(merged)
-    idbPut(sym, _barsTf, merged)
-    memPut(sym, _barsTf, merged)
-  }, [_intradayDeepData, idbBars])  // eslint-disable-line react-hooks/exhaustive-deps
+    if (!_histPrependOn || !_intradayDeepArmed || !_histHasBase) return undefined
+    const key = `${sym}_${_barsTf}`
+    let cancelled = false
+    ;(async () => {
+      const hist = await idbGetHistory(sym, _barsTf)
+      if (cancelled || idbReadyForRef.current !== key) return
+      if (hist && historyReachesTail(hist, idbBarsRef.current)) {
+        // Re-persist only when the tail is about to outrun the segment (historyNeedsRefresh).
+        _applyOlderRef.current(key, hist, { persist: false })
+        if (historyNeedsRefresh(hist[hist.length - 1]?.t, idbBarsRef.current)) _persistHistorySoon(sym, _barsTf, idbBarsRef.current)
+      }
+      for (let i = 0; i <= PREFETCH_WINDOWS && !cancelled; i++) {
+        if ((idbBarsRef.current?.length || 0) >= HISTORY_PREFETCH_TARGET_BARS) break
+        const res = await _loadOlder(true)
+        if (!res || !res.added || res.exhausted || res.retryAfterMs) break
+      }
+    })()
+    return () => { cancelled = true }
+  }, [_histPrependOn, _intradayDeepArmed, _histHasBase, sym, _barsTf, _loadOlder])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Background prefetch — all other timeframes when sym changes ───────────
   // After the primary chart loads, fetch every other TF into IDB so switching
@@ -20172,6 +20213,7 @@ export default function StockChart({
   // / barsOverride). Mirrors the existing visible-range subscription pattern.
   useEffect(() => {
     if (_overlayActive || entryDate || exactDateRange || _hasOverride || replayCutoff) return undefined
+    if (_histPrependOn) return undefined     // native intraday: left windows (effect below), never a depth bump
     if (fetchDepth >= _fullTarget) return undefined
     const chart = chartRef.current
     if (!chart) return undefined
@@ -20204,7 +20246,34 @@ export default function StockChart({
       if (unsub) { try { unsub() } catch { /* ignore */ } }
       if (raf != null) cancelAnimationFrame(raf)
     }
-  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget])
+  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, _histPrependOn])
+
+  // Native intraday scroll-back: load the next LEFT window while the visible left edge is
+  // still LOOKAHEAD_SCREENS away from the oldest bar, so a member panning at normal speed
+  // reaches bars that are already there. A landed window re-anchors the view (bars-from-
+  // right preserved), which fires this subscription again — a fast fling keeps chaining.
+  useEffect(() => {
+    if (!_histPrependOn) return undefined
+    const chart = chartRef.current
+    if (!chart) return undefined
+    let raf = null
+    const onRange = () => {
+      if (raf != null) return
+      raf = requestAnimationFrame(() => {
+        raf = null
+        let range = null
+        try { range = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
+        if (!range) return
+        if (wantsOlder({ fromIndex: range.from, toIndex: range.to, loadedCount: lastBarCountRef.current })) _loadOlder(false)
+      })
+    }
+    let unsub = null
+    try { unsub = chart.timeScale().subscribeVisibleLogicalRangeChange(onRange) } catch { /* ignore */ }
+    return () => {
+      if (unsub) { try { unsub() } catch { /* ignore */ } }
+      if (raf != null) cancelAnimationFrame(raf)
+    }
+  }, [_histPrependOn, sym, resolvedTf, _loadOlder, chartReady])
 
   // Proactive deep-history warm (dwell-gated) — makes scroll-back INSTANT.
   // The viewport-first first paint is shallow (FIRST_PAINT_BARS) for an instant
@@ -20222,6 +20291,7 @@ export default function StockChart({
   // chart grid cells still pass backgroundWarm=false to avoid a cold-open herd.
   useEffect(() => {
     if (_overlayActive || entryDate || exactDateRange || _hasOverride || replayCutoff) return undefined
+    if (_histPrependOn) return undefined     // native intraday deepens by left windows, never a whole re-download
     if (!backgroundWarm && !deepWarm) return undefined
     if (fetchDepth >= _fullTarget) return undefined
     // Phase 3' intraday smooth-switch (gated): don't auto-deep-bump an intraday chart on a

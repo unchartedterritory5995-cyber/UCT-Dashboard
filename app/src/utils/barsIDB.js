@@ -236,11 +236,14 @@ export function _capForWrite(tf, bars) {
  * the reader (`idbGet`) and the compare-and-write (`idbPutMonotonic`, which may only MERGE
  * into an entry that passes) call it — a write can never keep alive what a read refuses.
  */
-export function _entryReadable(entry, tf, nowMs = Date.now()) {
+export function _entryReadable(entry, tf, nowMs = Date.now(), { history = false } = {}) {
   if (!entry || !entry.bars?.length) return false
   // Logic-version invalidation: a stale schema/logic record is treated as absent.
   if (entry.v !== CACHE_LOGIC_VERSION) return false
   const isIntraday = ['1','5','15','30','60'].includes(logicTfOf(tf))
+  // A deep-history SEGMENT (`@hist`) is old by definition: tail currentness is the tail
+  // entry's question, not its. Version + grid rules still apply.
+  if (history) return isIntraday && !_hasOldSixtyMinGrid(entry.bars, tf)
   if (isIntraday) {
     // Only a GAPPED tail is discarded (a BEHIND one is a sound repair base — see idbGet).
     if (classifyIntradayTail(entry.lastT, logicTfOf(tf)) === 'gapped') return false
@@ -391,15 +394,19 @@ export async function idbPut(sym, tf, bars) {
 
 /** Compare-and-write in ONE readwrite transaction (no read/await/write gap). Returns the
  *  series now stored (capped as idbPut caps it), or null when nothing was written. */
-export async function idbPutMonotonic(sym, tf, bars, { delta = false, startedAt = null } = {}) {
+export async function idbPutMonotonic(sym, tf, bars, { delta = false, startedAt = null, segment = 'tail' } = {}) {
   if (!bars?.length) return null
+  // `segment: 'history'` writes the deep-history record (`<key>@hist`, see below) by the
+  // SAME rule; only its key and its cap differ.
+  const history = segment === 'history'
+  if (history && !['1','5','15','30','60'].includes(logicTfOf(String(tf)))) return null
   try {
     const db = await _open()
     return await new Promise((resolve) => {
       let out = null
       const tx = db.transaction(STORE, 'readwrite')
       const store = tx.objectStore(STORE)
-      const key = _key(sym, tf)
+      const key = history ? _histKey(sym, tf) : _key(sym, tf)
       const req = store.get(key)
       req.onsuccess = () => {
         const e = req.result
@@ -408,11 +415,11 @@ export async function idbPutMonotonic(sym, tf, bars, { delta = false, startedAt 
         // guard — or the retired 60m grid) is NOT a base: a full answer REPLACES it, a
         // delta writes nothing. Merging into it would keep its bad bars and re-stamp
         // savedAt, so the age eviction would never fire again.
-        const cur = _entryReadable(e, tf) ? e.bars : null
+        const cur = _entryReadable(e, tf, Date.now(), { history }) ? e.bars : null
         const curIsNewer = !!cur && Number.isFinite(startedAt) && Number.isFinite(e.savedAt) && e.savedAt > startedAt
         const next = mergeMonotonic(cur, bars, { delta, curIsNewer })
         if (!next?.length || next === cur) { out = cur; return }
-        const capped = _capForWrite(tf, next)
+        const capped = history ? _capHistoryForWrite(next) : _capForWrite(tf, next)
         store.put({ key, bars: capped, lastT: capped[capped.length - 1]?.t, savedAt: Date.now(), v: CACHE_LOGIC_VERSION })
         out = capped
       }
@@ -497,9 +504,7 @@ export async function idbGetHistory(sym, tf) {
       const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(_histKey(sym, tf))
       req.onsuccess = () => {
         const e = req.result
-        if (!e || !e.bars?.length || e.v !== CACHE_LOGIC_VERSION) return resolve(null)
-        if (_hasOldSixtyMinGrid(e.bars, tf)) return resolve(null)
-        resolve(e.bars)
+        resolve(_entryReadable(e, tf, Date.now(), { history: true }) ? e.bars : null)
       }
       req.onerror = () => resolve(null)
     })
@@ -508,24 +513,14 @@ export async function idbGetHistory(sym, tf) {
   }
 }
 
+/** Persist a deep series' history through THE one write path (`idbPutMonotonic`,
+ *  barsMerge `mergeMonotonic`): `bars` is a full, contiguous answer over its range, so it
+ *  wins that range, older stored history is kept only across a clean seam, and the record
+ *  is capped to the newest HISTORY_SEGMENT_MAX. A series the tail entry holds whole
+ *  (≤ INTRADAY_MAX_BARS) writes nothing. */
 export async function idbPutHistory(sym, tf, bars) {
-  if (!['1','5','15','30','60'].includes(logicTfOf(String(tf)))) return
-  if (!Array.isArray(bars) || bars.length <= INTRADAY_MAX_BARS) return   // the tail entry holds it all
-  const out = _capHistoryForWrite(bars)
-  try {
-    const db = await _open()
-    await new Promise((resolve) => {
-      const tx = db.transaction(STORE, 'readwrite')
-      tx.objectStore(STORE).put({
-        key: _histKey(sym, tf), bars: out, lastT: out[out.length - 1]?.t,
-        savedAt: Date.now(), v: CACHE_LOGIC_VERSION,
-      })
-      tx.oncomplete = resolve
-      tx.onerror    = () => resolve()
-    })
-  } catch {
-    // best-effort, like every IDB write
-  }
+  if (!Array.isArray(bars) || bars.length <= INTRADAY_MAX_BARS) return null
+  return idbPutMonotonic(sym, tf, bars, { segment: 'history' })
 }
 
 /**
