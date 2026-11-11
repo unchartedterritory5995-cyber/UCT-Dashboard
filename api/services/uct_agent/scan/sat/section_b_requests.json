@@ -11173,16 +11173,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -11251,6 +11247,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -11489,16 +11489,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -11567,6 +11563,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -11803,16 +11803,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -11881,6 +11877,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -12123,16 +12123,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -12201,6 +12197,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -12436,16 +12436,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -12514,6 +12510,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -12750,16 +12750,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -12828,6 +12824,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -13064,16 +13064,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -13142,6 +13138,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -13645,16 +13645,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -13723,6 +13719,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -13960,16 +13960,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -14038,6 +14034,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -14273,16 +14273,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -14351,6 +14347,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -14847,16 +14847,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -14925,6 +14921,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -15161,16 +15161,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -15239,6 +15235,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -15742,16 +15742,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -15820,6 +15816,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -16317,16 +16317,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -16395,6 +16391,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -16892,16 +16892,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -16970,6 +16966,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -17206,16 +17206,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -17284,6 +17280,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -17787,16 +17787,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -17865,6 +17861,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -18101,16 +18101,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -18179,6 +18175,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -18421,16 +18421,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -18499,6 +18495,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -18741,16 +18741,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -18819,6 +18815,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -19061,16 +19061,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -19139,6 +19135,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -19375,16 +19375,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -19453,6 +19449,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -19689,16 +19689,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -19767,6 +19763,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -20002,16 +20002,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -20080,6 +20076,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -20316,16 +20316,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -20394,6 +20390,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -20890,16 +20890,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -20968,6 +20964,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -21466,16 +21466,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -21544,6 +21540,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -22041,16 +22041,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -22119,6 +22115,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -22616,16 +22616,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -22694,6 +22690,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -22929,16 +22929,12 @@
       "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
      },
      {
-      "id": "compareGroups",
-      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
-     },
-     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -23007,6 +23003,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",

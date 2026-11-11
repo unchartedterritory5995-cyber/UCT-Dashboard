@@ -23,11 +23,21 @@ const SEARCH_WORDS = ['search', 'find', 'look', 'lookup', 'query', 'clear']
 export const AGENT_CONTROLS = {
   // C3-138 (round 7): the News (Trade Exchange) widget's own "Search headlines" box, through its door (its own setQueryRaw)
   tradeExchangeNews: [{ key: 'search', type: 'text', door: true, default: '', max: 80, words: SEARCH_WORDS }],
+  // C3-108 (pl-widget): leave a scan, back to the Scanner widget's picker, as its own "change scan" does (ScannerWidget onBack:
+  // scanKey and scanName cleared). Picking a scan stays widget.showScan.
+  scanner: [{ key: 'scan', type: 'enum', options: ['picker'], default: 'picker', path: 'scanKey', labels: { picker: 'the scan picker' },
+    words: ['leave', 'picker', 'back', 'exit'], write: (opts) => (opts?.scanKey || opts?.scanName ? { ...opts, scanKey: null, scanName: null } : opts) }],
   // C3-201: open one of the member's notes in a Notebook widget, as its own rows do (opts.noteId); the choices are the widget's own
   notebook: [{ key: 'note', type: 'enum', from: 'door', path: 'noteId' }],
-  // C3-065 (round 6): a Watchlist widget on the member's Flagged list, as its picker's Flagged row sets it (watchKey 'flagged')
-  watchlist: [{ key: 'source', type: 'enum', options: ['flagged'], path: 'watchKey',
-    write: (opts) => ({ ...(opts || {}), watchKey: 'flagged', watchName: 'Flagged', watchTab: 'mine' }) }],
+  watchlist: [
+    // C3-065 (round 6): a Watchlist widget on the member's Flagged list, as its picker's Flagged row sets it (watchKey 'flagged')
+    { key: 'source', type: 'enum', options: ['flagged'], path: 'watchKey',
+      write: (opts) => ({ ...(opts || {}), watchKey: 'flagged', watchName: 'Flagged', watchTab: 'mine' }) },
+    // C3-074 (pl-widget): rename the Flagged list, as its title menu's Rename does (useFlagged renameFlagged); only while the
+    // widget shows Flagged (the menu is there only then). Undo renames it back.
+    { key: 'flaggedName', type: 'text', door: true, max: 60, words: ['rename'],
+      when: (_opts, door) => (door && 'flaggedName' in door ? null : 'This Watchlist widget isn’t showing your Flagged list, so its Rename isn’t here. Switch it to Flagged first.') },
+  ],
   chart: [
     { key: 'companyTab', type: 'enum', options: COMPANY_TABS.map(t => t.key), default: 'overview', path: 'dock.tab',
       when: (opts) => (normalizeDock(opts?.dock).company ? null : DOCK_WHY),
@@ -93,11 +103,17 @@ const CONTROL_WORDS = ['tab', 'axis', 'filter', 'sort', 'order', 'rank', 'view',
 // a control that takes a DAY is named by the words a day is said in
 const DAY_WORDS = ['today', 'tomorrow', 'yesterday', 'next', 'last', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'jump', 'go']
 const camel = (k) => String(k).replace(/([a-z])([A-Z])/g, '$1 $2')
+// AUDIT #1027 (NL-1 first-call coverage): a control's KEY is a storage name, not something a person says. A key-derived word that is
+// a generic request verb must not re-admit what CONTROL_WORDS leaves out on purpose ('hide' is there, 'show' is not: "show my
+// momentum watchlist" is a list request). The Watchlist's `showLogos` row made every "show … watchlist" route boardEdit, which then
+// crowded the lists group out of the request. The row's own words ('logo' is a CONTROL_WORD) still name it.
+const KEY_GENERIC = new Set(['show'])
+const keyWords = (k) => nameWords(camel(k)).filter(w => !KEY_GENERIC.has(w))
 const VOCAB = new Map()
 function controlVocab(type, surfaceWord) {
   if (VOCAB.has(type)) return VOCAB.get(type)
   const own = new Set(widgetNamesOf(type, surfaceWord).flat())
-  const words = new Set([...CONTROL_WORDS, ...widgetControls(type).flatMap(f => [camel(f.key), ...(f.type === 'day' ? DAY_WORDS : []), ...(f.options || []).map(o => (o && typeof o === 'object' ? `${o.value} ${o.label}` : String(o))), ...Object.values(f.labels || {}), ...Object.values(f.also || {}).flat(), ...(f.words || [])])]
+  const words = new Set([...CONTROL_WORDS, ...widgetControls(type).flatMap(f => [...keyWords(f.key),...(f.type === 'day' ? DAY_WORDS : []), ...(f.options || []).map(o => (o && typeof o === 'object' ? `${o.value} ${o.label}` : String(o))), ...Object.values(f.labels || {}), ...Object.values(f.also || {}).flat(), ...(f.words || [])])]
     .flatMap(nameWords).filter(w => w.length >= 2 && !own.has(w)))
   VOCAB.set(type, words)
   return words
@@ -113,6 +129,9 @@ export function controlledWidgetTypes(message, types, surfaceWord) {
 // widget even when the widget is not named. ──
 export const ITEM_LISTS = {
   themes: [{ key: 'themeSets', noun: 'theme set', nouns: ['set', 'preset'], ops: ['rename', 'delete'] }],
+  // C3-104 (pl-widget): a Watchlist widget's saved looks (the ⚙ panel's Templates menu): save the current look under a name, or
+  // delete one. Applying one is the `look` control.
+  watchlist: [{ key: 'looks', noun: 'look', nouns: ['look', 'template'], ops: ['create', 'delete'], named: true }],
   // C3-202: the Notebook widget's notes; its New control creates a blank one and opens it
   notebook: [{ key: 'notes', noun: 'note', nouns: ['note', 'notebook', 'blank', 'new'], ops: ['create'], blank: 'Untitled note' }],
 }

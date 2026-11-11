@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 178,
-  "withProductionKinds": 169,
+  "all": 183,
+  "withProductionKinds": 174,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 178,
-  "withAnyRegressionCase": 126,
+  "capabilities": 183,
+  "withAnyRegressionCase": 131,
   "perProtection": {
    "nl": {
-    "covered": 126,
-    "applicable": 178
+    "covered": 129,
+    "applicable": 183
    },
    "routing": {
-    "covered": 123,
-    "applicable": 178
+    "covered": 126,
+    "applicable": 183
    },
    "args": {
-    "covered": 126,
-    "applicable": 178
+    "covered": 131,
+    "applicable": 183
    },
    "execution": {
-    "covered": 126,
-    "applicable": 178
+    "covered": 129,
+    "applicable": 183
    },
    "receipt": {
-    "covered": 98,
-    "applicable": 178
+    "covered": 101,
+    "applicable": 183
    },
    "refusal": {
-    "covered": 31,
-    "applicable": 178
+    "covered": 33,
+    "applicable": 183
    },
    "permission": {
-    "covered": 171,
-    "applicable": 178
+    "covered": 176,
+    "applicable": 183
    },
    "undo": {
-    "covered": 57,
-    "applicable": 112
+    "covered": 58,
+    "applicable": 115
    },
    "multiStep": {
     "covered": 36,
-    "applicable": 178
+    "applicable": 183
    },
    "phrasings": {
-    "covered": 122,
-    "applicable": 178
+    "covered": 125,
+    "applicable": 183
    }
   }
  },
@@ -2109,6 +2109,60 @@
     "phrasings": []
    }
   },
+  "chartSetup.autoScale": {
+   "domain": "chartSetup",
+   "group": "boardEdit",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "chartSetup.autoScale: \"auto scale this chart\"",
+     "chartSetup.autoScale: \"auto-scale the price axis\"",
+     "chartSetup.autoScale: \"fit the price scale to the bars again\"",
+     "chartSetup.autoScale: \"put the price axis back on auto\""
+    ],
+    "routing": [
+     "chartSetup.autoScale: \"auto scale this chart\"",
+     "chartSetup.autoScale: \"auto-scale the price axis\"",
+     "chartSetup.autoScale: \"fit the price scale to the bars again\"",
+     "chartSetup.autoScale: \"put the price axis back on auto\""
+    ],
+    "args": [
+     "corpus chartSetup.autoScale"
+    ],
+    "execution": [
+     "chartSetup.autoScale (c)"
+    ],
+    "receipt": [
+     "chartSetup.autoScale (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "chartSetup.compareDisplay": {
    "domain": "chartSetup",
    "group": "chartSetup",
@@ -2701,6 +2755,62 @@
     "permission": [],
     "undo": [
      "chartSetup.setRange: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartSetup.stepBars": {
+   "domain": "chartSetup",
+   "group": "boardEdit",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "chartSetup.stepBars: \"step this chart back 5 bars\"",
+     "chartSetup.stepBars: \"go back five bars on the chart\"",
+     "chartSetup.stepBars: \"scroll the chart back 5 bars\"",
+     "chartSetup.stepBars: \"move the chart back 5 bars\""
+    ],
+    "routing": [
+     "chartSetup.stepBars: \"step this chart back 5 bars\"",
+     "chartSetup.stepBars: \"go back five bars on the chart\"",
+     "chartSetup.stepBars: \"scroll the chart back 5 bars\"",
+     "chartSetup.stepBars: \"move the chart back 5 bars\""
+    ],
+    "args": [
+     "corpus chartSetup.stepBars"
+    ],
+    "execution": [
+     "chartSetup.stepBars (c)"
+    ],
+    "receipt": [
+     "chartSetup.stepBars (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "chartSetup.stepBars: undo restores"
     ],
     "multiStep": [],
     "phrasings": []
@@ -7868,6 +7978,48 @@
     "phrasings": []
    }
   },
+  "watchlist.arrangeColumns": {
+   "domain": "watchlist",
+   "group": "watchlistShow",
+   "target": "listView",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": true,
+    "execution": false,
+    "receipt": false,
+    "refusal": true,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [
+     "refuse.arrangeColumns-standin"
+    ],
+    "execution": [],
+    "receipt": [],
+    "refusal": [
+     "refuse.arrangeColumns-standin"
+    ],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "watchlist.clear": {
    "domain": "watchlist",
    "group": "lists",
@@ -8046,6 +8198,48 @@
     "permission": [
      "watchlist.delete: waits for Apply"
     ],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.exportList": {
+   "domain": "watchlist",
+   "group": "watchlistShow",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": true,
+    "execution": false,
+    "receipt": false,
+    "refusal": true,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [
+     "refuse.exportList-no-menu"
+    ],
+    "execution": [],
+    "receipt": [],
+    "refusal": [
+     "refuse.exportList-no-menu"
+    ],
+    "permission": [],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -8611,6 +8805,58 @@
     "args": [],
     "execution": [],
     "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.showList": {
+   "domain": "watchlist",
+   "group": "watchlistShow",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "watchlist.showList: \"put the Flagged list in my watchlist widget\"",
+     "watchlist.showList: \"switch my watchlist over to the flagged one\"",
+     "watchlist.showList: \"show Flagged in the watchlist\""
+    ],
+    "routing": [
+     "watchlist.showList: \"put the Flagged list in my watchlist widget\"",
+     "watchlist.showList: \"switch my watchlist over to the flagged one\"",
+     "watchlist.showList: \"show Flagged in the watchlist\""
+    ],
+    "args": [
+     "corpus watchlist.showList"
+    ],
+    "execution": [
+     "watchlist.showList (c)"
+    ],
+    "receipt": [
+     "watchlist.showList (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],

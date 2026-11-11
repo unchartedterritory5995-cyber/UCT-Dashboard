@@ -53,6 +53,8 @@ import { BASE_GROUPS, EXTRA_GROUPS, NOT_LINKED, isExtraGroup, linkGroups } from 
 import { PRESET_SCANS } from '../../pages/charts/widgets/ScannerPicker'
 import { CHART_THEMES, CHART_THEME_BY_ID } from '../../components/chart/chartThemes'
 import { positionWord } from '../host'
+import { whichWidget, listSwitchable } from '../whichWidget'
+import { loadCatalog, matchListName } from '../watchlistCatalog'
 import { withoutDerivedOpts } from '../derivedOpts'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import { addChartTab, closeChartTab, setActiveChartTab, renameChartTab, patchChartTab, chartTabList, sanitizeChartTabs } from '../../pages/charts/chartTabs'
@@ -188,6 +190,8 @@ const controlWord = (f) => {
   const list = (f.options || []).join('|')
   if (f.type === 'set') return `${f.key}(+/-${list ? ` ${list}` : ' member'})`
   if (f.from === 'door') return `${f.key}(ask widget.readOptions)`
+  if (f.type === 'action') return `${f.key}(run: its own button)`
+  if (f.type === 'color') return `${f.key}(#rrggbb)`
   return `${f.key}(${f.type === 'enum' ? list : f.type === 'boolean' ? 'on/off' : f.type === 'day' ? 'YYYY-MM-DD, today, tomorrow' : f.type === 'text' ? 'words, or empty to clear' : `${f.min}–${f.max}`})`
 }
 // ── The `widgetControls` context section: sent only on a turn that may need it ──
@@ -206,7 +210,7 @@ function namedHere(type, said) {
 // round 3 (C3-174): a widget's own list of the member's items, renamed or deleted through its door (widget.setOption, below)
 const itemWords = (t, doors, ids) => (ITEM_LISTS[t] || []).map(l => {
   const names = [...new Set(ids.flatMap(id => (doors?.[id]?.[l.key] || []).map(x => x.name)))]
-  return `${l.key}(${l.ops.map(o => (o === 'rename' ? 'rename:<name>=><new>' : o === 'create' ? 'create' : `${o}:<name>`)).join('|')}${names.length ? `; yours: ${names.join(', ')}` : ''})`
+  return `${l.key}(${l.ops.map(o => (o === 'rename' ? 'rename:<name>=><new>' : o === 'create' ? (l.named ? 'create:<name>' : 'create') : `${o}:<name>`)).join('|')}${names.length ? `; yours: ${names.join(', ')}` : ''})`
 })
 function widgetControlSection(s, message, whole) {
   const said = new Set(wordsOf(message))
@@ -234,12 +238,16 @@ export const boardKind = {
   name: 'board',
   list: (host) => { const s = snapOf(host); return s ? [s] : [] },
   read: (host, ref) => (ref === 'board' ? snapOf(host) : null),
-  stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [], adds: [], grid: null, doors: clone(s.doors || {}), sends: [], itemOps: [] }),
+  stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [], adds: [], grid: null, doors: clone(s.doors || {}), sends: [], outs: [], acts: [], itemOps: [] }),
   patch(before, after) {
     // chartGrid.set: its own write (charts added, cells, links and tickers together), alone
     if (after.grid) return after.grid.noop ? null : { grid: clone(after.grid) }
     // widget.sendToJournal: nothing on the board changes
     if ((after.sends || []).length) return { sends: clone(after.sends) }
+    // watchlist.exportList: nothing on the board changes either (the list menu's own Copy / Export)
+    if ((after.outs || []).length) return { outs: clone(after.outs) }
+    // a widget's own button (an `action` row: Refresh): nothing on the board changes either
+    if ((after.acts || []).length) return { acts: clone(after.acts) }
     const removed = before.board.filter(w => !after.board.some(x => x.id === w.id)).map(w => w.id)
     const set = {}
     for (const w of after.board) {
@@ -291,6 +299,8 @@ export const boardKind = {
       return { undoData: { added } }
     }
     if (patch.sends) return sendToJournal(host, patch.sends)
+    if (patch.outs) return listOut(host, patch.outs)
+    if (patch.acts) return runActs(host, patch.acts)
     const { doors, itemOps, ...rest } = patch
     if (itemOps) await writeItemOps(host, itemOps)
     if (doors) await writeDoors(host, doors)
@@ -300,6 +310,8 @@ export const boardKind = {
   landed(snap, patch) {
     if (!snap) return false
     if (patch.sends) return true                   // nothing on the board to read: commit threw if the Journal refused
+    if (patch.outs) return true                    // the same: commit threw unless the clipboard / download resolved
+    if (patch.acts) return true                    // the same: commit threw unless the widget's own button resolved
     if (patch.grid) return gridLanded(snap, patch.grid)
     if (patch.gridUndo) return gridUndone(snap, patch.gridUndo)
     if (patch.add) return patch.add.every(a => snap.raw.some(w => w.type === a.type && same(w.opts?.watchKey, a.opts?.watchKey)))
@@ -323,6 +335,8 @@ export const boardKind = {
     // chartGrid.set: exactly what its commit recorded (the charts it added, the cells, links and tickers it changed)
     if (p.grid) return item.undoData?.grid ? { gridUndo: clone(item.undoData.grid) } : null
     if (p.sends) return null                       // a capture stays until the member deletes it, as at the door
+    if (p.outs) return null                        // a copy or a download changes nothing in the workspace: nothing to undo
+    if (p.acts) return null                        // a Refresh keeps nothing: nothing to undo
     // A widget this change ADDED: Undo removes exactly it (the board writer's remove).
     if (p.add) return item.undoData?.added?.length ? { remove: [...item.undoData.added] } : null
     // ⛔ AUDIT S1-C: an item delete (or create) offers NO Undo; a rename goes back by the inverse rename of that one item
@@ -427,6 +441,41 @@ async function writeItemOps(host, ops) {
     const list = () => { const v = host.widgets.door?.(o.widget)?.read?.()?.[o.key]; return Array.isArray(v) ? v : [] }
     if (!(await settle(() => itemOpLanded(list(), o)))) throw new Error(`the ${o.op} of “${o.label}” did not go through`)
   }
+}
+// watchlist group D: the list menu's own Copy / Export, through the Watchlist widget's door (Watchlists.jsx listOut / copyList /
+// exportList — the menu's handlers). "Copied" only once the clipboard write RESOLVED; a refusal fails the change in words.
+const OUT_WORD = { clipboard: 'Copied', csv: 'Downloaded a CSV of', xlsx: 'Downloaded an Excel file of' }
+async function listOut(host, outs) {
+  const lines = []
+  for (const { id, format } of outs) {
+    const door = host.widgets.door?.(id)
+    const lo = door?.listOut?.()
+    if (!lo) throw new Error('That Watchlist widget has no list menu to copy or export from right now')
+    try {
+      const r = format === 'clipboard' ? door.copyList() : door.exportList(format)
+      if (r == null) throw new Error('not offered')
+      await r
+    } catch {
+      throw new Error(format === 'clipboard'
+        ? 'Your browser did not let me copy to the clipboard, so nothing was copied — use the list menu’s “Copy list to clipboard” (right-click the list title)'
+        : format === 'xlsx' ? 'The Excel export did not finish, so nothing was downloaded — try the list menu’s “Export Excel”'
+          : 'The CSV export did not run, so nothing was downloaded — use the list menu’s “Export CSV”')
+    }
+    lines.push(`${OUT_WORD[format]} “${lo.name || 'the list'}”${format === 'clipboard' ? ' to your clipboard' : ''}`)
+  }
+  return { lines }
+}
+// An `action` row (widgets/widgetControls.js): the widget's own button, through its door's act(key). Done only once that resolves;
+// a widget that is gone, or offers no such button right now, fails the change in words.
+async function runActs(host, acts) {
+  const lines = []
+  for (const { id, key, label: what } of acts) {
+    const r = host.widgets.door?.(id)?.act?.(key)
+    if (r == null) throw new Error(`${lines.length ? `${lines.join('; ')}, but the` : 'The'} ${what} can't ${key} right now`)
+    try { await r } catch { throw new Error(`${lines.length ? `${lines.join('; ')}, but the` : 'The'} ${what} did not ${key}: try its own ${key} button`) }
+    lines.push(`${key[0].toUpperCase()}${key.slice(1)}ed the ${what}`)
+  }
+  return { lines }
 }
 // The door's own capture and the Journal's one send path. The receipt is the Journal's own line; a refusal fails the change.
 const SENT = /\b(?:sent to|captured|started)\b/
@@ -1135,6 +1184,18 @@ export function registerBoardCapabilities() {
       const t = String(raw ?? '').replace(/\s+/g, ' ').trim()
       return t.length > (f.max || 80) ? { why: `“${f.key}” takes at most ${f.max || 80} characters.` } : { value: t }
     }
+    // a colour, as the widget's own swatch stores it: #rrggbb (a #rgb is spelled out); a colour name is the planner's to convert
+    if (f.type === 'color') {
+      const m = /^#?([0-9a-f]{6}|[0-9a-f]{3})$/i.exec(String(raw ?? '').trim())
+      if (!m) return { why: `“${f.key}” is a colour as #rrggbb — not “${raw}”.` }
+      const h = m[1].toLowerCase()
+      return { value: `#${h.length === 3 ? [...h].map(c => c + c).join('') : h}` }
+    }
+    // an `action` row is the widget's own button: "run" (or true) presses it once; there is no off
+    if (f.type === 'action') {
+      const s = norm(raw)
+      return raw === true || ['run', 'true', 'yes', 'on', norm(f.key)].includes(s) ? { value: 'run' } : { why: `“${f.key}” is a button: the value is "run".` }
+    }
     if (f.type === 'boolean') {
       if (typeof raw === 'boolean') return { value: raw }
       const s = norm(raw)
@@ -1173,6 +1234,8 @@ export function registerBoardCapabilities() {
     // round 6 (C3-202): CREATE through the widget's own New control: a new blank item, opened as the control opens it
     if (io.op === 'create') {
       if (!l.ops.includes('create')) return `The ${label(t.type)} can't create a ${l.noun} from here.`
+      // a NAMED item (a saved look): the name is the member's, said; one of the same name is replaced, as the widget's own Save does
+      if (l.named && !String(io.item || '').trim()) return `Say the name to save the ${l.noun} as.`
       return doorFor(env, t) ? null : `The ${label(t.type)} isn't showing right now, so I can't reach its New control.`
     }
     const r = itemCheck(st, { widget: t.id, list: key, item: io.item }, env, io.op)
@@ -1190,8 +1253,9 @@ export function registerBoardCapabilities() {
       // ONE operation, as the widget's own New control does it (AUDIT S1-A): read back by a new item appearing
       const l = listFor(t, key)
       const items = itemsNow(st, t, l)
-      const op = { widget: t.id, key: l.key, op: 'create', id: null, name: l.blank || 'Untitled', was: null, label: l.blank || 'Untitled', ids: items.map(x => x.id) }
-      return { ...st, doors: { ...st.doors, [t.id]: { ...st.doors[t.id], [l.key]: [...items, { id: null, name: l.blank || 'Untitled' }] } }, itemOps: [...(st.itemOps || []), op] }
+      const name = l.named ? String(io.item).trim() : (l.blank || 'Untitled')
+      const op = { widget: t.id, key: l.key, op: 'create', id: null, name, was: null, label: name, ids: items.map(x => x.id) }
+      return { ...st, doors: { ...st.doors, [t.id]: { ...st.doors[t.id], [l.key]: [...items.filter(x => !(l.named && norm(x.name) === norm(name))), { id: null, name }] } }, itemOps: [...(st.itemOps || []), op] }
     }
     const { l, items, it } = itemCheck(st, { widget: t.id, list: key, item: io.item }, env, io.op)
     const name = io.op === 'rename' ? String(io.name).trim() : null
@@ -1212,40 +1276,6 @@ export function registerBoardCapabilities() {
     return p.why ? { why: `${p.why} among your ${l.noun}s (${items.map(x => x.name).join(', ')}).` } : { t, l, items, it: p.item }
   }
 
-  // ── WHICH WIDGET (owner rule: ASK when the target widget is unclear). One guard for every widget op of the shared layer: when the
-  // op's widget is one of 2+ of its type on the board and the member's words name none of them — by position ("the left one"), by
-  // what it shows (a list or scan name, its linked ticker) — the op is not run on the planner's pick: the member is asked, with
-  // each candidate, and the op runs on the one they choose (resolveArgs → pickArg). Words that name one → that one, no question. ──
-  const WORDS = (t) => ` ${String(t || '').toLowerCase().replace(/[^a-z0-9$]+/g, ' ').trim()} `
-  const callNames = (w, same, syms, all) => {
-    // its place among its own type ("the left one") and on the board as the request context words it ("the top-right one")
-    const pos = [positionWord(w, same), positionWord(w, all)].filter(Boolean).join('-')
-    const shown = ['watchName', 'scanName', 'title', 'name'].map(k => w.opts?.[k]).filter(v => typeof v === 'string' && v.trim())
-    const sym = syms?.[w.color]
-    const symUnique = sym && same.filter(o => syms?.[o.color] === sym).length === 1
-    const places = [positionWord(w, same), positionWord(w, all)].filter(Boolean)
-    return [...places.map(p => p.replace(/-/g, ' ')), ...pos.split('-').filter(Boolean), ...shown, ...(symUnique ? [sym] : [])].map(WORDS).filter(x => x.trim())
-  }
-  // FAIL CLOSED (Lead 2026-11-10): no words at all (a path that passes none) is no name, so an ambiguous widget is asked.
-  // An APPROVED proposal is not asked again: it only exists because this guard already ran on the request that made it (the widget
-  // was named, or picked), and its ops carry that widget. (#988's stored original words replace this on rebase.)
-  function whichWidget(args, host, member, { approved = false } = {}) {
-    if (approved) return null
-    let s = null
-    try { s = host?.widgets?.snapshot?.() } catch { s = null }
-    // the widgets ON the board (the visible ones: a floating or popped-out widget is no candidate), whole (geometry, opts)
-    const vis = Array.isArray(s?.visible) ? new Set(s.visible.map(v => String(v.id))) : null
-    const raw = (s?.raw || []).filter(x => !vis || vis.has(String(x.id)))
-    const w = raw.find(x => String(x.id) === String(args?.widget))
-    if (!w) return null
-    const same = raw.filter(x => x.type === w.type)
-    if (same.length < 2) return null
-    const said = WORDS(member)
-    const named = same.filter(x => callNames(x, same, s?.groupSyms, raw).some(n => said.includes(n)))
-    if (named.length === 1) return named[0].id === w.id ? null : { args: { ...args, widget: named[0].id } }
-    const lbl = (x) => `${label(x.type)}${positionWord(x, same) ? ` (${positionWord(x, same)})` : ''}`
-    return { ask: { arg: 'widget', text: `Which ${label(w.type)} — ${same.map(lbl).join(' or ')}?`, choices: same.map(x => ({ ref: String(x.id), label: lbl(x) })) } }
-  }
   const doorFor = (env, t) => env?.target?.doorOf?.(t.id) || null
   const coerced = (st, t, f, value, env) => coerceOption(f, value, choicesOf(f, doorFor(env, t)), valueOf(f, { ...t }, st.doors))
   reg({
@@ -1268,7 +1298,13 @@ export function registerBoardCapabilities() {
       if (!opts.length) return `The ${label(t.type)} has no options I can change here.`
       if (!f) return `The ${label(t.type)} has no option “${key}” — its options are ${opts.map(o => o.key).join(', ')}.`
       const door = doorFor(env, t)
-      if ((f.door || f.from === 'door') && !door) return `The ${label(t.type)} isn't showing right now, so I can't reach its ${f.key}.`
+      if ((f.door || f.from === 'door' || f.type === 'action') && !door) return `The ${label(t.type)} isn't showing right now, so I can't reach its ${f.key}.`
+      if (f.type === 'action' && typeof door.act !== 'function') return `The ${label(t.type)} has no ${f.key} button right now.`
+      // AUDIT #1027: only a button that READS (re-reads, keeps nothing) is pressed; one that writes or destroys has no Undo here
+      if (f.type === 'action' && f.effect !== 'read') return `I can't press the ${label(t.type)}'s ${f.key} for you — use the button on the widget itself.`
+      // AUDIT #1027 (3): one press of a widget's button per request — a Refresh re-reads a server scan (cached server-side: 60 s for
+      // a preset scan, 300 s for a period ranking), so a request never asks the server for it more than once
+      if (f.type === 'action' && (st.acts || []).some(x => x.id === t.id && x.key === f.key)) return `The ${label(t.type)}'s ${f.key} is already being pressed once in this request.`
       if (f.from === 'door' && !choicesOf(f, door).length) return `The ${label(t.type)} has nothing to choose for ${f.key} yet.`
       const c = coerced(st, t, f, value, env)
       if (c.why) return c.why
@@ -1286,6 +1322,7 @@ export function registerBoardCapabilities() {
       if (listFor(t, key)) return itemApply(st, t, key, value, env)
       const f = controlFor(t, key)
       const next = coerced(st, t, f, value, env).value
+      if (f.type === 'action') return { ...st, acts: [...(st.acts || []), { id: t.id, key: f.key, label: label(t.type) }] }
       // what this request chose for a single-select control (check refuses a second, different one). Kept on the plan's own
       // state object, so an op that changes nothing stays the same state (the executor's no-op test is identity)
       if (f.type === 'enum') { st.chose ||= {}; st.chose[`${t.id}\u0000${f.key}`] = next }
@@ -1303,13 +1340,14 @@ export function registerBoardCapabilities() {
       if (l) {
         const io = itemOp(value)
         if (same(b.doors?.[o.id]?.[key], a.doors?.[o.id]?.[key]) || !io) return null
-        if (io.op === 'create') return `The ${nameOf(o, b.board)}: created a new blank ${l.noun} and opened it, as its New control does`
+        if (io.op === 'create') return l.named ? `The ${nameOf(o, b.board)}: saved its current ${l.noun} as “${String(io.item).trim()}”` : `The ${nameOf(o, b.board)}: created a new blank ${l.noun} and opened it, as its New control does`
         // ⛔ AUDIT S1-B: the item the words RESOLVED to ("mine" → "Mine growth"), as the card and the receipt must name it
         const it = pickItem(itemsNow(b, o, l), io.item).item
         const what = it ? it.name : io.item
         return io.op === 'delete' ? `The ${nameOf(o, b.board)}: deleted the ${l.noun} “${what}” (there is no Undo)` : `The ${nameOf(o, b.board)}: renamed the ${l.noun} “${what}” to “${String(io.name).trim()}”`
       }
       const f = controlFor(o, key)
+      if (f?.type === 'action') return (a.acts || []).length > (b.acts || []).length ? `${f.key[0].toUpperCase()}${f.key.slice(1)} the ${nameOf(o, b.board)}, as its own ${f.key} button does` : null
       const was = valueOf(f, o, b.doors), now = valueOf(f, n, a.doors)
       if (same(was, now)) return null
       const choices = choicesOf(f, doorFor(env, o))
@@ -1331,7 +1369,7 @@ export function registerBoardCapabilities() {
       const w = s?.raw?.find(x => String(x.id) === String(widget))
       if (!w) return notOnBoard(widget)
       const door = s.doorOf?.(w.id) || null
-      const rows = widgetControls(w.type).filter(f => door || !(f.door || f.from === 'door')).map(f => ({ f, choices: choicesOf(f, door) }))
+      const rows = widgetControls(w.type).filter(f => f.type !== 'action' && (door || !(f.door || f.from === 'door'))).map(f => ({ f, choices: choicesOf(f, door) }))
       const now = rows.map(({ f, choices }) => `${f.key} ${says(f, valueOf(f, w, s.doors), choices)}`)
       let about = null
       try { about = door?.about?.() || null } catch { about = null }
@@ -1429,6 +1467,135 @@ export function registerBoardCapabilities() {
     },
     describe: (b, a) => (a.opened && a.opened !== b.opened ? `Opened “${a.opened.name}” in ${a.opened.where}` : null),
     noop: (st, _a, { list }, env) => `“${listName(list, env) || 'That list'}” is already open in your Watchlist widget`,
+  })
+
+  // ── watchlist.showList (pl-exec, watchlist group A; Lead decisions 2026-11-09): what ONE Watchlist widget shows, written exactly
+  // as its own picker writes it (WatchlistWidget pick / exitPick: opts.watchKey, watchName, watchTab) — the member's own list,
+  // UCT's prebuilt directory, a community list, Flagged, or back to the picker. Only on an explicit request (the receipt names the
+  // list or the mode; Undo puts the previous watchKey back exactly). A colour-tag list has no door in the widget: refused. A name
+  // that matches nothing (or several) is said with the near names — never picked. Several widgets and none named: asked.
+  const SHOW_SOURCES = ['mine', 'prebuilt', 'community', 'flagged', 'picker', 'tag']
+  const TAG_ASK = /^(?:please\s+)?(?:(?:colou?r[-\s]?)?tag|mark|give)\s+\$?[a-z]{1,5}\s+(?:with\s+)?(?:an?\s+)?(?:red|blue|green|yellow|orange|purple|pink)(?:\s+tag)?[.!]?$/
+  const TAG_SAY = 'Colour tags can\'t be set from the Charts watchlist widget — tickers are colour-tagged in the Journal (its ticker tags). Nothing changed.'
+  const SOURCE_WORD = { mine: 'your list', prebuilt: 'UCT prebuilt list', community: 'community list' }
+  const showable = (st, env) => st.board.filter(w => w.type === 'watchlist' && !w.opts?.source && !w.opts?.listSub
+    && !(env?.target?.detached || []).includes(String(w.id)))
+  function showTarget(st, widget, env) {
+    const all = showable(st, env)
+    if (widget != null && String(widget) !== '') {
+      const t = widgetOf(st, widget)
+      if (!t) return { why: notOnBoard(widget) }
+      if (t.type !== 'watchlist') return { why: `The ${label(t.type)} isn't a Watchlist widget.` }
+      if (!all.includes(t)) return { why: 'That Watchlist widget shows a list UCT chose or one you follow, or it is floating; switch it from its own list menu.' }
+      return { w: t }
+    }
+    if (all.length === 1) return { w: all[0] }
+    if (!all.length) return { why: 'There is no Watchlist widget on this board I can switch — add one (Widgets ▾), then ask again.' }
+    const lists = st.board.filter(w => w.type === 'watchlist')
+    return { why: `Which Watchlist widget — ${all.map(w => `the ${positionOf(w, lists) || nameOf(w, st.board)}`).join(' or ')}? Nothing changed yet.` }
+  }
+  const positionOf = (w, lists) => { try { return positionWord(w, lists) } catch { return '' } }
+  function showPick(st, { source, name }, env) {
+    if (source === 'picker') return { key: null, name: null }
+    if (source === 'flagged') return { key: 'flagged', name: 'Flagged', tab: 'mine' }
+    if (source === 'tag') return { why: 'Colour-tag lists open on the Watchlists page — the Watchlist widget picks a saved, prebuilt, community or Flagged list from its own picker.' }
+    if (!String(name || '').trim()) return { why: 'Which list? Say its name.' }
+    if (source === 'mine') {
+      const rows = [...(env?.target?.lists || new Map()).entries()].map(([id, n]) => ({ id, name: n }))
+      const m = matchListName(rows, name)
+      if (m.hit) return { key: `user:${m.hit.id}`, name: m.hit.name, tab: 'mine' }
+      return { why: nearWhy(name, m.near, 'of your watchlists') }
+    }
+    const cat = env?.listCatalog
+    if (!cat) return { why: 'I couldn\'t read the prebuilt and community lists just now, so nothing changed — try again in a moment.' }
+    const m = matchListName(cat[source] || [], name)
+    if (m.hit) return { key: m.hit.key, name: m.hit.name, tab: source }
+    return { why: nearWhy(name, m.near, source === 'prebuilt' ? 'of UCT\'s prebuilt lists' : 'of the community lists') }
+  }
+  const nearWhy = (name, near, where) => (near.length
+    ? `“${name}” isn't one ${where} I can match exactly — did you mean ${near.map(n => `“${n}”`).join(' or ')}? Nothing changed yet.`
+    : `There's no “${name}” among ${where.replace(/^of /, '')}. Nothing changed yet.`)
+  reg({
+    ...common,
+    name: 'watchlist.showList',
+    // which Watchlist widget: the words decide (whichWidget.js); a widget bound to a source cannot switch lists, so it is no candidate
+    resolveArgs: (args, host, member, how) => whichWidget(args, host, member, { ...how, type: 'watchlist', can: listSwitchable }),
+    // C3-090 (Lead 2026-11-09): a COLOUR TAG on a ticker is not available from the Charts watchlist widget — said in fixed words,
+    // naming where it exists (the Journal's ticker tags), never navigating and never changing anything
+    fastWhole: true,
+    fast: ({ lower }) => (TAG_ASK.test(String(lower || '').trim()) ? { __say: TAG_SAY } : null),
+    summary: 'Make ONE Watchlist widget show a list exactly as its picker does: one of the member\'s lists, a UCT prebuilt or community list, Flagged — or go back to its list picker. Undo puts back what it showed.',
+    hints: 'target = the board entry; widget = the Watchlist widget\'s id, or null when only one; source = mine | prebuilt | community | flagged | picker (tag = a colour tag: refused); name = the list\'s name as said, null for flagged / picker.',
+    args: { type: 'object', properties: { widget: { type: ['string', 'null'] }, source: { type: 'string', enum: SHOW_SOURCES }, name: { type: ['string', 'null'] } }, required: ['widget', 'source', 'name'], additionalProperties: false },
+    async prepare(ops) {
+      if (!ops.some(o => ['prebuilt', 'community'].includes(o?.args?.source))) return {}
+      return { listCatalog: await loadCatalog() }
+    },
+    check(st, args, env) {
+      const t = showTarget(st, args.widget, env)
+      if (t.why) return t.why
+      return showPick(st, args, env).why || null
+    },
+    apply(st, args, env) {
+      const t = showTarget(st, args.widget, env)
+      const pick = showPick(st, args, env)
+      if (t.why || pick.why) return st
+      const cur = t.w.opts || {}
+      const opts = pick.key == null
+        ? { ...cur, watchKey: null, watchName: null }                                       // exitPick: watchTab kept (the picker reopens on it)
+        : { ...cur, watchKey: pick.key, watchName: pick.name, watchTab: pick.tab }
+      if ((cur.watchKey ?? null) === (opts.watchKey ?? null)) return st
+      return { ...st, board: st.board.map(w => (w.id === t.w.id ? { ...w, opts } : w)), shown: { id: t.w.id, name: pick.name, source: args.source } }
+    },
+    describe(b, a) {
+      const sh = a.shown && a.shown !== b.shown ? a.shown : null
+      if (!sh) return null
+      const w = b.board.find(x => x.id === sh.id)
+      const where = w ? `the ${nameOf(w, b.board)}` : 'your Watchlist widget'
+      if (sh.source === 'picker') return `${where[0].toUpperCase()}${where.slice(1)} is back on its list picker`
+      return `${where[0].toUpperCase()}${where.slice(1)} now shows “${sh.name}”${SOURCE_WORD[sh.source] ? ` (${SOURCE_WORD[sh.source]})` : ''}`
+    },
+    noop: (st, _a, { source, name } = {}) => (source === 'picker' ? 'That Watchlist widget is already on its list picker' : `It already shows “${name || 'Flagged'}”`),
+  })
+
+  // ── watchlist.exportList (pl-exec, watchlist group D; Lead decisions 2026-11-09): the list menu's own Copy list to clipboard /
+  // Export CSV / Export Excel on the list ONE Watchlist widget shows — the same handlers and conditions (Copy: any list it has a
+  // menu for; Export: the member's own lists; Excel: only with the export quota, and always proposed first: it spends one).
+  // Nothing in the workspace changes, so there is no Undo. "Copied" only once the write resolved.
+  const OUT_FORMATS = ['clipboard', 'csv', 'xlsx']
+  reg({
+    ...common,
+    name: 'watchlist.exportList',
+    resolveArgs: (args, host, member, how) => whichWidget(args, host, member, { ...how, type: 'watchlist', can: listSwitchable }),
+    undo: 'none',
+    undoNote: 'Copying or exporting a list changes nothing in your workspace, so there is nothing to undo.',
+    summary: 'Copy the list ONE Watchlist widget shows to the clipboard, or download it as CSV or Excel — the list menu\'s own Copy / Export. Excel uses an export from the member\'s quota.',
+    hints: 'target = the board entry; widget = the Watchlist widget\'s id, or null when only one; format = clipboard | csv | xlsx.',
+    args: { type: 'object', properties: { widget: { type: ['string', 'null'] }, format: { type: 'string', enum: OUT_FORMATS } }, required: ['widget', 'format'], additionalProperties: false },
+    confirmIf: (st, { format } = {}) => format === 'xlsx',                     // a quota is spent: shown first, never silently
+    check(st, args, env) {
+      const t = showTarget(st, args.widget, env)
+      if (t.why) return t.why
+      const lo = (() => { try { return doorFor(env, t.w)?.listOut?.() || null } catch { return null } })()
+      if (!lo) return 'That Watchlist widget has no list menu right now (a prebuilt, tag or scan list has none), so there is nothing I can copy or export from it.'
+      if (args.format !== 'clipboard' && !lo.own) return `Export works on your own lists only (as the list menu offers it) — “${lo.name || 'this list'}” isn't one. I can copy it to your clipboard instead.`
+      if (args.format === 'xlsx' && !lo.xlsx) return 'Excel export isn\'t available on your account right now (no export quota), so nothing was downloaded — CSV works without one.'
+      if (st.outs.some(o => o.id === t.w.id && o.format === args.format)) return 'That is already in this request.'
+      return null
+    },
+    apply(st, args, env) {
+      const t = showTarget(st, args.widget, env)
+      if (t.why) return st
+      return { ...st, outs: [...st.outs, { id: t.w.id, format: args.format }] }
+    },
+    describe(b, a, { format } = {}) {
+      const t = a.outs.at(-1)
+      const w = t ? b.board.find(x => x.id === t.id) : null
+      const where = w ? `the ${nameOf(w, b.board)}` : 'the Watchlist widget'
+      return format === 'clipboard' ? `Copy the list in ${where} to your clipboard`
+        : format === 'csv' ? `Download the list in ${where} as a CSV`
+          : `Download the list in ${where} as an Excel file (this uses one export from your quota)`
+    },
   })
 
   reg({

@@ -1,0 +1,59 @@
+commit cd66cf1f271353a9a26061041059f34b8a6bf44f
+Merge: 6b0c3da5f0 70dd3a375c
+Author: Blake Bracco <unchartedterritory5995@gmail.com>
+Date:   Wed Nov 11 03:53:45 2026 -0500
+
+    Merge origin/master 70dd3a375c into agent/pl/exec-widget-actions
+    
+    useAgent.js: both sides kept (imports: #1027 watchlistTarget/whichWidget + #988 spatialCheck; model path:
+    #1027 screenWatchlistWidget then #988 checkSpatialConstraints). CHARTS_EXECUTION_STATUS.md: master's file
+    whole, recount-widget-actions.mjs --write re-run (a quote escape fixed in the script).
+    
+    Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+diff --cc app/src/agent/useAgent.js
+index 0031fe0f04,8f0ade161c..8a589200ea
+--- a/app/src/agent/useAgent.js
++++ b/app/src/agent/useAgent.js
+@@@ -26,8 -26,7 +26,9 @@@ import { setAuthoringSources, draftAmbi
+  import { fastParse, matchPosition } from './fastPath'
+  import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
+  import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts } from './deixis'
+ +import { screenWatchlistWidget } from './watchlistTarget'
+ +import { whichListView, LIST_VIEW_WHICH } from './whichWidget'
++ import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts, everyExceptSet } from './spatialCheck'
+  import { groundSymbols } from './nl/tickers'
+  import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
+  import { scopeHostToGrid } from './host'
+@@@ -2955,15 -3037,22 +3066,31 @@@ export default function useAgent({ host
+          record({ member: null, outcome: unnamed.ask.text, outcomeData: { kind: 'clarify-unnamed-chart', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+          return
+        }
+ +      // watchlist group A (Lead 2026-11-09): which Watchlist widget a showList acts on is decided by the WORDS — several widgets and
+ +      // none named is asked, never guessed (watchlistTarget.js)
+ +      const wlTarget = screenWatchlistWidget({ host, ops: screened.ops, text })
+ +      if (wlTarget?.ask) {
+ +        push({ role: 'agent', text: wlTarget.ask })
+ +        record({ member: null, outcome: wlTarget.ask, outcomeData: { kind: 'clarify-watchlist-widget', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+ +        return
+ +      }
+ +      if (wlTarget?.ops) screened.ops = wlTarget.ops
++       // ⛔ #988 (AUDIT probe 17): the LAST safety net behind the resolvers — every spatial constraint the words state (a line, a
++       // place, a relation from a named anchor or the click, a count), checked on the plan's own targets. A violation is asked
++       // (only the cells that satisfy them are offered, never an anchor) and nothing runs. spatialCheck.js
++       const spatial = onSubject ? null : checkSpatialConstraints({ host, ops: screened.ops, text, pickedRefs: answeredRefs, getTargetKind, getCapability })
++       if (spatial?.ask && askEveryExcept(disposition)) return
++       if (spatial?.ask) {
++         const kinds = kindsOf(screened.ops)
++         if (kinds.length === 1 && spatial.ask.choices.length) {
++           pendingRef.current = { kind: 'target', ops: screened.ops, path: 'model', mode: disposition, member: text, voice, epoch: epochOf(host) }
++           push({ role: 'question', text: spatial.ask.text, choices: spatial.ask.choices, local: true })
++         } else {
++           push({ role: 'agent', text: 'Which chart do you mean? Click it (or say left, right…) and ask again — nothing has changed yet.' })
++         }
++         record({ member: null, outcome: spatial.ask.text, outcomeData: { kind: 'clarify-spatial', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
++         return
++       }
+        if (unnamed?.propose && disposition === 'apply') {
+          mark('escalate', 'unnamed-charts')
+          push({ role: 'agent', text: unnamed.note })

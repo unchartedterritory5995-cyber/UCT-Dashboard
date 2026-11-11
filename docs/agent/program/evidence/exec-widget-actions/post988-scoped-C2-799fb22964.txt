@@ -1,0 +1,2318 @@
+# 799fb22964 run C2: src/agent/agentPlacementTarget.test.jsx src/agent/agentPossessiveAnchor.test.jsx src/agent/agentProbe19Families.test.jsx src/agent/agentQuestionFilter.test.jsx src/agent/agentReferencePoint.test.jsx src/agent/agentSpatialConstraints.test.jsx src/agent/agentStativePriceClause.test.jsx src/agent/agentStepRelations.test.jsx src/agent/agentStructuralAnchor.test.jsx src/agent/agentStructuralAnchorNegative.test.jsx src/agent/agentTickerAnchors.test.jsx src/agent/deixisValueNotRelation.test.js 
+
+ RUN  v4.0.18 C:/w/pl-widget/app
+
+stderr | src/agent/agentPlacementTarget.test.jsx > placement target: a plan on the CLICK is never applied; the anchor is never offered > "put a MACD on the chart to the left of this one" (2x2, clicked BR)
+[uct-agent] routing budget cut: charts not sent (chart.setType, chart.setTimeframe, chart.setSymbol, chart.setSession, chart.setScale, chart.applyTheme, chart.setBackground, chart.setCandleColors, volume.setState, chart.setSetting, chart.applyTemplate, chart.resetDefaults, chart.goToDate, chart.compare, chart.addCustomTimeframe, chart.applyThemeAll, chart.addTab, chart.selectTab, chart.closeTab, chart.renameTab, chart.linkTab)
+
+ ✓ src/agent/agentReferencePoint.test.jsx (39 tests) 39785ms
+     ✓ "make the chart furthest from this one weekly" (clicked BM): a plan on the click never runs; the anchor never offered  1161ms
+     ✓ "make the chart closest to this chart weekly" (clicked TL): a plan on the click never runs; the anchor never offered  1001ms
+     ✓ "make the chart on the far side of here weekly" (clicked BR): a plan on the click never runs; the anchor never offered  995ms
+     ✓ "make the chart just past the selected chart weekly" (clicked TM): a plan on the click never runs; the anchor never offered  1025ms
+     ✓ "make the chart right beyond the one I clicked weekly" (clicked BM): a plan on the click never runs; the anchor never offered  1011ms
+     ✓ "make the chart around this one weekly" (clicked TL): a plan on the click never runs; the anchor never offered  964ms
+     ✓ "make the chart two over from this chart weekly" (clicked BR): a plan on the click never runs; the anchor never offered  994ms
+     ✓ "make the chart the same row as here weekly" (clicked TM): a plan on the click never runs; the anchor never offered  982ms
+     ✓ "make the chart diagonally away from the selected chart weekly" (clicked BM): a plan on the click never runs; the anchor never offered  983ms
+     ✓ "make the chart one row up from the one I clicked weekly" (clicked TL): a plan on the click never runs; the anchor never offered  995ms
+     ✓ "make the chart across the board from this one weekly" (clicked BR): a plan on the click never runs; the anchor never offered  989ms
+     ✓ "make the chart nearest to this chart weekly" (clicked TM): a plan on the click never runs; the anchor never offered  1006ms
+     ✓ "make the chart directly up one row from this one weekly" (clicked BM, plan on TM): the click is never changed; the plan keeps its chart or is asked about  1056ms
+     ✓ "the chart furthest from this one, weekly" (clicked TL, plan on BR): the click is never changed; the plan keeps its chart or is asked about  1005ms
+     ✓ "make the other side of the top row from this one weekly" (clicked TL, plan on TR): the click is never changed; the plan keeps its chart or is asked about  1053ms
+     ✓ "set the chart one column over from here to weekly" (clicked TM, plan on TR): the click is never changed; the plan keeps its chart or is asked about  985ms
+     ✓ "the chart below this one should be weekly" (clicked TR, plan on BR): the click is never changed; the plan keeps its chart or is asked about  1039ms
+     ✓ "make the chart beside the one I clicked weekly" (clicked BL, plan on BM): the click is never changed; the plan keeps its chart or is asked about  1037ms
+     ✓ "make the chart next door weekly" (clicked TL): a plan on the click never runs; the anchor never offered  987ms
+     ✓ "make the other end of the row weekly" (clicked TL): a plan on the click never runs; the anchor never offered  981ms
+     ✓ "make the chart at the far end of the row weekly" (clicked BR): a plan on the click never runs; the anchor never offered  955ms
+     ✓ "make the neighbouring chart weekly" (clicked TR): a plan on the click never runs; the anchor never offered  993ms
+     ✓ "make the chart next door weekly" (clicked TL, plan on TM): the meant chart runs, or it is asked about — never the click  1057ms
+     ✓ "make the other end of the row weekly" (clicked TL, plan on TR): the meant chart runs, or it is asked about — never the click  977ms
+     ✓ "make the chart at the far end of the row weekly" (clicked BR, plan on BL): the meant chart runs, or it is asked about — never the click  1010ms
+     ✓ "make the neighbouring chart weekly" (clicked TR, plan on TM): the meant chart runs, or it is asked about — never the click  1020ms
+     ✓ "make both neighbours of this one weekly" (clicked TM): the plan on the set runs on exactly that set  1074ms
+     ✓ "make both charts on either side of this one weekly" (clicked BM): the plan on the set runs on exactly that set  1102ms
+     ✓ "make both charts to the right of this one weekly" (clicked TL): the plan on the set runs on exactly that set  1086ms
+     ✓ "make both neighbours of this one weekly" (clicked TM): a plan on ONE of the set is not run as if it were the set  989ms
+     ✓ "make both charts on either side of this one weekly" (clicked BM): a plan on ONE of the set is not run as if it were the set  987ms
+     ✓ "make both charts to the right of this one weekly" (clicked TL): a plan on ONE of the set is not run as if it were the set  969ms
+     ✓ "pull up weekly on this one" (TM clicked): the plan on the click runs there  1039ms
+     ✓ "this one to weekly, the level I drew next to it is support" (TM clicked): the plan on the click runs there  1054ms
+     ✓ "make this chart weekly; the 50-day is above the 200" (TM clicked): the plan on the click runs there  1058ms
+     ✓ "make this one weekly, the alert below the price can stay" (TM clicked): the plan on the click runs there  1054ms
+     ✓ "put this chart on weekly and the MA over the candles too" (TM clicked): the plan on the click runs there  1056ms
+     ✓ "switch this one to weekly" (TM clicked): the plan on the click runs there  1027ms
+     ✓ "make it weekly" (TM clicked): the plan on the click runs there  1026ms
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you put the top row on the weekly view for me" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "switch the bottom row over to weekly please" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the first row on weekly" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you put the last row on the weekly view for me" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you put the left column on the weekly view for me" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "switch the right column over to weekly please" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the first column on weekly" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you put the last column on the weekly view for me" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you put the top row on the weekly view for me" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "switch the bottom row over to weekly please" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the first row on weekly" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you put the last row on the weekly view for me" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you put the left column on the weekly view for me" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "switch the right column over to weekly please" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the first column on weekly" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you put the last column on the weekly view for me" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "switch the middle column over to weekly please" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you put the top row on the weekly view for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "switch the bottom row over to weekly please" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the first row on weekly" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you put the last row on the weekly view for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "switch the middle row over to weekly please" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you put the left column on the weekly view for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "switch the right column over to weekly please" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the first column on weekly" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you put the last column on the weekly view for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "switch the middle column over to weekly please" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart beside the top-left one weekly for me" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one next to the top-left chart on the weekly view please" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart below the top-left chart weekly for me" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart to the right of the top-left chart on weekly" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one beside the top-right chart on the weekly view please" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart next to the top-right one on weekly" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one below the top-right one on the weekly view please" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart to the left of the top-right chart on weekly" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart beside the bottom-left one on weekly" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart next to the bottom-left chart weekly for me" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one above the bottom-left one on the weekly view please" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one to the right of the bottom-left chart on the weekly view please" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart beside the bottom-right chart weekly for me" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one next to the bottom-right one on the weekly view please" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart above the bottom-right chart on weekly" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one to the left of the bottom-right chart on the weekly view please" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart beside the top-left one weekly for me" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one next to the top-left chart on the weekly view please" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart below the top-left chart weekly for me" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart to the right of the top-left chart on weekly" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one beside the top-middle chart on the weekly view please" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart next to the top-middle one on weekly" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one below the top-middle one on the weekly view please" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart to the left of the top-middle chart on weekly" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart to the right of the top-middle one weekly for me" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart beside the top-right one on weekly" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart next to the top-right chart weekly for me" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart below the top-right chart on weekly" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart to the left of the top-right one weekly for me" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart beside the bottom-left chart weekly for me" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one next to the bottom-left one on the weekly view please" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart above the bottom-left chart on weekly" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart to the right of the bottom-left one on weekly" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one beside the bottom-middle one on the weekly view please" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart next to the bottom-middle chart on weekly" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart above the bottom-middle one weekly for me" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart to the left of the bottom-middle one on weekly" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart to the right of the bottom-middle chart weekly for me" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart beside the bottom-right chart on weekly" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart next to the bottom-right one weekly for me" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one above the bottom-right chart on the weekly view please" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart to the left of the bottom-right chart weekly for me" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart beside the top-left one weekly for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one next to the top-left chart on the weekly view please" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart below the top-left chart weekly for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart to the right of the top-left chart on weekly" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one beside the top-middle chart on the weekly view please" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart next to the top-middle one on weekly" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one below the top-middle one on the weekly view please" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart to the left of the top-middle chart on weekly" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart to the right of the top-middle one weekly for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart beside the top-right one on weekly" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart next to the top-right chart weekly for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart below the top-right chart on weekly" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart to the left of the top-right one weekly for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart beside the middle-left chart weekly for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one next to the middle-left one on the weekly view please" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart above the middle-left chart on weekly" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart below the middle-left one weekly for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart to the right of the middle-left one on weekly" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one beside the middle one on the weekly view please" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart next to the middle chart on weekly" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart above the middle one weekly for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one below the middle chart on the weekly view please" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart to the left of the middle one on weekly" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart to the right of the middle chart weekly for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart beside the middle-right chart on weekly" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart next to the middle-right one weekly for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one above the middle-right chart on the weekly view please" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart below the middle-right one on weekly" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart to the left of the middle-right chart weekly for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart beside the bottom-left one weekly for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one next to the bottom-left chart on the weekly view please" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart above the bottom-left one on weekly" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart to the right of the bottom-left chart on weekly" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one beside the bottom-middle chart on the weekly view please" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart next to the bottom-middle one on weekly" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart above the bottom-middle chart weekly for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart to the left of the bottom-middle chart on weekly" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart to the right of the bottom-middle one weekly for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "I want the chart beside the bottom-right one on weekly" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart next to the bottom-right chart weekly for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "put the one above the bottom-right one on the weekly view please" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart to the left of the bottom-right one weekly for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you set the middle one of the top row to the weekly view for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "please put the bottom row's last chart on weekly" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the first one in the right column weekly for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you put the chart above this one on weekly for me" (3x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "make the one to the left of this weekly please, thanks" (2x3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentSpatialConstraints.test.jsx > (C) the constraint check: random violating plans are asked; satisfying plans pass > "could you make the chart below it weekly" (2x2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentStepRelations.test.jsx (59 tests) 60046ms
+     ✓ "make the chart one row up from this one weekly" (2x3, clicked BM)  1161ms
+     ✓ "make the chart two rows down from here weekly" (3x3, clicked TM)  1020ms
+     ✓ "make the one up one row weekly" (3x3, clicked MM)  1007ms
+     ✓ "make the chart a row below this one weekly" (3x3, clicked TR)  1010ms
+     ✓ "make the chart one row down weekly" (3x3, clicked BR)  1013ms
+     ✓ "make the chart two rows up from this one weekly" (2x3, clicked BL)  995ms
+     ✓ "make the chart one over to the right weekly" (1x3, clicked L)  993ms
+     ✓ "make the chart two over to the left of this one weekly" (1x3, clicked R)  981ms
+     ✓ "make the one two over weekly" (1x3, clicked L)  985ms
+     ✓ "make the one one over weekly" (1x3, clicked M)  995ms
+     ✓ "make the chart two to the right of this one weekly" (2x3, clicked TL)  1005ms
+     ✓ "make the chart one column left of this one weekly" (3x3, clicked MR)  1021ms
+     ✓ "make the one two over weekly" (3x3, clicked MM)  1009ms
+     ✓ "make the chart two columns over from here weekly" (2x3, clicked BR)  990ms
+     ✓ "make the chart on the other side of the row weekly" (1x3, clicked L)  992ms
+     ✓ "make the chart on the other side of the row weekly" (2x3, clicked BR)  985ms
+     ✓ "make the chart on the other side of the row weekly" (1x3, clicked M)  993ms
+     ✓ "make the chart on the other side of the column weekly" (3x3, clicked TM)  991ms
+     ✓ "make the one at the other side of the column weekly" (2x2, clicked BL)  984ms
+     ✓ "make the other corner on the same side weekly" (1x3, clicked L)  983ms
+     ✓ "make the other corner on the same side weekly" (2x2, clicked TL)  991ms
+     ✓ "make the corner on the same side as this one weekly" (2x3, clicked TM)  1005ms
+     ✓ "make the corner in the same row as this one weekly" (2x2, clicked TL)  979ms
+     ✓ "make the corner in the same row as this one weekly" (3x3, clicked BL)  1009ms
+     ✓ "make the corner in the same column as this one weekly" (2x2, clicked TR)  979ms
+     ✓ "make the corner in the same column as this one weekly" (3x3, clicked TL)  1005ms
+     ✓ "make the other corner on the same row weekly" (2x3, clicked BR)  973ms
+     ✓ "make the chart one row up from this one weekly" (2x3, clicked BM → "TM")  1035ms
+     ✓ "make the chart two rows down from here weekly" (3x3, clicked TM → "BM")  1052ms
+     ✓ "make the one up one row weekly" (3x3, clicked MM → "TM")  1055ms
+     ✓ "make the chart a row below this one weekly" (3x3, clicked TR → "MR")  1045ms
+     ✓ "make the chart one row down weekly" (3x3, clicked BR → {"ask":[]})  1001ms
+     ✓ "make the chart two rows up from this one weekly" (2x3, clicked BL → {"ask":[]})  993ms
+     ✓ "make the chart one over to the right weekly" (1x3, clicked L → "M")  1038ms
+     ✓ "make the chart two over to the left of this one weekly" (1x3, clicked R → "L")  1039ms
+     ✓ "make the one two over weekly" (1x3, clicked L → "R")  1042ms
+     ✓ "make the one one over weekly" (1x3, clicked M → {"ask":["L","R"]})  994ms
+     ✓ "make the chart two to the right of this one weekly" (2x3, clicked TL → "TR")  1026ms
+     ✓ "make the chart one column left of this one weekly" (3x3, clicked MR → "MM")  1056ms
+     ✓ "make the one two over weekly" (3x3, clicked MM → {"ask":[]})  1009ms
+     ✓ "make the chart two columns over from here weekly" (2x3, clicked BR → "BL")  1044ms
+     ✓ "make the chart on the other side of the row weekly" (1x3, clicked L → "R")  1023ms
+     ✓ "make the chart on the other side of the row weekly" (2x3, clicked BR → "BL")  1034ms
+     ✓ "make the chart on the other side of the row weekly" (1x3, clicked M → {"ask":["L","R"]})  981ms
+     ✓ "make the chart on the other side of the column weekly" (3x3, clicked TM → "BM")  1056ms
+     ✓ "make the one at the other side of the column weekly" (2x2, clicked BL → "TL")  1025ms
+     ✓ "make the other corner on the same side weekly" (1x3, clicked L → "R")  1020ms
+     ✓ "make the other corner on the same side weekly" (2x2, clicked TL → {"ask":["TR","BL"]})  990ms
+     ✓ "make the corner on the same side as this one weekly" (2x3, clicked TM → {"ask":["TL","TR"]})  991ms
+     ✓ "make the corner in the same row as this one weekly" (2x2, clicked TL → "TR")  1034ms
+     ✓ "make the corner in the same row as this one weekly" (3x3, clicked BL → "BR")  1039ms
+     ✓ "make the corner in the same column as this one weekly" (2x2, clicked TR → "BR")  1039ms
+     ✓ "make the corner in the same column as this one weekly" (3x3, clicked TL → "BL")  1056ms
+     ✓ "make the other corner on the same row weekly" (2x3, clicked BR → "BL")  1040ms
+     ✓ "move this one up one row and make it weekly" (3x3, clicked MM): the plan on the click runs there  1073ms
+     ✓ "shift this chart two over to the right, and make it weekly" (1x3, clicked L): the plan on the click runs there  1012ms
+     ✓ "scroll this one two bars to the left and make it weekly" (2x3, clicked TM): the plan on the click runs there  1053ms
+     ✓ "make this one weekly; the RSI one pane up can stay" (2x2, clicked BR): the plan on the click runs there  1053ms
+     ✓ "make this chart weekly and keep the volume two panes down" (3x3, clicked TM): the plan on the click runs there  1045ms
+ ✓ src/agent/agentStativePriceClause.test.jsx (104 tests) 62916ms
+     ✓ "make it weekly, it is right above support" (c2 clicked, plan c2) → DDWD, nothing asked  1195ms
+     ✓ "make it weekly, it's sitting on support" (c2 clicked, plan c2) → DDWD, nothing asked  1078ms
+     ✓ "this one, which is below resistance, make it weekly" (c2 clicked, plan c2) → DDWD, nothing asked  1056ms
+     ✓ "make it weekly, it is right below resistance" (c2 clicked, plan c2) → DDWD, nothing asked  1057ms
+     ✓ "make this one weekly, it sits right on the 200" (c2 clicked, plan c2) → DDWD, nothing asked  1044ms
+     ✓ "weekly on this one, it's right above the 50" (c2 clicked, plan c2) → DDWD, nothing asked  1057ms
+     ✓ "make it weekly, this one is right above support" (c2 clicked, plan c2) → DDWD, nothing asked  1059ms
+     ✓ "make it weekly, the one I clicked is just under resistance" (c2 clicked, plan c2) → DDWD, nothing asked  1081ms
+     ✓ "make this one weekly, it stays above the 50" (c2 clicked, plan c2) → DDWD, nothing asked  1021ms
+     ✓ "make it weekly, this chart remains below the 200" (c2 clicked, plan c2) → DDWD, nothing asked  1055ms
+     ✓ "make it weekly, it is right at support" (c2 clicked, plan c2) → DDWD, nothing asked  1049ms
+     ✓ "make it weekly, it remains in an uptrend" (c2 clicked, plan c2) → DDWD, nothing asked  1057ms
+     ✓ "make it weekly, it stays strong" (c2 clicked, plan c2) → DDWD, nothing asked  1053ms
+     ✓ "it is right above support, make it weekly" (c2 clicked, plan c2) → DDWD, nothing asked  1052ms
+     ✓ "make it weekly, it is holding right on support" (c2 clicked, plan c2) → DDWD, nothing asked  1047ms
+     ✓ "make it weekly because it is right above support" (c2 clicked, plan c2) → DDWD, nothing asked  1026ms
+     ✓ "make it weekly, the one I selected stays near its high" (c2 clicked, plan c2) → DDWD, nothing asked  1098ms
+     ✓ "log scale, it is right above the 50" (c1 clicked, plan c1) → c1 on log, nothing asked  1049ms
+     ✓ "log scale on this one, it's sitting on support" (c1 clicked, plan c1) → c1 on log, nothing asked  1027ms
+     ✓ "put this one on log scale, it stays below resistance" (c1 clicked, plan c1) → c1 on log, nothing asked  1053ms
+     ✓ "this chart, which is right above the 200, log scale please" (c1 clicked, plan c1) → c1 on log, nothing asked  1037ms
+     ✓ "log scale here, it is just under its high" (c1 clicked, plan c1) → c1 on log, nothing asked  1055ms
+     ✓ "the one I clicked stays daily; make the top-left weekly" (c3 clicked, plan c3) → the click is never applied  992ms
+     ✓ "make the top-left weekly, the one I clicked stays daily" (c3 clicked, plan c3) → the click is never applied  993ms
+     ✓ "this one can stay as it is, make the top-left weekly" (c3 clicked, plan c3) → the click is never applied  989ms
+     ✓ "this chart is fine as it is; make the top-left weekly" (c3 clicked, plan c3) → the click is never applied  1028ms
+     ✓ "the one I selected stays the way it is, make the top-left weekly" (c3 clicked, plan c3) → the click is never applied  1009ms
+     ✓ "the chart I'm on is fine, make the top-left weekly" (c3 clicked, plan c3) → the click is never applied  1024ms
+     ✓ "make the top-left weekly; this one remains as it is" (c3 clicked, plan c3) → the click is never applied  991ms
+     ✓ "the clicked one is good as it is, make the top-left weekly" (c3 clicked, plan c3) → the click is never applied  986ms
+     ✓ "the one I selected stays on a normal scale, make the top-left weekly" (c3 clicked, plan c3) → the click is never applied  1000ms
+     ✓ "make the top-left weekly, this one is fine for now" (c3 clicked, plan c3) → the click is never applied  1010ms
+     ✓ "the one I clicked stays daily; make the top-left weekly" (c3 clicked, plan c0) → the top-left is applied  1037ms
+     ✓ "make the top-left weekly, the one I clicked stays daily" (c3 clicked, plan c0) → the top-left is applied  1038ms
+     ✓ "this one can stay as it is, make the top-left weekly" (c3 clicked, plan c0) → the top-left is applied  1042ms
+     ✓ "this chart is fine as it is; make the top-left weekly" (c3 clicked, plan c0) → the top-left is applied  1071ms
+     ✓ "the one I selected stays the way it is, make the top-left weekly" (c3 clicked, plan c0) → the top-left is applied  1042ms
+     ✓ "the chart I'm on is fine, make the top-left weekly" (c3 clicked, plan c0) → the top-left is applied  1072ms
+     ✓ control: "keep this one daily, make the others weekly" (c3 clicked) applies on the others  1101ms
+     ✓ "keep this one daily, make the others weekly" (c3 clicked, plan c0 c1 c2) → the others go weekly, the click stays  1088ms
+     ✓ "keep this one daily, make all the others weekly" (c3 clicked, plan c0 c1 c2) → the others go weekly, the click stays  1111ms
+     ✓ "keep it daily, make the other charts weekly" (c3 clicked, plan c0 c1 c2) → the others go weekly, the click stays  1116ms
+     ✓ "leave this chart on daily, everything else weekly" (c3 clicked, plan c0 c1 c2) → the others go weekly, the click stays  1110ms
+     ✓ "keep the one I clicked on the daily, put the rest on weekly" (c3 clicked, plan c0 c1 c2) → the others go weekly, the click stays  1116ms
+     ✓ "keep this one on a daily, make the others weekly" (c3 clicked, plan c0 c1 c2) → the others go weekly, the click stays  1115ms
+     ✓ "keep this one on a daily, make all the others weekly" (c3 clicked, plan c0 c1 c2) → the others go weekly, the click stays  1113ms
+     ✓ "keep it on the 5 minute, make the other charts weekly" (c3 clicked, plan c0 c1 c2) → the others go weekly, the click stays  1116ms
+     ✓ "make the others weekly but keep this one daily" (c3 clicked, plan c0 c1 c2) → the others go weekly, the click stays  1110ms
+     ✓ control: "keep it on log scale" alone (c1 clicked, plan c1) → applied on the click  1025ms
+     ✓ control: "keep this one on log" alone (c1 clicked, plan c1) → applied on the click  1039ms
+     ✓ control: "keep this chart on log scale please" alone (c1 clicked, plan c1) → applied on the click  1040ms
+     ✓ control: "make the one I selected stay on weekly" (c2 clicked) applies or asks, never elsewhere  1056ms
+     ✓ control: "make it weekly, not daily" (c1 clicked) applies on the click  1057ms
+     ✓ "the one I clicked stays daily, make it weekly" (c2 clicked, plan c2) → the click is not applied, and no "You said not"  980ms
+     ✓ "this one is fine as it is, make it weekly" (c2 clicked, plan c2) → the click is not applied, and no "You said not"  1022ms
+     ✓ "leave this one alone, make it weekly" (c2 clicked, plan c2) → the click is not applied, and no "You said not"  993ms
+     ✓ "keep this chart as it is, weekly please" (c2 clicked, plan c2) → the click is not applied, and no "You said not"  982ms
+     ✓ "the one I selected stays as it is; put it on weekly" (c2 clicked, plan c2) → the click is not applied, and no "You said not"  1008ms
+     ✓ "not this one, make it weekly" (c2 clicked, plan c2) → the click is not applied (negation present)  986ms
+     ✓ "make it weekly, not the one I clicked" (c2 clicked, plan c2) → the click is not applied (negation present)  955ms
+ ✓ src/agent/agentSpatialConstraints.test.jsx (180 tests) 63982ms
+     ✓ "could you put the top row on the weekly view for me" (2x2), click OUTSIDE the line: a plan on the click is asked, never applied; only line cells offered  1158ms
+     ✓ "could you put the last row on the weekly view for me" (2x2), click OUTSIDE the line: a plan on the click is asked, never applied; only line cells offered  1005ms
+     ✓ "I want the first column on weekly" (2x2), click OUTSIDE the line: a plan on the click is asked, never applied; only line cells offered  992ms
+     ✓ "switch the bottom row over to weekly please" (2x3), click OUTSIDE the line: a plan on the click is asked, never applied; only line cells offered  1010ms
+     ✓ "could you put the left column on the weekly view for me" (2x3), click OUTSIDE the line: a plan on the click is asked, never applied; only line cells offered  996ms
+     ✓ "could you put the last column on the weekly view for me" (2x3), click OUTSIDE the line: a plan on the click is asked, never applied; only line cells offered  1010ms
+     ✓ "switch the bottom row over to weekly please" (3x3), click OUTSIDE the line: a plan on the click is asked, never applied; only line cells offered  1010ms
+     ✓ "switch the middle row over to weekly please" (3x3), click OUTSIDE the line: a plan on the click is asked, never applied; only line cells offered  1011ms
+     ✓ "I want the first column on weekly" (3x3), click OUTSIDE the line: a plan on the click is asked, never applied; only line cells offered  1000ms
+     ✓ "could you put the top row on the weekly view for me" (2x2): the whole line planned runs on every cell of it  1088ms
+     ✓ "could you put the last row on the weekly view for me" (2x2): the whole line planned runs on every cell of it  1082ms
+     ✓ "I want the first column on weekly" (2x2): the whole line planned runs on every cell of it  1053ms
+     ✓ "switch the bottom row over to weekly please" (2x3): the whole line planned runs on every cell of it  1147ms
+     ✓ "could you put the left column on the weekly view for me" (2x3): the whole line planned runs on every cell of it  1053ms
+     ✓ "could you put the last column on the weekly view for me" (2x3): the whole line planned runs on every cell of it  1072ms
+     ✓ "switch the bottom row over to weekly please" (3x3): the whole line planned runs on every cell of it  1138ms
+     ✓ "switch the middle row over to weekly please" (3x3): the whole line planned runs on every cell of it  1147ms
+     ✓ "I want the first column on weekly" (3x3): the whole line planned runs on every cell of it  1138ms
+     ✓ "could you make the chart beside the top-left one weekly for me" (2x2, clicked = the anchor TL): a plan on the anchor never runs; it is never offered  983ms
+     ✓ "I want the chart to the right of the top-left chart on weekly" (2x2, clicked = the anchor TL): a plan on the anchor never runs; it is never offered  991ms
+     ✓ "I want the chart to the left of the top-right chart on weekly" (2x2, clicked = the anchor TR): a plan on the anchor never runs; it is never offered  990ms
+     ✓ "I want the chart below the bottom-left chart on weekly" (2x2, clicked = the anchor BL): a plan on the anchor never runs; it is never offered  993ms
+     ✓ "I want the chart above the bottom-right chart on weekly" (2x2, clicked = the anchor BR): a plan on the anchor never runs; it is never offered  994ms
+     ✓ "put the one next to the top-left chart on the weekly view please" (2x3, clicked = the anchor TL): a plan on the anchor never runs; it is never offered  1041ms
+     ✓ "put the one beside the top-middle chart on the weekly view please" (2x3, clicked = the anchor TM): a plan on the anchor never runs; it is never offered  989ms
+     ✓ "could you make the chart to the right of the top-middle one weekly for me" (2x3, clicked = the anchor TM): a plan on the anchor never runs; it is never offered  987ms
+     ✓ "could you make the chart to the left of the top-right one weekly for me" (2x3, clicked = the anchor TR): a plan on the anchor never runs; it is never offered  989ms
+     ✓ "could you make the chart below the bottom-left one weekly for me" (2x3, clicked = the anchor BL): a plan on the anchor never runs; it is never offered  991ms
+     ✓ "could you make the chart above the bottom-middle one weekly for me" (2x3, clicked = the anchor BM): a plan on the anchor never runs; it is never offered  993ms
+     ✓ "could you make the chart next to the bottom-right one weekly for me" (2x3, clicked = the anchor BR): a plan on the anchor never runs; it is never offered  982ms
+     ✓ "could you make the chart beside the top-left one weekly for me" (3x3, clicked = the anchor TL): a plan on the anchor never runs; it is never offered  1010ms
+     ✓ "I want the chart to the right of the top-left chart on weekly" (3x3, clicked = the anchor TL): a plan on the anchor never runs; it is never offered  999ms
+     ✓ "I want the chart to the left of the top-middle chart on weekly" (3x3, clicked = the anchor TM): a plan on the anchor never runs; it is never offered  992ms
+     ✓ "I want the chart below the top-right chart on weekly" (3x3, clicked = the anchor TR): a plan on the anchor never runs; it is never offered  1007ms
+     ✓ "I want the chart above the middle-left chart on weekly" (3x3, clicked = the anchor ML): a plan on the anchor never runs; it is never offered  1007ms
+     ✓ "I want the chart next to the middle chart on weekly" (3x3, clicked = the anchor MM): a plan on the anchor never runs; it is never offered  999ms
+     ✓ "I want the chart beside the middle-right chart on weekly" (3x3, clicked = the anchor MR): a plan on the anchor never runs; it is never offered  1008ms
+     ✓ "put the one to the right of the middle-right one on the weekly view please" (3x3, clicked = the anchor MR): a plan on the anchor never runs; it is never offered  980ms
+     ✓ "put the one to the left of the bottom-left one on the weekly view please" (3x3, clicked = the anchor BL): a plan on the anchor never runs; it is never offered  980ms
+     ✓ "put the one below the bottom-middle one on the weekly view please" (3x3, clicked = the anchor BM): a plan on the anchor never runs; it is never offered  1006ms
+     ✓ "put the one above the bottom-right one on the weekly view please" (3x3, clicked = the anchor BR): a plan on the anchor never runs; it is never offered  1028ms
+     ✓ "could you make the chart beside the top-left one weekly for me" (2x2): the one neighbour's plan runs, nothing asked  1019ms
+     ✓ "I want the chart to the right of the top-left chart on weekly" (2x2): the one neighbour's plan runs, nothing asked  1021ms
+     ✓ "I want the chart to the left of the top-right chart on weekly" (2x2): the one neighbour's plan runs, nothing asked  1032ms
+     ✓ "I want the chart above the bottom-right chart on weekly" (2x2): the one neighbour's plan runs, nothing asked  1039ms
+     ✓ "put the one next to the top-left chart on the weekly view please" (2x3): the one neighbour's plan runs, nothing asked  1024ms
+     ✓ "could you make the chart to the right of the top-middle one weekly for me" (2x3): the one neighbour's plan runs, nothing asked  1018ms
+     ✓ "could you make the chart to the left of the top-right one weekly for me" (2x3): the one neighbour's plan runs, nothing asked  1025ms
+     ✓ "could you make the chart above the bottom-middle one weekly for me" (2x3): the one neighbour's plan runs, nothing asked  1022ms
+     ✓ "could you make the chart next to the bottom-right one weekly for me" (2x3): the one neighbour's plan runs, nothing asked  1031ms
+     ✓ "could you make the chart beside the top-left one weekly for me" (3x3): the one neighbour's plan runs, nothing asked  1057ms
+     ✓ "I want the chart to the right of the top-left chart on weekly" (3x3): the one neighbour's plan runs, nothing asked  1052ms
+     ✓ "I want the chart to the left of the top-middle chart on weekly" (3x3): the one neighbour's plan runs, nothing asked  1043ms
+     ✓ "I want the chart below the top-right chart on weekly" (3x3): the one neighbour's plan runs, nothing asked  1041ms
+     ✓ "I want the chart above the middle-left chart on weekly" (3x3): the one neighbour's plan runs, nothing asked  1057ms
+     ✓ "I want the chart beside the middle-right chart on weekly" (3x3): the one neighbour's plan runs, nothing asked  1053ms
+     ✓ "put the one above the bottom-right one on the weekly view please" (3x3): the one neighbour's plan runs, nothing asked  1024ms
+     ✓ "this one to weekly please, the middle of the bottom row looks fine" (3x3, clicked TL): the plan on the click runs there  1198ms
+     ✓ "leave the left column alone and put this chart on weekly" (2x3, clicked TR): the plan on the click runs there  1069ms
+     ✓ "make this chart weekly like the top row" (2x3, clicked BM): the plan on the click runs there  1038ms
+     ✓ "put this one on weekly, the top row can stay as it is" (3x3, clicked MM): the plan on the click runs there  1068ms
+ ✓ src/agent/deixisValueNotRelation.test.js (991 tests) 65ms
+ ✓ src/agent/agentStructuralAnchor.test.jsx (26 tests) 26511ms
+     ✓ THREE, clicked t0: "make the chart at the far end from this one weekly" — the plan on t2 runs there; nothing asked  1159ms
+     ✓ THREE, clicked t2: "make the one at the far end from this chart weekly" — the plan on t0 runs there; nothing asked  1045ms
+     ✓ FOUR, clicked c3: "make the corner opposite here weekly" — the plan on c0 runs there; nothing asked  1044ms
+     ✓ FOUR, clicked c1: "make the one in the far corner from it weekly" — the plan on c2 runs there; nothing asked  1040ms
+     ✓ NINE, clicked g22: "make the corner diagonal from the selected chart weekly" — the plan on g00 runs there; nothing asked  1071ms
+     ✓ NINE, clicked g11: "make the chart diagonally up and to the left of the one I clicked weekly" — the plan on g00 runs there; nothing asked  1081ms
+     ✓ NINE, clicked g11: "make the one diagonally down and to the right of this one weekly" — the plan on g22 runs there; nothing asked  1087ms
+     ✓ NINE, clicked g01: "make the chart two charts below this chart weekly" — the plan on g21 runs there; nothing asked  1053ms
+     ✓ THREE, clicked t0: "make the one next door to here weekly" — the plan on t1 runs there; nothing asked  1016ms
+     ✓ THREE, clicked t0: "make the chart at the far end from this one weekly" — a plan on the CLICK never runs; the anchor is never offered  997ms
+     ✓ THREE, clicked t2: "make the one at the far end from this chart weekly" — a plan on the CLICK never runs; the anchor is never offered  974ms
+     ✓ FOUR, clicked c3: "make the corner opposite here weekly" — a plan on the CLICK never runs; the anchor is never offered  996ms
+     ✓ FOUR, clicked c1: "make the one in the far corner from it weekly" — a plan on the CLICK never runs; the anchor is never offered  976ms
+     ✓ NINE, clicked g22: "make the corner diagonal from the selected chart weekly" — a plan on the CLICK never runs; the anchor is never offered  1011ms
+     ✓ NINE, clicked g11: "make the chart diagonally up and to the left of the one I clicked weekly" — a plan on the CLICK never runs; the anchor is never offered  1010ms
+     ✓ NINE, clicked g11: "make the one diagonally down and to the right of this one weekly" — a plan on the CLICK never runs; the anchor is never offered  1022ms
+     ✓ NINE, clicked g01: "make the chart two charts below this chart weekly" — a plan on the CLICK never runs; the anchor is never offered  1009ms
+     ✓ THREE, clicked t0: "make the one next door to here weekly" — a plan on the CLICK never runs; the anchor is never offered  981ms
+     ✓ THREE, clicked t1: "make the diagonal chart from it weekly" — a plan on the CLICK never runs; the anchor is never offered  993ms
+     ✓ THREE, clicked t1: "make both neighbours of the selected chart weekly" — a plan on the CLICK never runs; the anchor is never offered  987ms
+     ✓ THREE, clicked t0: "make the chart beyond the one I clicked weekly" — a plan on the CLICK never runs; the anchor is never offered  981ms
+     ✓ NINE, clicked g11: "make the panel past this one weekly" — a plan on the CLICK never runs; the anchor is never offered  1007ms
+     ✓ THREE, clicked t1: "make the diagonal chart from it weekly" — no single chart: asked without the anchor  989ms
+     ✓ THREE, clicked t1: "make both neighbours of the selected chart weekly" — no single chart: asked without the anchor  996ms
+     ✓ THREE, clicked t0: "make the chart beyond the one I clicked weekly" — no single chart: asked without the anchor  996ms
+     ✓ NINE, clicked g11: "make the panel past this one weekly" — no single chart: asked without the anchor  988ms
+ ✓ src/agent/agentQuestionFilter.test.jsx (9 tests) 9015ms
+     ✓ "could you make the chart above this one weekly" (2x2, clicked BL)  1088ms
+     ✓ "could you make the chart to the right of this one weekly" (2x3, clicked TM)  1011ms
+     ✓ "the one below this chart to weekly please" (2x3, clicked TR)  987ms
+     ✓ "could you put everything except SPY on weekly" (2x2, clicked BR)  968ms
+     ✓ "everything but the bottom row on weekly please" (2x3, clicked TL)  989ms
+     ✓ "could you put this row except the QQQ one on weekly" (2x3, clicked TL)  991ms
+     ✓ "every chart but the bottom row on weekly please" (2x3, clicked TL)  993ms
+     ✓ "each chart but the top row on weekly please" (2x3, clicked BL)  994ms
+     ✓ a question with no relation and no exclusion keeps every chart (nothing removed that the words do not exclude)  993ms
+ ✓ src/agent/agentStructuralAnchorNegative.test.jsx (24 tests) 25033ms
+     ✓ "make this chart weekly; the 50-day is above the 200" (c1 clicked): the plan on the click runs there  1185ms
+     ✓ "this one to weekly, the 50-day below it is support" (c1 clicked): the plan on the click runs there  1052ms
+     ✓ "the 50-day is next to it, so make this one weekly" (c1 clicked): the plan on the click runs there  1035ms
+     ✓ "make this chart weekly; the level I drew is below the 200" (c1 clicked): the plan on the click runs there  1044ms
+     ✓ "this one to weekly, the level I drew next to it is support" (c1 clicked): the plan on the click runs there  1020ms
+     ✓ "the level I drew is under it, so make this one weekly" (c1 clicked): the plan on the click runs there  1041ms
+     ✓ "make this chart weekly; the MA is next to the 200" (c1 clicked): the plan on the click runs there  1045ms
+     ✓ "this one to weekly, the MA under it is support" (c1 clicked): the plan on the click runs there  1022ms
+     ✓ "the MA is beside it, so make this one weekly" (c1 clicked): the plan on the click runs there  1038ms
+     ✓ "make this chart weekly; the price is under the 200" (c1 clicked): the plan on the click runs there  1042ms
+     ✓ "this one to weekly, the price beside it is support" (c1 clicked): the plan on the click runs there  1038ms
+     ✓ "the price is far from it, so make this one weekly" (c1 clicked): the plan on the click runs there  1052ms
+     ✓ "make this chart weekly; the alert is beside the 200" (c1 clicked): the plan on the click runs there  1027ms
+     ✓ "this one to weekly, the alert far from it is support" (c1 clicked): the plan on the click runs there  1020ms
+     ✓ "the alert is above it, so make this one weekly" (c1 clicked): the plan on the click runs there  1042ms
+     ✓ "make this chart weekly; the trendline is far from the 200" (c1 clicked): the plan on the click runs there  1051ms
+     ✓ "this one to weekly, the trendline above it is support" (c1 clicked): the plan on the click runs there  1028ms
+     ✓ "the trendline is below it, so make this one weekly" (c1 clicked): the plan on the click runs there  1038ms
+     ✓ "pull up weekly on this one" (c1 clicked): the plan on the click runs there  1040ms
+     ✓ "switch over to weekly on this chart" (c1 clicked): the plan on the click runs there  1043ms
+     ✓ "show the past year weekly on this chart" (c1 clicked): the plan on the click runs there  1041ms
+     ✓ "bring up the weekly on this one" (c1 clicked): the plan on the click runs there  1039ms
+     ✓ "set it to weekly, i will turn down the noise later" (c1 clicked): the plan on the click runs there  1056ms
+     ✓ "at the end of the day make this one weekly" (c1 clicked): the plan on the click runs there  994ms
+ ✓ src/agent/agentPlacementTarget.test.jsx (97 tests) 101303ms
+     ✓ "put rsi on the corner opposite here" (2x2, clicked BR)  1165ms
+     ✓ "add a MACD to the corner opposite here" (2x2, clicked BR)  1012ms
+     ✓ "stick the stochastic onto the corner opposite here" (2x2, clicked BR)  1010ms
+     ✓ "throw rsi up on the corner opposite here" (2x2, clicked BR)  995ms
+     ✓ "put a MACD on the chart to the left of this one" (2x2, clicked BR)  996ms
+     ✓ "add the stochastic to the chart to the left of this one" (2x2, clicked BR)  995ms
+     ✓ "stick rsi onto the chart to the left of this one" (2x2, clicked BR)  993ms
+     ✓ "throw a MACD up on the chart to the left of this one" (2x2, clicked BR)  996ms
+     ✓ "put the stochastic on the one above this" (2x2, clicked BR)  984ms
+     ✓ "add rsi to the one above this" (2x2, clicked BR)  978ms
+     ✓ "stick a MACD onto the one above this" (2x2, clicked BR)  990ms
+     ✓ "throw the stochastic up on the one above this" (2x2, clicked BR)  1005ms
+     ✓ "put rsi on the cell diagonally across from the selected chart" (2x2, clicked TL)  1010ms
+     ✓ "add a MACD to the cell diagonally across from the selected chart" (2x2, clicked TL)  1006ms
+     ✓ "stick the stochastic onto the cell diagonally across from the selected chart" (2x2, clicked TL)  975ms
+     ✓ "throw rsi up on the cell diagonally across from the selected chart" (2x2, clicked TL)  985ms
+     ✓ "put a MACD on the chart right of the one I clicked" (2x3, clicked TM)  1010ms
+     ✓ "add the stochastic to the chart right of the one I clicked" (2x3, clicked TM)  1006ms
+     ✓ "stick rsi onto the chart right of the one I clicked" (2x3, clicked TM)  999ms
+     ✓ "throw a MACD up on the chart right of the one I clicked" (2x3, clicked TM)  998ms
+     ✓ "put the stochastic on its left neighbour" (2x3, clicked BR)  991ms
+     ✓ "add rsi to its left neighbour" (2x3, clicked BR)  961ms
+     ✓ "stick a MACD onto its left neighbour" (2x3, clicked BR)  1007ms
+     ✓ "throw the stochastic up on its left neighbour" (2x3, clicked BR)  1009ms
+     ✓ "put rsi on the neighbour to the left of this one" (2x2, clicked BR)  979ms
+     ✓ "add a MACD to the neighbour to the left of this one" (2x2, clicked BR)  975ms
+     ✓ "stick the stochastic onto the neighbour to the left of this one" (2x2, clicked BR)  988ms
+     ✓ "throw rsi up on the neighbour to the left of this one" (2x2, clicked BR)  988ms
+     ✓ "put a MACD on the spot above this chart" (2x2, clicked BR)  992ms
+     ✓ "add the stochastic to the spot above this chart" (2x2, clicked BR)  992ms
+     ✓ "stick rsi onto the spot above this chart" (2x2, clicked BR)  981ms
+     ✓ "throw a MACD up on the spot above this chart" (2x2, clicked BR)  995ms
+     ✓ "put the stochastic on the corner diagonally across from here" (2x2, clicked TL)  970ms
+     ✓ "add rsi to the corner diagonally across from here" (2x2, clicked TL)  992ms
+     ✓ "stick a MACD onto the corner diagonally across from here" (2x2, clicked TL)  976ms
+     ✓ "throw the stochastic up on the corner diagonally across from here" (2x2, clicked TL)  977ms
+     ✓ "put rsi on the slot right of the selected chart" (2x3, clicked TM)  1043ms
+     ✓ "add a MACD to the slot right of the selected chart" (2x3, clicked TM)  992ms
+     ✓ "stick the stochastic onto the slot right of the selected chart" (2x3, clicked TM)  1029ms
+     ✓ "throw rsi up on the slot right of the selected chart" (2x3, clicked TM)  1027ms
+     ✓ "put a MACD on the square below this one" (2x3, clicked TR)  991ms
+     ✓ "add the stochastic to the square below this one" (2x3, clicked TR)  981ms
+     ✓ "stick rsi onto the square below this one" (2x3, clicked TR)  988ms
+     ✓ "throw a MACD up on the square below this one" (2x3, clicked TR)  990ms
+     ✓ "put rsi on the corner opposite here" (2x2, clicked BR, meant TL)  1062ms
+     ✓ "add a MACD to the corner opposite here" (2x2, clicked BR, meant TL)  1070ms
+     ✓ "stick the stochastic onto the corner opposite here" (2x2, clicked BR, meant TL)  1086ms
+     ✓ "throw rsi up on the corner opposite here" (2x2, clicked BR, meant TL)  1082ms
+     ✓ "put a MACD on the chart to the left of this one" (2x2, clicked BR, meant BL)  1071ms
+     ✓ "add the stochastic to the chart to the left of this one" (2x2, clicked BR, meant BL)  1070ms
+     ✓ "stick rsi onto the chart to the left of this one" (2x2, clicked BR, meant BL)  1061ms
+     ✓ "throw a MACD up on the chart to the left of this one" (2x2, clicked BR, meant BL)  1087ms
+     ✓ "put the stochastic on the one above this" (2x2, clicked BR, meant TR)  1087ms
+     ✓ "add rsi to the one above this" (2x2, clicked BR, meant TR)  1085ms
+     ✓ "stick a MACD onto the one above this" (2x2, clicked BR, meant TR)  1072ms
+     ✓ "throw the stochastic up on the one above this" (2x2, clicked BR, meant TR)  1076ms
+     ✓ "put rsi on the cell diagonally across from the selected chart" (2x2, clicked TL, meant BR)  1083ms
+     ✓ "add a MACD to the cell diagonally across from the selected chart" (2x2, clicked TL, meant BR)  1070ms
+     ✓ "stick the stochastic onto the cell diagonally across from the selected chart" (2x2, clicked TL, meant BR)  1091ms
+     ✓ "throw rsi up on the cell diagonally across from the selected chart" (2x2, clicked TL, meant BR)  1086ms
+     ✓ "put a MACD on the chart right of the one I clicked" (2x3, clicked TM, meant TR)  1082ms
+     ✓ "add the stochastic to the chart right of the one I clicked" (2x3, clicked TM, meant TR)  1088ms
+     ✓ "stick rsi onto the chart right of the one I clicked" (2x3, clicked TM, meant TR)  1083ms
+     ✓ "throw a MACD up on the chart right of the one I clicked" (2x3, clicked TM, meant TR)  1083ms
+     ✓ "put the stochastic on its left neighbour" (2x3, clicked BR, meant BM)  1075ms
+     ✓ "add rsi to its left neighbour" (2x3, clicked BR, meant BM)  1067ms
+     ✓ "stick a MACD onto its left neighbour" (2x3, clicked BR, meant BM)  1086ms
+     ✓ "throw the stochastic up on its left neighbour" (2x3, clicked BR, meant BM)  1090ms
+     ✓ "put rsi on the neighbour to the left of this one" (2x2, clicked BR, meant BL)  1053ms
+     ✓ "add a MACD to the neighbour to the left of this one" (2x2, clicked BR, meant BL)  1086ms
+     ✓ "stick the stochastic onto the neighbour to the left of this one" (2x2, clicked BR, meant BL)  1072ms
+     ✓ "throw rsi up on the neighbour to the left of this one" (2x2, clicked BR, meant BL)  1084ms
+     ✓ "put a MACD on the spot above this chart" (2x2, clicked BR, meant TR)  1088ms
+     ✓ "add the stochastic to the spot above this chart" (2x2, clicked BR, meant TR)  1082ms
+     ✓ "stick rsi onto the spot above this chart" (2x2, clicked BR, meant TR)  1074ms
+     ✓ "throw a MACD up on the spot above this chart" (2x2, clicked BR, meant TR)  1079ms
+     ✓ "put the stochastic on the corner diagonally across from here" (2x2, clicked TL, meant BR)  1060ms
+     ✓ "add rsi to the corner diagonally across from here" (2x2, clicked TL, meant BR)  1085ms
+     ✓ "stick a MACD onto the corner diagonally across from here" (2x2, clicked TL, meant BR)  1086ms
+     ✓ "throw the stochastic up on the corner diagonally across from here" (2x2, clicked TL, meant BR)  1075ms
+     ✓ "put rsi on the slot right of the selected chart" (2x3, clicked TM, meant TR)  1118ms
+     ✓ "add a MACD to the slot right of the selected chart" (2x3, clicked TM, meant TR)  1117ms
+     ✓ "stick the stochastic onto the slot right of the selected chart" (2x3, clicked TM, meant TR)  1119ms
+     ✓ "throw rsi up on the slot right of the selected chart" (2x3, clicked TM, meant TR)  1121ms
+     ✓ "put a MACD on the square below this one" (2x3, clicked TR, meant BR)  1088ms
+     ✓ "add the stochastic to the square below this one" (2x3, clicked TR, meant BR)  1073ms
+     ✓ "stick rsi onto the square below this one" (2x3, clicked TR, meant BR)  1072ms
+     ✓ "throw a MACD up on the square below this one" (2x3, clicked TR, meant BR)  1082ms
+     ✓ "stick the stochastic below this one" (2x2, BR clicked): the plan on the click runs there  1084ms
+     ✓ "put rsi on this chart" (2x2, BR clicked): the plan on the click runs there  1071ms
+     ✓ "add a MACD to the one I clicked" (2x2, BR clicked): the plan on the click runs there  1089ms
+     ✓ "put rsi on the price pane of this chart" (2x2, BR clicked): the plan on the click runs there  1086ms
+     ✓ "put the stochastic on the side of this chart" (2x2, BR clicked): the plan on the click runs there  1088ms
+     ✓ "add rsi to this one, below the price" (2x2, BR clicked): the plan on the click runs there  1098ms
+     ✓ "put a MACD on the selected chart under the candles" (2x2, BR clicked): the plan on the click runs there  1101ms
+     ✓ "put rsi on the price above this one" (2x2, BR clicked): the plan on the click runs there  1084ms
+     ✓ "add a MACD to the volume below this one" (2x2, BR clicked): the plan on the click runs there  1072ms
+ ✓ src/agent/agentPossessiveAnchor.test.jsx (152 tests) 155674ms
+     ✓ "switch the neighbour on its left to weekly" (row, clicked c5)  1165ms
+     ✓ "switch the neighbour on it's left to weekly" (row, clicked c5)  1027ms
+     ✓ "switch the neighbour on this one's left to weekly" (row, clicked c5)  970ms
+     ✓ "switch the neighbour on this chart's left to weekly" (row, clicked c5)  989ms
+     ✓ "switch the neighbour on the selected one's left to weekly" (row, clicked c5)  1011ms
+     ✓ "make the one on its right side weekly" (2x3, clicked TL)  995ms
+     ✓ "make the one on it's right side weekly" (2x3, clicked TL)  994ms
+     ✓ "make the one on this one's right side weekly" (2x3, clicked TL)  981ms
+     ✓ "make the one on this chart's right side weekly" (2x3, clicked TL)  999ms
+     ✓ "make the one on the selected one's right side weekly" (2x3, clicked TL)  1010ms
+     ✓ "put the chart to its left on weekly" (row, clicked c3)  989ms
+     ✓ "put the chart to it's left on weekly" (row, clicked c3)  989ms
+     ✓ "put the chart to this one's left on weekly" (row, clicked c3)  995ms
+     ✓ "put the chart to this chart's left on weekly" (row, clicked c3)  991ms
+     ✓ "put the chart to the selected one's left on weekly" (row, clicked c3)  1005ms
+     ✓ "make its left-hand neighbour weekly" (2x3, clicked BR)  1000ms
+     ✓ "make it's left-hand neighbour weekly" (2x3, clicked BR)  980ms
+     ✓ "make this one's left-hand neighbour weekly" (2x3, clicked BR)  1005ms
+     ✓ "make this chart's left-hand neighbour weekly" (2x3, clicked BR)  1000ms
+     ✓ "make the selected one's left-hand neighbour weekly" (2x3, clicked BR)  983ms
+     ✓ "set its right neighbour to weekly" (row, clicked c1)  990ms
+     ✓ "set it's right neighbour to weekly" (row, clicked c1)  990ms
+     ✓ "set this one's right neighbour to weekly" (row, clicked c1)  994ms
+     ✓ "set this chart's right neighbour to weekly" (row, clicked c1)  977ms
+     ✓ "set the selected one's right neighbour to weekly" (row, clicked c1)  979ms
+     ✓ "make its row's far end weekly" (2x3, clicked TL)  990ms
+     ✓ "make it's row's far end weekly" (2x3, clicked TL)  973ms
+     ✓ "make this one's row's far end weekly" (2x3, clicked TL)  955ms
+     ✓ "make this chart's row's far end weekly" (2x3, clicked TL)  993ms
+     ✓ "make the selected one's row's far end weekly" (2x3, clicked TL)  1008ms
+     ✓ "make the chart at the far end of its row weekly" (row, clicked c5)  996ms
+     ✓ "make the chart at the far end of it's row weekly" (row, clicked c5)  995ms
+     ✓ "make the chart at the far end of this one's row weekly" (row, clicked c5)  969ms
+     ✓ "make the chart at the far end of this chart's row weekly" (row, clicked c5)  991ms
+     ✓ "make the chart at the far end of the selected one's row weekly" (row, clicked c5)  992ms
+     ✓ "make its diagonal weekly" (2x3, clicked TL)  983ms
+     ✓ "make it's diagonal weekly" (2x3, clicked TL)  991ms
+     ✓ "make this one's diagonal weekly" (2x3, clicked TL)  994ms
+     ✓ "make this chart's diagonal weekly" (2x3, clicked TL)  995ms
+     ✓ "make the selected one's diagonal weekly" (2x3, clicked TL)  995ms
+     ✓ "make its opposite corner weekly" (2x3, clicked BL)  992ms
+     ✓ "make it's opposite corner weekly" (2x3, clicked BL)  968ms
+     ✓ "make this one's opposite corner weekly" (2x3, clicked BL)  1001ms
+     ✓ "make this chart's opposite corner weekly" (2x3, clicked BL)  990ms
+     ✓ "make the selected one's opposite corner weekly" (2x3, clicked BL)  983ms
+     ✓ "make both of its neighbours weekly" (2x3, clicked TM)  995ms
+     ✓ "make both of it's neighbours weekly" (2x3, clicked TM)  995ms
+     ✓ "make both of this one's neighbours weekly" (2x3, clicked TM)  989ms
+     ✓ "make both of this chart's neighbours weekly" (2x3, clicked TM)  989ms
+     ✓ "make both of the selected one's neighbours weekly" (2x3, clicked TM)  993ms
+     ✓ "switch the neighbour on its left to weekly" (row, clicked c5, meant ["c4"])  1032ms
+     ✓ "switch the neighbour on it's left to weekly" (row, clicked c5, meant ["c4"])  1039ms
+     ✓ "switch the neighbour on this one's left to weekly" (row, clicked c5, meant ["c4"])  1040ms
+     ✓ "switch the neighbour on this chart's left to weekly" (row, clicked c5, meant ["c4"])  1041ms
+     ✓ "switch the neighbour on the selected one's left to weekly" (row, clicked c5, meant ["c4"])  1041ms
+     ✓ "make the one on its right side weekly" (2x3, clicked TL, meant ["TM"])  1041ms
+     ✓ "make the one on it's right side weekly" (2x3, clicked TL, meant ["TM"])  1043ms
+     ✓ "make the one on this one's right side weekly" (2x3, clicked TL, meant ["TM"])  1037ms
+     ✓ "make the one on this chart's right side weekly" (2x3, clicked TL, meant ["TM"])  1040ms
+     ✓ "make the one on the selected one's right side weekly" (2x3, clicked TL, meant ["TM"])  1044ms
+     ✓ "put the chart to its left on weekly" (row, clicked c3, meant ["c2"])  1039ms
+     ✓ "put the chart to it's left on weekly" (row, clicked c3, meant ["c2"])  1035ms
+     ✓ "put the chart to this one's left on weekly" (row, clicked c3, meant ["c2"])  1025ms
+     ✓ "put the chart to this chart's left on weekly" (row, clicked c3, meant ["c2"])  1022ms
+     ✓ "put the chart to the selected one's left on weekly" (row, clicked c3, meant ["c2"])  1021ms
+     ✓ "make its left-hand neighbour weekly" (2x3, clicked BR, meant ["BM"])  1044ms
+     ✓ "make it's left-hand neighbour weekly" (2x3, clicked BR, meant ["BM"])  1035ms
+     ✓ "make this one's left-hand neighbour weekly" (2x3, clicked BR, meant ["BM"])  1024ms
+     ✓ "make this chart's left-hand neighbour weekly" (2x3, clicked BR, meant ["BM"])  1028ms
+     ✓ "make the selected one's left-hand neighbour weekly" (2x3, clicked BR, meant ["BM"])  1055ms
+     ✓ "set its right neighbour to weekly" (row, clicked c1, meant ["c2"])  1038ms
+     ✓ "set it's right neighbour to weekly" (row, clicked c1, meant ["c2"])  1041ms
+     ✓ "set this one's right neighbour to weekly" (row, clicked c1, meant ["c2"])  1039ms
+     ✓ "set this chart's right neighbour to weekly" (row, clicked c1, meant ["c2"])  1005ms
+     ✓ "set the selected one's right neighbour to weekly" (row, clicked c1, meant ["c2"])  1043ms
+     ✓ "make its row's far end weekly" (2x3, clicked TL, meant ["TR"])  1036ms
+     ✓ "make it's row's far end weekly" (2x3, clicked TL, meant ["TR"])  1040ms
+     ✓ "make this one's row's far end weekly" (2x3, clicked TL, meant ["TR"])  1035ms
+     ✓ "make this chart's row's far end weekly" (2x3, clicked TL, meant ["TR"])  1043ms
+     ✓ "make the selected one's row's far end weekly" (2x3, clicked TL, meant ["TR"])  1053ms
+     ✓ "make the chart at the far end of its row weekly" (row, clicked c5, meant ["c1"])  1039ms
+     ✓ "make the chart at the far end of it's row weekly" (row, clicked c5, meant ["c1"])  1028ms
+     ✓ "make the chart at the far end of this one's row weekly" (row, clicked c5, meant ["c1"])  1042ms
+     ✓ "make the chart at the far end of this chart's row weekly" (row, clicked c5, meant ["c1"])  1039ms
+     ✓ "make the chart at the far end of the selected one's row weekly" (row, clicked c5, meant ["c1"])  1056ms
+     ✓ "make its diagonal weekly" (2x3, clicked TL, meant ["BR"])  1043ms
+     ✓ "make it's diagonal weekly" (2x3, clicked TL, meant ["BR"])  1043ms
+     ✓ "make this one's diagonal weekly" (2x3, clicked TL, meant ["BR"])  1040ms
+     ✓ "make this chart's diagonal weekly" (2x3, clicked TL, meant ["BR"])  1025ms
+     ✓ "make the selected one's diagonal weekly" (2x3, clicked TL, meant ["BR"])  1035ms
+     ✓ "make its opposite corner weekly" (2x3, clicked BL, meant ["TR"])  1042ms
+     ✓ "make it's opposite corner weekly" (2x3, clicked BL, meant ["TR"])  1037ms
+     ✓ "make this one's opposite corner weekly" (2x3, clicked BL, meant ["TR"])  1044ms
+     ✓ "make this chart's opposite corner weekly" (2x3, clicked BL, meant ["TR"])  1039ms
+     ✓ "make the selected one's opposite corner weekly" (2x3, clicked BL, meant ["TR"])  1056ms
+     ✓ "make both of its neighbours weekly" (2x3, clicked TM, meant ["TL","TR"])  1085ms
+     ✓ "make both of it's neighbours weekly" (2x3, clicked TM, meant ["TL","TR"])  1084ms
+     ✓ "make both of this one's neighbours weekly" (2x3, clicked TM, meant ["TL","TR"])  1101ms
+     ✓ "make both of this chart's neighbours weekly" (2x3, clicked TM, meant ["TL","TR"])  1086ms
+     ✓ "make both of the selected one's neighbours weekly" (2x3, clicked TM, meant ["TL","TR"])  1075ms
+     ✓ "switch the neighbour on its left to weekly" (row, clicked c5, plan on c2)  996ms
+     ✓ "make this chart's right neighbour weekly" (2x3, clicked TL, plan on BR)  997ms
+     ✓ "make the selected one's diagonal weekly" (2x3, clicked TL, plan on TM)  1004ms
+     ✓ "make its upper-side neighbour weekly" (2x3, clicked BM)  994ms
+     ✓ "make the chart in this one's column weekly" (2x3, clicked TR)  996ms
+     ✓ "make the selected chart's other neighbour weekly" (2x3, clicked TL)  999ms
+     ✓ "put its corner on weekly" (2x3, clicked BR)  975ms
+     ✓ "make this one weekly and move the alert to its level" (TM clicked): the plan on the click runs there  1056ms
+     ✓ "hide the RSI and its signal line on this chart, and make it weekly" (TM clicked): the plan on the click runs there  1070ms
+     ✓ "switch this one to weekly and hide its volume" (TM clicked): the plan on the click runs there  1057ms
+     ✓ "make it weekly and keep its price scale on the right" (TM clicked): the plan on the click runs there  1055ms
+     ✓ "make it weekly; its 50-day is above the 200" (TM clicked): the plan on the click runs there  1045ms
+     ✓ "make this one and the one to its left weekly" (1x3, clicked R): the click and M, both weekly  1089ms
+     ✓ "this one and the one on its left on the weekly" (1x3, clicked R): the click and M, both weekly  1087ms
+     ✓ "make this one and the one to its right weekly" (1x3, clicked L): the click and M, both weekly  1084ms
+     ✓ "this one and the one on its right on the weekly" (1x3, clicked L): the click and M, both weekly  1089ms
+     ✓ "make this one and the one to its left weekly" (1x3, clicked M): the click and L, both weekly  1084ms
+     ✓ "this one and the one on its left on the weekly" (1x3, clicked M): the click and L, both weekly  1086ms
+     ✓ "make this one and the one to its right weekly" (1x3, clicked M): the click and R, both weekly  1070ms
+     ✓ "this one and the one on its right on the weekly" (1x3, clicked M): the click and R, both weekly  1073ms
+     ✓ "make this one and the one to its left weekly" (2x2, clicked BR): the click and BL, both weekly  1071ms
+     ✓ "this one and the one on its left on the weekly" (2x2, clicked BR): the click and BL, both weekly  1062ms
+     ✓ "make this one and the one to its right weekly" (2x2, clicked TL): the click and TR, both weekly  1089ms
+     ✓ "this one and the one on its right on the weekly" (2x2, clicked TL): the click and TR, both weekly  1088ms
+     ✓ "make this one and the one right above it weekly" (2x2, clicked BR): the click and TR, both weekly  1086ms
+     ✓ "make this one and the one just below it weekly" (2x2, clicked TL): the click and BL, both weekly  1090ms
+     ✓ "make this one and the one to its left weekly" (2x3, clicked BM): the click and BL, both weekly  1076ms
+     ✓ "this one and the one on its left on the weekly" (2x3, clicked BM): the click and BL, both weekly  1099ms
+     ✓ "make this one and the one to its right weekly" (2x3, clicked BM): the click and BR, both weekly  1074ms
+     ✓ "this one and the one on its right on the weekly" (2x3, clicked BM): the click and BR, both weekly  1090ms
+     ✓ "make this one and the one right above it weekly" (2x3, clicked BM): the click and TM, both weekly  1078ms
+     ✓ "make this one and the one just below it weekly" (2x3, clicked TM): the click and BM, both weekly  1088ms
+     ✓ NEGATIVE "make this one and the one to its left weekly" (1x3, clicked R, neighbour M): a second op on L never lands there  994ms
+     ✓ NEGATIVE "this one and the one on its left on the weekly" (1x3, clicked R, neighbour M): a second op on L never lands there  996ms
+     ✓ NEGATIVE "make this one and the one to its right weekly" (1x3, clicked L, neighbour M): a second op on R never lands there  994ms
+     ✓ NEGATIVE "this one and the one on its right on the weekly" (1x3, clicked L, neighbour M): a second op on R never lands there  993ms
+     ✓ NEGATIVE "make this one and the one to its left weekly" (1x3, clicked M, neighbour L): a second op on R never lands there  993ms
+     ✓ NEGATIVE "this one and the one on its left on the weekly" (1x3, clicked M, neighbour L): a second op on R never lands there  994ms
+     ✓ NEGATIVE "make this one and the one to its right weekly" (1x3, clicked M, neighbour R): a second op on L never lands there  988ms
+     ✓ NEGATIVE "this one and the one on its right on the weekly" (1x3, clicked M, neighbour R): a second op on L never lands there  993ms
+     ✓ NEGATIVE "make this one and the one to its left weekly" (2x2, clicked BR, neighbour BL): a second op on TL never lands there  976ms
+     ✓ NEGATIVE "this one and the one on its left on the weekly" (2x2, clicked BR, neighbour BL): a second op on TL never lands there  993ms
+     ✓ NEGATIVE "make this one and the one to its right weekly" (2x2, clicked TL, neighbour TR): a second op on BR never lands there  988ms
+     ✓ NEGATIVE "this one and the one on its right on the weekly" (2x2, clicked TL, neighbour TR): a second op on BR never lands there  983ms
+     ✓ NEGATIVE "make this one and the one right above it weekly" (2x2, clicked BR, neighbour TR): a second op on TL never lands there  1001ms
+     ✓ NEGATIVE "make this one and the one just below it weekly" (2x2, clicked TL, neighbour BL): a second op on TR never lands there  992ms
+     ✓ NEGATIVE "make this one and the one to its left weekly" (2x3, clicked BM, neighbour BL): a second op on TL never lands there  998ms
+     ✓ NEGATIVE "this one and the one on its left on the weekly" (2x3, clicked BM, neighbour BL): a second op on TL never lands there  1007ms
+     ✓ NEGATIVE "make this one and the one to its right weekly" (2x3, clicked BM, neighbour BR): a second op on TR never lands there  1016ms
+     ✓ NEGATIVE "this one and the one on its right on the weekly" (2x3, clicked BM, neighbour BR): a second op on TR never lands there  1010ms
+     ✓ NEGATIVE "make this one and the one right above it weekly" (2x3, clicked BM, neighbour TM): a second op on TR never lands there  1008ms
+     ✓ NEGATIVE "make this one and the one just below it weekly" (2x3, clicked TM, neighbour BM): a second op on BL never lands there  991ms
+ ✓ src/agent/agentProbe19Families.test.jsx (164 tests) 207346ms
+     ✓ "the two ones to the right of this chart to weekly please" (2x2, clicked TL)  1142ms
+     ✓ "the three ones below this chart to weekly please" (2x2, clicked TL)  979ms
+     ✓ "switch the other one in this column to weekly please" (2x2, clicked TL)  1034ms
+     ✓ "could you put the three charts to the left of this one on weekly" (2x2, clicked TR)  1010ms
+     ✓ "switch the other one in this row to weekly please" (2x2, clicked TR)  1043ms
+     ✓ "the three ones to the right of this chart to weekly please" (2x2, clicked BL)  995ms
+     ✓ "the two ones above this chart to weekly please" (2x2, clicked BL)  993ms
+     ✓ "switch the other two in this column to weekly please" (2x2, clicked BL)  981ms
+     ✓ "could you put the two charts below this one on weekly" (2x2, clicked BR)  985ms
+     ✓ "switch the other two in this row to weekly please" (2x2, clicked BR)  979ms
+     ✓ "the two ones to the left of this chart to weekly please" (2x3, clicked TL)  1021ms
+     ✓ "the three ones above this chart to weekly please" (2x3, clicked TL)  989ms
+     ✓ "could you put the two charts to the right of this one on weekly" (2x3, clicked TM)  1010ms
+     ✓ "could you put the three charts below this one on weekly" (2x3, clicked TM)  989ms
+     ✓ "switch the other one in this column to weekly please" (2x3, clicked TM)  1038ms
+     ✓ "the three ones to the left of this chart to weekly please" (2x3, clicked TR)  985ms
+     ✓ "switch the other one in this row to weekly please" (2x3, clicked TR)  992ms
+     ✓ "could you put the three charts to the right of this one on weekly" (2x3, clicked BL)  991ms
+     ✓ "could you put the two charts above this one on weekly" (2x3, clicked BL)  985ms
+     ✓ "switch the other two in this column to weekly please" (2x3, clicked BL)  982ms
+     ✓ "the two ones below this chart to weekly please" (2x3, clicked BM)  958ms
+     ✓ "switch the other two in this row to weekly please" (2x3, clicked BM)  1085ms
+     ✓ "could you put the two charts to the left of this one on weekly" (2x3, clicked BR)  1090ms
+     ✓ "could you put the three charts above this one on weekly" (2x3, clicked BR)  992ms
+     ✓ "the two ones to the right of this chart to weekly please" (3x3, clicked TL)  1087ms
+     ✓ "the three ones below this chart to weekly please" (3x3, clicked TL)  1005ms
+     ✓ "switch the other one in this column to weekly please" (3x3, clicked TL)  996ms
+     ✓ "could you put the three charts to the left of this one on weekly" (3x3, clicked TM)  993ms
+     ✓ "switch the other one in this row to weekly please" (3x3, clicked TM)  1008ms
+     ✓ "the three ones to the right of this chart to weekly please" (3x3, clicked TR)  1008ms
+     ✓ "the two ones above this chart to weekly please" (3x3, clicked TR)  983ms
+     ✓ "switch the other two in this column to weekly please" (3x3, clicked TR)  1064ms
+     ✓ "could you put the two charts below this one on weekly" (3x3, clicked ML)  1007ms
+     ✓ "switch the other two in this row to weekly please" (3x3, clicked ML)  1102ms
+     ✓ "the two ones to the left of this chart to weekly please" (3x3, clicked MM)  978ms
+     ✓ "the three ones above this chart to weekly please" (3x3, clicked MM)  1011ms
+     ✓ "could you put the two charts to the right of this one on weekly" (3x3, clicked MR)  1008ms
+     ✓ "could you put the three charts below this one on weekly" (3x3, clicked MR)  1009ms
+     ✓ "switch the other one in this column to weekly please" (3x3, clicked MR)  1011ms
+     ✓ "the three ones to the left of this chart to weekly please" (3x3, clicked BL)  1008ms
+     ✓ "switch the other one in this row to weekly please" (3x3, clicked BL)  997ms
+     ✓ "could you put the three charts to the right of this one on weekly" (3x3, clicked BM)  1008ms
+     ✓ "could you put the two charts above this one on weekly" (3x3, clicked BM)  1097ms
+     ✓ "switch the other two in this column to weekly please" (3x3, clicked BM)  1091ms
+     ✓ "the two ones below this chart to weekly please" (3x3, clicked BR)  1010ms
+     ✓ "switch the other two in this row to weekly please" (3x3, clicked BR)  1087ms
+     ✓ "could you put everything except the two on the left on weekly" (2x2, clicked TR)  1964ms
+     ✓ "could you put everything except the two on the right on weekly" (2x2, clicked TL)  1962ms
+     ✓ "could you put everything except the two on the top on weekly" (2x2, clicked BL)  1986ms
+     ✓ "could you put everything except the two on the bottom on weekly" (2x2, clicked TL)  1986ms
+     ✓ "could you put everything except the two on the left on weekly" (2x3, clicked TM)  1994ms
+     ✓ "could you put everything except the two on the right on weekly" (2x3, clicked TL)  1982ms
+     ✓ "could you put everything except the three on the top on weekly" (2x3, clicked BL)  2007ms
+     ✓ "could you put everything except the three on the bottom on weekly" (2x3, clicked TL)  1964ms
+     ✓ "could you put everything except the three on the left on weekly" (3x3, clicked TM)  2013ms
+     ✓ "could you put everything except the three on the right on weekly" (3x3, clicked TL)  1978ms
+     ✓ "could you put everything except the three on the top on weekly" (3x3, clicked ML)  2011ms
+     ✓ "could you put everything except the three on the bottom on weekly" (3x3, clicked TL)  2003ms
+     ✓ "could you put the charts under this row on weekly" (2x2, clicked TL): a plan on the click never runs  991ms
+     ✓ "could you put the charts to the left of this column on weekly" (2x2, clicked TL): a plan on the click never runs  995ms
+     ✓ "could you put the charts to the right of this column on weekly" (2x2, clicked TR): a plan on the click never runs  992ms
+     ✓ "could you put the charts above this row on weekly" (2x2, clicked BL): a plan on the click never runs  991ms
+     ✓ "could you put the charts under this row on weekly" (2x2, clicked BR): a plan on the click never runs  981ms
+     ✓ "could you put the pair to the left of this column on weekly" (2x2, clicked BR): a plan on the click never runs  988ms
+     ✓ "could you put the charts to the right of this column on weekly" (2x3, clicked TL): a plan on the click never runs  994ms
+     ✓ "could you put the charts above this row on weekly" (2x3, clicked TM): a plan on the click never runs  989ms
+     ✓ "could you put the charts under this row on weekly" (2x3, clicked TR): a plan on the click never runs  996ms
+     ✓ "could you put the charts to the left of this column on weekly" (2x3, clicked TR): a plan on the click never runs  992ms
+     ✓ "could you put the pair to the right of this column on weekly" (2x3, clicked BL): a plan on the click never runs  994ms
+     ✓ "could you put the charts above this row on weekly" (2x3, clicked BM): a plan on the click never runs  993ms
+     ✓ "could you put the charts under this row on weekly" (2x3, clicked BR): a plan on the click never runs  982ms
+     ✓ "could you put the pair to the left of this column on weekly" (2x3, clicked BR): a plan on the click never runs  978ms
+     ✓ "could you put the charts to the right of this column on weekly" (3x3, clicked TL): a plan on the click never runs  1006ms
+     ✓ "could you put the charts above this row on weekly" (3x3, clicked TM): a plan on the click never runs  1010ms
+     ✓ "could you put the charts under this row on weekly" (3x3, clicked TR): a plan on the click never runs  983ms
+     ✓ "could you put the charts to the left of this column on weekly" (3x3, clicked TR): a plan on the click never runs  1009ms
+     ✓ "could you put the charts to the right of this column on weekly" (3x3, clicked ML): a plan on the click never runs  995ms
+     ✓ "could you put the charts above this row on weekly" (3x3, clicked MM): a plan on the click never runs  978ms
+     ✓ "could you put the charts under this row on weekly" (3x3, clicked MR): a plan on the click never runs  989ms
+     ✓ "could you put the charts to the left of this column on weekly" (3x3, clicked MR): a plan on the click never runs  1007ms
+     ✓ "could you put the charts to the right of this column on weekly" (3x3, clicked BL): a plan on the click never runs  993ms
+     ✓ "could you put the charts above this row on weekly" (3x3, clicked BM): a plan on the click never runs  997ms
+     ✓ "could you put the charts under this row on weekly" (3x3, clicked BR): a plan on the click never runs  1009ms
+     ✓ "could you put the charts to the left of this column on weekly" (3x3, clicked BR): a plan on the click never runs  1009ms
+     ✓ "could you put the charts under this row on weekly" (2x2, clicked TL): the adjacent line runs  1086ms
+     ✓ "could you put the pair to the left of this column on weekly" (2x2, clicked TR): the adjacent line runs  1084ms
+     ✓ "could you put the pair above this row on weekly" (2x2, clicked BR): the adjacent line runs  1084ms
+     ✓ "could you put the charts to the right of this column on weekly" (2x3, clicked TL): the adjacent line runs  1087ms
+     ✓ "could you put the pair to the left of this column on weekly" (2x3, clicked TM): the adjacent line runs  1076ms
+     ✓ "could you put the charts above this row on weekly" (2x3, clicked BL): the adjacent line runs  1104ms
+     ✓ "could you put the charts to the right of this column on weekly" (2x3, clicked BM): the adjacent line runs  1076ms
+     ✓ "could you put the pair to the left of this column on weekly" (2x3, clicked BR): the adjacent line runs  1082ms
+     ✓ "could you put the charts under this row on weekly" (3x3, clicked TM): the adjacent line runs  1135ms
+     ✓ "could you put the charts under this row on weekly" (3x3, clicked TR): the adjacent line runs  1136ms
+     ✓ "could you put the charts above this row on weekly" (3x3, clicked ML): the adjacent line runs  1151ms
+     ✓ "could you put the charts above this row on weekly" (3x3, clicked MM): the adjacent line runs  1145ms
+     ✓ "could you put the charts under this row on weekly" (3x3, clicked MR): the adjacent line runs  1134ms
+     ✓ "could you put the charts above this row on weekly" (3x3, clicked BL): the adjacent line runs  1166ms
+     ✓ "could you put the charts to the right of this column on weekly" (3x3, clicked BM): the adjacent line runs  1153ms
+     ✓ "could you put the charts to the left of this column on weekly" (3x3, clicked BR): the adjacent line runs  1119ms
+     ✓ "make the chart diagonally below and to the right of this one weekly" (2x2, clicked TL)  1042ms
+     ✓ "make the chart diagonally above and to the left of this one weekly" (2x2, clicked TL)  993ms
+     ✓ "make the chart diagonally above and to the right of this one weekly" (2x2, clicked TR)  991ms
+     ✓ "make the chart diagonally below and to the left of this one weekly" (2x2, clicked BL)  996ms
+     ✓ "make the chart diagonally below and to the right of this one weekly" (2x2, clicked BR)  993ms
+     ✓ "make the chart diagonally above and to the left of this one weekly" (2x2, clicked BR)  1039ms
+     ✓ "make the chart diagonally above and to the right of this one weekly" (2x3, clicked TL)  1024ms
+     ✓ "make the chart diagonally below and to the left of this one weekly" (2x3, clicked TM)  1055ms
+     ✓ "make the chart diagonally below and to the right of this one weekly" (2x3, clicked TR)  996ms
+     ✓ "make the chart diagonally above and to the left of this one weekly" (2x3, clicked TR)  1011ms
+     ✓ "make the chart diagonally above and to the right of this one weekly" (2x3, clicked BL)  1045ms
+     ✓ "make the chart diagonally below and to the left of this one weekly" (2x3, clicked BM)  1011ms
+     ✓ "make the chart diagonally below and to the right of this one weekly" (2x3, clicked BR)  1006ms
+     ✓ "make the chart diagonally above and to the left of this one weekly" (2x3, clicked BR)  1060ms
+     ✓ "make the chart diagonally above and to the right of this one weekly" (3x3, clicked TL)  1012ms
+     ✓ "make the chart diagonally below and to the left of this one weekly" (3x3, clicked TM)  1074ms
+     ✓ "make the chart diagonally below and to the right of this one weekly" (3x3, clicked TR)  1021ms
+     ✓ "make the chart diagonally above and to the left of this one weekly" (3x3, clicked TR)  1029ms
+     ✓ "make the chart diagonally above and to the right of this one weekly" (3x3, clicked ML)  1058ms
+     ✓ "make the chart diagonally below and to the left of this one weekly" (3x3, clicked MM)  1061ms
+     ✓ "make the chart diagonally below and to the right of this one weekly" (3x3, clicked MR)  1027ms
+     ✓ "make the chart diagonally above and to the left of this one weekly" (3x3, clicked MR)  1072ms
+     ✓ "make the chart diagonally above and to the right of this one weekly" (3x3, clicked BL)  1072ms
+     ✓ "make the chart diagonally below and to the left of this one weekly" (3x3, clicked BM)  1056ms
+     ✓ "make the chart diagonally below and to the right of this one weekly" (3x3, clicked BR)  1024ms
+     ✓ "make the chart diagonally above and to the left of this one weekly" (3x3, clicked BR)  1070ms
+     ✓ "put this chart on weekly, the chart below it already is" (2x2, clicked TL): the plan on the click runs, nothing asked  1053ms
+     ✓ "put this chart on weekly, the chart below it already is" (2x3, clicked TL): the plan on the click runs, nothing asked  1036ms
+     ✓ "put this chart on weekly, the chart below it already is" (2x3, clicked TM): the plan on the click runs, nothing asked  1058ms
+     ✓ "this one to weekly please, the two to its right are fine" (2x3, clicked BL): the plan on the click runs, nothing asked  1116ms
+     ✓ "this one to weekly please, the two to its right are fine" (3x3, clicked TL): the plan on the click runs, nothing asked  1159ms
+     ✓ "put this chart on weekly, the chart below it already is" (3x3, clicked TR): the plan on the click runs, nothing asked  1076ms
+     ✓ "this one to weekly please, the two to its right are fine" (3x3, clicked ML): the plan on the click runs, nothing asked  1171ms
+     ✓ "put this chart on weekly, the chart below it already is" (3x3, clicked MR): the plan on the click runs, nothing asked  1103ms
+     ✓ "could you put this row except the SPY one on weekly" (2x2, clicked TL = the excluded chart): never applied, carded or offered; the rest acts  3018ms
+     ✓ "could you put this row except the AMD one on weekly" (2x2, clicked BR = the excluded chart): never applied, carded or offered; the rest acts  3056ms
+     ✓ "could you put this row except the NVDA one on weekly" (2x3, clicked TR = the excluded chart): never applied, carded or offered; the rest acts  3082ms
+     ✓ "could you put this row except the META one on weekly" (2x3, clicked BR = the excluded chart): never applied, carded or offered; the rest acts  3073ms
+     ✓ "could you put this row except the NVDA one on weekly" (3x3, clicked TR = the excluded chart): never applied, carded or offered; the rest acts  3077ms
+     ✓ "could you put this row except the META one on weekly" (3x3, clicked MR = the excluded chart): never applied, carded or offered; the rest acts  3105ms
+     ✓ "could you put this row except the AVGO one on weekly" (3x3, clicked BR = the excluded chart): never applied, carded or offered; the rest acts  3076ms
+     ✓ "could you put all the charts except the top row on weekly" (2x2): the board minus that line ACTS; a plan with the line is never applied or carded  2096ms
+     ✓ "everything but the bottom row on weekly please" (2x2): the board minus that line ACTS; a plan with the line is never applied or carded  2075ms
+     ✓ "could you put all the charts except the left column on weekly" (2x2): the board minus that line ACTS; a plan with the line is never applied or carded  2062ms
+     ✓ "everything but the middle column on weekly please" (2x3): the board minus that line ACTS; a plan with the line is never applied or carded  2157ms
+     ✓ "could you put all the charts except the top row on weekly" (2x3): the board minus that line ACTS; a plan with the line is never applied or carded  2110ms
+     ✓ "everything but the bottom row on weekly please" (2x3): the board minus that line ACTS; a plan with the line is never applied or carded  2115ms
+     ✓ "could you put all the charts except the left column on weekly" (2x3): the board minus that line ACTS; a plan with the line is never applied or carded  2160ms
+     ✓ "everything but the middle column on weekly please" (3x3): the board minus that line ACTS; a plan with the line is never applied or carded  2299ms
+     ✓ "could you put all the charts except the top row on weekly" (3x3): the board minus that line ACTS; a plan with the line is never applied or carded  2290ms
+     ✓ "everything but the bottom row on weekly please" (3x3): the board minus that line ACTS; a plan with the line is never applied or carded  2302ms
+     ✓ "could you put all the charts except the left column on weekly" (3x3): the board minus that line ACTS; a plan with the line is never applied or carded  2285ms
+     ✓ "weekly on the chart diagonally below and to the right of this" (2x2, clicked TL): that cell acts, nothing asked  1056ms
+     ✓ "weekly on the chart diagonally below and to the right of this" (2x3, clicked TM): that cell acts, nothing asked  1053ms
+     ✓ "weekly on the chart diagonally below and to the right of this" (3x3, clicked TL): that cell acts, nothing asked  1076ms
+     ✓ "weekly on the chart up and to the right diagonally from this" (3x3, clicked ML): that cell acts, nothing asked  1050ms
+     ✓ "weekly on the chart up and to the right diagonally from this" (3x3, clicked BL): that cell acts, nothing asked  1059ms
+     ✓ "make this one weekly, the QQQ chart next to it is fine" (2x2, clicked TL): the click acts; nothing asked or offered  1071ms
+     ✓ "make this one weekly, the QQQ chart next to it is fine" (2x3, clicked TL): the click acts; nothing asked or offered  1111ms
+     ✓ "this one to weekly, the TSLA chart to the right of it is fine" (2x3, clicked BL): the click acts; nothing asked or offered  1119ms
+     ✓ "make this one weekly, the QQQ chart next to it is fine" (3x3, clicked TL): the click acts; nothing asked or offered  1141ms
+     ✓ "this one to weekly, the TSLA chart to the right of it is fine" (3x3, clicked ML): the click acts; nothing asked or offered  1165ms
+     ✓ "put this on weekly; the ones around it already have it" (3x3, clicked BL): the click acts; nothing asked or offered  1068ms
+ ✓ src/agent/agentTickerAnchors.test.jsx (199 tests) 241715ms
+     ✓ "I want the one next to the SPY one on the weekly view" (2x2, clicked BL): a plan on the anchor never runs; it is never offered  1157ms
+     ✓ "I want the one above the SPY one on the weekly view" (2x2, clicked TL): a plan on the anchor never runs; it is never offered  961ms
+     ✓ "I want the one beside the QQQ one on the weekly view" (2x2, clicked TR): a plan on the anchor never runs; it is never offered  987ms
+     ✓ "I want the one to the left of the QQQ one on the weekly view" (2x2, clicked BL): a plan on the anchor never runs; it is never offered  997ms
+     ✓ "I want the one under the NVDA one on the weekly view" (2x2, clicked BL): a plan on the anchor never runs; it is never offered  980ms
+     ✓ "I want the one to the right of the NVDA one on the weekly view" (2x2, clicked BL): a plan on the anchor never runs; it is never offered  996ms
+     ✓ "I want the one below the AMD one on the weekly view" (2x2, clicked TL): a plan on the anchor never runs; it is never offered  993ms
+     ✓ "I want the one next to the SPY one on the weekly view" (2x3, clicked TR): a plan on the anchor never runs; it is never offered  996ms
+     ✓ "I want the one above the SPY one on the weekly view" (2x3, clicked TL): a plan on the anchor never runs; it is never offered  984ms
+     ✓ "I want the one beside the QQQ one on the weekly view" (2x3, clicked TM): a plan on the anchor never runs; it is never offered  994ms
+     ✓ "I want the one to the left of the QQQ one on the weekly view" (2x3, clicked TR): a plan on the anchor never runs; it is never offered  993ms
+     ✓ "I want the one under the NVDA one on the weekly view" (2x3, clicked TR): a plan on the anchor never runs; it is never offered  986ms
+     ✓ "I want the one to the right of the NVDA one on the weekly view" (2x3, clicked TR): a plan on the anchor never runs; it is never offered  996ms
+     ✓ "I want the one below the AMD one on the weekly view" (2x3, clicked TL): a plan on the anchor never runs; it is never offered  989ms
+     ✓ "I want the one next to the TSLA one on the weekly view" (2x3, clicked BM): a plan on the anchor never runs; it is never offered  991ms
+     ✓ "I want the one above the TSLA one on the weekly view" (2x3, clicked BM): a plan on the anchor never runs; it is never offered  984ms
+     ✓ "I want the one beside the META one on the weekly view" (2x3, clicked TL): a plan on the anchor never runs; it is never offered  995ms
+     ✓ "I want the one to the left of the META one on the weekly view" (2x3, clicked BR): a plan on the anchor never runs; it is never offered  992ms
+     ✓ "I want the one under the SPY one on the weekly view" (3x3, clicked TL): a plan on the anchor never runs; it is never offered  1014ms
+     ✓ "I want the one to the right of the SPY one on the weekly view" (3x3, clicked TR): a plan on the anchor never runs; it is never offered  1004ms
+     ✓ "I want the one below the QQQ one on the weekly view" (3x3, clicked TM): a plan on the anchor never runs; it is never offered  997ms
+     ✓ "I want the one next to the NVDA one on the weekly view" (3x3, clicked TR): a plan on the anchor never runs; it is never offered  1007ms
+     ✓ "I want the one above the NVDA one on the weekly view" (3x3, clicked TL): a plan on the anchor never runs; it is never offered  1008ms
+     ✓ "I want the one beside the AMD one on the weekly view" (3x3, clicked ML): a plan on the anchor never runs; it is never offered  993ms
+     ✓ "I want the one to the left of the AMD one on the weekly view" (3x3, clicked ML): a plan on the anchor never runs; it is never offered  1011ms
+     ✓ "I want the one under the TSLA one on the weekly view" (3x3, clicked TL): a plan on the anchor never runs; it is never offered  990ms
+     ✓ "I want the one to the right of the TSLA one on the weekly view" (3x3, clicked MM): a plan on the anchor never runs; it is never offered  989ms
+     ✓ "I want the one below the META one on the weekly view" (3x3, clicked MR): a plan on the anchor never runs; it is never offered  1003ms
+     ✓ "I want the one next to the AAPL one on the weekly view" (3x3, clicked TL): a plan on the anchor never runs; it is never offered  974ms
+     ✓ "I want the one above the AAPL one on the weekly view" (3x3, clicked BL): a plan on the anchor never runs; it is never offered  1010ms
+     ✓ "I want the one beside the MSFT one on the weekly view" (3x3, clicked BM): a plan on the anchor never runs; it is never offered  1012ms
+     ✓ "I want the one to the left of the MSFT one on the weekly view" (3x3, clicked TL): a plan on the anchor never runs; it is never offered  995ms
+     ✓ "I want the one under the AVGO one on the weekly view" (3x3, clicked BR): a plan on the anchor never runs; it is never offered  1000ms
+     ✓ "I want the one to the right of the AVGO one on the weekly view" (3x3, clicked BR): a plan on the anchor never runs; it is never offered  1009ms
+     ✓ "could you make the chart next to the top-left one weekly for me" (2x2, clicked TL): a plan on the anchor never runs; it is never offered  990ms
+     ✓ "could you make the chart to the right of the top-left one weekly for me" (2x2, clicked TL): a plan on the anchor never runs; it is never offered  992ms
+     ✓ "could you make the chart below the top-right one weekly for me" (2x2, clicked TR): a plan on the anchor never runs; it is never offered  967ms
+     ✓ "could you make the chart next to the bottom-left one weekly for me" (2x2, clicked BL): a plan on the anchor never runs; it is never offered  993ms
+     ✓ "could you make the chart to the right of the bottom-left one weekly for me" (2x2, clicked BL): a plan on the anchor never runs; it is never offered  997ms
+     ✓ "could you make the chart below the bottom-right one weekly for me" (2x2, clicked BR): a plan on the anchor never runs; it is never offered  979ms
+     ✓ "could you make the chart next to the top-left one weekly for me" (2x3, clicked TL): a plan on the anchor never runs; it is never offered  992ms
+     ✓ "could you make the chart to the right of the top-left one weekly for me" (2x3, clicked TL): a plan on the anchor never runs; it is never offered  996ms
+     ✓ "could you make the chart below the top-middle one weekly for me" (2x3, clicked TM): a plan on the anchor never runs; it is never offered  957ms
+     ✓ "could you make the chart next to the top-right one weekly for me" (2x3, clicked TR): a plan on the anchor never runs; it is never offered  992ms
+     ✓ "could you make the chart to the right of the top-right one weekly for me" (2x3, clicked TR): a plan on the anchor never runs; it is never offered  999ms
+     ✓ "could you make the chart below the bottom-left one weekly for me" (2x3, clicked BL): a plan on the anchor never runs; it is never offered  993ms
+     ✓ "could you make the chart next to the bottom-middle one weekly for me" (2x3, clicked BM): a plan on the anchor never runs; it is never offered  1010ms
+     ✓ "could you make the chart to the right of the bottom-middle one weekly for me" (2x3, clicked BM): a plan on the anchor never runs; it is never offered  989ms
+     ✓ "could you make the chart below the bottom-right one weekly for me" (2x3, clicked BR): a plan on the anchor never runs; it is never offered  991ms
+     ✓ "could you make the chart next to the top-left one weekly for me" (3x3, clicked TL): a plan on the anchor never runs; it is never offered  1006ms
+     ✓ "could you make the chart to the right of the top-left one weekly for me" (3x3, clicked TL): a plan on the anchor never runs; it is never offered  1003ms
+     ✓ "could you make the chart below the top-middle one weekly for me" (3x3, clicked TM): a plan on the anchor never runs; it is never offered  991ms
+     ✓ "could you make the chart next to the top-right one weekly for me" (3x3, clicked TR): a plan on the anchor never runs; it is never offered  994ms
+     ✓ "could you make the chart to the right of the top-right one weekly for me" (3x3, clicked TR): a plan on the anchor never runs; it is never offered  1010ms
+     ✓ "could you make the chart below the middle-left one weekly for me" (3x3, clicked ML): a plan on the anchor never runs; it is never offered  993ms
+     ✓ "could you make the chart next to the middle one weekly for me" (3x3, clicked MM): a plan on the anchor never runs; it is never offered  994ms
+     ✓ "could you make the chart to the right of the middle one weekly for me" (3x3, clicked MM): a plan on the anchor never runs; it is never offered  983ms
+     ✓ "could you make the chart below the middle-right one weekly for me" (3x3, clicked MR): a plan on the anchor never runs; it is never offered  990ms
+     ✓ "could you make the chart next to the bottom-left one weekly for me" (3x3, clicked BL): a plan on the anchor never runs; it is never offered  1008ms
+     ✓ "could you make the chart to the right of the bottom-left one weekly for me" (3x3, clicked BL): a plan on the anchor never runs; it is never offered  1011ms
+     ✓ "could you make the chart below the bottom-middle one weekly for me" (3x3, clicked BM): a plan on the anchor never runs; it is never offered  995ms
+     ✓ "could you make the chart next to the bottom-right one weekly for me" (3x3, clicked BR): a plan on the anchor never runs; it is never offered  1007ms
+     ✓ "could you make the chart to the right of the bottom-right one weekly for me" (3x3, clicked BR): a plan on the anchor never runs; it is never offered  991ms
+     ✓ "I want the one next to the SPY one on the weekly view" (2x2, clicked BL): the one neighbour's plan runs, nothing asked  1038ms
+     ✓ "I want the one beside the QQQ one on the weekly view" (2x2, clicked TR): the one neighbour's plan runs, nothing asked  1035ms
+     ✓ "I want the one to the left of the QQQ one on the weekly view" (2x2, clicked BL): the one neighbour's plan runs, nothing asked  1030ms
+     ✓ "I want the one to the right of the NVDA one on the weekly view" (2x2, clicked BL): the one neighbour's plan runs, nothing asked  1040ms
+     ✓ "I want the one next to the SPY one on the weekly view" (2x3, clicked TR): the one neighbour's plan runs, nothing asked  1050ms
+     ✓ "I want the one to the left of the QQQ one on the weekly view" (2x3, clicked TR): the one neighbour's plan runs, nothing asked  1044ms
+     ✓ "I want the one under the NVDA one on the weekly view" (2x3, clicked TR): the one neighbour's plan runs, nothing asked  1040ms
+     ✓ "I want the one above the TSLA one on the weekly view" (2x3, clicked BM): the one neighbour's plan runs, nothing asked  1036ms
+     ✓ "I want the one beside the META one on the weekly view" (2x3, clicked TL): the one neighbour's plan runs, nothing asked  1041ms
+     ✓ "I want the one to the left of the META one on the weekly view" (2x3, clicked BR): the one neighbour's plan runs, nothing asked  1039ms
+     ✓ "I want the one under the SPY one on the weekly view" (3x3, clicked TL): the one neighbour's plan runs, nothing asked  1052ms
+     ✓ "I want the one to the right of the SPY one on the weekly view" (3x3, clicked TR): the one neighbour's plan runs, nothing asked  1043ms
+     ✓ "I want the one below the QQQ one on the weekly view" (3x3, clicked TM): the one neighbour's plan runs, nothing asked  1052ms
+     ✓ "I want the one next to the NVDA one on the weekly view" (3x3, clicked TR): the one neighbour's plan runs, nothing asked  1057ms
+     ✓ "I want the one beside the AMD one on the weekly view" (3x3, clicked ML): the one neighbour's plan runs, nothing asked  1033ms
+     ✓ "I want the one under the TSLA one on the weekly view" (3x3, clicked TL): the one neighbour's plan runs, nothing asked  1045ms
+     ✓ "I want the one to the right of the TSLA one on the weekly view" (3x3, clicked MM): the one neighbour's plan runs, nothing asked  1054ms
+     ✓ "I want the one below the META one on the weekly view" (3x3, clicked MR): the one neighbour's plan runs, nothing asked  1040ms
+     ✓ "I want the one next to the AAPL one on the weekly view" (3x3, clicked TL): the one neighbour's plan runs, nothing asked  1054ms
+     ✓ "I want the one above the AAPL one on the weekly view" (3x3, clicked BL): the one neighbour's plan runs, nothing asked  1029ms
+     ✓ "I want the one to the left of the MSFT one on the weekly view" (3x3, clicked TL): the one neighbour's plan runs, nothing asked  1039ms
+     ✓ "could you make the chart next to the top-left one weekly for me" (2x2, clicked TL): the one neighbour's plan runs, nothing asked  1040ms
+     ✓ "could you make the chart to the right of the top-left one weekly for me" (2x2, clicked TL): the one neighbour's plan runs, nothing asked  1040ms
+     ✓ "could you make the chart below the top-right one weekly for me" (2x2, clicked TR): the one neighbour's plan runs, nothing asked  1031ms
+     ✓ "could you make the chart next to the bottom-left one weekly for me" (2x2, clicked BL): the one neighbour's plan runs, nothing asked  1039ms
+     ✓ "could you make the chart to the right of the bottom-left one weekly for me" (2x2, clicked BL): the one neighbour's plan runs, nothing asked  1039ms
+     ✓ "could you make the chart next to the top-left one weekly for me" (2x3, clicked TL): the one neighbour's plan runs, nothing asked  1043ms
+     ✓ "could you make the chart to the right of the top-left one weekly for me" (2x3, clicked TL): the one neighbour's plan runs, nothing asked  1019ms
+     ✓ "could you make the chart below the top-middle one weekly for me" (2x3, clicked TM): the one neighbour's plan runs, nothing asked  1036ms
+     ✓ "could you make the chart next to the top-right one weekly for me" (2x3, clicked TR): the one neighbour's plan runs, nothing asked  1029ms
+     ✓ "could you make the chart to the right of the bottom-middle one weekly for me" (2x3, clicked BM): the one neighbour's plan runs, nothing asked  1042ms
+     ✓ "could you make the chart next to the top-left one weekly for me" (3x3, clicked TL): the one neighbour's plan runs, nothing asked  1054ms
+     ✓ "could you make the chart to the right of the top-left one weekly for me" (3x3, clicked TL): the one neighbour's plan runs, nothing asked  1056ms
+     ✓ "could you make the chart below the top-middle one weekly for me" (3x3, clicked TM): the one neighbour's plan runs, nothing asked  1039ms
+     ✓ "could you make the chart next to the top-right one weekly for me" (3x3, clicked TR): the one neighbour's plan runs, nothing asked  1039ms
+     ✓ "could you make the chart below the middle-left one weekly for me" (3x3, clicked ML): the one neighbour's plan runs, nothing asked  1053ms
+     ✓ "could you make the chart to the right of the middle one weekly for me" (3x3, clicked MM): the one neighbour's plan runs, nothing asked  1040ms
+     ✓ "could you make the chart below the middle-right one weekly for me" (3x3, clicked MR): the one neighbour's plan runs, nothing asked  1014ms
+     ✓ "could you make the chart next to the bottom-left one weekly for me" (3x3, clicked BL): the one neighbour's plan runs, nothing asked  1042ms
+     ✓ "could you make the chart to the right of the bottom-left one weekly for me" (3x3, clicked BL): the one neighbour's plan runs, nothing asked  1036ms
+     ✓ "could you make the chart next to the bottom-right one weekly for me" (3x3, clicked BR): the one neighbour's plan runs, nothing asked  1042ms
+     ✓ "all the charts in this row but not the QQQ one to weekly please" (2x2, clicked TL): a plan with the excluded chart is not applied and not offered as a proposal  1991ms
+     ✓ "could you put everything in this row except SPY on weekly" (2x2, clicked TR): a plan with the excluded chart is not applied and not offered as a proposal  1985ms
+     ✓ "all the charts in this row but not the AMD one to weekly please" (2x2, clicked BL): a plan with the excluded chart is not applied and not offered as a proposal  1977ms
+     ✓ "could you put everything in this row except NVDA on weekly" (2x2, clicked BR): a plan with the excluded chart is not applied and not offered as a proposal  1987ms
+     ✓ "all the charts in this row but not the QQQ one to weekly please" (2x3, clicked TL): a plan with the excluded chart is not applied and not offered as a proposal  2024ms
+     ✓ "could you put everything in this row except SPY on weekly" (2x3, clicked TM): a plan with the excluded chart is not applied and not offered as a proposal  1982ms
+     ✓ "all the charts in this row but not the SPY one to weekly please" (2x3, clicked TR): a plan with the excluded chart is not applied and not offered as a proposal  2005ms
+     ✓ "could you put everything in this row except TSLA on weekly" (2x3, clicked BL): a plan with the excluded chart is not applied and not offered as a proposal  1970ms
+     ✓ "all the charts in this row but not the AMD one to weekly please" (2x3, clicked BM): a plan with the excluded chart is not applied and not offered as a proposal  2003ms
+     ✓ "could you put everything in this row except AMD on weekly" (2x3, clicked BR): a plan with the excluded chart is not applied and not offered as a proposal  1980ms
+     ✓ "all the charts in this row but not the QQQ one to weekly please" (3x3, clicked TL): a plan with the excluded chart is not applied and not offered as a proposal  2049ms
+     ✓ "could you put everything in this row except SPY on weekly" (3x3, clicked TM): a plan with the excluded chart is not applied and not offered as a proposal  2007ms
+     ✓ "all the charts in this row but not the SPY one to weekly please" (3x3, clicked TR): a plan with the excluded chart is not applied and not offered as a proposal  2019ms
+     ✓ "could you put everything in this row except TSLA on weekly" (3x3, clicked ML): a plan with the excluded chart is not applied and not offered as a proposal  1975ms
+     ✓ "all the charts in this row but not the AMD one to weekly please" (3x3, clicked MM): a plan with the excluded chart is not applied and not offered as a proposal  2013ms
+     ✓ "could you put everything in this row except AMD on weekly" (3x3, clicked MR): a plan with the excluded chart is not applied and not offered as a proposal  2006ms
+     ✓ "all the charts in this row but not the MSFT one to weekly please" (3x3, clicked BL): a plan with the excluded chart is not applied and not offered as a proposal  2048ms
+     ✓ "could you put everything in this row except AAPL on weekly" (3x3, clicked BM): a plan with the excluded chart is not applied and not offered as a proposal  2017ms
+     ✓ "all the charts in this row but not the AAPL one to weekly please" (3x3, clicked BR): a plan with the excluded chart is not applied and not offered as a proposal  2014ms
+     ✓ "all the charts in this row but not the QQQ one to weekly please" (2x2, clicked TL): the line minus the excluded chart runs  1040ms
+     ✓ "could you put everything in this row except SPY on weekly" (2x2, clicked TR): the line minus the excluded chart runs  1038ms
+     ✓ "all the charts in this row but not the AMD one to weekly please" (2x2, clicked BL): the line minus the excluded chart runs  1035ms
+     ✓ "could you put everything in this row except NVDA on weekly" (2x2, clicked BR): the line minus the excluded chart runs  1030ms
+     ✓ "all the charts in this row but not the QQQ one to weekly please" (2x3, clicked TL): the line minus the excluded chart runs  1047ms
+     ✓ "could you put everything in this row except SPY on weekly" (2x3, clicked TM): the line minus the excluded chart runs  1102ms
+     ✓ "all the charts in this row but not the SPY one to weekly please" (2x3, clicked TR): the line minus the excluded chart runs  1076ms
+     ✓ "could you put everything in this row except TSLA on weekly" (2x3, clicked BL): the line minus the excluded chart runs  1069ms
+     ✓ "all the charts in this row but not the AMD one to weekly please" (2x3, clicked BM): the line minus the excluded chart runs  1061ms
+     ✓ "could you put everything in this row except AMD on weekly" (2x3, clicked BR): the line minus the excluded chart runs  1074ms
+     ✓ "all the charts in this row but not the QQQ one to weekly please" (3x3, clicked TL): the line minus the excluded chart runs  1118ms
+     ✓ "could you put everything in this row except SPY on weekly" (3x3, clicked TM): the line minus the excluded chart runs  1110ms
+     ✓ "all the charts in this row but not the SPY one to weekly please" (3x3, clicked TR): the line minus the excluded chart runs  1109ms
+     ✓ "could you put everything in this row except TSLA on weekly" (3x3, clicked ML): the line minus the excluded chart runs  1104ms
+     ✓ "all the charts in this row but not the AMD one to weekly please" (3x3, clicked MM): the line minus the excluded chart runs  1103ms
+     ✓ "could you put everything in this row except AMD on weekly" (3x3, clicked MR): the line minus the excluded chart runs  1102ms
+     ✓ "all the charts in this row but not the MSFT one to weekly please" (3x3, clicked BL): the line minus the excluded chart runs  1104ms
+     ✓ "could you put everything in this row except AAPL on weekly" (3x3, clicked BM): the line minus the excluded chart runs  1069ms
+     ✓ "all the charts in this row but not the AAPL one to weekly please" (3x3, clicked BR): the line minus the excluded chart runs  1077ms
+     ✓ "could you put the SPY chart on weekly, and the one to its right too" (2x2, clicked BL): both charts run; the click does not  1068ms
+     ✓ "could you put the QQQ chart on weekly, and the one below it too" (2x2, clicked TL): both charts run; the click does not  1060ms
+     ✓ "could you put the SPY chart on weekly, and the one to its right too" (2x3, clicked TR): both charts run; the click does not  1099ms
+     ✓ "could you put the QQQ chart on weekly, and the one to its right too" (2x3, clicked TL): both charts run; the click does not  1088ms
+     ✓ "could you put the NVDA chart on weekly, and the one below it too" (2x3, clicked TL): both charts run; the click does not  1092ms
+     ✓ "could you put the TSLA chart on weekly, and the one to its right too" (2x3, clicked TL): both charts run; the click does not  1101ms
+     ✓ "could you put the SPY chart on weekly, and the one below it too" (3x3, clicked TM): both charts run; the click does not  1130ms
+     ✓ "could you put the QQQ chart on weekly, and the one below it too" (3x3, clicked TL): both charts run; the click does not  1133ms
+     ✓ "could you put the AMD chart on weekly, and the one to its right too" (3x3, clicked TL): both charts run; the click does not  1119ms
+     ✓ "could you put the TSLA chart on weekly, and the one to its right too" (3x3, clicked TL): both charts run; the click does not  1130ms
+     ✓ "could you put the META chart on weekly, and the one below it too" (3x3, clicked TL): both charts run; the click does not  1129ms
+     ✓ "could you put the MSFT chart on weekly, and the one to its right too" (3x3, clicked TL): both charts run; the click does not  1131ms
+     ✓ "could you put the SPY chart on weekly, and the one to its right too" (2x2, clicked BL): a plan with the click instead never runs  982ms
+     ✓ "could you put the QQQ chart on weekly, and the one below it too" (2x2, clicked TL): a plan with the click instead never runs  1006ms
+     ✓ "could you put the SPY chart on weekly, and the one to its right too" (2x3, clicked TR): a plan with the click instead never runs  1022ms
+     ✓ "could you put the QQQ chart on weekly, and the one to its right too" (2x3, clicked TL): a plan with the click instead never runs  997ms
+     ✓ "could you put the NVDA chart on weekly, and the one below it too" (2x3, clicked TL): a plan with the click instead never runs  1057ms
+     ✓ "could you put the TSLA chart on weekly, and the one to its right too" (2x3, clicked TL): a plan with the click instead never runs  1026ms
+     ✓ "could you put the SPY chart on weekly, and the one below it too" (3x3, clicked TM): a plan with the click instead never runs  1039ms
+     ✓ "could you put the QQQ chart on weekly, and the one below it too" (3x3, clicked TL): a plan with the click instead never runs  1043ms
+     ✓ "could you put the AMD chart on weekly, and the one to its right too" (3x3, clicked TL): a plan with the click instead never runs  1036ms
+     ✓ "could you put the TSLA chart on weekly, and the one to its right too" (3x3, clicked TL): a plan with the click instead never runs  1041ms
+     ✓ "could you put the META chart on weekly, and the one below it too" (3x3, clicked TL): a plan with the click instead never runs  1044ms
+     ✓ "could you put the MSFT chart on weekly, and the one to its right too" (3x3, clicked TL): a plan with the click instead never runs  1046ms
+     ✓ "put this one on weekly, the QQQ chart next to SPY is fine" (2x2, clicked BL): the plan on the click runs there, nothing asked  1119ms
+     ✓ "put this one on weekly, the QQQ chart next to SPY is fine" (2x3, clicked TR): the plan on the click runs there, nothing asked  1147ms
+     ✓ "put this one on weekly, the TSLA chart next to AMD is fine" (2x3, clicked TL): the plan on the click runs there, nothing asked  1140ms
+     ✓ "put this one on weekly, the QQQ chart next to SPY is fine" (3x3, clicked TR): the plan on the click runs there, nothing asked  1179ms
+     ✓ "put this one on weekly, the TSLA chart next to AMD is fine" (3x3, clicked TL): the plan on the click runs there, nothing asked  1214ms
+     ✓ "put this one on weekly, the MSFT chart next to AAPL is fine" (3x3, clicked TL): the plan on the click runs there, nothing asked  1212ms
+     ✓ "could you make the chart one step in diagonally from the top-left corner weekly" (2x2, clicked = the corner): the diagonal neighbour runs; the corner never runs or is offered  2036ms
+     ✓ "could you make the chart one step in diagonally from the top-right corner weekly" (2x2, clicked = the corner): the diagonal neighbour runs; the corner never runs or is offered  2033ms
+     ✓ "could you make the chart one step in diagonally from the bottom-left corner weekly" (2x2, clicked = the corner): the diagonal neighbour runs; the corner never runs or is offered  2046ms
+     ✓ "could you make the chart one step in diagonally from the bottom-right corner weekly" (2x2, clicked = the corner): the diagonal neighbour runs; the corner never runs or is offered  2039ms
+     ✓ "could you make the chart one step in diagonally from the top-left corner weekly" (2x3, clicked = the corner): the diagonal neighbour runs; the corner never runs or is offered  2033ms
+     ✓ "could you make the chart one step in diagonally from the top-right corner weekly" (2x3, clicked = the corner): the diagonal neighbour runs; the corner never runs or is offered  2049ms
+     ✓ "could you make the chart one step in diagonally from the bottom-left corner weekly" (2x3, clicked = the corner): the diagonal neighbour runs; the corner never runs or is offered  2038ms
+     ✓ "could you make the chart one step in diagonally from the bottom-right corner weekly" (2x3, clicked = the corner): the diagonal neighbour runs; the corner never runs or is offered  2013ms
+     ✓ "could you make the chart one step in diagonally from the top-left corner weekly" (3x3, clicked = the corner): the diagonal neighbour runs; the corner never runs or is offered  2041ms
+     ✓ "could you make the chart one step in diagonally from the top-right corner weekly" (3x3, clicked = the corner): the diagonal neighbour runs; the corner never runs or is offered  2055ms
+     ✓ "could you make the chart one step in diagonally from the bottom-left corner weekly" (3x3, clicked = the corner): the diagonal neighbour runs; the corner never runs or is offered  2045ms
+     ✓ "could you make the chart one step in diagonally from the bottom-right corner weekly" (3x3, clicked = the corner): the diagonal neighbour runs; the corner never runs or is offered  2053ms
+     ✓ "make the SPY chart weekly and the one to its right too" (2x2, clicked BL): both charts run; nothing asked  1067ms
+     ✓ "make the NVDA chart weekly and the one to its right too" (2x2, clicked TL): both charts run; nothing asked  1088ms
+     ✓ "make the QQQ chart weekly and the one to its right too" (2x3, clicked TL): both charts run; nothing asked  1098ms
+     ✓ "make the AMD chart weekly and the one to its right too" (2x3, clicked TL): both charts run; nothing asked  1062ms
+     ✓ "could you put the SPY chart on weekly and the one below it too" (3x3, clicked TM): both charts run; nothing asked  1106ms
+     ✓ "could you put the NVDA chart on weekly and the one below it too" (3x3, clicked TL): both charts run; nothing asked  1120ms
+     ✓ "make the TSLA chart weekly and the one to its right too" (3x3, clicked TL): both charts run; nothing asked  1111ms
+     ✓ "make the AAPL chart weekly and the one to its right too" (3x3, clicked TL): both charts run; nothing asked  1076ms
+     ✓ "could you put all of these except QQQ on weekly" (2x2, clicked TL): a plan or a proposal with the excluded chart is ASKED, never carded  1961ms
+     ✓ "this row except the AMD one to weekly please" (2x2, clicked BL): a plan or a proposal with the excluded chart is ASKED, never carded  1965ms
+     ✓ "could you put all of these except QQQ on weekly" (2x3, clicked TL): a plan or a proposal with the excluded chart is ASKED, never carded  1976ms
+     ✓ "this row except the TSLA one to weekly please" (2x3, clicked BL): a plan or a proposal with the excluded chart is ASKED, never carded  1972ms
+     ✓ "could you put all of these except QQQ on weekly" (3x3, clicked TL): a plan or a proposal with the excluded chart is ASKED, never carded  2012ms
+     ✓ "this row except the MSFT one to weekly please" (3x3, clicked BL): a plan or a proposal with the excluded chart is ASKED, never carded  2002ms
+
+ Test Files  12 passed (12)
+      Tests  2044 passed (2044)
+   Start at  04:07:25
+   Duration  248.91s (transform 35.29s, setup 2.95s, import 53.85s, tests 993.39s, environment 5.98s)
+
+DONE C2

@@ -2327,6 +2327,26 @@
     }
    }
   },
+  "watchlist.showList": {
+   "digest": "cb0aef705d4ecae5",
+   "phrasings": {
+    "put the Flagged list in my watchlist widget": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "switch my watchlist over to the flagged one": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show Flagged in the watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "layout.rename": {
    "digest": "77d04097a502f477",
    "phrasings": {
@@ -4117,6 +4137,56 @@
     }
    }
   },
+  "chartSetup.stepBars": {
+   "digest": "f1ef323ce91ffc4b",
+   "phrasings": {
+    "step this chart back 5 bars": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "go back five bars on the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "scroll the chart back 5 bars": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move the chart back 5 bars": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartSetup.autoScale": {
+   "digest": "b25c76554b8fddc2",
+   "phrasings": {
+    "auto scale this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "auto-scale the price axis": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "fit the price scale to the bars again": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the price axis back on auto": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chartSetup.setIndicatorsHidden": {
    "digest": "6a2ae0ff5a8652e0",
    "phrasings": {
@@ -4390,6 +4460,16 @@
   },
   "followup.it-on-chart.four": {
    "digest": "9211f771f5a80c2d",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.exportList-no-menu": {
+   "digest": "09d0480ebe838073",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.arrangeColumns-standin": {
+   "digest": "bb2d172e740d8613",
    "gap": false,
    "mode": null
   }

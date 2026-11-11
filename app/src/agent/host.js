@@ -11,6 +11,7 @@
 // Only charts on the visible grid are targets; popped-out / floating ones are not.
 // While Multi Chart is on screen the targets are its cells instead (gridEntries; a cell's ref is its persisted cell id).
 
+import { loadCatalog, setCatalogReader } from './watchlistCatalog'
 import { planPlacement, planGroupPlacement } from '../pages/charts/placement/place'
 import { FIXED_ROWS } from '../pages/charts/rowHeight'
 import { boardWidgetCount, boardCanGrow, MAX_BOARD_WIDGETS } from '../pages/charts/boardBound'
@@ -430,7 +431,11 @@ export function buildListViewSource({ getWidgets }) {
       return {
         ref, type: v.type, key: v.key, listId: v.type === 'watchlist' && String(v.key).startsWith('user:') ? String(v.key).slice(5) : null,
         label: name, name, rows: live.rows(), cfg: live.cfg, sort: live.sort, columns: live.columns, fixedColumns: live.fixedColumns, persisted: live.persisted,
-        selected: live.selected || null, active: live.active, position: positionWord(w, siblings) || null,
+        selected: live.selected || null, active: live.active, position: positionWord(w, siblings) || null, widgetId: w.id,
+        // the saved layout (null: none saved), for the column Undo; absent when the widget keeps none
+        ...(typeof live.savedCfg === 'function' && live.savedCfg() !== undefined ? { savedCfg: live.savedCfg() } : {}),
+        // the header drag's and the gridline's own results (Watchlists.jsx), for watchlist.arrangeColumns: pure over a cfg
+        ...(live.movedCfg ? { cols: { moved: live.movedCfg, resized: live.resizedCfg, min: live.minWidthOf, width: live.widthOf } } : {}),
       }
     }),
     /** Is a widget showing this saved list sorted by a column? (No rows are read: this runs per list, per turn.) */
@@ -480,9 +485,13 @@ export function buildWatchlistSource({ getLists, getWidgets, revalidate, request
     return r.json()
   }
   const enc = encodeURIComponent
+  // watchlist group A (C3-064): the picker's prebuilt / community catalogue is read through this source's own request
+  setCatalogReader(request)
   const send = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   return {
     loaded: () => Array.isArray(getLists()),
+    /** The picker's other lists (UCT's prebuilt directory, community lists): names and ids, or null (watchlistCatalog.js). */
+    catalog: () => loadCatalog(request),
     snapshot() {
       const widgets = getWidgets() || []
       return rows().map(row => ({
