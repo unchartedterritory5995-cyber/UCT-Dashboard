@@ -178,6 +178,34 @@ describe('delete — safe by default', () => {
     expect(await executeDefinitionAction(p.plan, ctx({ charts: [] }), srv)).toEqual({ ok: false, reason: 'unsupported-definition', detail: { why: DELETE_REFUSALS.unreadBefore } })
     expect(deleted).toBe(false)
   })
+  // ⛔ F-15 follow-up — Undo's own first read: only a 404 says the id is free. Anything else
+  // (no answer, a 5xx, a 200 whose body held no definition) leaves it unknown; nothing is
+  // written, so it is a refusal in a true sentence, never `unconfirmed`.
+  for (const [label, answer] of [
+    ['no answer', { ok: false, status: null, error: 'offline' }],
+    ['a 500', { ok: false, status: 500, error: 'The server could not read this indicator (500).' }],
+    ['a 200 without the definition', { ok: false, status: 200, error: 'The server answered without the definition.' }],
+  ]) {
+    it(`Undo of a delete whose first read gets ${label} is refused in its own words, and nothing is written`, async () => {
+      const srv = fakeServer()
+      const p = planDefinitionAction({ op: 'delete', defId: MINE }, ctx({ charts: [] }))
+      const done = await executeDefinitionAction(p.plan, ctx({ charts: [] }), srv)
+      expect(done.status).toBe('confirmed')
+      srv.read = async () => answer
+      const undone = await undoDefinitionAction(done.undo, ctx(), srv)
+      expect(undone).toEqual({ ok: false, reason: 'restore-conflict', detail: { why: 'UCT could not check whether that indicator already exists' } })
+      expect(srv.calls.some((c) => c[0] === 'save')).toBe(false)
+      expect(srv.rows.get(MINE).live).toBe(false)
+    })
+  }
+  it('control: Undo of a delete whose first read finds the indicator live keeps its own sentence', async () => {
+    const srv = fakeServer()
+    const p = planDefinitionAction({ op: 'delete', defId: MINE }, ctx({ charts: [] }))
+    const done = await executeDefinitionAction(p.plan, ctx({ charts: [] }), srv)
+    srv.rows.get(MINE).live = true
+    expect(await undoDefinitionAction(done.undo, ctx(), srv)).toEqual({ ok: false, reason: 'restore-conflict', detail: { why: 'the definition is live again' } })
+    expect(srv.calls.some((c) => c[0] === 'save')).toBe(false)
+  })
   it('a token from another contract, or a stale definition version, is refused', async () => {
     expect(await executeDefinitionAction({ contract: 'uct.indicators.mutation/1', op: 'delete', defId: MINE }, ctx(), fakeServer())).toMatchObject({ ok: false, reason: 'bad-request' })
     const p = planDefinitionAction({ op: 'delete', defId: MINE }, ctx({ charts: [] }))

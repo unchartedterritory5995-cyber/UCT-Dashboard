@@ -360,7 +360,11 @@ export async function undoDefinitionAction(undo, ctx = {}, deps = {}) {
   if (undo.op === 'delete') {
     const now = await read(undo.defId)
     if (now.ok) return refuse(REASONS.RESTORE_CONFLICT, { why: 'the definition is live again' })
-    if (now.status !== 404) return { status: REASONS.UNCONFIRMED, reason: REASONS.UNCONFIRMED, receipt: { ...base, status: REASONS.UNCONFIRMED }, error: now.error }
+    // ⛔ F-15 follow-up — only a 404 says the id is free. Any other answer (no answer, a 5xx, a
+    // 403, or a 200 whose body held no definition: `readUserDefinition` returns that as not ok)
+    // leaves it unknown, and nothing has been written yet, so this is a REFUSAL. As `unconfirmed`
+    // the member read "UCT could not read it back", which named a read-back that never happened.
+    if (now.status !== 404) return refuse(REASONS.RESTORE_CONFLICT, { why: 'UCT could not check whether that indicator already exists' })
     // ⭐ F-15 — a stamped document is only restored WITH its script: the save door drops a
     // stamp it cannot check against one. An undo record without the script (made before
     // this fix, or edited) cannot be exact, so it is refused before anything is written.

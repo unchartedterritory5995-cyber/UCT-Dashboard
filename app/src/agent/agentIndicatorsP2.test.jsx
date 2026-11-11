@@ -271,6 +271,23 @@ describe('definition.* — uct.indicators.definitions/1', () => {
     expect(deleted).toBe(false)
     expect(srv.rows.get(MINE).live).toBe(true)
   })
+  // ⛔ F-15 follow-up — Undo's first read fails (not a 404): nothing is written, and the member
+  // no longer reads "UCT could not read it back" (there was no read-back)
+  it('F-15: an Undo whose first read fails is refused in its own words (the exact text the member reads)', async () => {
+    const srv = server()
+    setDefinitionDeps(srv)
+    const b = board()
+    const { res } = await run(b.host, [{ action: 'definition.delete', target: 'definitions', args: { defId: MINE } }], lib)
+    expect(srv.rows.get(MINE).live).toBe(false)
+    let saved = false
+    srv.read = async () => ({ ok: false, status: 503, error: 'The server could not read this indicator (503).' })
+    srv.save = async () => { saved = true; return { ok: true } }
+    const back = await undoEntry(b.host, res.undo)
+    expect(back.ok).toBe(false)
+    expect(back.reason).toBe('Your indicators could not be undone (It can’t be restored exactly: UCT could not check whether that indicator already exists). Nothing was undone.')
+    expect(saved).toBe(false)
+    expect(srv.rows.get(MINE).live).toBe(false)
+  })
   it('F-15: an Undo that cannot be exact says WHY, each fact once (the exact text the member reads)', async () => {
     const srv = server()
     const row = srv.rows.get(MINE)
