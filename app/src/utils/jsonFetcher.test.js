@@ -181,7 +181,6 @@ export const STILL_UNCHECKED = [
   'pages/modelbook/SetupsView.jsx',
   'pages/modelbook/builder/BuilderView.jsx',
   'pages/modelbook/builder/UpbEntryPage.jsx',
-  'utils/prefetchBars.js',
 ]
 
 // ── the sweep ───────────────────────────────────────────────────────────────

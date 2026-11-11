@@ -25,7 +25,8 @@ copy it back into `worker.js` in the same change.
 | `/api/bars/US:*`, `NASDAQ:*`, `NYSE:*` (namespaced breadth) | `WEB_ORIGIN` — **any ticker containing a colon**. Added 2026-09-16: the Library is one metric across universes, so `pct_above_50sma` is `UCTA50` *and* `US:A50`, and only the first starts with `UCT`. Until this, `US:A50` was forwarded to the tier — whose breadth DB is 16 KB and empty — and answered `symbol_not_carried`, while the same symbol returned a proper 401 on `WEB_ORIGIN`. |
 | `/api/bars/<symbol>` | `BARS_ORIGIN` (bars-api tier) |
 | anything else | passed through untouched to the zone's default origin (web) |
-| tier returns >= 500, or times out (8 s) | falls back to `WEB_ORIGIN` |
+| tier network error, times out (8 s), 502/504, or any non-deliberate 5xx | falls back to `WEB_ORIGIN` |
+| tier DELIBERATE 503 + Retry-After (`X-Bars-Shed: warming`/`warm-shed`, or a `warming` body) | passes to the browser, `X-Bars-Edge: tier` |
 
 **The fallback does not cover 401/403.** Those pass straight to the member. That
 is why the tier gate was a visible outage rather than a silent degradation.

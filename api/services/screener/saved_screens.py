@@ -719,6 +719,32 @@ def _starter_defs():
          "description": "Stocks that doubled in eight weeks, then held within 20% of the high",
          "spec": {"filters": [{"key": "base_structure", "op": "contains", "value": ",power-play,"}],
                   "view": "bases", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        # ── Anticipation: the firm's TC2000 column (Pradeep Bonde / Stockbee), row for row ──
+        #   Price History > 3                                        -> price > 3
+        #   (c/c5>=1.13 and c>3) or (c/c5>1.06 and c>50)  Is True    -> the any-of group
+        #   MinV3.1>600000  Is True                                  -> min_volume_3d_prior > 600K
+        #   Price History above Avg 50                               -> above_50sma (close > SMA50)
+        #   Capitalization > 250   (TC2000 counts it in MILLIONS)    -> market_cap > $250M
+        # ⛔ THE THRUST ROW IS ONE GROUP. Its `or` has no outer brackets in TC2000; flattened
+        # into the AND list it would let a stock pass on the first branch with the price,
+        # volume and cap rows unchecked. The same reading as `pcf.readConditionRows`.
+        # `chg_pct_1w` is close vs the close 5 sessions back, i.e. `c/c5`, as a percent.
+        # Needs SCREENER_LOGIC_ENABLED (armed on production; with it off the screen is refused
+        # with a sentence, never run without its thrust clause).
+        {"id": "starter_anticipation", "name": "Anticipation",
+         "group": "Momentum leaders",
+         "description": "Stocks up 13%+ in 5 days (6%+ over $50), price over $3, 600K+ shares on 3 prior days, above 50 day, market cap $250M+",
+         "spec": {"filters": [
+             {"key": "price", "op": "gt", "min": 3},
+             {"key": "min_volume_3d_prior", "op": "gt", "min": 600_000},
+             {"key": "above_50sma", "op": "eq", "value": 1},
+             {"key": "market_cap", "op": "gt", "min": 250_000_000}],
+          "logic": {"any": [
+             {"all": [{"key": "chg_pct_1w", "op": "gte", "min": 13},
+                      {"key": "price", "op": "gt", "min": 3}]},
+             {"all": [{"key": "chg_pct_1w", "op": "gt", "min": 6},
+                      {"key": "price", "op": "gt", "min": 50}]}]},
+          "view": "performance", "sort": {"key": "chg_pct_1w", "dir": "desc"}}},
         {"id": "starter_stage2_breakout", "name": "Stage-2 breakouts",
          "group": "Breakouts & entries",
          "description": "Stocks that broke the last swing high above a flat or rising 30 week average",
