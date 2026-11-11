@@ -114,7 +114,7 @@ export function registerDrawingOps(common, { registerCapability, byId, notFound,
     hints: 'target = the drawings entry; drawing = the position\'s id; levels = any of "entry", "stop", "target" ("all three" / "all its alerts" = all three). The member does not choose the side — never ask. A line, ray or Fibonacci is drawing.setAlert.',
     args: { type: 'object', properties: {
       drawing: { type: 'string' },
-      levels: { type: 'array', items: { type: 'string', enum: POSITION_LEVEL_NAMES }, minItems: 1, maxItems: 3 },
+      levels: { type: 'array', items: { type: 'string', enum: POSITION_LEVEL_NAMES } },
     }, required: ['drawing', 'levels'], additionalProperties: false },
     prepare,
     check(st, args, env) { return plan(st, args, env).why || null },

@@ -5339,9 +5339,7 @@
         "stop",
         "target"
        ]
-      },
-      "minItems": 1,
-      "maxItems": 3
+      }
      }
     },
     "required": [
