@@ -2326,12 +2326,12 @@
    "q": "What do you take?",
    "story": "The market reads Red. At 9:35 four drives fire at once, each with a clean first bar and heavy volume.",
    "choices": [
-    "None; Red means no drives",
+    "Zero; Red means no drives",
     "The best one, at half size",
     "All four; the setups are clean"
    ],
-   "answer": "None; Red means no drives",
-   "why": "None. Red means no drives, however clean. On 2026-10-06 four strict drives fired and all were stopped: the drives were real for five minutes and the market was not.",
+   "answer": "Zero; Red means no drives",
+   "why": "Zero. Red means no drives, however clean. On 2026-10-06 four strict drives fired and all were stopped: the drives were real for five minutes and the market was not.",
    "lesson_line": "Read the market first. A clean drive in a Red market is a loss waiting to happen.",
    "facts": [
     "c20",

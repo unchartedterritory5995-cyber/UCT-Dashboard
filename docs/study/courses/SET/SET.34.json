@@ -855,13 +855,13 @@
    "criterion": "go.market_reading",
    "q": "On a Red market reading, how many Go Signals do we take?",
    "choices": [
-    "None",
+    "Zero",
     "Only the A plus ones",
     "Half size on each",
     "As many as show up"
    ],
-   "answer": "None",
-   "why": "None. The card asks for a Green market reading, allows Orange only for A+, and takes none on Red.",
+   "answer": "Zero",
+   "why": "Zero. The card asks for a Green market reading, allows Orange only for A+, and takes none on Red.",
    "lesson_line": "Green, yes. Orange, A plus. Red, none.",
    "facts": [
     "g14",
@@ -872,7 +872,8 @@
     "Half size on each": "Smaller size is the Yellow reading. Red is none.",
     "As many as show up": "The market reading limits the book. Red means mostly cash."
    },
-   "house": true
+   "house": true,
+   "story": null
   },
   {
    "key": "q10",

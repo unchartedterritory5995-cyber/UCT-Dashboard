@@ -1893,428 +1893,429 @@
               "id": "SET.08",
               "title": "Bull Flag",
               "skills": [
-                "setup.family1.bull_flag"
+                "setup.bull_flag"
               ],
               "lessons": [
                 "uct-method:bull-flag-the-flagpole-the-quiet-drift-and-the-trendline-break"
               ],
               "modules": [
-                "M7"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 80,
-              "setup": "Bull Flag"
+              "supply": "authored",
+              "est_questions": 62,
+              "course_file": "docs/study/courses/SET/SET.08.json"
             },
             {
               "id": "SET.09",
-              "title": "Cup & Handle",
+              "title": "Cup with Handle",
               "skills": [
-                "setup.family1.cup_handle"
+                "setup.cup_handle"
               ],
               "lessons": [
                 "uct-method:cup-handle-the-multi-week-base-and-the-handle-s-low-volume-shakeout"
               ],
               "modules": [
-                "M7"
+                "SET"
               ],
-              "supply": "none",
-              "est_questions": 40,
-              "setup": "Cup & Handle"
+              "supply": "authored",
+              "est_questions": 67,
+              "course_file": "docs/study/courses/SET/SET.09.json"
             },
             {
               "id": "SET.10",
               "title": "IPO Base",
               "skills": [
-                "setup.family1.ipo_base"
+                "setup.ipo_base"
               ],
               "lessons": [
                 "uct-method:ipo-base-a-new-issue-s-first-consolidation-short-shallow-explosive"
               ],
               "modules": [
-                "M7"
+                "SET"
               ],
-              "supply": "none",
-              "est_questions": 40,
-              "setup": "IPO Base"
+              "supply": "authored",
+              "est_questions": 58,
+              "course_file": "docs/study/courses/SET/SET.10.json"
             },
             {
               "id": "SET.11",
               "title": "Launchpad",
               "skills": [
-                "setup.family1.launchpad"
+                "setup.launchpad"
               ],
               "lessons": [
                 "uct-method:launchpad-consolidating-on-top-of-the-stacked-averages-then-launching"
               ],
               "modules": [
-                "M7"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 80,
-              "setup": "Launchpad"
+              "supply": "authored",
+              "est_questions": 62,
+              "course_file": "docs/study/courses/SET/SET.11.json"
             },
             {
               "id": "SET.12",
               "title": "VCP",
               "skills": [
-                "setup.family1.vcp"
+                "setup.vcp"
               ],
               "lessons": [],
-              "modules": [],
-              "supply": "good",
-              "est_questions": 120,
-              "lesson_door": "uct-method:flagship-flat-base-breakout-contractions-dry-up-pivot-and-the-tick-exact-buy",
-              "setup": "VCP"
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 59,
+              "course_file": "docs/study/courses/SET/SET.12.json"
             },
             {
               "id": "SET.13",
               "title": "High Tight Flag",
               "skills": [
-                "setup.family1.high_tight_flag"
+                "setup.high_tight_flag"
               ],
               "lessons": [],
-              "modules": [],
-              "supply": "good",
-              "est_questions": 100,
-              "lesson_door": "uct-method:bull-flag-the-flagpole-the-quiet-drift-and-the-trendline-break",
-              "setup": "High Tight Flag"
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 67,
+              "course_file": "docs/study/courses/SET/SET.13.json"
             },
             {
               "id": "SET.14",
               "title": "20 EMA Pullback",
               "skills": [
-                "setup.family2.ema20_pullback"
+                "setup.ema20_pullback"
               ],
               "lessons": [
                 "uct-method:flagship-20-ema-pullback-qualify-the-touch-buy-the-9-ema-remount"
               ],
               "modules": [
-                "M8"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 100,
-              "setup": "20 EMA Pullback"
+              "supply": "authored",
+              "est_questions": 66,
+              "course_file": "docs/study/courses/SET/SET.14.json"
             },
             {
               "id": "SET.15",
               "title": "EMA Crossback",
               "skills": [
-                "setup.family2.ema_crossback"
+                "setup.ema_crossback"
               ],
               "lessons": [
                 "uct-method:ema-crossback-the-re-entry-after-the-extension"
               ],
               "modules": [
-                "M8"
+                "SET"
               ],
-              "supply": "thin",
-              "est_questions": 50,
-              "setup": "EMA Crossback"
+              "supply": "authored",
+              "est_questions": 60,
+              "course_file": "docs/study/courses/SET/SET.15.json"
             },
             {
               "id": "SET.16",
               "title": "Wedge Pop",
               "skills": [
-                "setup.family2.wedge_pop"
+                "setup.wedge_pop"
               ],
               "lessons": [
                 "uct-method:wedge-pop-wedge-drop-one-coil-two-resolutions"
               ],
               "modules": [
-                "M8"
+                "SET"
               ],
-              "supply": "thin",
-              "est_questions": 50,
-              "setup": "Wedge Pop"
+              "supply": "authored",
+              "est_questions": 65,
+              "course_file": "docs/study/courses/SET/SET.16.json"
             },
             {
               "id": "SET.17",
               "title": "Wedge Drop",
               "skills": [
-                "setup.family2.wedge_drop"
+                "setup.wedge_drop"
               ],
               "lessons": [
                 "uct-method:wedge-pop-wedge-drop-one-coil-two-resolutions"
               ],
               "modules": [
-                "M8"
+                "SET"
               ],
-              "supply": "thin",
-              "est_questions": 40,
-              "setup": "Wedge Drop"
+              "supply": "authored",
+              "est_questions": 67,
+              "course_file": "docs/study/courses/SET/SET.17.json"
             },
             {
               "id": "SET.18",
               "title": "Episodic Pivot",
               "skills": [
-                "setup.family3.episodic_pivot"
+                "setup.episodic_pivot"
               ],
               "lessons": [
                 "uct-method:flagship-episodic-pivot-day-one-of-a-new-trend"
               ],
               "modules": [
-                "M9"
+                "SET"
               ],
-              "supply": "good",
-              "est_questions": 120,
-              "setup": "Episodic Pivot"
+              "supply": "authored",
+              "est_questions": 62,
+              "course_file": "docs/study/courses/SET/SET.18.json"
             },
             {
               "id": "SET.19",
               "title": "Power Earnings Gap",
               "skills": [
-                "setup.family3.power_earnings_gap"
+                "setup.power_earnings_gap"
               ],
               "lessons": [
                 "uct-method:power-earnings-gap-institutions-repricing-in-real-time"
               ],
               "modules": [
-                "M9"
+                "SET"
               ],
-              "supply": "good",
-              "est_questions": 100,
-              "setup": "Power Earnings Gap"
+              "supply": "authored",
+              "est_questions": 56,
+              "course_file": "docs/study/courses/SET/SET.19.json"
             },
             {
               "id": "SET.20",
-              "title": "News/Earnings Gapper",
+              "title": "News Gapper",
               "skills": [
-                "setup.family3.news_gapper"
+                "setup.news_gapper"
               ],
               "lessons": [
                 "uct-method:news-earnings-gapper-trade-the-first-pullback-and-reclaim-not-the-open"
               ],
               "modules": [
-                "M9"
+                "SET"
               ],
-              "supply": "none",
-              "est_questions": 40,
-              "setup": "News/Earnings Gapper"
+              "supply": "authored",
+              "est_questions": 54,
+              "course_file": "docs/study/courses/SET/SET.20.json"
             },
             {
               "id": "SET.21",
               "title": "High Volume Edge",
               "skills": [
-                "setup.family3.hve"
+                "setup.high_volume_edge"
               ],
               "lessons": [
                 "uct-method:the-level-the-tape-remembers-high-volume-edge-gap-support"
               ],
               "modules": [
-                "M9"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 70,
-              "setup": "High Volume Edge"
+              "supply": "authored",
+              "est_questions": 68,
+              "course_file": "docs/study/courses/SET/SET.21.json"
             },
             {
               "id": "SET.22",
               "title": "Gap Support",
               "skills": [
-                "setup.family3.gap_support",
-                "setup.family3.bear_gap"
+                "setup.gap_support"
               ],
               "lessons": [
                 "uct-method:the-level-the-tape-remembers-high-volume-edge-gap-support"
               ],
               "modules": [
-                "M9"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 70,
-              "setup": "Gap Support"
+              "supply": "authored",
+              "est_questions": 51,
+              "course_file": "docs/study/courses/SET/SET.22.json"
             },
             {
               "id": "SET.23",
               "title": "Kicker Candle",
               "skills": [
-                "setup.family3.kicker"
+                "setup.kicker"
               ],
               "lessons": [
                 "uct-method:kicker-candle-the-trap-that-closes-above-yesterday-s-high"
               ],
               "modules": [
-                "M9"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 70,
-              "setup": "Kicker Candle"
+              "supply": "authored",
+              "est_questions": 69,
+              "course_file": "docs/study/courses/SET/SET.23.json"
             },
             {
               "id": "SET.24",
               "title": "2B Reversal",
               "skills": [
-                "setup.family4.two_b"
+                "setup.two_b_reversal"
               ],
               "lessons": [
                 "uct-method:2b-reversal-and-oops-its-gap-open-variant"
               ],
               "modules": [
-                "M10"
+                "SET"
               ],
-              "supply": "none",
-              "est_questions": 40,
-              "setup": "2B Reversal"
+              "supply": "authored",
+              "est_questions": 64,
+              "course_file": "docs/study/courses/SET/SET.24.json"
             },
             {
               "id": "SET.25",
               "title": "Oops Reversal",
               "skills": [
-                "setup.family4.oops"
+                "setup.oops_reversal"
               ],
               "lessons": [
                 "uct-method:2b-reversal-and-oops-its-gap-open-variant"
               ],
               "modules": [
-                "M10"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 70,
-              "setup": "Oops Reversal"
+              "supply": "authored",
+              "est_questions": 60,
+              "course_file": "docs/study/courses/SET/SET.25.json"
             },
             {
               "id": "SET.26",
-              "title": "U&R (Undercut & Rally)",
+              "title": "Undercut and Rally",
               "skills": [
-                "setup.family4.u_and_r"
+                "setup.undercut_rally"
               ],
               "lessons": [
                 "uct-method:flagship-u-r-undercut-rally-the-shakeout-you-buy"
               ],
               "modules": [
-                "M10"
+                "SET"
               ],
-              "supply": "good",
-              "est_questions": 110,
-              "setup": "U&R (Undercut & Rally)"
+              "supply": "authored",
+              "est_questions": 60,
+              "course_file": "docs/study/courses/SET/SET.26.json"
             },
             {
               "id": "SET.27",
               "title": "Slingshot",
               "skills": [
-                "setup.family4.slingshot"
+                "setup.slingshot"
               ],
               "lessons": [
                 "uct-method:slingshot-recapture-the-4-ema-of-the-highs-buy-momentum-resuming-not-the-low"
               ],
               "modules": [
-                "M10"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 70,
-              "setup": "Slingshot"
+              "supply": "authored",
+              "est_questions": 64,
+              "course_file": "docs/study/courses/SET/SET.27.json"
             },
             {
               "id": "SET.28",
               "title": "Remount",
               "skills": [
-                "setup.family4.remount"
+                "setup.remount"
               ],
               "lessons": [
                 "uct-method:remount-shake-out-below-the-line-retake-it-with-authority"
               ],
               "modules": [
-                "M10"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 80,
-              "setup": "Remount"
+              "supply": "authored",
+              "est_questions": 63,
+              "course_file": "docs/study/courses/SET/SET.28.json"
             },
             {
               "id": "SET.29",
-              "title": "Failed H&S / Rounded Top",
+              "title": "Failed Head and Shoulders / Rounded Top",
               "skills": [
-                "setup.family4.failed_hs"
+                "setup.failed_hs"
               ],
               "lessons": [
                 "uct-method:failed-h-s-rounded-top-when-the-breakdown-everyone-sees-never-comes"
               ],
               "modules": [
-                "M10"
+                "SET"
               ],
-              "supply": "thin",
-              "est_questions": 50,
-              "setup": "Failed H&S / Rounded Top"
+              "supply": "authored",
+              "est_questions": 60,
+              "course_file": "docs/study/courses/SET/SET.29.json"
             },
             {
               "id": "SET.30",
               "title": "Parabolic Long",
               "skills": [
-                "setup.family4.parabolic_long"
+                "setup.parabolic_long"
               ],
               "lessons": [
                 "uct-method:parabolic-long-riding-the-vertical-bar-by-bar"
               ],
               "modules": [
-                "M10"
+                "SET"
               ],
-              "supply": "none",
-              "est_questions": 40,
-              "setup": "Parabolic Long"
+              "supply": "authored",
+              "est_questions": 68,
+              "course_file": "docs/study/courses/SET/SET.30.json"
             },
             {
               "id": "SET.31",
               "title": "Parabolic Short",
               "skills": [
-                "setup.family4.parabolic_short"
+                "setup.parabolic_short"
               ],
               "lessons": [
                 "uct-method:parabolic-short-shorting-the-crack-of-a-3-5-day-blow-off"
               ],
               "modules": [
-                "M10"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 70,
-              "setup": "Parabolic Short"
+              "supply": "authored",
+              "est_questions": 65,
+              "course_file": "docs/study/courses/SET/SET.31.json"
             },
             {
               "id": "SET.32",
-              "title": "ORB (Opening Range Break)",
+              "title": "Opening Range Breakout",
               "skills": [
-                "setup.intraday.orb"
+                "setup.orb"
               ],
               "lessons": [
                 "uct-method:reading-the-open-orb-and-the-30-minute-pivot-two-range-break-timers"
               ],
               "modules": [
-                "M11"
+                "SET"
               ],
-              "supply": "thin",
-              "est_questions": 40,
-              "setup": "ORB (Opening Range Break)"
+              "supply": "authored",
+              "est_questions": 64,
+              "course_file": "docs/study/courses/SET/SET.32.json"
             },
             {
               "id": "SET.33",
               "title": "30-Minute Pivot",
               "skills": [
-                "setup.intraday.thirty_min_pivot"
+                "setup.thirty_minute_pivot"
               ],
               "lessons": [
                 "uct-method:reading-the-open-orb-and-the-30-minute-pivot-two-range-break-timers"
               ],
               "modules": [
-                "M11"
+                "SET"
               ],
-              "supply": "none",
-              "est_questions": 30,
-              "setup": "30-Minute Pivot"
+              "supply": "authored",
+              "est_questions": 65,
+              "course_file": "docs/study/courses/SET/SET.33.json"
             },
             {
               "id": "SET.34",
               "title": "Go Signal",
               "skills": [
-                "setup.intraday.go_signal"
+                "setup.go_signal"
               ],
               "lessons": [
                 "uct-method:go-signal-the-catalyst-gap-that-digests-into-the-9-ema-then-engulfs"
               ],
               "modules": [
-                "M11"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 60,
-              "setup": "Go Signal"
+              "supply": "authored",
+              "est_questions": 57,
+              "course_file": "docs/study/courses/SET/SET.34.json"
             },
             {
               "id": "SET.35",
@@ -2392,6 +2393,216 @@
               ],
               "supply": "good",
               "est_questions": 90
+            },
+            {
+              "id": "SET.40",
+              "title": "Inside Day",
+              "skills": [
+                "setup.inside_day"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 62,
+              "course_file": "docs/study/courses/SET/SET.40.json"
+            },
+            {
+              "id": "SET.41",
+              "title": "Trendline Break",
+              "skills": [
+                "setup.trendline_break"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 56,
+              "course_file": "docs/study/courses/SET/SET.41.json"
+            },
+            {
+              "id": "SET.42",
+              "title": "4B Setup",
+              "skills": [
+                "setup.weinstein_4b"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 56,
+              "course_file": "docs/study/courses/SET/SET.42.json"
+            },
+            {
+              "id": "SET.43",
+              "title": "Pullback to the Moving Averages",
+              "skills": [
+                "setup.ma_pullbacks"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 66,
+              "course_file": "docs/study/courses/SET/SET.43.json"
+            },
+            {
+              "id": "SET.44",
+              "title": "Holy Grail",
+              "skills": [
+                "setup.holy_grail"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 58,
+              "course_file": "docs/study/courses/SET/SET.44.json"
+            },
+            {
+              "id": "SET.45",
+              "title": "Qullamaggie Breakout and the Kell Cycle",
+              "skills": [
+                "setup.qullamaggie_kell"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 70,
+              "course_file": "docs/study/courses/SET/SET.45.json"
+            },
+            {
+              "id": "SET.46",
+              "title": "AVWAP Reclaim",
+              "skills": [
+                "setup.avwap_reclaim"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 65,
+              "course_file": "docs/study/courses/SET/SET.46.json"
+            },
+            {
+              "id": "SET.47",
+              "title": "News Failure",
+              "skills": [
+                "setup.news_failure"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 53,
+              "course_file": "docs/study/courses/SET/SET.47.json"
+            },
+            {
+              "id": "SET.48",
+              "title": "Bear Gap off the Highs",
+              "skills": [
+                "setup.bear_gap"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 50,
+              "course_file": "docs/study/courses/SET/SET.48.json"
+            },
+            {
+              "id": "SET.49",
+              "title": "Capitulation",
+              "skills": [
+                "setup.capitulation"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 62,
+              "course_file": "docs/study/courses/SET/SET.49.json"
+            },
+            {
+              "id": "SET.50",
+              "title": "Wyckoff Spring",
+              "skills": [
+                "setup.wyckoff_spring"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 52,
+              "course_file": "docs/study/courses/SET/SET.50.json"
+            },
+            {
+              "id": "SET.51",
+              "title": "Mean Reversion",
+              "skills": [
+                "setup.mean_reversion"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 65,
+              "course_file": "docs/study/courses/SET/SET.51.json"
+            },
+            {
+              "id": "SET.52",
+              "title": "Wick Play",
+              "skills": [
+                "setup.wick_play"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 62,
+              "course_file": "docs/study/courses/SET/SET.52.json"
+            },
+            {
+              "id": "SET.53",
+              "title": "Red to Green",
+              "skills": [
+                "setup.red_to_green"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 61,
+              "course_file": "docs/study/courses/SET/SET.53.json"
+            },
+            {
+              "id": "SET.54",
+              "title": "Opening Drive",
+              "skills": [
+                "setup.opening_drive"
+              ],
+              "lessons": [],
+              "modules": [
+                "SET"
+              ],
+              "supply": "authored",
+              "est_questions": 62,
+              "course_file": "docs/study/courses/SET/SET.54.json"
             }
           ]
         },

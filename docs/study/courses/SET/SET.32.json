@@ -1110,7 +1110,7 @@
   },
   "q38": {
    "status": "pass",
-   "notes": "calc 100,000 x 1% / (274.04-270.67 = 3.37) = 296.7, rounds down to 296 checked. A5 verbatim.",
+   "notes": "calc 100,000 x 1% / (274.04-270.67 = 3.37) = 296.7, rounds down to 296 checked. A5 verbatim. | Coordinator 2026-11-10: 1% risk gave 296 shares, 81% of the account, over A7's 40% cap; risk now 0.25%, 74 shares, 20.3%.",
    "fixed": false,
    "by": "checker"
   },
@@ -2220,19 +2220,19 @@
    "rung": 6,
    "format": "numeric",
    "criterion": "orb.stop",
-   "q": "Account 100,000. Risk 1%. Fill 274.04, stop 270.67. How many shares?",
-   "answer": 296,
+   "q": "Account 100,000. Risk 0.25%. Fill 274.04, stop 270.67. How many shares?",
+   "answer": 74,
    "calc": {
     "fn": "shares_from_risk",
     "args": {
      "account": 100000,
-     "risk_pct": 1,
+     "risk_pct": 0.25,
      "entry": 274.04,
      "stop": 270.67
     },
     "round": 0
    },
-   "why": "296. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size, never the other way round.",
+   "why": "74. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size, never the other way round.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
