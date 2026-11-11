@@ -11193,6 +11193,10 @@
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
      {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+     },
+     {
       "id": "indicators",
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
@@ -11513,6 +11517,10 @@
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
      {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+     },
+     {
       "id": "indicators",
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
@@ -11829,6 +11837,10 @@
      {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -12155,6 +12167,10 @@
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
      {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+     },
+     {
       "id": "indicators",
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
@@ -12470,6 +12486,10 @@
      {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -12790,6 +12810,10 @@
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
      {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+     },
+     {
       "id": "indicators",
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
@@ -13106,6 +13130,10 @@
      {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -13693,6 +13721,10 @@
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
      {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+     },
+     {
       "id": "indicators",
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
@@ -14012,6 +14044,10 @@
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
      {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+     },
+     {
       "id": "indicators",
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
@@ -14327,6 +14363,10 @@
      {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -14907,6 +14947,10 @@
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
      {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+     },
+     {
       "id": "indicators",
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
@@ -15223,6 +15267,10 @@
      {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -15810,6 +15858,10 @@
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
      {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+     },
+     {
       "id": "indicators",
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
@@ -16387,6 +16439,10 @@
      {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -16968,6 +17024,10 @@
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
      {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+     },
+     {
       "id": "indicators",
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
@@ -17284,6 +17344,10 @@
      {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -17871,6 +17935,10 @@
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
      {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+     },
+     {
       "id": "indicators",
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
@@ -18187,6 +18255,10 @@
      {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -18513,6 +18585,10 @@
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
      {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+     },
+     {
       "id": "indicators",
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
@@ -18835,6 +18911,10 @@
      {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -19161,6 +19241,10 @@
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
      {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+     },
+     {
       "id": "indicators",
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
@@ -19477,6 +19561,10 @@
      {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -19797,6 +19885,10 @@
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
      {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+     },
+     {
       "id": "indicators",
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
@@ -20112,6 +20204,10 @@
      {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -20430,6 +20526,10 @@
      {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -21008,6 +21108,10 @@
      {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -21590,6 +21694,10 @@
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
      {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+     },
+     {
       "id": "indicators",
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
@@ -22167,6 +22275,10 @@
      {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -22748,6 +22860,10 @@
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
      },
      {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+     },
+     {
       "id": "indicators",
       "title": "Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)"
      },
@@ -23063,6 +23179,10 @@
      {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
