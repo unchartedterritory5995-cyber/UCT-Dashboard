@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { vi, describe, beforeEach, afterEach } from 'vitest'
+import { vi, describe, test, expect, beforeEach, afterEach } from 'vitest'
 import { pickComparisonColor } from '../../components/chart/comparisonUtils'
 import CompareSymbolsPanel from './CompareSymbolsPanel'
 
