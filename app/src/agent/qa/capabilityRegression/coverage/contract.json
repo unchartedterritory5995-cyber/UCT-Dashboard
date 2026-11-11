@@ -652,6 +652,19 @@
    ],
    "fast": false
   },
+  "chartSetup.zoom": {
+   "domain": "chartSetup",
+   "group": "chartView",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "coach.consent": {
    "domain": "coach",
    "group": "coach",

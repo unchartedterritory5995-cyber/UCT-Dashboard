@@ -149,6 +149,8 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     watchlistShow: ['put my flagged list in the watchlist widget', 'export my momentum list to excel', 'make the price column wider in the watchlist'],
     // #1073: chartSetup.compareGroup's own words — a compare/remove verb governing the group noun, or a group noun with its overlay/scale
     compareGroups: ['compare this chart with the semiconductor industry group', 'remove the energy sector from this chart', 'set the software theme overlay to a percent scale'],
+    // pl-zoom (C1-028): chartSetup.zoom's own words — zoom + a direction, closer / tighter on the chart, a wider view of it, more / fewer bars
+    chartView: ['zoom in on this chart', 'zoom the AMD chart out', 'zoom out a lot', 'zoom all the way in', 'get a closer look at the candles', 'give me a wider view of the chart', 'show me fewer bars'],
   }
   it('there is a words-only group, and every one has phrases of its own words here', () => {
     expect(wordsOnly.length).toBeGreaterThan(0)
@@ -164,5 +166,13 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
   it.each(wordsOnly.flatMap(g => (OWN_WORDS[g.id] || []).map(m => [g.id, m])))('%s on its own words: "%s"', (id, msg) => {
     expect(wordsSelect(id, msg)).toBe(true)
     expect(sentOf(msg).has(id)).toBe(true)
+  })
+  // pl-zoom NEGATIVE controls: "zoom" that names no direction on a chart (a company, a meeting, the Reset view words, a range
+  // pill) and "closer" / "wider" that are not about the chart's bars never select chartView, in v1 or in the v2 first call
+  it.each(['how did Zoom Video do last quarter', 'pull up ZM', 'zoom earnings date', 'reset the zoom', 'reset zoom on this chart', 'zoom to 1y',
+    'zoominfo stock', 'zoom into the semis theme', 'make the chart wider', 'take a closer look at NVDA earnings', 'show more history', 'is ZM in an uptrend'])
+  ('"%s": chartView is not selected', (msg) => {
+    expect(wordsSelect('chartView', msg)).toBe(false)
+    expect(sentOf(msg).has('chartView')).toBe(false)
   })
 })

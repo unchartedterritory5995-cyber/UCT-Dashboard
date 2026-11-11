@@ -52,7 +52,7 @@ describe('the core', () => {
     expect(coreOf(f)).toEqual(NL1_CORE_GROUPS)
     const core = f.filter(c => NL1_CORE_GROUPS.includes(groupOfAction(c.name)))
     expect(core.length).toBeLessThanOrEqual(NL1_CORE_MAX)
-    expect(core.length).toBe(37)                                      // charts 16 (NL1_MOVED_FROM_CORE: the 5 chart-tab actions ride with workspace) + indicators 12 + screener 8 + agent 1
+    expect(core.length).toBe(37)                                      // pl-zoom: master 37 + 0 (chartSetup.zoom is in chartView, not the core) = 37. charts 16 (NL1_MOVED_FROM_CORE: the 5 chart-tab actions ride with workspace) + indicators 12 + screener 8 + agent 1
     const s = selectNl1(f, { text: 'hello' })
     expect(s.core).toEqual(NL1_CORE_GROUPS)
     invariants(f, s)

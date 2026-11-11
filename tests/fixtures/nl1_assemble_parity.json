@@ -146,6 +146,7 @@
   "chartSetup.resetView": "chartSetup",
   "chartSetup.openSettings": "chartSetup",
   "chartSetup.stepBars": "boardEdit",
+  "chartSetup.zoom": "chartView",
   "chartSetup.autoScale": "boardEdit",
   "chartSetup.setIndicatorsHidden": "chartSetup",
   "chartSetup.setMovingAverages": "chartSetup",
@@ -268,6 +269,10 @@
   {
    "id": "guide",
    "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+  },
+  {
+   "id": "chartView",
+   "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
   }
  ],
  "cases": [
@@ -415,6 +420,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      }
     ],
     "selected": [
@@ -580,6 +589,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      }
     ],
     "selected": [
@@ -759,6 +772,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      }
     ],
     "selected": [
@@ -948,6 +965,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      }
     ],
     "selected": [
@@ -1109,6 +1130,10 @@
      {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
      }
     ],
     "selected": [
@@ -1146,7 +1171,8 @@
     "agent",
     "undo",
     "watchlistShow",
-    "guide"
+    "guide",
+    "chartView"
    ],
    "names": [
     "chart.setType",
@@ -1288,6 +1314,7 @@
     "chartSetup.resetView",
     "chartSetup.openSettings",
     "chartSetup.stepBars",
+    "chartSetup.zoom",
     "chartSetup.autoScale",
     "chartSetup.setIndicatorsHidden",
     "chartSetup.setMovingAverages",
