@@ -64,9 +64,18 @@ export default function useRealtimeBarPrices(symbols = [], maxSymbols = 50) {
       requestAnimationFrame(flush)
     }
 
+    // Newest bar time seen per symbol: the pooled stream (protocol v2) may deliver a
+    // FINAL correction for an already-closed minute after the next one started — an
+    // older frame must never roll the live price back.
+    const newestT = {}
     const unsubs = syms.map((sym) =>
       barsStreamManager.subscribe(sym, '1', {
         onBar: (data) => {
+          const t = data?.bar?.t
+          if (Number.isFinite(t)) {
+            if (newestT[sym] != null && t < newestT[sym]) return
+            newestT[sym] = t
+          }
           // T ticks update the developing bar's close; A/AM refine it. Either way
           // bar.c is the freshest trade price. (A pure-trade payload, if it ever
           // arrives here, exposes it as trade.p.)

@@ -21,8 +21,11 @@ const BARS = declareNeed({ kind: 'bars', delivery: DELIVERY.LAST_VALUE_WINS })
  *   healthy    — connected AND a bar/heartbeat arrived within the watchdog window
  *   delivering — healthy AND a real bar for THIS (sym,tf) has arrived (so the chart
  *                only suppresses the Finnhub writers once push is PROVEN live)
+ *
+ * `session` ('rth'|'eth') is the chart's session mode: the server aligns 60m buckets
+ * to it (RTH 9:30-aligned, ETH clock hours), so toggling it re-subscribes.
  */
-export default function useRealtimeBars({ symbol, tf, onBar, onReconnect }) {
+export default function useRealtimeBars({ symbol, tf, session = 'rth', onBar, onReconnect }) {
   const enabled = import.meta.env.VITE_REALTIME_BARS === '1' && !!symbol && !!tf
   const [status, setStatus] = useState({ connected: false, healthy: false, delivering: false })
   const onBarRef = useRef(onBar)
@@ -41,7 +44,7 @@ export default function useRealtimeBars({ symbol, tf, onBar, onReconnect }) {
     // Bail when nothing changed so the pool's every-10s re-notify (which drives the
     // delivering recency gate) doesn't re-render a chart whose liveness is unchanged.
     const refresh = () => setStatus((prev) => {
-      const next = BARS.read(symbol, tf)
+      const next = BARS.read(symbol, tf, session)
       return (prev.connected === next.connected && prev.healthy === next.healthy && prev.delivering === next.delivering)
         ? prev : next
     })
@@ -56,10 +59,11 @@ export default function useRealtimeBars({ symbol, tf, onBar, onReconnect }) {
         }
       },
       onStatus: refresh,
+      session,
     })
     refresh()
     return () => unsub()
-  }, [enabled, symbol, tf])
+  }, [enabled, symbol, tf, session])
 
   return {
     connected: status.connected,

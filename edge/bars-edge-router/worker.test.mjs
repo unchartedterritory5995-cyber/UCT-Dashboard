@@ -16,7 +16,7 @@ import assert from "node:assert/strict";
 import worker, {
   classifyRequest, SERVICE_VALID, SERVICE_EXPIRED, SERVICE_INVALID,
   classifyToken, readCookie, stripEdgeCookie,
-  VALID, MISSING, EXPIRED, INVALID,
+  VALID, MISSING, EXPIRED, INVALID, isDeliberateTierShed,
 } from "./worker.js";
 
 const SECRET = "test-edge-secret";
@@ -472,5 +472,73 @@ test("⛔ the indicator list is EXACT — near-misses still reach the tier", asy
   for (const sym of ["VIX", "VIX1D", "SKEWED", "NAAI", "RV", "VX"]) {
     const to = await routeOf(`/api/bars/${sym}`);
     assert.ok(to.startsWith(BARS), `${sym} went to ${to} — it must reach the tier`);
+  }
+});
+
+// ── tier 5xx classification — a deliberate shed is an ANSWER (2026-11-10) ───
+
+/** Run the worker with the TIER answering `tierResponse()` (or throwing); web answers 200. */
+async function runTier(tierResponse) {
+  const calls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (input) => {
+    const url = typeof input === "string" ? input : input.url;
+    calls.push(url);
+    if (url.startsWith(BARS)) return tierResponse();
+    return new Response('{"bars":[{"time":1}]}', { status: 200 });
+  };
+  try {
+    const req = new Request("https://uctintelligence.com/api/bars/SOFI?tf=1&bars=600");
+    const res = await worker.fetch(req, { CHART_EDGE_SECRET: SECRET });
+    return { calls, res };
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}
+
+const json503 = (body, headers = {}) => () => new Response(JSON.stringify(body),
+  { status: 503, headers: { "content-type": "application/json", ...headers } });
+
+test("⭐⭐ a tier WARMING 503 + Retry-After goes straight to the browser, tier-stamped", async () => {
+  for (const [name, mk] of Object.entries({
+    "header warming": json503({ bars: [], error: "warming" }, { "Retry-After": "3", "X-Bars-Shed": "warming" }),
+    "header warm-shed": json503({ bars: [], warming: true }, { "Retry-After": "4", "X-Bars-Shed": "warm-shed" }),
+    "legacy body error=warming": json503({ bars: [], error: "warming" }, { "Retry-After": "3" }),
+    "legacy body warming=true": json503({ bars: [], warming: true }, { "Retry-After": "4" }),
+  })) {
+    const { calls, res } = await runTier(mk);
+    assert.equal(calls.length, 1, `${name}: re-asked web — ${calls.join(", ")}`);
+    assert.equal(res.status, 503, name);
+    assert.equal(res.headers.get("X-Bars-Edge"), "tier", name);
+    assert.equal(res.headers.get("Retry-After") !== null, true, name);
+    const body = await res.json();          // body survives the classification read
+    assert.deepEqual(body.bars, [], name);
+  }
+});
+
+test("⛔ real tier failures still fall back to WEB_ORIGIN", async () => {
+  for (const [name, mk] of Object.entries({
+    "502": () => new Response("bad gateway", { status: 502 }),
+    "504": () => new Response("timeout", { status: 504 }),
+    "500 crash": () => new Response("{}", { status: 500 }),
+    "503 fault transient": json503({ bars: [], error: "transient" }, { "Retry-After": "5" }),
+    "503 fault malformed": json503({ bars: [], error: "malformed" }, { "Retry-After": "30" }),
+    "503 warming body but NO Retry-After": json503({ bars: [], error: "warming" }),
+    "503 unknown shed tag": json503({ bars: [], error: "warming" }, { "Retry-After": "3", "X-Bars-Shed": "other" }),
+    "503 non-JSON": () => new Response("<html>", { status: 503, headers: { "Retry-After": "3" } }),
+    "network error": () => { throw new TypeError("network"); },
+  })) {
+    const { calls, res } = await runTier(mk);
+    assert.equal(calls.length, 2, `${name}: did not fall back`);
+    assert.ok(calls[1].startsWith(WEB), name);
+    assert.equal(res.status, 200, name);
+    assert.equal(res.headers.get("X-Bars-Edge"), "web-fallback", name);
+  }
+});
+
+test("isDeliberateTierShed ignores non-503 statuses", async () => {
+  for (const s of [200, 404, 500, 502, 504]) {
+    const r = new Response('{"error":"warming"}', { status: s, headers: { "Retry-After": "3", "X-Bars-Shed": "warming" } });
+    assert.equal(await isDeliberateTierShed(r), false, String(s));
   }
 });

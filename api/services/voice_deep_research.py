@@ -22,6 +22,7 @@ output). Latency: 5-9s total. Only triggered when voice Compass decides
 the question warrants deep research.
 """
 
+from api.services import llm_models
 import logging
 import os
 import time
@@ -32,7 +33,7 @@ from api.services.cache import TTLCache
 
 _log = logging.getLogger(__name__)
 
-_CLAUDE_MODEL = os.environ.get("DEEP_RESEARCH_MODEL", "claude-sonnet-4-6")
+_CLAUDE_MODEL = os.environ.get("DEEP_RESEARCH_MODEL", llm_models.SONNET)
 _CLAUDE_TIMEOUT = 30
 _FETCH_TIMEOUT = 12
 
@@ -241,6 +242,7 @@ def _call_claude(bundle_text: str) -> dict[str, Any]:
         resp = client.messages.create(
             model=_CLAUDE_MODEL,
             max_tokens=600,
+            **llm_models.plain(_CLAUDE_MODEL),
             system=_SYNTHESIS_SYSTEM,
             messages=[{"role": "user", "content": bundle_text}],
         )
