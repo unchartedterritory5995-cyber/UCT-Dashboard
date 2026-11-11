@@ -152,7 +152,7 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     expect(wordsOnly.length).toBeGreaterThan(0)
     for (const g of wordsOnly) expect(OWN_WORDS[g.id]?.length, `${g.id}: add phrases of its own words to OWN_WORDS`).toBeGreaterThan(0)
   })
-  // requests v1 does not recognise, on which v2's fill is on (each sent watchlistShow on master a15b666119)
+  // requests v1 does not recognise, on which v2's fill is on (all but "hmm" sent watchlistShow on master a15b666119)
   it.each(['flip to AMD', 'lose the gridlines', 'any articles on RIVN lately', 'show me the leaders', 'both', 'whats the RS on this', 'hmm'])
   ('"%s": the v2 first call carries no words-only group', (msg) => {
     const sent = sentOf(msg)
