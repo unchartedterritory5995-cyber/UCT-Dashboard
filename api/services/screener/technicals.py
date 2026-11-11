@@ -535,6 +535,9 @@ _WINDOW_BARS = {
     "run_ema9_ema20": 10 ** 9, "run_sma20_sma50": 10 ** 9, "run_sma50_sma200": 10 ** 9,
     "sma20_rising": 40, "sma50_rising": 70, "sma200_rising": 220,
     "avg_volume_10d": 10, "avg_volume_50d": 50, "vol_trend_pct": 20, "min_volume_3d_prior": 4,
+    # live-tier bases (see `scan_primitives`): each READS the bars from its base to the newest.
+    "live_base_close_1w": 5, "live_base_close_1m": 21, "live_base_close_1y": 252,
+    "live_base_min_volume_3d": 3,
     "vol_up_run": 10 ** 9, "vol_down_run": 10 ** 9,
     "new_high_lookback": 253, "new_low_lookback": 253, "breakout_20d_age": 83,
     "high_52w_age": 252, "low_52w_age": 252,
@@ -566,6 +569,9 @@ SCAN_PRIMITIVE_COLUMNS = (
     "min_volume_3d_prior",
     "new_high_lookback", "new_low_lookback", "breakout_20d_age", "high_52w_age", "low_52w_age",
 )
+#: Also written by `scan_primitives`, but NOT filters: the session-shifted levels `live_tier` restates
+#: the 5-day/1-month/1-year change and MINV3.1 from during the next session (see the comment there).
+LIVE_BASE_COLUMNS = ("live_base_close_1w", "live_base_close_1m", "live_base_close_1y", "live_base_min_volume_3d")
 #: The longest "N-day high" `new_high_lookback` can state: a trading year.
 LOOKBACK_CAP = 252
 #: `breakout_20d_age` looks this many sessions back (a quarter) and is blank past it.
@@ -663,6 +669,20 @@ def scan_primitives(bars, closes, ipo_date=None) -> dict:
     out["min_volume_3d_prior"] = (min(prior3) if len(prior3) == 3 and all(v is not None for v in prior3)
                                   else None)
 
+    # LIVE-TIER BASES. Not filters: the levels `live_tier` needs to restate four columns DURING the next
+    # session, when today's developing bar is "bar 0" and every lookback shifts one session later than it
+    # did at this build. Recovering them from the stored columns would give the wrong day:
+    #   chg_pct_1w at 03:00 is close / close 5 sessions back; at 10:42 tomorrow TC2000's c/c5 is the live
+    #   price / the close 4 sessions before the newest completed one, which is `closes[-5]` here.
+    # Same for 1m (`closes[-22]` -> `closes[-21]`) and 1y (`closes[-253]` -> `closes[-252]`), and for MINV3.1:
+    # tomorrow "the 3 sessions ending 1 bar ago" are the 3 newest COMPLETED sessions, `vols[-3:]`.
+    for name, back in (("live_base_close_1w", 5), ("live_base_close_1m", 21), ("live_base_close_1y", 252)):
+        base = closes[-back] if len(closes) >= back else None
+        out[name] = base if (base is not None and base > 0) else None
+    last3 = vols[-3:]
+    out["live_base_min_volume_3d"] = (min(last3) if len(last3) == 3 and all(v is not None for v in last3)
+                                      else None)
+
     out["new_high_lookback"] = out["new_low_lookback"] = None
     if len(bars) >= 2:
         prior = bars[-LOOKBACK_CAP - 1:-1][::-1]
@@ -695,7 +715,7 @@ def compute_technicals(bars: list[dict], ipo_date=None) -> dict:
         "chg_pct_1y", "chg_pct_ytd", "chg_from_open_pct", "adr_pct_1w",
         "dist_20d_high_pct", "dist_20d_low_pct", "pole_pct", "atr_ext_sma50",
         "prev_day_open", "prev_day_high", "prev_day_low", "prev_day_close", "dollar_vol_1d",
-        *SCAN_PRIMITIVE_COLUMNS)}
+        *SCAN_PRIMITIVE_COLUMNS, *LIVE_BASE_COLUMNS)}
     out["ma_stack"] = None
     out["above_50sma"] = None
     out["new_52w_high"] = False
