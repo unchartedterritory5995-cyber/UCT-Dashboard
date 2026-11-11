@@ -983,6 +983,18 @@
    "source": "d1",
    "quote": "Five of the ten have a report inside the pole (ISRG, NUS, RARE, AMD, PANW), which fits Bulkowski's earnings-flag observation",
    "claim": "Five of the ten examples had a report inside the pole."
+  },
+  {
+   "id": "r1",
+   "source": "c1",
+   "quote": "Before entry: a close under the 21-day EMA that is not reclaimed the next session.",
+   "claim": "Before entry, a close under the 21-day EMA that is not reclaimed the next session ends the flag."
+  },
+  {
+   "id": "r2",
+   "source": "c1",
+   "quote": "A short rest of 3 to 15 sessions that drifts sideways or down, gives back at most half the pole and at most 15% from the pole top",
+   "claim": "The card: a flag is a rest of 3 to 15 sessions."
   }
  ],
  "walkthroughs": [
@@ -1681,19 +1693,19 @@
    "criterion": "bf.inv_ema",
    "q": "Is the flag still on?",
    "choices": [
-    "No; two closes under the line end it",
+    "No; the close was not reclaimed",
     "Yes; the flag low still holds",
     "Yes; wait one more session"
    ],
-   "answer": "No; two closes under the line end it",
-   "why": "No. Two closes under the 21-day EMA end the flag. One close reclaimed the next session is the grey area; two is the exit from the idea.",
-   "lesson_line": "One close under the line is a question. Two is the answer.",
+   "answer": "No; the close was not reclaimed",
+   "why": "No. By our current default, a close under the 21-day EMA that is not reclaimed the next session ends the flag. Day seven closed under it again.",
+   "lesson_line": "A close under the line that is not reclaimed the next session ends the flag.",
    "facts": [
     "c10",
-    "k3"
+    "r1"
    ],
    "wrong": {
-    "Yes; the flag low still holds": "The flag low is where the idea dies later. The 21-day EMA is the line the rest must hold now.",
+    "Yes; the flag low still holds": "The flag low is not the test before entry. The rising 21-day EMA is.",
     "Yes; wait one more session": "You waited one session already. Day seven closed under it again."
    },
    "house": true,
@@ -2279,20 +2291,20 @@
    "criterion": "bf.length_weak",
    "q": "What is it now?",
    "choices": [
-    "A base; judge it as a flat base",
+    "A base, not a flag any more",
     "A bull flag, A grade",
     "A failed flag"
    ],
-   "answer": "A base; judge it as a flat base",
-   "why": "A base. Past 20 sessions our card sends the rest to the base lessons, a flat base or a VCP. Bulkowski: flags are under 3 weeks; longer patterns are rectangles. AXON's 21-session rest was judged the same way.",
-   "lesson_line": "A flag that keeps resting becomes a base. Grade it by the base's rules.",
+   "answer": "A base, not a flag any more",
+   "why": "A base. By our current default a flag rests 15 sessions at most. This pause is 21 sessions old, and Bulkowski says flags run under 3 weeks.",
+   "lesson_line": "A flag that keeps resting becomes a base. Past 15 sessions, stop calling it a flag.",
    "facts": [
-    "c06",
+    "r2",
     "b4",
     "d29"
    ],
    "wrong": {
-    "A bull flag, A grade": "Twenty-one sessions is past every flag count on our card and past Bulkowski's 3 weeks.",
+    "A bull flag, A grade": "Twenty-one sessions is past our 15-session ceiling and past Bulkowski's 3 weeks.",
     "A failed flag": "Nothing failed. It held 6.6% deep on light volume. It just stopped being a flag and became a base."
    },
    "house": true,
@@ -2530,23 +2542,23 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "bf.trigger_prev_day_high",
-   "q": "What happened to the flag's high?",
+   "q": "What kind of buy was that?",
    "choices": [
-    "Nothing; the buy came before it broke",
-    "The trade is invalid until it breaks",
-    "It must break today or you sell"
+    "An early entry on the same setup",
+    "A separate setup of its own",
+    "A buy that breaks the rules"
    ],
-   "answer": "Nothing; the buy came before it broke",
-   "why": "Nothing yet. The prior-day-high buy came before the flag's high broke; BB did the same. The flag-top break is a later trigger, not the only one.",
-   "lesson_line": "The flag's high is one trigger. The prior day's high often trades first.",
+   "answer": "An early entry on the same setup",
+   "why": "An early entry on the same setup. By our current default the flag-top break defines the flag. An earlier trigger keeps the same stop rule. BB bought at 80.41, before its 82.12 high broke.",
+   "lesson_line": "The flag-top break defines the flag. An earlier trigger is the same setup with the same stop rule.",
    "facts": [
     "d07",
     "d08",
     "c13"
    ],
    "wrong": {
-    "The trade is invalid until it breaks": "The fill was at a level that traded, from a plan. The flag top is a second level, not a condition.",
-    "It must break today or you sell": "The stop and the time stop are the exits. The flag top is not a deadline."
+    "A separate setup of its own": "By our current default it is the same flag with an earlier trigger, not a new setup.",
+    "A buy that breaks the rules": "A market order when a trigger level trades is the rule. The prior day's high is a trigger level."
    },
    "house": true,
    "story": "Four quiet days on a quarter of the pole's volume. You buy the prior-day-high break at 80.41, stop 78.66. The flag's high of 82.12 is still above you."
@@ -2755,7 +2767,10 @@
   "Brooks's bull flag (s16) is cited only so a member is not confused by the term (q56); the glossary page names no author on the page itself, and the publisher is Al Brooks's own course.",
   "The short mirror (the bear flag, dossier 8.6) is not taught here (D-001). No ETF appears in this unit.",
   "SET.08 in UNITS-method.md plans the stop under the flag low and the trendline break as the trigger; the card (bf.stop_not_flag_low, proposed; bf.stop, settled) puts the stop under the day's low and q09 teaches the difference. The unit follows the card (D-002).",
-  "Cold check 2026-11-10: 62 pass (25 fixed), 3 fix, 5 cut. Look first at: (1) q37's key broke the 40% cap (2142 shares of AMD = 72% of the account; A5 caps it), now 0.5% risk = 1071 shares; every sizing item must check the cap. (2) q27, q50, q60 held on D-047, D-045 and D-027: the two-closes EMA rule, the 20-session ceiling and the prior-day-high buy ahead of the flag top; D-047's yes/no options do not both end on two closes as the conflict above claimed. (3) q46 moved to 110% and 15 sessions so the HTF key holds under every D-048/D-049 option; q45's gap open was already past the 2R ceiling; q16 said four of ten examples rested four days (it is eight)."
+  "Cold check 2026-11-10: 62 pass (25 fixed), 3 fix, 5 cut. Look first at: (1) q37's key broke the 40% cap (2142 shares of AMD = 72% of the account; A5 caps it), now 0.5% risk = 1071 shares; every sizing item must check the cap. (2) q27, q50, q60 held on D-047, D-045 and D-027: the two-closes EMA rule, the 20-session ceiling and the prior-day-high buy ahead of the flag top; D-047's yes/no options do not both end on two closes as the conflict above claimed. (3) q46 moved to 110% and 15 sessions so the HTF key holds under every D-048/D-049 option; q45's gap open was already past the 2R ceiling; q16 said four of ten examples rested four days (it is eight).",
+  "Keyed on the adopted default of D-045 (provisional, 2026-11-10): a flag rests at most 15 sessions, so q50's 21-session pause is a base. The card's 16-to-20 B- band (bf.length_weak) and its 20-session line (bf.inv_length) sit past that default and no key uses them.",
+  "Keyed on the adopted default of D-047 (provisional, 2026-11-10): a close under the 21-day EMA that is not reclaimed the next session ends the flag, and an intraday undercut that reclaims is the buy; q27 keys it. This replaces the earlier note that both options end on two closes, which only the 'yes' option does. Under 'no', any close under ends the flag, and q27 still keys No.",
+  "Keyed on the adopted default of D-027 (provisional, 2026-11-10): the flag-top break defines the flag, and the prior-day-high buy ahead of it is an early entry on the same setup; q60 keys that. This replaces the earlier note that q60 fits every D-027 option, and the three walk-throughs that narrate prior-day-high buys should be read as early entries."
  ],
  "verify": {
   "w1": {
@@ -2933,10 +2948,10 @@
    "by": "checker"
   },
   "q27": {
-   "status": "fix",
-   "notes": "The key 'two closes under the 21-day EMA end it' is bf.inv_ema / bf.holds_21ema, both pending-owner (D-047). D-047's options are yes or no, so the conflicts note's claim that both options end on two closes does not hold: under 'no' the line may not be the disqualifier at all (Kullamagi lets a flag toe the 50-day, k3). Holds for the owner. c09 (heavy red days) was cited and does not support the key: removed.",
-   "fixed": false,
-   "by": "checker"
+   "status": "pass",
+   "notes": "Re-keyed on the adopted default of D-047 (yes: a close under the 21-day EMA not reclaimed the next session is the disqualifier; an intraday undercut and reclaim is allowed). Day six closes under and day seven closes under again, so the close was not reclaimed. Dropped Kullamagi's toe-the-50-day quote (k3), which argued the other side; added the card's inv_ema line. The old why's 'two is the exit' is replaced by the rule itself.",
+   "fixed": true,
+   "by": "resolver"
   },
   "q28": {
    "status": "pass",
@@ -3071,10 +3086,10 @@
    "by": "checker"
   },
   "q50": {
-   "status": "fix",
-   "notes": "The key 'past 20 sessions it is a base' rests on bf.inv_length, pending-owner (D-045: 15, 20 or up to 2 months). Under option C a 21-session rest is still a flag. Holds for the owner.",
-   "fixed": false,
-   "by": "checker"
+   "status": "pass",
+   "notes": "Re-keyed on the adopted default of D-045 (a flag runs at most 15 sessions; past that it is a base). The 21-session story is past 15 and past the card's 20 line, so the key holds under options A and B. Dropped 'judge it as a flat base' from the choice: the flat-base unit's own minimum length is not settled, and the key only needs 'a base'. Dropped the c06 cite (its 16-to-20 B- band sits past the default's 15). Numbers verbatim in d29/b4.",
+   "fixed": true,
+   "by": "resolver"
   },
   "q51": {
    "status": "cut",
@@ -3131,10 +3146,10 @@
    "by": "checker"
   },
   "q60": {
-   "status": "fix",
-   "notes": "The key says a prior-day-high buy ahead of the flag-top break is a normal buy. That is bf.trigger_prev_day_high, pending-owner (D-027): under option (a), the pivot break only, this buy is not taken at all. BB numbers are right. Holds for the owner.",
-   "fixed": false,
-   "by": "checker"
+   "status": "pass",
+   "notes": "Re-keyed on the adopted default of D-027 (the pivot break defines the setup; the early entries are an advanced lesson on the same setup with the same stop rule and grade cues, not separate setups). The old key said the flag top is 'not the only trigger', which only fits option c. The question now asks how to classify the prior-day-high buy, and the story already gives the buy (80.41), the stop (78.66) and the flag high (82.12). BB numbers verbatim in d07/d08.",
+   "fixed": true,
+   "by": "resolver"
   },
   "q61": {
    "status": "pass",

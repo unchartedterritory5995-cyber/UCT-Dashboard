@@ -867,6 +867,12 @@
    "source": "d1",
    "quote": "close +14.3% against the 200-day, 50-day -1.6% against it; the rule is close > 50-day > 200-day",
    "claim": "BBY: the close was 14.3% above the 200-day but the 50-day sat 1.6% under it."
+  },
+  {
+   "id": "r1",
+   "source": "c1",
+   "quote": "Volume on the trigger day: on pace for at least 1.4 times the 50-day average volume. Required for an A or A+ grade, not to take the trade.",
+   "claim": "The card: breakout volume is needed for an A or A+ grade, not to take the trade."
   }
  ],
  "walkthroughs": [
@@ -2331,25 +2337,26 @@
     "No; a planned loss on a weak day",
     "Yes; you should have sold at 1.63R",
     "Yes; the stop was too tight",
-    "Yes; never buy a dry base"
+    "Yes; light volume meant skip it"
    ],
    "answer": "No; a planned loss on a weak day",
-   "why": "No. The stop is the exit; a loss taken at plan is the system working. The day graded low: 0.5x volume and a close low in its range, the B- row.",
-   "lesson_line": "You will take this loss again. The grade told you to size it small.",
+   "why": "No. The stop is the exit, and a loss taken at the stop is the system working. By our current default, light volume lowers the grade. It does not cancel a buy made before the day's volume is known.",
+   "lesson_line": "Light volume lowers the grade, not the rule. A loss at the stop is the plan working.",
    "facts": [
     "h02",
+    "h22",
     "d20",
     "d21",
-    "c25",
+    "r1",
     "h05"
    ],
    "wrong": {
     "Yes; you should have sold at 1.63R": "The first trim is a third at 3R. Selling at 1.63R is fear, not a rule.",
     "Yes; the stop was too tight": "A few cents under the day's low is the rule. It held for six days.",
-    "Yes; never buy a dry base": "Drying volume in the base is a plus. The weak day was the breakout, not the base."
+    "Yes; light volume meant skip it": "By our current default, volume is a grading cue, not a gate. And you buy at market before the day's volume is known."
    },
    "house": true,
-   "story": "A clean six-week shelf, four taps, volume drying up. The breakout comes on 0.5x volume and closes low in its range. You bought at 206.85, stop 203.95. It reaches 1.63R, then the stop is hit on day six."
+   "story": "A clean six-week shelf, four taps, volume drying up. You buy at market as price trades through the pivot at 206.85, stop 203.95. By the close, volume is only 0.5x and it sits low in its range. It reaches 1.63R, then the stop is hit on day six."
   },
   {
    "key": "q58",
@@ -2656,7 +2663,8 @@
   "IBD's 7% to 8% sell rule (S8) is a general loss limit for any purchase, not a flat base rule; q61 contrasts it with our day's-low stop and never teaches it as ours.",
   "Sector ETFs (XLI, IYT) were called flat bases on the Substack; whether they count and whether RS 80 applies is D-018. No ETF appears in this unit.",
   "The short mirror (dossier 8.8) is not taught here (D-001).",
-  "Cold check 2026-11-10: q32, q52, q55, q60 cut as duplicates (q05, q67, q20, q28 kept); q54 cut (the XOM 'stop inside the noise' lesson has no card or rulebook rule behind it and its gap-down story contradicts B20); q57 held as fix on D-006. Numbers corrected: q27 (APH stop five cents under 70.75 = 70.70, 2.08%), q41 (the 'give it room' hole was 14%, not 10%), q64 (85.00 is not NUS's base low). The 50-over-200 half of fb.above_mas (q04, q66, q67) is the lab's rule, not B26, though the card marks it settled."
+  "Cold check 2026-11-10: q32, q52, q55, q60 cut as duplicates (q05, q67, q20, q28 kept); q54 cut (the XOM 'stop inside the noise' lesson has no card or rulebook rule behind it and its gap-down story contradicts B20); q57 held as fix on D-006. Numbers corrected: q27 (APH stop five cents under 70.75 = 70.70, 2.08%), q41 (the 'give it room' hole was 14%, not 10%), q64 (85.00 is not NUS's base low). The 50-over-200 half of fb.above_mas (q04, q66, q67) is the lab's rule, not B26, though the card marks it settled.",
+  "Keyed on the adopted default of D-006 (provisional, 2026-11-10): breakout volume is a grading cue, not a gate, so q57 keys a loss on a 0.5x-volume breakout as a planned loss. If the owner picks the gate option, a 0.5x breakout is not bought and q57 is re-keyed."
  ],
  "verify": {
   "w1": {
@@ -3014,10 +3022,10 @@
    "by": "checker"
   },
   "q57": {
-   "status": "fix",
-   "notes": "the key ('No; a planned loss on a weak day') rests on D-006 (breakout volume a grade cue, not a gate). Under the card's option (a), a 0.5x breakout is not bought at all and the loss IS a mistake, and no choice says so. Numbers verbatim (d20/d21: BHC buy 206.85, stop 203.95, 0.5x, best 1.63R, stopped day 6). Needs the owner's D-006 ruling, then either keep as is (option b) or re-key.",
-   "fixed": false,
-   "by": "checker"
+   "status": "pass",
+   "notes": "Re-keyed on the adopted default of D-006 (volume a grade cue, not a gate). The story now says the buy was a market order as price traded through the pivot, before the day's volume was known (E57). Dropped the c25 B- cite (it says closes mid-range; the story's day closed low) and the unsupported 'size it small' lesson; added the card's own line that volume is needed for the grade, not to take the trade. Replaced the weak 'never buy a dry base' choice with the gate view as a real wrong choice. Numbers unchanged and verbatim in d20/d21.",
+   "fixed": true,
+   "by": "resolver"
   },
   "q58": {
    "status": "pass",

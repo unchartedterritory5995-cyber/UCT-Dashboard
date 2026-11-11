@@ -2591,7 +2591,8 @@
   "Fills and stops in the walk-throughs and examples: the scan filled at 10 cents over the IPO high (or the open on a gap) and stopped under the lower of the breakout day's and the prior day's lows; a live market order fills a little differently.",
   "IBD's round-trip sell signal (a breakout that gives back a 10% gain, Habit 2014) and O'Neil's 8-week hold are source ideas, not house rules; nothing in this unit teaches them. MarketSmith India's 8% maximum loss (S6) is not quoted because the stop ceiling is pending (D-005). The Lifecycle Trade team's findings (Donnelly's 91% statistic) are not used because the book could not be read.",
   "Sources: MarketSmith India's blog host no longer resolves, so S6 is cited by its Internet Archive capture of 2021-03-04. IBD's investors.com pages (S37, S38, S39) and TraderLion (S22) are cited by their Internet Archive captures because the live pages do not serve the quoted text to our checker; the quote check found every one on those captures. The sentence 'pass on the first heated days' is on MarketSmith India's 2018 column (S5, a near copy of IBD's), not on the S39 capture.",
-  "Cold check 2026-11-10: 58 pass (15 fixed), 1 fix, 10 cut. Look first at: (1) q60 (SPOT chart) cut: only 21 bars exist before 2018-05-01 and a direct listing's 'IPO price' is not its opening price (D-057); the examples also lean on pending numbers, since a 20% depth cap (D-055) would void KRMN (22%), LULU (26%) and BSY (29%), and a 15-session minimum (D-056) would void VIK (2.0 weeks). (2) q46 (MDB) held on D-005: the card files it under the stop-width risk, so 'nothing went wrong' cannot stand until the 8% skip line is ruled; LULU's 7.3% and MDB's 6.7% stops sit far past A13's 3%. (3) Nine duplicates cut (q20, q21, q23, q28, q40, q48, q50, q62, q66); q36 is the only share count (364 shares = 20.9% of the account, inside the 40% cap)."
+  "Cold check 2026-11-10: 58 pass (15 fixed), 1 fix, 10 cut. Look first at: (1) q60 (SPOT chart) cut: only 21 bars exist before 2018-05-01 and a direct listing's 'IPO price' is not its opening price (D-057); the examples also lean on pending numbers, since a 20% depth cap (D-055) would void KRMN (22%), LULU (26%) and BSY (29%), and a 15-session minimum (D-056) would void VIK (2.0 weeks). (2) q46 (MDB) held on D-005: the card files it under the stop-width risk, so 'nothing went wrong' cannot stand until the 8% skip line is ruled; LULU's 7.3% and MDB's 6.7% stops sit far past A13's 3%. (3) Nine duplicates cut (q20, q21, q23, q28, q40, q48, q50, q62, q66); q36 is the only share count (364 shares = 20.9% of the account, inside the 40% cap).",
+  "q46 (MDB, 6.7% stop) cut by the resolver 2026-11-10: under the adopted default of D-005 a stop up to one ADR is taken with smaller size and a stop past one ADR is skipped, and no cited fact gives MDB's ADR. q17 and q32 teach wide-stop sizing."
  ],
  "verify": {
   "w1": {
@@ -2883,10 +2884,10 @@
    "by": "checker"
   },
   "q46": {
-   "status": "fix",
-   "notes": "The card files MDB under ipo.stop_width (a stop near the 8% ceiling is the risk the dossier warns about), and 'nothing went wrong, every rule passed' rests on the 8% skip line, which is pending (D-005; D-005's default is one ADR, and A13 says stops usually sit within about 3%). A 6.7% stop may be a skip under one option. Hold for the owner's D-005 ruling; q17 and q32 teach the wide-stop sizing already.",
+   "status": "cut",
+   "notes": "Cut. The key ('nothing went wrong, a 6.7% stop is fine') only holds if 6.7% is inside the stock's one-day average range, the line in D-005's default, and no cited fact gives MDB's range, so the story cannot supply what the key needs. The sizing lesson for a wide honest stop is already keyed by q17 and q32, so this duplicates them.",
    "fixed": false,
-   "by": "checker"
+   "by": "resolver"
   },
   "q47": {
    "status": "pass",

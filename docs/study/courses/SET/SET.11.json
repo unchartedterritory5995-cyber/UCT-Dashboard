@@ -899,6 +899,12 @@
    "source": "u2",
    "quote": "If we get a launchpad to form I will be increasingly more interested in it.",
    "claim": "RDDT: a launchpad forming would make it more interesting."
+  },
+  {
+   "id": "r1",
+   "source": "c1",
+   "quote": "The buy: a market order in the last minutes of the launch day, once the day already meets the launch tests",
+   "claim": "The Launchpad buy is a market order in the last minutes of the launch day."
   }
  ],
  "walkthroughs": [
@@ -2535,26 +2541,29 @@
    "criterion": "lp.stop",
    "q": "Write the plan: entry, stop, first trim.",
    "choices": [
-    "89.14 at market; stop 86.43; 3R",
-    "Limit 85.00; stop base low; hold all",
-    "Next open; stop the 200-day; out at 2R"
+    "Late market buy; day-low stop; 3R",
+    "Limit below market; base-low stop",
+    "Next open; 200-day stop; out at 2R"
    ],
-   "answer": "89.14 at market; stop 86.43; 3R",
-   "why": "89.14 at market, stop 86.43, a third at 3R. A market order, a few cents under the launch day's low, the first third at 3R. BABA reached 3R in three sessions.",
-   "lesson_line": "Entry, stop, trim, trail. Write it before the close; execute it without a debate.",
+   "answer": "Late market buy; day-low stop; 3R",
+   "why": "Buy at market in the last minutes, stop a few cents under the launch day's low, a third off at 3R. By our current default the close is the entry only for setups defined by their close, and the Launchpad is one. BABA filled at 89.14, with the stop at 86.43, and reached 3R in three sessions.",
+   "lesson_line": "Entry, stop, trim, trail. Know them before you buy and execute without a debate.",
    "facts": [
     "d03",
     "d04",
+    "r1",
     "c17",
     "h22",
-    "h05"
+    "h05",
+    "c18",
+    "c52"
    ],
    "house": true,
    "wrong": {
-    "Limit 85.00; stop base low; hold all": "A limit under the market never fills on a launch, and the base low is never the stop.",
-    "Next open; stop the 200-day; out at 2R": "The 200-day is context, not a stop; 2R is where the stop moves up, not the exit."
+    "Limit below market; base-low stop": "A limit below the market can miss the launch, and the base low is not the stop.",
+    "Next open; 200-day stop; out at 2R": "The 200-day is context, not a stop. At 2R the stop moves up; it is not the exit."
    },
-   "story": "BABA, January 2025: 26 of 40 closes under the bundle, the 200-day 1% away. On 2025-01-24 it closes at its high, up 3.5%, above all four."
+   "story": "BABA, January 2025: 26 of 40 closes under the bundle, the 200-day 1% away. In the last minutes of 2025-01-24 it sits at its high, up 3.5%, above all four."
   },
   {
    "key": "q66",
@@ -2653,7 +2662,8 @@
   "The owner's published Substack words (u1, u2) are cited as Tier 3 house sources with their URLs; the quote checker marks Tier 3 as house and does not fetch them.",
   "The short mirror (the bearish launch pad, dossier 8.6) is not taught here (D-001).",
   "The sources s2 and s3 (traderlion.com) refuse non-browser clients; the quote checker will report them unreachable and the checker must confirm the quotes with a browser or TraderLion's public WordPress API as the dossier did.",
-  "Cold check 2026-11-10: 62 pass (13 fixed), 1 fix, 8 cut. Look first at: (1) q65's written plan keys the launch-day-close entry and the launch-low stop, which is D-003 option A; it is held, and every walk-through narrates the same close fill. (2) q18 keyed 'all ten examples reached 5R' as a fact; those ten were picked as winners, so it now asks the scan's base rate (14.6% reached 5R). (3) Seven duplicates cut (q20, q21, q24, q34, q36, q41, q58) plus q38, FDX's 'stop in the noise', which passed the 6% gap line and has no rule behind it, as in the pilot. The u01-u03 quotes are verbatim in dossier 6.2, which 3.5 names as where the owner's full quotes sit."
+  "Cold check 2026-11-10: 62 pass (13 fixed), 1 fix, 8 cut. Look first at: (1) q65's written plan keys the launch-day-close entry and the launch-low stop, which is D-003 option A; it is held, and every walk-through narrates the same close fill. (2) q18 keyed 'all ten examples reached 5R' as a fact; those ten were picked as winners, so it now asks the scan's base rate (14.6% reached 5R). (3) Seven duplicates cut (q20, q21, q24, q34, q36, q41, q58) plus q38, FDX's 'stop in the noise', which passed the 6% gap line and has no rule behind it, as in the pilot. The u01-u03 quotes are verbatim in dossier 6.2, which 3.5 names as where the owner's full quotes sit.",
+  "Keyed on the adopted default of D-003 (provisional, 2026-11-10): the Launchpad is defined by its close, so the buy is a market order in the last minutes of the launch day with the stop a few cents under that day's low; q65 keys that. If the owner picks the intraday option, the entry is the trade-through of the prior day's high with the stop under the prior day's low, and q65 is re-keyed."
  ],
  "verify": {
   "w1": {
@@ -3059,10 +3069,10 @@
    "by": "checker"
   },
   "q65": {
-   "status": "fix",
-   "notes": "The plan's entry (at market at the launch-day close) and its stop (under the launch day's low) are lp.trigger option A; under D-003's option B the entry is intraday over the prior day's high with the stop under the prior day's low, so the key rests on a pending-owner choice. Also the lesson line says 'write it before the close' while D39 says before the open. BABA numbers are right. The answer choice was 41 characters: shortened.",
-   "fixed": false,
-   "by": "checker"
+   "status": "pass",
+   "notes": "Re-keyed on the adopted default of D-003 (the close is the entry only where the setup is defined by its close: Slingshot, Launchpad; the stop is still the day's low), so the close entry and day's-low stop stay. The old story gave none of the numbers the choices used (89.14, 86.43), so the key could be reached by elimination: the choices now describe the plan in words and the story gives the facts that decide it. Lesson line no longer says 'before the close' (D39 is before the open). Numbers verbatim in d03: BABA fill 89.14, stop 86.43, 3R in 3; bars db confirms the 2025-01-24 close 89.14 (high 89.19, low 86.48).",
+   "fixed": true,
+   "by": "resolver"
   },
   "q66": {
    "status": "pass",

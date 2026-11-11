@@ -832,6 +832,12 @@
    "source": "d1",
    "quote": "All four were stopped on the first session after the buy with a best excursion of 0R; the stops were 1.3% to 2.5% wide, so one ordinary red day took them.",
    "claim": "The four failures were all stopped on the first session; stops 1.3% to 2.5% wide, so one ordinary red day took them."
+  },
+  {
+   "id": "r1",
+   "source": "c1",
+   "quote": "RED TO GREEN or PREV LOW RECLAIM on the hold session: buy at market as the intraday turn trades",
+   "claim": "The 20 EMA Pullback buy is the intraday turn on the hold session, such as red to green."
   }
  ],
  "walkthroughs": [
@@ -2118,14 +2124,15 @@
     "A Remount"
    ],
    "answer": "The MAU&R costume of the U&R",
-   "why": "The undercut and rally in its moving-average costume. Ask what the buy is. A low that undercut the 20 EMA, bought as the move back above the line, is the U&R.",
+   "why": "The undercut and rally in its moving-average costume. Ask what the buy is. By our current default, a low that undercut the 20 EMA, bought as the move back above the line, is the U&R.",
    "lesson_line": "Same line, different buy. Buying the move back through the line is the U&R, not the pullback.",
    "facts": [
     "c22",
-    "c09"
+    "c09",
+    "r1"
    ],
    "wrong": {
-    "The 20 EMA pullback": "By the card's tell, a low that undercut the line, bought on the move back above it, is the U&R costume.",
+    "The 20 EMA pullback": "Its buy is the turn off a held line, such as red to green. Buying the move back above the line is the U&R.",
     "A Remount": "The line was under water for two hours, not a week or more. That is an undercut, not a lost line."
    },
    "house": true,
@@ -2562,7 +2569,8 @@
   "Raschke's Holy Grail (D-002: a named variant inside this unit, a 20 EMA pullback where the ADX first pushed over 30) is quoted for the line, the buy stop over the prior bar, the swing-low stop and the stalled trade; her ADX filter is not taught as ours. The AIQ four-rule box is the newsletter's summary of her rules; her own interview answers match it.",
   "The short mirror (dossier 8.6, the rally into a declining 20 EMA) is not taught here (D-001).",
   "Source copies: the TraderLion pages (s4, s11) refuse automated clients, so the dossier read Internet Archive captures and the unit cites those URLs; the Raschke PDFs (s1, s2, s3) are two-column scans whose text layer drops some apostrophes, so the quotes chosen avoid apostrophes where the dossier flagged them. The checker should confirm each quote with its own fetch where the quote checker reports unreachable.",
-  "Cold check 2026-11-10: 66 pass (25 fixed, the 3 walk-throughs included), 1 fix, 3 cut. Cut: q30 (same HD case as the chart q66), q40 (same NVDA 2025 lesson as q17 and q23), q67 (same lesson as q23 and q56, and it overstated the data). Fix: q51 (rests on pending D-036 and D-003). Numbers corrected: q27 (195 shares was 46.7% of the account, over the 40% cap; now 0.5% risk and 97 shares), q62 (the story now gives the hold low 99.10 so the plan can be derived), q42 (a claim that NVDA reached 5R inside two weeks removed; B22 had us out at 3.9R). Also fixed: over-long sentences (q11, q13, q29, q35, q38, q45, q48, q50, q52, q54, q55, q59, q61, q62, q66), q60 (a Keller claim his quote does not make), q41 and q53 and q09 (unsourced sentences), q46 (internal 'Model Book card' wording), q65 (the question gave its own answer), q23 ('no re-buy' clashed with q35). The raschke PDFs (r01, r06) read as MISSING by script only because the text layer breaks the quote at a page footer and a hyphen ('retrace ment'); both are on the page, and no item uses them. The owner should look first at: (1) D-003, the trigger: the unit teaches only the fallback (a cent over the hold candle's high on a later session) as the drawn buy (q05, q29, q62, w1 to w3), never the intraday turn the owner actually uses; (2) D-036 and q51, the border between a shakeout inside the pullback and the undercut and rally; (3) the pullback length 15 (q09) and the stop width (q56: CAT's 3.1% stop is called rules followed under A13's 'usually about 3%'; D-005 could flip it). The hidden-ticker charts (q65, q66) were not viewed; the numbers match the dossier."
+  "Cold check 2026-11-10: 66 pass (25 fixed, the 3 walk-throughs included), 1 fix, 3 cut. Cut: q30 (same HD case as the chart q66), q40 (same NVDA 2025 lesson as q17 and q23), q67 (same lesson as q23 and q56, and it overstated the data). Fix: q51 (rests on pending D-036 and D-003). Numbers corrected: q27 (195 shares was 46.7% of the account, over the 40% cap; now 0.5% risk and 97 shares), q62 (the story now gives the hold low 99.10 so the plan can be derived), q42 (a claim that NVDA reached 5R inside two weeks removed; B22 had us out at 3.9R). Also fixed: over-long sentences (q11, q13, q29, q35, q38, q45, q48, q50, q52, q54, q55, q59, q61, q62, q66), q60 (a Keller claim his quote does not make), q41 and q53 and q09 (unsourced sentences), q46 (internal 'Model Book card' wording), q65 (the question gave its own answer), q23 ('no re-buy' clashed with q35). The raschke PDFs (r01, r06) read as MISSING by script only because the text layer breaks the quote at a page footer and a hyphen ('retrace ment'); both are on the page, and no item uses them. The owner should look first at: (1) D-003, the trigger: the unit teaches only the fallback (a cent over the hold candle's high on a later session) as the drawn buy (q05, q29, q62, w1 to w3), never the intraday turn the owner actually uses; (2) D-036 and q51, the border between a shakeout inside the pullback and the undercut and rally; (3) the pullback length 15 (q09) and the stop width (q56: CAT's 3.1% stop is called rules followed under A13's 'usually about 3%'; D-005 could flip it). The hidden-ticker charts (q65, q66) were not viewed; the numbers match the dossier.",
+  "Keyed on the adopted defaults of D-036 and D-003 (provisional, 2026-11-10), with D-002 row 12:7: the moving-average undercut and rally is a named variant of the U&R. An undercut within about 1 ATR that reclaims the same day is allowed, and a buy made as price moves back through the 20 EMA is the U&R's trigger, while the pullback buys the intraday turn on the hold session. q51 keys that. The card's own touch band (0.25 ATR above to 1 ATR below) overlaps the undercut, so the buy, not the depth, is what separates the two."
  ],
  "verify": {
   "w1": {
@@ -2884,10 +2892,10 @@
    "by": "checker"
   },
   "q51": {
-   "status": "fix",
-   "notes": "the key (a same-session undercut bought on the move back through the line is the U&R, not the pullback) rests on pending-owner e20.hold_close (D-036, any undercut that reclaims the same day is option b) and on the pending trigger (D-003: the owner's own buy includes the intraday turn and the prior-day-low reclaim); under those options the morning undercut and noon reclaim could be this setup. The card's tell supports the key as written. Needs the owner's call on D-036 and D-003.",
-   "fixed": false,
-   "by": "checker"
+   "status": "pass",
+   "notes": "Kept the key and keyed it on the adopted defaults: D-002 row 12:7 (the moving-average undercut and rally is a named variant of the U&R), D-036 (an undercut within about 1 ATR that reclaims the same day is a valid undercut, so the 1% morning dip is not disqualifying) and D-003 (the pullback buys the intraday turn on the hold session, the U&R buys the move back through the line). The story already says the buy is the move back through the line, so the key does not depend on depth. Added the card's trigger line so the why can say what the pullback's own buy is.",
+   "fixed": true,
+   "by": "resolver"
   },
   "q52": {
    "status": "pass",
