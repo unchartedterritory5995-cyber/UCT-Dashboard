@@ -325,3 +325,35 @@ def test_http_route_and_tier_route_pass_session(monkeypatch):
     fn = next(r.endpoint for r in tier.routes if getattr(r, "path", None) == "/api/bars/{ticker}")
     import inspect
     assert "session" in inspect.signature(fn).parameters
+
+
+# ── review #1061 fixes ───────────────────────────────────────────────────────
+
+def test_F1_a_count_cut_source_never_yields_a_partial_oldest_hour(store, monkeypatch):
+    # 18 rows of 15m from the end = 15:30 … 19:45: the 15:00 hour has only 2 of 4
+    monkeypatch.setattr(bars_router, "_eth_src_count", lambda bars: 18)
+    body = _body(bars_router.serve_bars("THIN", "60", 600, session="eth"))
+    ts = [b["t"] for b in body["bars"]]
+    assert ts[0] == et(*TUE, 16, 0), "the partial 15:00 hour is dropped"
+    assert ts == [et(*TUE, 16, 0) + 3600 * i for i in range(4)]
+    for b in body["bars"]:
+        assert b["v"] == sum(10 + i for i in range((b["t"] - et(*TUE, 4, 0)) // 900,
+                                                   (b["t"] - et(*TUE, 4, 0)) // 900 + 4))
+
+
+def test_F1_an_hour_aligned_cut_keeps_its_oldest_hour(store, monkeypatch):
+    monkeypatch.setattr(bars_router, "_eth_src_count", lambda bars: 20)   # 15:00 … 19:45
+    body = _body(bars_router.serve_bars("THIN", "60", 600, session="eth"))
+    assert body["bars"][0]["t"] == et(*TUE, 15, 0)
+
+
+def test_F1_an_uncut_source_keeps_everything(store):
+    # 64 rows exist, 1199 asked: nothing was cut, so the first hour is the real first hour
+    body = _body(bars_router.serve_bars("THIN", "60", 600, session="eth"))
+    assert body["bars"][0]["t"] == et(*TUE, 4, 0) and len(body["bars"]) == 16
+
+
+def test_F2_deep_eth_source_is_capped_at_the_15m_deep_target():
+    assert bars_router._eth_src_count(32000) == 30000
+    assert bars_router._eth_src_count(7500) == 30000
+    assert bars_router._eth_src_count(5000) == 20000

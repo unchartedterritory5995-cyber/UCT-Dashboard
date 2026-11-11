@@ -211,5 +211,7 @@ describe('60m: extended hours is the clock grid', () => {
     await wait(400)
     expect(memPeek('OLDSRV', '60e')).toBeNull()
     expect(idbh.store.has('OLDSRV_60e')).toBe(false)
+    // …nor PAINTED as the extended view's series (review #1061 F5)
+    for (const f of draws.list) expect(gridOf(f.times)).not.toBe('session')
   })
 })

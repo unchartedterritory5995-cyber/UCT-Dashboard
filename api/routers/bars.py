@@ -877,6 +877,12 @@ def serve_bars(
 # 15m tail judged against the EXTENDED frontier, i.e. the chart's own session.
 # Cost: a 4x-wider SQLite read + an in-process resample (milliseconds).
 _ETH_SRC_PER_HOUR = 4           # 15m bars per 60m bucket
+# ⛔ DEEP CAP (#1061 review F2). The client's 60m deep target is 32000 bars → 128000
+# 15m rows ×2 JSON round-trips, held in the entry-count-bounded TTLCache under a key
+# nothing else uses (pods have OOM'd on bars memory before). Capped at the 15m chart's
+# OWN deep target (`fullBarsFor('15')` = 30000, ~1.9 years of ETH hours): the deep ETH
+# read then SHARES the 15m deep cache entry instead of adding a 4x-larger one.
+_ETH_SRC_MAX = 30000
 _ETH_HEADERS = ("cache-control", "pragma", "server-timing", "retry-after", "x-bars-shed")
 
 
@@ -888,7 +894,7 @@ def _eth_src_count(bars: int) -> int:
     thr = _bars_fetch._DEEP_REQUEST_THRESHOLD
     if int(bars) < thr:
         n = min(n, thr - 1)
-    return n
+    return min(n, _ETH_SRC_MAX)
 
 
 def _carry_headers(new, old):
@@ -912,7 +918,8 @@ def _serve_eth_hourly(ticker: str, bars: int, since: str, to: str, warm: int):
             since15 = str(max(0, floor - 1))
         except (TypeError, ValueError):
             since15 = since
-    resp = _serve_bars_impl(ticker, "15", _eth_src_count(bars), since15, to, warm, session="eth")
+    n15 = _eth_src_count(bars)
+    resp = _serve_bars_impl(ticker, "15", n15, since15, to, warm, session="eth")
     try:
         payload = orjson.loads(resp.body)
     except Exception:
@@ -924,12 +931,19 @@ def _serve_eth_hourly(ticker: str, bars: int, since: str, to: str, warm: int):
     rows = payload.get("bars")
     if isinstance(rows, list) and rows:
         try:
-            out = _session_resample_hourly(
-                [r for r in rows if isinstance(r, dict) and isinstance(r.get("t"), (int, float))],
-                grid="eth")
+            src = [r for r in rows if isinstance(r, dict) and isinstance(r.get("t"), (int, float))]
+            out = _session_resample_hourly(src, grid="eth")
             if floor is not None:
                 out = [b for b in out if b["t"] >= floor]
             elif not payload.get("delta"):
+                # ⛔ A COUNT-LIMITED SOURCE STARTS MID-HOUR (#1061 review F1): the oldest
+                # hour would be built from 1-3 of its 4 quarters and, via the client's
+                # merge (fresh wins), overwrite the complete bar in deep history. When
+                # the read may have been cut (it returned the full count asked for) and
+                # does not start on the hour, that hour is incomplete: drop it.
+                if (out and len(src) >= n15
+                        and int(src[0]["t"]) != _bars_fetch.bucket_60_et_unix_seconds(int(src[0]["t"]), grid="eth")):
+                    out = out[1:]
                 out = out[-int(bars):]
             payload["bars"] = out
         except Exception:                  # noqa: BLE001 — never a 60m answer on the wrong grid

@@ -9285,6 +9285,9 @@ export default function StockChart({
   // updateChart clears the series) instead of the wrong stock.
   const _symU = sym ? sym.toUpperCase() : ''
   const _netMatches = data?.bars?.length && (!data.ticker || data.ticker === _symU)
+    // …and on THIS view's 60m grid: an answer without `session: 'eth'` (an older server,
+    // a straggler) is never painted as the clock-grid series, nor the reverse.
+    && !(resolvedTf === '60' && ((data.session === 'eth') !== (_barsTf === '60e')))
   // SPLIT / RE-BASIS heal (render path). The pack importer already drops a stale
   // wrong-basis IDB entry when the authoritative tail disagrees (_closeMismatch in
   // _importBatch), but a chart that paints straight from IDB BEFORE any pack re-ingest
