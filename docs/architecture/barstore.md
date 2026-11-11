@@ -15,7 +15,7 @@ liveFeed, P2c the prefetch facade, P3 makes StockChart a pure renderer over it. 
 | `registry.js` | `createRegistry()` — key → entry, refcount, LRU (200 keys) + bar budget (2.5M), per-tf depth caps, subscribe / dispatch / invalidate |
 | `__fixtures__/seededSeries.js` | test-only seeded market simulator (mulberry32, same as P0b rails) |
 
-`app/` `.gitignore` note: the root `.gitignore` line `data/` also matches `app/src/data/`;
+Note: the root `.gitignore` line `data/` also matches `app/src/data/`;
 new files there need `git add -f` until a `!app/src/data/` negation is added.
 
 ## Key

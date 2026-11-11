@@ -89,7 +89,8 @@ export const DEV_SRC = Object.freeze({ SERVER: 'server', PUSH: 'push', TICK: 'ti
  * @property {number} c
  * @property {number} v
  * @property {number|null} [rev]   as-of revision (ms, P1 HLC) of the observation held
- * @property {boolean} [fin]       a push FINAL (or a sealed server row) supplied it
+ * @property {boolean} [fin]       a push FINAL supplied it
+ * @property {string} [src]        rest | final | push | tick | local (closed-row precedence)
  *
  * @typedef {Object} Developing  the forming bucket (never in `bars`)
  * @property {number} t
@@ -118,7 +119,11 @@ export const DEV_SRC = Object.freeze({ SERVER: 'server', PUSH: 'push', TICK: 'ti
  * @property {number|null} historyRev       P1 history_rev
  * @property {string|null} cacheKey         P1 cache_key (server-issued)
  * @property {string|null} grid             P1 grid of the rows held
- * @property {string|null} tailStatus       server `tail_status` ('verified'|'unverified'|…)
+ * @property {string|null} tailStatus       server `tail_status` of the newest answer (by series_rev)
+ * @property {ReadonlyArray<readonly [number, number]>} sealedSpans  union of [first row carried,
+ *   claim] over server answers; a `src:'rest'` row inside it is final (reducer.isSealedRow)
+ * @property {number|null} restFrom   oldest `t` a server answer has covered
+ * @property {number|null} deltaFrom  where the next `since=` delta must start
  * @property {'empty'|'provisional'|'context'|'current'|'updating'|'unavailable'} status
  * @property {number} baseRev   +1 whenever bars / completeThrough / verifiedThrough change
  * @property {number} devRev    +1 whenever developing changes
