@@ -995,7 +995,7 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   // (#988, AUDIT probe 20 a) "other than the one I'm looking at, put THE REST on log": with the click negated, "the rest / the
   // others / everything else" names every chart but the click (a plan on the click is excluded by the negation screens)
   if (sel && !answered && REST_OF_BOARD.test(words) && negatedPointer(words)) for (const c of charts) if (c.ref !== sel) named.add(c.ref)
-  if (sel && !ex.has(sel) && (/\bthis\b/i.test(otherOne ? words.replace(OTHER_CHART, ' ') : words) || (!otherOne && !answered && !lineNamed && !chartsNamedBy(`${kept.replace(POS_WORDS, ' ')} ${said.join(' ')}`, charts).size && clickFits(said, charts, sel)))) named.add(sel)
+  if (sel && (/\bthis\b/i.test(otherOne ? words.replace(OTHER_CHART, ' ') : words) || (!otherOne && !answered && !lineNamed && !chartsNamedBy(`${kept.replace(POS_WORDS, ' ')} ${said.join(' ')}`, charts).size && clickFits(said, charts, sel)))) named.add(sel)
   const unnamed = [...targets.keys()].filter(c => !named.has(c))
   if (!unnamed.length) return null
   if (targets.size === 1) {
