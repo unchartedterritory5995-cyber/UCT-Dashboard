@@ -236,6 +236,8 @@ function widgetControlSection(s, message, whole) {
 
 export const boardKind = {
   name: 'board',
+  source: 'widgets',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "The chart board isn't available on this page — open the Charts board to arrange it.",
   list: (host) => { const s = snapOf(host); return s ? [s] : [] },
   read: (host, ref) => (ref === 'board' ? snapOf(host) : null),
   stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [], adds: [], grid: null, doors: clone(s.doors || {}), sends: [], outs: [], acts: [], itemOps: [] }),

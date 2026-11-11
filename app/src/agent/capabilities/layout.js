@@ -135,6 +135,8 @@ function snapshotOf(host) {
 
 export const layoutsKind = {
   name: 'layouts',
+  source: 'layouts',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Layouts aren't available on this page — open Charts to save or switch layouts.",
   list: (host) => { const s = snapshotOf(host); return s ? [s] : [] },
   read: (host, ref) => (ref === 'layouts' ? snapshotOf(host) : null),
   stateOf: (snap) => ({ entries: snap.entries, active: snap.active, unsaved: snap.unsaved, recent: snap.recent || [], op: null }),
