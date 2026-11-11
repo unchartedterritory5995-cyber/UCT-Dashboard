@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 177,
-  "withProductionKinds": 168,
+  "all": 178,
+  "withProductionKinds": 169,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 177,
-  "withAnyRegressionCase": 125,
+  "capabilities": 178,
+  "withAnyRegressionCase": 126,
   "perProtection": {
    "nl": {
-    "covered": 125,
-    "applicable": 177
+    "covered": 126,
+    "applicable": 178
    },
    "routing": {
-    "covered": 122,
-    "applicable": 177
+    "covered": 123,
+    "applicable": 178
    },
    "args": {
-    "covered": 125,
-    "applicable": 177
+    "covered": 126,
+    "applicable": 178
    },
    "execution": {
-    "covered": 125,
-    "applicable": 177
+    "covered": 126,
+    "applicable": 178
    },
    "receipt": {
-    "covered": 97,
-    "applicable": 177
+    "covered": 98,
+    "applicable": 178
    },
    "refusal": {
     "covered": 31,
-    "applicable": 177
+    "applicable": 178
    },
    "permission": {
-    "covered": 170,
-    "applicable": 177
+    "covered": 171,
+    "applicable": 178
    },
    "undo": {
     "covered": 57,
@@ -43,18 +43,19 @@
    },
    "multiStep": {
     "covered": 36,
-    "applicable": 177
+    "applicable": 178
    },
    "phrasings": {
-    "covered": 121,
-    "applicable": 177
+    "covered": 122,
+    "applicable": 178
    }
   }
  },
  "knownGaps": [
   {
    "id": "GAP-WIDGET-READ-ROUTE",
-   "reason": "boardEdit has no words of its own and phrase rules are frozen: a message reaches this action through the model's need_groups reroute (the group title names it) until description-driven discovery lands",
+   "router": "v1",
+   "reason": "v1 ONLY (the kill-switch fallback): boardEdit has no v1 words in this message (workspace + agent only); the model can still ask for the group (need_groups). Routing v2 (production) reaches it since the budget-cut tie rule (routingV2.js TIE)",
    "owner": "agent-lead",
    "mode": "\"how is that one set right now\" → widget.readOptions",
    "level": "a",
@@ -2328,6 +2329,60 @@
     "args": [],
     "execution": [],
     "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartSetup.openSettings": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "chartSetup.openSettings: \"open chart settings\"",
+     "chartSetup.openSettings: \"open the settings for this chart\"",
+     "chartSetup.openSettings: \"show me the chart settings panel\"",
+     "chartSetup.openSettings: \"bring up this chart's settings\""
+    ],
+    "routing": [
+     "chartSetup.openSettings: \"open chart settings\"",
+     "chartSetup.openSettings: \"open the settings for this chart\"",
+     "chartSetup.openSettings: \"show me the chart settings panel\"",
+     "chartSetup.openSettings: \"bring up this chart's settings\""
+    ],
+    "args": [
+     "corpus chartSetup.openSettings"
+    ],
+    "execution": [
+     "chartSetup.openSettings (c)"
+    ],
+    "receipt": [
+     "chartSetup.openSettings (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],

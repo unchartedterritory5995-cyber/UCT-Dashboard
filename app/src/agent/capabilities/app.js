@@ -88,11 +88,14 @@ export function registerAppCapabilities() {
       required: ['page', 'section', 'symbol'], additionalProperties: false,
     },
     fastWhole: true,
-    fast: ({ lower }) => {
+    fast: ({ lower, typed }) => {
       const m = /^(?:open|go to|take me to|show me|bring up)(?: the)? (.+?)(?: page)?[.!]?$/.exec(lower)
       if (!m) return null
       const want = m[1].trim()
       const hit = Object.entries(DESTINATIONS).find(([k, d]) => k !== 'research' && (d.label.toLowerCase() === want || k === want))
+      // C1-127: "open the settings for the AAPL chart" reaches here as "open the settings" (the chart is lifted off first):
+      // settings asked about a CHART are that chart's Chart Settings (chartSetup.openSettings), never the Settings page
+      if (hit?.[0] === 'settings' && /\bcharts?\b|\bchart'?s\b/i.test(String(typed || lower))) return null
       return hit ? { page: hit[0], section: null, symbol: null } : null
     },
     async prepare(ops) {

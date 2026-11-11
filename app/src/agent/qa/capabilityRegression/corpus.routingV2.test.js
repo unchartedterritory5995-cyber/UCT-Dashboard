@@ -18,7 +18,7 @@ await registerCatalog()
 for (const intent of corpus.intents.filter(i => !isDark(i))) {
   describe(`(a·v2) routing · ${intent.id}`, () => {
     for (const ph of phrasingsOf(intent)) {
-      const { run, tag } = gapIt(ph.gaps?.a)
+      const { run, tag } = gapIt(ph.gaps?.a?.router === 'v1' ? null : ph.gaps?.a)   // a gap marked `"router": "v1"` is v1's only: v2 must pass
       run(`"${ph.text}" routes ${intent.needs.join(' + ')} (v2)${tag}`, () => {
         const host = panelHost(intent.board)
         const ctx = { host, recentActions: intent.recentActions || [] }

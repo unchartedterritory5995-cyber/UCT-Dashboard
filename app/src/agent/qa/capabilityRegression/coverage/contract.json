@@ -535,6 +535,19 @@
    ],
    "fast": false
   },
+  "chartSetup.openSettings": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
   "chartSetup.removeTimeframe": {
    "domain": "chartSetup",
    "group": "chartSetup",

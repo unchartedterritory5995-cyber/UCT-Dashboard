@@ -10251,6 +10251,37 @@
       ]
     },
     {
+      "id": "chartSetup.openSettings",
+      "source": "C1-127 (11-11): open the chart's own Chart Settings dialog (gear / right-click / Alt+,)",
+      "capabilities": [
+        "chartSetup.openSettings"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartSetup.openSettings"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.openSettings",
+            "target": "$charts[0]",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "settingsOpen": true,
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "open chart settings",
+        "open the settings for this chart",
+        "show me the chart settings panel",
+        "bring up this chart's settings"
+      ]
+    },
+    {
       "id": "chartSetup.setIndicatorsHidden",
       "source": "PR #825 (11-05): the chart's own view controls and Ctrl+M",
       "capabilities": [
@@ -10368,7 +10399,7 @@
         "refusal": false
       },
       "phrasings": [
-        {"text": "how is that one set right now", "gaps": {"a": {"id": "GAP-WIDGET-READ-ROUTE", "reason": "boardEdit has no words of its own and phrase rules are frozen: a message reaches this action through the model's need_groups reroute (the group title names it) until description-driven discovery lands", "owner": "agent-lead", "mode": "\"how is that one set right now\" → widget.readOptions"}}}
+        {"text": "how is that one set right now", "gaps": {"a": {"id": "GAP-WIDGET-READ-ROUTE", "router": "v1", "reason": "v1 ONLY (the kill-switch fallback): boardEdit has no v1 words in this message (workspace + agent only); the model can still ask for the group (need_groups). Routing v2 (production) reaches it since the budget-cut tie rule (routingV2.js TIE)", "owner": "agent-lead", "mode": "\"how is that one set right now\" → widget.readOptions"}}}
       ]
     },
     {

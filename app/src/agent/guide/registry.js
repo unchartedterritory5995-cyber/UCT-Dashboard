@@ -566,12 +566,13 @@ export const GUIDE_FEATURES = [
     id: 'settings', terms: ['chart settings'], control: 'the chart’s settings gear', title: 'Finding chart settings', topic: 'chartSettings',
     words: [/\b(chart )?settings?\b/, /\b(theme|colou?rs?|background|candles?|grid ?lines?|crosshair|legend)\b/],
     caps: ['chart.setSetting'],
-    explain: 'Each chart’s settings open from the gear on its header: price style, canvas (background, grid), indicators, header and markers — and UCT Chart Themes for a one-click look.',
+    // C1-127: the gear, right-click → Chart settings and Alt+, are ONE door (ChartPane.openSettings) — the one chartSetup.openSettings opens
+    explain: 'Each chart’s settings open from the gear on its header (or right-click the chart → Chart settings, or Alt+,): price style, canvas (background, grid), indicators, header and markers — and UCT Chart Themes for a one-click look.',
     steps: [
       { target: 'chart.settings', text: 'Click the gear to open this chart’s settings.', waitFor: 'chartSettings' },
       { target: 'chartSettings.tab.price', text: 'Price Style, Canvas, Indicators, Header and Markers are the tabs along the top.' },
     ],
-    doIt: { say: 'Tell me the change — for example “dark theme on this chart”, “hide the grid” or “candles to hollow”.' },
+    doIt: { say: 'Say “open chart settings” and I’ll open them on this chart for you — or tell me the change, for example “dark theme on this chart”, “hide the grid” or “candles to hollow”.' },
   },
 
   // ── ⭐ W2-C2: the other pages (/screener, /breadth, /calendar, /journal) ──
