@@ -9,9 +9,11 @@ Invariants (general form):
   C2  `verify` fails on ANY per-(ticker, tf) difference and on a global count difference.
   C3  `_make_tarball` ships a clustered, integrity-clean bars.db; on any conversion failure
       or with SNAPSHOT_CLUSTER=0 it ships the copy unchanged (never fails the upload).
-  C4  Adoption: a clustered snapshot installs wholesale; init_db, merges and deltas
-      never turn it back into a rowid table; BARS_ADOPT_CLUSTERED removes ONLY a rowid
-      store (with its sidecars).
+  C4  Adoption (one-shot, BARS_ADOPT_CLUSTERED): only a base TAGGED clustered is
+      downloaded; the swap happens only after layout + integrity + row-count checks and
+      carries every row only the pod held; any failure leaves the old store untouched;
+      deltas newer than the base re-apply; init_db, merges and deltas never turn a
+      clustered store back into rowid.
   C5  Every hot query that uses an index on a rowid store uses the PK or an index on a
       clustered one (no full scans introduced).
   C6  `bars_sqlite.ohlcv_ddl` is the only `ohlcv` table DDL in the product.
@@ -219,19 +221,151 @@ def test_snapshot_ships_unchanged_when_disabled_or_conversion_fails(tmp_path, da
 
 
 # ── C4 ───────────────────────────────────────────────────────────────────────
-def test_adopt_removes_only_a_rowid_store_with_its_sidecars(tmp_path, data_sync_at, monkeypatch):
-    from api.services import bars_sqlite as bs
-    db = tmp_path / "bars.db"
-    _rowid_store(db, tickers=1, n=3)
-    for ext in ("-wal", "-shm"):
-        (tmp_path / f"bars.db{ext}").write_bytes(b"stale")
-    assert data_sync_at.adopt_clustered_if_requested(str(tmp_path)) is False   # flag off
+class _FakeR2:
+    """head_object / get_object over one local tarball; counts downloads."""
+
+    def __init__(self, tar_path, meta, fail_download=False):
+        self.tar_path, self.meta, self.fail = tar_path, meta, fail_download
+        self.downloads = 0
+        self.uploaded = []
+
+    def head_object(self, Bucket, Key):
+        return {"Metadata": dict(self.meta)}
+
+    def get_object(self, Bucket, Key):
+        self.downloads += 1
+        if self.fail:
+            raise OSError("simulated network failure")
+        return {"Body": open(self.tar_path, "rb")}
+
+    def upload_file(self, path, bucket, key, ExtraArgs=None):
+        self.uploaded.append((key, ExtraArgs))
+
+    def put_object(self, **kw):
+        pass
+
+    def list_objects_v2(self, **kw):
+        return {"Contents": []}
+
+
+def _tar_of(db_path, out_tar):
+    with tarfile.open(out_tar, "w:gz") as t:
+        t.add(db_path, arcname="bars.db")
+
+
+@pytest.fixture
+def adoption(tmp_path, data_sync_at, monkeypatch):
+    """A pod holding a ROWID store with local-only newer rows, and an R2 whose latest base
+    is a CLUSTERED conversion of an older copy of that store."""
+    from api.services import bars_cluster
+    ds = data_sync_at
+    base_src = tmp_path / "worker.db"
+    _rowid_store(base_src, seed=7, tickers=6, n=40)
+    snap = tmp_path / "snap.db"
+    bars_cluster.cluster_copy(str(base_src), str(snap))
+    tar = tmp_path / "snap.tar.gz"
+    _tar_of(snap, tar)
+    local = tmp_path / "bars.db"
+    shutil.copy(base_src, local)
+    c = sqlite3.connect(str(local))       # rows only this pod holds (live store, heals)
+    c.executemany("INSERT INTO ohlcv VALUES (?,?,?,?,?,?,?,?)",
+                  [("T00", "5", 1_700_000_100 + (40 + k) * 300, 10.0, 11.0, 9.0, 10.5, 7)
+                   for k in range(5)] + [("NEWT", "D", 20210104, 5.0, 6.0, 4.0, 5.5, 9)])
+    c.commit(); c.close()
+    fake = _FakeR2(str(tar), {"bars-layout": "clustered",
+                              "bars-db-bytes": str(os.path.getsize(snap))})
+    monkeypatch.setattr(ds, "_client", lambda: fake)
+    monkeypatch.setattr(ds, "_bucket", lambda: "b")
+    monkeypatch.setattr(ds, "get_latest_snapshot_ts", lambda: "1700000000")
     monkeypatch.setenv("BARS_ADOPT_CLUSTERED", "1")
-    assert data_sync_at.adopt_clustered_if_requested(str(tmp_path)) is True
-    assert not any((tmp_path / f"bars.db{e}").exists() for e in ("", "-wal", "-shm"))
-    c = sqlite3.connect(str(db)); c.execute(bs.ohlcv_ddl()); c.commit(); c.close()
-    assert data_sync_at.adopt_clustered_if_requested(str(tmp_path)) is False   # idempotent
-    assert db.exists()
+    return ds, fake, local, snap
+
+
+def _no_tmp_left(tmp_path):
+    return not [p for p in tmp_path.iterdir() if p.name.startswith("adopt_")]
+
+
+def test_adoption_swaps_in_a_verified_clustered_store_carrying_local_rows(adoption, tmp_path):
+    ds, fake, local, snap = adoption
+    (tmp_path / ".last_delta_ts").write_text("1700009999" + chr(10) + "1" + chr(10))
+    want = set(_dump(snap)["ohlcv"]) | set(_dump(local)["ohlcv"])
+    assert ds.adopt_clustered_store(str(tmp_path)) == "adopted"
+    assert _layout(local) == "clustered"
+    assert set(_dump(local)["ohlcv"]) == want, "a row only this pod held was lost"
+    assert (tmp_path / ".adopted_clustered").exists()
+    assert ds._read_marker(ds._LAST_SYNC_MARKER)["snapshot_ts"] == "1700000000"
+    assert not (tmp_path / ".last_delta_ts").exists(), "deltas after the base must re-apply"
+    assert _no_tmp_left(tmp_path)
+    # One-shot: the next boot neither downloads nor touches the store.
+    assert ds.adopt_clustered_store(str(tmp_path)) == "done" and fake.downloads == 1
+
+
+def test_deltas_newer_than_the_base_re_apply_after_adoption(adoption, tmp_path, monkeypatch):
+    ds, fake, local, snap = adoption
+    (tmp_path / ".last_delta_ts").write_text("1700009999" + chr(10) + "1" + chr(10))   # the OLD store's progress
+    assert ds.adopt_clustered_store(str(tmp_path)) == "adopted"
+    applied = []
+    monkeypatch.setattr(ds, "_list_remote_deltas", lambda: ["1700000500", "1700009000"])
+    monkeypatch.setattr(ds, "apply_delta", lambda ts: applied.append(ts) or True)
+    monkeypatch.setattr(ds, "merge_snapshot", lambda ts: pytest.fail("base re-merged"))
+    ds.sync_with_deltas()
+    assert applied == ["1700000500", "1700009000"]
+
+
+def test_no_adoption_when_the_latest_base_is_rowid(adoption, tmp_path):
+    ds, fake, local, snap = adoption
+    fake.meta = {"bars-layout": "rowid"}
+    before = _dump(local)
+    assert ds.adopt_clustered_store(str(tmp_path)) == "snapshot-rowid"
+    assert fake.downloads == 0 and _layout(local) == "rowid" and _dump(local) == before
+    assert not (tmp_path / ".adopted_clustered").exists()        # retried once a base is
+    fake.meta = {}                                                # an untagged (old) base
+    assert ds.adopt_clustered_store(str(tmp_path)) == "snapshot-rowid"
+
+
+@pytest.mark.parametrize("break_it", ["download", "disk", "rows", "integrity"])
+def test_any_failure_keeps_the_old_store_untouched(adoption, tmp_path, monkeypatch, break_it):
+    ds, fake, local, snap = adoption
+    before = _dump(local)
+    if break_it == "download":
+        fake.fail = True
+    elif break_it == "disk":
+        monkeypatch.setattr(ds.shutil, "disk_usage", lambda _p: type("u", (), {"free": 1})())
+    elif break_it == "rows":
+        monkeypatch.setattr(ds, "ADOPT_MIN_ROW_RATIO", 10.0)
+    else:
+        monkeypatch.setattr(ds, "_verify_snapshot_db", lambda _p: False)
+    assert ds.adopt_clustered_store(str(tmp_path)) in ("failed", "no-disk")
+    assert _layout(local) == "rowid" and _dump(local) == before
+    assert not (tmp_path / ".adopted_clustered").exists() and _no_tmp_left(tmp_path)
+
+
+def test_adoption_is_off_by_default_and_syncs_stand_aside_while_it_runs(adoption, tmp_path,
+                                                                        monkeypatch):
+    ds, fake, local, snap = adoption
+    monkeypatch.delenv("BARS_ADOPT_CLUSTERED")
+    assert ds.adopt_clustered_store(str(tmp_path)) == "off" and fake.downloads == 0
+    ds._adoption_active.set()
+    try:
+        assert ds.sync_with_deltas() is None
+        assert ds.sync_if_newer_merge() is None
+        assert ds.sync_if_newer() is None
+    finally:
+        ds._adoption_active.clear()
+
+
+def test_the_upload_tags_the_snapshot_layout(tmp_path, data_sync_at, monkeypatch):
+    ds = data_sync_at
+    src = tmp_path / "bars.db"
+    _rowid_store(src)
+    _big_enough(ds, src)
+    fake = _FakeR2(None, {})
+    monkeypatch.setattr(ds, "_client", lambda: fake)
+    monkeypatch.setattr(ds, "_bucket", lambda: "b")
+    assert ds.upload_snapshot(force=True)
+    (_key, extra), = fake.uploaded
+    assert extra["Metadata"]["bars-layout"] == "clustered"
+    assert int(extra["Metadata"]["bars-db-bytes"]) > 0
 
 
 def test_clustered_store_stays_clustered_through_init_merge_and_delta(tmp_path, monkeypatch):

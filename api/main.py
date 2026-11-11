@@ -6192,7 +6192,7 @@ async def lifespan(app: FastAPI):
                 import time as _t
                 _skip_boot_pull = False
                 try:   # clustered-layout adoption (data_sync.adopt_clustered_if_requested)
-                    data_sync.adopt_clustered_if_requested()
+                    data_sync.adopt_clustered_store()
                 except Exception as _e:
                     print(f"[startup] adopt-clustered check failed (non-fatal): {_e}")
                 try:

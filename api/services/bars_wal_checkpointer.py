@@ -98,8 +98,16 @@ def _run_once(conn: sqlite3.Connection) -> None:
 def _loop() -> None:
     time.sleep(_STARTUP_DELAY_S)  # let boot settle before touching the store
     conn = None
+    epoch = None
     while True:
         try:
+            # bars.db replaced wholesale (snapshot install / clustered adoption): a
+            # connection on the old inode must never checkpoint the shared -wal again.
+            from api.services import bars_sqlite as _bs
+            if conn is not None and epoch != _bs._db_epoch:
+                conn.close()
+                conn = None
+            epoch = _bs._db_epoch
             if conn is None:
                 conn = sqlite3.connect(_db_path(), check_same_thread=False, timeout=5)
                 # A checkpointer must NOT itself hold a long busy wait — if it can't

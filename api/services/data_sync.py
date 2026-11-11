@@ -25,6 +25,7 @@ import shutil
 import sqlite3
 import tarfile
 import tempfile
+import threading
 import time
 import logging
 import datetime as _dt
@@ -465,41 +466,173 @@ def _cluster_snapshot_copy(path: str) -> bool:
         return False
 
 
-def adopt_clustered_if_requested(data_dir: Optional[str] = None) -> bool:
+#: S3 object metadata the snapshot carries so a pod can decide BEFORE downloading.
+_META_LAYOUT = "bars-layout"
+_META_DB_BYTES = "bars-db-bytes"
+#: Layout + size of the bars.db inside the tarball `_make_tarball` built last.
+_last_tarball_meta: dict = {}
+#: One-shot record of a completed adoption (ts of the adopted snapshot).
+_ADOPTED_MARKER = ".adopted_clustered"
+#: Set while an adoption builds/swaps the store: every sync path stands aside.
+_adoption_active = threading.Event()
+#: An adopted store must hold at least this share of the local store's rows.
+ADOPT_MIN_ROW_RATIO = float(os.environ.get("BARS_ADOPT_MIN_ROW_RATIO", "0.9"))
+_adopt_logged: set = set()
+
+
+def _log_once(key: str, msg: str) -> None:
+    if key not in _adopt_logged:
+        _adopt_logged.add(key)
+        logger.warning(msg)
+
+
+def _layout_of(path: str) -> str:
+    from api.services import bars_sqlite
+    c = sqlite3.connect(path, timeout=5)
+    try:
+        return bars_sqlite.ohlcv_layout(c)
+    finally:
+        c.close()
+
+
+def _row_count(path: str) -> int:
+    c = sqlite3.connect(path, timeout=30)
+    try:
+        return int(c.execute("SELECT COUNT(*) FROM ohlcv").fetchone()[0])
+    finally:
+        c.close()
+
+
+def _copy_stat1(old_path: str, new_path: str) -> None:
+    """Carry planner statistics for the tables/indexes the new store still has."""
+    c = sqlite3.connect(new_path, isolation_level=None)
+    try:
+        c.execute("ATTACH DATABASE ? AS old", (old_path,))
+        if not c.execute("SELECT 1 FROM old.sqlite_master WHERE name='sqlite_stat1'").fetchone():
+            return
+        if not c.execute("SELECT 1 FROM main.sqlite_master WHERE name='sqlite_stat1'").fetchone():
+            c.execute("ANALYZE sqlite_master")            # creates an empty sqlite_stat1
+        c.execute("INSERT INTO main.sqlite_stat1 SELECT tbl, idx, stat FROM old.sqlite_stat1 o "
+                  "WHERE EXISTS (SELECT 1 FROM main.sqlite_master m WHERE m.name = o.tbl) "
+                  "AND (o.idx IS NULL OR EXISTS (SELECT 1 FROM main.sqlite_master m "
+                  "WHERE m.name = o.idx)) AND NOT EXISTS (SELECT 1 FROM main.sqlite_stat1 n "
+                  "WHERE n.tbl = o.tbl AND n.idx IS o.idx)")
+    finally:
+        c.close()
+
+
+def _write_marker_at(data_dir: str, filename: str, ts: str) -> None:
+    with open(os.path.join(data_dir, filename), "w") as f:
+        f.write(f"{ts}\n{int(time.time())}\n")
+
+
+def adopt_clustered_store(data_dir: Optional[str] = None) -> str:
     """⭐ HOW A SERVING POD ADOPTS THE CLUSTERED LAYOUT (bars_cluster module doc).
 
-    With `BARS_ADOPT_CLUSTERED=1`, at BOOT, before anything installs or serves: if the local
-    bars.db is still the rowid layout, remove it WITH its -wal/-shm sidecars, so the
-    ordinary cold-start path performs a wholesale install of the latest (clustered)
-    snapshot -- extract on the same volume, integrity check, atomic rename. The sidecars
-    must go too: a stale WAL replayed onto a different main file corrupts it. A clustered
-    or absent store is left alone, so the flag is idempotent and safe to leave set.
-    Returns True when the local store was removed."""
+    Runs only with `BARS_ADOPT_CLUSTERED=1`, ONCE (marker), on a pod whose store is still
+    rowid. The live store is never touched until a complete, verified replacement exists:
+      1. R2's latest snapshot must SAY it is clustered (object metadata written by the
+         uploader) -- otherwise nothing is downloaded (a rowid base: conversion disabled,
+         short on disk, failed verification, or a base build killed by a deploy);
+      2. free disk must cover the new store (+10% + 2 GB) beside the old one;
+      3. stream-extract onto the SAME volume (no tarball on disk); the copy must be
+         clustered, pass integrity_check and hold >= ADOPT_MIN_ROW_RATIO of the live rows;
+      4. carry what only this pod holds (live-store bars, heals, cold fetches, deep warms):
+         the standard newer-wins merge FROM the old store INTO the new copy (forward tails,
+         holes/corrections inside the heal window, and whole pairs the base lacks), then
+         once more under the write lock (writers paused) for the tail; planner stats too;
+      5. under the write lock: TRUNCATE-checkpoint the old store (its -wal/-shm are then
+         empty and reset, so they are safe beside the new file), atomic rename,
+         `bump_db_epoch`;
+      6. markers: adopted (one-shot), last-sync = the snapshot, last-delta CLEARED so every
+         delta newer than the base re-applies.
+    Any failure leaves the old store exactly as it was and is logged once. Returns a
+    status word."""
     if os.environ.get("BARS_ADOPT_CLUSTERED") != "1":
-        return False
-    from api.services import bars_sqlite
-    p = os.path.join(data_dir or _DATA_DIR, "bars.db")
+        return "off"
+    data_dir = data_dir or _DATA_DIR
+    p = os.path.join(data_dir, "bars.db")
+    if os.path.exists(os.path.join(data_dir, _ADOPTED_MARKER)):
+        return "done"
     if not os.path.exists(p):
-        return False
+        return "absent"                       # the cold-start install handles an empty pod
     try:
-        c = sqlite3.connect(p, timeout=5)
+        if _layout_of(p) == "clustered":
+            _write_marker_at(data_dir, _ADOPTED_MARKER, "local")
+            return "done"
+    except Exception as e:  # noqa: BLE001
+        _log_once("probe", f"[data_sync] adopt-clustered: local probe failed: {e}")
+        return "failed"
+    client, bucket = _client(), _bucket()
+    ts = get_latest_snapshot_ts() if (client and bucket) else None
+    if not ts:
+        return "no-snapshot"
+    key = f"{_SNAPSHOT_PREFIX}{ts}.tar.gz"
+    try:
+        meta = {k.lower(): v for k, v in (client.head_object(Bucket=bucket, Key=key)
+                                          .get("Metadata") or {}).items()}
+    except Exception as e:  # noqa: BLE001
+        _log_once(f"head-{ts}", f"[data_sync] adopt-clustered: cannot read {key} metadata: {e}")
+        return "failed"
+    if meta.get(_META_LAYOUT) != "clustered":
+        _log_once(f"rowid-{ts}", f"[data_sync] adopt-clustered: latest snapshot {ts} is not "
+                                 f"clustered ({meta.get(_META_LAYOUT)}); store kept")
+        return "snapshot-rowid"
+    try:
+        db_bytes = int(meta.get(_META_DB_BYTES) or 0)
+    except ValueError:
+        db_bytes = 0
+    need = int((db_bytes or os.path.getsize(p)) * 1.1) + (2 << 30)
+    free = shutil.disk_usage(data_dir).free
+    if free < need:
+        _log_once(f"disk-{ts}", f"[data_sync] adopt-clustered: {free >> 20} MB free < "
+                                f"{need >> 20} MB needed; store kept")
+        return "no-disk"
+    from api.services import bars_sqlite
+    tmpdir = tempfile.mkdtemp(prefix="adopt_", dir=data_dir)    # same volume: atomic rename
+    _adoption_active.set()
+    try:
+        _extract_tar_stream(client.get_object(Bucket=bucket, Key=key)["Body"], tmpdir)
+        new = os.path.join(tmpdir, "bars.db")
+        if not os.path.exists(new):
+            raise RuntimeError("snapshot has no bars.db")
+        if _layout_of(new) != "clustered":
+            raise RuntimeError("downloaded store is not clustered")
+        if not _verify_snapshot_db(new):
+            raise RuntimeError("downloaded store failed integrity_check")
+        n_old, n_new = _row_count(p), _row_count(new)
+        if n_new < ADOPT_MIN_ROW_RATIO * n_old:
+            raise RuntimeError(f"downloaded store holds {n_new} rows < "
+                               f"{ADOPT_MIN_ROW_RATIO:.0%} of the local {n_old}")
+        carried = max(0, _merge_ohlcv_from(p, new))
+        _copy_stat1(p, new)
+        with bars_sqlite._WRITE_LOCK:
+            carried += max(0, _merge_ohlcv_from(p, new))
+            c = sqlite3.connect(p, timeout=30)
+            try:
+                busy = c.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()[0]
+            finally:
+                c.close()
+            if busy:
+                raise RuntimeError("old store busy; could not checkpoint before the swap")
+            bars_sqlite._drop_local_conn()
+            os.replace(new, p)
+            bars_sqlite.bump_db_epoch()
+        _write_marker_at(data_dir, _ADOPTED_MARKER, ts)
+        _write_marker_at(data_dir, _LAST_SYNC_MARKER, ts)
         try:
-            layout = bars_sqlite.ohlcv_layout(c)
-        finally:
-            c.close()
-    except Exception as e:  # noqa: BLE001 -- unreadable: let the normal boot path decide
-        logger.warning(f"[data_sync] adopt-clustered: layout probe failed: {e}")
-        return False
-    if layout != "rowid":
-        return False
-    for f in (p, p + "-wal", p + "-shm"):
-        try:
-            os.remove(f)
+            os.remove(os.path.join(data_dir, _LAST_DELTA_MARKER))
         except FileNotFoundError:
             pass
-    logger.info("[data_sync] adopt-clustered: removed rowid bars.db (+sidecars) for a "
-                "wholesale snapshot install")
-    return True
+        logger.info(f"[data_sync] adopt-clustered: installed clustered snapshot {ts} "
+                    f"({n_new} rows; {carried} local rows carried)")
+        return "adopted"
+    except Exception as e:  # noqa: BLE001 -- the old store is untouched
+        _log_once(f"fail-{ts}", f"[data_sync] adopt-clustered FAILED for {ts}; store kept: {e}")
+        return "failed"
+    finally:
+        _adoption_active.clear()
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def _make_tarball() -> str:
@@ -547,7 +680,10 @@ def _make_tarball() -> str:
             _backup_sqlite_db(db_path, snap_db_path)
             # ⭐ Ship the CLUSTERED layout (bars_cluster module doc): rebuilt OFFLINE on
             # this private copy, fully verified; any failure ships the copy unchanged.
-            _cluster_snapshot_copy(snap_db_path)
+            _clustered = _cluster_snapshot_copy(snap_db_path)
+            _last_tarball_meta.clear()
+            _last_tarball_meta.update({_META_LAYOUT: "clustered" if _clustered else "rowid",
+                                       _META_DB_BYTES: str(os.path.getsize(snap_db_path))})
             # ⛔⛔ THE SNAPSHOT CARRIES EVERY INDEX THE WEB EXPECTS (incident
             # 2026-10-02). The backup copies the WORKER's bars.db, which never
             # had the web-only `idx_ohlcv_daily_bydate`; installed on web, the
@@ -678,7 +814,9 @@ def upload_snapshot(force: bool = False) -> Optional[str]:
         # regardless of snapshot size (vs put_object(Body=bytes), which held
         # the full multi-GB tarball in RAM for the whole upload).
         client.upload_file(tar_path, bucket, key,
-                           ExtraArgs={"ContentType": "application/gzip"})
+                           ExtraArgs={"ContentType": "application/gzip",
+                                      # lets a pod decide on adoption without downloading
+                                      "Metadata": dict(_last_tarball_meta)})
         client.put_object(Bucket=bucket, Key=_LATEST_KEY, Body=ts.encode(),
                           ContentType="text/plain")
         logger.info(f"[data_sync] uploaded snapshot {ts} ({tar_bytes} bytes)")
@@ -932,6 +1070,8 @@ def sync_if_newer() -> Optional[str]:
 
     Returns the snapshot ts that was downloaded (string), or None if no
     download happened (already up to date, or remote unreachable, or error)."""
+    if _adoption_active.is_set():        # adopt_clustered_store owns bars.db right now
+        return None
     remote_ts = get_latest_snapshot_ts()
     if not remote_ts:
         return None
@@ -1340,6 +1480,8 @@ def sync_if_newer_merge() -> Optional[str]:
     """Like sync_if_newer but MERGES (newer-wins) instead of replacing.
     Safe to run unconditionally on a fixed cadence — it can only add
     freshness, never regress a fresher local write."""
+    if _adoption_active.is_set():        # adopt_clustered_store owns bars.db right now
+        return None
     remote_ts = get_latest_snapshot_ts()
     if not remote_ts:
         return None
@@ -1537,6 +1679,8 @@ def sync_with_deltas() -> Optional[str]:
     than both the base and the last-applied delta, in ascending ts order.
     Returns the newest ts applied, or None. Order-independent + idempotent by
     construction (the merge is newer-wins per (ticker,tf,ts))."""
+    if _adoption_active.is_set():        # adopt_clustered_store owns bars.db right now
+        return None
     newest = None
     base_ts = get_latest_snapshot_ts()
     have_local = os.path.exists(os.path.join(_DATA_DIR, "bars.db"))

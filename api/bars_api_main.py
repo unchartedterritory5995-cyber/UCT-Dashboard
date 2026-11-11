@@ -103,9 +103,9 @@ def _ensure_local_db_installed() -> None:
     except Exception as e:  # noqa: BLE001
         _log.warning("[bars-api] temp cleanup failed (non-fatal): %s", e)
     try:
-        # Clustered-layout adoption (BARS_ADOPT_CLUSTERED=1): a rowid store is removed
-        # here so the cold-start install below lays down the clustered snapshot.
-        data_sync.adopt_clustered_if_requested(_DATA_DIR)
+        # Clustered-layout adoption (BARS_ADOPT_CLUSTERED=1, one-shot): swaps in a verified
+        # clustered snapshot carrying this pod's own newer rows; else the store is kept.
+        data_sync.adopt_clustered_store(_DATA_DIR)
     except Exception as e:  # noqa: BLE001
         _log.warning("[bars-api] adopt-clustered check failed (non-fatal): %s", e)
     try:
