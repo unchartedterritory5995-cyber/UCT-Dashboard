@@ -30,18 +30,17 @@
 //       Fallback writers (foldPrice, Writer A/C) may widen the painted high/low but never
 //       these; the next authoritative push frame rebuilds high/low from them, so a stray
 //       fallback print cannot survive an authoritative frame for the same bucket.
-//   I8  A SEALED BUCKET IS THE SERVER'S. Once the server PROVES the bucket complete — the
-//       response's `verified_through` (provider asked) is at/after the bucket's end, or the
-//       response holds a LATER bucket, or a push FINAL arrived — its bar replaces live
-//       O/H/L/C/V outright (audit D5: ghost wicks kept by max/min). The CLIENT clock proves
-//       nothing: a REST tail lags the stream by seconds, and a poll landing just after the
-//       bucket ends can still be missing the last minute — there the H/L union stands.
+//   I8  A SEALED BUCKET IS THE SERVER'S. Only two things prove a bucket complete: the
+//       response holds a LATER bucket than it, or a push FINAL arrived. Then the server's
+//       bar replaces live O/H/L/C/V outright (audit D5: ghost wicks kept by max/min).
+//       NOT proof: the client clock (a REST tail lags the stream by seconds) and NOT
+//       `verified_through` (attached after the rows are built — it can be newer than a
+//       mem-cached payload's rows). Without proof the H/L union stands.
 //
 // Bar shape here is the chart's: { time, open, high, low, close, volume, sym?, tradeTs? }
 // where `time` is the chart-series time (already ET-offset — the caller converts).
 
 import { bucketEndChartTime } from '../components/chart/liveBuckets'
-import { fromChartTime } from '../components/chart/barTime'
 
 const finitePos = (v) => Number.isFinite(v) && v > 0
 
@@ -179,7 +178,7 @@ export function mergePushBar(prev, inc, opts = {}) {
  */
 export const RECONCILE_AHEAD_GRACE_SEC = 45
 
-export function reconcileWithServerTail(live, server, { sym = null, periodSec = 300, nowChart = null, tf = null, session = 'rth', graceSec = RECONCILE_AHEAD_GRACE_SEC, verifiedThrough = null, serverHasLater = false } = {}) {
+export function reconcileWithServerTail(live, server, { sym = null, periodSec = 300, nowChart = null, tf = null, session = 'rth', graceSec = RECONCILE_AHEAD_GRACE_SEC, serverHasLater = false } = {}) {
   // F2: a server bar is authoritative as a whole — stamp its extremes as such (I7), so a
   // later fallback print folded onto it is never mistaken for an authoritative extreme.
   const srv = { ...server, volume: _vol(server.volume), sym, authHigh: server.high, authLow: server.low }
@@ -188,10 +187,9 @@ export function reconcileWithServerTail(live, server, { sym = null, periodSec = 
   }
   if (live.time === server.time) {
     if (live.final) return { bar: { ...live, sym }, ahead: false }
-    // I8: a bucket the server PROVES sealed is the server's — no live extreme survives it.
-    const sealed = serverHasLater === true || (Number.isFinite(verifiedThrough) && tf != null
-      && verifiedThrough >= fromChartTime(bucketEndTime(live.time, tf, session)))
-    if (sealed) {
+    // I8: a bucket the server PROVES sealed (a later bucket in the same response) is the
+    // server's — no live extreme survives it.
+    if (serverHasLater === true) {
       const { provisional: _p, ...rest } = live
       return { bar: { ...rest, ...srv }, ahead: false }
     }

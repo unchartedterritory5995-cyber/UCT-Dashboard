@@ -62,7 +62,7 @@ describe('I7: fallback values never survive an authoritative push frame', () => 
   })
 })
 
-describe('I8: a closed bucket is the server\'s bar, exactly', () => {
+describe('I8: a bucket the server PROVES sealed (a later bucket / a push final) is the server\'s bar, exactly', () => {
   it('a ghost-widened live bar reconciled after the bucket END becomes the server bar', () => {
     const r = rng(21000)
     const end = bucketEndTime(T5, '5')
@@ -72,9 +72,8 @@ describe('I8: a closed bucket is the server\'s bar, exactly', () => {
       let live = mergePushBar(null, tape[0], { tf: '5' }).bar
       live = foldPrice(live, r2(server.high * (1.01 + r() * 0.04)), null, '5').bar   // ghost high
       live = foldPrice(live, r2(server.low * (0.95 + r() * 0.04)), null, '5').bar    // ghost low
-      // the server's PROOF the bucket is sealed: provider asked after its end, or a later bucket
-      const proof = r() < 0.5 ? { verifiedThrough: fromChartTime(end) + Math.floor(r() * 7200) } : { serverHasLater: true }
-      const { bar, ahead } = reconcileWithServerTail(live, server, { periodSec: 300, nowChart: end + Math.floor(r() * 7200), tf: '5', ...proof })
+      // the server's PROOF the bucket is sealed: the same response holds a later bucket
+      const { bar, ahead } = reconcileWithServerTail(live, server, { periodSec: 300, nowChart: end + Math.floor(r() * 7200), tf: '5', serverHasLater: true })
       expect(ahead).toBe(false)
       expect([bar.open, bar.high, bar.low, bar.close, bar.volume]).toEqual([server.open, server.high, server.low, server.close, server.volume])
     }
@@ -84,8 +83,18 @@ describe('I8: a closed bucket is the server\'s bar, exactly', () => {
     const end = bucketEndTime(T5, '5')
     const live = { time: T5, open: 20, high: 20.9, low: 19.5, close: 20.6, volume: 7000, authHigh: 20.9, authLow: 19.5 }
     const server = { time: T5, open: 20, high: 20.5, low: 19.8, close: 20.3, volume: 6500 }
-    for (const vt of [null, fromChartTime(end) - 1]) {
-      const { bar } = reconcileWithServerTail(live, server, { periodSec: 300, nowChart: end + 5, tf: '5', verifiedThrough: vt })
+    const { bar } = reconcileWithServerTail(live, server, { periodSec: 300, nowChart: end + 5, tf: '5' })
+    expect(bar).toMatchObject({ open: 20, high: 20.9, low: 19.5, close: 20.6 })
+  })
+
+  it('REGRESSION — a mem-cached payload whose verified_through is NEWER than its rows does not seal the bucket', () => {
+    // verified_through is attached after the rows are built (live-store watermark / checked_at
+    // before the provider call), so it can claim past a partial cached row. It is not proof.
+    const end = bucketEndTime(T5, '5')
+    const live = { time: T5, open: 20, high: 20.9, low: 19.5, close: 20.6, volume: 7000, authHigh: 20.9, authLow: 19.5 }
+    const cachedPartial = { time: T5, open: 20, high: 20.5, low: 19.8, close: 20.3, volume: 6500 }
+    for (const vt of [fromChartTime(end), fromChartTime(end) + 3600]) {
+      const { bar } = reconcileWithServerTail(live, cachedPartial, { periodSec: 300, nowChart: end + 30, tf: '5', verifiedThrough: vt })
       expect(bar).toMatchObject({ open: 20, high: 20.9, low: 19.5, close: 20.6 })
     }
   })
