@@ -11,8 +11,8 @@
   "prompt_json": {
    "choices": [
     "The right to buy at the strike",
-    "The duty to buy at the strike",
     "The right to sell at the strike",
+    "The duty to buy at the strike",
     "Ownership of 100 shares"
    ],
    "kind": "mcq",
@@ -204,9 +204,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "Both sides equally",
     "The seller, called the writer",
-    "The buyer, called the holder",
-    "Both sides equally"
+    "The buyer, called the holder"
    ],
    "kind": "mcq",
    "q": "In an options trade, which side takes on an obligation?",
@@ -268,10 +268,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The strike price",
+    "Days left to expiry",
     "The premium per share",
     "The stock's price today",
-    "Days left to expiry"
+    "The strike price"
    ],
    "kind": "mcq",
    "q": "An option quote reads \"ABC December 70 Call $2.20\". What is the 70?",
@@ -452,8 +452,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Short a call",
     "Long a call",
+    "Short a call",
     "Long a put",
     "Short the stock"
    ],
@@ -651,9 +651,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Selling a 60 call",
     "Buying a 60 put",
     "Selling a 60 put",
+    "Selling a 60 call",
     "Buying a 60 call"
    ],
    "kind": "mcq",
@@ -811,8 +811,8 @@
   "prompt_json": {
    "choices": [
     "Yes, on any day before expiry",
-    "No, only on expiry day",
-    "No, the writer picks the day"
+    "No, the writer picks the day",
+    "No, only on expiry day"
    ],
    "kind": "mcq",
    "q": "Can you be assigned before expiry day?",
@@ -1015,10 +1015,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "It expires worthless",
+    "It rolls into next month",
     "You must buy 100 shares at 55",
     "It turns into 100 shares at 52",
-    "It rolls into next month"
+    "It expires worthless"
    ],
    "kind": "mcq",
    "q": "What happens to your call?",
@@ -1096,10 +1096,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "5 contracts",
+    "1 contract",
     "500 contracts",
-    "50 contracts",
-    "1 contract"
+    "5 contracts",
+    "50 contracts"
    ],
    "kind": "mcq",
    "q": "How many standard put contracts do you buy?",
@@ -1231,8 +1231,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Buying the put",
     "Selling the call",
+    "Buying the put",
     "Both, about the same",
     "Neither has a ceiling"
    ],
@@ -1314,8 +1314,8 @@
    "choices": [
     "The right to sell at 45",
     "An order to sell if it hits 45",
-    "A duty to buy more at 45",
-    "Cover for any drop below 48"
+    "Cover for any drop below 48",
+    "A duty to buy more at 45"
    ],
    "kind": "mcq",
    "q": "What does the put give you?",
@@ -1386,10 +1386,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Two 30 calls, 100 shares each",
-    "One 30 call on 100 shares",
     "One 60 call on 100 shares",
-    "Two 60 calls, 100 shares each"
+    "Two 60 calls, 100 shares each",
+    "One 30 call on 100 shares",
+    "Two 30 calls, 100 shares each"
    ],
    "kind": "mcq",
    "q": "XYZ splits 2-for-1. Before the split you held one XYZ 60 call. As a general rule, what do you hold after?",
@@ -1459,9 +1459,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "One of them",
+    "Both of them",
     "Neither of them",
-    "Both of them"
+    "One of them"
    ],
    "kind": "mcq",
    "q": "You own 100 shares of XYZ and sell two XYZ calls to open. How many of those calls are uncovered?",
@@ -1530,10 +1530,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "An SPY call",
-    "An SPX call",
+    "Neither of them",
     "Both of them",
-    "Neither of them"
+    "An SPY call",
+    "An SPX call"
    ],
    "kind": "mcq",
    "q": "Which of these can be exercised before its expiry day?",
@@ -1808,8 +1808,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The price paid for the option",
     "The strike price",
+    "The price paid for the option",
     "A deposit toward the shares",
     "The broker's commission"
    ],
@@ -2009,9 +2009,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "$150",
     "$1.50",
     "$15",
+    "$150",
     "$1,500"
    ],
    "kind": "mcq",
@@ -2085,9 +2085,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "A net credit",
+    "Nothing until expiry",
     "A net debit",
-    "Nothing until expiry"
+    "A net credit"
    ],
    "kind": "mcq",
    "q": "You sell to open one put. Is that a debit or a credit to your account?",
@@ -2208,8 +2208,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The premium you collected",
     "Unlimited, if the stock falls",
+    "The premium you collected",
     "The strike price times 100"
    ],
    "kind": "mcq",
@@ -2272,10 +2272,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Buyers and sellers trading it",
+    "The company that issued the stock",
     "The OCC, once a day",
-    "The exchange, at listing",
-    "The company that issued the stock"
+    "Buyers and sellers trading it",
+    "The exchange, at listing"
    ],
    "kind": "mcq",
    "q": "Who sets the premium on a listed option?",
@@ -2347,8 +2347,8 @@
    "choices": [
     "The interest rate",
     "The stock's price",
-    "Time left to expiry",
-    "Implied volatility"
+    "Implied volatility",
+    "Time left to expiry"
    ],
    "kind": "mcq",
    "q": "Which of these usually moves a stock option's premium the least?",
@@ -2542,10 +2542,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "$370 debit",
-    "$370 credit",
+    "$870 debit",
     "$185 debit",
-    "$870 debit"
+    "$370 credit",
+    "$370 debit"
    ],
    "kind": "mcq",
    "q": "What's the net on this trade when it fills, before commissions?",
@@ -2715,9 +2715,9 @@
   "prompt_json": {
    "choices": [
     "$200",
+    "Nothing until it expires",
     "$500",
-    "$300",
-    "Nothing until it expires"
+    "$300"
    ],
    "kind": "mcq",
    "q": "If you sell to close now, what's your loss before commissions?",
@@ -2974,10 +2974,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "$10",
     "$0.10",
+    "$790",
     "Nothing, the price didn't move",
-    "$790"
+    "$10"
    ],
    "kind": "mcq",
    "q": "If you sold it right back at the bid, what would you lose, before commissions?",
@@ -3130,8 +3130,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "$1,500",
     "$400",
+    "$1,500",
     "$1,900",
     "$2,300"
    ],
@@ -3214,10 +3214,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "$10,250",
-    "$10,000",
+    "$250",
     "$9,750",
-    "$250"
+    "$10,000",
+    "$10,250"
    ],
    "kind": "mcq",
    "q": "Counting the call's cost, how much cash have you put into those 100 shares, before commissions?",
@@ -3298,8 +3298,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "$4,700",
     "$300",
+    "$4,700",
     "$5,000"
    ],
    "kind": "mcq",
@@ -3511,8 +3511,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "C, all $5,000",
     "A, who owns the shares",
+    "C, all $5,000",
     "B, who bought one call",
     "All about the same"
    ],
@@ -3796,9 +3796,9 @@
   "prompt_json": {
    "choices": [
     "Intrinsic value and time value",
-    "The bid and the ask",
     "The strike and the expiry",
-    "Delta and theta"
+    "Delta and theta",
+    "The bid and the ask"
    ],
    "kind": "mcq",
    "q": "An option's premium is made of two parts. Which two?",
@@ -3906,10 +3906,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The amount it is in the money",
-    "The whole premium you pay",
+    "The time left until expiry",
     "What the company is really worth",
-    "The time left until expiry"
+    "The whole premium you pay",
+    "The amount it is in the money"
    ],
    "kind": "mcq",
    "q": "On an option quote, what does intrinsic value mean?",
@@ -4014,8 +4014,8 @@
   "prompt_json": {
    "choices": [
     "At the money",
-    "In the money",
-    "Out of the money"
+    "Out of the money",
+    "In the money"
    ],
    "kind": "mcq",
    "q": "The stock trades exactly at the option's strike price. What do you call that option?",
@@ -4070,10 +4070,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The premium above intrinsic value",
-    "The days left until expiry",
     "The amount it is in the money",
-    "The gap from stock to strike"
+    "The gap from stock to strike",
+    "The premium above intrinsic value",
+    "The days left until expiry"
    ],
    "kind": "mcq",
    "q": "On an option quote, what does time value mean?",
@@ -4129,9 +4129,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "The 64 put",
     "The 70 put",
-    "The 60 put",
-    "The 64 put"
+    "The 60 put"
    ],
    "kind": "mcq",
    "q": "The stock trades at 64. Which put is in the money?",
@@ -4245,10 +4245,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "Zero, every option expires dead",
     "Its intrinsic value only",
     "What you paid for it",
-    "Intrinsic plus a little time",
-    "Zero, every option expires dead"
+    "Intrinsic plus a little time"
    ],
    "kind": "mcq",
    "q": "What is an option worth at the moment it expires?",
@@ -4304,10 +4304,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The at-the-money strike",
-    "A deep in-the-money strike",
+    "Every strike holds the same",
     "A far out-of-the-money strike",
-    "Every strike holds the same"
+    "The at-the-money strike",
+    "A deep in-the-money strike"
    ],
    "kind": "mcq",
    "q": "Same stock, same expiry. Which strike usually holds the most time value?",
@@ -4584,9 +4584,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The 60-day call",
+    "They cost the same",
     "The 30-day call",
-    "They cost the same"
+    "The 60-day call"
    ],
    "kind": "mcq",
    "q": "Same stock, same 50 strike. One call expires in 30 days, the other in 60. Which usually costs more?",
@@ -4719,10 +4719,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "$1.10, all of it",
+    "$2",
     "$3.10",
     "$0",
-    "$2"
+    "$1.10, all of it"
    ],
    "kind": "mcq",
    "q": "How much of the 1.10 is time value?",
@@ -4844,10 +4844,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "$0",
     "$1.20",
     "$5",
-    "$6.20",
-    "$0"
+    "$6.20"
    ],
    "kind": "mcq",
    "q": "How much of that 6.20 is time value?",
@@ -5038,9 +5038,9 @@
   "prompt_json": {
    "choices": [
     "Lost $1 a share",
-    "Made $4 a share",
+    "Broke even",
     "Lost the whole $5",
-    "Broke even"
+    "Made $4 a share"
    ],
    "kind": "mcq",
    "q": "Your call finished in the money. What did the trade make or lose, per share?",
@@ -5192,10 +5192,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "$1.50",
     "$1.90",
     "$7.40",
-    "$9.30",
-    "$1.50"
+    "$9.30"
    ],
    "kind": "mcq",
    "q": "How much time value are you paying for, per share?",
@@ -5269,10 +5269,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "$10, intrinsic only",
-    "$10 plus its old time value",
     "Nothing, deals kill options",
-    "Whatever it last traded at"
+    "$10, intrinsic only",
+    "Whatever it last traded at",
+    "$10 plus its old time value"
    ],
    "kind": "mcq",
    "q": "What is your call worth now, per share?",
@@ -5403,9 +5403,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "Same strike, same price",
     "The call on Stock A",
-    "The call on Stock B",
-    "Same strike, same price"
+    "The call on Stock B"
    ],
    "kind": "mcq",
    "q": "Which call carries more time value?",
@@ -5520,9 +5520,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "$1.50, the time value",
-    "$10, the intrinsic value",
     "Nothing, same result",
+    "$10, the intrinsic value",
+    "$1.50, the time value",
     "$11.50, the whole premium"
    ],
    "kind": "mcq",
@@ -5774,9 +5774,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Price change for a $1 stock move",
     "Value the option loses each day",
     "Change when implied volatility moves",
+    "Price change for a $1 stock move",
     "The option's price per share"
    ],
    "kind": "mcq",
@@ -6013,8 +6013,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "It moves toward 1.00",
     "It moves toward 0",
+    "It moves toward 1.00",
     "It stays near 0.50",
     "It climbs past 1.00"
    ],
@@ -6207,10 +6207,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Roughly 20% odds it ends in the money",
-    "It gains 20% if the stock gains 1%",
     "It loses $0.20 a share each day",
-    "Its premium is $0.20 a share"
+    "Its premium is $0.20 a share",
+    "It gains 20% if the stock gains 1%",
+    "Roughly 20% odds it ends in the money"
    ],
    "kind": "mcq",
    "q": "A call shows a 0.20 delta. As a rough guide, how do some traders read that?",
@@ -6372,8 +6372,8 @@
   "prompt_json": {
    "choices": [
     "Lose about $0.40 a share",
-    "Gain about $0.40 a share",
     "Lose about $1 a share",
+    "Gain about $0.40 a share",
     "Gain about $0.60 a share"
    ],
    "kind": "mcq",
@@ -6455,9 +6455,9 @@
   "prompt_json": {
    "choices": [
     "About 40 shares",
-    "100 shares",
     "About 4 shares",
-    "About 60 shares"
+    "About 60 shares",
+    "100 shares"
    ],
    "kind": "mcq",
    "q": "A call has a 0.40 delta, and the contract covers 100 shares. About how many shares does it act like?",
@@ -6536,9 +6536,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "You lose about $0.70 a share",
     "You gain about $0.70 a share",
     "You lose about $2 a share",
+    "You lose about $0.70 a share",
     "You lose about $0.35 a share"
    ],
    "kind": "mcq",
@@ -6678,10 +6678,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The 105 strike",
-    "The 100 strike",
     "The 110 strike",
-    "The 95 strike"
+    "The 100 strike",
+    "The 95 strike",
+    "The 105 strike"
    ],
    "kind": "mcq",
    "q": "You want a call that moves about $0.30 for each $1 the stock moves. Which strike?",
@@ -6897,8 +6897,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Delta rose as the stock climbed",
     "Time decay added to the value",
+    "Delta rose as the stock climbed",
     "Past the strike, calls move 1 for 1"
    ],
    "kind": "mcq",
@@ -6976,9 +6976,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "About 0.90, deep in the money",
+    "About 0.15, out of the money",
     "About 0.50, at the money",
-    "About 0.15, out of the money"
+    "About 0.90, deep in the money"
    ],
    "kind": "mcq",
    "q": "You want an option that tracks the stock almost dollar for dollar. Which delta fits best?",
@@ -7047,9 +7047,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "It stays near 0.31",
     "It falls toward 0",
     "It rises toward 1.00",
-    "It stays near 0.31",
     "It drifts toward 0.50"
    ],
    "kind": "mcq",
@@ -7135,10 +7135,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "It rises toward 0.50",
     "It falls toward 0",
-    "It stays the same",
-    "It turns negative"
+    "It rises toward 0.50",
+    "It turns negative",
+    "It stays the same"
    ],
    "kind": "mcq",
    "q": "Before earnings, implied volatility jumps while the stock sits still. What tends to happen to a far out-of-the-money call's delta?",
@@ -7215,10 +7215,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "No, lower: you need it above 106.66",
-    "Yes, in the money means profit",
+    "Yes, delta is the odds of profit",
     "No, higher: the premium is a cushion",
-    "Yes, delta is the odds of profit"
+    "No, lower: you need it above 106.66",
+    "Yes, in the money means profit"
    ],
    "kind": "mcq",
    "q": "Is that also your rough chance of making money if you hold to expiry?",
@@ -7305,9 +7305,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Like about 150 shares",
+    "None until it's past the strike",
     "The same as 300 shares",
-    "None until it's past the strike"
+    "Like about 150 shares"
    ],
    "kind": "mcq",
    "q": "For the next $1 move, how does your exposure compare with 300 shares?",
@@ -7576,10 +7576,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Value lost per day as time passes",
+    "Price change per point of volatility",
     "Price change per $1 stock move",
     "Delta change per $1 stock move",
-    "Price change per point of volatility"
+    "Value lost per day as time passes"
    ],
    "kind": "mcq",
    "q": "On an option chain, what does theta measure?",
@@ -7791,9 +7791,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "Far out of the money",
     "At the money",
     "Deep in the money",
-    "Far out of the money",
     "Equal at every strike"
    ],
    "kind": "mcq",
@@ -8209,9 +8209,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Implied volatility rose",
-    "Implied volatility fell",
     "Decay skipped a quiet day",
+    "Implied volatility fell",
+    "Implied volatility rose",
     "Nothing; theta is just a model"
    ],
    "kind": "mcq",
@@ -8345,9 +8345,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The 1-week call",
+    "They lose the same each day",
     "The 3-month call",
-    "They lose the same each day"
+    "The 1-week call"
    ],
    "kind": "mcq",
    "q": "Same stock, both at the money. A 1-week call costs 0.90, a 3-month call 3.40. Which loses more per day if the stock sits still?",
@@ -8571,8 +8571,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Down a lot, to time decay",
     "About flat, like the stock",
+    "Down a lot, to time decay",
     "Down only a little"
    ],
    "kind": "mcq",
@@ -8709,9 +8709,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The deep in-the-money call",
     "The at-the-money call",
-    "Same expiry, same decay"
+    "Same expiry, same decay",
+    "The deep in-the-money call"
    ],
    "kind": "mcq",
    "q": "You expect a slow grind higher. Same expiry: an at-the-money call or a deep in-the-money call. Which loses less to daily decay?",
@@ -9209,10 +9209,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "How big a move the market expects",
-    "How much the stock moved last month",
     "Which way the stock will likely go",
-    "How much the option loses per day"
+    "How much the option loses per day",
+    "How big a move the market expects",
+    "How much the stock moved last month"
    ],
    "kind": "mcq",
    "q": "On an option chain, what does implied volatility tell you?",
@@ -9356,8 +9356,8 @@
   "prompt_json": {
    "choices": [
     "Price change per 1-point move in IV",
-    "Price change per $1 move in the stock",
     "Value the option loses each day",
+    "Price change per $1 move in the stock",
     "How fast delta changes"
    ],
    "kind": "mcq",
@@ -9550,10 +9550,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Expected 30-day S&P 500 volatility",
-    "How far the S&P 500 fell this month",
     "Which way the S&P 500 will go next",
-    "Trading volume on the S&P 500"
+    "Trading volume on the S&P 500",
+    "How far the S&P 500 fell this month",
+    "Expected 30-day S&P 500 volatility"
    ],
    "kind": "mcq",
    "q": "What does the VIX measure?",
@@ -9623,10 +9623,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "IV crush",
     "Time decay",
-    "A gap fill",
-    "A short squeeze"
+    "IV crush",
+    "A short squeeze",
+    "A gap fill"
    ],
    "kind": "mcq",
    "q": "The report is out, and the options' implied volatility collapses overnight. What do traders call that?",
@@ -9755,10 +9755,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The at-the-money strike",
     "A deep in-the-money strike",
-    "A far out-of-the-money strike",
-    "They all react the same"
+    "They all react the same",
+    "The at-the-money strike",
+    "A far out-of-the-money strike"
    ],
    "kind": "mcq",
    "q": "Same stock, same expiry. Which strike's option usually moves the most dollars when IV changes?",
@@ -10028,10 +10028,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "IV fell after the report",
     "One day of time decay",
     "The call's delta went negative",
-    "Calls always lose after earnings"
+    "Calls always lose after earnings",
+    "IV fell after the report"
    ],
    "kind": "mcq",
    "q": "What most likely took the value?",
@@ -10110,9 +10110,9 @@
   "prompt_json": {
    "choices": [
     "It rises, so closing costs more",
-    "It falls, since the stock is flat",
     "It stays where you sold it",
-    "It falls, as high IV helps sellers"
+    "It falls, as high IV helps sellers",
+    "It falls, since the stock is flat"
    ],
    "kind": "mcq",
    "q": "What happens to the cost of buying back your call?",
@@ -10255,8 +10255,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "About $3.90, down $0.50",
     "About $5.90, up $1.50",
+    "About $3.90, down $0.50",
     "About $2.40, down $2.00",
     "About $4.40, no change"
    ],
@@ -10342,10 +10342,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "A is expected to swing more than B",
     "A's options are overpriced",
     "A is more likely to go up",
-    "B's options are a bargain"
+    "B's options are a bargain",
+    "A is expected to swing more than B"
    ],
    "kind": "mcq",
    "q": "Stock A's options show an IV of 60%. Stock B's show 30%. What can you fairly conclude?",
@@ -10422,10 +10422,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "More vega: more dollars per IV point",
-    "More time decay each day",
     "A smaller premium to pay",
-    "The same risk, since the strike matches"
+    "More vega: more dollars per IV point",
+    "The same risk, since the strike matches",
+    "More time decay each day"
    ],
    "kind": "mcq",
    "q": "Compared with the one-month call, what does the one-year call have?",
@@ -10496,10 +10496,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "About $1.18",
+    "About $2.77",
     "About $0.89",
-    "About $0.02",
-    "About $2.77"
+    "About $1.18",
+    "About $0.02"
    ],
    "kind": "mcq",
    "q": "About how much value did the IV drop take from the put, per share?",
@@ -10692,9 +10692,9 @@
   "prompt_json": {
    "choices": [
     "A crush can sink it even if you're right",
-    "None, high IV signals a rally",
+    "High IV makes calls cheap",
     "IV tends to keep rising after",
-    "High IV makes calls cheap"
+    "None, high IV signals a rally"
    ],
    "kind": "mcq",
    "q": "What's the main risk in buying those calls?",
@@ -10772,10 +10772,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Implied tended to run a bit higher",
-    "Implied tended to run lower",
     "They matched almost exactly",
-    "No pattern at all"
+    "No pattern at all",
+    "Implied tended to run lower",
+    "Implied tended to run a bit higher"
    ],
    "kind": "mcq",
    "q": "Over long periods, how has S&P 500 implied volatility compared with the volatility that actually followed?",
@@ -11079,8 +11079,8 @@
   "prompt_json": {
    "choices": [
     "How much delta changes per $1 move",
-    "How much the option moves per $1",
     "How much value it loses each day",
+    "How much the option moves per $1",
     "How much it moves per point of IV"
    ],
    "kind": "mcq",
@@ -11273,8 +11273,8 @@
   "prompt_json": {
    "choices": [
     "Negative, you sold the option",
-    "Positive, the trade is bullish",
-    "Zero until the put is in the money"
+    "Zero until the put is in the money",
+    "Positive, the trade is bullish"
    ],
    "kind": "mcq",
    "q": "You sell a put to open, a bullish trade. What sign is your gamma?",
@@ -11343,9 +11343,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "A far out-of-the-money option",
     "The at-the-money option",
     "A deep in-the-money option",
-    "A far out-of-the-money option",
     "They all change the same"
    ],
    "kind": "mcq",
@@ -11489,10 +11489,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "It gets more negative",
-    "It gets less negative",
     "It stays the same",
-    "It turns positive"
+    "It turns positive",
+    "It gets more negative",
+    "It gets less negative"
    ],
    "kind": "mcq",
    "q": "You're short a call and the stock rises. What happens to your position's delta?",
@@ -11633,8 +11633,8 @@
   "prompt_json": {
    "choices": [
     "-0.35",
-    "-0.25",
-    "-0.30"
+    "-0.30",
+    "-0.25"
    ],
    "kind": "mcq",
    "q": "About what is the put's delta now?",
@@ -11700,9 +11700,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The 100 call",
+    "The 80 call",
     "The 110 call",
-    "The 80 call"
+    "The 100 call"
    ],
    "kind": "mcq",
    "q": "Which call's delta can swing the most on a $1 move?",
@@ -11918,9 +11918,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "About the same, deltas match",
     "The 7-day call",
-    "The 60-day call",
-    "About the same, deltas match"
+    "The 60-day call"
    ],
    "kind": "mcq",
    "q": "Which call's delta will shift more if the index jumps?",
@@ -12076,10 +12076,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "To collect the time decay",
     "Short options have capped losses",
     "Negative gamma slows their losses",
-    "Gamma only hurts option buyers"
+    "Gamma only hurts option buyers",
+    "To collect the time decay"
    ],
    "kind": "mcq",
    "q": "Short options carry negative gamma. Why do sellers take that risk?",
@@ -12177,9 +12177,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "It barely moves, gamma fades late",
     "It turns sharply positive",
-    "It stays near zero, it's hedged",
-    "It barely moves, gamma fades late"
+    "It stays near zero, it's hedged"
    ],
    "kind": "mcq",
    "q": "The stock pops $3 in ten minutes. What happens to your straddle's delta?",
@@ -12270,10 +12270,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "They sped up with each drop",
-    "Decay covered the move",
     "They're capped at the premium",
-    "The call leg offset them"
+    "They sped up with each drop",
+    "The call leg offset them",
+    "Decay covered the move"
    ],
    "kind": "mcq",
    "q": "What happened to your losses as the stock broke down?",
@@ -12379,9 +12379,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Near .50, it's at the money now",
     "Near .70, as the math says",
-    "Still near .85"
+    "Still near .85",
+    "Near .50, it's at the money now"
    ],
    "kind": "mcq",
    "q": "Subtracting .03 per dollar says .70. Where is the delta more likely to be?",
@@ -12453,8 +12453,8 @@
    "choices": [
     "Roll to a later expiry",
     "Roll to an earlier expiry",
-    "Sell a second put",
-    "Hold, gamma fades near expiry"
+    "Hold, gamma fades near expiry",
+    "Sell a second put"
    ],
    "kind": "mcq",
    "q": "Which adjustment keeps your delta about the same but cuts the gamma?",
@@ -12605,10 +12605,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Short gamma kept adding exposure",
-    "Time decay turned against you",
+    "The puts' deltas shrank as it fell",
     "Gamma is near zero on expiry day",
-    "The puts' deltas shrank as it fell"
+    "Short gamma kept adding exposure",
+    "Time decay turned against you"
    ],
    "kind": "mcq",
    "q": "The index quickly lost almost 3%. Why did your losses pile up so fast?",
@@ -12993,9 +12993,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "One trading day",
     "One year",
     "Until the option expires",
-    "One trading day",
     "One month"
    ],
    "kind": "mcq",
@@ -13073,10 +13073,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "About 68% of outcomes",
-    "About 50% of outcomes",
     "About 95% of outcomes",
-    "About 99% of outcomes"
+    "About 99% of outcomes",
+    "About 50% of outcomes",
+    "About 68% of outcomes"
    ],
    "kind": "mcq",
    "q": "IV prices a one standard deviation move. About how much of the possible outcomes does one standard deviation cover?",
@@ -13419,10 +13419,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "$60 to $140",
-    "$80 to $120",
+    "$90 to $110",
     "$40 to $160",
-    "$90 to $110"
+    "$60 to $140",
+    "$80 to $120"
    ],
    "kind": "mcq",
    "q": "A $100 stock has an implied volatility of 20%. Which one-year range holds about 95% of outcomes?",
@@ -13648,9 +13648,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "$216.88 to $233.62",
     "$200.14 to $233.62",
     "$208.51 to $225.25",
-    "$216.88 to $233.62",
     "$183.40 to $250.36"
    ],
    "kind": "mcq",
@@ -13794,9 +13794,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "About $6",
     "About $12",
-    "About $3"
+    "About $3",
+    "About $6"
    ],
    "kind": "mcq",
    "q": "Same stock, same IV. The one-week expected move is $3. About what is the four-week move?",
@@ -14027,10 +14027,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "About 5.6",
+    "About 1.25",
     "About 0.35",
     "About 7",
-    "About 1.25"
+    "About 5.6"
    ],
    "kind": "mcq",
    "q": "About how many one-day standard deviations is that move?",
@@ -14104,9 +14104,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "About 8.1%",
-    "About 2.3%",
     "About 28%",
+    "About 2.3%",
+    "About 8.1%",
     "About 1.75%"
    ],
    "kind": "mcq",
@@ -14194,8 +14194,8 @@
    "choices": [
     "It's the first expiry after the report",
     "Weekly options always carry higher IV",
-    "Traders expect the stock to drop",
-    "The monthly options are mispriced"
+    "The monthly options are mispriced",
+    "Traders expect the stock to drop"
    ],
    "kind": "mcq",
    "q": "What most likely explains the gap?",
@@ -14479,9 +14479,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "Gaining value, high IV pays the buyer",
     "Losing value: it moves less than priced",
-    "Holding value, the stock hasn't fallen",
-    "Gaining value, high IV pays the buyer"
+    "Holding value, the stock hasn't fallen"
    ],
    "kind": "mcq",
    "q": "If that keeps up, what tends to happen to your calls?",
@@ -14544,8 +14544,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Inside one day's $1.40 expected move",
     "Well outside a normal day's move",
+    "Inside one day's $1.40 expected move",
     "Nothing, IV is only for option traders"
    ],
    "kind": "mcq",
@@ -14626,8 +14626,8 @@
   "prompt_json": {
    "choices": [
     "One counts 365 days, one counts 252",
-    "One must have a bad formula",
-    "One shows up moves, one shows down"
+    "One shows up moves, one shows down",
+    "One must have a bad formula"
    ],
    "kind": "mcq",
    "q": "Same stock, same IV. Two tools show different one-day expected moves. What most likely explains it?",
@@ -14703,9 +14703,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The report is inflating that IV",
+    "IV can't really be above 100%",
     "Nothing, IV works for any window",
-    "IV can't really be above 100%"
+    "The report is inflating that IV"
    ],
    "kind": "mcq",
    "q": "What's the problem with his math?",
@@ -15058,9 +15058,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "The 110 call",
     "The 90 call",
-    "The 100 call",
-    "The 110 call"
+    "The 100 call"
    ],
    "kind": "mcq",
    "q": "A stock trades at 100. Same expiry for all three. Which call costs the most?",
@@ -15122,9 +15122,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The 70 put",
+    "The 90 put",
     "The 80 put",
-    "The 90 put"
+    "The 70 put"
    ],
    "kind": "mcq",
    "q": "A stock trades at 80. Same expiry for all three. Which put moves most like being short the stock?",
@@ -15307,10 +15307,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Which strike is cheapest today",
     "Where the stock goes, and by when",
+    "How much you'd like to make",
     "Which strike traded most today",
-    "How much you'd like to make"
+    "Which strike is cheapest today"
    ],
    "kind": "mcq",
    "q": "Before you pick a strike, what do you settle first?",
@@ -15505,9 +15505,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The heavily traded, tight one",
     "The wide one, it may be a bargain",
-    "Either, spreads don't change much"
+    "Either, spreads don't change much",
+    "The heavily traded, tight one"
    ],
    "kind": "mcq",
    "q": "Which strike do you take?",
@@ -15570,10 +15570,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The 95 call",
     "The 100 call",
-    "The 110 call",
-    "None, you were right on direction"
+    "The 95 call",
+    "None, you were right on direction",
+    "The 110 call"
    ],
    "kind": "mcq",
    "q": "The stock closes at 108 on expiry day. Which call lost everything?",
@@ -15719,8 +15719,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The 110 call, at 101",
     "Both, at their own strikes",
+    "The 110 call, at 101",
     "The 90 call, at 100.95"
    ],
    "kind": "mcq",
@@ -15786,10 +15786,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "Lost the $150 premium",
     "Made $300",
     "Made $150",
-    "Made $650",
-    "Lost the $150 premium"
+    "Made $650"
    ],
    "kind": "mcq",
    "q": "You buy the 75 put. XYZ closes at 72 on expiry day. What did it make or lose, per contract?",
@@ -15877,9 +15877,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The at-the-money call",
+    "A deep in-the-money call",
     "A far out-of-the-money call",
-    "A deep in-the-money call"
+    "The at-the-money call"
    ],
    "kind": "mcq",
    "q": "Which strike fits that plan best?",
@@ -16120,9 +16120,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The 45 put, and it's cheaper too",
+    "The 47.50 put, but it caps your upside",
     "The 47.50 put, but it costs more",
-    "The 47.50 put, but it caps your upside"
+    "The 45 put, and it's cheaper too"
    ],
    "kind": "mcq",
    "q": "Which put gives the closer floor, and what's the catch?",
@@ -16199,9 +16199,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Hold, the most you lose is the premium",
+    "Sell it, it closed below 96",
     "Buy more, it's cheaper now",
-    "Sell it, it closed below 96"
+    "Hold, the most you lose is the premium"
    ],
    "kind": "mcq",
    "q": "What do you do with the call?",
@@ -16336,9 +16336,9 @@
   "prompt_json": {
    "choices": [
     "Cheap, so the risk is small",
-    "Buy a lot, one pop pays for all",
+    "It needs a big move in days",
     "It moves like the stock, for less",
-    "It needs a big move in days"
+    "Buy a lot, one pop pays for all"
    ],
    "kind": "mcq",
    "q": "What's the honest read on that strike?",
@@ -16764,9 +16764,9 @@
   "prompt_json": {
    "choices": [
     "The third Friday of the month",
+    "The last trading day of the month",
     "The last Friday of the month",
-    "The first Friday of the month",
-    "The last trading day of the month"
+    "The first Friday of the month"
    ],
    "kind": "mcq",
    "q": "Standard monthly stock options expire on which day?",
@@ -16874,9 +16874,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "How long the move should take",
+    "How far the strike is from the stock",
     "Which expiry is the cheapest",
-    "How far the strike is from the stock"
+    "How long the move should take"
    ],
    "kind": "mcq",
    "q": "What should decide your expiry first?",
@@ -17189,8 +17189,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The plan's, with weeks to spare",
     "The option's, so it forces you out",
+    "The plan's, with weeks to spare",
     "The same day, to pay for no extra time"
    ],
    "kind": "mcq",
@@ -17339,8 +17339,8 @@
   "prompt_json": {
    "choices": [
     "Read the date on the contract",
-    "Count to the month's third Friday",
-    "Count to the next Friday"
+    "Count to the next Friday",
+    "Count to the month's third Friday"
    ],
    "kind": "mcq",
    "q": "Before you buy, how do you know exactly when your option expires?",
@@ -17395,8 +17395,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The May 15 expiry",
     "The April 17 expiry",
+    "The May 15 expiry",
     "Both of them"
    ],
    "kind": "mcq",
@@ -17532,9 +17532,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The 30-day call, down $0.96",
     "The 50-day call, down $0.67",
-    "Both lose the same"
+    "Both lose the same",
+    "The 30-day call, down $0.96"
    ],
    "kind": "mcq",
    "q": "You own one call with 30 days left and one with 50. The stock sits still for 20 days. Which loses more?",
@@ -17606,9 +17606,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "March: enough time, half the cost",
     "May: more time is always safer",
-    "May: its break-even is lower"
+    "May: its break-even is lower",
+    "March: enough time, half the cost"
    ],
    "kind": "mcq",
    "q": "Which expiry fits the plan better?",
@@ -17748,10 +17748,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Time for the move to show up",
     "A lower break-even",
+    "The right to buy the shares",
     "Protection from a gap down",
-    "The right to buy the shares"
+    "Time for the move to show up"
    ],
    "kind": "mcq",
    "q": "What did you give up for the lower price?",
@@ -17843,10 +17843,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "About 60 days out",
-    "About 30 days out",
     "This Friday's weekly",
-    "A two-year LEAPS call"
+    "About 60 days out",
+    "A two-year LEAPS call",
+    "About 30 days out"
    ],
    "kind": "mcq",
    "q": "Which expiry fits that plan best?",
@@ -17924,9 +17924,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "This month's expiry",
     "About a year out",
-    "About 60 days out",
-    "This month's expiry"
+    "About 60 days out"
    ],
    "kind": "mcq",
    "q": "Which expiry fits that plan?",
@@ -18141,10 +18141,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Thursday, June 17",
     "Friday, June 18",
-    "Monday, June 21",
-    "Friday, June 25"
+    "Friday, June 25",
+    "Thursday, June 17",
+    "Monday, June 21"
    ],
    "kind": "mcq",
    "q": "You own June monthly calls on a stock. When is your last day to trade them?",
@@ -18243,9 +18243,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Same $300 at risk, far less time",
+    "Less risk, since each one is cheaper",
     "Three times the profit, same risk",
-    "Less risk, since each one is cheaper"
+    "Same $300 at risk, far less time"
    ],
    "kind": "mcq",
    "q": "What changes if you buy the three weeklies instead?",
@@ -18577,9 +18577,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Rise before the option expires",
+    "Stay flat until expiry",
     "Fall before the option expires",
-    "Stay flat until expiry"
+    "Rise before the option expires"
    ],
    "kind": "mcq",
    "q": "You buy a call. What are you betting the stock will do?",
@@ -18833,9 +18833,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "It gives you more time to be right",
     "Your loss is capped at the premium",
-    "It gains $1 for every $1 the stock drops",
-    "It gives you more time to be right"
+    "It gains $1 for every $1 the stock drops"
    ],
    "kind": "mcq",
    "q": "You expect a stock to drop. Why buy a put instead of shorting the shares?",
@@ -18977,9 +18977,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Shares",
+    "Weeklies, because they're cheap",
     "Calls, to control more for less",
-    "Weeklies, because they're cheap"
+    "Shares"
    ],
    "kind": "mcq",
    "q": "Shares or options: which is our default for a swing trade?",
@@ -19192,8 +19192,8 @@
   "prompt_json": {
    "choices": [
     "3 contracts",
-    "300 contracts",
-    "As many as your cash buys"
+    "As many as your cash buys",
+    "300 contracts"
    ],
    "kind": "mcq",
    "q": "How many contracts do you buy?",
@@ -19392,9 +19392,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Plan B: the call, $200 at most",
+    "Both had a fixed worst case",
     "Plan A: the stop, $300 at most",
-    "Both had a fixed worst case"
+    "Plan B: the call, $200 at most"
    ],
    "kind": "mcq",
    "q": "Which plan's worst case was fixed before the gap?",
@@ -19615,8 +19615,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "A sharp rally you expect soon",
     "A slow climb over the next year",
+    "A sharp rally you expect soon",
     "A stock you'd hold through dips"
    ],
    "kind": "mcq",
@@ -19783,8 +19783,8 @@
   "prompt_json": {
    "choices": [
     "A short position in 100 shares",
-    "$300 in cash",
-    "Nothing; the put expires"
+    "Nothing; the put expires",
+    "$300 in cash"
    ],
    "kind": "mcq",
    "q": "If you hold through the close, what are you likely left with?",
@@ -19868,8 +19868,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Sell it while time value is left",
     "Exercise it and hold the shares",
+    "Sell it while time value is left",
     "Buy more to lower your cost"
    ],
    "kind": "mcq",
@@ -19947,9 +19947,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "1 contract, $500",
     "10 contracts, the full $5,000",
-    "5 contracts, half the cash"
+    "5 contracts, half the cash",
+    "1 contract, $500"
    ],
    "kind": "mcq",
    "q": "You want calls that control the same number of shares. How many do you buy?",
@@ -20310,10 +20310,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Same type and expiry, different strikes",
-    "Same strike, different expiry dates",
+    "Different strikes and expiry dates",
     "One call and one put, same strike",
-    "Different strikes and expiry dates"
+    "Same strike, different expiry dates",
+    "Same type and expiry, different strikes"
    ],
    "kind": "mcq",
    "q": "You buy one option and sell another on the same stock. What makes it a vertical spread?",
@@ -20498,8 +20498,8 @@
   "prompt_json": {
    "choices": [
     "Help pay for the long call",
-    "Add to gains on a big rally",
-    "Make the trade free to open"
+    "Make the trade free to open",
+    "Add to gains on a big rally"
    ],
    "kind": "mcq",
    "q": "In a bull call spread, what is the short call there to do?",
@@ -20561,10 +20561,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "Bear put spread",
     "Bull put spread",
-    "Bull call spread",
     "Bear call spread",
-    "Bear put spread"
+    "Bull call spread"
    ],
    "kind": "mcq",
    "q": "You're bullish and want to collect a credit when you open the trade. Which spread fits?",
@@ -20657,8 +20657,8 @@
    "choices": [
     "At or above the higher strike",
     "Between the two strikes",
-    "Below the lower strike",
-    "Anywhere: the credit is already yours"
+    "Anywhere: the credit is already yours",
+    "Below the lower strike"
    ],
    "kind": "mcq",
    "q": "You sold a bull put spread. Where does the stock need to finish at expiry for the full profit?",
@@ -20787,10 +20787,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "It costs less, but caps your gain",
     "It makes more on a big rally",
-    "It can't lose money",
-    "Time decay can't touch it"
+    "Time decay can't touch it",
+    "It costs less, but caps your gain",
+    "It can't lose money"
    ],
    "kind": "mcq",
    "q": "Why buy a bull call spread instead of the long call alone?",
@@ -20881,10 +20881,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "It moves only slightly",
     "It jumps, like a long call",
-    "It drops, since you sold a call",
-    "Nothing, ever: the legs cancel"
+    "It moves only slightly",
+    "Nothing, ever: the legs cancel",
+    "It drops, since you sold a call"
    ],
    "kind": "mcq",
    "q": "Implied volatility jumps and nothing else changes. What happens to a bull call spread's price?",
@@ -21080,10 +21080,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Sell the 85 call, buy the 90 call",
-    "Buy the 85 call, sell the 90 call",
     "Sell the 75 call, buy the 80 call",
-    "Sell the 85 put, buy the 80 put"
+    "Buy the 85 call, sell the 90 call",
+    "Sell the 85 put, buy the 80 put",
+    "Sell the 85 call, buy the 90 call"
    ],
    "kind": "mcq",
    "q": "Which spread fits that view?",
@@ -21233,8 +21233,8 @@
    "choices": [
     "Made $120",
     "Made $320",
-    "Lost $180",
-    "Made $300"
+    "Made $300",
+    "Lost $180"
    ],
    "kind": "mcq",
    "q": "What did one spread make or lose?",
@@ -21316,10 +21316,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Higher max gain, higher cost",
-    "Higher max gain, lower cost",
     "Lower max gain, lower cost",
-    "Nothing, only the strike moves"
+    "Nothing, only the strike moves",
+    "Higher max gain, higher cost",
+    "Higher max gain, lower cost"
    ],
    "kind": "mcq",
    "q": "Your bull call spread is long the 60 call. You move the short call from 65 up to 70. What changes?",
@@ -21382,10 +21382,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "$150",
     "$350",
-    "$1,050",
     "$500",
-    "$150"
+    "$1,050"
    ],
    "kind": "mcq",
    "q": "What did one spread lose?",
@@ -21467,10 +21467,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "$68.40",
     "$63.40",
-    "$71.60",
-    "$66.60"
+    "$66.60",
+    "$68.40",
+    "$71.60"
    ],
    "kind": "mcq",
    "q": "At expiry, below what stock price do you start losing money?",
@@ -21610,8 +21610,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "100/110: up $680 a spread",
     "100/105: up $300 a spread",
+    "100/110: up $680 a spread",
     "110/120: up $915 a spread"
    ],
    "kind": "mcq",
@@ -21811,10 +21811,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Close the spread before the bell",
-    "Hold it: max profit is locked in",
     "Sell 100 shares now to cover",
-    "Sell only the long call"
+    "Sell only the long call",
+    "Close the spread before the bell",
+    "Hold it: max profit is locked in"
    ],
    "kind": "mcq",
    "q": "Which move takes the weekend assignment risk off the table?",
@@ -21972,10 +21972,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Leaves the short call uncovered",
     "Nothing, the calls are out of the money",
-    "Locks in your max profit",
-    "Cuts your max loss to zero"
+    "Leaves the short call uncovered",
+    "Cuts your max loss to zero",
+    "Locks in your max profit"
    ],
    "kind": "mcq",
    "q": "What does selling just the long call do to your risk?",
@@ -22132,10 +22132,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "100 shares, bought at 40",
     "Nothing: spreads settle in cash",
     "Nothing: the long put covers it",
-    "Short 100 shares at 35"
+    "Short 100 shares at 35",
+    "100 shares, bought at 40"
    ],
    "kind": "mcq",
    "q": "What are you most likely holding on Monday?",
@@ -22468,10 +22468,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Buying a call to protect your shares",
-    "Selling a call on shares you own",
     "Selling a call on shares you don't own",
-    "Buying a call and a put together"
+    "Selling a call on shares you own",
+    "Buying a call and a put together",
+    "Buying a call to protect your shares"
    ],
    "kind": "mcq",
    "q": "In options, what is a covered call?",
@@ -22607,9 +22607,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "Selling a put with cash ready to buy",
     "Buying a put on shares you own",
-    "Selling a put with no cash behind it",
-    "Selling a put with cash ready to buy"
+    "Selling a put with no cash behind it"
    ],
    "kind": "mcq",
    "q": "In options, what is a cash-secured put?",
@@ -22741,9 +22741,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "To make more on a big rally",
     "To collect premium income",
-    "To protect against a big drop",
-    "To make more on a big rally"
+    "To protect against a big drop"
    ],
    "kind": "mcq",
    "q": "What is the main reason to sell a covered call?",
@@ -22812,10 +22812,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "A big breakout coming",
     "Steady or slightly rising",
-    "A sharp drop coming",
-    "Big swings either way"
+    "A big breakout coming",
+    "Big swings either way",
+    "A sharp drop coming"
    ],
    "kind": "mcq",
    "q": "Which outlook on the stock fits selling a covered call?",
@@ -22944,9 +22944,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "$4,500",
-    "$4,800",
     "$45",
+    "$4,800",
+    "$4,500",
     "Just the premium"
    ],
    "kind": "mcq",
@@ -23332,9 +23332,9 @@
   "prompt_json": {
    "choices": [
     "$1.50",
+    "$40",
     "$38.50",
-    "Unlimited",
-    "$40"
+    "Unlimited"
    ],
    "kind": "mcq",
    "q": "You buy a stock at 40 and sell a covered call for 1.50. What is the most you can lose per share?",
@@ -23406,9 +23406,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Early assignment, without the dividend",
+    "The strike cut by the dividend",
     "No assignment until expiry day",
-    "The strike cut by the dividend"
+    "Early assignment, without the dividend"
    ],
    "kind": "mcq",
    "q": "What should you be ready for?",
@@ -23499,8 +23499,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Sell the 50 put",
     "Buy the shares at 50",
+    "Sell the 50 put",
     "Sell the 45 put"
    ],
    "kind": "mcq",
@@ -23564,10 +23564,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "$49",
-    "$50.80",
     "$42.50",
-    "$44.30"
+    "$44.30",
+    "$49",
+    "$50.80"
    ],
    "kind": "mcq",
    "q": "What do you take in per share for the shares and the call together?",
@@ -23654,10 +23654,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Yes, it's free money on the way up",
-    "Yes, it protects the breakout",
     "No, it caps your exit at 48",
-    "No, it adds risk below 44"
+    "No, it adds risk below 44",
+    "Yes, it's free money on the way up",
+    "Yes, it protects the breakout"
    ],
    "kind": "mcq",
    "q": "Do you sell the 45 call against your shares?",
@@ -23824,10 +23824,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "$10",
+    "$3",
     "$7",
-    "$13",
-    "$3"
+    "$10",
+    "$13"
    ],
    "kind": "mcq",
    "q": "Against the market price, how much are you down per share?",
@@ -23967,10 +23967,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "Sell another call for more premium",
     "Buy the call back, then sell the shares",
-    "Sell the shares, leave the call open",
     "Hold both, the premium covers you",
-    "Sell another call for more premium"
+    "Sell the shares, leave the call open"
    ],
    "kind": "mcq",
    "q": "How do you get out?",
@@ -24338,8 +24338,8 @@
   "prompt_json": {
    "choices": [
     "Buy call and put, same strike and expiry",
-    "Buy call and put, two different strikes",
     "Buy a call, sell a put, same strike",
+    "Buy call and put, two different strikes",
     "Sell a near call, buy a far call"
    ],
    "kind": "mcq",
@@ -24476,10 +24476,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Same strike, two different expiries",
-    "Same expiry, two different strikes",
     "Two strikes and two expiries",
-    "A call and a put, same strike"
+    "Same strike, two different expiries",
+    "A call and a put, same strike",
+    "Same expiry, two different strikes"
    ],
    "kind": "mcq",
    "q": "What is a calendar spread?",
@@ -24667,10 +24667,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Implied volatility rising",
+    "The stock holding still",
     "Implied volatility falling",
     "Time passing",
-    "The stock holding still"
+    "Implied volatility rising"
    ],
    "kind": "mcq",
    "q": "You own a long strangle. All else equal, which of these helps it?",
@@ -24802,9 +24802,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "The strike price, at most",
     "Unlimited, the short call has no cap",
-    "The premium you collected",
-    "The strike price, at most"
+    "The premium you collected"
    ],
    "kind": "mcq",
    "q": "You sell a straddle. What is your maximum loss?",
@@ -24937,10 +24937,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Long call calendar",
-    "Short call calendar",
     "Bull call spread",
-    "Call diagonal"
+    "Call diagonal",
+    "Long call calendar",
+    "Short call calendar"
    ],
    "kind": "mcq",
    "q": "Short the March 60 call, long the May 60 call. What is this position called?",
@@ -25073,10 +25073,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Diagonal spread",
     "Calendar spread",
-    "Bull call spread",
-    "Long strangle"
+    "Long strangle",
+    "Diagonal spread",
+    "Bull call spread"
    ],
    "kind": "mcq",
    "q": "Long the June 45 call, short the April 50 call. Which structure is this?",
@@ -25225,8 +25225,8 @@
   "prompt_json": {
    "choices": [
     "Right at 100",
-    "Far above 100",
     "Far below 100",
+    "Far above 100",
     "Anywhere, time pays either way"
    ],
    "kind": "mcq",
@@ -25427,10 +25427,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "It needs a bigger move to pay",
     "It risks more dollars if nothing happens",
     "Its upside is capped",
-    "It needs IV to fall"
+    "It needs IV to fall",
+    "It needs a bigger move to pay"
    ],
    "kind": "mcq",
    "q": "What do you give up by buying the cheaper strangle?",
@@ -25494,10 +25494,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "It's shrinking toward zero",
-    "It's rising with the rally",
     "It's dropping below zero",
-    "It's at its maximum"
+    "It's shrinking toward zero",
+    "It's at its maximum",
+    "It's rising with the rally"
    ],
    "kind": "mcq",
    "q": "What is happening to the spread's value?",
@@ -25575,9 +25575,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "Made $3 a share",
     "Lost $3 a share",
     "Made $6 a share",
-    "Made $3 a share",
     "Lost the full $9"
    ],
    "kind": "mcq",
@@ -25659,10 +25659,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "It's worth less than you paid",
-    "It gained, the stock moved",
     "It's flat, the legs offset",
-    "Only the put lost value"
+    "It gained, the stock moved",
+    "Only the put lost value",
+    "It's worth less than you paid"
    ],
    "kind": "mcq",
    "q": "What most likely happened to your straddle?",
@@ -25754,10 +25754,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "A $1.20 gain",
+    "An unlimited loss",
     "A $3.80 loss",
-    "A $5 gain",
-    "An unlimited loss"
+    "A $1.20 gain",
+    "A $5 gain"
    ],
    "kind": "mcq",
    "q": "Fees aside, what's the result per share?",
@@ -25905,9 +25905,9 @@
   "prompt_json": {
    "choices": [
     "You're paying up for the move",
+    "Time decay stops before earnings",
     "None, a big move pays either way",
-    "High IV caps your upside",
-    "Time decay stops before earnings"
+    "High IV caps your upside"
    ],
    "kind": "mcq",
    "q": "What is the catch with buying the straddle here?",
@@ -25985,10 +25985,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "Long 105/95 strangle",
     "Long 100 call calendar",
-    "Short 100 straddle",
     "Long 100 straddle",
-    "Long 105/95 strangle"
+    "Short 100 straddle"
    ],
    "kind": "mcq",
    "q": "Which trade fits that view?",
@@ -26066,9 +26066,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "$27 a share",
-    "$30 a share",
     "$3 a share",
+    "$30 a share",
+    "$27 a share",
     "Nothing, the put offsets it"
    ],
    "kind": "mcq",
@@ -26151,9 +26151,9 @@
   "prompt_json": {
    "choices": [
     "A naked short call",
-    "A long call",
+    "Nothing, the spread is closed",
     "A covered call",
-    "Nothing, the spread is closed"
+    "A long call"
    ],
    "kind": "mcq",
    "q": "Long the March 60 call, short the May 60 call. March expires worthless and you do nothing. What do you hold?",
@@ -26478,8 +26478,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "A bull put spread and a bear call spread",
     "A bull call spread and a bear put spread",
+    "A bull put spread and a bear call spread",
     "A short call and a short put alone",
     "A short straddle and a long strangle"
    ],
@@ -26696,8 +26696,8 @@
    "choices": [
     "Buy 1 low, sell 2 middle, buy 1 high",
     "Sell 1 low, buy 2 middle, sell 1 high",
-    "Buy 1 low call, sell 1 high call",
-    "Buy a call and a put at one strike"
+    "Buy a call and a put at one strike",
+    "Buy 1 low call, sell 1 high call"
    ],
    "kind": "mcq",
    "q": "You want a long call butterfly, strikes evenly spaced. Which legs build it?",
@@ -26788,10 +26788,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Anywhere between the two short strikes",
     "Only at the exact middle of the range",
+    "Between a short and a long strike",
     "Beyond either long strike",
-    "Between a short and a long strike"
+    "Anywhere between the two short strikes"
    ],
    "kind": "mcq",
    "q": "You sold an iron condor. Where must the stock finish at expiry for you to keep the whole credit?",
@@ -27007,10 +27007,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Less credit, a wider range to profit in",
     "More credit, a wider range to profit in",
-    "More credit, a narrower range",
-    "Same credit, same range"
+    "Same credit, same range",
+    "Less credit, a wider range to profit in",
+    "More credit, a narrower range"
    ],
    "kind": "mcq",
    "q": "Same stock, same expiry, same wing width. How does an iron condor usually compare with an iron butterfly?",
@@ -27349,9 +27349,9 @@
   "prompt_json": {
    "choices": [
     "46.80 and 53.20",
-    "45 and 55",
+    "48.40 and 51.60",
     "41.80 and 58.20",
-    "48.40 and 51.60"
+    "45 and 55"
    ],
    "kind": "mcq",
    "q": "Where are your two break-evens at expiry?",
@@ -27561,8 +27561,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "It shows a loss on paper",
     "It shows a gain on paper",
+    "It shows a loss on paper",
     "Nothing until the stock moves",
     "Your max loss gets bigger"
    ],
@@ -27694,10 +27694,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "$2,915",
     "$7,085",
     "$10,000",
-    "$14,170",
-    "$2,915"
+    "$14,170"
    ],
    "kind": "mcq",
    "q": "What is the max loss on this one condor?",
@@ -27799,10 +27799,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Short 100 shares",
     "Nothing, every leg expired",
-    "Long 100 shares",
-    "Short 200 shares"
+    "Short 200 shares",
+    "Short 100 shares",
+    "Long 100 shares"
    ],
    "kind": "mcq",
    "q": "If you do nothing, what do you likely hold on Monday?",
@@ -27939,10 +27939,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "IV drops and the stock stays in range",
-    "IV drops, whatever the stock does",
     "The stock gaps big in either direction",
-    "IV keeps rising after the report"
+    "IV drops, whatever the stock does",
+    "IV keeps rising after the report",
+    "IV drops and the stock stays in range"
    ],
    "kind": "mcq",
    "q": "What has to happen for the trade to work?",
@@ -28027,8 +28027,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "European-style index options, like SPX",
     "American-style options on a stock",
+    "European-style index options, like SPX",
     "Stock options that pay no dividend"
    ],
    "kind": "mcq",
@@ -28112,9 +28112,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Sell the shares, then sell the long put",
+    "Hold the shares and wait for a bounce",
     "Exercise the long put right away",
-    "Hold the shares and wait for a bounce"
+    "Sell the shares, then sell the long put"
    ],
    "kind": "mcq",
    "q": "What's usually the better way out?",
@@ -28397,10 +28397,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The seller must now fulfill the contract",
     "The buyer uses the right to buy or sell",
     "The option ran out worthless",
-    "Closing it and opening a new strike"
+    "Closing it and opening a new strike",
+    "The seller must now fulfill the contract"
    ],
    "kind": "mcq",
    "q": "In options, what does assignment mean?",
@@ -28529,9 +28529,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "OCC at random, then your broker's method",
-    "The holder picks who sold to them",
     "The biggest short goes first",
+    "The holder picks who sold to them",
+    "OCC at random, then your broker's method",
     "Whoever sold most recently"
    ],
    "kind": "mcq",
@@ -28611,8 +28611,8 @@
    "choices": [
     "Rolling",
     "Exercising",
-    "Being assigned",
-    "Letting it expire"
+    "Letting it expire",
+    "Being assigned"
    ],
    "kind": "mcq",
    "q": "You buy back your short May 50 call and sell a June 55 call in one trade. What is that called?",
@@ -28817,9 +28817,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "The first week after you sell it",
     "Just before the ex-dividend date",
     "The morning after earnings",
-    "The first week after you sell it",
     "Any day the stock closes higher"
    ],
    "kind": "mcq",
@@ -28905,9 +28905,9 @@
   "prompt_json": {
    "choices": [
     "Deep in the money, near expiry",
+    "Out of the money, ex-date soon",
     "Just in the money, months to go",
-    "At the money, expiry this week",
-    "Out of the money, ex-date soon"
+    "At the money, expiry this week"
    ],
    "kind": "mcq",
    "q": "You're short four puts on different stocks. Which one is most likely to be assigned early?",
@@ -29029,10 +29029,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "5:30 p.m. ET on expiry day",
-    "4:00 p.m. ET, the closing bell",
     "Midnight ET on expiry day",
-    "9:30 a.m. ET the next morning"
+    "4:00 p.m. ET, the closing bell",
+    "9:30 a.m. ET the next morning",
+    "5:30 p.m. ET on expiry day"
    ],
    "kind": "mcq",
    "q": "Under FINRA's rule as of November 2026, until when can a holder decide to exercise an expiring stock option?",
@@ -29123,10 +29123,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "Within a week, after settlement",
     "Before trading opens Wednesday",
     "Instantly, during Tuesday's session",
-    "Only at the option's expiry",
-    "Within a week, after settlement"
+    "Only at the option's expiry"
    ],
    "kind": "mcq",
    "q": "On Tuesday, a holder exercises a call you're short. When is the exercise usually assigned?",
@@ -29334,10 +29334,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "100 shares, bought at 90",
     "Cash for the spread, no shares",
-    "Short 100 shares at 95",
-    "Nothing, both legs expire"
+    "Nothing, both legs expire",
+    "100 shares, bought at 90",
+    "Short 100 shares at 95"
    ],
    "kind": "mcq",
    "q": "What are you most likely holding on Monday?",
@@ -29495,10 +29495,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Likely: just $0.05 of time value left",
+    "Unlikely: the dividend is too small",
     "Unlikely: two weeks are still left",
-    "Unlikely: holders wait for expiry day",
-    "Unlikely: the dividend is too small"
+    "Likely: just $0.05 of time value left",
+    "Unlikely: holders wait for expiry day"
    ],
    "kind": "mcq",
    "q": "How likely is an early assignment tonight?",
@@ -29593,10 +29593,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "100 shares, net cost $43.20 a share",
-    "100 shares at $43.50, the close",
     "Nothing: the put just expires",
-    "Short 100 shares at $45"
+    "100 shares, net cost $43.20 a share",
+    "Short 100 shares at $45",
+    "100 shares at $43.50, the close"
    ],
    "kind": "mcq",
    "q": "What do you most likely hold on Monday, and at what net cost?",
@@ -29691,9 +29691,9 @@
   "prompt_json": {
    "choices": [
     "100 shares at 50, plus the 45 put",
-    "Nothing, the spread closed itself",
     "Short 100 shares at 50, plus the 45 put",
-    "Cash for the max loss, spread closed"
+    "Cash for the max loss, spread closed",
+    "Nothing, the spread closed itself"
    ],
    "kind": "mcq",
    "q": "What's in your account now?",
@@ -29771,10 +29771,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Buy the call back before the close",
-    "Nothing, two cents won't get exercised",
     "Buy 100 shares in case of assignment",
-    "Wait and see the after-hours price"
+    "Wait and see the after-hours price",
+    "Nothing, two cents won't get exercised",
+    "Buy the call back before the close"
    ],
    "kind": "mcq",
    "q": "What's the cleanest way to avoid a surprise position on Monday?",
@@ -29894,10 +29894,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Exercise your 55 puts",
-    "Nothing, both expired worthless",
     "Sell the 55 puts on Monday",
-    "Let the broker exercise them for you"
+    "Nothing, both expired worthless",
+    "Let the broker exercise them for you",
+    "Exercise your 55 puts"
    ],
    "kind": "mcq",
    "q": "What's your move right now?",
@@ -29989,10 +29989,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Sell it, or file a do-not-exercise",
+    "Exercise it now to cash the 3 cents",
     "Nothing: 3 cents won't trigger exercise",
-    "Nothing: your broker will ask first",
-    "Exercise it now to cash the 3 cents"
+    "Sell it, or file a do-not-exercise",
+    "Nothing: your broker will ask first"
    ],
    "kind": "mcq",
    "q": "What's your move?",
@@ -30092,9 +30092,9 @@
   "prompt_json": {
    "choices": [
     "The trading day before expiry",
-    "Friday's open, before settlement",
     "Friday's 4 p.m. ET close",
-    "Monday, once it's cash-settled"
+    "Monday, once it's cash-settled",
+    "Friday's open, before settlement"
    ],
    "kind": "mcq",
    "q": "You hold a standard monthly SPX call, the AM-settled kind. When is your last chance to sell it?",
@@ -30439,10 +30439,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Sell to close",
-    "Buy to close",
     "Exercise the call",
-    "Buy a put on the stock"
+    "Buy to close",
+    "Buy a put on the stock",
+    "Sell to close"
    ],
    "kind": "mcq",
    "q": "You own a call and want to be fully out of the trade, with no shares. Which order does that?",
@@ -30506,9 +30506,9 @@
   "prompt_json": {
    "choices": [
     "Close it and open a new one",
-    "Exercise it early for shares",
     "Add contracts as it drops",
-    "Move your stop further away"
+    "Move your stop further away",
+    "Exercise it early for shares"
    ],
    "kind": "mcq",
    "q": "In options, what does it mean to roll a position?",
@@ -30671,10 +30671,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "The stock's price or the option's",
-    "Only the option's price",
     "Only the stock's price",
-    "Nothing, options can't use stops"
+    "Nothing, options can't use stops",
+    "The stock's price or the option's",
+    "Only the option's price"
    ],
    "kind": "mcq",
    "q": "You own a call. What can you base your stop-loss on?",
@@ -30737,10 +30737,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Moving to a later expiry",
     "Moving to a higher strike",
-    "Closing the trade for good",
-    "Adding more contracts"
+    "Moving to a later expiry",
+    "Adding more contracts",
+    "Closing the trade for good"
    ],
    "kind": "mcq",
    "q": "In options, what does rolling out mean?",
@@ -30824,10 +30824,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Before you buy",
     "Once it shows a profit",
+    "After it moves against you",
     "When expiry gets close",
-    "After it moves against you"
+    "Before you buy"
    ],
    "kind": "mcq",
    "q": "When should you decide where you'll take profit and where you'll cut the loss?",
@@ -31034,9 +31034,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "$4.70",
     "$2.50",
     "$4.00",
+    "$4.70",
     "$6.20"
    ],
    "kind": "mcq",
@@ -31180,8 +31180,8 @@
   "prompt_json": {
    "choices": [
     "Sell 2, let 2 ride",
-    "Hold all 4 to expiry",
     "Buy 4 more at $4.10",
+    "Hold all 4 to expiry",
     "Exercise all 4 now"
    ],
    "kind": "mcq",
@@ -31397,8 +31397,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Reduced it, but didn't remove it",
     "Removed it completely",
+    "Reduced it, but didn't remove it",
     "Left it exactly the same",
     "Moved it onto your long call"
    ],
@@ -31626,10 +31626,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Early, as one order with a limit",
-    "Close now, sell the new put later",
+    "Let it expire, then sell a new put",
     "Market orders in the final minutes",
-    "Let it expire, then sell a new put"
+    "Early, as one order with a limit",
+    "Close now, sell the new put later"
    ],
    "kind": "mcq",
    "q": "How do you work the roll?",
@@ -31728,9 +31728,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Taking the loss, then a new bet",
-    "A way to skip the loss",
     "A free extension of the call",
+    "A way to skip the loss",
+    "Taking the loss, then a new bet",
     "Just more time on the same trade"
    ],
    "kind": "mcq",
@@ -31861,10 +31861,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Gamma and assignment risk",
+    "Higher commission costs",
     "A drop in implied volatility",
     "Time decay slowing down",
-    "Higher commission costs"
+    "Gamma and assignment risk"
    ],
    "kind": "mcq",
    "q": "What risk is it stepping away from?",
@@ -32009,9 +32009,9 @@
   "prompt_json": {
    "choices": [
     "Near $1.40, at the bid",
+    "At the ask",
     "At $2.00, your stop price",
-    "Not until $2.00 trades again",
-    "At the ask"
+    "Not until $2.00 trades again"
    ],
    "kind": "mcq",
    "q": "Your stop turns into a market order. Where does it most likely sell?",
@@ -32089,9 +32089,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
+    "Roll up and add contracts",
     "Take the profit, close it",
     "Hold for more, it's working",
-    "Roll up and add contracts",
     "Exercise and keep the shares"
    ],
    "kind": "mcq",
@@ -32163,10 +32163,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "$2.40",
+    "$0.80",
     "$1.60",
-    "$3.20",
-    "$0.80"
+    "$2.40",
+    "$3.20"
    ],
    "kind": "mcq",
    "q": "Under that rule, at what price do you buy the put back?",
@@ -32443,9 +32443,9 @@
   "prompt_json": {
    "choices": [
     "Contracts still open",
-    "Contracts traded so far today",
+    "Bullish bets minus bearish bets",
     "Orders waiting to be filled",
-    "Bullish bets minus bearish bets"
+    "Contracts traded so far today"
    ],
    "kind": "mcq",
    "q": "On an options chain, what does open interest count?",
@@ -32567,10 +32567,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "After the prior session's close",
     "With the last trade",
+    "At the last expiration",
     "At the start of the week",
-    "At the last expiration"
+    "After the prior session's close"
    ],
    "kind": "mcq",
    "q": "It's midday. When was the open interest on your options chain last updated?",
@@ -32936,8 +32936,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "It stays the same",
     "It rises by 10",
+    "It stays the same",
     "It falls by 10",
     "It rises by 20"
    ],
@@ -33009,8 +33009,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Some trades closed old positions",
     "Market maker trades aren't counted",
+    "Some trades closed old positions",
     "Calls were netted against puts"
    ],
    "kind": "mcq",
@@ -33088,10 +33088,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Where dealer gamma changes sign",
+    "The day the options expire",
     "The strike with the most open interest",
-    "Where most options expire worthless",
-    "The day the options expire"
+    "Where dealer gamma changes sign",
+    "Where most options expire worthless"
    ],
    "kind": "mcq",
    "q": "On a dealer positioning chart, what does the gamma flip mark?",
@@ -33246,9 +33246,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "A holder protecting their shares",
     "Insiders who know bad news is coming",
-    "A market maker betting on a drop"
+    "A market maker betting on a drop",
+    "A holder protecting their shares"
    ],
    "kind": "mcq",
    "q": "Besides a bet on a drop, what could that put buy be?",
@@ -33391,9 +33391,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "A buyer paid the ask to get filled",
     "A new bullish position was opened",
-    "The stock is set to rise"
+    "The stock is set to rise",
+    "A buyer paid the ask to get filled"
    ],
    "kind": "mcq",
    "q": "What does the trade price alone tell you?",
@@ -33463,8 +33463,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Estimates built on assumptions",
     "Open interest, which shows their side",
+    "Estimates built on assumptions",
     "A live feed of dealer accounts"
    ],
    "kind": "mcq",
@@ -33549,8 +33549,8 @@
   "prompt_json": {
    "choices": [
     "The bid, ask and size quoted now",
-    "The open interest number",
-    "Today's volume so far"
+    "Today's volume so far",
+    "The open interest number"
    ],
    "kind": "mcq",
    "q": "What tells you if you can get a fair fill?",
@@ -33694,8 +33694,8 @@
   "prompt_json": {
    "choices": [
     "Very little, its intent is unknown",
-    "It cancels the breakdown",
-    "It's a reason to buy the dip"
+    "It's a reason to buy the dip",
+    "It cancels the breakdown"
    ],
    "kind": "mcq",
    "q": "How much should that call print change your read?",
@@ -33772,8 +33772,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Closes cluster near strike prices",
     "No link to strike prices at all",
+    "Closes cluster near strike prices",
     "Every stock pins to its biggest strike"
    ],
    "kind": "mcq",
@@ -33871,10 +33871,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Short about 3,000 contracts",
+    "Flat, buys and sells match",
     "Short over 100,000 contracts",
     "Long about 52,000 contracts",
-    "Flat, buys and sells match"
+    "Short about 3,000 contracts"
    ],
    "kind": "mcq",
    "q": "Roughly what net position did that leave market makers with?",
@@ -33954,10 +33954,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Trades tagged as opening buys",
-    "Total daily call and put volume",
     "Trades flagged as unusual",
-    "Estimates of dealer gamma"
+    "Trades tagged as opening buys",
+    "Estimates of dealer gamma",
+    "Total daily call and put volume"
    ],
    "kind": "mcq",
    "q": "A study found option volume predicted next-week stock returns. What did its signal rely on?",
@@ -34034,9 +34034,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Pull the stock toward 100",
     "Push the stock away from 100",
-    "Force a close at exactly 100"
+    "Force a close at exactly 100",
+    "Pull the stock toward 100"
    ],
    "kind": "mcq",
    "q": "What does the pinning theory say dealer hedging tends to do here?",
@@ -34208,9 +34208,9 @@
   "prompt_json": {
    "choices": [
     "Trading was heavy next to what was open",
-    "Open interest will triple tomorrow",
+    "A big move is coming",
     "Buyers opened new bullish bets",
-    "A big move is coming"
+    "Open interest will triple tomorrow"
    ],
    "kind": "mcq",
    "q": "A call's volume today is three times its open interest. What does that tell you for sure?",

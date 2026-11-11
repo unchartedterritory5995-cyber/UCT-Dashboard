@@ -10,8 +10,8 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Trade now at the best price available",
     "Trade only at a price you set",
+    "Trade now at the best price available",
     "Trade at today's closing price",
     "Trade once the stock hits a set price"
    ],
@@ -262,10 +262,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Your price isn't promised",
-    "It may not fill at all",
     "It fills at the last trade price",
-    "It waits until the price is right"
+    "It waits until the price is right",
+    "Your price isn't promised",
+    "It may not fill at all"
    ],
    "kind": "mcq",
    "q": "What's the catch with a market order?",
@@ -537,8 +537,8 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Selling at a target above the price",
     "Getting out at any price, right now",
+    "Selling at a target above the price",
     "Buying only once it breaks out higher"
    ],
    "kind": "mcq",
@@ -629,9 +629,9 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "A buy limit at $58",
+    "A buy stop at $58",
     "A market buy now",
-    "A buy stop at $58"
+    "A buy limit at $58"
    ],
    "kind": "mcq",
    "q": "Which order fits the plan?",
@@ -857,9 +857,9 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Around $110, at the open",
     "At exactly $105, your limit",
-    "It doesn't, the price jumped past it"
+    "It doesn't, the price jumped past it",
+    "Around $110, at the open"
    ],
    "kind": "mcq",
    "q": "Where does your sell limit most likely fill?",
@@ -929,9 +929,9 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
+    "A buy limit at $49.90",
     "A buy limit at $50.30",
-    "A market buy, right now",
-    "A buy limit at $49.90"
+    "A market buy, right now"
    ],
    "kind": "mcq",
    "q": "Which order fits?",
@@ -1074,9 +1074,9 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "At the open, wherever it opens",
+    "At the open, at about $12.00",
     "Right away, near the 8:00 a.m. quote",
-    "At the open, at about $12.00"
+    "At the open, wherever it opens"
    ],
    "kind": "mcq",
    "q": "When and where should you expect it to fill?",
@@ -1308,8 +1308,8 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "It takes the best bid, whatever it is",
     "Its seller set a one-cent limit",
+    "It takes the best bid, whatever it is",
     "It filled at the last trade price"
    ],
    "kind": "mcq",
@@ -1415,9 +1415,9 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Canceled the old order",
+    "Nothing, a limit order is safe",
     "Switched it to a market order",
-    "Nothing, a limit order is safe"
+    "Canceled the old order"
    ],
    "kind": "mcq",
    "q": "Looking back, what should you have done before tonight?",
@@ -1487,8 +1487,8 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "It did its job: price capped, no fill",
     "Wrong, a market order would have won",
+    "It did its job: price capped, no fill",
     "Broker error, it should have filled"
    ],
    "kind": "mcq",
@@ -1841,9 +1841,9 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
+    "Sells if the stock rises to your price",
     "Sells at market when price hits the stop",
     "Sells only at your stop price or better",
-    "Sells if the stock rises to your price",
     "Sells right now at the market price"
    ],
    "kind": "mcq",
@@ -2037,9 +2037,9 @@
   "prompt_json": {
    "choices": [
     "A stop that follows the price up",
-    "A stop that can't fill below its price",
+    "A stop that moves down on dips",
     "A stop that only counts the close",
-    "A stop that moves down on dips"
+    "A stop that can't fill below its price"
    ],
    "kind": "mcq",
    "q": "You own a stock. What sets a trailing stop apart from a plain stop?",
@@ -2176,8 +2176,8 @@
   "prompt_json": {
    "choices": [
     "It works while you're away",
-    "It locks in your exact exit price",
-    "It protects you from overnight gaps"
+    "It protects you from overnight gaps",
+    "It locks in your exact exit price"
    ],
    "kind": "mcq",
    "q": "What does entering your stop as a real order add over keeping it in your head?",
@@ -2312,9 +2312,9 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Sell partials, trail rising averages",
     "Leave the first stop where it is",
-    "Sell all of it at the first gain"
+    "Sell all of it at the first gain",
+    "Sell partials, trail rising averages"
    ],
    "kind": "mcq",
    "q": "How do we hold a winner once the trade is working?",
@@ -2369,8 +2369,8 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "A sell stop at $47.80",
     "A sell limit at $47.80",
+    "A sell stop at $47.80",
     "A buy stop at $47.80"
    ],
    "kind": "mcq",
@@ -2441,9 +2441,9 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
+    "A market order right now",
     "A buy stop at $50",
-    "A buy limit at $50",
-    "A market order right now"
+    "A buy limit at $50"
    ],
    "kind": "mcq",
    "q": "Which order gets you in on the break?",
@@ -2669,9 +2669,9 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Nothing sells; the stop expired Monday",
     "They sell near your stop price",
-    "They sell at exactly your stop price"
+    "They sell at exactly your stop price",
+    "Nothing sells; the stop expired Monday"
    ],
    "kind": "mcq",
    "q": "What happens to your shares?",
@@ -2741,10 +2741,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "$2.70",
+    "Only exactly $2.50",
     "$2.40",
-    "Only exactly $3.00",
-    "Only exactly $2.50"
+    "$2.70",
+    "Only exactly $3.00"
    ],
    "kind": "mcq",
    "q": "A sell stop-limit has a stop of $3.00 and a limit of $2.50. It has triggered. Which fill is possible?",
@@ -2814,10 +2814,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Triggered, but nothing sold",
+    "The gap canceled it",
     "It sold at $47.50",
     "It sold near $44",
-    "The gap canceled it"
+    "Triggered, but nothing sold"
    ],
    "kind": "mcq",
    "q": "What happened to your order?",
@@ -3059,8 +3059,8 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "A sell stop at $12",
     "A sell stop-limit, $12 and $11.95",
+    "A sell stop at $12",
     "A sell limit at $12.50"
    ],
    "kind": "mcq",
@@ -3177,9 +3177,9 @@
   "prompt_json": {
    "choices": [
     "Buy stop-limit: stop $50, limit $50.50",
+    "Buy stop-limit: stop $50.50, limit $50",
     "Buy stop at $50",
-    "Buy limit at $50.50",
-    "Buy stop-limit: stop $50.50, limit $50"
+    "Buy limit at $50.50"
    ],
    "kind": "mcq",
    "q": "Which entry order fits?",
@@ -3250,10 +3250,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "No fill unless it comes back to $50.50",
     "You buy at $52.40",
-    "You buy at $50.50",
-    "It cancels at the open"
+    "It cancels at the open",
+    "No fill unless it comes back to $50.50",
+    "You buy at $50.50"
    ],
    "kind": "mcq",
    "q": "What happens to your order?",
@@ -3405,8 +3405,8 @@
   "prompt_json": {
    "choices": [
     "2%, to keep nearly every cent",
-    "10%, wider than a normal day's swing",
-    "30%, so nothing shakes you out"
+    "30%, so nothing shakes you out",
+    "10%, wider than a normal day's swing"
    ],
    "kind": "mcq",
    "q": "Which trail makes the most sense?",
@@ -3469,10 +3469,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Raise your stop yourself as it rises",
     "Enter a 10% trailing stop order",
+    "Lower it if the stock dips",
     "Set it at $58.90 once and leave it",
-    "Lower it if the stock dips"
+    "Raise your stop yourself as it rises"
    ],
    "kind": "mcq",
    "q": "How do you keep your stop trailing it?",
@@ -3812,10 +3812,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Entry plus a target and a stop",
     "A buy that fills anywhere in a range",
     "A stop that trails the price up",
-    "A stop that becomes a limit order"
+    "A stop that becomes a limit order",
+    "Entry plus a target and a stop"
    ],
    "kind": "mcq",
    "q": "What is a bracket order?",
@@ -3892,10 +3892,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "One fills, the other cancels",
     "Both must fill together",
-    "One fills, then the other goes live",
-    "It cancels both at the close"
+    "One fills, the other cancels",
+    "It cancels both at the close",
+    "One fills, then the other goes live"
    ],
    "kind": "mcq",
    "q": "What does an OCO order do?",
@@ -3981,8 +3981,8 @@
    "choices": [
     "Once the buy order fills",
     "The moment you send it",
-    "When the price nears either one",
-    "At the next day's open"
+    "At the next day's open",
+    "When the price nears either one"
    ],
    "kind": "mcq",
    "q": "You send a bracket order to buy. When do its stop and target start working?",
@@ -4188,9 +4188,9 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Good-'til-canceled (GTC)",
     "Day, the usual default",
-    "Immediate-or-cancel (IOC)"
+    "Immediate-or-cancel (IOC)",
+    "Good-'til-canceled (GTC)"
    ],
    "kind": "mcq",
    "q": "You plan to hold a swing trade for a few weeks. Which time in force do your bracket's exits need?",
@@ -4266,10 +4266,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "An OCO: sell limit and sell stop",
     "A new bracket buy order",
-    "Two separate sell orders",
-    "A trailing stop on its own"
+    "A trailing stop on its own",
+    "An OCO: sell limit and sell stop",
+    "Two separate sell orders"
    ],
    "kind": "mcq",
    "q": "You already own 200 shares. You want a profit target and a stop on them. Which order fits?",
@@ -4658,8 +4658,8 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Buy stop above, buy limit below",
     "Sell limit above, sell stop below",
+    "Buy stop above, buy limit below",
     "Buy limit above, buy stop below",
     "Buy stop above, nothing below"
    ],
@@ -4783,10 +4783,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "A $200 gain",
+    "Break even",
     "A $400 gain",
     "A $200 loss",
-    "Break even"
+    "A $200 gain"
    ],
    "kind": "mcq",
    "q": "If each order fills at its price, what is your net result?",
@@ -4862,8 +4862,8 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "That a stop is live on your 300 shares",
     "Nothing, the bracket covers it",
+    "That a stop is live on your 300 shares",
     "Whether to chase the last 200 at $41"
    ],
    "kind": "mcq",
@@ -4941,10 +4941,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Raise it to just under $53",
     "Leave it at $46, the plan's stop",
-    "Lower it to give the trade room",
-    "Cancel it, the trade is working"
+    "Raise it to just under $53",
+    "Cancel it, the trade is working",
+    "Lower it to give the trade room"
    ],
    "kind": "mcq",
    "q": "What do we do with the stop leg now?",
@@ -5146,8 +5146,8 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "That the stop still covers 300 shares",
     "Nothing, the OCO handles the rest",
+    "That the stop still covers 300 shares",
     "That the target is still live at $60"
    ],
    "kind": "mcq",
@@ -5218,9 +5218,9 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Leave it where the plan put it",
+    "Move it down to $46 for room",
     "Cancel it and watch the bounce",
-    "Move it down to $46 for room"
+    "Leave it where the plan put it"
    ],
    "kind": "mcq",
    "q": "What do you do with the stop leg?",
@@ -5311,9 +5311,9 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Sell partials, trail the rest",
     "One bigger target for all shares",
     "No targets, hold every share",
+    "Sell partials, trail the rest",
     "Tighten the stop on all shares"
    ],
    "kind": "mcq",
@@ -5659,8 +5659,8 @@
   "prompt_json": {
    "choices": [
     "Gap between expected price and fill",
-    "The bid-ask spread on the quote",
     "The commission your broker charges",
+    "The bid-ask spread on the quote",
     "The day's high minus its low"
    ],
    "kind": "mcq",
@@ -5853,9 +5853,9 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Fills the whole order or none of it",
     "Fills what it can now, cancels the rest",
-    "Fills only at the closing price"
+    "Fills only at the closing price",
+    "Fills the whole order or none of it"
    ],
    "kind": "mcq",
    "q": "What does an all-or-none (AON) order do?",
@@ -6112,9 +6112,9 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
+    "A quarterly report the SEC writes",
     "The broker's Rule 606 report",
-    "The broker's Rule 605 report",
-    "A quarterly report the SEC writes"
+    "The broker's Rule 605 report"
    ],
    "kind": "mcq",
    "q": "Which public report shows where a broker routes its customers' stock orders?",
@@ -6343,8 +6343,8 @@
   "prompt_json": {
    "choices": [
     "Price moved before your order arrived",
-    "The ask didn't have enough shares",
-    "Your broker added a markup"
+    "Your broker added a markup",
+    "The ask didn't have enough shares"
    ],
    "kind": "mcq",
    "q": "What most likely caused the higher fill?",
@@ -6487,9 +6487,9 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "They keep working at $30.00",
     "They fill at $30.60 right away",
-    "They're canceled with the fill"
+    "They're canceled with the fill",
+    "They keep working at $30.00"
    ],
    "kind": "mcq",
    "q": "What should you expect for the other 300 shares?",
@@ -6566,8 +6566,8 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "They cancel at the close",
     "They carry over to tomorrow",
+    "They cancel at the close",
     "They fill at the closing price"
    ],
    "kind": "mcq",
@@ -6804,8 +6804,8 @@
   "prompt_json": {
    "choices": [
     "700 shares, with no sell order working",
-    "No shares; the rest sells at the open",
-    "700 shares, still offered at $45"
+    "700 shares, still offered at $45",
+    "No shares; the rest sells at the open"
    ],
    "kind": "mcq",
    "q": "What do you hold going into the next morning?",
@@ -6882,10 +6882,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
+    "It turns into a limit order at $18",
     "Fills at several prices below $18",
-    "All 2,000 sold at exactly $18.00",
     "It waits for buyers to return to $18",
-    "It turns into a limit order at $18"
+    "All 2,000 sold at exactly $18.00"
    ],
    "kind": "mcq",
    "q": "What should you expect from your stop?",
@@ -7094,10 +7094,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "$1,840",
+    "$300",
     "$1,000",
-    "$2,200",
-    "$300"
+    "$1,840",
+    "$2,200"
    ],
    "kind": "mcq",
    "q": "What is your total risk to the $39.00 stop now?",
@@ -7582,10 +7582,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Averaging up",
     "Averaging down",
+    "Scaling out",
     "Dollar-cost averaging",
-    "Scaling out"
+    "Averaging up"
    ],
    "kind": "mcq",
    "q": "You own a stock and buy more shares at a higher price than you paid before. What's that called?",
@@ -7828,10 +7828,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Scaling out",
     "Stopping out",
-    "Averaging down",
-    "Pyramiding"
+    "Pyramiding",
+    "Scaling out",
+    "Averaging down"
    ],
    "kind": "mcq",
    "q": "You sell part of a winning position at a gain and let the rest keep running. What's that called?",
@@ -7949,10 +7949,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "A third at 3R",
     "Half at 2R",
-    "A third at 20% to 25%",
-    "Some, where it feels extended"
+    "A third at 3R",
+    "Some, where it feels extended",
+    "A third at 20% to 25%"
    ],
    "kind": "mcq",
    "q": "Our plan marks where to take some off. Where is the first trim, and how much?",
@@ -8023,8 +8023,8 @@
   "prompt_json": {
    "choices": [
     "Stick to the stop, add nothing",
-    "Buy more, it's cheaper now",
     "Hold, but lower the stop to $45",
+    "Buy more, it's cheaper now",
     "Buy more right at the stop"
    ],
    "kind": "mcq",
@@ -8174,10 +8174,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Let them ride on a trailing stop",
     "Keep the original stop under them",
-    "Buy more on the next dip",
-    "Hold them with no stop at all"
+    "Let them ride on a trailing stop",
+    "Hold them with no stop at all",
+    "Buy more on the next dip"
    ],
    "kind": "mcq",
    "q": "You just sold part of a winner into strength. What's the plan for the shares you kept?",
@@ -8364,10 +8364,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Your friend, by $250",
-    "You, by $250",
     "Same profit for both",
-    "Your friend, by $500"
+    "You, by $250",
+    "Your friend, by $500",
+    "Your friend, by $250"
    ],
    "kind": "mcq",
    "q": "Leaving out commissions, who made more?",
@@ -8443,9 +8443,9 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Made you $250 more",
-    "Made no difference",
     "Cost you $250",
+    "Made no difference",
+    "Made you $250 more",
     "Made you $500 more"
    ],
    "kind": "mcq",
@@ -8515,10 +8515,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Take the loss and move on",
+    "Buy more, half size this time",
     "Average down one more time",
     "Lower the stop, give it room",
-    "Buy more, half size this time"
+    "Take the loss and move on"
    ],
    "kind": "mcq",
    "q": "What do you do?",
@@ -8597,8 +8597,8 @@
   "prompt_json": {
    "choices": [
     "Sell a portion, trail the rest",
-    "Add more while it's running",
     "Lower the stop to give it room",
+    "Add more while it's running",
     "Sell it all, it can't go higher"
    ],
    "kind": "mcq",
@@ -8722,10 +8722,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "At the first trim, 3R",
-    "The day after you buy",
     "Never, the stop never moves",
-    "As soon as it's 1R up"
+    "At the first trim, 3R",
+    "As soon as it's 1R up",
+    "The day after you buy"
    ],
    "kind": "mcq",
    "q": "When does our stop move up to breakeven?",
@@ -8990,10 +8990,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "The 10 or 21-day; a close below it",
     "The 50-day; any dip below it",
+    "No line; sell when it feels tired",
     "The 200-day; a close below it",
-    "No line; sell when it feels tired"
+    "The 10 or 21-day; a close below it"
    ],
    "kind": "mcq",
    "q": "Your last third is trailing. Which line do we trail under, and what makes us sell?",
@@ -9056,10 +9056,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Sell it at the open",
+    "Sell everything at the open",
     "Wait for a pullback to $23",
-    "Hold all of it, it's running",
-    "Sell everything at the open"
+    "Sell it at the open",
+    "Hold all of it, it's running"
    ],
    "kind": "mcq",
    "q": "What do you do with the first third?",
@@ -9132,8 +9132,8 @@
    "choices": [
     "Sell it, the time stop hit",
     "Hold until the stop or 3R",
-    "Add shares to wake it up",
-    "Widen the stop and wait"
+    "Widen the stop and wait",
+    "Add shares to wake it up"
    ],
    "kind": "mcq",
    "q": "What does our rule say?",
@@ -9301,10 +9301,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "Add nothing, manage the trade",
-    "Add half, it's proving you right",
     "Add half, raise the stop on all",
-    "Sell it all and rebuy bigger"
+    "Sell it all and rebuy bigger",
+    "Add half, it's proving you right",
+    "Add nothing, manage the trade"
    ],
    "kind": "mcq",
    "q": "What do you do?",
@@ -9382,10 +9382,10 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "100 at $46, 100 at $50, trail 100",
+    "Trail all 300 from the start",
     "All 300 at $46",
-    "150 at $46, 150 at $50",
-    "Trail all 300 from the start"
+    "100 at $46, 100 at $50, trail 100",
+    "150 at $46, 150 at $50"
    ],
    "kind": "mcq",
    "q": "In order, what does our plan do?",

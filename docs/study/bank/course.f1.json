@@ -10,10 +10,10 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Part ownership of the company",
     "A loan you make to the company",
-    "A promised dividend each year",
-    "A vote on every company decision"
+    "A vote on every company decision",
+    "Part ownership of the company",
+    "A promised dividend each year"
    ],
    "kind": "mcq",
    "q": "What does one share of a company's common stock give you?",
@@ -212,10 +212,10 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
+    "Dow Jones Industrial Average",
     "S&P 500",
     "Nasdaq-100",
-    "Russell 2000",
-    "Dow Jones Industrial Average"
+    "Russell 2000"
    ],
    "kind": "mcq",
    "q": "SPY is a fund. Which index is it built to track?",
@@ -293,9 +293,9 @@
   "prompt_json": {
    "choices": [
     "A basket of stocks standing for a market",
-    "A fund you buy through your broker",
     "The exchange where a stock is listed",
-    "A company's total stock market value"
+    "A company's total stock market value",
+    "A fund you buy through your broker"
    ],
    "kind": "mcq",
    "q": "What is a market index?",
@@ -452,10 +452,10 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Nasdaq-100",
-    "Nasdaq Composite",
+    "Russell 2000",
     "S&P 500",
-    "Russell 2000"
+    "Nasdaq Composite",
+    "Nasdaq-100"
    ],
    "kind": "mcq",
    "q": "Which index does the QQQ fund track?",
@@ -615,10 +615,10 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Small-cap stocks",
-    "Large tech names",
+    "Every part of the market",
     "The biggest US companies",
-    "Every part of the market"
+    "Small-cap stocks",
+    "Large tech names"
    ],
    "kind": "mcq",
    "q": "Which part of the market is under pressure?",
@@ -783,10 +783,10 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Nasdaq-100",
     "S&P 500",
-    "Nasdaq Composite",
-    "Dow Jones Industrial Average"
+    "Nasdaq-100",
+    "Dow Jones Industrial Average",
+    "Nasdaq Composite"
    ],
    "kind": "mcq",
    "q": "Which index's own rules keep it out, however big it gets?",
@@ -892,9 +892,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "The company is in bankruptcy",
     "The stock is listed on Nasdaq",
-    "The stock pays a dividend"
+    "The stock pays a dividend",
+    "The company is in bankruptcy"
    ],
    "kind": "mcq",
    "q": "A ticker on your screen has an extra Q added after it. What is that Q telling you?",
@@ -956,9 +956,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
+    "Out of stocks altogether",
     "Into small caps",
-    "Into big tech",
-    "Out of stocks altogether"
+    "Into big tech"
    ],
    "kind": "mcq",
    "q": "Where was money flowing that day?",
@@ -1221,8 +1221,8 @@
   "prompt_json": {
    "choices": [
     "It's a headwind. Go slow or wait.",
-    "Strong earnings make it safe to buy",
-    "Not much. One stock moves on its own"
+    "Not much. One stock moves on its own",
+    "Strong earnings make it safe to buy"
    ],
    "kind": "mcq",
    "q": "What does the weak market mean for this trade?",
@@ -1306,9 +1306,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Little public info, higher risk",
     "A low price means little downside",
-    "OTC stocks meet exchange standards"
+    "OTC stocks meet exchange standards",
+    "Little public info, higher risk"
    ],
    "kind": "mcq",
    "q": "What should you know before you touch it?",
@@ -1960,9 +1960,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
+    "Today's change from yesterday",
     "Ask minus bid",
-    "The day's high minus low",
-    "Today's change from yesterday"
+    "The day's high minus low"
    ],
    "kind": "mcq",
    "q": "On a stock quote, what is the spread?",
@@ -2062,10 +2062,10 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Near the ask",
-    "Near the bid",
+    "At the midpoint",
     "At the last trade",
-    "At the midpoint"
+    "Near the ask",
+    "Near the bid"
    ],
    "kind": "mcq",
    "q": "You place a market order to buy. Near which price should you expect to fill?",
@@ -2354,9 +2354,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Near $41.90",
+    "Exactly $42.00",
     "Near $42.05",
-    "Exactly $42.00"
+    "Near $41.90"
    ],
    "kind": "mcq",
    "q": "Near which price should you expect your shares to sell?",
@@ -2420,9 +2420,9 @@
   "prompt_json": {
    "choices": [
     "All 1,000 at $12.40",
-    "Some at $12.40, the rest higher",
+    "All 1,000 below $12.40",
     "It waits until $12.40 has size",
-    "All 1,000 below $12.40"
+    "Some at $12.40, the rest higher"
    ],
    "kind": "mcq",
    "q": "What should you expect from the fill?",
@@ -2670,9 +2670,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
+    "50.01 / 50.02, sizes 100 / 100",
     "50.00 / 50.02, sizes 3,000 / 2,500",
     "49.70 / 50.30, sizes 2,000 / 2,500",
-    "50.01 / 50.02, sizes 100 / 100",
     "49.95 / 50.05, sizes 200 / 300"
    ],
    "kind": "mcq",
@@ -2820,9 +2820,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "A limit order at your price",
+    "A buy stop above the ask",
     "A market order right now",
-    "A buy stop above the ask"
+    "A limit order at your price"
    ],
    "kind": "mcq",
    "q": "You want in now. Which order makes sense?",
@@ -3293,9 +3293,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Shares traded that day",
     "Number of trades placed",
     "Shares the company has issued",
+    "Shares traded that day",
     "How far the price moved"
    ],
    "kind": "mcq",
@@ -3488,9 +3488,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "A large-cap stock",
+    "A micro-cap stock",
     "A small-cap stock",
-    "A micro-cap stock"
+    "A large-cap stock"
    ],
    "kind": "mcq",
    "q": "Which kind of stock is usually the easiest to buy and sell quickly?",
@@ -3559,10 +3559,10 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Easy to trade without moving the price",
-    "The company has plenty of cash",
     "Its price barely moves day to day",
-    "It has a low share price"
+    "Easy to trade without moving the price",
+    "It has a low share price",
+    "The company has plenty of cash"
    ],
    "kind": "mcq",
    "q": "When we call a stock liquid, what do we mean?",
@@ -3893,8 +3893,8 @@
    "choices": [
     "Monday",
     "Tuesday",
-    "Wednesday",
-    "Thursday"
+    "Thursday",
+    "Wednesday"
    ],
    "kind": "mcq",
    "q": "Which day stands out as heavy volume?",
@@ -4043,8 +4043,8 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Stock A",
     "Stock B",
+    "Stock A",
     "Same, the spreads match"
    ],
    "kind": "mcq",
@@ -4189,8 +4189,8 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Taking a lower price to get out",
     "Getting out at the last price",
+    "Taking a lower price to get out",
     "Someone has to buy all 6,000"
    ],
    "kind": "mcq",
@@ -4268,9 +4268,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "The $2,800 stock",
     "The $5 stock",
-    "Same bar for both"
+    "Same bar for both",
+    "The $2,800 stock"
    ],
    "kind": "mcq",
    "q": "Measured in dollars, which stock faced the higher bar under that rule?",
@@ -4407,8 +4407,8 @@
   "prompt_json": {
    "choices": [
     "The usual 30,000 a day",
-    "Today's 900,000",
-    "Neither, volume doesn't matter"
+    "Neither, volume doesn't matter",
+    "Today's 900,000"
    ],
    "kind": "mcq",
    "q": "Which volume should you size the position around?",
@@ -4544,9 +4544,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Stock Y",
     "Stock X, it's cheaper",
-    "Either one at this size"
+    "Either one at this size",
+    "Stock Y"
    ],
    "kind": "mcq",
    "q": "Which one can take your size and still let you out cleanly?",
@@ -5238,10 +5238,10 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Limit orders",
-    "Market orders",
+    "Stop-limit orders",
     "Stop orders",
-    "Stop-limit orders"
+    "Limit orders",
+    "Market orders"
    ],
    "kind": "mcq",
    "q": "Outside regular hours, many brokers accept only one order type. Which one?",
@@ -5382,9 +5382,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
+    "Pre-market",
     "After hours",
     "Regular session",
-    "Pre-market",
     "Overnight"
    ],
    "kind": "mcq",
@@ -5462,8 +5462,8 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "1:00 p.m. ET",
     "4:00 p.m. ET",
+    "1:00 p.m. ET",
     "It's closed all day"
    ],
    "kind": "mcq",
@@ -5519,9 +5519,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "News that came out after the close",
     "The after-hours price became the close",
-    "The exchange reset the price overnight"
+    "The exchange reset the price overnight",
+    "News that came out after the close"
    ],
    "kind": "mcq",
    "q": "What caused the gap at Wednesday's open?",
@@ -5605,8 +5605,8 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "$80.00",
     "$83.00",
+    "$80.00",
     "Whatever trades at 8:00 p.m."
    ],
    "kind": "mcq",
@@ -5753,9 +5753,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "It cancelled at the 4:00 p.m. close",
     "It sold at $25.20 after hours",
-    "It waits for tomorrow's open"
+    "It waits for tomorrow's open",
+    "It cancelled at the 4:00 p.m. close"
    ],
    "kind": "mcq",
    "q": "What most likely happened to your order?",
@@ -5899,8 +5899,8 @@
   "prompt_json": {
    "choices": [
     "A thin print that may not hold",
-    "The price it will open at",
-    "A cue to buy at market now"
+    "A cue to buy at market now",
+    "The price it will open at"
    ],
    "kind": "mcq",
    "q": "How should you read that $26.00 print?",
@@ -6179,9 +6179,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Near $43, just after the open",
     "At $48, your stop price",
-    "Near $42, in after hours"
+    "Near $42, in after hours",
+    "Near $43, just after the open"
    ],
    "kind": "mcq",
    "q": "Where does your stop most likely fill?",
@@ -6662,10 +6662,10 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Price times all shares outstanding",
-    "Price times shares traded today",
+    "The company's yearly sales",
     "Price times the float only",
-    "The company's yearly sales"
+    "Price times all shares outstanding",
+    "Price times shares traded today"
    ],
    "kind": "mcq",
    "q": "What does a stock's market cap measure?",
@@ -6742,10 +6742,10 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Shares the public can trade",
-    "Every share the company issued",
     "Shares sold short right now",
-    "Shares traded in one day"
+    "Shares traded in one day",
+    "Every share the company issued",
+    "Shares the public can trade"
    ],
    "kind": "mcq",
    "q": "In stock talk, what is a company's float?",
@@ -6885,10 +6885,10 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Mid-cap",
-    "Large-cap",
     "Small-cap",
-    "Mega-cap"
+    "Mid-cap",
+    "Mega-cap",
+    "Large-cap"
    ],
    "kind": "mcq",
    "q": "On FINRA's usual ranges, what size is a company with a $5 billion market cap?",
@@ -7080,9 +7080,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
+    "Shares traded today are taken out",
     "Insider and restricted stock is excluded",
-    "Shorted shares are taken out",
-    "Shares traded today are taken out"
+    "Shorted shares are taken out"
    ],
    "kind": "mcq",
    "q": "Why is a stock's float usually smaller than its shares outstanding?",
@@ -7294,8 +7294,8 @@
   "prompt_json": {
    "choices": [
     "300 shares near $200",
-    "300 shares near $600",
     "100 shares near $200",
+    "300 shares near $600",
     "33 shares near $1,800"
    ],
    "kind": "mcq",
@@ -7528,10 +7528,10 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
+    "The $900 billion stock",
     "The $600 million stock",
-    "The $3 billion stock",
     "The $40 billion stock",
-    "The $900 billion stock"
+    "The $3 billion stock"
    ],
    "kind": "mcq",
    "q": "Which one is most likely to make the biggest percent move?",
@@ -7676,8 +7676,8 @@
   "prompt_json": {
    "choices": [
     "Stock A, the small float",
-    "Stock B, the big float",
-    "Neither, same news, same move"
+    "Neither, same news, same move",
+    "Stock B, the big float"
    ],
    "kind": "mcq",
    "q": "Which is more likely to make the bigger percent move?",
@@ -7747,9 +7747,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "More shares able to hit the market",
+    "A guaranteed price drop",
     "The float shrinking",
-    "A guaranteed price drop"
+    "More shares able to hit the market"
    ],
    "kind": "mcq",
    "q": "What should you watch for as that date gets close?",
@@ -7879,8 +7879,8 @@
   "prompt_json": {
    "choices": [
     "About $3.7 trillion",
-    "About $370 billion",
-    "Can't tell without the float"
+    "Can't tell without the float",
+    "About $370 billion"
    ],
    "kind": "mcq",
    "q": "Roughly what market cap is that?",
@@ -7960,9 +7960,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Fewer shares, same company value",
     "The company is worth 25 times more",
     "The float grew 25 times",
+    "Fewer shares, same company value",
     "It's a safer stock now"
    ],
    "kind": "mcq",
@@ -8048,9 +8048,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "A crash you can't get out of",
     "Missing the rest of the move",
-    "Paying a few cents too much"
+    "Paying a few cents too much",
+    "A crash you can't get out of"
    ],
    "kind": "mcq",
    "q": "What's the biggest risk if you buy here?",
@@ -8492,8 +8492,8 @@
    "choices": [
     "A fund that trades on an exchange",
     "One company's shares",
-    "A fund you buy only at the close",
-    "A bank's IOU tied to an index"
+    "A bank's IOU tied to an index",
+    "A fund you buy only at the close"
    ],
    "kind": "mcq",
    "q": "What is an ETF?",
@@ -8699,9 +8699,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
+    "Hold the index's weakest stocks",
     "Move opposite the index for the day",
-    "Gain over any stretch the index falls",
-    "Hold the index's weakest stocks"
+    "Gain over any stretch the index falls"
    ],
    "kind": "mcq",
    "q": "What does an inverse ETF aim to do?",
@@ -8770,8 +8770,8 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "11",
     "10",
+    "11",
     "25"
    ],
    "kind": "mcq",
@@ -8928,10 +8928,10 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "XLF",
     "XLB",
+    "XLK",
     "XLE",
-    "XLK"
+    "XLF"
    ],
    "kind": "mcq",
    "q": "Bank stocks are leading the market. Which sector SPDR holds them?",
@@ -9093,9 +9093,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
+    "About the same",
     "XLK",
-    "SPY",
-    "About the same"
+    "SPY"
    ],
    "kind": "mcq",
    "q": "Which one ties more of your money to one group's news?",
@@ -9244,9 +9244,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "XLI",
+    "XLE",
     "XLY",
-    "XLE"
+    "XLI"
    ],
    "kind": "mcq",
    "q": "Which sector SPDR holds the passenger airlines?",
@@ -9541,9 +9541,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Fell about 6%",
     "Rose about 4%",
-    "Rose about 2%"
+    "Rose about 2%",
+    "Fell about 6%"
    ],
    "kind": "mcq",
    "q": "What did the 2x fund do over those months?",
@@ -9766,8 +9766,8 @@
   "prompt_json": {
    "choices": [
     "About 15.9%, more than 3x",
-    "Exactly 15.3%, 3x the index",
-    "About 14.7%, less than 3x"
+    "About 14.7%, less than 3x",
+    "Exactly 15.3%, 3x the index"
    ],
    "kind": "mcq",
    "q": "About how much does the 3x fund gain over the five days, before fees?",
@@ -9917,9 +9917,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "Daily resets compound against it",
+    "It trades below its true value",
     "Fees took most of it",
-    "It trades below its true value"
+    "Daily resets compound against it"
    ],
    "kind": "mcq",
    "q": "Why is the fund down?",

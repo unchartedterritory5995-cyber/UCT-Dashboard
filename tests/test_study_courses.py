@@ -270,3 +270,48 @@ def test_an_authored_unit_keeps_its_planned_lesson_door():
     units = [u for c in curricula for t in c.get("tracks") or [] for u in t.get("units") or [] if u.get("id") == "SET.07"]
     assert units and units[0].get("supply") == "authored"
     assert any(k.startswith("uct-method:") for k in units[0].get("lessons") or [])
+
+
+# ── the order a member sees the choices in ────────────────────────────────────────────────────────────────────────
+def _choice_unit(n=40, k=4):
+    return {"unit": "T.01", "questions": [
+        {"key": f"q{i:02d}", "format": "mcq", "choices": ["right", "w1", "w2", "w3"][:k], "answer": "right"} for i in range(1, n + 1)]}
+
+
+def test_the_right_answer_is_dealt_evenly_across_the_slots():
+    orders = cl.choice_orders(_choice_unit(40))
+    slots = [o.index("right") for o in orders.values()]
+    assert sorted(set(slots)) == [0, 1, 2, 3]
+    assert all(slots.count(s) == 10 for s in range(4))         # 40 questions, four slots: exactly ten each
+    # a streak of one slot is never longer than a block of four can make it
+    longest = max(len(list(g)) for _, g in __import__("itertools").groupby(slots))
+    assert longest <= 2
+
+
+def test_the_order_is_stable_when_questions_are_added_or_cut():
+    base = _choice_unit(12)
+    first = cl.choice_orders(base)
+    longer = _choice_unit(20)
+    again = cl.choice_orders(longer)
+    assert all(again[k] == v for k, v in first.items())        # appending never moves an earlier question
+    assert cl.choice_orders(base) == first                     # and a rebuild is identical
+
+
+def test_a_fixed_or_numeric_question_keeps_its_meaningful_order():
+    doc = {"unit": "T.02", "questions": [
+        {"key": "q01", "format": "mcq", "choices": ["Learn", "Practise", "Prove"], "answer": "Learn", "order": "fixed"},
+        {"key": "q02", "format": "mcq", "choices": ["3R", "0.5R", "2R", "1R"], "answer": "2R"},
+        {"key": "q03", "format": "mcq", "choices": ["$5", "2%", "10%"], "answer": "2%"},
+    ]}
+    o = cl.choice_orders(doc)
+    assert o["q01"] == ["Learn", "Practise", "Prove"]
+    assert o["q02"] == ["0.5R", "1R", "2R", "3R"]
+    assert sorted(o["q03"]) == sorted(["$5", "2%", "10%"])     # mixed kinds of number have no natural order: dealt like words
+
+
+def test_the_built_bank_never_keeps_the_answer_first():
+    items = [i for p in cl.unit_files() for i in cl.build_items(cl.load_unit(p))]
+    choice = [i for i in items if (i.get("prompt_json") or {}).get("kind") == "mcq" and len(i["prompt_json"]["choices"]) == 4
+              and i["answer_json"].get("answer") in i["prompt_json"]["choices"]]
+    first = sum(1 for i in choice if i["prompt_json"]["choices"][0] == i["answer_json"]["answer"])
+    assert len(choice) > 500 and first / len(choice) < 0.40

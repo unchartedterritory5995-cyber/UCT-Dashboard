@@ -10,10 +10,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Profit left after all costs",
     "Cash the company has on hand",
-    "Profit earned per share",
-    "Money brought in from sales"
+    "Profit left after all costs",
+    "Money brought in from sales",
+    "Profit earned per share"
    ],
    "kind": "mcq",
    "q": "On an income statement, what is revenue?",
@@ -135,9 +135,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "The earnings call",
     "The 10-Q quarterly report",
-    "A press release filed on an 8-K",
-    "The earnings call"
+    "A press release filed on an 8-K"
    ],
    "kind": "mcq",
    "q": "Where does a company usually put out its quarterly numbers first?",
@@ -269,9 +269,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "The same period a year earlier",
     "The quarter just before it",
-    "The start of the year to now",
-    "The same period a year earlier"
+    "The start of the year to now"
    ],
    "kind": "mcq",
    "q": "Amazon says first-quarter sales grew 9% year over year. What is the quarter compared with?",
@@ -340,9 +340,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "In line",
     "A beat",
-    "A miss",
-    "In line"
+    "A miss"
    ],
    "kind": "mcq",
    "q": "Amazon's Q1 2025 EPS was $1.59. Analysts expected $1.36. How does it read on EPS?",
@@ -821,9 +821,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "He's right. Sales are falling",
+    "The drop is seasonal. YoY is up",
     "It's a miss on revenue",
-    "The drop is seasonal. YoY is up"
+    "He's right. Sales are falling"
    ],
    "kind": "mcq",
    "q": "What do you tell your friend?",
@@ -998,9 +998,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "It counts shares that could be issued",
     "It leaves out one-time gains",
-    "It subtracts the dividend paid"
+    "It subtracts the dividend paid",
+    "It counts shares that could be issued"
    ],
    "kind": "mcq",
    "q": "Target's Q1 2025 table shows basic EPS of $2.28 and diluted EPS of $2.27. Why is diluted lower?",
@@ -1069,9 +1069,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "Missed. $1.30 is below $1.61",
     "Beat. $2.27 is above $1.61",
-    "Can't say without the 10-Q",
-    "Missed. $1.30 is below $1.61"
+    "Can't say without the 10-Q"
    ],
    "kind": "mcq",
    "q": "Did Target beat or miss on EPS?",
@@ -1266,10 +1266,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "EPS beat, revenue missed",
     "Beat on both lines",
-    "Revenue beat, EPS missed",
     "Missed on both lines",
-    "EPS beat, revenue missed"
+    "Revenue beat, EPS missed"
    ],
    "kind": "mcq",
    "q": "How does the report card read?",
@@ -1340,9 +1340,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "Can't say. Margins vary by industry",
     "Yes. The margin rose to 6.2%",
-    "No. Without the gains it fell",
-    "Can't say. Margins vary by industry"
+    "No. Without the gains it fell"
    ],
    "kind": "mcq",
    "q": "Did Target's core business get more profitable?",
@@ -1492,8 +1492,8 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Fewer shares split the profit",
     "Revenue grew faster than profit",
+    "Fewer shares split the profit",
     "Target paid a bigger dividend"
    ],
    "kind": "mcq",
@@ -1571,9 +1571,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Its own past and other retailers",
+    "A 50% rule of thumb",
     "NVIDIA's 73.4%",
-    "A 50% rule of thumb"
+    "Its own past and other retailers"
    ],
    "kind": "mcq",
    "q": "What's the right yardstick for Target's 28.2%?",
@@ -1919,10 +1919,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "The average of analysts' estimates",
-    "The company's own forecast",
+    "The highest analyst estimate",
     "Last year's earnings for the quarter",
-    "The highest analyst estimate"
+    "The company's own forecast",
+    "The average of analysts' estimates"
    ],
    "kind": "mcq",
    "q": "What is the consensus estimate for a company's earnings?",
@@ -2187,9 +2187,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "The price is built on future profits",
-    "Guidance is a guaranteed number",
     "Results come out weeks after the guide",
+    "Guidance is a guaranteed number",
+    "The price is built on future profits",
     "Analysts ignore the reported quarter"
    ],
    "kind": "mcq",
@@ -2337,9 +2337,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "Only in the annual filing",
     "With the quarterly report",
-    "In a private call with analysts",
-    "Only in the annual filing"
+    "In a private call with analysts"
    ],
    "kind": "mcq",
    "q": "When do most companies put out their guidance?",
@@ -2777,8 +2777,8 @@
   "prompt_json": {
    "choices": [
     "Negative: it's below the consensus",
-    "Positive: it's a raise",
-    "Neutral: only reported results count"
+    "Neutral: only reported results count",
+    "Positive: it's a raise"
    ],
    "kind": "mcq",
    "q": "How does the market read this guide?",
@@ -2848,9 +2848,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "It's selective disclosure",
     "Nothing: a hint isn't guidance",
-    "Nothing: analysts can know first"
+    "Nothing: analysts can know first",
+    "It's selective disclosure"
    ],
    "kind": "mcq",
    "q": "Under Regulation FD, what's wrong here?",
@@ -2997,10 +2997,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "A one-time gain in the beat",
     "A guide below expectations",
-    "A miss on the quarter",
     "A miss on revenue",
-    "A one-time gain in the beat"
+    "A miss on the quarter"
    ],
    "kind": "mcq",
    "q": "The next day the stock falls 17%. What drove the drop?",
@@ -3168,9 +3168,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Its forecast reassured investors",
     "It finally beat estimates",
-    "Its supply limits had cleared"
+    "Its supply limits had cleared",
+    "Its forecast reassured investors"
    ],
    "kind": "mcq",
    "q": "This time the stock rises nearly 9%. Going by CNBC's report, what was different?",
@@ -3254,9 +3254,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "The quarter was really a miss",
     "The bar was above the estimates",
-    "The guide missed the consensus",
-    "The quarter was really a miss"
+    "The guide missed the consensus"
    ],
    "kind": "mcq",
    "q": "Shares still drop in extended trading. What's the best read?",
@@ -3361,9 +3361,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "About 72% below",
     "About 42% below",
-    "About 18% below",
-    "About 72% below"
+    "About 18% below"
    ],
    "kind": "mcq",
    "q": "How far below the consensus is the guide, as a percent of the consensus?",
@@ -3675,10 +3675,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "Last year's full-year EPS",
     "The same quarter a year earlier",
     "The quarter just before it",
-    "The analysts' estimate",
-    "Last year's full-year EPS"
+    "The analysts' estimate"
    ],
    "kind": "mcq",
    "q": "William O'Neil's C test looks at this quarter's EPS. What does it compare it with?",
@@ -3862,9 +3862,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "The growth rate rises each quarter",
     "EPS sets a new record each quarter",
     "EPS beats the estimate each quarter",
+    "The growth rate rises each quarter",
     "The stock rises after each report"
    ],
    "kind": "mcq",
@@ -3987,9 +3987,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "The stock is due to fall",
     "Buyers expect strong growth",
-    "The company earns a lot per share",
-    "The stock is due to fall"
+    "The company earns a lot per share"
    ],
    "kind": "mcq",
    "q": "A stock trades at a high P/E. What does that usually tell you?",
@@ -4104,8 +4104,8 @@
   "prompt_json": {
    "choices": [
     "Big jumps in quarterly EPS",
-    "Low P/E ratios",
-    "Rising dividends"
+    "Rising dividends",
+    "Low P/E ratios"
    ],
    "kind": "mcq",
    "q": "What did O'Neil's study of big stock market winners find before their big price runs?",
@@ -4313,10 +4313,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "A: 60%, 45%, 30%",
     "B: 15%, 22%, 31%",
-    "C: 40%, 40%, 40%",
-    "D: 10%, 55%, 12%"
+    "A: 60%, 45%, 30%",
+    "D: 10%, 55%, 12%",
+    "C: 40%, 40%, 40%"
    ],
    "kind": "mcq",
    "q": "Which one is accelerating?",
@@ -4449,9 +4449,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "A's, sales grew with it",
     "B's, it squeezed out more profit",
-    "Same, EPS is what counts"
+    "Same, EPS is what counts",
+    "A's, sales grew with it"
    ],
    "kind": "mcq",
    "q": "Whose EPS growth looks more solid?",
@@ -4649,8 +4649,8 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "A, with a PEG of 3",
     "B, with a P/E of 45",
+    "A, with a PEG of 3",
     "Neither, both are fair"
    ],
    "kind": "mcq",
@@ -4737,9 +4737,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "A: up 45% from last quarter",
     "B: up 38% from a year ago",
-    "C: up 16% from a year ago"
+    "C: up 16% from a year ago",
+    "A: up 45% from last quarter"
    ],
    "kind": "mcq",
    "q": "Which one clears O'Neil's quarterly EPS test?",
@@ -4809,10 +4809,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "It rose every time",
+    "It stayed about flat",
     "It fell every time",
     "It rose, then started to fall",
-    "It stayed about flat"
+    "It rose every time"
    ],
    "kind": "mcq",
    "q": "Against the same quarter a year earlier, what did NVIDIA's revenue do in those reports?",
@@ -4897,9 +4897,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Palantir",
     "NVIDIA",
-    "Both, revenue rose at both"
+    "Both, revenue rose at both",
+    "Palantir"
    ],
    "kind": "mcq",
    "q": "Which company's growth was accelerating?",
@@ -5151,9 +5151,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "The P/E alone doesn't settle it",
+    "Buy, a high P/E marks a leader",
     "Pass, 80 times earnings is too high",
-    "Buy, a high P/E marks a leader"
+    "The P/E alone doesn't settle it"
    ],
    "kind": "mcq",
    "q": "A friend says the P/E is too high to touch. What's the best read?",
@@ -5223,8 +5223,8 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Growth is slowing under a rich price",
     "Nothing, 35% still clears the bar",
+    "Growth is slowing under a rich price",
     "EPS is now falling"
    ],
    "kind": "mcq",
@@ -5295,9 +5295,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Fast growers with a high or no P/E",
+    "Companies with falling sales",
     "Only overpriced stocks, so no loss",
-    "Companies with falling sales"
+    "Fast growers with a high or no P/E"
    ],
    "kind": "mcq",
    "q": "What kind of future winner can that screen miss?",
@@ -5685,10 +5685,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "The weeks after a quarter ends",
-    "The last weeks of each quarter",
     "One month a year, for annual reports",
-    "Any week a company pays a dividend"
+    "Any week a company pays a dividend",
+    "The weeks after a quarter ends",
+    "The last weeks of each quarter"
    ],
    "kind": "mcq",
    "q": "What does \"earnings season\" mean?",
@@ -5751,10 +5751,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "Its last stock split date",
     "Its next earnings date",
-    "Its ex-dividend date",
     "Its last earnings date",
-    "Its last stock split date"
+    "Its ex-dividend date"
    ],
    "kind": "mcq",
    "q": "You want to buy a stock and hold it for a few weeks. Which date do you look up first?",
@@ -5825,8 +5825,8 @@
   "prompt_json": {
    "choices": [
     "Before the open or after the close",
-    "In the middle of the trading day",
-    "In the last hour of trading"
+    "In the last hour of trading",
+    "In the middle of the trading day"
    ],
    "kind": "mcq",
    "q": "When do most companies release their earnings?",
@@ -5955,9 +5955,9 @@
   "prompt_json": {
    "choices": [
     "Results topped the consensus estimate",
-    "The stock rose after the report",
     "Results grew from a year ago",
-    "It reported before the deadline"
+    "It reported before the deadline",
+    "The stock rose after the report"
    ],
    "kind": "mcq",
    "q": "A company \"beats\" estimates. What does that mean?",
@@ -6141,9 +6141,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "The regular session on Oct. 14",
     "The regular session on Oct. 13",
-    "The regular session on Oct. 12",
-    "The regular session on Oct. 14"
+    "The regular session on Oct. 12"
    ],
    "kind": "mcq",
    "q": "JPMorgan set its Oct. 13, 2026 release for about 7:00 a.m. ET. Which regular session first trades the news?",
@@ -6282,10 +6282,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "Both at Tuesday's close",
     "Both at Wednesday's open",
-    "A on Tuesday, B on Wednesday",
     "A on Wednesday, B on Thursday",
-    "Both at Tuesday's close"
+    "A on Tuesday, B on Wednesday"
    ],
    "kind": "mcq",
    "q": "Which regular session first trades each report?",
@@ -6363,9 +6363,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Get the date and time from the company",
     "Assume it reports after the close",
-    "Nothing, your stop has it covered"
+    "Nothing, your stop has it covered",
+    "Get the date and time from the company"
    ],
    "kind": "mcq",
    "q": "What do you do before you buy?",
@@ -6514,8 +6514,8 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "The report passed, so volatility fell",
     "The stock can't move much now",
+    "The report passed, so volatility fell",
     "Analysts cut their estimates"
    ],
    "kind": "mcq",
@@ -6660,8 +6660,8 @@
    "choices": [
     "Near the open, far below $300",
     "At $300, your stop price",
-    "At the last close, before the news",
-    "Nowhere until $300 trades again"
+    "Nowhere until $300 trades again",
+    "At the last close, before the news"
    ],
    "kind": "mcq",
    "q": "If it opens near that price, where does your stop sell?",
@@ -6848,9 +6848,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Yes, it can move the whole group",
     "No, only your stock's report counts",
-    "Only if you also own the big name"
+    "Only if you also own the big name",
+    "Yes, it can move the whole group"
    ],
    "kind": "mcq",
    "q": "Does tonight's report matter for your position?",
@@ -7159,10 +7159,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "How far options price it to move",
-    "Which way it should move",
     "How far it moved last time",
-    "Where analysts see the price"
+    "How far options price it to move",
+    "Where analysts see the price",
+    "Which way it should move"
    ],
    "kind": "mcq",
    "q": "Before a report, what does the stock's implied move tell you?",
@@ -7382,10 +7382,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "At-the-money straddle, nearest expiry",
-    "Far out-of-the-money calls",
     "The longest-dated puts",
-    "The call with the most volume"
+    "Far out-of-the-money calls",
+    "The call with the most volume",
+    "At-the-money straddle, nearest expiry"
    ],
    "kind": "mcq",
    "q": "Which options give the quickest read of the implied move?",
@@ -7932,8 +7932,8 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "The straddle buyers",
     "The straddle sellers",
+    "The straddle buyers",
     "Neither side, it's even"
    ],
    "kind": "mcq",
@@ -8004,9 +8004,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "The seller",
+    "Both, since the stock moved",
     "The buyer",
-    "Both, since the stock moved"
+    "The seller"
    ],
    "kind": "mcq",
    "q": "Who came out ahead on that straddle?",
@@ -8084,9 +8084,9 @@
   "prompt_json": {
    "choices": [
     "Options priced a smaller move than usual",
-    "Options priced a bigger move than usual",
     "The stock will rise after the report",
-    "The options are mispriced"
+    "The options are mispriced",
+    "Options priced a bigger move than usual"
    ],
    "kind": "mcq",
    "q": "NVDA, August 2025: options priced about 6%. Its last six reactions averaged 7.39%. What does that tell you?",
@@ -8164,8 +8164,8 @@
   "prompt_json": {
    "choices": [
     "Took value out of them",
-    "Added value to them",
-    "Nothing, only the stock matters"
+    "Nothing, only the stock matters",
+    "Added value to them"
    ],
    "kind": "mcq",
    "q": "After a report, implied volatility on the calls fell from 92.88% to 49.69%. All else equal, what did that do to the calls?",
@@ -8234,9 +8234,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "About 0.46x, smaller than priced",
+    "About 2x, far bigger than priced",
     "About 1x, right on the price",
-    "About 2x, far bigger than priced"
+    "About 0.46x, smaller than priced"
    ],
    "kind": "mcq",
    "q": "How did the realized move compare with what options priced?",
@@ -8460,8 +8460,8 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "About 1.4x, bigger than priced",
     "About 0.7x, smaller than priced",
+    "About 1.4x, bigger than priced",
     "About 1x, right on the price"
    ],
    "kind": "mcq",
@@ -8619,8 +8619,8 @@
   "prompt_json": {
    "choices": [
     "The news was far outside what was priced",
-    "The options were priced too high",
     "The move will reverse the next day",
+    "The options were priced too high",
     "Implied volatility will now rise"
    ],
    "kind": "mcq",
@@ -9124,9 +9124,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Step aside",
+    "Hold through",
     "Trim",
-    "Hold through"
+    "Step aside"
    ],
    "kind": "mcq",
    "q": "You sell every share before the report and plan to look at the stock again after it. Which of the three answers is that?",
@@ -9403,8 +9403,8 @@
   "prompt_json": {
    "choices": [
     "Wednesday's close",
-    "Thursday's open",
-    "Thursday's close"
+    "Thursday's close",
+    "Thursday's open"
    ],
    "kind": "mcq",
    "q": "When is your last chance to sell in the regular session?",
@@ -9474,9 +9474,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "A gap would hit fewer shares",
+    "Reports tend to push stocks down",
     "Your stop will fill nearer plan",
-    "Reports tend to push stocks down"
+    "A gap would hit fewer shares"
    ],
    "kind": "mcq",
    "q": "The report is a week away and you like the setup. Why buy a smaller position than usual?",
@@ -9686,9 +9686,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "Little, since you're in profit",
     "A loss past your stop",
-    "A loss no bigger than 6%",
-    "Little, since you're in profit"
+    "A loss no bigger than 6%"
    ],
    "kind": "mcq",
    "q": "What's the real risk if you hold every share through?",
@@ -9765,9 +9765,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "About 2x your normal risk",
+    "About 8x your normal risk",
     "About the same as normal",
-    "About 8x your normal risk"
+    "About 2x your normal risk"
    ],
    "kind": "mcq",
    "q": "If it gaps down the full expected move, how does the hit compare with your normal risk?",
@@ -10182,8 +10182,8 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "It doesn't fill. You still own it",
     "It sells at about $49.50",
+    "It doesn't fill. You still own it",
     "It sells at exactly $50"
    ],
    "kind": "mcq",
@@ -10240,8 +10240,8 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Sell. Your plan says you're out",
     "Wait for a bounce to sell",
+    "Sell. Your plan says you're out",
     "Buy more while it's cheap"
    ],
    "kind": "mcq",
@@ -10320,8 +10320,8 @@
   "prompt_json": {
    "choices": [
     "Stock A",
-    "Stock B",
-    "Stock C"
+    "Stock C",
+    "Stock B"
    ],
    "kind": "mcq",
    "q": "A 10% gap down hits all three. Which one costs the account the most?",
@@ -10385,8 +10385,8 @@
   "prompt_json": {
    "choices": [
     "Still up about 27% after a 9% gap",
-    "My stop will cap the loss",
-    "Leaders don't gap down on reports"
+    "Leaders don't gap down on reports",
+    "My stop will cap the loss"
    ],
    "kind": "mcq",
    "q": "You decide to hold through. Which reason holds up?",
@@ -10930,8 +10930,8 @@
    "choices": [
     "Today's low is above yesterday's high",
     "Today's close is above yesterday's",
-    "Today's high is a new 52-week high",
-    "Today's volume is above average"
+    "Today's volume is above average",
+    "Today's high is a new 52-week high"
    ],
    "kind": "mcq",
    "q": "On a daily chart, what makes a gap up?",
@@ -10995,8 +10995,8 @@
   "prompt_json": {
    "choices": [
     "Buy orders pile up overnight",
-    "The exchange resets the price",
-    "Short sellers must cover at the open"
+    "Short sellers must cover at the open",
+    "The exchange resets the price"
    ],
    "kind": "mcq",
    "q": "A company reports strong earnings after the close. Why does the stock often gap up the next morning?",
@@ -11194,9 +11194,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "Volume stays high for weeks after",
     "Price keeps moving the surprise's way",
     "Price snaps back to pre-report levels",
-    "Volume stays high for weeks after",
     "Estimates creep up before the report"
    ],
    "kind": "mcq",
@@ -11326,10 +11326,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Earnings gap, big volume, strong close",
     "Earnings gap that fills by the close",
+    "Gap down that recovers by noon",
     "Small earnings gap on light volume",
-    "Gap down that recovers by noon"
+    "Earnings gap, big volume, strong close"
    ],
    "kind": "mcq",
    "q": "What does a Power Earnings Gap look like on day one?",
@@ -11550,9 +11550,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "A gap up: the low held above $41.20",
     "No gap: it traded below its open",
-    "A filled gap: it pulled back"
+    "A filled gap: it pulled back",
+    "A gap up: the low held above $41.20"
    ],
    "kind": "mcq",
    "q": "Yesterday's high was $41.20. Today it opens at $43.00, and the day's low is $42.10. What does the daily chart show?",
@@ -11614,10 +11614,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "Buy it: it's cheaper than the open",
     "It faded: buyers didn't hold the gap",
-    "It's a breakaway gap: buy tomorrow",
     "It still counts as a gap up",
-    "Buy it: it's cheaper than the open"
+    "It's a breakaway gap: buy tomorrow"
    ],
    "kind": "mcq",
    "q": "What did the day tell you?",
@@ -11688,8 +11688,8 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "A, closing at the high",
     "B, because it held the gap",
+    "A, closing at the high",
     "Both: the gap is what counts"
    ],
    "kind": "mcq",
@@ -11760,9 +11760,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "The open can fade; let it prove itself",
     "A filled gap is a safer entry",
-    "The open is usually the day's low"
+    "The open is usually the day's low",
+    "The open can fade; let it prove itself"
    ],
    "kind": "mcq",
    "q": "Why might you wait before buying an earnings gap right at the open?",
@@ -11845,10 +11845,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Just under $58.90, the day's low",
-    "Just under $63.50, your entry",
+    "No stop: the drift will carry it",
     "Wherever it fits the size you want",
-    "No stop: the drift will carry it"
+    "Just under $58.90, the day's low",
+    "Just under $63.50, your entry"
    ],
    "kind": "mcq",
    "q": "Where does our default stop go?",
@@ -12126,8 +12126,8 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "B, after the long run",
     "A, because bases often fail",
+    "B, after the long run",
     "Same risk: size and volume match"
    ],
    "kind": "mcq",
@@ -12226,10 +12226,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "A fade: sellers took the beat",
-    "A Power Earnings Gap to buy",
     "Noise: the beat is what counts",
-    "Buy the dip: the drift is coming"
+    "A Power Earnings Gap to buy",
+    "Buy the dip: the drift is coming",
+    "A fade: sellers took the beat"
    ],
    "kind": "mcq",
    "q": "How do you read that day?",
@@ -12315,9 +12315,9 @@
   "prompt_json": {
    "choices": [
     "Trade the reaction, not the headline",
-    "A beat always gaps and goes",
+    "Buy any beat at the open",
     "Big names never fade on earnings",
-    "Buy any beat at the open"
+    "A beat always gaps and goes"
    ],
    "kind": "mcq",
    "q": "What's the lesson for the day after a beat?",
@@ -12409,9 +12409,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "It's shrunk; studies split on how much",
     "It has grown stronger each decade",
     "It works on every stock that beats",
+    "It's shrunk; studies split on how much",
     "It only shows up in large stocks"
    ],
    "kind": "mcq",
@@ -12562,10 +12562,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Let the stop work if it's hit",
-    "Cancel the stop and wait for drift",
     "Buy more at the lower price",
-    "Lower the stop to give it room"
+    "Let the stop work if it's hit",
+    "Lower the stop to give it room",
+    "Cancel the stop and wait for drift"
    ],
    "kind": "mcq",
    "q": "What do you do?",
@@ -13047,10 +13047,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Beat on both",
-    "EPS beat, revenue missed",
+    "In line on both",
     "Revenue beat, EPS missed",
-    "In line on both"
+    "Beat on both",
+    "EPS beat, revenue missed"
    ],
    "kind": "mcq",
    "q": "Alphabet, first quarter 2024: EPS $1.89 vs $1.51 expected. Revenue $80.54 billion vs $78.59 billion expected. How does it read?",
@@ -13142,9 +13142,9 @@
   "prompt_json": {
    "choices": [
     "EPS missed, revenue beat",
-    "EPS beat, revenue missed",
     "Missed on both",
-    "Beat on both"
+    "Beat on both",
+    "EPS beat, revenue missed"
    ],
    "kind": "mcq",
    "q": "Target, first quarter 2022: adjusted EPS $2.19 vs $3.07 expected. Revenue $25.17 billion vs $24.49 billion expected. How does it read?",
@@ -13308,10 +13308,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "On the earnings call",
-    "In the consensus estimate",
+    "In the prior quarter's release",
     "In the after-hours price",
-    "In the prior quarter's release"
+    "In the consensus estimate",
+    "On the earnings call"
    ],
    "kind": "mcq",
    "q": "Nike's fiscal Q4 2024 release says results \"led us to update our Fiscal '25 outlook.\" No new numbers follow. Where do you find them?",
@@ -13593,10 +13593,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "Can't tell without EPS",
     "A beat, though sales fell",
     "A miss, because sales fell",
-    "In line with last year",
-    "Can't tell without EPS"
+    "In line with last year"
    ],
    "kind": "mcq",
    "q": "Meta, fourth quarter 2022: revenue $32.17 billion, down 4% from a year earlier. Analysts expected $31.53 billion. How does revenue read?",
@@ -13822,9 +13822,9 @@
   "prompt_json": {
    "choices": [
     "The full-year sales guide",
-    "The EPS line",
     "The revenue miss",
-    "Nothing: EPS beat"
+    "Nothing: EPS beat",
+    "The EPS line"
    ],
    "kind": "mcq",
    "q": "Which line in this report worries you most?",
@@ -13930,10 +13930,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Sales raised, profit cut",
-    "A raise across the board",
     "A cut across the board",
-    "No real change"
+    "No real change",
+    "A raise across the board",
+    "Sales raised, profit cut"
    ],
    "kind": "mcq",
    "q": "Walmart, May 2022. New full-year guide: sales up about 4%, was 3%. EPS down about 1%, was up mid single digits. How does it read?",
@@ -14094,10 +14094,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Sales held up; costs ate the profit",
-    "Shoppers pulled back hard",
+    "A strong quarter overall",
     "A one-time charge hit EPS",
-    "A strong quarter overall"
+    "Sales held up; costs ate the profit",
+    "Shoppers pulled back hard"
    ],
    "kind": "mcq",
    "q": "What does that mix tell you about the quarter?",
@@ -14196,10 +14196,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
+    "A currency gain inside EPS",
     "Members fell, with more losses guided",
     "The EPS beat",
-    "The revenue miss",
-    "A currency gain inside EPS"
+    "The revenue miss"
    ],
    "kind": "mcq",
    "q": "What's the real news in this report?",
@@ -14313,9 +14313,9 @@
   "prompt_json": {
    "choices": [
     "Unclear: the charges muddy it",
-    "A clean miss",
     "A clean beat, once charges are out",
-    "In line, once adjusted"
+    "In line, once adjusted",
+    "A clean miss"
    ],
    "kind": "mcq",
    "q": "How do you read the EPS line?",
@@ -14630,10 +14630,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "The same costs may squeeze Target",
     "Nothing: they're separate companies",
+    "Sales beat, so retail is fine",
     "Target should gain from Walmart's miss",
-    "Sales beat, so retail is fine"
+    "The same costs may squeeze Target"
    ],
    "kind": "mcq",
    "q": "What does Walmart's report tell you about your Target shares?",
@@ -14732,10 +14732,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Nike's: a revenue miss and a cut guide",
     "Alphabet's: dividends mean slower growth",
-    "Both: any beat gets sold",
-    "Neither: both beat on EPS"
+    "Neither: both beat on EPS",
+    "Nike's: a revenue miss and a cut guide",
+    "Both: any beat gets sold"
    ],
    "kind": "mcq",
    "q": "Which report carried bad news beyond the EPS line?",
@@ -14883,10 +14883,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "$27.25B: above one, below the other",
-    "A beat: the top end is $28.5B",
     "A miss: the low end is $26B",
-    "Exactly in line with both"
+    "$27.25B: above one, below the other",
+    "Exactly in line with both",
+    "A beat: the top end is $28.5B"
    ],
    "kind": "mcq",
    "q": "How does the midpoint of the guide compare?",

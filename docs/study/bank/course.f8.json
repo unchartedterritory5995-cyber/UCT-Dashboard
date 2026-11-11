@@ -63,9 +63,9 @@
   "prompt_json": {
    "choices": [
     "A record of when and why it happens",
-    "More willpower in the moment",
+    "A new setup to trade",
     "A week away from the screens",
-    "A new setup to trade"
+    "More willpower in the moment"
    ],
    "kind": "mcq",
    "q": "You keep making the same costly mistake, even though you know the rule. What do you need before you can fix it?",
@@ -163,10 +163,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "The same day, while it's fresh",
     "At month-end, all at once",
+    "Never, just forget it and move on",
     "Only when it costs a lot",
-    "Never, just forget it and move on"
+    "The same day, while it's fresh"
    ],
    "kind": "mcq",
    "q": "When should you write down a trading mistake?",
@@ -517,9 +517,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "What you thought and felt before buying",
-    "Who or what to blame for it",
     "The exact loss, to the cent",
+    "Who or what to blame for it",
+    "What you thought and felt before buying",
     "A promise to do better tomorrow"
    ],
    "kind": "mcq",
@@ -683,10 +683,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
+    "Cut a winner short",
     "FOMO, a trade outside your plan",
     "Revenge, making back a loss",
-    "Hesitation, waiting too long",
-    "Cut a winner short"
+    "Hesitation, waiting too long"
    ],
    "kind": "mcq",
    "q": "Which tag fits this trade?",
@@ -751,8 +751,8 @@
   "prompt_json": {
    "choices": [
     "Check how you feel at set times",
-    "Watch your P&L more closely",
     "Trade only on days you feel calm",
+    "Watch your P&L more closely",
     "Push the feelings aside and focus"
    ],
    "kind": "mcq",
@@ -844,9 +844,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Chasing, $1,200 in all",
+    "Neither, losses are part of trading",
     "Moving the stop, the bigger hits",
-    "Neither, losses are part of trading"
+    "Chasing, $1,200 in all"
    ],
    "kind": "mcq",
    "q": "Which mistake cost you more this month?",
@@ -987,10 +987,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "A mistake, even though it paid",
     "A good trade, since it worked",
-    "A new setup worth adding",
-    "No entry, it's a winner"
+    "No entry, it's a winner",
+    "A mistake, even though it paid",
+    "A new setup worth adding"
    ],
    "kind": "mcq",
    "q": "How do you log this trade?",
@@ -1068,8 +1068,8 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Taking the same losing trade again",
     "Hesitating on a good entry",
+    "Taking the same losing trade again",
     "Selling a winner too early",
     "Buying a stock everyone's chasing"
    ],
@@ -1170,10 +1170,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Write an entry rule into the plan",
     "Work on your fear of missing out",
+    "Take a month off from trading",
     "Cut your size in half for now",
-    "Take a month off from trading"
+    "Write an entry rule into the plan"
    ],
    "kind": "mcq",
    "q": "What do you fix first?",
@@ -1258,10 +1258,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "It's an emotional pattern to map",
-    "The rule needs to be stricter",
+    "It's bad luck, it will pass",
     "The entry rule doesn't work",
-    "It's bad luck, it will pass"
+    "It's an emotional pattern to map",
+    "The rule needs to be stricter"
    ],
    "kind": "mcq",
    "q": "What does that tell you?",
@@ -1629,10 +1629,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Fear of being left out of a move",
+    "Fear of holding a trade overnight",
     "Fear of losing money on a trade",
     "Fear of buying a stock at a high",
-    "Fear of holding a trade overnight"
+    "Fear of being left out of a move"
    ],
    "kind": "mcq",
    "q": "In trading, what is FOMO?",
@@ -1878,8 +1878,8 @@
    "choices": [
     "Your risk per share gets bigger",
     "Nothing, the stop still caps the loss",
-    "The stop gets more room, so it's safer",
-    "Your upside to the target grows"
+    "Your upside to the target grows",
+    "The stop gets more room, so it's safer"
    ],
    "kind": "mcq",
    "q": "You buy well above your planned entry but keep the same stop. What changes?",
@@ -1994,8 +1994,8 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "So you decide before emotions kick in",
     "So you never take a losing trade",
+    "So you decide before emotions kick in",
     "So a fast move can't leave you behind"
    ],
    "kind": "mcq",
@@ -2189,9 +2189,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Wait for $25.40, buy stop ready",
+    "Buy now, $25.10 is close enough",
     "Buy now before it gets away",
-    "Buy now, $25.10 is close enough"
+    "Wait for $25.40, buy stop ready"
    ],
    "kind": "mcq",
    "q": "What do you do?",
@@ -2254,9 +2254,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "$1,000",
     "$400",
     "$600",
+    "$1,000",
     "$8,600"
    ],
    "kind": "mcq",
@@ -2460,9 +2460,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Wait for a pullback and a higher low",
     "Buy now with the stop at $37",
     "Buy now with a stop at $43",
+    "Wait for a pullback and a higher low",
     "Buy double size to catch up"
    ],
    "kind": "mcq",
@@ -2543,8 +2543,8 @@
    "choices": [
     "The extra trades are FOMO trades",
     "Busy days are just harder markets",
-    "He needs a faster trading platform",
-    "His position size was too small"
+    "His position size was too small",
+    "He needs a faster trading platform"
    ],
    "kind": "mcq",
    "q": "A trader's win rate drops on the days he trades most. What does coach Brett Steenbarger often find behind it?",
@@ -2614,10 +2614,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Wait for the opening range to form",
+    "Short it, the gap is too big",
     "Buy at market before it runs",
-    "Buy now, set a stop later",
-    "Short it, the gap is too big"
+    "Wait for the opening range to form",
+    "Buy now, set a stop later"
    ],
    "kind": "mcq",
    "q": "What's the disciplined move?",
@@ -2759,10 +2759,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "I'm late; wait for a real setup",
-    "The buzz proves it goes higher",
+    "Short it, it has to fall now",
     "Buy now, add more as it rises",
-    "Short it, it has to fall now"
+    "The buzz proves it goes higher",
+    "I'm late; wait for a real setup"
    ],
    "kind": "mcq",
    "q": "What's the honest read?",
@@ -2917,9 +2917,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
+    "Use wider stops on the chases",
     "Grade each day on following the plan",
     "Trade more names so you miss less",
-    "Use wider stops on the chases",
     "Buy before the signal to beat it"
    ],
    "kind": "mcq",
@@ -3058,8 +3058,8 @@
   "prompt_json": {
    "choices": [
     "No, it's a pullback buy near support",
-    "Yes, it already broke out",
-    "Yes, only new highs are safe"
+    "Yes, only new highs are safe",
+    "Yes, it already broke out"
    ],
    "kind": "mcq",
    "q": "You buy the turn near $41, stop just under the pullback low. Is it a chase?",
@@ -3136,9 +3136,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
+    "Take it, but with double size",
     "Step back; no trade until you're calm",
     "Take it, this one will make it back",
-    "Take it, but with double size",
     "Take it with a very tight stop"
    ],
    "kind": "mcq",
@@ -3458,10 +3458,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Losses weigh more than equal gains",
+    "Cutting losses fast with a stop",
     "Avoiding risk of any kind",
-    "Fear of missing a big move",
-    "Cutting losses fast with a stop"
+    "Losses weigh more than equal gains",
+    "Fear of missing a big move"
    ],
    "kind": "mcq",
    "q": "What does loss aversion mean?",
@@ -3590,10 +3590,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
+    "Trading more after a winning streak",
     "Selling winners early, holding losers",
-    "Holding winners, cutting losers fast",
     "Buying a stock after a big run",
-    "Trading more after a winning streak"
+    "Holding winners, cutting losers fast"
    ],
    "kind": "mcq",
    "q": "What is the disposition effect?",
@@ -3729,10 +3729,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Skip a trade your plan allows",
-    "Buy more than you planned",
+    "Size up after a big win",
     "Add as the stock climbs",
-    "Size up after a big win"
+    "Buy more than you planned",
+    "Skip a trade your plan allows"
    ],
    "kind": "mcq",
    "q": "Your setup triggers and you're scared of losing money. Which way does that fear push you?",
@@ -3917,9 +3917,9 @@
   "prompt_json": {
    "choices": [
     "Freezing at the trigger",
-    "A real reason to pass",
     "Cutting a winner early",
-    "Chasing a late entry"
+    "Chasing a late entry",
+    "A real reason to pass"
    ],
    "kind": "mcq",
    "q": "What's going on?",
@@ -3983,9 +3983,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Hesitating, then buying late",
-    "Cutting a winner early",
     "A real reason to wait",
+    "Cutting a winner early",
+    "Hesitating, then buying late",
     "Sticking to the plan"
    ],
    "kind": "mcq",
@@ -4051,9 +4051,9 @@
   "prompt_json": {
    "choices": [
     "Cutting a winner early",
-    "Freezing at the trigger",
+    "Respecting your stop",
     "A planned partial sale",
-    "Respecting your stop"
+    "Freezing at the trigger"
    ],
    "kind": "mcq",
    "q": "What was that sale?",
@@ -4180,10 +4180,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "-0.25R a trade",
     "+0.25R a trade",
-    "0R, you break even",
-    "+0.5R a trade"
+    "-0.25R a trade",
+    "+0.5R a trade",
+    "0R, you break even"
    ],
    "kind": "mcq",
    "q": "On average, what does each trade make you?",
@@ -4256,10 +4256,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Your written rules say no",
     "Your last two trades lost",
     "It could drop right after you buy",
-    "You'd hate to be wrong again"
+    "You'd hate to be wrong again",
+    "Your written rules say no"
    ],
    "kind": "mcq",
    "q": "Your trigger hits. Which of these is a real reason to pass?",
@@ -4396,8 +4396,8 @@
   "prompt_json": {
    "choices": [
     "Trade a smaller size",
-    "Use a tighter stop",
-    "Switch to new setups"
+    "Switch to new setups",
+    "Use a tighter stop"
    ],
    "kind": "mcq",
    "q": "What should you fix first?",
@@ -4526,10 +4526,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Set entry and stop before the open",
     "Wait for more confirmation first",
-    "Watch the chart more closely",
-    "Trade only when you feel sure"
+    "Trade only when you feel sure",
+    "Set entry and stop before the open",
+    "Watch the chart more closely"
    ],
    "kind": "mcq",
    "q": "You keep freezing when your trigger hits. Which habit helps most?",
@@ -4614,9 +4614,9 @@
   "prompt_json": {
    "choices": [
     "Sell a partial, trail the rest",
+    "Sell it all, buy back on a dip",
     "Sell it all, a profit is a profit",
-    "Hold it all, skip the target",
-    "Sell it all, buy back on a dip"
+    "Hold it all, skip the target"
    ],
    "kind": "mcq",
    "q": "What does our rule say?",
@@ -4694,10 +4694,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Pass. Your rule already decided",
     "Buy. Skipping a trigger is fear",
-    "Buy half and decide tonight",
-    "Buy with a tighter stop"
+    "Pass. Your rule already decided",
+    "Buy with a tighter stop",
+    "Buy half and decide tonight"
    ],
    "kind": "mcq",
    "q": "What do you do?",
@@ -4848,10 +4848,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Take it, at a size you can sit through",
     "Skip it, you can't take another loss",
     "Skip it, the setup must be broken",
-    "Double up to win it back"
+    "Double up to win it back",
+    "Take it, at a size you can sit through"
    ],
    "kind": "mcq",
    "q": "What's the best move?",
@@ -4936,10 +4936,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Small wins and much bigger losses",
-    "His win rate is too low",
     "Bad luck that will even out",
-    "He picks the wrong stocks"
+    "He picks the wrong stocks",
+    "Small wins and much bigger losses",
+    "His win rate is too low"
    ],
    "kind": "mcq",
    "q": "What's most likely hurting him?",
@@ -5200,10 +5200,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Emotion is making your trade calls",
+    "You're trading bigger than usual",
     "You're in a losing streak",
     "You've hit your daily loss limit",
-    "You're trading bigger than usual"
+    "Emotion is making your trade calls"
    ],
    "kind": "mcq",
    "q": "What does it mean to be on tilt?",
@@ -5339,9 +5339,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
+    "Scaling in",
     "Revenge trading",
     "Averaging down",
-    "Scaling in",
     "Hedging"
    ],
    "kind": "mcq",
@@ -5412,9 +5412,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "The break-even effect",
     "The house money effect",
-    "The disposition effect"
+    "The disposition effect",
+    "The break-even effect"
    ],
    "kind": "mcq",
    "q": "You're down on the day. A long-shot trade that could get you back to even looks extra tempting. What's that pull called?",
@@ -5613,8 +5613,8 @@
    "choices": [
     "A cap on trades per day",
     "A tighter stop on every trade",
-    "A bigger watchlist to pick from",
-    "A daily profit target"
+    "A daily profit target",
+    "A bigger watchlist to pick from"
    ],
    "kind": "mcq",
    "q": "Besides a daily loss limit, which rule best guards against rapid-fire revenge trades?",
@@ -5677,10 +5677,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "A revenge pick outside your lane",
-    "Smart rotation into strength",
+    "Spotting a hot stock early",
     "A normal momentum entry",
-    "Spotting a hot stock early"
+    "A revenge pick outside your lane",
+    "Smart rotation into strength"
    ],
    "kind": "mcq",
    "q": "What's really going on?",
@@ -5901,10 +5901,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Not by itself; watch your next move",
     "Yes, three losses in a row is tilt",
-    "No, only a big loss causes tilt",
-    "Yes, so stop trading for the week"
+    "Yes, so stop trading for the week",
+    "Not by itself; watch your next move",
+    "No, only a big loss causes tilt"
    ],
    "kind": "mcq",
    "q": "Does that mean you're on tilt?",
@@ -6028,8 +6028,8 @@
   "prompt_json": {
    "choices": [
     "Overtrading to win back the loss",
-    "Scalping, a valid fast style",
     "Normal action on a busy day",
+    "Scalping, a valid fast style",
     "Testing new setups live"
    ],
    "kind": "mcq",
@@ -6165,9 +6165,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
+    "5% of the account",
     "8% of the account",
     "10% of the account",
-    "5% of the account",
     "Full size, it's a great setup"
    ],
    "kind": "mcq",
@@ -6232,10 +6232,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Above-average risk to win it back",
     "Lower risk to protect what's left",
+    "Most stopped trading for the day",
     "No change from their usual trading",
-    "Most stopped trading for the day"
+    "Above-average risk to win it back"
    ],
    "kind": "mcq",
    "q": "What did the study find about their afternoon trading?",
@@ -6366,9 +6366,9 @@
   "prompt_json": {
    "choices": [
     "Pause anyway, the urge is the warning",
-    "Keep going, the limit decides",
+    "Double size on the next setup",
     "Buy it back to get even",
-    "Double size on the next setup"
+    "Keep going, the limit decides"
    ],
    "kind": "mcq",
    "q": "Your loss limit hasn't tripped. What now?",
@@ -6505,10 +6505,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Stop: you're down 1.5%, the limit",
-    "Take it, a great setup is different",
     "Take it at half size",
-    "Take it, one winner gets you even"
+    "Take it, one winner gets you even",
+    "Stop: you're down 1.5%, the limit",
+    "Take it, a great setup is different"
    ],
    "kind": "mcq",
    "q": "What does your rule say?",
@@ -6597,10 +6597,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "As your execution keeps holding up",
-    "Right away, to win back the 4%",
     "After your next big winner",
-    "Never, staying small is safer"
+    "As your execution keeps holding up",
+    "Never, staying small is safer",
+    "Right away, to win back the 4%"
    ],
    "kind": "mcq",
    "q": "When does your size go back to normal?",
@@ -6930,10 +6930,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Overrating your own skill and knowledge",
+    "Buying what everyone else is buying",
     "Fearing you'll miss a big move",
-    "Holding losers too long to avoid a loss",
-    "Buying what everyone else is buying"
+    "Overrating your own skill and knowledge",
+    "Holding losers too long to avoid a loss"
    ],
    "kind": "mcq",
    "q": "What does overconfidence bias mean?",
@@ -7118,10 +7118,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Taking more risk after a gain",
+    "Trading with borrowed money",
     "Taking more risk after a loss",
     "Selling winners too early",
-    "Trading with borrowed money"
+    "Taking more risk after a gain"
    ],
    "kind": "mcq",
    "q": "What is the house money effect?",
@@ -7358,9 +7358,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Earned less than the market",
     "Beat the market",
-    "Matched the market"
+    "Matched the market",
+    "Earned less than the market"
    ],
    "kind": "mcq",
    "q": "In Barber and Odean's study of 66,465 households, how did the ones that traded most do?",
@@ -7436,8 +7436,8 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Take it at your usual 1%",
     "Risk 3%, you're seeing it clearly",
+    "Take it at your usual 1%",
     "Risk 2% to meet the urge halfway"
    ],
    "kind": "mcq",
@@ -7640,8 +7640,8 @@
   "prompt_json": {
    "choices": [
     "$500 down",
-    "$1,000 up",
-    "$1,500 up"
+    "$1,500 up",
+    "$1,000 up"
    ],
    "kind": "mcq",
    "q": "Where do the four trades leave you?",
@@ -7714,9 +7714,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
+    "Whether to raise risk on each one",
     "Whether each trade met your rules",
-    "Whether you can add more names",
-    "Whether to raise risk on each one"
+    "Whether you can add more names"
    ],
    "kind": "mcq",
    "q": "What do you check first?",
@@ -7794,8 +7794,8 @@
   "prompt_json": {
    "choices": [
     "The market did a lot of the work",
-    "My stock picking jumped a level",
-    "Time to size up while it lasts"
+    "Time to size up while it lasts",
+    "My stock picking jumped a level"
    ],
    "kind": "mcq",
    "q": "What's the honest read on your run?",
@@ -7879,9 +7879,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Treating profit as play money",
     "Missing the move by waiting",
-    "Risking more than this month's gain"
+    "Risking more than this month's gain",
+    "Treating profit as play money"
    ],
    "kind": "mcq",
    "q": "What's the trap?",
@@ -7951,9 +7951,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Took above-average risk",
     "Cut risk to protect the gain",
-    "Traded as they would any day"
+    "Traded as they would any day",
+    "Took above-average risk"
    ],
    "kind": "mcq",
    "q": "What did those traders tend to do that afternoon?",
@@ -8159,9 +8159,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
+    "Proof you can handle bigger risk now",
     "A rule break that happened to pay",
-    "Fine, since every trade made money",
-    "Proof you can handle bigger risk now"
+    "Fine, since every trade made money"
    ],
    "kind": "mcq",
    "q": "How do you grade the bigger sizing?",
@@ -8246,8 +8246,8 @@
   "prompt_json": {
    "choices": [
     "Your wins are inflating your grades",
-    "The market is full of A+ setups",
-    "Your grading was too strict before"
+    "Your grading was too strict before",
+    "The market is full of A+ setups"
    ],
    "kind": "mcq",
    "q": "What should you suspect first?",
@@ -8317,10 +8317,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "A rule for it written before the run",
     "It still fits under your 2% cap",
-    "You feel sure about the next trades",
-    "The quarter's profit covers the risk"
+    "A rule for it written before the run",
+    "The quarter's profit covers the risk",
+    "You feel sure about the next trades"
    ],
    "kind": "mcq",
    "q": "What would make that a plan and not euphoria?",
@@ -8602,10 +8602,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "The problem, described in detail",
     "The rule you'll follow next time",
-    "What the mistake cost in dollars",
-    "Why your thinking was flawed"
+    "The problem, described in detail",
+    "Why your thinking was flawed",
+    "What the mistake cost in dollars"
    ],
    "kind": "mcq",
    "q": "In Tendler's mental hand history, what goes in step 1?",
@@ -8734,10 +8734,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "A flaw in how you think",
+    "A market that won't cooperate",
     "The fear or anger you feel",
-    "The loss that set it off",
-    "A market that won't cooperate"
+    "A flaw in how you think",
+    "The loss that set it off"
    ],
    "kind": "mcq",
    "q": "Tendler compares a mental game problem to pain from a rock in your shoe. What is the rock?",
@@ -8951,8 +8951,8 @@
   "prompt_json": {
    "choices": [
     "The flawed logic behind the reaction",
-    "The entry rules for that setup",
     "The emotion, by pushing it down",
+    "The entry rules for that setup",
     "The exit on the losing trade"
    ],
    "kind": "mcq",
@@ -9089,10 +9089,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Step 1: the problem",
-    "Step 2: why it makes sense",
     "Step 3: where the logic breaks",
-    "Step 5: why the fix is right"
+    "Step 5: why the fix is right",
+    "Step 1: the problem",
+    "Step 2: why it makes sense"
    ],
    "kind": "mcq",
    "q": "Which step is that line?",
@@ -9163,10 +9163,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Step 2: why it makes sense",
     "Step 3: where the logic breaks",
-    "Step 4: the correction",
-    "Step 5: why the fix is right"
+    "Step 2: why it makes sense",
+    "Step 5: why the fix is right",
+    "Step 4: the correction"
    ],
    "kind": "mcq",
    "q": "Where does this line belong?",
@@ -9307,10 +9307,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "It doesn't say why it makes sense",
     "Nothing, blunt honesty is the point",
+    "It should list what the trades cost",
     "It belongs in step 3 instead",
-    "It should list what the trades cost"
+    "It doesn't say why it makes sense"
    ],
    "kind": "mcq",
    "q": "What's wrong with that step 2?",
@@ -9388,10 +9388,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "A brain dump of what happened",
     "Nothing; review it fresh tomorrow",
-    "A promise it won't happen again",
-    "A look back at the charts"
+    "A brain dump of what happened",
+    "A look back at the charts",
+    "A promise it won't happen again"
    ],
    "kind": "mcq",
    "q": "What's the minimum Tendler suggests before you walk away?",
@@ -9514,9 +9514,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Remind yourself of your correction",
-    "Sell, then write it up tonight",
     "Push the feeling down and hold",
+    "Sell, then write it up tonight",
+    "Remind yourself of your correction",
     "Wait for the urge to pass"
    ],
    "kind": "mcq",
@@ -9595,10 +9595,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Take what the market gives me",
     "Never trade the opening range again",
-    "Tell myself I'm a great trader",
-    "Trade smaller in the opening range"
+    "Take what the market gives me",
+    "Trade smaller in the opening range",
+    "Tell myself I'm a great trader"
    ],
    "kind": "mcq",
    "q": "Which step 4 answers that flaw best?",
@@ -9756,10 +9756,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "The real root isn't found yet",
-    "The method just doesn't fit him",
+    "His entry rules are the problem",
     "He needs more willpower",
-    "His entry rules are the problem"
+    "The real root isn't found yet",
+    "The method just doesn't fit him"
    ],
    "kind": "mcq",
    "q": "What does Tendler say is most likely?",
@@ -9837,10 +9837,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "No, write your own",
     "Yes, same problem means same fix",
     "Yes, just borrow his correction",
-    "Only if he trades the same setups"
+    "Only if he trades the same setups",
+    "No, write your own"
    ],
    "kind": "mcq",
    "q": "Should you adopt his hand history as your own?",
@@ -9912,9 +9912,9 @@
   "prompt_json": {
    "choices": [
     "Chasing extended breakouts, again",
+    "A fill a few cents off the quote",
     "One stop-out on a by-the-plan trade",
-    "A slow week with few setups",
-    "A fill a few cents off the quote"
+    "A slow week with few setups"
    ],
    "kind": "mcq",
    "q": "Which one deserves it most?",
@@ -9985,9 +9985,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "It doesn't answer the flaw",
-    "You aren't repeating it enough",
     "It needs to be a full paragraph",
+    "You aren't repeating it enough",
+    "It doesn't answer the flaw",
     "It should be a stricter rule"
    ],
    "kind": "mcq",
@@ -10325,8 +10325,8 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "They warm up first",
     "They start cold and find a rhythm",
+    "They warm up first",
     "They follow a lucky ritual"
    ],
    "kind": "mcq",
@@ -10397,8 +10397,8 @@
   "prompt_json": {
    "choices": [
     "Warm up, trade, cool down",
-    "Trade first, warm up as you go",
-    "Warm up, trade, then log off"
+    "Warm up, trade, then log off",
+    "Trade first, warm up as you go"
    ],
    "kind": "mcq",
    "q": "Tendler and Steenbarger both build the trading day in the same order. Which order is it?",
@@ -10519,9 +10519,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Levels, entry and stop per name",
     "Scan chat rooms for the hot tips",
-    "Wait and decide once it opens"
+    "Wait and decide once it opens",
+    "Levels, entry and stop per name"
    ],
    "kind": "mcq",
    "q": "Which job belongs in your warm-up before the open?",
@@ -10649,8 +10649,8 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Directed practice and review",
     "A sharper set of chart indicators",
+    "Directed practice and review",
     "Newsletter tips and alerts"
    ],
    "kind": "mcq",
@@ -10811,8 +10811,8 @@
   "prompt_json": {
    "choices": [
     "Doing the ideal thing automatically",
-    "Never feeling any fear or any greed",
-    "Taking every setup the market gives you"
+    "Taking every setup the market gives you",
+    "Never feeling any fear or any greed"
    ],
    "kind": "mcq",
    "q": "Steenbarger has a one-line definition of good trading that explains why routines matter. Which is it?",
@@ -10881,9 +10881,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "News and reports due today",
+    "Where the market will close",
     "Nothing, levels are enough",
-    "Where the market will close"
+    "News and reports due today"
    ],
    "kind": "mcq",
    "q": "Your names, levels and stops are set. What else do you check before the open?",
@@ -11024,9 +11024,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
+    "To find more reasons to take trades",
     "To follow your plan when it gets real",
-    "To forecast where the market will open",
-    "To find more reasons to take trades"
+    "To forecast where the market will open"
    ],
    "kind": "mcq",
    "q": "Before the open, Steenbarger rehearses how he'd respond to early strength or weakness. What's the point of rehearsing?",
@@ -11216,9 +11216,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Write it out, then set it aside",
+    "Trade to take your mind off it",
     "Push it down and focus on charts",
-    "Trade to take your mind off it"
+    "Write it out, then set it aside"
    ],
    "kind": "mcq",
    "q": "What does Tendler suggest before you trade?",
@@ -11412,9 +11412,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Hold off until your prep is done",
+    "Trade your normal size, prep later",
     "Buy the runner before it gets away",
-    "Trade your normal size, prep later"
+    "Hold off until your prep is done"
    ],
    "kind": "mcq",
    "q": "What's the move?",
@@ -11505,10 +11505,10 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
+    "No goal, trade and see",
     "One fix, stated specifically",
     "Work on all six fixes at once",
-    "Just be more disciplined",
-    "No goal, trade and see"
+    "Just be more disciplined"
    ],
    "kind": "mcq",
    "q": "What goal do you set for tomorrow?",
@@ -11652,9 +11652,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Yes, good weeks hold lessons to repeat",
+    "No, but raise your size next week",
     "No, reviews are for losing weeks",
-    "No, but raise your size next week"
+    "Yes, good weeks hold lessons to repeat"
    ],
    "kind": "mcq",
    "q": "Is skipping it a problem?",
@@ -11718,8 +11718,8 @@
   "prompt_json": {
    "choices": [
     "Step away and do the warm-up now",
-    "Jump back in to make it back",
-    "Keep trading, tighten every stop"
+    "Keep trading, tighten every stop",
+    "Jump back in to make it back"
    ],
    "kind": "mcq",
    "q": "What's the right call?",
@@ -11789,8 +11789,8 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Rework the routine, keep what works",
     "Stick with it, since it worked before",
+    "Rework the routine, keep what works",
     "Drop routines and trade on feel"
    ],
    "kind": "mcq",

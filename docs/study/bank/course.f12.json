@@ -170,9 +170,9 @@
   "prompt_json": {
    "choices": [
     "Buy on a move over $42.10",
-    "Buy when it starts to break out",
+    "Buy when volume comes in",
     "Buy once it looks strong",
-    "Buy when volume comes in"
+    "Buy when it starts to break out"
    ],
    "kind": "mcq",
    "q": "Which of these is an entry rule you could actually follow?",
@@ -280,10 +280,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "When you place the trade",
-    "Once it falls below your entry",
     "After a few bad days in a row",
-    "When the news turns against it"
+    "When the news turns against it",
+    "Once it falls below your entry",
+    "When you place the trade"
    ],
    "kind": "mcq",
    "q": "When should you write down what would change your mind about a trade?",
@@ -353,9 +353,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Where to take some profit off",
-    "Where you get out if you're wrong",
     "How the stop follows it higher",
+    "Where you get out if you're wrong",
+    "Where to take some profit off",
     "How many shares to buy"
    ],
    "kind": "mcq",
@@ -485,8 +485,8 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "The stop price",
     "A second, higher target",
+    "The stop price",
     "A price alert at $42.10"
    ],
    "kind": "mcq",
@@ -557,10 +557,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "What share of your money you'll trade",
-    "Your entry on the stock you're watching",
     "The stop on the stock you hold",
-    "The target on today's breakout"
+    "What share of your money you'll trade",
+    "The target on today's breakout",
+    "Your entry on the stock you're watching"
    ],
    "kind": "mcq",
    "q": "Which line belongs in your overall trading plan, not in one trade's plan?",
@@ -617,9 +617,9 @@
   "prompt_json": {
    "choices": [
     "Criteria a stock has to meet",
-    "Whatever's moving most today",
+    "Stocks you already know well",
     "Names a chat room is buzzing about",
-    "Stocks you already know well"
+    "Whatever's moving most today"
    ],
    "kind": "mcq",
    "q": "What should your plan's 'what to trade' line hold?",
@@ -811,9 +811,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Over $48.10, stop $46.90, target $51.70",
-    "Over $48.10, target $51.70",
     "Buy $48.10, sell if it looks weak",
+    "Over $48.10, target $51.70",
+    "Over $48.10, stop $46.90, target $51.70",
     "Stop $46.90, target $51.70, buy soon"
    ],
    "kind": "mcq",
@@ -877,10 +877,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "How long you'd give it to work",
+    "A rule for adding more shares",
     "A second, higher target",
     "A tighter stop",
-    "A rule for adding more shares"
+    "How long you'd give it to work"
    ],
    "kind": "mcq",
    "q": "Which line was missing from your plan?",
@@ -944,10 +944,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
+    "Buy once it's 10% above $48",
     "Buy on a move over $48",
-    "Buy now at $47.60, ahead of it",
     "Buy if it dips back to $44",
-    "Buy once it's 10% above $48"
+    "Buy now at $47.60, ahead of it"
    ],
    "kind": "mcq",
    "q": "Which entry line fits the plan?",
@@ -1004,9 +1004,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Keep it, review the rule after the close",
-    "Widen it now, before it's hit",
     "Buy more to lower your cost",
+    "Widen it now, before it's hit",
+    "Keep it, review the rule after the close",
     "Cancel the stop and watch it"
    ],
    "kind": "mcq",
@@ -1064,9 +1064,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "2% of the account, or more",
+    "1%, the plan's per-trade cap",
     "1%, since it's really one idea",
-    "1%, the plan's per-trade cap"
+    "2% of the account, or more"
    ],
    "kind": "mcq",
    "q": "The group drops and both stops hit. What did you lose?",
@@ -1131,10 +1131,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "A line on what you'll do at the report",
-    "Nothing. The stop covers a bad report",
     "A tighter stop for report day",
-    "A bigger size to catch the pop"
+    "A line on what you'll do at the report",
+    "A bigger size to catch the pop",
+    "Nothing. The stop covers a bad report"
    ],
    "kind": "mcq",
    "q": "What does the plan need before you buy?",
@@ -1199,8 +1199,8 @@
   "prompt_json": {
    "choices": [
     "No trades until a new plan is written",
-    "Trade on feel until a new idea comes",
     "Keep using the old rules for now",
+    "Trade on feel until a new idea comes",
     "Trade smaller with no set rules"
    ],
    "kind": "mcq",
@@ -1258,10 +1258,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Get out: your reason to own it is gone",
     "Hold: the stop hasn't been hit",
+    "Lower the stop to give it room",
     "Hold: one report doesn't change much",
-    "Lower the stop to give it room"
+    "Get out: your reason to own it is gone"
    ],
    "kind": "mcq",
    "q": "What does your plan tell you?",
@@ -1332,10 +1332,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
+    "Nothing yet, see how it goes",
     "The goal, not the risk rule",
     "The risk rule, up to 5% a trade",
-    "How often you trade, to hit the goal",
-    "Nothing yet, see how it goes"
+    "How often you trade, to hit the goal"
    ],
    "kind": "mcq",
    "q": "What do you fix in the plan?",
@@ -1611,8 +1611,8 @@
   "prompt_json": {
    "choices": [
     "How the market is taking overnight news",
-    "The exact price stocks will open at",
     "Which stocks will lead today",
+    "The exact price stocks will open at",
     "Nothing that matters for stocks"
    ],
    "kind": "mcq",
@@ -1853,9 +1853,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Set price alerts at your levels",
+    "Buy all four now so none get away",
     "Keep flipping through the charts",
-    "Buy all four now so none get away"
+    "Set price alerts at your levels"
    ],
    "kind": "mcq",
    "q": "Your levels are marked on four names. How do you catch the moment one of them trades?",
@@ -2061,10 +2061,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "See how the market takes it, then adjust",
     "Ignore it, CPI doesn't move stocks",
-    "Scrap the plan and start over",
-    "Buy all three before it comes out"
+    "See how the market takes it, then adjust",
+    "Buy all three before it comes out",
+    "Scrap the plan and start over"
    ],
    "kind": "mcq",
    "q": "What do you do when the number hits?",
@@ -2241,9 +2241,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
+    "Yesterday's close",
     "Yesterday's low",
-    "Yesterday's high",
-    "Yesterday's close"
+    "Yesterday's high"
    ],
    "kind": "mcq",
    "q": "Before the open you mark yesterday's high, low and close on a name. Which one is our default stop for a new long?",
@@ -2305,9 +2305,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Narrow it to the few best setups",
-    "Watch all 45 and react to movers",
     "Buy a little of each to be safe",
+    "Watch all 45 and react to movers",
+    "Narrow it to the few best setups",
     "Add names so you miss nothing"
    ],
    "kind": "mcq",
@@ -2372,10 +2372,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "$5.50, up from $2",
+    "Less, the move is in my favor",
     "Still $2, the stop didn't move",
     "$3.50, how far it gapped past $50",
-    "Less, the move is in my favor"
+    "$5.50, up from $2"
    ],
    "kind": "mcq",
    "q": "If you buy at $53.50, what's your risk per share to the $48 stop?",
@@ -2448,9 +2448,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Positions, stops and news due later",
     "A fresh scan for new names to buy",
-    "Lower stops to give trades room"
+    "Lower stops to give trades room",
+    "Positions, stops and news due later"
    ],
    "kind": "mcq",
    "q": "It's 12:30 p.m. and the market has gone quiet. What comes first in your midday check?",
@@ -2526,10 +2526,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Checking the day's economic calendar",
-    "Reading the overnight futures",
+    "Scanning your names' news",
     "Marking levels on your names",
-    "Scanning your names' news"
+    "Checking the day's economic calendar",
+    "Reading the overnight futures"
    ],
    "kind": "mcq",
    "q": "Which premarket step would have warned you?",
@@ -2608,8 +2608,8 @@
   "prompt_json": {
    "choices": [
     "Consider raising it under the new low",
-    "Lower it to give the trade room",
-    "Cancel it, the trade is working"
+    "Cancel it, the trade is working",
+    "Lower it to give the trade room"
    ],
    "kind": "mcq",
    "q": "What does the recap do with that stop?",
@@ -2665,9 +2665,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "As stop orders at your broker",
     "In your head, checked at lunch",
-    "Nowhere until you get home"
+    "Nowhere until you get home",
+    "As stop orders at your broker"
    ],
    "kind": "mcq",
    "q": "Where should those stops live during the day?",
@@ -2730,10 +2730,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
+    "The midday check on volume",
     "Checking earnings dates for holdings",
-    "Reading the futures each morning",
     "Placing a stop under yesterday's low",
-    "The midday check on volume"
+    "Reading the futures each morning"
    ],
    "kind": "mcq",
    "q": "Which step would have flagged it in time?",
@@ -2863,9 +2863,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
+    "Buy the names that broke, they're cheap",
     "Extra caution, the market is against it",
-    "Full size, a great chart is all you need",
-    "Buy the names that broke, they're cheap"
+    "Full size, a great chart is all you need"
    ],
    "kind": "mcq",
    "q": "How does your premarket treat that one name?",
@@ -3009,9 +3009,9 @@
   "prompt_json": {
    "choices": [
     "Stops, reports due, tomorrow's list",
+    "Looser stops so they don't hit again",
     "Nothing, a red day earns a night off",
-    "A bigger list to win it back tomorrow",
-    "Looser stops so they don't hit again"
+    "A bigger list to win it back tomorrow"
    ],
    "kind": "mcq",
    "q": "What does tonight's recap still need?",
@@ -3089,10 +3089,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Evenings: list, levels and stops",
-    "Mornings: scan everything from scratch",
+    "Skip prep and react to the open",
     "Lunch break: scan and buy midday",
-    "Skip prep and react to the open"
+    "Mornings: scan everything from scratch",
+    "Evenings: list, levels and stops"
    ],
    "kind": "mcq",
    "q": "Where does the heavy planning go?",
@@ -3417,8 +3417,8 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "So trades can be sorted and compared",
     "So each entry is longer and richer",
+    "So trades can be sorted and compared",
     "So you can skip the written notes"
    ],
    "kind": "mcq",
@@ -3589,9 +3589,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Numbers and your written reasons",
+    "Price alerts and news headlines",
     "Your P&L and your account balance",
-    "Price alerts and news headlines"
+    "Numbers and your written reasons"
    ],
    "kind": "mcq",
    "q": "A useful log entry holds two kinds of information. Which two?",
@@ -3716,10 +3716,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Reason for the trade",
+    "Emotion at the entry",
     "Lesson for next time",
     "Exit plan for the trade",
-    "Emotion at the entry"
+    "Reason for the trade"
    ],
    "kind": "mcq",
    "q": "'Bought because it cleared a six-week base on heavy volume.' Which field holds this?",
@@ -3883,8 +3883,8 @@
   "prompt_json": {
    "choices": [
     "Grade for following the plan",
-    "Realized gain or loss",
     "Exit price on the fill",
+    "Realized gain or loss",
     "Planned target price"
    ],
    "kind": "mcq",
@@ -3941,10 +3941,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Entry, stop, target and size",
     "Exit price and the R it made",
-    "What worked and what didn't",
-    "Realized gain or loss"
+    "Realized gain or loss",
+    "Entry, stop, target and size",
+    "What worked and what didn't"
    ],
    "kind": "mcq",
    "q": "Which of these goes in the log before you click buy?",
@@ -4136,10 +4136,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
+    "Logging only the chases",
     "One fixed tag for every chase",
     "Longer notes on every trade",
-    "Rereading all of your notes",
-    "Logging only the chases"
+    "Rereading all of your notes"
    ],
    "kind": "mcq",
    "q": "What makes that quick to check?",
@@ -4393,10 +4393,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Fear is cutting your winners short",
     "Your targets are set too far away",
-    "Those exits were sound risk control",
-    "Feelings are noise, drop that field"
+    "Feelings are noise, drop that field",
+    "Fear is cutting your winners short",
+    "Those exits were sound risk control"
    ],
    "kind": "mcq",
    "q": "What is your log telling you?",
@@ -4475,8 +4475,8 @@
   "prompt_json": {
    "choices": [
     "The log, written at entry",
-    "Your memory, it knows the story",
     "Neither, the profit is what counts",
+    "Your memory, it knows the story",
     "Whichever fits how it turned out"
    ],
    "kind": "mcq",
@@ -4562,10 +4562,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Cut it to a few fixed fields",
     "Force yourself through all 40",
+    "Stop until your trading improves",
     "Log only your biggest losers",
-    "Stop until your trading improves"
+    "Cut it to a few fixed fields"
    ],
    "kind": "mcq",
    "q": "What's the best fix?",
@@ -4643,9 +4643,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
+    "The final P&L on the trade",
     "A chart saved at entry, line marked",
     "Today's chart, line drawn from memory",
-    "The final P&L on the trade",
     "The day's news headlines"
    ],
    "kind": "mcq",
@@ -4717,10 +4717,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "You're chasing past your planned entry",
+    "Your stops are set too tight",
     "Your planned entries are too low",
-    "Normal slippage, nothing to fix",
-    "Your stops are set too tight"
+    "You're chasing past your planned entry",
+    "Normal slippage, nothing to fix"
    ],
    "kind": "mcq",
    "q": "What is the log showing you?",
@@ -4784,9 +4784,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Neither one, the winners are missing",
     "Your win rate, from the losers",
-    "Your best setup, by elimination"
+    "Your best setup, by elimination",
+    "Neither one, the winners are missing"
    ],
    "kind": "mcq",
    "q": "What can this log tell you?",
@@ -5103,9 +5103,9 @@
   "prompt_json": {
    "choices": [
     "Ideas, how he traded them, prep",
-    "Win rate, P&L and trade count",
+    "The market, the sector, the stock",
     "Entry price, exit price, profit",
-    "The market, the sector, the stock"
+    "Win rate, P&L and trade count"
    ],
    "kind": "mcq",
    "q": "Brett Steenbarger gives himself at least three grades every trading day. What does he grade?",
@@ -5311,10 +5311,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
+    "Was I ready before the open?",
     "Did the trade have a real edge?",
     "Did the stock go up afterward?",
-    "Did I size and exit it well?",
-    "Was I ready before the open?"
+    "Did I size and exit it well?"
    ],
    "kind": "mcq",
    "q": "Steenbarger's first grade is on the idea itself. What does that grade ask?",
@@ -5377,10 +5377,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "You chased it far past your entry",
-    "The setup had no real edge",
+    "It fell the day after you sold",
     "You skipped your morning review",
-    "It fell the day after you sold"
+    "You chased it far past your entry",
+    "The setup had no real edge"
    ],
    "kind": "mcq",
    "q": "Which of these belongs under how you traded the idea?",
@@ -5502,10 +5502,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Chess, there's almost no luck",
-    "Poker, real money is at stake",
+    "Neither, one game never tells you",
     "Both tell you the same amount",
-    "Neither, one game never tells you"
+    "Poker, real money is at stake",
+    "Chess, there's almost no luck"
    ],
    "kind": "mcq",
    "q": "Annie Duke compares chess and poker. In which game does one win tell you more about the players' decisions?",
@@ -5704,10 +5704,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Good idea, traded well, just lost",
-    "Bad trade, since it lost money",
+    "Bad idea, since it didn't work",
     "Good idea, but traded badly",
-    "Bad idea, since it didn't work"
+    "Good idea, traded well, just lost",
+    "Bad trade, since it lost money"
    ],
    "kind": "mcq",
    "q": "How do you grade it?",
@@ -5771,10 +5771,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "The idea",
     "How you traded it",
+    "None, losses happen",
     "Your preparation",
-    "None, losses happen"
+    "The idea"
    ],
    "kind": "mcq",
    "q": "Which grade is low?",
@@ -5833,8 +5833,8 @@
    "choices": [
     "Your preparation",
     "The idea, it lost money",
-    "How you traded it",
-    "None, it was bad luck"
+    "None, it was bad luck",
+    "How you traded it"
    ],
    "kind": "mcq",
    "q": "Which grade takes the hit?",
@@ -5977,10 +5977,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "What you knew when you entered",
-    "Where it closed a week later",
     "How much the trade made or lost",
-    "News that came out after you sold"
+    "What you knew when you entered",
+    "News that came out after you sold",
+    "Where it closed a week later"
    ],
    "kind": "mcq",
    "q": "You're grading the idea behind last week's trade. What should that grade rest on?",
@@ -6043,10 +6043,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "How you traded it: the exit",
-    "None, the trade made money",
+    "Your preparation",
     "The idea, the gain was small",
-    "Your preparation"
+    "None, the trade made money",
+    "How you traded it: the exit"
    ],
    "kind": "mcq",
    "q": "Which grade takes the hit?",
@@ -6126,8 +6126,8 @@
    "choices": [
     "Crediting skill for a lucky win",
     "Blaming luck for every loss",
-    "Trading less after a loss",
-    "Selling winners too early"
+    "Selling winners too early",
+    "Trading less after a loss"
    ],
    "kind": "mcq",
    "q": "Resulting often means blaming a bad outcome on a bad decision. What's the other half of the trap?",
@@ -6256,10 +6256,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "A sound call with a bad outcome",
-    "A bad call, since it lost the game",
+    "No grade until he calls it again",
     "A bad call, a run was the safe play",
-    "No grade until he calls it again"
+    "A sound call with a bad outcome",
+    "A bad call, since it lost the game"
    ],
    "kind": "mcq",
    "q": "How does Annie Duke grade the call?",
@@ -6344,10 +6344,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
+    "Only your preparation",
     "The idea and how you traded it",
     "None, it was your best win",
-    "Only the size, the idea was fine",
-    "Only your preparation"
+    "Only the size, the idea was fine"
    ],
    "kind": "mcq",
    "q": "Grade it. Which grades fail?",
@@ -6484,10 +6484,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "How the trade turned out",
     "Your entry and your stop",
-    "Why you took the trade",
-    "What the market was doing then"
+    "What the market was doing then",
+    "How the trade turned out",
+    "Why you took the trade"
    ],
    "kind": "mcq",
    "q": "What do you hold back until he gives his view?",
@@ -6551,10 +6551,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "The setup itself needs a hard look",
-    "Nothing, only process grades count",
     "Your grades are too harsh",
-    "Trade it bigger to win it back"
+    "Trade it bigger to win it back",
+    "Nothing, only process grades count",
+    "The setup itself needs a hard look"
    ],
    "kind": "mcq",
    "q": "What does that tell you?",
@@ -6625,9 +6625,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
+    "A longer morning prep",
     "Acting on your ideas, on time",
     "Finding better ideas",
-    "A longer morning prep",
     "Taking more trades of any kind"
    ],
    "kind": "mcq",
@@ -7294,9 +7294,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Count, win rate, average win and loss",
+    "The setup's total dollar P&L only",
     "Win rate and number of trades only",
-    "The setup's total dollar P&L only"
+    "Count, win rate, average win and loss"
    ],
    "kind": "mcq",
    "q": "Which numbers belong in each setup's monthly stats?",
@@ -7438,10 +7438,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Stop after three trades each day",
-    "Be more careful with my trading",
+    "Make fewer mistakes",
     "Trade with more discipline",
-    "Make fewer mistakes"
+    "Be more careful with my trading",
+    "Stop after three trades each day"
    ],
    "kind": "mcq",
    "q": "Your review shows you overtrade. Which note is a plan you can act on next week?",
@@ -7654,9 +7654,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
+    "Nothing yet, review again next week",
     "One fix, for the chasing",
-    "All eight, so nothing gets missed",
-    "Nothing yet, review again next week"
+    "All eight, so nothing gets missed"
    ],
    "kind": "mcq",
    "q": "What goes into next week's plan?",
@@ -7740,9 +7740,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
+    "Add up the week's P&L",
     "Check if you kept last week's goal",
-    "Set three new goals for this week",
-    "Add up the week's P&L"
+    "Set three new goals for this week"
    ],
    "kind": "mcq",
    "q": "What does your review do first?",
@@ -8114,9 +8114,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Wins get credit, losses get excuses",
     "Nothing, losses are often bad luck",
-    "It has too many losing trades"
+    "It has too many losing trades",
+    "Wins get credit, losses get excuses"
    ],
    "kind": "mcq",
    "q": "What's wrong with this review?",
@@ -8310,8 +8310,8 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Cut breakout size for now",
     "Keep full size, they'll come back",
+    "Cut breakout size for now",
     "Drop breakouts for good"
    ],
    "kind": "mcq",
@@ -8375,9 +8375,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Bench it and work out why",
     "Too few trades to judge yet",
-    "Size up to win the losses back"
+    "Size up to win the losses back",
+    "Bench it and work out why"
    ],
    "kind": "mcq",
    "q": "What does the review say?",
@@ -8461,8 +8461,8 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Run it as usual",
     "Skip it and start fresh Monday",
+    "Run it as usual",
     "Review only the winners this week"
    ],
    "kind": "mcq",
@@ -8533,10 +8533,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "The chasing on pullbacks",
-    "Drop pullbacks for good",
     "Drop gap plays, too few trades",
-    "Trade only breakouts from now on"
+    "The chasing on pullbacks",
+    "Trade only breakouts from now on",
+    "Drop pullbacks for good"
    ],
    "kind": "mcq",
    "q": "What do you fix first?",
@@ -8608,8 +8608,8 @@
   "prompt_json": {
    "choices": [
     "Setup B, it pays more per trade",
-    "Setup A, it wins twice as often",
-    "Neither, both samples are too small"
+    "Neither, both samples are too small",
+    "Setup A, it wins twice as often"
    ],
    "kind": "mcq",
    "q": "Which one gets more of your size next month?",
@@ -8960,10 +8960,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Your written set of best plays",
-    "A list of hot stock tips",
     "A log of every trade you make",
-    "Chart patterns from a textbook"
+    "Your written set of best plays",
+    "Chart patterns from a textbook",
+    "A list of hot stock tips"
    ],
    "kind": "mcq",
    "q": "What is a trading playbook?",
@@ -9092,10 +9092,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Trade management",
-    "Analyst price targets",
     "Your monthly profit goal",
-    "What people posted online"
+    "What people posted online",
+    "Trade management",
+    "Analyst price targets"
    ],
    "kind": "mcq",
    "q": "Bellafiore breaks each archived trade into sections. Which of these is one of them?",
@@ -9272,9 +9272,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
+    "Tells you what to buy tomorrow",
     "Helps you act on it without hesitating",
-    "Proves the setup will win next time",
-    "Tells you what to buy tomorrow"
+    "Proves the setup will win next time"
    ],
    "kind": "mcq",
    "q": "Bellafiore wants the play written up the same day. What does the writing do for you?",
@@ -9415,9 +9415,9 @@
   "prompt_json": {
    "choices": [
     "Intraday fundamentals",
-    "Technical analysis",
+    "Tape reading",
     "Trade management",
-    "Tape reading"
+    "Technical analysis"
    ],
    "kind": "mcq",
    "q": "The SYY page Bellafiore shared reads: \"Sysco beats by $0.03, beats on revs.\" Which section is that line in?",
@@ -9501,9 +9501,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "It cleared its 52-week high",
     "It beat earnings estimates",
-    "You sold half near the close"
+    "You sold half near the close",
+    "It cleared its 52-week high"
    ],
    "kind": "mcq",
    "q": "Which detail goes under technical analysis?",
@@ -9698,9 +9698,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "A few you know well",
+    "One for every stock you watch",
     "Every pattern you can find",
-    "One for every stock you watch"
+    "A few you know well"
    ],
    "kind": "mcq",
    "q": "You're starting your playbook. How many setups should it hold at first?",
@@ -9835,10 +9835,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "B, your setup traded as written",
+    "All three, every trade counts",
     "A, the biggest winner",
     "C, so you learn from it",
-    "All three, every trade counts"
+    "B, your setup traded as written"
    ],
    "kind": "mcq",
    "q": "Which one goes in your playbook tonight?",
@@ -10004,10 +10004,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "No method to archive their best plays",
-    "Too little time watching screens",
     "Too few stocks to trade",
-    "Not enough chart indicators"
+    "Not enough chart indicators",
+    "No method to archive their best plays",
+    "Too little time watching screens"
    ],
    "kind": "mcq",
    "q": "Bellafiore met very experienced traders who were underperforming. What did they have in common?",
@@ -10077,10 +10077,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
+    "Go big after a losing day",
     "Step size up inside your risk rules",
-    "Double it on the next trade",
     "Drop the stop since it works",
-    "Go big after a losing day"
+    "Double it on the next trade"
    ],
    "kind": "mcq",
    "q": "How do you get bigger?",
@@ -10151,10 +10151,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
+    "Nothing, it's ready to trade",
     "Your stop, size and exits",
-    "More indicators on the chart",
     "The company's full financials",
-    "Nothing, it's ready to trade"
+    "More indicators on the chart"
    ],
    "kind": "mcq",
    "q": "What does the page still need?",
@@ -10493,9 +10493,9 @@
   "prompt_json": {
    "choices": [
     "Line 1",
-    "Line 2",
     "Line 3",
-    "Line 4"
+    "Line 4",
+    "Line 2"
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
@@ -10573,10 +10573,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Line 1",
     "Line 2",
     "Line 3",
-    "Line 4"
+    "Line 4",
+    "Line 1"
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
@@ -10654,10 +10654,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Line 1",
-    "Line 2",
     "Line 3",
-    "Line 4"
+    "Line 2",
+    "Line 4",
+    "Line 1"
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
@@ -10737,8 +10737,8 @@
    "choices": [
     "Line 1",
     "Line 2",
-    "Line 3",
-    "Line 4"
+    "Line 4",
+    "Line 3"
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
@@ -10903,9 +10903,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "So the exit is set before emotions hit",
+    "So your broker accepts the order",
     "So the stock can't gap past it",
-    "So your broker accepts the order"
+    "So the exit is set before emotions hit"
    ],
    "kind": "mcq",
    "q": "Why decide where your stop goes before you buy, not after?",
@@ -11116,9 +11116,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Line 1",
     "Line 2",
     "Line 3",
+    "Line 1",
     "Line 4"
    ],
    "kind": "mcq",
@@ -11211,9 +11211,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Line 1",
-    "Line 2",
     "Line 3",
+    "Line 2",
+    "Line 1",
     "Line 4"
    ],
    "kind": "mcq",
@@ -11352,9 +11352,9 @@
   "prompt_json": {
    "choices": [
     "Line 1",
-    "Line 2",
+    "Line 4",
     "Line 3",
-    "Line 4"
+    "Line 2"
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
@@ -11510,8 +11510,8 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Line 1",
     "Line 2",
+    "Line 1",
     "Line 3",
     "Line 4"
    ],
@@ -11599,8 +11599,8 @@
   "prompt_json": {
    "choices": [
     "Line 1",
-    "Line 2",
     "Line 3",
+    "Line 2",
     "Line 4"
    ],
    "kind": "mcq",
@@ -11686,10 +11686,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Line 1",
-    "Line 2",
     "Line 3",
-    "Line 4"
+    "Line 1",
+    "Line 4",
+    "Line 2"
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
@@ -11788,10 +11788,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Line 1",
-    "Line 2",
     "Line 3",
-    "Line 4"
+    "Line 4",
+    "Line 2",
+    "Line 1"
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
@@ -11883,9 +11883,9 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Line 1",
-    "Line 2",
     "Line 3",
+    "Line 2",
+    "Line 1",
     "Line 4"
    ],
    "kind": "mcq",
@@ -12119,9 +12119,9 @@
   "prompt_json": {
    "choices": [
     "Line 1",
-    "Line 2",
+    "Line 4",
     "Line 3",
-    "Line 4"
+    "Line 2"
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
@@ -12220,10 +12220,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Line 1",
-    "Line 2",
     "Line 3",
-    "Line 4"
+    "Line 1",
+    "Line 4",
+    "Line 2"
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
@@ -12316,9 +12316,9 @@
   "prompt_json": {
    "choices": [
     "Line 1",
+    "Line 4",
     "Line 2",
-    "Line 3",
-    "Line 4"
+    "Line 3"
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
@@ -12410,10 +12410,10 @@
   "module": "F12",
   "prompt_json": {
    "choices": [
-    "Line 1",
     "Line 2",
     "Line 3",
-    "Line 4"
+    "Line 4",
+    "Line 1"
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
@@ -12492,8 +12492,8 @@
   "prompt_json": {
    "choices": [
     "Line 1",
-    "Line 2",
     "Line 3",
+    "Line 2",
     "Line 4"
    ],
    "kind": "mcq",

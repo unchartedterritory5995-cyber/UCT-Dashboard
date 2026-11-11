@@ -16,9 +16,11 @@ owner's. Nothing here can make a wrong fact right; it can only refuse a malforme
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import pathlib
+import random
 import re
 from typing import Any, Callable, Iterable, Optional
 
@@ -41,6 +43,71 @@ BANNED_CHOICES = re.compile(r"\b(all of the above|none of the above|both a and b
 #: OWNER_PRINCIPLES rule 11: "quit calling us THE FIRM". Checked in every member-facing field of every track.
 OUR_NAME = re.compile(r"\bthe firm('s)?\b", re.I)
 VERIFY_STATUSES = ("pass", "fix", "cut")
+
+
+# ── the order a member sees the choices in ────────────────────────────────────────────────────────────────────────
+#: Writers put the right answer first (the README's example does), so the bank must not keep that order: on 2026-11-10
+#: 87% to 100% of the course questions had it in slot A. Each choice question is shuffled at build time with a seed
+#: from its own unit and key, so the order is the same on every rebuild and never moves when a question is added.
+#: A question whose choices have a meaningful order opts out with `"order": "fixed"`; choices that are all numbers
+#: always read lowest to highest.
+_NUMBER = re.compile(r"^\s*[-+−]?\$?\s*\d[\d,]*(\.\d+)?\s*(%|r|x|R|X|shares?|days?|bars?|cents?)?\s*$")
+
+
+def _as_number(text: str) -> Optional[float]:
+    t = str(text).replace("−", "-").replace(",", "").replace("$", "").strip()
+    m = re.match(r"^[-+]?\d+(\.\d+)?", t)
+    return float(m.group(0)) if m and _NUMBER.match(str(text)) else None
+
+
+def _seed(*parts: object) -> int:
+    return int(hashlib.sha1("#".join(str(x) for x in parts).encode("utf-8")).hexdigest()[:12], 16)
+
+
+def _numeric_run(choices: list[str]) -> bool:
+    """True when every choice is one kind of number (so it reads best lowest to highest)."""
+    marks = {re.sub(r"[-+\d.,\s−]", "", c).lower() for c in choices}
+    return all(_as_number(c) is not None for c in choices) and len(marks) == 1
+
+
+def choice_orders(doc: dict) -> dict[str, list[str]]:
+    """The choices of every choice question in a unit, in the order a member sees them (keyed by question key).
+
+    * `"order": "fixed"` on a question keeps it as written; choices that are all one kind of number read lowest to highest.
+    * Every other question gets its right answer dealt to a slot: the questions with the same number of choices
+      take the slots 0..k-1 in shuffled blocks, in file order, so a unit's right answers sit evenly in A, B, C and D
+      and a streak is never longer than a block. The file order counts questions the checker cut too, so cutting
+      one never moves another. The wrong choices fall in a shuffle seeded by the question.
+    """
+    unit = doc.get("unit")
+    dealt: dict[int, int] = {}
+    out: dict[str, list[str]] = {}
+    for q in doc.get("questions") or []:
+        if q.get("format") not in ("mcq", "scenario"):
+            continue
+        key, choices, answer = str(q.get("key")), [str(c) for c in q.get("choices") or []], q.get("answer")
+        if len(choices) < 2:
+            out[key] = choices
+        elif q.get("order") == "fixed":
+            out[key] = choices
+        elif _numeric_run(choices):
+            out[key] = [c for _, c in sorted(((_as_number(c), c) for c in choices), key=lambda t: t[0])]
+        elif answer not in choices:
+            rest = list(choices)
+            random.Random(_seed(unit, key)).shuffle(rest)
+            out[key] = rest
+        else:
+            k = len(choices)
+            n = dealt.get(k, 0)
+            dealt[k] = n + 1
+            block = list(range(k))
+            random.Random(_seed(unit, "slots", k, n // k)).shuffle(block)
+            slot = block[n % k]
+            rest = [c for c in choices if c != answer]
+            random.Random(_seed(unit, key)).shuffle(rest)
+            rest.insert(slot, answer)
+            out[key] = rest
+    return out
 
 
 # ── computed answers ──────────────────────────────────────────────────────────────────────────────────────────────
@@ -494,6 +561,7 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
     ref_base = f"docs/study/courses/{track}/{unit}.json"
     items: list[dict] = []
     first_skill = (doc.get("skills") or [{}])[0].get("id")
+    orders = choice_orders(doc)
     for n, w in enumerate(doc.get("walkthroughs") or [], start=1):
         if only_passed and (verify.get(w.get("key")) or {}).get("status") != "pass":
             continue
@@ -522,7 +590,7 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
         answer: Any = q.get("answer")
         if fmt in ("mcq", "scenario"):
             prompt["kind"] = "mcq"
-            prompt["choices"] = [dedash(str(c)) for c in q.get("choices") or []]
+            prompt["choices"] = [dedash(str(c)) for c in orders.get(str(key)) or q.get("choices") or []]
             if fmt == "scenario":
                 prompt["story"] = dedash(q.get("story"))
         elif fmt == "tf":

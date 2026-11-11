@@ -10,10 +10,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "A drop of 10% to 20% from the high",
-    "A drop of 20% or more from the high",
     "A dip of under 10% from the high",
-    "Any losing week after a rally"
+    "A drop of 10% to 20% from the high",
+    "Any losing week after a rally",
+    "A drop of 20% or more from the high"
    ],
    "kind": "mcq",
    "q": "What do most people mean by a correction in a stock index?",
@@ -197,10 +197,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Daily closing prices",
-    "Intraday lows",
     "Weekly closing prices",
-    "Opening prices"
+    "Intraday lows",
+    "Opening prices",
+    "Daily closing prices"
    ],
    "kind": "mcq",
    "q": "When S&P Dow Jones Indices calls a 20% decline in the S&P 500, which prices does it use?",
@@ -285,8 +285,8 @@
   "prompt_json": {
    "choices": [
     "Bears have been much shorter",
-    "Bears have been much longer",
-    "They have run about the same"
+    "They have run about the same",
+    "Bears have been much longer"
    ],
    "kind": "mcq",
    "q": "On average, how have bear markets compared with bull markets in length?",
@@ -348,9 +348,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
+    "A few months to many years",
     "A few weeks to a few months",
-    "A few hours to a few days",
-    "A few months to many years"
+    "A few hours to a few days"
    ],
    "kind": "mcq",
    "q": "In Dow Theory, a correction in a bull market is a secondary move. How long does the theory say those can last?",
@@ -435,8 +435,8 @@
    "choices": [
     "Above it, and the average rises",
     "Below it, and the average falls",
-    "Back and forth across a flat average",
-    "Below it, while the average rises"
+    "Below it, while the average rises",
+    "Back and forth across a flat average"
    ],
    "kind": "mcq",
    "q": "In Stan Weinstein's Stage 2, where does price sit against its 30-week moving average?",
@@ -777,9 +777,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Not yet a correction",
     "A correction",
     "A bear market",
+    "Not yet a correction",
     "The start of a bear market"
    ],
    "kind": "mcq",
@@ -1019,8 +1019,8 @@
   "prompt_json": {
    "choices": [
     "Only that it's a correction so far",
-    "That a bear market is on the way",
     "That it will bounce back to the high",
+    "That a bear market is on the way",
     "That the low is already in"
    ],
    "kind": "mcq",
@@ -1099,9 +1099,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "At its low, once a 20% rise follows",
+    "When the index sets a new record",
     "On the day it gets 20% off the low",
-    "When the index sets a new record"
+    "At its low, once a 20% rise follows"
    ],
    "kind": "mcq",
    "q": "By S&P Dow Jones Indices' rule, when does a bear market end?",
@@ -1316,10 +1316,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Stage 1, a base",
     "Stage 2, an advance",
     "Stage 3, a top",
-    "Stage 4, a decline"
+    "Stage 4, a decline",
+    "Stage 1, a base"
    ],
    "kind": "mcq",
    "q": "In Weinstein's stages, where is the index now?",
@@ -1418,9 +1418,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "No, it closed 18.9% below the record",
+    "Yes, the Russell 2000 was in one",
     "Yes, it fell past 20% during the day",
-    "Yes, the Russell 2000 was in one"
+    "No, it closed 18.9% below the record"
    ],
    "kind": "mcq",
    "q": "By S&P Dow Jones Indices' rule, did the April 8 close make it a bear market?",
@@ -1512,8 +1512,8 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "January 3, the record close",
     "June 13, the first 20% close",
+    "January 3, the record close",
     "The first day it traded 20% down"
    ],
    "kind": "mcq",
@@ -1605,8 +1605,8 @@
   "prompt_json": {
    "choices": [
     "Not much yet. Bear rallies run hard.",
-    "The bear market is over, the low is in",
-    "Stage 2 has begun, time to buy it"
+    "Stage 2 has begun, time to buy it",
+    "The bear market is over, the low is in"
    ],
    "kind": "mcq",
    "q": "What does that rally tell you on its own?",
@@ -1919,9 +1919,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Pass, or take it at a small size",
     "Full size, a breakout is a breakout",
-    "Buy extra, bear markets make bargains"
+    "Buy extra, bear markets make bargains",
+    "Pass, or take it at a small size"
    ],
    "kind": "mcq",
    "q": "How do you treat that breakout?",
@@ -2005,10 +2005,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Take some profit, sell if it breaks down",
-    "Add more, it's resting for the next leg",
     "Short it now, before the break",
-    "Hold it all, the long trend is up"
+    "Hold it all, the long trend is up",
+    "Take some profit, sell if it breaks down",
+    "Add more, it's resting for the next leg"
    ],
    "kind": "mcq",
    "q": "What does Weinstein's method say to do?",
@@ -2402,9 +2402,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "22.6%",
     "4.6%",
     "12.9%",
+    "22.6%",
     "34%"
    ],
    "kind": "mcq",
@@ -2614,9 +2614,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "About 34%",
     "About 12%",
-    "About 50%"
+    "About 50%",
+    "About 34%"
    ],
    "kind": "mcq",
    "q": "In the 2020 crash, about how far did US stocks fall from peak to trough?",
@@ -2740,10 +2740,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "A halt in trading across all stocks",
     "A five-minute pause in one stock",
     "A Fed tool that cuts interest rates",
-    "A broker selling your shares for you"
+    "A broker selling your shares for you",
+    "A halt in trading across all stocks"
    ],
    "kind": "mcq",
    "q": "What is a market-wide circuit breaker?",
@@ -2814,8 +2814,8 @@
   "prompt_json": {
    "choices": [
     "Four times",
-    "Twice",
     "Once",
+    "Twice",
     "Never"
    ],
    "kind": "mcq",
@@ -3206,10 +3206,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "All trading halts for 15 minutes",
-    "Trading stops for the rest of the day",
     "Only the worst stocks get paused",
-    "Nothing until it's down 10%"
+    "Nothing until it's down 10%",
+    "All trading halts for 15 minutes",
+    "Trading stops for the rest of the day"
    ],
    "kind": "mcq",
    "q": "What happens next?",
@@ -3346,10 +3346,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Sold more, adding to the drop",
-    "Paid investors back for losses",
     "Bought dips to prop up prices",
-    "Halted trading during the drop"
+    "Sold more, adding to the drop",
+    "Halted trading during the drop",
+    "Paid investors back for losses"
    ],
    "kind": "mcq",
    "q": "Portfolio insurance was popular in 1987. What did it do as prices fell?",
@@ -3502,9 +3502,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
+    "About unchanged",
     "Down 2.9%",
-    "Up big on the Fed news",
-    "About unchanged"
+    "Up big on the Fed news"
    ],
    "kind": "mcq",
    "q": "How did the S&P 500 close that day?",
@@ -3617,9 +3617,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Well above its March low",
     "Still making new lows",
-    "Back at its February record"
+    "Back at its February record",
+    "Well above its March low"
    ],
    "kind": "mcq",
    "q": "Where is the S&P 500 that day?",
@@ -3724,9 +3724,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
+    "Buy more, it's oversold",
     "Cut your size before the close",
-    "Hold, your stops cap the loss",
-    "Buy more, it's oversold"
+    "Hold, your stops cap the loss"
    ],
    "kind": "mcq",
    "q": "What do you do before the weekend?",
@@ -3804,8 +3804,8 @@
   "prompt_json": {
    "choices": [
     "1929 took until 1954 to come back",
-    "None, fast crashes always come back",
-    "He should wait for the Fed to act"
+    "He should wait for the Fed to act",
+    "None, fast crashes always come back"
    ],
    "kind": "mcq",
    "q": "What's the hole in his plan?",
@@ -3903,8 +3903,8 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "No, the S&P 500 hit a record in August",
     "Yes, stocks waited for the economy",
+    "No, the S&P 500 hit a record in August",
     "Yes, new highs took until 2022"
    ],
    "kind": "mcq",
@@ -4280,9 +4280,9 @@
   "prompt_json": {
    "choices": [
     "Lower highs and lower lows",
+    "One straight drop to the low",
     "Higher highs and higher lows",
-    "Lower highs and higher lows",
-    "One straight drop to the low"
+    "Lower highs and higher lows"
    ],
    "kind": "mcq",
    "q": "What does a downtrend look like on a chart?",
@@ -4432,8 +4432,8 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "57%",
     "20%",
+    "57%",
     "78%"
    ],
    "kind": "mcq",
@@ -4496,10 +4496,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "December 2007 to June 2009",
-    "October 2007 to March 2009",
     "September 2008 to December 2008",
-    "March 2001 to November 2001"
+    "October 2007 to March 2009",
+    "March 2001 to November 2001",
+    "December 2007 to June 2009"
    ],
    "kind": "mcq",
    "q": "When did the Great Recession begin and end?",
@@ -4825,8 +4825,8 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "About 31 months",
     "About 3 months",
+    "About 31 months",
     "About 12 months"
    ],
    "kind": "mcq",
@@ -4984,9 +4984,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Lower highs: the downtrend is intact",
     "Each rally starts a new bull market",
-    "Nothing: only the lows matter"
+    "Nothing: only the lows matter",
+    "Lower highs: the downtrend is intact"
    ],
    "kind": "mcq",
    "q": "What do those rally tops tell you?",
@@ -5352,10 +5352,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
+    "A 20% gain off the low",
     "A higher low, then a higher high",
     "One huge up day like this one",
-    "More rate cuts from the Fed",
-    "A 20% gain off the low"
+    "More rate cuts from the Fed"
    ],
    "kind": "mcq",
    "q": "What would confirm the downtrend has turned up?",
@@ -5482,10 +5482,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "October 2002",
-    "November 2001",
+    "September 2001",
     "March 2001",
-    "September 2001"
+    "October 2002",
+    "November 2001"
    ],
    "kind": "mcq",
    "q": "The NBER, which dates US recessions, put the end of the 2001 recession in November 2001. When did the Nasdaq hit its bear-market low?",
@@ -5640,8 +5640,8 @@
   "prompt_json": {
    "choices": [
     "Lehman, Fed at zero, low, recession end",
-    "Fed at zero, Lehman, low, recession end",
     "Lehman, low, Fed at zero, recession end",
+    "Fed at zero, Lehman, low, recession end",
     "Lehman, Fed at zero, recession end, low"
    ],
    "kind": "mcq",
@@ -5741,9 +5741,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "No: it's still under the last rally top",
-    "Yes: it rallied hard off the low",
     "Yes: it made a higher low",
+    "Yes: it rallied hard off the low",
+    "No: it's still under the last rally top",
     "Yes: the Fed has cut rates to zero"
    ],
    "kind": "mcq",
@@ -5965,10 +5965,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "May 2, 2003",
-    "Oct. 9, 2002",
     "Nov. 27, 2002",
-    "Feb. 13, 2003"
+    "May 2, 2003",
+    "Feb. 13, 2003",
+    "Oct. 9, 2002"
    ],
    "kind": "mcq",
    "q": "Using these swings, which date confirmed the turn up?",
@@ -6133,10 +6133,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Let price decide: watch 1,652.38",
-    "Short it: the expert says new lows",
     "Wait for the official end of recession",
-    "Buy big now: the low is in"
+    "Short it: the expert says new lows",
+    "Buy big now: the low is in",
+    "Let price decide: watch 1,652.38"
    ],
    "kind": "mcq",
    "q": "What's your plan?",
@@ -6558,10 +6558,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "A drop of 20% or more from a high",
-    "A drop of 10% from a high",
     "Three losing weeks in a row",
-    "The Fed raising interest rates"
+    "A drop of 20% or more from a high",
+    "The Fed raising interest rates",
+    "A drop of 10% from a high"
    ],
    "kind": "mcq",
    "q": "By the usual rule of thumb, what makes a bear market?",
@@ -6624,10 +6624,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Panic selling that speeds up the fall",
-    "Big buyers stepping in at the low",
     "A slow drift lower on light volume",
-    "The first big up day off the low"
+    "The first big up day off the low",
+    "Panic selling that speeds up the fall",
+    "Big buyers stepping in at the low"
    ],
    "kind": "mcq",
    "q": "What does capitulation mean in a falling market?",
@@ -6917,10 +6917,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Spotting a likely new uptrend",
-    "Calling the exact bottom day",
     "Telling you to short the bounce",
-    "Marking the top of a rally"
+    "Marking the top of a rally",
+    "Calling the exact bottom day",
+    "Spotting a likely new uptrend"
    ],
    "kind": "mcq",
    "q": "In IBD's method, what is a follow-through day for?",
@@ -7185,8 +7185,8 @@
   "prompt_json": {
    "choices": [
     "From near zero to 4.25%-4.50%",
-    "From 4.25%-4.50% down to near zero",
     "It held near zero all year",
+    "From 4.25%-4.50% down to near zero",
     "Up to 9.1%, to match inflation"
    ],
    "kind": "mcq",
@@ -7455,10 +7455,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
+    "Volume drying up for a week",
     "Under 15% of stocks above their 50-day",
-    "Over 70% of stocks above their 50-day",
     "The index at a new high, VIX near lows",
-    "Volume drying up for a week"
+    "Over 70% of stocks above their 50-day"
    ],
    "kind": "mcq",
    "q": "You're watching for a breadth washout. Which reading fits?",
@@ -7528,9 +7528,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "A burst of broad buying off a low",
     "A few giant stocks lifting the index",
     "A spike in stocks at new lows",
+    "A burst of broad buying off a low",
     "A slow grind up on light volume"
    ],
    "kind": "mcq",
@@ -7622,10 +7622,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "No. Volume didn't come in higher",
-    "Yes. The gain is big enough",
     "Yes. Any up day after a low counts",
-    "No. It's too late in the bounce"
+    "Yes. The gain is big enough",
+    "No. It's too late in the bounce",
+    "No. Volume didn't come in higher"
    ],
    "kind": "mcq",
    "q": "Is this a follow-through day?",
@@ -7859,10 +7859,10 @@
     "window_bars": 120
    },
    "choices": [
-    "Bad news failed. A clue, not proof",
     "Follow-through day. Buy in size",
-    "Capitulation confirmed. Bottom's in",
-    "A one-day fluke. Ignore it"
+    "A one-day fluke. Ignore it",
+    "Bad news failed. A clue, not proof",
+    "Capitulation confirmed. Bottom's in"
    ],
    "kind": "mcq",
    "q": "What's your read on this close?",
@@ -7969,9 +7969,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
+    "Yes. Sellers are clearly exhausted",
     "Not proven yet. Early pops often fail",
-    "Yes. Two days that strong confirm it",
-    "Yes. Sellers are clearly exhausted"
+    "Yes. Two days that strong confirm it"
    ],
    "kind": "mcq",
    "q": "Is the low in?",
@@ -8064,8 +8064,8 @@
    "choices": [
     "Peak fear can come before the low",
     "The VIX called the exact low",
-    "VIX over 30 is a buy signal",
-    "The VIX doesn't track fear"
+    "The VIX doesn't track fear",
+    "VIX over 30 is a buy signal"
    ],
    "kind": "mcq",
    "q": "In 2022 the VIX closed at 36.45 on March 7 and 33.57 on Oct. 12, the S&P 500's low close. What does that tell you?",
@@ -8156,10 +8156,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
+    "A washout. Panic is peaking",
     "Bullish divergence. Watch for a turn",
-    "Bearish. The new low confirms the trend",
     "Noise. Only the index matters",
-    "A washout. Panic is peaking"
+    "Bearish. The new low confirms the trend"
    ],
    "kind": "mcq",
    "q": "In Oct. 2022 the S&P 500 closed below its June low, but fewer stocks made new lows than in June. How do you read it?",
@@ -8344,8 +8344,8 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Strong names breaking out of bases",
     "The stocks that fell the most",
+    "Strong names breaking out of bases",
     "Old leaders still far off highs",
     "Nothing yet. Wait for a 20% rally"
    ],
@@ -8446,10 +8446,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Bottom isn't in. Cut back and protect",
-    "Add more. It's a cheaper entry",
     "Hold. The follow-through day said buy",
-    "Short everything. The bear is back"
+    "Short everything. The bear is back",
+    "Add more. It's a cheaper entry",
+    "Bottom isn't in. Cut back and protect"
    ],
    "kind": "mcq",
    "q": "What's the read?",
@@ -8809,9 +8809,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "How many stocks join a move",
     "How far the index moved today",
     "How big an order the market absorbs",
+    "How many stocks join a move",
     "How much volume traded today"
    ],
    "kind": "mcq",
@@ -8971,8 +8971,8 @@
    "choices": [
     "A running total of net advances",
     "Up volume minus down volume",
-    "New highs minus new lows",
-    "The index minus its 50-day average"
+    "The index minus its 50-day average",
+    "New highs minus new lows"
    ],
    "kind": "mcq",
    "q": "What is the A/D line?",
@@ -9056,10 +9056,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
+    "By how many shares traded",
     "The same: one advance each",
     "The giant counts far more",
-    "By how much each one rose",
-    "By how many shares traded"
+    "By how much each one rose"
    ],
    "kind": "mcq",
    "q": "A $2 trillion company and a $2 billion company both close up today. How does each count on the A/D line?",
@@ -9244,10 +9244,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Bearish divergence",
     "Bullish divergence",
     "Breadth confirmation",
-    "Breadth thrust"
+    "Breadth thrust",
+    "Bearish divergence"
    ],
    "kind": "mcq",
    "q": "The index makes a higher high. The A/D line makes a lower high. What is this called?",
@@ -9318,9 +9318,9 @@
   "prompt_json": {
    "choices": [
     "Two averages of net advances",
+    "Up volume divided by down volume",
     "Two averages of the index price",
-    "New highs minus new lows",
-    "Up volume divided by down volume"
+    "New highs minus new lows"
    ],
    "kind": "mcq",
    "q": "What is the McClellan Oscillator built from?",
@@ -9882,9 +9882,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Fewer stocks are carrying the rally",
+    "The top is in, so get out now",
     "Breadth confirms the new high",
-    "The top is in, so get out now"
+    "Fewer stocks are carrying the rally"
    ],
    "kind": "mcq",
    "q": "What is breadth telling you?",
@@ -9975,8 +9975,8 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Fewer stocks are falling; watch price",
     "The selling is broad and speeding up",
+    "Fewer stocks are falling; watch price",
     "The bottom is in, so buy now"
    ],
    "kind": "mcq",
@@ -10196,9 +10196,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "They can warn months before a top",
+    "They only show up after the top",
     "They mark the exact day of the top",
-    "They only show up after the top"
+    "They can warn months before a top"
    ],
    "kind": "mcq",
    "q": "What does this case teach about breadth divergences?",
@@ -10275,8 +10275,8 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Breadth is strong, not topping",
     "It's overbought, so go short",
+    "Breadth is strong, not topping",
     "The uptrend is about to end"
    ],
    "kind": "mcq",
@@ -10362,8 +10362,8 @@
   "prompt_json": {
    "choices": [
     "Broad: many stocks are joining in",
-    "Narrow: a few giants carry it",
-    "Bearish: breadth is diverging"
+    "Bearish: breadth is diverging",
+    "Narrow: a few giants carry it"
    ],
    "kind": "mcq",
    "q": "How does breadth grade this rally?",
@@ -10526,8 +10526,8 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "A warning that went away",
     "A sell signal for a bear market",
+    "A warning that went away",
     "Proof the A/D line has stopped working"
    ],
    "kind": "mcq",
@@ -10720,9 +10720,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Pass: breadth favors the bears now",
     "Buy full size; the index is strong",
-    "Short the index right now"
+    "Short the index right now",
+    "Pass: breadth favors the bears now"
    ],
    "kind": "mcq",
    "q": "Which plan fits this breadth?",
@@ -11103,10 +11103,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "The Fed's FOMC",
-    "The US Treasury",
+    "Banks, trading each day",
     "Congress",
-    "Banks, trading each day"
+    "The Fed's FOMC",
+    "The US Treasury"
    ],
    "kind": "mcq",
    "q": "Who sets the target range for the federal funds rate?",
@@ -11457,10 +11457,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
+    "Average of the 2- and 10-year yields",
     "10-year yield minus 2-year yield",
     "2-year yield minus 10-year yield",
-    "Fed funds minus the 10-year yield",
-    "Average of the 2- and 10-year yields"
+    "Fed funds minus the 10-year yield"
    ],
    "kind": "mcq",
    "q": "What does the 2s10s measure?",
@@ -12041,9 +12041,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
+    "Their sales drop the day rates rise",
     "Most of their profits sit years ahead",
-    "They pay the biggest dividends",
-    "Their sales drop the day rates rise"
+    "They pay the biggest dividends"
    ],
    "kind": "mcq",
    "q": "Rates jumped in 2022, and fast-growing, barely profitable stocks got hit hard. What made them so exposed?",
@@ -12220,9 +12220,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "The bigger cut was already priced in",
+    "Lower rates make stocks less attractive",
     "Any cut means the economy is failing",
-    "Lower rates make stocks less attractive"
+    "The bigger cut was already priced in"
    ],
    "kind": "mcq",
    "q": "Why can a rate cut push stocks lower?",
@@ -12306,10 +12306,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "2s10s inverted, 10y-3m still positive",
-    "Both spreads inverted",
+    "Only the 10y-3m is inverted",
     "Normal: long yields beat short",
-    "Only the 10y-3m is inverted"
+    "Both spreads inverted",
+    "2s10s inverted, 10y-3m still positive"
    ],
    "kind": "mcq",
    "q": "What is the curve doing?",
@@ -12389,8 +12389,8 @@
    "choices": [
     "10-year minus 3-month",
     "10-year minus 2-year",
-    "30-year minus 10-year",
-    "10-year minus fed funds"
+    "10-year minus fed funds",
+    "30-year minus 10-year"
    ],
    "kind": "mcq",
    "q": "The New York Fed's recession-probability model is built on which spread?",
@@ -12474,8 +12474,8 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "The Nasdaq Composite",
     "The S&P 500",
+    "The Nasdaq Composite",
     "The Dow industrials",
     "S&P 500 energy stocks"
    ],
@@ -12589,9 +12589,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Little; brief dips often mislead",
     "Full weight; any inversion counts",
-    "It means a recession began today"
+    "It means a recession began today",
+    "Little; brief dips often mislead"
    ],
    "kind": "mcq",
    "q": "How much weight do you give that dip?",
@@ -12647,10 +12647,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "-0.53, inverted",
     "+0.53, normal slope",
-    "+0.85, unchanged",
-    "-1.38, deeply inverted"
+    "-1.38, deeply inverted",
+    "-0.53, inverted",
+    "+0.85, unchanged"
    ],
    "kind": "mcq",
    "q": "Where did the 2s10s end the year?",
@@ -12730,8 +12730,8 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "The higher expected path of rates",
     "The 25 basis point hike itself",
+    "The higher expected path of rates",
     "Nothing, the hike was expected"
    ],
    "kind": "mcq",
@@ -13217,10 +13217,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
+    "Inflation in the labor market",
     "Average change in consumer prices",
     "Inflation earlier in production",
-    "Your own household's inflation",
-    "Inflation in the labor market"
+    "Your own household's inflation"
    ],
    "kind": "mcq",
    "q": "What does the Consumer Price Index (CPI) measure?",
@@ -13469,8 +13469,8 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "8:30 a.m. Eastern",
     "9:30 a.m. Eastern",
+    "8:30 a.m. Eastern",
     "4:00 p.m. Eastern"
    ],
    "kind": "mcq",
@@ -13617,9 +13617,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "The PCE price index",
     "The Consumer Price Index",
-    "The Producer Price Index"
+    "The Producer Price Index",
+    "The PCE price index"
    ],
    "kind": "mcq",
    "q": "The Fed's 2% inflation goal is measured with which price index?",
@@ -13740,9 +13740,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "About a month after it ends",
     "On the quarter's last day",
-    "Three months after it ends"
+    "Three months after it ends",
+    "About a month after it ends"
    ],
    "kind": "mcq",
    "q": "BEA estimates GDP for each quarter. When does its first estimate for a quarter come out?",
@@ -13856,9 +13856,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
+    "September 2026",
     "October 2026",
-    "November 2026",
-    "September 2026"
+    "November 2026"
    ],
    "kind": "mcq",
    "q": "BLS releases the CPI at 8:30 a.m. on Tuesday, Nov. 10, 2026. Which month's prices does it cover?",
@@ -14070,9 +14070,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
+    "Stocks wait for the 9:30 open",
     "The rise was already expected",
-    "CPI rarely moves stocks",
-    "Stocks wait for the 9:30 open"
+    "CPI rarely moves stocks"
    ],
    "kind": "mcq",
    "q": "Prices still rose. Why such a small reaction?",
@@ -14364,9 +14364,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Around $46, maybe worse",
     "At $50, your stop price",
-    "Only if it trades back at $50"
+    "Only if it trades back at $50",
+    "Around $46, maybe worse"
    ],
    "kind": "mcq",
    "q": "Where should you expect your stop to fill?",
@@ -14457,9 +14457,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
+    "Gas prices fell that month",
     "Both came in above forecast",
-    "0.1% a month is high inflation",
-    "Gas prices fell that month"
+    "0.1% a month is high inflation"
    ],
    "kind": "mcq",
    "q": "Headline inflation rose only 0.1%. Why did stocks drop hard?",
@@ -14564,9 +14564,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "High-growth tech names",
     "All stocks fell about evenly",
-    "Cheap, low-risk stocks"
+    "Cheap, low-risk stocks",
+    "High-growth tech names"
    ],
    "kind": "mcq",
    "q": "A hot CPI print hit stocks on Sept. 13, 2022. Which group fell hardest?",
@@ -14716,8 +14716,8 @@
   "prompt_json": {
    "choices": [
     "It's well inside the noise",
-    "It proves hiring slowed",
-    "It's too small to be revised"
+    "It's too small to be revised",
+    "It proves hiring slowed"
    ],
    "kind": "mcq",
    "q": "What does BLS's own margin of error say about that miss?",
@@ -14788,8 +14788,8 @@
   "prompt_json": {
    "choices": [
     "285,000 fewer than expected",
-    "27,000 fewer than expected",
     "258,000 fewer than expected",
+    "27,000 fewer than expected",
     "73,000 more than expected"
    ],
    "kind": "mcq",
@@ -14892,8 +14892,8 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "It also signals a weaker economy",
     "Rate cuts are bad for stocks",
+    "It also signals a weaker economy",
     "Futures ignored the jobs report"
    ],
    "kind": "mcq",
@@ -15259,9 +15259,9 @@
   "prompt_json": {
    "choices": [
     "The 2007-09 financial crisis",
-    "The 2000-02 dot-com bust",
+    "The 2022 inflation bear",
     "The 2020 COVID crash",
-    "The 2022 inflation bear"
+    "The 2000-02 dot-com bust"
    ],
    "kind": "mcq",
    "q": "Since 2000, which fall cut the S&P 500 the most from peak to low?",
@@ -15474,10 +15474,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "The dot-com bubble bursting",
     "A collapse in home prices",
-    "A pandemic shutting the economy",
-    "The US losing its AAA rating"
+    "The US losing its AAA rating",
+    "The dot-com bubble bursting",
+    "A pandemic shutting the economy"
    ],
    "kind": "mcq",
    "q": "What set off the 2000-02 bear market in US stocks?",
@@ -15655,10 +15655,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Hot inflation and Fed rate hikes",
-    "A collapse in home prices",
+    "A US credit rating downgrade",
     "The dot-com bubble bursting",
-    "A US credit rating downgrade"
+    "A collapse in home prices",
+    "Hot inflation and Fed rate hikes"
    ],
    "kind": "mcq",
    "q": "What drove the 2022 bear market in US stocks?",
@@ -15749,8 +15749,8 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "The 2020 COVID crash",
     "The 2007-09 financial crisis",
+    "The 2020 COVID crash",
     "The 2000-02 dot-com bust",
     "The 2022 inflation bear"
    ],
@@ -16005,8 +16005,8 @@
     "window_bars": 120
    },
    "choices": [
-    "Debt-limit fight and Europe's crisis",
     "A collapse in US home prices",
+    "Debt-limit fight and Europe's crisis",
     "A pandemic shutting the economy",
     "The dot-com bubble bursting"
    ],
@@ -16100,8 +16100,8 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "About five months",
     "About two years",
+    "About five months",
     "About 15 years"
    ],
    "kind": "mcq",
@@ -16185,9 +16185,9 @@
    },
    "choices": [
     "China worries and falling oil",
+    "A pandemic shutting the economy",
     "A collapse in US home prices",
-    "The US losing its AAA rating",
-    "A pandemic shutting the economy"
+    "The US losing its AAA rating"
    ],
    "kind": "mcq",
    "q": "What weighed on US stocks through this choppy slide?",
@@ -16299,9 +16299,9 @@
     "window_bars": 250
    },
    "choices": [
+    "About 17 months",
     "About five weeks",
     "About nine months",
-    "About 17 months",
     "About 30 months"
    ],
    "kind": "mcq",
@@ -16414,10 +16414,10 @@
     "window_bars": 120
    },
    "choices": [
-    "It becomes a market order and sells",
     "It fills at exactly your stop price",
     "It waits for the price to recover",
-    "It cancels when trading turns wild"
+    "It cancels when trading turns wild",
+    "It becomes a market order and sells"
    ],
    "kind": "mcq",
    "q": "What happens to your stop order?",
@@ -16767,8 +16767,8 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Falls vary a lot in speed and depth",
     "He's right, they all look like 2008",
+    "Falls vary a lot in speed and depth",
     "Every fall stops near a 20% drop"
    ],
    "kind": "mcq",
@@ -16860,8 +16860,8 @@
    },
    "choices": [
     "Stocks can fall after a recession ends",
-    "Stocks bottom before the economy does",
-    "A growing economy stops a stock slide"
+    "A growing economy stops a stock slide",
+    "Stocks bottom before the economy does"
    ],
    "kind": "mcq",
    "q": "What does this low teach you?",
@@ -17178,8 +17178,8 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "11",
     "9",
+    "11",
     "25",
     "163"
    ],
@@ -17332,8 +17332,8 @@
   "prompt_json": {
    "choices": [
     "Demand holds up when the economy slows",
-    "It rises whenever the market falls",
-    "Its companies carry little debt"
+    "Its companies carry little debt",
+    "It rises whenever the market falls"
    ],
    "kind": "mcq",
    "q": "What makes a sector 'defensive'?",
@@ -17527,9 +17527,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "XLP",
+    "XLV",
     "XLY",
-    "XLV"
+    "XLP"
    ],
    "kind": "mcq",
    "q": "XLY and XLP are both consumer sector funds. Which one holds the consumer staples?",
@@ -17685,9 +17685,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
+    "Consumer Discretionary",
     "Communication Services",
-    "Information Technology",
-    "Consumer Discretionary"
+    "Information Technology"
    ],
    "kind": "mcq",
    "q": "Alphabet (Google's parent) and Meta (Facebook's parent) sit in which GICS sector?",
@@ -17770,10 +17770,10 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Energy",
+    "Consumer Staples",
     "Utilities",
     "Technology",
-    "Consumer Staples"
+    "Energy"
    ],
    "kind": "mcq",
    "q": "In 2022 the S&P 500 lost 18.11% with dividends. Which sector index did best?",
@@ -18014,9 +18014,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
+    "Utilities",
     "Consumer Discretionary",
     "Consumer Staples",
-    "Utilities",
     "Energy"
    ],
    "kind": "mcq",
@@ -18205,8 +18205,8 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "It was the best sector that year",
     "It fell again and kept lagging",
+    "It was the best sector that year",
     "It roughly matched the S&P 500"
    ],
    "kind": "mcq",
@@ -18305,9 +18305,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "It's falling less than the market",
+    "Nothing, both are down",
     "It's falling more than the market",
-    "Nothing, both are down"
+    "It's falling less than the market"
    ],
    "kind": "mcq",
    "q": "This week the market and a sector fund both fall. The sector's ratio line against the S&P 500 rises. What does that tell you?",
@@ -18463,8 +18463,8 @@
   "prompt_json": {
    "choices": [
     "High interest rates",
-    "Falling oil prices",
-    "Weak consumer spending"
+    "Weak consumer spending",
+    "Falling oil prices"
    ],
    "kind": "mcq",
    "q": "Utilities are defensive. In 2023 their index lost 7.08% while the S&P 500 gained 26.29%. What weighed on them?",
@@ -18575,9 +18575,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Energy and banks",
+    "Tech and consumer discretionary",
     "Staples and utilities",
-    "Tech and consumer discretionary"
+    "Energy and banks"
    ],
    "kind": "mcq",
    "q": "Which groups fell the most?",
@@ -18762,8 +18762,8 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Wait for energy to show strength first",
     "Buy energy now, the cycle says so",
+    "Wait for energy to show strength first",
     "Drop sectors and trade the stock alone"
    ],
    "kind": "mcq",
@@ -18976,9 +18976,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
-    "Pass while the group is under stress",
+    "Buy it, the Fed will rescue banks",
     "Buy it, cheap stocks bounce back",
-    "Buy it, the Fed will rescue banks"
+    "Pass while the group is under stress"
    ],
    "kind": "mcq",
    "q": "What do you do?",
@@ -19062,9 +19062,9 @@
   "module": "F7",
   "prompt_json": {
    "choices": [
+    "Five stocks is too few to profit",
     "One sector hit can drop all five",
-    "None, each one has its own stop",
-    "Five stocks is too few to profit"
+    "None, each one has its own stop"
    ],
    "kind": "mcq",
    "q": "What's the real risk?",

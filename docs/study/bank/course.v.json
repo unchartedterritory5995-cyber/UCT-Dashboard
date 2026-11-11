@@ -10,10 +10,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Higher highs and higher lows",
-    "Lower highs and lower lows",
+    "Price above last year's price",
     "A close above yesterday's close",
-    "Price above last year's price"
+    "Lower highs and lower lows",
+    "Higher highs and higher lows"
    ],
    "kind": "mcq",
    "q": "On a chart, what makes an uptrend?",
@@ -147,9 +147,9 @@
   "prompt_json": {
    "choices": [
     "Trading range",
+    "Pullback",
     "Uptrend",
-    "Breakout",
-    "Pullback"
+    "Breakout"
    ],
    "kind": "mcq",
    "q": "Which word is this: price swings between roughly the same high and the same low for weeks, with no clear direction.",
@@ -241,8 +241,8 @@
   "prompt_json": {
    "choices": [
     "Lower high",
-    "Higher low",
-    "Breakout"
+    "Breakout",
+    "Higher low"
    ],
    "kind": "mcq",
    "q": "A stock has been in an uptrend. Its latest rally stalls below the prior peak. What do you call that peak?",
@@ -318,8 +318,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Not yet: it needs a higher high too",
     "Yes: the higher low confirms it",
+    "Not yet: it needs a higher high too",
     "Yes: any bounce ends a downtrend"
    ],
    "kind": "mcq",
@@ -470,9 +470,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Where buyers tend to stop a fall",
+    "The stock's lowest price ever",
     "Where sellers tend to stop a rise",
-    "The stock's lowest price ever"
+    "Where buyers tend to stop a fall"
    ],
    "kind": "mcq",
    "q": "On a chart, what is support?",
@@ -691,8 +691,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "As a zone, about $47.60 to $48.40",
     "As exactly $48.00, nothing else",
+    "As a zone, about $47.60 to $48.40",
     "As broken: one low went under $48"
    ],
    "kind": "mcq",
@@ -763,9 +763,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Selling from trapped buyers",
     "Support from new buyers",
-    "Nothing: old prices don't matter"
+    "Nothing: old prices don't matter",
+    "Selling from trapped buyers"
    ],
    "kind": "mcq",
    "q": "What is it likely to meet near $60?",
@@ -835,10 +835,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A move through resistance or support",
-    "A bounce off support",
+    "Any big up day",
     "A dip back to the moving average",
-    "Any big up day"
+    "A move through resistance or support",
+    "A bounce off support"
    ],
    "kind": "mcq",
    "q": "What is a breakout?",
@@ -1000,8 +1000,8 @@
   "prompt_json": {
    "choices": [
     "A, on heavy volume",
-    "B, on light volume",
-    "Neither: only price matters"
+    "Neither: only price matters",
+    "B, on light volume"
    ],
    "kind": "mcq",
    "q": "Which breakout shows more conviction?",
@@ -1072,8 +1072,8 @@
   "prompt_json": {
    "choices": [
     "False breakout",
-    "Pullback",
-    "Bear trap"
+    "Bear trap",
+    "Pullback"
    ],
    "kind": "mcq",
    "q": "Price clears resistance, then falls straight back below the breakout level within days. Which word fits?",
@@ -1156,8 +1156,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Bull trap",
     "Bear trap",
+    "Bull trap",
     "Throwback that held"
    ],
    "kind": "mcq",
@@ -1322,10 +1322,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The average close over recent days",
     "Today's high and low",
-    "Where price will go next",
-    "The stock's fair value"
+    "The average close over recent days",
+    "The stock's fair value",
+    "Where price will go next"
    ],
    "kind": "mcq",
    "q": "What does a moving average line on a chart show?",
@@ -1503,10 +1503,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Weights recent prices more",
-    "Weights every day the same",
     "Uses only the daily highs",
-    "Looks ahead of price"
+    "Looks ahead of price",
+    "Weights every day the same",
+    "Weights recent prices more"
    ],
    "kind": "mcq",
    "q": "How does an exponential moving average (EMA) differ from a simple one?",
@@ -1663,10 +1663,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Bearish divergence",
     "Golden cross",
     "Death cross",
-    "Breakout",
-    "Bearish divergence"
+    "Breakout"
    ],
    "kind": "mcq",
    "q": "Which word is this: the 50-day moving average crosses up through the 200-day moving average.",
@@ -1851,9 +1851,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Normal: averages act as zones",
+    "Sell: the average is broken for good",
     "The uptrend is over",
-    "Sell: the average is broken for good"
+    "Normal: averages act as zones"
    ],
    "kind": "mcq",
    "q": "How do you read the dip under the line?",
@@ -1923,9 +1923,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Stretched far above its moving averages",
     "Down a lot from its highs",
-    "Stuck in a tight sideways range"
+    "Stuck in a tight sideways range",
+    "Stretched far above its moving averages"
    ],
    "kind": "mcq",
    "q": "When we call a stock extended, what do we mean?",
@@ -2057,9 +2057,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Short it: it has to come down",
     "Wait for a pullback or a new setup",
-    "Buy now before it runs further",
-    "Short it: it has to come down"
+    "Buy now before it runs further"
    ],
    "kind": "mcq",
    "q": "What's the sound move now?",
@@ -2137,8 +2137,8 @@
   "prompt_json": {
    "choices": [
     "RSI above 70",
-    "RSI below 30",
-    "RSI above 50"
+    "RSI above 50",
+    "RSI below 30"
    ],
    "kind": "mcq",
    "q": "On the RSI, what reading is traditionally called overbought?",
@@ -2280,9 +2280,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "It can stay oversold and keep falling",
     "Oversold means buy right now",
-    "RSI 25 means the downtrend ended"
+    "RSI 25 means the downtrend ended",
+    "It can stay oversold and keep falling"
    ],
    "kind": "mcq",
    "q": "What's the better read?",
@@ -2380,10 +2380,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A stock's own recent gains vs losses",
-    "A stock's move vs the S&P 500",
+    "Price vs its 200-day average",
     "Today's volume vs average volume",
-    "Price vs its 200-day average"
+    "A stock's own recent gains vs losses",
+    "A stock's move vs the S&P 500"
    ],
    "kind": "mcq",
    "q": "What does the RSI measure?",
@@ -2482,9 +2482,9 @@
   "prompt_json": {
    "choices": [
     "A stock's move vs a benchmark",
-    "A stock's up days vs down days",
+    "Price vs its moving average",
     "Today's volume vs normal volume",
-    "Price vs its moving average"
+    "A stock's up days vs down days"
    ],
    "kind": "mcq",
    "q": "In chart talk, what does relative strength compare?",
@@ -2590,8 +2590,8 @@
   "prompt_json": {
    "choices": [
     "A stock outperforming the market",
-    "The biggest company in its industry",
-    "The most heavily traded stock"
+    "The most heavily traded stock",
+    "The biggest company in its industry"
    ],
    "kind": "mcq",
    "q": "In chart talk, what is a leader?",
@@ -2667,8 +2667,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A: it fell less than the index",
     "B: it fell the most",
+    "A: it fell less than the index",
     "Neither: both went down"
    ],
    "kind": "mcq",
@@ -2747,8 +2747,8 @@
   "prompt_json": {
    "choices": [
     "Bearish divergence",
-    "Bullish divergence",
-    "Golden cross"
+    "Golden cross",
+    "Bullish divergence"
    ],
    "kind": "mcq",
    "q": "Price makes a higher high, but RSI makes a lower high. Which word fits?",
@@ -2960,9 +2960,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Buyers outnumbered sellers",
     "Far more shares traded than usual",
-    "The price moved a lot",
-    "Buyers outnumbered sellers"
+    "The price moved a lot"
    ],
    "kind": "mcq",
    "q": "When a chart shows heavy volume on a day, what does that mean?",
@@ -3045,9 +3045,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Likely just a pullback",
     "Big sellers are taking over",
-    "Volume doesn't matter on a dip"
+    "Volume doesn't matter on a dip",
+    "Likely just a pullback"
    ],
    "kind": "mcq",
    "q": "How does the light volume read?",
@@ -3155,8 +3155,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Rising faster and faster",
     "Drifting sideways on low volume",
+    "Rising faster and faster",
     "Falling in a steady channel",
     "Gapping down at the open"
    ],
@@ -3256,9 +3256,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A sideways range lasting weeks or more",
     "A one-day gap up",
     "A steady climb with no pauses",
+    "A sideways range lasting weeks or more",
     "The year's lowest price"
    ],
    "kind": "mcq",
@@ -3392,9 +3392,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "A company paying out a dividend",
     "Big holders selling without moving price",
-    "Big holders buying in a quiet range",
-    "A company paying out a dividend"
+    "Big holders buying in a quiet range"
    ],
    "kind": "mcq",
    "q": "On a chart, what does distribution mean?",
@@ -3523,9 +3523,9 @@
   "prompt_json": {
    "choices": [
     "A move may come; direction unknown",
-    "It will break out to the upside",
     "It will break down",
-    "It will stay quiet for months"
+    "It will stay quiet for months",
+    "It will break out to the upside"
    ],
    "kind": "mcq",
    "q": "What does the coil tell you about the next move?",
@@ -3610,10 +3610,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Its highest price in the past year",
     "Its highest price ever",
+    "Its highest close this week",
     "Its average price this year",
-    "Its highest close this week"
+    "Its highest price in the past year"
    ],
    "kind": "mcq",
    "q": "What is a stock's 52-week high?",
@@ -3684,8 +3684,8 @@
   "prompt_json": {
    "choices": [
     "A, at the new high",
-    "B, after its slide",
-    "They face the same"
+    "They face the same",
+    "B, after its slide"
    ],
    "kind": "mcq",
    "q": "Which faces less selling from trapped buyers above it?",
@@ -3832,10 +3832,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Today's high is below yesterday's low",
-    "Today's low is above yesterday's high",
     "Today closes below yesterday's close",
-    "Today's range is smaller than usual"
+    "Today's low is above yesterday's high",
+    "Today's range is smaller than usual",
+    "Today's high is below yesterday's low"
    ],
    "kind": "mcq",
    "q": "On a daily chart, what makes a gap down?",
@@ -3964,9 +3964,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Exhaustion gap",
     "Breakaway gap",
     "Runaway gap",
+    "Exhaustion gap",
     "Common gap"
    ],
    "kind": "mcq",
@@ -4058,10 +4058,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Common gap",
     "Runaway gap",
-    "Exhaustion gap",
     "Breakaway gap",
-    "Common gap"
+    "Exhaustion gap"
    ],
    "kind": "mcq",
    "q": "Which gap type fits best?",
@@ -4153,9 +4153,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Log scale",
+    "A shorter timeframe",
     "Arithmetic scale",
-    "A shorter timeframe"
+    "Log scale"
    ],
    "kind": "mcq",
    "q": "Which price scale would show $10 to $20 as the bigger move?",
@@ -4555,9 +4555,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Connect the rising lows",
+    "Connect the closing prices",
     "Connect the rising highs",
-    "Connect the closing prices"
+    "Connect the rising lows"
    ],
    "kind": "mcq",
    "q": "How do you draw an uptrend line?",
@@ -4787,8 +4787,8 @@
   "prompt_json": {
    "choices": [
     "A short dip inside an uptrend",
-    "A change from uptrend to downtrend",
-    "A break above the last high"
+    "A break above the last high",
+    "A change from uptrend to downtrend"
    ],
    "kind": "mcq",
    "q": "What is a pullback?",
@@ -5325,10 +5325,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Open, high, low and close",
     "Open, close and volume",
     "Bid, ask and last trade",
-    "Close and the day's change"
+    "Close and the day's change",
+    "Open, high, low and close"
    ],
    "kind": "mcq",
    "q": "Which prices does a single candlestick show?",
@@ -5464,10 +5464,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "It closed above its open",
-    "It closed above yesterday's close",
+    "It made a new high",
     "It traded heavy volume",
-    "It made a new high"
+    "It closed above its open",
+    "It closed above yesterday's close"
    ],
    "kind": "mcq",
    "q": "On a standard candlestick chart, what does a hollow (or green) body tell you?",
@@ -5551,10 +5551,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "It traded far more shares",
     "It closed far above its open",
     "It swung widely and closed flat",
-    "It gapped above the prior high",
-    "It traded far more shares"
+    "It gapped above the prior high"
    ],
    "kind": "mcq",
    "q": "What does a long white (green) body tell you about the session?",
@@ -5624,10 +5624,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Little change from open to close",
     "Little change from high to low",
     "Very light volume",
-    "No trades after the open"
+    "No trades after the open",
+    "Little change from open to close"
    ],
    "kind": "mcq",
    "q": "What does a short real body tell you about the session?",
@@ -5690,10 +5690,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Open and close about equal",
     "High and low about equal",
-    "Open at the low, close at the high",
-    "A small body inside the prior body"
+    "Open and close about equal",
+    "A small body inside the prior body",
+    "Open at the low, close at the high"
    ],
    "kind": "mcq",
    "q": "In candle terms, what is a doji?",
@@ -5958,9 +5958,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Gravestone doji",
-    "Dragonfly doji",
     "Shooting star",
+    "Dragonfly doji",
+    "Gravestone doji",
     "Spinning top"
    ],
    "kind": "mcq",
@@ -6312,8 +6312,8 @@
    "choices": [
     "Small body, shadows longer than it",
     "Long body with no shadows",
-    "No body, one long lower shadow",
-    "Small body inside the prior body"
+    "Small body inside the prior body",
+    "No body, one long lower shadow"
    ],
    "kind": "mcq",
    "q": "What does a spinning top look like?",
@@ -6411,10 +6411,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Spinning top",
-    "Doji",
     "Marubozu",
-    "Hammer"
+    "Hammer",
+    "Spinning top",
+    "Doji"
    ],
    "kind": "mcq",
    "q": "Which word fits today's candle?",
@@ -6506,9 +6506,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "A lot: a breakout is coming",
     "Little: indecision inside a range",
-    "A lot: a reversal is coming",
-    "A lot: a breakout is coming"
+    "A lot: a reversal is coming"
    ],
    "kind": "mcq",
    "q": "How much weight do you give that candle?",
@@ -6585,10 +6585,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A body with no shadows",
-    "Shadows with no body",
     "A small body with long shadows",
-    "A body inside the prior body"
+    "A body with no shadows",
+    "A body inside the prior body",
+    "Shadows with no body"
    ],
    "kind": "mcq",
    "q": "In candle terms, what is a marubozu?",
@@ -6658,10 +6658,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "White marubozu",
     "Black marubozu",
     "Hammer",
-    "Spinning top"
+    "Spinning top",
+    "White marubozu"
    ],
    "kind": "mcq",
    "q": "Which word fits that candle?",
@@ -6733,8 +6733,8 @@
   "prompt_json": {
    "choices": [
     "Black marubozu",
-    "White marubozu",
     "Gravestone doji",
+    "White marubozu",
     "Shooting star"
    ],
    "kind": "mcq",
@@ -6798,10 +6798,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Long lower shadow after a decline",
     "Long lower shadow after a rally",
     "Long upper shadow after a decline",
-    "Long upper shadow after a rally"
+    "Long upper shadow after a rally",
+    "Long lower shadow after a decline"
    ],
    "kind": "mcq",
    "q": "What makes a candle a hammer?",
@@ -6972,9 +6972,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Hanging man",
     "Shooting star",
     "Inverted hammer",
-    "Hanging man",
     "Bearish engulfing"
    ],
    "kind": "mcq",
@@ -7159,9 +7159,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The one at the prior low",
+    "Both the same: same shape",
     "The one in the middle of its range",
-    "Both the same: same shape"
+    "The one at the prior low"
    ],
    "kind": "mcq",
    "q": "Which hammer deserves more of your attention?",
@@ -7224,10 +7224,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Hanging man",
-    "Hammer",
     "Shooting star",
-    "Spinning top"
+    "Spinning top",
+    "Hanging man",
+    "Hammer"
    ],
    "kind": "mcq",
    "q": "Which word fits today's candle?",
@@ -7326,9 +7326,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Up body swallows the prior down body",
-    "Small body inside the prior big body",
     "Range covers the prior day's range",
+    "Small body inside the prior big body",
+    "Up body swallows the prior down body",
     "Three white candles in a row"
    ],
    "kind": "mcq",
@@ -7472,8 +7472,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Bearish engulfing",
     "Dark cloud cover",
+    "Bearish engulfing",
     "Bearish harami",
     "Evening star"
    ],
@@ -7560,10 +7560,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Dark cloud cover",
     "Bearish engulfing",
+    "Shooting star",
     "Bearish harami",
-    "Shooting star"
+    "Dark cloud cover"
    ],
    "kind": "mcq",
    "q": "Which word fits the two days?",
@@ -7706,9 +7706,9 @@
   "prompt_json": {
    "choices": [
     "A small body inside the prior big body",
-    "A big body that swallows the prior body",
     "A whole range inside the prior range",
-    "A small body that gaps away"
+    "A small body that gaps away",
+    "A big body that swallows the prior body"
    ],
    "kind": "mcq",
    "q": "In candle terms, what is a harami?",
@@ -7793,8 +7793,8 @@
   "prompt_json": {
    "choices": [
     "Harami cross",
-    "Morning doji star",
-    "Bullish engulfing"
+    "Bullish engulfing",
+    "Morning doji star"
    ],
    "kind": "mcq",
    "q": "A long candle, then a doji whose body sits inside the long candle's body. Which word is this?",
@@ -7863,8 +7863,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Bearish harami",
     "Bearish engulfing",
+    "Bearish harami",
     "Dark cloud cover"
    ],
    "kind": "mcq",
@@ -8008,10 +8008,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "High and low inside the prior range",
-    "Body inside the prior day's body",
     "Higher high and lower low than prior",
-    "Open and close about equal"
+    "Open and close about equal",
+    "Body inside the prior day's body",
+    "High and low inside the prior range"
    ],
    "kind": "mcq",
    "q": "What is an inside day?",
@@ -8088,10 +8088,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Inside day",
     "Harami",
-    "Outside day",
-    "Bullish engulfing"
+    "Bullish engulfing",
+    "Inside day",
+    "Outside day"
    ],
    "kind": "mcq",
    "q": "Which word fits Tuesday?",
@@ -8228,10 +8228,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Higher high and lower low than prior",
-    "High and low inside the prior range",
     "Body swallows the prior day's body",
-    "Gaps above the prior day's high"
+    "Higher high and lower low than prior",
+    "Gaps above the prior day's high",
+    "High and low inside the prior range"
    ],
    "kind": "mcq",
    "q": "What is an outside day?",
@@ -8295,9 +8295,9 @@
   "prompt_json": {
    "choices": [
     "Outside reversal day",
+    "Morning star",
     "Inside day",
-    "Harami cross",
-    "Morning star"
+    "Harami cross"
    ],
    "kind": "mcq",
    "q": "Which word fits today?",
@@ -8362,9 +8362,9 @@
   "prompt_json": {
    "choices": [
     "Its small body gaps away from the prior",
-    "Its body sits inside the prior body",
     "It has no shadows at all",
-    "It closes at the session high"
+    "It closes at the session high",
+    "Its body sits inside the prior body"
    ],
    "kind": "mcq",
    "q": "When does a candle sit in star position?",
@@ -8448,10 +8448,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Morning star",
-    "Evening star",
     "Three white soldiers",
-    "Bullish harami"
+    "Evening star",
+    "Bullish harami",
+    "Morning star"
    ],
    "kind": "mcq",
    "q": "A long black candle, a small candle that gaps down, then a long white candle closing past the black's midpoint. Which word?",
@@ -8521,10 +8521,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Up candle, small gap-up, down candle",
     "Down candle, small gap-down, up candle",
-    "Three down candles in a row",
-    "Up candle, then a doji inside it"
+    "Up candle, then a doji inside it",
+    "Up candle, small gap-up, down candle",
+    "Three down candles in a row"
    ],
    "kind": "mcq",
    "q": "What is an evening star?",
@@ -8660,10 +8660,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Three white soldiers",
     "Morning doji star",
     "Evening doji star",
-    "Harami cross",
-    "Three white soldiers"
+    "Harami cross"
    ],
    "kind": "mcq",
    "q": "Which word fits the three days?",
@@ -8734,9 +8734,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Three long white candles in a row",
     "Three small candles inside a big one",
-    "Three long black candles in a row"
+    "Three long black candles in a row",
+    "Three long white candles in a row"
    ],
    "kind": "mcq",
    "q": "What are three white soldiers?",
@@ -8847,10 +8847,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Rising three methods",
     "Three white soldiers",
-    "Bullish harami",
-    "Morning star"
+    "Morning star",
+    "Rising three methods",
+    "Bullish harami"
    ],
    "kind": "mcq",
    "q": "A long white candle, three small candles inside its range, then a white candle closing at a new high. Which word?",
@@ -9124,9 +9124,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Neither: it's a doji",
     "Filled: it closed below its open",
-    "Hollow: it's up on the day",
-    "Neither: it's a doji"
+    "Hollow: it's up on the day"
    ],
    "kind": "mcq",
    "q": "Is today's candle hollow or filled?",
@@ -9290,9 +9290,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Buyers took back a deep drop",
+    "It will go higher tomorrow",
     "Sellers controlled the close",
-    "It will go higher tomorrow"
+    "Buyers took back a deep drop"
    ],
    "kind": "mcq",
    "q": "What does the long lower shadow tell you?",
@@ -9369,9 +9369,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Buyers won: it made a new high",
     "Sellers pushed back the rally",
-    "Buyers held the day's gains",
-    "Buyers won: it made a new high"
+    "Buyers held the day's gains"
    ],
    "kind": "mcq",
    "q": "What does the long upper shadow tell you?",
@@ -9660,8 +9660,8 @@
    "choices": [
     "Inverted hammer",
     "Shooting star",
-    "Hammer",
-    "Gravestone doji"
+    "Gravestone doji",
+    "Hammer"
    ],
    "kind": "mcq",
    "q": "Which word fits today's candle?",
@@ -10040,9 +10040,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Any pattern that breaks out upward",
     "A pause, then the old trend resumes",
-    "A sign the trend is about to flip",
-    "Any pattern that breaks out upward"
+    "A sign the trend is about to flip"
    ],
    "kind": "mcq",
    "q": "What does continuation pattern mean?",
@@ -10097,10 +10097,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Reversal pattern",
     "Continuation pattern",
-    "Flag",
-    "Pennant"
+    "Pennant",
+    "Reversal pattern",
+    "Flag"
    ],
    "kind": "mcq",
    "q": "Which word is this: a chart pattern that forms before the trend changes direction.",
@@ -10170,10 +10170,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "U-shaped base plus a short pullback",
     "Three peaks, the middle one highest",
+    "A sharp V-shaped drop and rebound",
     "Two equal lows shaped like a W",
-    "A sharp V-shaped drop and rebound"
+    "U-shaped base plus a short pullback"
    ],
    "kind": "mcq",
    "q": "What does cup with handle mean?",
@@ -10258,9 +10258,9 @@
   "prompt_json": {
    "choices": [
     "The short pullback after the cup",
+    "The day price breaks out",
     "The deepest low of the cup",
-    "The run-up before the cup began",
-    "The day price breaks out"
+    "The run-up before the cup began"
    ],
    "kind": "mcq",
    "q": "On a cup with handle, what is the handle?",
@@ -10396,10 +10396,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "The sharp run before the pause",
     "Brief pause tilting against the move",
     "A long base shaped like a bowl",
-    "Lines that meet at a point",
-    "The sharp run before the pause"
+    "Lines that meet at a point"
    ],
    "kind": "mcq",
    "q": "What does flag mean on a chart?",
@@ -10567,9 +10567,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A tiny triangle after a sharp move",
-    "A long, flat-topped base",
     "A flag with parallel lines",
+    "A long, flat-topped base",
+    "A tiny triangle after a sharp move",
     "A deep U-shaped base"
    ],
    "kind": "mcq",
@@ -10727,10 +10727,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Narrowing lines that slope the same way",
+    "A rounded low with a short dip",
     "One flat line and one rising line",
     "Parallel lines tilting against a run",
-    "A rounded low with a short dip"
+    "Narrowing lines that slope the same way"
    ],
    "kind": "mcq",
    "q": "What does wedge mean on a chart?",
@@ -10814,10 +10814,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Ascending triangle",
-    "Descending triangle",
     "Symmetrical triangle",
-    "Rising wedge"
+    "Ascending triangle",
+    "Rising wedge",
+    "Descending triangle"
    ],
    "kind": "mcq",
    "q": "Which word is this: a flat top line and a rising bottom line that close in on each other.",
@@ -10979,8 +10979,8 @@
    "choices": [
     "Symmetrical triangle",
     "Head and shoulders",
-    "Double bottom",
-    "Rounding bottom"
+    "Rounding bottom",
+    "Double bottom"
    ],
    "kind": "mcq",
    "q": "Which pattern do some chart books also call a coil?",
@@ -11050,10 +11050,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Where the two lines meet",
     "The widest part of the pattern",
-    "The breakout day's high",
-    "The first low in the pattern"
+    "Where the two lines meet",
+    "The first low in the pattern",
+    "The breakout day's high"
    ],
    "kind": "mcq",
    "q": "On a triangle, what is the apex?",
@@ -11109,10 +11109,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Two similar lows with a peak between",
     "Two similar highs with a dip between",
     "Three lows, the middle one deepest",
-    "A slow, rounded low over months"
+    "A slow, rounded low over months",
+    "Two similar lows with a peak between"
    ],
    "kind": "mcq",
    "q": "What does double bottom mean?",
@@ -11259,8 +11259,8 @@
   "prompt_json": {
    "choices": [
     "Head and shoulders",
-    "Triple top",
     "Double top",
+    "Triple top",
     "Rising wedge"
    ],
    "kind": "mcq",
@@ -11352,10 +11352,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Line through the lows between peaks",
-    "Line across the two shoulder tops",
+    "The uptrend line under the whole move",
     "The highest point of the head",
-    "The uptrend line under the whole move"
+    "Line through the lows between peaks",
+    "Line across the two shoulder tops"
    ],
    "kind": "mcq",
    "q": "In a head and shoulders top, what is the neckline?",
@@ -11432,9 +11432,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Two equal lows with a peak between",
     "Three lows, the middle one deepest",
     "Three peaks, the middle one highest",
-    "Two equal lows with a peak between",
     "Three equal lows in a row"
    ],
    "kind": "mcq",
@@ -11589,8 +11589,8 @@
   "prompt_json": {
    "choices": [
     "Sideways between a flat top and bottom",
-    "A narrowing range that slopes up",
     "A U-shaped dip and recovery",
+    "A narrowing range that slopes up",
     "Three peaks, the middle highest"
    ],
    "kind": "mcq",
@@ -11742,8 +11742,8 @@
   "prompt_json": {
    "choices": [
     "Continuation pattern",
-    "Reversal pattern",
-    "Topping pattern"
+    "Topping pattern",
+    "Reversal pattern"
    ],
    "kind": "mcq",
    "q": "Which kind of pattern was the sideways range?",
@@ -11965,10 +11965,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "No, it sank into the cup's lower half",
     "Yes, any dip after a cup counts",
+    "No, a handle can only go sideways",
     "Yes, a deep handle shakes out more",
-    "No, a handle can only go sideways"
+    "No, it sank into the cup's lower half"
    ],
    "kind": "mcq",
    "q": "Does that pullback count as a proper handle?",
@@ -12039,10 +12039,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Just above the top of the handle",
+    "At the first up day in the cup",
     "At the lowest point of the cup",
-    "Halfway down the handle",
-    "At the first up day in the cup"
+    "Just above the top of the handle",
+    "Halfway down the handle"
    ],
    "kind": "mcq",
    "q": "On a cup with handle, where is the classic buy point?",
@@ -12271,10 +12271,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Flag",
-    "Pennant",
+    "Double top",
     "Rounding bottom",
-    "Double top"
+    "Flag",
+    "Pennant"
    ],
    "kind": "mcq",
    "q": "Which word fits the drift?",
@@ -12540,9 +12540,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Bearish, though prices are rising",
+    "Neutral until it reaches the apex",
     "Bullish, because prices are rising",
-    "Neutral until it reaches the apex"
+    "Bearish, though prices are rising"
    ],
    "kind": "mcq",
    "q": "What bias do textbooks give the rising wedge?",
@@ -12670,8 +12670,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Falling wedge",
     "Descending triangle",
+    "Falling wedge",
     "Bear flag",
     "Rising wedge"
    ],
@@ -12758,10 +12758,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Symmetrical triangle",
+    "Rising wedge",
     "Ascending triangle",
     "Rectangle",
-    "Rising wedge"
+    "Symmetrical triangle"
    ],
    "kind": "mcq",
    "q": "Which word fits?",
@@ -12846,10 +12846,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Half to three-quarters of the way in",
+    "Only after price passes the apex",
     "Right at the apex, where lines meet",
-    "In the first few days of the pattern",
-    "Only after price passes the apex"
+    "Half to three-quarters of the way in",
+    "In the first few days of the pattern"
    ],
    "kind": "mcq",
    "q": "In a symmetrical triangle, where does the ideal breakout come?",
@@ -12913,8 +12913,8 @@
   "prompt_json": {
    "choices": [
     "On a break above the middle peak",
-    "When the second low holds a day",
     "When the second low matches the first",
+    "When the second low holds a day",
     "When volume spikes at the second low"
    ],
    "kind": "mcq",
@@ -13049,10 +13049,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Not yet, it must break below $70",
-    "Yes, the second peak failed",
     "Yes, two peaks at about one price",
-    "No, the peaks must match exactly"
+    "No, the peaks must match exactly",
+    "Yes, the second peak failed",
+    "Not yet, it must break below $70"
    ],
    "kind": "mcq",
    "q": "Is the double top complete?",
@@ -13123,10 +13123,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A close under the $44 neckline",
     "A new high above $55",
-    "A third peak near $48",
-    "Nothing, three peaks complete it"
+    "A close under the $44 neckline",
+    "Nothing, three peaks complete it",
+    "A third peak near $48"
    ],
    "kind": "mcq",
    "q": "What completes the head and shoulders top?",
@@ -13275,10 +13275,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Wait for a close outside a line",
     "Short now, the pattern is bearish",
+    "Buy at the apex before it breaks",
     "Buy now, the floor will hold",
-    "Buy at the apex before it breaks"
+    "Wait for a close outside a line"
    ],
    "kind": "mcq",
    "q": "What's the disciplined move?",
@@ -13363,10 +13363,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Spring",
-    "Breakdown",
     "Double top",
-    "Pennant"
+    "Pennant",
+    "Spring",
+    "Breakdown"
    ],
    "kind": "mcq",
    "q": "In Wyckoff terms, which word fits?",
@@ -13431,9 +13431,9 @@
   "prompt_json": {
    "choices": [
     "A sharp drop that scares holders out",
-    "A slow climb on rising volume",
     "A gap up on good earnings",
-    "A week of tiny daily ranges"
+    "A week of tiny daily ranges",
+    "A slow climb on rising volume"
    ],
    "kind": "mcq",
    "q": "What does shakeout mean?",
@@ -13503,8 +13503,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The range's build-up that fuels a move",
     "The news that started the selloff",
+    "The range's build-up that fuels a move",
     "The breakout day's volume spike",
     "The trend before the range began"
    ],
@@ -13642,10 +13642,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Sideways for several weeks or months",
-    "A steep run on heavy volume",
     "A V-shaped drop and fast recovery",
-    "A gap that never fills"
+    "Sideways for several weeks or months",
+    "A gap that never fills",
+    "A steep run on heavy volume"
    ],
    "kind": "mcq",
    "q": "What does flat base mean?",
@@ -13722,10 +13722,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A range framed by recent highs and lows",
     "A rounded base with a handle",
-    "A flat top with rising lows",
-    "Three peaks, the middle highest"
+    "Three peaks, the middle highest",
+    "A range framed by recent highs and lows",
+    "A flat top with rising lows"
    ],
    "kind": "mcq",
    "q": "What does Darvas box mean?",
@@ -13948,8 +13948,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Just under the handle's low",
     "No stop until the target hits",
+    "Just under the handle's low",
     "Lower it if price gets close"
    ],
    "kind": "mcq",
@@ -14080,9 +14080,9 @@
   "prompt_json": {
    "choices": [
     "Inverse head and shoulders",
+    "Head and shoulders top",
     "Triple bottom",
-    "Double bottom",
-    "Head and shoulders top"
+    "Double bottom"
    ],
    "kind": "mcq",
    "q": "Which word fits?",
@@ -14168,8 +14168,8 @@
   "prompt_json": {
    "choices": [
     "The weekly chart",
-    "An intraday chart",
-    "A one-month daily chart"
+    "A one-month daily chart",
+    "An intraday chart"
    ],
    "kind": "mcq",
    "q": "Which chart shows a rounding bottom best?",
@@ -14290,9 +14290,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A busted pattern",
     "A throwback",
-    "A spring"
+    "A spring",
+    "A busted pattern"
    ],
    "kind": "mcq",
    "q": "What does Bulkowski call this?",
@@ -14376,8 +14376,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "No, reassess: conditions changed",
     "Yes, the target is the plan",
+    "No, reassess: conditions changed",
     "Yes, and add to get there faster"
    ],
    "kind": "mcq",
@@ -14448,9 +14448,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Wait for the close above $34",
     "Buy now, the shape is done",
-    "Buy half now, half at $34"
+    "Buy half now, half at $34",
+    "Wait for the close above $34"
    ],
    "kind": "mcq",
    "q": "What does the textbook say?",
@@ -14645,10 +14645,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Pennants are short and need a sharp move",
-    "Pennants have parallel lines",
     "Triangles only form in downtrends",
-    "Pennants never have a flagpole"
+    "Pennants never have a flagpole",
+    "Pennants have parallel lines",
+    "Pennants are short and need a sharp move"
    ],
    "kind": "mcq",
    "q": "What separates a symmetrical triangle from a pennant?",
@@ -14732,10 +14732,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Ascending triangle",
     "Triple top",
     "Head and shoulders",
-    "Double top",
-    "Ascending triangle"
+    "Double top"
    ],
    "kind": "mcq",
    "q": "Which word is this: three roughly equal highs, then a break below the lows between them.",
@@ -14812,10 +14812,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Upthrust",
+    "Throwback",
     "Spring",
     "Breakout",
-    "Throwback"
+    "Upthrust"
    ],
    "kind": "mcq",
    "q": "Which word is this: price pokes above a range's top, then quickly closes back inside the range.",
@@ -15210,8 +15210,8 @@
    "choices": [
     "The setup's entry price",
     "The setup's stop price",
-    "The first profit target",
-    "The news that moved it"
+    "The news that moved it",
+    "The first profit target"
    ],
    "kind": "mcq",
    "q": "In our setup plans, what is a setup's trigger?",
@@ -15329,9 +15329,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A red candle, then a gap-up green one",
     "A green candle, then a gap-down red one",
     "One candle with a long lower wick",
+    "A red candle, then a gap-up green one",
     "A small candle inside the prior range"
    ],
    "kind": "mcq",
@@ -15388,8 +15388,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The prior close, reclaimed intraday",
     "A gap up off a red day",
+    "The prior close, reclaimed intraday",
     "A close back over a 4-day high average",
     "A close out of a tight MA cluster"
    ],
@@ -15461,10 +15461,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A close out of a tight MA cluster",
     "A close back over a 4-day high average",
+    "A weak open that buyers turn up",
     "A pullback that holds an old gap",
-    "A weak open that buyers turn up"
+    "A close out of a tight MA cluster"
    ],
    "kind": "mcq",
    "q": "What is a Launchpad in our setup list?",
@@ -15534,10 +15534,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Buying a pullback that holds a gap",
     "Shorting a gap down off the highs",
     "Buying the open of any gap up",
-    "Waiting for a gap to fill, then buying"
+    "Waiting for a gap to fill, then buying",
+    "Buying a pullback that holds a gap"
    ],
    "kind": "mcq",
    "q": "What is Gap Support in our setup list?",
@@ -15614,10 +15614,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The close of a high-volume day",
-    "The highest price of the day",
     "A high-volume gap at the open",
-    "Volume above its 50-day average"
+    "The close of a high-volume day",
+    "Volume above its 50-day average",
+    "The highest price of the day"
    ],
    "kind": "mcq",
    "q": "In our setup list, what does HVC mean?",
@@ -15674,9 +15674,9 @@
   "prompt_json": {
    "choices": [
     "Weak open sweeps support, then turns up",
-    "A gap up off a red day",
     "A pullback that holds an old gap",
-    "A close out of a tight MA cluster"
+    "A close out of a tight MA cluster",
+    "A gap up off a red day"
    ],
    "kind": "mcq",
    "q": "What is our Go Signal?",
@@ -15746,10 +15746,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Slingshot",
-    "Launchpad",
+    "Go Signal",
     "Oops Reversal",
-    "Go Signal"
+    "Slingshot",
+    "Launchpad"
    ],
    "kind": "mcq",
    "q": "Which of our setups enters on the close back over the 4-day average of the highs?",
@@ -15976,9 +15976,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Raising your stop",
     "Taking some shares off",
     "Selling the whole position",
-    "Raising your stop",
     "Cutting size before you buy"
    ],
    "kind": "mcq",
@@ -16042,9 +16042,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Gaps & Catalysts",
     "Reversals & Reclaims",
     "Bases & Breakouts",
+    "Gaps & Catalysts",
     "Intraday"
    ],
    "kind": "mcq",
@@ -16129,10 +16129,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Reversals & Reclaims",
-    "Momentum & Trend",
+    "Intraday",
     "Gaps & Catalysts",
-    "Intraday"
+    "Momentum & Trend",
+    "Reversals & Reclaims"
    ],
    "kind": "mcq",
    "q": "The Oops Reversal and the Slingshot share one family in our catalog. Which?",
@@ -16453,9 +16453,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Red to green",
     "Green to red",
-    "Bear gap"
+    "Bear gap",
+    "Red to green"
    ],
    "kind": "mcq",
    "q": "A stock opens under yesterday's close, then trades back above it. What's that move called?",
@@ -16518,8 +16518,8 @@
   "prompt_json": {
    "choices": [
     "Moving the stop up behind the price",
-    "Taking some shares off",
     "Adding shares as it rises",
+    "Taking some shares off",
     "Lowering the stop for more room"
    ],
    "kind": "mcq",
@@ -16598,9 +16598,9 @@
   "prompt_json": {
    "choices": [
     "A break of day one's 30-minute range",
+    "A pullback that holds the gap",
     "A close over the 4-day average of highs",
-    "The prior close, reclaimed intraday",
-    "A pullback that holds the gap"
+    "The prior close, reclaimed intraday"
    ],
    "kind": "mcq",
    "q": "Our Kicker has two entries. Besides the break over the red day's high, what is the other?",
@@ -16906,10 +16906,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Launchpad and High Volume Edge",
     "Go Signal and ORB",
     "Kicker and Gap Support",
-    "Oops Reversal and Slingshot",
-    "Launchpad and High Volume Edge"
+    "Oops Reversal and Slingshot"
    ],
    "kind": "mcq",
    "q": "Which pair of our setups both sit in the Intraday family?",
@@ -17014,10 +17014,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Kicker",
-    "Oops Reversal",
+    "Slingshot",
     "Gap Support",
-    "Slingshot"
+    "Kicker",
+    "Oops Reversal"
    ],
    "kind": "mcq",
    "q": "Which of our setups is this?",
@@ -17095,10 +17095,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Oops Reversal",
-    "Kicker",
+    "Launchpad",
     "Bear gap",
-    "Launchpad"
+    "Kicker",
+    "Oops Reversal"
    ],
    "kind": "mcq",
    "q": "Which of our setups fits?",
@@ -17248,9 +17248,9 @@
   "prompt_json": {
    "choices": [
     "Launchpad",
-    "Slingshot",
     "Gap Support",
-    "High Volume Edge"
+    "High Volume Edge",
+    "Slingshot"
    ],
    "kind": "mcq",
    "q": "Which of our setups is this?",
@@ -17328,10 +17328,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Just under $33",
-    "Just under $31",
     "Back under the Kicker's low",
-    "At today's close"
+    "Just under $31",
+    "At today's close",
+    "Just under $33"
    ],
    "kind": "mcq",
    "q": "Trailing under each higher low, where does the stop go now?",
@@ -17395,8 +17395,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A lower wick of 40% of the range",
     "An upper wick of 40% of the range",
+    "A lower wick of 40% of the range",
     "A gap up over the prior high",
     "Volume at twice its average"
    ],
@@ -17513,8 +17513,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "$49.60, today's low",
     "$50.00, the gap top",
+    "$49.60, today's low",
     "3.5% under your entry"
    ],
    "kind": "mcq",
@@ -17638,10 +17638,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "$51.40, the day before's low",
+    "Under the 50-day average",
     "$52.10, the trigger day's low",
-    "Under the 4-day average of the highs",
-    "Under the 50-day average"
+    "$51.40, the day before's low",
+    "Under the 4-day average of the highs"
    ],
    "kind": "mcq",
    "q": "You want more room than our standard stop. Which stop does the plan allow?",
@@ -17700,8 +17700,8 @@
    "choices": [
     "The cleanest decision point",
     "A failed setup: sell now",
-    "The 3R target",
-    "A new Kicker"
+    "A new Kicker",
+    "The 3R target"
    ],
    "kind": "mcq",
    "q": "In our High Volume Edge plan, what is this spot?",
@@ -17772,10 +17772,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The first place to take some off",
-    "Where to move the stop",
     "Where to add more shares",
-    "Sell everything there"
+    "Where to move the stop",
+    "Sell everything there",
+    "The first place to take some off"
    ],
    "kind": "mcq",
    "q": "What does our plan say about $90?",
@@ -17839,10 +17839,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "A cent over yesterday's high",
     "$40.00, the prior close",
-    "$39.10, today's open",
     "Today's close, wherever it ends",
-    "A cent over yesterday's high"
+    "$39.10, today's open"
    ],
    "kind": "mcq",
    "q": "Where is our Go Signal entry?",
@@ -17978,8 +17978,8 @@
   "prompt_json": {
    "choices": [
     "At 3R: the first trim",
-    "At 5R: the second trim",
-    "At 9R: nine dollars up"
+    "At 9R: nine dollars up",
+    "At 5R: the second trim"
    ],
    "kind": "mcq",
    "q": "Counting in R, where is it on our plan?",
@@ -18066,8 +18066,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Big volume usually means institutions",
     "Heavy volume usually marks a top",
+    "Big volume usually means institutions",
     "Volume shows the next day's direction"
    ],
    "kind": "mcq",
@@ -18207,9 +18207,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "No: it closed 30% up its range",
     "Yes: weak open, then a sweep",
-    "Yes: the 20-day is rising"
+    "Yes: the 20-day is rising",
+    "No: it closed 30% up its range"
    ],
    "kind": "mcq",
    "q": "Is this a Go Signal day?",
@@ -18290,8 +18290,8 @@
   "prompt_json": {
    "choices": [
     "Stock B",
-    "Stock A",
-    "Stock C"
+    "Stock C",
+    "Stock A"
    ],
    "kind": "mcq",
    "q": "Which one fits our Go Signal?",
@@ -18368,10 +18368,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Skip it: no red to green",
     "The close, $24.90",
     "Yesterday's close, $25.00",
-    "Today's weak open",
-    "Skip it: no red to green"
+    "Today's weak open"
    ],
    "kind": "mcq",
    "q": "Where is our entry?",
@@ -18421,8 +18421,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The honest stop is far too wide",
     "Gap downs fill, so it will bounce",
+    "The honest stop is far too wide",
     "It closed at the low, so it's done"
    ],
    "kind": "mcq",
@@ -18479,9 +18479,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Close to a coin flip",
+    "It almost never reverses",
     "A reversal almost every time",
-    "It almost never reverses"
+    "Close to a coin flip"
    ],
    "kind": "mcq",
    "q": "In Bulkowski's tests, how often did the bullish kicking candle reverse the trend?",
@@ -18543,9 +18543,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Tighten it to just under the gap top",
+    "Leave it and wait for 3R",
     "Widen it to give the trade room",
-    "Leave it and wait for 3R"
+    "Tighten it to just under the gap top"
    ],
    "kind": "mcq",
    "q": "What does our plan do with the stop?",
@@ -18608,10 +18608,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Gap Support",
-    "Kicker",
+    "Bear gap",
     "Oops Reversal",
-    "Bear gap"
+    "Kicker",
+    "Gap Support"
    ],
    "kind": "mcq",
    "q": "Which of our setups is this?",
@@ -18689,10 +18689,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Entry $72, stop $68",
-    "Entry next day's open, stop $68",
     "Entry over the day's high, stop $68",
-    "Entry $72, stop 3.5% under"
+    "Entry $72, stop 3.5% under",
+    "Entry $72, stop $68",
+    "Entry next day's open, stop $68"
    ],
    "kind": "mcq",
    "q": "Where are our High Volume Edge entry and stop?",
@@ -18881,9 +18881,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Yesterday's close",
     "The 5-bar low",
-    "The 200-day average",
-    "Yesterday's close"
+    "The 200-day average"
    ],
    "kind": "mcq",
    "q": "On a Go Signal day, the low sweeps support. Which of these levels counts?",
@@ -19010,8 +19010,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "It broke the line it had to stay under",
     "The Bear gap is still on track",
+    "It broke the line it had to stay under",
     "It's a new Bear gap"
    ],
    "kind": "mcq",
@@ -19062,8 +19062,8 @@
   "prompt_json": {
    "choices": [
     "No: it never reclaimed $50.00",
-    "Yes: it bounced off the low",
-    "Yes: it closed in the upper half"
+    "Yes: it closed in the upper half",
+    "Yes: it bounced off the low"
    ],
    "kind": "mcq",
    "q": "Did our Oops Reversal trigger?",
@@ -19371,10 +19371,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Your planned loss, entry to stop",
     "The money you put into the trade",
+    "The gain you expect at your target",
     "The stock's average daily range",
-    "The gain you expect at your target"
+    "Your planned loss, entry to stop"
    ],
    "kind": "mcq",
    "q": "What does R mean on a trade?",
@@ -19588,10 +19588,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "$300",
     "$1.50",
-    "$6,000",
-    "$5,700"
+    "$300",
+    "$5,700",
+    "$6,000"
    ],
    "kind": "mcq",
    "q": "What is your total risk on the position?",
@@ -19723,9 +19723,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A trade's result counted in R",
-    "Your stop distance in ATRs",
     "Winning trades divided by losers",
+    "Your stop distance in ATRs",
+    "A trade's result counted in R",
     "Your share count times R"
    ],
    "kind": "mcq",
@@ -19860,9 +19860,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "-15R",
     "-3R",
     "-1R",
-    "-15R",
     "-0.33R"
    ],
    "kind": "mcq",
@@ -19943,9 +19943,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "At 3R and 5R",
+    "At 10% and 20% gains",
     "At 1R and 2R",
-    "At 10% and 20% gains"
+    "At 3R and 5R"
    ],
    "kind": "mcq",
    "q": "Our plan sells in thirds. Where do the two trims sit?",
@@ -20001,9 +20001,9 @@
   "prompt_json": {
    "choices": [
     "Your average result per trade",
-    "The share of trades that win",
     "Your biggest win so far",
-    "What you hope this trade makes"
+    "What you hope this trade makes",
+    "The share of trades that win"
    ],
    "kind": "mcq",
    "q": "What does expectancy mean for a trading method?",
@@ -20265,9 +20265,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "B, because it wins more",
     "A, at +0.5R a trade",
     "B, at +0.35R a trade",
-    "B, because it wins more",
     "A, at +1.2R a trade"
    ],
    "kind": "mcq",
@@ -20348,10 +20348,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Win rate",
     "Expectancy",
-    "R-multiple",
-    "Risk/reward ratio"
+    "Win rate",
+    "Risk/reward ratio",
+    "R-multiple"
    ],
    "kind": "mcq",
    "q": "Which term means the share of your closed trades that made money?",
@@ -20407,9 +20407,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "A $500 profit",
     "A $401 profit",
-    "A $99 loss",
-    "A $500 profit"
+    "A $99 loss"
    ],
    "kind": "mcq",
    "q": "Your win rate is 1%. What is the net result?",
@@ -20475,10 +20475,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Loss at the stop vs gain at target",
-    "Your winning trades vs your losers",
+    "Today's range vs the average range",
     "Your risk vs your account size",
-    "Today's range vs the average range"
+    "Loss at the stop vs gain at target",
+    "Your winning trades vs your losers"
    ],
    "kind": "mcq",
    "q": "What does a trade's risk/reward ratio compare?",
@@ -20606,10 +20606,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "More chance the stop gets hit",
-    "Nothing, the trade got safer",
     "Some of your upside to $30",
-    "Protection against a gap"
+    "Nothing, the trade got safer",
+    "Protection against a gap",
+    "More chance the stop gets hit"
    ],
    "kind": "mcq",
    "q": "What did the tighter stop cost you?",
@@ -20681,8 +20681,8 @@
   "prompt_json": {
    "choices": [
     "How many shares to buy",
-    "Where to put your stop",
     "Which stock to buy",
+    "Where to put your stop",
     "When to take profits"
    ],
    "kind": "mcq",
@@ -20819,9 +20819,9 @@
   "prompt_json": {
    "choices": [
     "Your risk per trade to 2% of capital",
+    "Your losses in a month to 2%",
     "Each position to 2% of the account",
-    "Your stop to 2% under your entry",
-    "Your losses in a month to 2%"
+    "Your stop to 2% under your entry"
    ],
    "kind": "mcq",
    "q": "What does the 2% rule limit?",
@@ -20891,10 +20891,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Price opens past your stop",
-    "Your stop sits too far away",
     "The stock drifts sideways",
-    "Your order fills in parts"
+    "Your order fills in parts",
+    "Your stop sits too far away",
+    "Price opens past your stop"
    ],
    "kind": "mcq",
    "q": "What is gap risk for a position with a stop?",
@@ -21054,10 +21054,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Nothing, the stop covers it",
     "Halve the size before the report",
-    "Move the stop to $1 under",
     "Switch to a stop-limit order",
-    "Nothing, the stop covers it"
+    "Move the stop to $1 under"
    ],
    "kind": "mcq",
    "q": "What limits the damage from a gap?",
@@ -21128,10 +21128,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Sets your planned exit if wrong",
-    "Locks in your exit price",
+    "Sets how many shares to buy",
     "Picks your profit target",
-    "Sets how many shares to buy"
+    "Sets your planned exit if wrong",
+    "Locks in your exit price"
    ],
    "kind": "mcq",
    "q": "What job does the stop-loss do in your plan?",
@@ -21312,10 +21312,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A drop from a peak to a low",
-    "A loss below what you paid",
+    "The day's high-to-low range",
     "Money taken out of an account",
-    "The day's high-to-low range"
+    "A loss below what you paid",
+    "A drop from a peak to a low"
    ],
    "kind": "mcq",
    "q": "What is a drawdown?",
@@ -21392,9 +21392,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A 20% drawdown, but still a profit",
     "A 20% loss on the trade",
     "No drawdown, you're still up",
+    "A 20% drawdown, but still a profit",
     "A 12% drawdown"
    ],
    "kind": "mcq",
@@ -21713,10 +21713,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "You're done for the day",
-    "Take it at half size",
     "Take it to win the loss back",
-    "Raise today's limit to $2,000"
+    "You're done for the day",
+    "Raise today's limit to $2,000",
+    "Take it at half size"
    ],
    "kind": "mcq",
    "q": "What do you do?",
@@ -21788,9 +21788,9 @@
   "prompt_json": {
    "choices": [
     "The biggest peak-to-low drop",
-    "Your largest loss on one trade",
+    "The average of all your drawdowns",
     "The widest stop you've used",
-    "The average of all your drawdowns"
+    "Your largest loss on one trade"
    ],
    "kind": "mcq",
    "q": "What is maximum drawdown?",
@@ -21853,10 +21853,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "30%",
+    "9%",
     "20%",
     "24.2%",
-    "9%"
+    "30%"
    ],
    "kind": "mcq",
    "q": "What was your maximum drawdown?",
@@ -21929,8 +21929,8 @@
   "prompt_json": {
    "choices": [
     "Odds of losing too much to recover",
-    "Odds that the next trade loses",
     "Your largest drawdown so far",
+    "Odds that the next trade loses",
     "How far price can gap at the open"
    ],
    "kind": "mcq",
@@ -22046,8 +22046,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The one risking 25%",
     "Neither, the edge protects both",
+    "The one risking 25%",
     "The one risking 1%"
    ],
    "kind": "mcq",
@@ -22118,10 +22118,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Total open risk across your trades",
-    "How fast your best stock is rising",
     "Your single largest position",
-    "Your account's drawdown this month"
+    "Total open risk across your trades",
+    "Your account's drawdown this month",
+    "How fast your best stock is rising"
    ],
    "kind": "mcq",
    "q": "What is portfolio heat?",
@@ -22255,10 +22255,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Bigger losses from too much in one area",
+    "Risk of a gap past your stop",
     "Risk from owning too many stocks",
     "Risk that your stop fills late",
-    "Risk of a gap past your stop"
+    "Bigger losses from too much in one area"
    ],
    "kind": "mcq",
    "q": "What is concentration risk?",
@@ -22314,9 +22314,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Close to one 5% bet",
-    "Five separate 1% bets",
     "Just 1%, the worst single stop",
+    "Five separate 1% bets",
+    "Close to one 5% bet",
     "Zero, they're diversified"
    ],
    "kind": "mcq",
@@ -22434,9 +22434,9 @@
   "prompt_json": {
    "choices": [
     "Current price to stop, all positions",
+    "Profit you have not yet sold",
     "Entry to stop on your newest trade",
-    "Money spent on your open positions",
-    "Profit you have not yet sold"
+    "Money spent on your open positions"
    ],
    "kind": "mcq",
    "q": "In Tharp's terms, what is open risk?",
@@ -22571,10 +22571,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A stop moved up to your entry price",
     "A stop that trails the day's high",
-    "A stop at the day's low",
-    "A target set at 1R of profit"
+    "A target set at 1R of profit",
+    "A stop moved up to your entry price",
+    "A stop at the day's low"
    ],
    "kind": "mcq",
    "q": "What is a breakeven stop?",
@@ -22703,10 +22703,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "It made the stop a limit order",
     "Normal pullbacks can shake you out",
     "None, it was free protection",
-    "It capped your upside at entry",
-    "It made the stop a limit order"
+    "It capped your upside at entry"
    ],
    "kind": "mcq",
    "q": "What cost did the breakeven stop carry?",
@@ -22784,10 +22784,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Trailing stop",
-    "Breakeven stop",
     "Initial stop",
-    "Stop-limit order"
+    "Stop-limit order",
+    "Breakeven stop",
+    "Trailing stop"
    ],
    "kind": "mcq",
    "q": "Which stop rises as the price rises but never moves down?",
@@ -22928,9 +22928,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "$15 a share, half the gain",
     "$30 a share, the whole gain",
-    "Nothing, you're back at entry"
+    "Nothing, you're back at entry",
+    "$15 a share, half the gain"
    ],
    "kind": "mcq",
    "q": "What does the stop lock in if it fills at $45?",
@@ -23068,10 +23068,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "How much a stock typically moves",
-    "Which way the trend is heading",
     "Average volume over 14 days",
-    "Your average loss per trade"
+    "Your average loss per trade",
+    "Which way the trend is heading",
+    "How much a stock typically moves"
    ],
    "kind": "mcq",
    "q": "What does ATR measure?",
@@ -23274,10 +23274,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A quarter ATR under the lower average",
-    "Exactly on the 50-day average",
     "Three ATRs under the 22-day high",
-    "A flat 10% under your entry"
+    "A flat 10% under your entry",
+    "A quarter ATR under the lower average",
+    "Exactly on the 50-day average"
    ],
    "kind": "mcq",
    "q": "Where does our Launchpad stop sit?",
@@ -23333,9 +23333,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "$4.00",
     "$1.50",
     "$2.50",
+    "$4.00",
     "$54.00"
    ],
    "kind": "mcq",
@@ -23553,8 +23553,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A higher ATR multiplier",
     "A lower ATR multiplier",
+    "A higher ATR multiplier",
     "A flat 2% stop instead",
     "No stop at all"
    ],
@@ -23627,10 +23627,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Smaller size for jumpier stocks",
+    "Size set by your win rate",
     "Bigger size for jumpier stocks",
-    "Same share count on every trade",
-    "Size set by your win rate"
+    "Smaller size for jumpier stocks",
+    "Same share count on every trade"
    ],
    "kind": "mcq",
    "q": "What does volatility-based position sizing do?",
@@ -23931,10 +23931,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Trade now at the best price available",
-    "Trade only at my price or better",
     "Trade once price hits a trigger",
-    "Trade at today's closing price"
+    "Trade now at the best price available",
+    "Trade at today's closing price",
+    "Trade only at my price or better"
    ],
    "kind": "mcq",
    "q": "What does a market order tell your broker?",
@@ -24193,9 +24193,9 @@
   "prompt_json": {
    "choices": [
     "The worst price you'll accept",
+    "The last trade before you sent it",
     "The price that triggers the order",
-    "The price you're sure to get",
-    "The last trade before you sent it"
+    "The price you're sure to get"
    ],
    "kind": "mcq",
    "q": "On a limit order, what is the limit price?",
@@ -24265,8 +24265,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Marketable: it can fill right away",
     "Non-marketable: it waits for a seller",
+    "Marketable: it can fill right away",
     "A stop-limit waiting on a trigger"
    ],
    "kind": "mcq",
@@ -24330,10 +24330,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Becomes a market order at a set price",
-    "Fills only at your price or better",
+    "Sells exactly at the stop price",
     "Cancels unless filled right away",
-    "Sells exactly at the stop price"
+    "Becomes a market order at a set price",
+    "Fills only at your price or better"
    ],
    "kind": "mcq",
    "q": "What does a stop order do?",
@@ -24459,10 +24459,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The price that sets the order off",
     "The price your shares will sell at",
     "The worst price you'll accept",
-    "Your average cost on the trade"
+    "Your average cost on the trade",
+    "The price that sets the order off"
    ],
    "kind": "mcq",
    "q": "On a stop order, what is the stop price?",
@@ -24605,10 +24605,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Sell limit",
     "Buy stop",
-    "Buy limit",
     "Sell stop",
-    "Sell limit"
+    "Buy limit"
    ],
    "kind": "mcq",
    "q": "Which order sits above the current price and buys at market once price rises to it?",
@@ -24700,8 +24700,8 @@
   "prompt_json": {
    "choices": [
     "A buy stop at $32",
-    "A sell stop at $32",
-    "A buy limit at $32"
+    "A buy limit at $32",
+    "A sell stop at $32"
    ],
    "kind": "mcq",
    "q": "Which order does that?",
@@ -24778,9 +24778,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The stop sold them on the dip",
+    "They sold at the $47 close",
     "Nothing, stops only count at the close",
-    "They sold at the $47 close"
+    "The stop sold them on the dip"
    ],
    "kind": "mcq",
    "q": "What happened to your shares?",
@@ -24850,10 +24850,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A stop that becomes a limit order",
+    "A stop that fills all or none",
     "A limit order with no time limit",
     "A stop that follows price up",
-    "A stop that fills all or none"
+    "A stop that becomes a limit order"
    ],
    "kind": "mcq",
    "q": "What is a stop-limit order?",
@@ -24930,9 +24930,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Sell stop-limit: stop $40, limit $39.50",
-    "Sell stop at $40",
     "Sell limit at $39.50",
+    "Sell stop at $40",
+    "Sell stop-limit: stop $40, limit $39.50",
     "Sell trailing stop, $0.50 trail"
    ],
    "kind": "mcq",
@@ -25092,9 +25092,9 @@
   "prompt_json": {
    "choices": [
     "A stop that follows price by a set gap",
+    "A stop that turns into a limit order",
     "A stop parked at your entry price",
-    "A stop that only counts at the close",
-    "A stop that turns into a limit order"
+    "A stop that only counts at the close"
    ],
    "kind": "mcq",
    "q": "What is a trailing stop?",
@@ -25301,8 +25301,8 @@
   "prompt_json": {
    "choices": [
     "Normal swings will stop you out",
-    "It will never trigger on a drop",
     "It turns into a limit order",
+    "It will never trigger on a drop",
     "It moves down on red days"
    ],
    "kind": "mcq",
@@ -25374,8 +25374,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "At $34",
     "At $43",
+    "At $34",
     "At $37"
    ],
    "kind": "mcq",
@@ -25448,10 +25448,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "An entry with a stop and target attached",
+    "An order to buy within a price range",
     "Two orders where one cancels the other",
     "A stop that follows the price up",
-    "An order to buy within a price range"
+    "An entry with a stop and target attached"
    ],
    "kind": "mcq",
    "q": "What is a bracket order?",
@@ -25535,9 +25535,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Bracket order",
     "Trailing stop",
     "Stop-limit order",
+    "Bracket order",
     "Fill-or-kill"
    ],
    "kind": "mcq",
@@ -25630,10 +25630,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Cancels if not filled right away",
     "Two orders: one fills, other cancels",
-    "One order: all of it or none",
     "One order fills, then triggers a second",
-    "Cancels if not filled right away"
+    "One order: all of it or none"
    ],
    "kind": "mcq",
    "q": "What does an OCO order do?",
@@ -25787,9 +25787,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "OCO: buy limit $20, buy stop $22.50",
-    "Buy limit $20 and buy stop $22.50",
     "A bracket order on the $20 buy",
+    "Buy limit $20 and buy stop $22.50",
+    "OCO: buy limit $20, buy stop $22.50",
     "One buy stop-limit, $20 to $22.50"
    ],
    "kind": "mcq",
@@ -25882,10 +25882,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "When the trade settles",
     "How long the order stays live",
     "The price that triggers it",
-    "How many shares can fill",
-    "When the trade settles"
+    "How many shares can fill"
    ],
    "kind": "mcq",
    "q": "On an order ticket, what does the time in force set?",
@@ -26022,8 +26022,8 @@
   "prompt_json": {
    "choices": [
     "Nothing, it expired at the close",
-    "It fills after hours near $29.80",
-    "It waits for tomorrow's open"
+    "It waits for tomorrow's open",
+    "It fills after hours near $29.80"
    ],
    "kind": "mcq",
    "q": "What happens to your order?",
@@ -26080,9 +26080,9 @@
   "prompt_json": {
    "choices": [
     "Live until it fills or you cancel",
-    "Live only for today's session",
+    "Live for this week only",
     "Fill now or cancel at once",
-    "Live for this week only"
+    "Live only for today's session"
    ],
    "kind": "mcq",
    "q": "What does good 'til canceled (GTC) mean on an order?",
@@ -26302,10 +26302,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Fill-or-kill (FOK)",
-    "Immediate-or-cancel (IOC)",
     "All-or-none (AON)",
-    "Good 'til canceled (GTC)"
+    "Good 'til canceled (GTC)",
+    "Immediate-or-cancel (IOC)",
+    "Fill-or-kill (FOK)"
    ],
    "kind": "mcq",
    "q": "Which instruction fits?",
@@ -26390,10 +26390,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A cancels; B waits for all 1,000",
     "Both buy 400 and cancel the rest",
-    "A buys 400; B cancels",
-    "Both wait for all 1,000"
+    "A cancels; B waits for all 1,000",
+    "Both wait for all 1,000",
+    "A buys 400; B cancels"
    ],
    "kind": "mcq",
    "q": "What happens to each?",
@@ -26527,9 +26527,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "An executed order, or its price",
-    "An order still waiting to trade",
     "Shares left after a cancel",
+    "An order still waiting to trade",
+    "An executed order, or its price",
     "The total shares traded today"
    ],
    "kind": "mcq",
@@ -26632,9 +26632,9 @@
   "prompt_json": {
    "choices": [
     "Only part of your order executed",
-    "Your order filled at a worse price",
+    "Your order filled after the close",
     "Your broker refused the order",
-    "Your order filled after the close"
+    "Your order filled at a worse price"
    ],
    "kind": "mcq",
    "q": "What is a partial fill?",
@@ -26718,10 +26718,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Partial fill",
     "Slippage",
     "Rejected order",
-    "Fill-or-kill"
+    "Fill-or-kill",
+    "Partial fill"
    ],
    "kind": "mcq",
    "q": "Which word names what happened?",
@@ -26799,10 +26799,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "You own 600; 1,400 are still working",
+    "Nothing counts until all 2,000 fill",
     "The order is done; 1,400 were canceled",
     "You own 2,000 at an average price",
-    "Nothing counts until all 2,000 fill"
+    "You own 600; 1,400 are still working"
    ],
    "kind": "mcq",
    "q": "Where do you stand?",
@@ -27091,10 +27091,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A thinly traded stock on big news",
     "A heavily traded stock on big news",
-    "A thinly traded stock on a quiet day",
-    "A heavily traded stock on a quiet day"
+    "A heavily traded stock on a quiet day",
+    "A thinly traded stock on big news",
+    "A thinly traded stock on a quiet day"
    ],
    "kind": "mcq",
    "q": "Where is slippage on your stop most likely to be worst?",
@@ -27165,10 +27165,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Selling part of a winning position",
     "Selling borrowed shares, rebuy later",
-    "Selling shares the day you buy them",
     "Selling at a loss to cut risk",
-    "Selling part of a winning position"
+    "Selling shares the day you buy them"
    ],
    "kind": "mcq",
    "q": "What is a short sale?",
@@ -27245,10 +27245,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Locate",
+    "Buy to cover",
     "Margin call",
     "Short interest",
-    "Buy to cover"
+    "Locate"
    ],
    "kind": "mcq",
    "q": "Before a short sale, the broker must have reasonable grounds the shares can be borrowed. What's that called?",
@@ -27481,9 +27481,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "It can't trade until the open",
     "Few shares to lend; fees can be high",
     "Shorting it is banned by law",
-    "It can't trade until the open",
     "It's too expensive to buy"
    ],
    "kind": "mcq",
@@ -27554,10 +27554,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Hard to borrow",
-    "Partial fill",
+    "Day order",
     "Slippage",
-    "Day order"
+    "Hard to borrow",
+    "Partial fill"
    ],
    "kind": "mcq",
    "q": "Which word most likely explains it?",
@@ -27708,9 +27708,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Buy to cover",
     "Sell",
-    "Sell short"
+    "Sell short",
+    "Buy to cover"
    ],
    "kind": "mcq",
    "q": "You're short 200 shares. Which order action closes the position?",
@@ -27909,8 +27909,8 @@
    "choices": [
     "Shorts rushing to cover lift the price",
     "Sellers dumping shares sink the price",
-    "A stock stuck in a tight range",
-    "A broker forcing longs to sell"
+    "A broker forcing longs to sell",
+    "A stock stuck in a tight range"
    ],
    "kind": "mcq",
    "q": "What is a short squeeze?",
@@ -28053,9 +28053,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Short more at the higher price",
     "Let the buy stop take you out",
     "Cancel the stop and wait it out",
-    "Short more at the higher price",
     "Wait for the close to decide"
    ],
    "kind": "mcq",
@@ -28141,10 +28141,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Total open short positions in a stock",
-    "Shares sold short today",
+    "Shares the company bought back",
     "The fee to borrow a stock",
-    "Shares the company bought back"
+    "Total open short positions in a stock",
+    "Shares sold short today"
    ],
    "kind": "mcq",
    "q": "What does short interest measure?",
@@ -28214,10 +28214,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "It turns into a market order to sell",
     "Nothing, it expired today",
+    "It becomes a limit at $47.50",
     "It sells exactly at $47.50",
-    "It becomes a limit at $47.50"
+    "It turns into a market order to sell"
    ],
    "kind": "mcq",
    "q": "Next week XYZ trades down to $47.50. What happens?",
@@ -28303,9 +28303,9 @@
   "prompt_json": {
    "choices": [
     "Protecting a short from a rise",
-    "Buying a breakout above $31",
+    "Selling 100 shares at $31",
     "Covering the short right now",
-    "Selling 100 shares at $31"
+    "Buying a breakout above $31"
    ],
    "kind": "mcq",
    "q": "What is this order for?",
@@ -28687,9 +28687,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The right to buy at the strike",
     "The right to sell at the strike",
     "The duty to buy at the strike",
+    "The right to buy at the strike",
     "A share of the company's profits"
    ],
    "kind": "mcq",
@@ -28760,10 +28760,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Put",
-    "Call",
+    "Short sale",
     "Covered call",
-    "Short sale"
+    "Call",
+    "Put"
    ],
    "kind": "mcq",
    "q": "Which word is this: the right to sell 100 shares at a set price until a set date?",
@@ -28840,10 +28840,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "The option's last trade price",
     "The price you can buy or sell at",
     "The price you paid for the option",
-    "The stock's price at expiration",
-    "The option's last trade price"
+    "The stock's price at expiration"
    ],
    "kind": "mcq",
    "q": "On an option, what does the strike price mean?",
@@ -28914,9 +28914,9 @@
   "prompt_json": {
    "choices": [
     "The price of the option contract",
-    "The profit at expiration",
+    "The gap from stock to strike",
     "The fee your broker charges",
-    "The gap from stock to strike"
+    "The profit at expiration"
    ],
    "kind": "mcq",
    "q": "What does premium mean on an option?",
@@ -29073,8 +29073,8 @@
    "choices": [
     "It no longer exists",
     "It rolls to next month",
-    "It trades until exercised",
-    "It keeps its time value"
+    "It keeps its time value",
+    "It trades until exercised"
    ],
    "kind": "mcq",
    "q": "What happens to an option after its expiration date?",
@@ -29144,10 +29144,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Writer",
-    "Holder",
     "Market maker",
-    "Underlying"
+    "Writer",
+    "Underlying",
+    "Holder"
    ],
    "kind": "mcq",
    "q": "Which word is this: the seller who opened a short option and must fulfill it if assigned?",
@@ -29294,10 +29294,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The stock is above the strike",
     "The stock is below the strike",
     "The trade is showing a profit",
-    "The stock is right at the strike"
+    "The stock is right at the strike",
+    "The stock is above the strike"
    ],
    "kind": "mcq",
    "q": "What does in the money mean for a call?",
@@ -29374,9 +29374,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The in-the-money part of its price",
-    "The whole price you pay for it",
     "What the company is really worth",
+    "The whole price you pay for it",
+    "The in-the-money part of its price",
     "The value of the time left"
    ],
    "kind": "mcq",
@@ -29454,10 +29454,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Time value",
-    "Intrinsic value",
+    "Parity",
     "Theta",
-    "Parity"
+    "Intrinsic value",
+    "Time value"
    ],
    "kind": "mcq",
    "q": "Which word is this: the part of an option's price above its intrinsic value?",
@@ -29541,10 +29541,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Its move per $1 move in the stock",
-    "Its loss per day from time passing",
+    "Its move per point of volatility",
     "How fast delta itself changes",
-    "Its move per point of volatility"
+    "Its move per $1 move in the stock",
+    "Its loss per day from time passing"
    ],
    "kind": "mcq",
    "q": "What does delta tell you about an option?",
@@ -29628,10 +29628,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Theta",
-    "Delta",
     "Vega",
-    "Gamma"
+    "Theta",
+    "Gamma",
+    "Delta"
    ],
    "kind": "mcq",
    "q": "Which Greek is this: how much an option's price may lose per day, all else equal?",
@@ -29716,9 +29716,9 @@
   "prompt_json": {
    "choices": [
     "How fast delta changes",
-    "How fast time value decays",
+    "The option's move per $1",
     "Sensitivity to interest rates",
-    "The option's move per $1"
+    "How fast time value decays"
    ],
    "kind": "mcq",
    "q": "What does gamma measure?",
@@ -29802,8 +29802,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Vega",
     "Theta",
+    "Vega",
     "Rho",
     "Delta"
    ],
@@ -29955,10 +29955,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Contracts open, not yet closed out",
     "Contracts traded so far today",
-    "Shares of the stock sold short",
-    "Buy orders waiting to be filled"
+    "Buy orders waiting to be filled",
+    "Contracts open, not yet closed out",
+    "Shares of the stock sold short"
    ],
    "kind": "mcq",
    "q": "On an option chain, what does open interest count?",
@@ -30029,8 +30029,8 @@
   "prompt_json": {
    "choices": [
     "Notice a writer must now fulfill",
-    "The holder using their right",
     "Buying back a short option",
+    "The holder using their right",
     "Your broker's options approval"
    ],
    "kind": "mcq",
@@ -30122,10 +30122,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Exercise",
-    "Assignment",
     "Expiration",
-    "Rolling"
+    "Rolling",
+    "Assignment",
+    "Exercise"
    ],
    "kind": "mcq",
    "q": "Which word is this: the holder uses the option's right to buy or sell at the strike?",
@@ -30216,9 +30216,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Exercisable any day before expiry",
     "Exercisable only at expiration",
     "Listed on a US exchange",
+    "Exercisable any day before expiry",
     "Settled in cash, not shares"
    ],
    "kind": "mcq",
@@ -30310,10 +30310,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The move the option price implies",
     "How much the stock moved lately",
     "The chance the option pays off",
-    "The option's daily time decay"
+    "The option's daily time decay",
+    "The move the option price implies"
    ],
    "kind": "mcq",
    "q": "What does implied volatility mean?",
@@ -30398,9 +30398,9 @@
   "prompt_json": {
    "choices": [
     "Long put",
+    "Covered call",
     "Protective put",
-    "Naked put",
-    "Covered call"
+    "Naked put"
    ],
    "kind": "mcq",
    "q": "Which word is this: buying a put on its own to profit if the stock falls?",
@@ -30550,9 +30550,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "At the money",
     "In the money",
-    "Out of the money",
-    "At the money"
+    "Out of the money"
    ],
    "kind": "mcq",
    "q": "Which word describes your put right now?",
@@ -30975,8 +30975,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Sell to close",
     "Sell to open",
+    "Sell to close",
     "Buy to close",
     "Exercise them"
    ],
@@ -31122,8 +31122,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Cash-secured put",
     "Protective put",
+    "Cash-secured put",
     "Covered call",
     "Naked put"
    ],
@@ -31217,10 +31217,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A put bought to hedge stock you own",
+    "A put bought to bet on a drop",
     "A put sold to collect premium",
     "A call sold against your stock",
-    "A put bought to bet on a drop"
+    "A put bought to hedge stock you own"
    ],
    "kind": "mcq",
    "q": "What is a protective put?",
@@ -31333,9 +31333,9 @@
   "prompt_json": {
    "choices": [
     "Collar",
+    "Bull call spread",
     "Covered call",
-    "Long strangle",
-    "Bull call spread"
+    "Long strangle"
    ],
    "kind": "mcq",
    "q": "What is this position called?",
@@ -31434,10 +31434,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Vertical spread",
-    "Calendar spread",
     "Diagonal spread",
-    "Straddle"
+    "Straddle",
+    "Vertical spread",
+    "Calendar spread"
    ],
    "kind": "mcq",
    "q": "Which word is this: buy one option, write another of the same type and expiry, at a different strike?",
@@ -31514,10 +31514,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Long strangle",
     "Bull put spread",
     "Bear put spread",
-    "Protective put",
-    "Long strangle"
+    "Protective put"
    ],
    "kind": "mcq",
    "q": "What's the textbook name for this trade?",
@@ -31617,8 +31617,8 @@
   "prompt_json": {
    "choices": [
     "A spread that costs money to open",
-    "A spread that pays you to open",
     "A spread with two expiry dates",
+    "A spread that pays you to open",
     "A spread with unlimited risk"
    ],
    "kind": "mcq",
@@ -31703,10 +31703,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Buy a call and a put, same strike",
     "Buy a call and a put, two strikes",
     "Sell a call and a put, same strike",
-    "Buy the stock and buy a put"
+    "Buy the stock and buy a put",
+    "Buy a call and a put, same strike"
    ],
    "kind": "mcq",
    "q": "What is a long straddle?",
@@ -31797,10 +31797,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Long strangle",
     "Long straddle",
-    "Iron condor",
-    "Collar"
+    "Collar",
+    "Long strangle",
+    "Iron condor"
    ],
    "kind": "mcq",
    "q": "What is this position called?",
@@ -31878,10 +31878,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Calendar spread",
     "Diagonal spread",
-    "Vertical spread",
-    "Butterfly spread"
+    "Calendar spread",
+    "Butterfly spread",
+    "Vertical spread"
    ],
    "kind": "mcq",
    "q": "Which word is this: write a near-term option and buy a longer-term one, same type and strike?",
@@ -32019,8 +32019,8 @@
    "choices": [
     "Bear call spread plus bull put spread",
     "Bull call spread plus bull put spread",
-    "Long straddle plus long strangle",
-    "Covered call plus protective put"
+    "Covered call plus protective put",
+    "Long straddle plus long strangle"
    ],
    "kind": "mcq",
    "q": "An iron condor sold for a credit can be seen as two spreads put together. Which two?",
@@ -32111,10 +32111,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Short call and put share one strike",
-    "It is built only from calls",
     "It costs a debit to open",
-    "Its loss has no limit"
+    "It is built only from calls",
+    "Its loss has no limit",
+    "Short call and put share one strike"
    ],
    "kind": "mcq",
    "q": "What makes an iron butterfly different from an iron condor?",
@@ -32312,10 +32312,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Close it, open a new strike or date",
-    "Exercise it early for the shares",
     "Add contracts at a lower price",
-    "Let it expire, then wait"
+    "Let it expire, then wait",
+    "Close it, open a new strike or date",
+    "Exercise it early for the shares"
    ],
    "kind": "mcq",
    "q": "What does it mean to roll an option position?",
@@ -32454,10 +32454,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "List of contracts by strike and expiry",
-    "A chart of the option's past prices",
+    "The route your order takes",
     "A string of rolls on one position",
-    "The route your order takes"
+    "A chart of the option's past prices",
+    "List of contracts by strike and expiry"
    ],
    "kind": "mcq",
    "q": "What is an option chain?",
@@ -32541,10 +32541,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Stock stays below $60",
+    "Stock makes a big move either way",
     "Stock rallies above $65",
-    "Stock sits right at $65",
-    "Stock makes a big move either way"
+    "Stock stays below $60",
+    "Stock sits right at $65"
    ],
    "kind": "mcq",
    "q": "Where does this trade do best?",
@@ -32688,9 +32688,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "The strike price",
     "No limit",
     "The premium you took in",
-    "The strike price",
     "Strike minus the premium"
    ],
    "kind": "mcq",
@@ -33062,10 +33062,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "It rolls to next month",
     "It's exercised for you",
-    "It expires worthless",
     "It's sold at the close",
-    "It rolls to next month"
+    "It expires worthless"
    ],
    "kind": "mcq",
    "q": "Under OCC's standard procedure, what usually happens?",
@@ -33143,10 +33143,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Pin risk",
-    "Time decay",
     "Liquidity risk",
-    "Interest rate risk"
+    "Time decay",
+    "Interest rate risk",
+    "Pin risk"
    ],
    "kind": "mcq",
    "q": "Which risk does that leave you with over the weekend?",
@@ -33291,8 +33291,8 @@
   "prompt_json": {
    "choices": [
     "Volume 300; open interest stays 1,200",
-    "Volume 300; open interest 1,500",
     "Volume 600; open interest 1,500",
+    "Volume 300; open interest 1,500",
     "No volume; open interest 900"
    ],
    "kind": "mcq",
@@ -33381,9 +33381,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Implied volatility fell after the report",
-    "Delta flipped negative on the gap",
     "Your calls were assigned overnight",
+    "Delta flipped negative on the gap",
+    "Implied volatility fell after the report",
     "Open interest dropped overnight"
    ],
    "kind": "mcq",
@@ -33542,9 +33542,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "About a 10% chance it ends in the money",
     "It gains $10 for each $1 the stock rises",
     "It loses 10% of its value each day",
+    "About a 10% chance it ends in the money",
     "It is 10% out of the money"
    ],
    "kind": "mcq",
@@ -33623,8 +33623,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Your upside is capped at the strike",
     "Your downside risk becomes unlimited",
+    "Your upside is capped at the strike",
     "You must buy 100 more shares",
     "You lose the premium if it falls"
    ],
@@ -34091,8 +34091,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Money from sales, before costs",
     "Profit left after every cost",
+    "Money from sales, before costs",
     "Cash the company holds",
     "Profit per share"
    ],
@@ -34234,10 +34234,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Net income, after all expenses",
     "Sales before any costs",
     "Profit before interest and taxes",
-    "The stock's lowest price of the day"
+    "The stock's lowest price of the day",
+    "Net income, after all expenses"
    ],
    "kind": "mcq",
    "q": "What does the bottom line mean on an income statement?",
@@ -34495,10 +34495,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "EPS counting possible new shares",
-    "EPS with one-time items removed",
     "EPS expected for next year",
-    "EPS of the last 12 months"
+    "EPS of the last 12 months",
+    "EPS counting possible new shares",
+    "EPS with one-time items removed"
    ],
    "kind": "mcq",
    "q": "On an earnings release, what does diluted EPS mean?",
@@ -34638,10 +34638,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Gross profit as a % of revenue",
-    "Net income as a % of revenue",
+    "Revenue growth from a year ago",
     "Operating income as a % of revenue",
-    "Revenue growth from a year ago"
+    "Net income as a % of revenue",
+    "Gross profit as a % of revenue"
    ],
    "kind": "mcq",
    "q": "What does gross margin mean in an earnings release?",
@@ -34802,9 +34802,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Cost of goods sold",
     "Operating expenses",
-    "Interest expense"
+    "Interest expense",
+    "Cost of goods sold"
    ],
    "kind": "mcq",
    "q": "Which line shows the direct cost of making the products a company sold?",
@@ -34889,8 +34889,8 @@
    "choices": [
     "Operating income divided by revenue",
     "Gross profit divided by revenue",
-    "Net income divided by shares",
-    "Share price divided by EPS"
+    "Share price divided by EPS",
+    "Net income divided by shares"
    ],
    "kind": "mcq",
    "q": "What does operating margin measure?",
@@ -35044,10 +35044,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Their direct costs differ by industry",
-    "The software company is better run",
     "The grocery chain is losing money",
-    "The software stock will go up more"
+    "The software stock will go up more",
+    "Their direct costs differ by industry",
+    "The software company is better run"
    ],
    "kind": "mcq",
    "q": "What can you conclude from that gap alone?",
@@ -35125,10 +35125,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The standard US accounting rules",
-    "Management's adjusted numbers",
     "The analysts' average estimate",
-    "The company's forecast"
+    "The standard US accounting rules",
+    "The company's forecast",
+    "Management's adjusted numbers"
    ],
    "kind": "mcq",
    "q": "On an earnings release, what does GAAP mean?",
@@ -35212,10 +35212,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "GAAP results with some items adjusted",
     "Results checked by outside auditors",
+    "Results under foreign accounting rules",
     "The analysts' estimate of earnings",
-    "Results under foreign accounting rules"
+    "GAAP results with some items adjusted"
    ],
    "kind": "mcq",
    "q": "What is a non-GAAP, or adjusted, number?",
@@ -35365,10 +35365,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Non-GAAP is the audited figure",
     "Adjustments turned a loss into a profit",
     "Intel's real profit was $0.15 a share",
-    "The two numbers cover different quarters",
-    "Non-GAAP is the audited figure"
+    "The two numbers cover different quarters"
    ],
    "kind": "mcq",
    "q": "What does the gap between those two numbers tell you?",
@@ -35461,8 +35461,8 @@
   "prompt_json": {
    "choices": [
     "The average of analysts' estimates",
-    "Management's own forecast",
     "Traders' unofficial number",
+    "Management's own forecast",
     "Last year's reported EPS"
    ],
    "kind": "mcq",
@@ -35547,10 +35547,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The consensus estimate",
-    "The company's guidance",
+    "The trailing EPS",
     "The whisper number",
-    "The trailing EPS"
+    "The consensus estimate",
+    "The company's guidance"
    ],
    "kind": "mcq",
    "q": "What do you call that $0.80?",
@@ -35635,9 +35635,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "In line",
     "A beat",
-    "A miss",
-    "In line"
+    "A miss"
    ],
    "kind": "mcq",
    "q": "How does that read against the estimate?",
@@ -35757,9 +35757,9 @@
   "prompt_json": {
    "choices": [
     "Actual results vs. the consensus",
+    "A change in guidance",
     "A report on an unexpected date",
-    "Any big move after a report",
-    "A change in guidance"
+    "Any big move after a report"
    ],
    "kind": "mcq",
    "q": "What is an earnings surprise?",
@@ -35901,8 +35901,8 @@
   "prompt_json": {
    "choices": [
     "A beat: a 50% positive surprise",
-    "A miss: the company still lost money",
-    "A 50% negative surprise"
+    "A 50% negative surprise",
+    "A miss: the company still lost money"
    ],
    "kind": "mcq",
    "q": "How does that report read?",
@@ -35968,9 +35968,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Traders' unofficial expectation",
-    "Management's private forecast",
     "The lowest analyst estimate",
+    "Management's private forecast",
+    "Traders' unofficial expectation",
     "Guidance given on the call"
    ],
    "kind": "mcq",
@@ -36055,10 +36055,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "It beat consensus but missed the whisper",
-    "None, a beat always lifts the stock",
     "It missed the consensus estimate",
-    "The report was in line"
+    "The report was in line",
+    "None, a beat always lifts the stock",
+    "It beat consensus but missed the whisper"
    ],
    "kind": "mcq",
    "q": "What's the risk now?",
@@ -36143,10 +36143,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Management's forecast of future results",
     "The analysts' average estimate",
-    "The standard US accounting rules",
-    "Last quarter's reported results"
+    "Management's forecast of future results",
+    "Last quarter's reported results",
+    "The standard US accounting rules"
    ],
    "kind": "mcq",
    "q": "What is guidance?",
@@ -36230,10 +36230,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Guidance",
-    "Consensus estimate",
     "Whisper number",
-    "Trailing revenue"
+    "Guidance",
+    "Trailing revenue",
+    "Consensus estimate"
    ],
    "kind": "mcq",
    "q": "NVIDIA's release says fourth-quarter revenue is expected to be $65.0 billion, plus or minus 2%. Which word fits that line?",
@@ -36325,9 +36325,9 @@
   "prompt_json": {
    "choices": [
     "Weak guidance",
+    "An in-line quarter",
     "An EPS miss",
-    "A revenue miss",
-    "An in-line quarter"
+    "A revenue miss"
    ],
    "kind": "mcq",
    "q": "What drove the drop?",
@@ -36419,10 +36419,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The earnings call",
-    "The 10-Q filing",
     "The investor deck",
-    "The 8-K"
+    "The 8-K",
+    "The 10-Q filing",
+    "The earnings call"
    ],
    "kind": "mcq",
    "q": "After the release, management takes analysts' questions live. What is that event?",
@@ -36506,9 +36506,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "During market hours",
     "Before market open",
-    "After market close",
-    "During market hours"
+    "After market close"
    ],
    "kind": "mcq",
    "q": "On an earnings calendar, what does BMO mean?",
@@ -36640,9 +36640,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "BMO",
+    "During market hours",
     "AMC",
-    "During market hours"
+    "BMO"
    ],
    "kind": "mcq",
    "q": "Which timing label fits that report?",
@@ -36713,8 +36713,8 @@
   "prompt_json": {
    "choices": [
     "Thursday, Feb. 3, at the open",
-    "Wednesday, before the close",
-    "Only once the 10-K was filed"
+    "Only once the 10-K was filed",
+    "Wednesday, before the close"
    ],
    "kind": "mcq",
    "q": "When could the regular session first trade on the news?",
@@ -36871,10 +36871,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Vs. the same period a year earlier",
-    "Vs. the quarter just before",
     "The last 12 months added up",
-    "Vs. the analysts' estimate"
+    "Vs. the analysts' estimate",
+    "Vs. the same period a year earlier",
+    "Vs. the quarter just before"
    ],
    "kind": "mcq",
    "q": "What does YoY mean on an earnings release?",
@@ -37022,9 +37022,9 @@
   "prompt_json": {
    "choices": [
     "Q3 with Q2 of the same fiscal year",
-    "Q3 with Q3 of the year before",
+    "Q3 with the full prior year",
     "Q3 with the analysts' estimate",
-    "Q3 with the full prior year"
+    "Q3 with Q3 of the year before"
    ],
    "kind": "mcq",
    "q": "NVIDIA's table shows Q3 fiscal 2026 revenue up 22% in the Q/Q column. What does Q/Q compare?",
@@ -37101,8 +37101,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The 8% year-over-year gain",
     "The 30% drop from last quarter",
+    "The 8% year-over-year gain",
     "Neither, revenue says nothing"
    ],
    "kind": "mcq",
@@ -37173,10 +37173,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The last 12 months of results",
-    "The next 12 months, estimated",
     "The last fiscal year only",
-    "This quarter, annualized"
+    "This quarter, annualized",
+    "The last 12 months of results",
+    "The next 12 months, estimated"
    ],
    "kind": "mcq",
    "q": "On a stock's stats page, what does TTM mean?",
@@ -37246,9 +37246,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Its fiscal year isn't the calendar year",
     "The quarter's results were estimated",
-    "Fiscal 2026 means next year's forecast"
+    "Fiscal 2026 means next year's forecast",
+    "Its fiscal year isn't the calendar year"
    ],
    "kind": "mcq",
    "q": "Why does a quarter that ended in 2025 carry a 2026 label?",
@@ -37325,10 +37325,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Share price divided by EPS",
-    "EPS divided by share price",
     "Market cap divided by revenue",
-    "Net income divided by revenue"
+    "Net income divided by revenue",
+    "EPS divided by share price",
+    "Share price divided by EPS"
    ],
    "kind": "mcq",
    "q": "What does the P/E ratio measure?",
@@ -37530,10 +37530,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Price over next-12-month estimated EPS",
     "Price over the last 12 months of EPS",
-    "Next year's expected share price",
-    "P/E divided by the growth rate"
+    "Price over next-12-month estimated EPS",
+    "P/E divided by the growth rate",
+    "Next year's expected share price"
    ],
    "kind": "mcq",
    "q": "What does forward P/E mean?",
@@ -37604,9 +37604,9 @@
   "prompt_json": {
    "choices": [
     "Analysts expect EPS to rise",
-    "Analysts expect EPS to fall",
+    "Nothing, both use the same EPS",
     "The stock is 20% overvalued",
-    "Nothing, both use the same EPS"
+    "Analysts expect EPS to fall"
    ],
    "kind": "mcq",
    "q": "What does that gap tell you about earnings?",
@@ -37684,10 +37684,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Shares free for the public to trade",
     "Share price times shares outstanding",
-    "A year's total revenue",
     "The cash the company holds",
-    "Shares free for the public to trade"
+    "A year's total revenue"
    ],
    "kind": "mcq",
    "q": "What is market cap?",
@@ -37836,10 +37836,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Shares free for the public to trade",
+    "Shares the company bought back",
     "All shares, insiders' included",
     "Shares sold short right now",
-    "Shares the company bought back"
+    "Shares free for the public to trade"
    ],
    "kind": "mcq",
    "q": "What does float mean for a stock?",
@@ -38045,10 +38045,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The move options are pricing in",
+    "A guaranteed post-report range",
     "The analysts' price target",
-    "The stock's average past reaction",
-    "A guaranteed post-report range"
+    "The move options are pricing in",
+    "The stock's average past reaction"
    ],
    "kind": "mcq",
    "q": "Before a report, what is a stock's implied move?",
@@ -38247,9 +38247,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A gap that skips past your stop",
+    "A move up, since options lean bullish",
     "A fill at exactly $95, whatever happens",
-    "A move up, since options lean bullish"
+    "A gap that skips past your stop"
    ],
    "kind": "mcq",
    "q": "What should you plan for?",
@@ -38392,9 +38392,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Form 10-K",
     "Form 8-K",
-    "Form 10-Q",
-    "Form 10-K"
+    "Form 10-Q"
    ],
    "kind": "mcq",
    "q": "Which SEC form must carry the text of that release?",
@@ -38775,10 +38775,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Federal funds rate",
     "SOFR",
-    "3-month Treasury bill yield",
-    "Interest on reserve balances"
+    "Federal funds rate",
+    "Interest on reserve balances",
+    "3-month Treasury bill yield"
    ],
    "kind": "mcq",
    "q": "Which rate is this: what banks charge each other to lend reserves overnight?",
@@ -38876,10 +38876,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Maximum employment and stable prices",
     "Stable prices and a strong dollar",
-    "Low rates and rising stock prices",
-    "Price stability, nothing else"
+    "Price stability, nothing else",
+    "Maximum employment and stable prices",
+    "Low rates and rising stock prices"
    ],
    "kind": "mcq",
    "q": "People call the Fed's job a dual mandate. Which two goals does that mean?",
@@ -38956,10 +38956,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Favors tighter policy to curb inflation",
     "Favors easier policy to support jobs",
+    "Expects the stock market to fall",
     "Wants the Fed to buy more bonds",
-    "Expects the stock market to fall"
+    "Favors tighter policy to curb inflation"
    ],
    "kind": "mcq",
    "q": "On the Fed, what does it mean to call an official a hawk?",
@@ -39036,9 +39036,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "CPI",
     "PPI",
-    "PCE price index"
+    "PCE price index",
+    "CPI"
    ],
    "kind": "mcq",
    "q": "Which gauge is this: BLS's monthly measure of the prices consumers pay for a basket of goods and services?",
@@ -39108,9 +39108,9 @@
   "prompt_json": {
    "choices": [
     "Jobs on business and government payrolls",
-    "People who say they have a job",
+    "Everyone working, farms included",
     "New claims for jobless benefits",
-    "Everyone working, farms included"
+    "People who say they have a job"
    ],
    "kind": "mcq",
    "q": "The jobs report leads with nonfarm payrolls. What does that number count?",
@@ -39194,9 +39194,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Value of final goods and services made",
     "Total spending by the federal government",
     "Total value of the stock market",
+    "Value of final goods and services made",
     "Money in checking and savings accounts"
    ],
    "kind": "mcq",
@@ -39267,10 +39267,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Yields across maturities, short to long",
-    "One bond's yield over the past year",
     "The Fed's projected rate path",
-    "The gap between stocks and bonds"
+    "Yields across maturities, short to long",
+    "The gap between stocks and bonds",
+    "One bond's yield over the past year"
    ],
    "kind": "mcq",
    "q": "What does the Treasury yield curve show?",
@@ -39340,10 +39340,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "0.01 percentage point",
-    "0.1 percentage point",
     "1 percentage point",
-    "1% of the current rate"
+    "1% of the current rate",
+    "0.1 percentage point",
+    "0.01 percentage point"
    ],
    "kind": "mcq",
    "q": "Rates are often quoted in basis points. What is one basis point?",
@@ -39428,9 +39428,9 @@
   "prompt_json": {
    "choices": [
     "Large-scale Fed bond buying",
-    "The Fed cutting its target range",
+    "Congress raising its spending",
     "The Fed letting its bonds mature",
-    "Congress raising its spending"
+    "The Fed cutting its target range"
    ],
    "kind": "mcq",
    "q": "What is quantitative easing (QE)?",
@@ -39584,10 +39584,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Quantitative tightening",
-    "Tapering",
     "Quantitative easing",
-    "Forward guidance"
+    "Forward guidance",
+    "Quantitative tightening",
+    "Tapering"
    ],
    "kind": "mcq",
    "q": "The Fed shrinks its balance sheet, letting bonds mature without replacing them. Which term is this?",
@@ -39748,8 +39748,8 @@
   "prompt_json": {
    "choices": [
     "Prices people pay for goods and services",
-    "Prices producers get for their output",
     "The value of all goods and services made",
+    "Prices producers get for their output",
     "Only what urban consumers pay"
    ],
    "kind": "mcq",
@@ -39834,10 +39834,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Jobs lost this month, as a share",
     "Unemployed as a share of the labor force",
     "Unemployed as a share of all adults",
-    "People on jobless benefits, as a share",
-    "Jobs lost this month, as a share"
+    "People on jobless benefits, as a share"
    ],
    "kind": "mcq",
    "q": "How does BLS define the unemployment rate?",
@@ -40013,10 +40013,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Overnight borrowing backed by Treasuries",
-    "Overnight bank loans with no collateral",
     "The yield on 10-year Treasury notes",
-    "The rate the Fed pays on bank reserves"
+    "The rate the Fed pays on bank reserves",
+    "Overnight bank loans with no collateral",
+    "Overnight borrowing backed by Treasuries"
    ],
    "kind": "mcq",
    "q": "What does SOFR measure?",
@@ -40290,9 +40290,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Five years after the meeting",
     "Three weeks after the decision",
-    "The same day as the decision",
-    "Five years after the meeting"
+    "The same day as the decision"
    ],
    "kind": "mcq",
    "q": "When do the minutes of a regular FOMC meeting come out?",
@@ -40406,9 +40406,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "PPI",
     "CPI",
-    "PCE price index"
+    "PCE price index",
+    "PPI"
    ],
    "kind": "mcq",
    "q": "Which BLS index tracks the selling prices that domestic producers get for their output?",
@@ -40477,10 +40477,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "New applications for jobless benefits",
-    "Repeat filings by people on benefits",
     "New jobs added that week",
-    "People who stopped looking for work"
+    "People who stopped looking for work",
+    "Repeat filings by people on benefits",
+    "New applications for jobless benefits"
    ],
    "kind": "mcq",
    "q": "In the weekly jobless claims report, what are initial claims?",
@@ -40609,9 +40609,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A broad measure of the money supply",
     "Total Fed holdings of bonds",
     "New cash printed this year",
+    "A broad measure of the money supply",
     "Bank loans to businesses"
    ],
    "kind": "mcq",
@@ -40755,10 +40755,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The dot plot",
-    "The yield curve",
     "The Beige Book",
-    "CME FedWatch"
+    "The dot plot",
+    "CME FedWatch",
+    "The yield curve"
    ],
    "kind": "mcq",
    "q": "Which Fed chart shows each official's view of where the fed funds rate should be at each year-end?",
@@ -40856,9 +40856,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Tapering",
     "Easing",
-    "Tightening",
-    "Tapering"
+    "Tightening"
    ],
    "kind": "mcq",
    "q": "Which word describes that kind of move?",
@@ -40921,10 +40921,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Headline inflation",
+    "Deflation",
     "Core inflation",
-    "Disinflation",
-    "Deflation"
+    "Headline inflation",
+    "Disinflation"
    ],
    "kind": "mcq",
    "q": "Which term means the inflation rate for all items, food and energy included?",
@@ -41008,10 +41008,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Prices rising, but more slowly",
-    "Prices falling across the economy",
     "Prices rising faster each month",
-    "Food and energy taken out of CPI"
+    "Prices rising, but more slowly",
+    "Food and energy taken out of CPI",
+    "Prices falling across the economy"
    ],
    "kind": "mcq",
    "q": "What does disinflation mean?",
@@ -41076,8 +41076,8 @@
    "choices": [
     "It's adjusted to remove inflation",
     "It's final, with no more revisions",
-    "It's measured in that period's prices",
-    "It counts only physical goods"
+    "It counts only physical goods",
+    "It's measured in that period's prices"
    ],
    "kind": "mcq",
    "q": "BEA reports real GDP. What makes it real?",
@@ -41223,10 +41223,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Slow and then end bond buying",
-    "Sell bonds the Fed already owns",
     "Cut the fed funds rate in steps",
-    "Raise the fed funds rate slowly"
+    "Raise the fed funds rate slowly",
+    "Sell bonds the Fed already owns",
+    "Slow and then end bond buying"
    ],
    "kind": "mcq",
    "q": "In late 2021 the Fed began to taper. What does taper mean?",
@@ -41297,8 +41297,8 @@
   "prompt_json": {
    "choices": [
     "Personal Income and Outlays",
-    "The Employment Situation",
     "Producer Price Index",
+    "The Employment Situation",
     "Summary of Economic Projections"
    ],
    "kind": "mcq",
@@ -41449,10 +41449,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Forward guidance",
-    "The Beige Book",
     "Quantitative easing",
-    "The dual mandate"
+    "The dual mandate",
+    "The Beige Book",
+    "Forward guidance"
    ],
    "kind": "mcq",
    "q": "The Fed tells the public how it expects to set policy in the months ahead. What is that called?",
@@ -41537,8 +41537,8 @@
   "prompt_json": {
    "choices": [
     "March, June, September, December",
-    "Every scheduled meeting",
-    "Only the December meeting"
+    "Only the December meeting",
+    "Every scheduled meeting"
    ],
    "kind": "mcq",
    "q": "Which FOMC meetings come with fresh projections, including a new dot plot?",
@@ -41752,8 +41752,8 @@
   "prompt_json": {
    "choices": [
     "Establishment survey",
-    "Household survey",
-    "Weekly jobless claims"
+    "Weekly jobless claims",
+    "Household survey"
    ],
    "kind": "mcq",
    "q": "The jobs report uses two surveys. Which one produces the nonfarm payroll number?",
@@ -41933,9 +41933,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A Treasury note",
+    "A Treasury bond",
     "A Treasury bill",
-    "A Treasury bond"
+    "A Treasury note"
    ],
    "kind": "mcq",
    "q": "Traders talk about the 10-year. What type of Treasury security is it?",
@@ -41997,9 +41997,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Employed",
     "Not in the labor force",
-    "Unemployed",
-    "Employed"
+    "Unemployed"
    ],
    "kind": "mcq",
    "q": "How does BLS classify Dana?",
@@ -42070,8 +42070,8 @@
   "prompt_json": {
    "choices": [
     "Quantitative easing",
-    "Quantitative tightening",
-    "Forward guidance"
+    "Forward guidance",
+    "Quantitative tightening"
    ],
    "kind": "mcq",
    "q": "Which term fits what the Fed is doing?",
@@ -42155,8 +42155,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Sloping up, the usual shape",
     "Inverted",
+    "Sloping up, the usual shape",
     "Flat"
    ],
    "kind": "mcq",
@@ -42241,9 +42241,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "A survey of economists",
     "Fed funds futures prices",
     "Votes cast by FOMC members",
-    "A survey of economists",
     "The Fed's dot plot"
    ],
    "kind": "mcq",
@@ -42307,9 +42307,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Deflation",
+    "Recession",
     "Disinflation",
-    "Recession"
+    "Deflation"
    ],
    "kind": "mcq",
    "q": "Which word fits?",
@@ -42379,8 +42379,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Hawks",
     "Doves",
+    "Hawks",
     "Bears"
    ],
    "kind": "mcq",
@@ -42466,8 +42466,8 @@
   "prompt_json": {
    "choices": [
     "Energy, which core leaves out",
-    "Shelter, which core leaves out",
-    "Core counts only goods"
+    "Core counts only goods",
+    "Shelter, which core leaves out"
    ],
    "kind": "mcq",
    "q": "Why did the headline number rise faster than core?",
@@ -42544,9 +42544,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "PCE, up 3.6%",
     "CPI, up 3.7%",
-    "Core PCE, up 3.1%"
+    "Core PCE, up 3.1%",
+    "PCE, up 3.6%"
    ],
    "kind": "mcq",
    "q": "Which number does the Fed's 2% inflation goal refer to?",
@@ -42637,9 +42637,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "About 0.8%",
+    "About 13.6%",
     "3.4%",
-    "About 13.6%"
+    "About 0.8%"
    ],
    "kind": "mcq",
    "q": "About how much did real GDP grow within the quarter itself?",
@@ -42695,8 +42695,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Payrolls count jobs, not people",
     "Payrolls count only part-time work",
+    "Payrolls count jobs, not people",
     "That's the count of unemployed"
    ],
    "kind": "mcq",
@@ -42782,8 +42782,8 @@
   "prompt_json": {
    "choices": [
     "It rose",
-    "It fell",
-    "It stayed at face value"
+    "It stayed at face value",
+    "It fell"
    ],
    "kind": "mcq",
    "q": "What happened to the note's market price?",
@@ -43079,9 +43079,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "A yield curve inversion",
     "The taper tantrum",
-    "Quantitative tightening",
-    "A yield curve inversion"
+    "Quantitative tightening"
    ],
    "kind": "mcq",
    "q": "What name did that episode get?",
@@ -43232,8 +43232,8 @@
   "prompt_json": {
    "choices": [
     "It comes long after the turn",
-    "It comes before the turn",
-    "It comes within days of the turn"
+    "It comes within days of the turn",
+    "It comes before the turn"
    ],
    "kind": "mcq",
    "q": "What does that tell you about waiting for the NBER's recession call?",
@@ -43310,9 +43310,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Up 100 basis points",
+    "Up 1%",
     "Up 10%",
-    "Up 1%"
+    "Up 100 basis points"
    ],
    "kind": "mcq",
    "q": "Which way of saying it can't be misread?",
@@ -43837,9 +43837,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "How many stocks join the index's move",
     "How far the index moved today",
     "How big an order the market can absorb",
+    "How many stocks join the index's move",
     "How fast the index is rising"
    ],
    "kind": "mcq",
@@ -43969,10 +43969,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Advancers",
-    "New highs",
+    "Net advances",
     "Up volume",
-    "Net advances"
+    "New highs",
+    "Advancers"
    ],
    "kind": "mcq",
    "q": "On a breadth page, what are the stocks that closed higher on the day called?",
@@ -44165,8 +44165,8 @@
   "prompt_json": {
    "choices": [
     "Advancers minus decliners",
-    "Advancers divided by decliners",
     "Up volume minus down volume",
+    "Advancers divided by decliners",
     "New highs minus new lows"
    ],
    "kind": "mcq",
@@ -44293,10 +44293,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "A count of stocks at 52-week highs",
     "A running total of net advances",
-    "Today's advancers over decliners",
     "An equal-weight version of the index",
-    "A count of stocks at 52-week highs"
+    "Today's advancers over decliners"
    ],
    "kind": "mcq",
    "q": "What is the advance-decline line?",
@@ -44484,8 +44484,8 @@
    "choices": [
     "Exactly the same: one advance",
     "More, by its market cap",
-    "More, by its trading volume",
-    "Only if it's in the S&P 500"
+    "Only if it's in the S&P 500",
+    "More, by its trading volume"
    ],
    "kind": "mcq",
    "q": "On the A/D line, how does a giant company's advance count next to a small company's?",
@@ -44548,10 +44548,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A known quirk of Nasdaq breadth data",
+    "A sign the index data is wrong",
     "Proof the top is in",
-    "A bullish divergence",
-    "A sign the index data is wrong"
+    "A known quirk of Nasdaq breadth data",
+    "A bullish divergence"
    ],
    "kind": "mcq",
    "q": "What's the better read?",
@@ -44615,10 +44615,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Advancers divided by decliners",
-    "Advancers minus decliners",
     "Up volume divided by down volume",
-    "New highs over highs plus lows"
+    "Advancers minus decliners",
+    "New highs over highs plus lows",
+    "Advancers divided by decliners"
    ],
    "kind": "mcq",
    "q": "What is the advance-decline ratio?",
@@ -44745,9 +44745,9 @@
   "prompt_json": {
    "choices": [
     "A warning to respect, not a sell signal",
-    "Sell everything at the open",
+    "A buy signal: breadth will catch up",
     "Ignore it while the index rises",
-    "A buy signal: breadth will catch up"
+    "Sell everything at the open"
    ],
    "kind": "mcq",
    "q": "How do you treat the divergence?",
@@ -44825,10 +44825,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Index lower low, A/D line higher low",
-    "Index higher high, A/D line lower high",
+    "A sudden surge of advancing stocks",
     "Index and A/D line both at new lows",
-    "A sudden surge of advancing stocks"
+    "Index higher high, A/D line lower high",
+    "Index lower low, A/D line higher low"
    ],
    "kind": "mcq",
    "q": "What is a bullish divergence on the A/D line?",
@@ -44898,9 +44898,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Breadth confirms the downtrend",
     "Fewer stocks falling; a low may be near",
     "The decline is broadening; sell more",
-    "Breadth confirms the downtrend",
     "Nothing until the index makes a new high"
    ],
    "kind": "mcq",
@@ -45048,10 +45048,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Narrow breadth",
+    "Bullish divergence",
     "Breadth thrust",
-    "Broad participation",
-    "Bullish divergence"
+    "Narrow breadth",
+    "Broad participation"
    ],
    "kind": "mcq",
    "q": "Which breadth word fits this rally?",
@@ -45174,10 +45174,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Most stocks are joining the move",
-    "A few big stocks carry the index",
     "Volume is above its average",
-    "The index gapped up at the open"
+    "The index gapped up at the open",
+    "Most stocks are joining the move",
+    "A few big stocks carry the index"
    ],
    "kind": "mcq",
    "q": "What does broad participation mean in a rally?",
@@ -45310,9 +45310,9 @@
   "prompt_json": {
    "choices": [
     "New highs minus new lows",
-    "New highs divided by new lows",
     "New highs over the last 10 days",
-    "Advancers minus decliners"
+    "Advancers minus decliners",
+    "New highs divided by new lows"
    ],
    "kind": "mcq",
    "q": "What are net new highs?",
@@ -45452,8 +45452,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Normal: new highs lag at turns",
     "The rally is fake; sell it",
+    "Normal: new highs lag at turns",
     "Breadth is confirming the rally",
     "New highs lead, so a top is near"
    ],
@@ -45669,10 +45669,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "10-day average of Record High Percent",
-    "New highs minus new lows",
     "Running total of net new highs",
-    "Share of stocks above the 200-day"
+    "Share of stocks above the 200-day",
+    "10-day average of Record High Percent",
+    "New highs minus new lows"
    ],
    "kind": "mcq",
    "q": "What is the High-Low Index?",
@@ -45735,10 +45735,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Stocks up 50% from their lows",
     "Share of stocks above their 50-day MA",
     "How far the index is above its 50-day",
-    "Share of days the index closed up",
-    "Stocks up 50% from their lows"
+    "Share of days the index closed up"
    ],
    "kind": "mcq",
    "q": "What does the percent of stocks above the 50-day measure?",
@@ -45939,10 +45939,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Washed out; wait for an upturn",
+    "The low is now guaranteed",
     "Oversold, so buy everything now",
     "Extreme weakness; add to shorts now",
-    "The low is now guaranteed"
+    "Washed out; wait for an upturn"
    ],
    "kind": "mcq",
    "q": "What's the sound read?",
@@ -46070,8 +46070,8 @@
    "choices": [
     "Net advances: 19-day EMA minus 39-day",
     "A running total of net advances",
-    "Up volume divided by down volume",
-    "New highs as a share of highs and lows"
+    "New highs as a share of highs and lows",
+    "Up volume divided by down volume"
    ],
    "kind": "mcq",
    "q": "What is the McClellan Oscillator?",
@@ -46256,10 +46256,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "McClellan Oscillator",
+    "High-Low Index",
     "Arms Index (TRIN)",
     "Advance-decline line",
-    "High-Low Index"
+    "McClellan Oscillator"
    ],
    "kind": "mcq",
    "q": "Which breadth gauge works like MACD, but on net advances?",
@@ -46322,9 +46322,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Running total of McClellan Oscillator",
-    "Running total of net advances",
     "10-day average of the Oscillator",
+    "Running total of net advances",
+    "Running total of McClellan Oscillator",
     "Oscillator readings above 100"
    ],
    "kind": "mcq",
@@ -46454,10 +46454,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A sudden burst of broad buying",
-    "A slow fade in the A/D line",
     "A big gain in one mega-cap stock",
-    "A spike in new 52-week lows"
+    "A sudden burst of broad buying",
+    "A spike in new 52-week lows",
+    "A slow fade in the A/D line"
    ],
    "kind": "mcq",
    "q": "What is a breadth thrust?",
@@ -46528,9 +46528,9 @@
   "prompt_json": {
    "choices": [
     "Strong clue, but no guarantee",
-    "Right, go all in today",
+    "It means nothing at all",
     "It's bearish: too much too fast",
-    "It means nothing at all"
+    "Right, go all in today"
    ],
    "kind": "mcq",
    "q": "What do you tell him?",
@@ -46608,10 +46608,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Volume in stocks that closed up",
-    "Volume above the 50-day average",
     "Volume on days the index rose",
-    "Buy orders minus sell orders"
+    "Buy orders minus sell orders",
+    "Volume in stocks that closed up",
+    "Volume above the 50-day average"
    ],
    "kind": "mcq",
    "q": "What is up volume?",
@@ -46813,10 +46813,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Running total of up minus down volume",
-    "Running total of net advances",
     "Today's up volume over down volume",
-    "Index volume versus its average"
+    "Running total of net advances",
+    "Index volume versus its average",
+    "Running total of up minus down volume"
    ],
    "kind": "mcq",
    "q": "What is the AD Volume Line?",
@@ -46886,8 +46886,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A/D ratio to up/down volume ratio",
     "Today's volume to average volume",
+    "A/D ratio to up/down volume ratio",
     "Calls traded to puts traded",
     "New highs to new lows"
    ],
@@ -47110,9 +47110,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A strong day; TRIN's math is quirky",
     "Sellers controlled the day",
     "The volume data must be wrong",
+    "A strong day; TRIN's math is quirky",
     "A breadth thrust just fired"
    ],
    "kind": "mcq",
@@ -47184,10 +47184,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Oversold: selling may be overdone",
+    "Bullish: up volume dominated",
     "Overbought: buyers are exhausted",
     "Neutral: near its balance point",
-    "Bullish: up volume dominated"
+    "Oversold: selling may be overdone"
    ],
    "kind": "mcq",
    "q": "How is a TRIN that high usually read?",
@@ -47258,10 +47258,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "A fund paying out its dividends",
     "Index drop on heavier volume",
-    "Index gain on heavier volume",
     "Index drop on lighter volume",
-    "A fund paying out its dividends"
+    "Index gain on heavier volume"
    ],
    "kind": "mcq",
    "q": "In IBD's method, what is a distribution day?",
@@ -47519,9 +47519,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Time to get defensive",
     "Healthy: keep buying breakouts",
     "Meaningless without a recession",
+    "Time to get defensive",
     "A follow-through day is near"
    ],
    "kind": "mcq",
@@ -47659,10 +47659,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Strong index gain on higher volume",
     "Index drop on higher volume",
+    "A gap up that holds all day",
     "The first up day after a low",
-    "A gap up that holds all day"
+    "Strong index gain on higher volume"
    ],
    "kind": "mcq",
    "q": "In IBD's method, what is a follow-through day?",
@@ -47879,10 +47879,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Only count it after a Fed rate cut",
     "Follow-throughs often come amid bad news",
     "Wait for good news to confirm it",
-    "Grim news cancels the signal",
-    "Only count it after a Fed rate cut"
+    "Grim news cancels the signal"
    ],
    "kind": "mcq",
    "q": "What fits IBD's research?",
@@ -47953,10 +47953,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The first bounce off a market low",
     "A confirmed new uptrend",
-    "A rally to a new all-time high",
-    "A short squeeze in one stock"
+    "The first bounce off a market low",
+    "A short squeeze in one stock",
+    "A rally to a new all-time high"
    ],
    "kind": "mcq",
    "q": "In IBD's method, what is a rally attempt?",
@@ -48034,8 +48034,8 @@
   "prompt_json": {
    "choices": [
     "Big caps weigh more in the index",
-    "The A/D line has a data error",
     "Volume was too light to count",
+    "The A/D line has a data error",
     "The A/D line lags the index by a day"
    ],
    "kind": "mcq",
@@ -48347,8 +48347,8 @@
   "prompt_json": {
    "choices": [
     "Fear of missing out",
-    "Fear of losing money",
-    "Following the crowd's trades"
+    "Following the crowd's trades",
+    "Fear of losing money"
    ],
    "kind": "mcq",
    "q": "In trading talk, what does FOMO stand for?",
@@ -48472,10 +48472,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "FOMO",
+    "Loss aversion",
     "Tilt",
     "Anchoring",
-    "Loss aversion"
+    "FOMO"
    ],
    "kind": "mcq",
    "q": "Which word names what you're feeling?",
@@ -48591,9 +48591,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Let it go and wait for a new setup",
+    "Buy now, strong stocks keep going",
     "Buy now at double size to catch up",
-    "Buy now, strong stocks keep going"
+    "Let it go and wait for a new setup"
    ],
    "kind": "mcq",
    "q": "What's your move?",
@@ -48663,9 +48663,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Holding a loser too long",
     "Making bad decisions out of anger",
-    "Feeling too sure after wins",
-    "Holding a loser too long"
+    "Feeling too sure after wins"
    ],
    "kind": "mcq",
    "q": "In trading, what does it mean to be on tilt?",
@@ -48786,10 +48786,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Tilt",
-    "FOMO",
     "Anchoring",
-    "Hindsight bias"
+    "Hindsight bias",
+    "Tilt",
+    "FOMO"
    ],
    "kind": "mcq",
    "q": "Which word names the state you're in?",
@@ -49199,9 +49199,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Overtrading",
     "Scaling in",
-    "Diversifying"
+    "Diversifying",
+    "Overtrading"
    ],
    "kind": "mcq",
    "q": "You take a dozen trades a day, most of them marginal, and costs pile up. Which word fits?",
@@ -49333,9 +49333,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Copying what the crowd is doing",
     "Overrating your own skill and knowledge",
-    "Being sure you knew it all along",
-    "Copying what the crowd is doing"
+    "Being sure you knew it all along"
    ],
    "kind": "mcq",
    "q": "What is overconfidence bias?",
@@ -49477,10 +49477,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Familiarity bias",
     "Overconfidence",
-    "Loss aversion",
     "Anchoring",
-    "Familiarity bias"
+    "Loss aversion"
    ],
    "kind": "mcq",
    "q": "Which word fits best?",
@@ -49589,10 +49589,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Self-attribution bias",
     "Hindsight bias",
     "Confirmation bias",
-    "Outcome bias"
+    "Outcome bias",
+    "Self-attribution bias"
    ],
    "kind": "mcq",
    "q": "Which word is this: wins are my skill, losses are bad luck?",
@@ -49669,9 +49669,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Overconfidence, then bigger bets",
+    "A truer read of your edge",
     "More careful position sizing",
-    "A truer read of your edge"
+    "Overconfidence, then bigger bets"
    ],
    "kind": "mcq",
    "q": "Where does this habit tend to lead?",
@@ -49961,10 +49961,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Recency bias",
     "Loss aversion",
     "FOMO",
-    "Herd mentality",
-    "Recency bias"
+    "Herd mentality"
    ],
    "kind": "mcq",
    "q": "Which bias is at work?",
@@ -50035,8 +50035,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Selling winners early, holding losers",
     "Adding to a stock that keeps falling",
+    "Selling winners early, holding losers",
     "Selling everything in a panic"
    ],
    "kind": "mcq",
@@ -50158,10 +50158,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Disposition effect",
-    "House money effect",
     "Familiarity bias",
-    "Hindsight bias"
+    "Hindsight bias",
+    "Disposition effect",
+    "House money effect"
    ],
    "kind": "mcq",
    "q": "Which word fits?",
@@ -50239,8 +50239,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Favoring info that backs what you think",
     "Waiting for price to confirm a breakout",
+    "Favoring info that backs what you think",
     "Believing you knew it all along"
    ],
    "kind": "mcq",
@@ -50366,9 +50366,9 @@
   "prompt_json": {
    "choices": [
     "Confirmation bias",
+    "Gambler's fallacy",
     "Herd mentality",
-    "Anchoring",
-    "Gambler's fallacy"
+    "Anchoring"
    ],
    "kind": "mcq",
    "q": "Which word names this?",
@@ -50638,10 +50638,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Anchoring",
     "FOMO",
-    "Herd mentality",
-    "Hindsight bias"
+    "Anchoring",
+    "Hindsight bias",
+    "Herd mentality"
    ],
    "kind": "mcq",
    "q": "Which word fits?",
@@ -50757,9 +50757,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Overweighting what just happened",
     "Believing a streak must end soon",
-    "Judging a trade by its result"
+    "Judging a trade by its result",
+    "Overweighting what just happened"
    ],
    "kind": "mcq",
    "q": "What is recency bias?",
@@ -50842,10 +50842,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Recency bias",
-    "FOMO",
     "House money effect",
-    "Familiarity bias"
+    "Familiarity bias",
+    "Recency bias",
+    "FOMO"
    ],
    "kind": "mcq",
    "q": "Which bias may be steering you?",
@@ -50976,9 +50976,9 @@
   "prompt_json": {
    "choices": [
     "Availability bias",
-    "Anchoring",
+    "House money effect",
     "Confirmation bias",
-    "House money effect"
+    "Anchoring"
    ],
    "kind": "mcq",
    "q": "One stock's 30% earnings gap-down is all over the news. Now every earnings report feels like a disaster. Which bias?",
@@ -51055,9 +51055,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Seeing a pattern in a random run",
     "Feeling you knew it all along",
-    "Studying your past trades",
-    "Seeing a pattern in a random run"
+    "Studying your past trades"
    ],
    "kind": "mcq",
    "q": "What is hindsight bias?",
@@ -51245,8 +51245,8 @@
   "prompt_json": {
    "choices": [
     "Write down your read at the time",
-    "Buy it now to make up for it",
-    "Forget it and move on"
+    "Forget it and move on",
+    "Buy it now to make up for it"
    ],
    "kind": "mcq",
    "q": "What best protects you from this?",
@@ -51309,9 +51309,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Copying others instead of your own work",
+    "Trusting a stock's old high price",
     "Investing in a well-known company",
-    "Trusting a stock's old high price"
+    "Copying others instead of your own work"
    ],
    "kind": "mcq",
    "q": "What is herd mentality?",
@@ -51533,9 +51533,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Taking more risk with recent profits",
     "Trading someone else's capital",
-    "Keeping profits in cash"
+    "Keeping profits in cash",
+    "Taking more risk with recent profits"
    ],
    "kind": "mcq",
    "q": "What is the house money effect?",
@@ -51590,10 +51590,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "House money effect",
     "Loss aversion",
+    "Anchoring",
     "Disposition effect",
-    "Anchoring"
+    "House money effect"
    ],
    "kind": "mcq",
    "q": "Which word fits?",
@@ -51815,8 +51815,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Thinking a streak is 'due' to end",
     "Believing a hot streak will continue",
+    "Thinking a streak is 'due' to end",
     "Betting big when you have an edge"
    ],
    "kind": "mcq",
@@ -51886,10 +51886,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Gambler's fallacy",
-    "Hindsight bias",
     "Anchoring",
-    "Familiarity bias"
+    "Familiarity bias",
+    "Hindsight bias",
+    "Gambler's fallacy"
    ],
    "kind": "mcq",
    "q": "Which word fits that reasoning?",
@@ -51967,9 +51967,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Judging a decision by how it turned out",
+    "Expecting a trend to keep going",
     "Crediting wins to skill, losses to luck",
-    "Expecting a trend to keep going"
+    "Judging a decision by how it turned out"
    ],
    "kind": "mcq",
    "q": "What is outcome bias?",
@@ -52031,8 +52031,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Favoring familiar, well-known names",
     "Trading only setups you've tested",
+    "Favoring familiar, well-known names",
     "Copying what others are buying"
    ],
    "kind": "mcq",
@@ -52103,8 +52103,8 @@
   "prompt_json": {
    "choices": [
     "Treating money by where it came from",
-    "Tracking every trade in a journal",
-    "Doing quick trade math in your head"
+    "Doing quick trade math in your head",
+    "Tracking every trade in a journal"
    ],
    "kind": "mcq",
    "q": "What is mental accounting?",
@@ -52218,8 +52218,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Two years is too small a sample",
     "Beating the index is easy",
+    "Two years is too small a sample",
     "Newsletters can't pick stocks"
    ],
    "kind": "mcq",
@@ -52290,9 +52290,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A fast rise on crowd enthusiasm",
+    "A stock up on strong earnings",
     "A long, steady uptrend",
-    "A stock up on strong earnings"
+    "A fast rise on crowd enthusiasm"
    ],
    "kind": "mcq",
    "q": "In market terms, what is a mania?",
@@ -52539,8 +52539,8 @@
    "choices": [
     "Your rules for when to buy and sell",
     "A list of stocks you might trade",
-    "A record of trades you already made",
-    "A forecast of where the market goes"
+    "A forecast of where the market goes",
+    "A record of trades you already made"
    ],
    "kind": "mcq",
    "q": "What is a trading plan?",
@@ -52676,10 +52676,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Trading plan",
-    "Trading journal",
     "Watchlist",
-    "Post-trade review"
+    "Trading journal",
+    "Post-trade review",
+    "Trading plan"
    ],
    "kind": "mcq",
    "q": "What have you just written?",
@@ -52743,10 +52743,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "An entry rule",
-    "An exit rule",
     "A position size rule",
-    "A watchlist rule"
+    "A watchlist rule",
+    "An entry rule",
+    "An exit rule"
    ],
    "kind": "mcq",
    "q": "Your plan says: buy only after a close above the 200-day moving average. What kind of rule is that?",
@@ -52809,9 +52809,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "You followed your plan",
     "You broke your exit rule",
-    "You adjusted your plan wisely",
-    "You followed your plan"
+    "You adjusted your plan wisely"
    ],
    "kind": "mcq",
    "q": "What just happened?",
@@ -52881,10 +52881,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Stocks you're tracking to maybe trade",
-    "Stocks you already own",
     "Today's biggest gainers",
-    "Your rules for buying a stock"
+    "Stocks you're tracking to maybe trade",
+    "Your rules for buying a stock",
+    "Stocks you already own"
    ],
    "kind": "mcq",
    "q": "What is a watchlist?",
@@ -52940,9 +52940,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Watchlist",
     "Playbook",
     "Trading journal",
+    "Watchlist",
     "Report card"
    ],
    "kind": "mcq",
@@ -53014,10 +53014,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "The same prep steps before each open",
-    "Trading in the hours before the open",
     "Your review of trades after the close",
-    "Your rules for how much to buy"
+    "Trading in the hours before the open",
+    "Your rules for how much to buy",
+    "The same prep steps before each open"
    ],
    "kind": "mcq",
    "q": "What is a pre-market routine?",
@@ -53139,9 +53139,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A pre-market routine",
+    "A longer watchlist",
     "A wider stop",
-    "A longer watchlist"
+    "A pre-market routine"
    ],
    "kind": "mcq",
    "q": "Which habit is built to stop this?",
@@ -53197,10 +53197,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Fewer surprises and calmer decisions",
     "Better odds that the stock goes up",
-    "No need for a stop",
-    "A reason to skip the review"
+    "Fewer surprises and calmer decisions",
+    "A reason to skip the review",
+    "No need for a stop"
    ],
    "kind": "mcq",
    "q": "What does this prep mainly give you?",
@@ -53265,9 +53265,9 @@
   "prompt_json": {
    "choices": [
     "Your own record and notes on each trade",
+    "Your written rules for entries",
     "Your broker's monthly statement",
-    "A list of stocks you plan to buy",
-    "Your written rules for entries"
+    "A list of stocks you plan to buy"
    ],
    "kind": "mcq",
    "q": "What is a trading journal?",
@@ -53445,10 +53445,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Your tested setups, written down",
-    "The day's list of stocks to watch",
     "A log of every trade you made",
-    "A broker's guide to order types"
+    "Your tested setups, written down",
+    "A broker's guide to order types",
+    "The day's list of stocks to watch"
    ],
    "kind": "mcq",
    "q": "In trading, what is a playbook?",
@@ -53637,8 +53637,8 @@
   "prompt_json": {
    "choices": [
     "Review whether it fits this market",
-    "Delete the setup for good",
-    "Trade it bigger to catch up"
+    "Trade it bigger to catch up",
+    "Delete the setup for good"
    ],
    "kind": "mcq",
    "q": "What do you do with the playbook?",
@@ -53701,10 +53701,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Grading a closed trade against the plan",
-    "Checking the news before you buy",
     "Your broker confirming the fill",
-    "Choosing your stop before entry"
+    "Checking the news before you buy",
+    "Choosing your stop before entry",
+    "Grading a closed trade against the plan"
    ],
    "kind": "mcq",
    "q": "What is a post-trade review?",
@@ -53891,9 +53891,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Fix or drop the losing setup",
     "Trade the losing setup more often",
-    "Nothing, results by setup are noise"
+    "Nothing, results by setup are noise",
+    "Fix or drop the losing setup"
    ],
    "kind": "mcq",
    "q": "What does your monthly review point you to?",
@@ -53957,9 +53957,9 @@
   "prompt_json": {
    "choices": [
     "Report card",
-    "Profit factor",
+    "Watchlist",
     "Win rate",
-    "Watchlist"
+    "Profit factor"
    ],
    "kind": "mcq",
    "q": "You give your trading a grade, A to F, on each goal you set. What is that called?",
@@ -54022,8 +54022,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A high grade, you ran the plan",
     "An F, the day lost money",
+    "A high grade, you ran the plan",
     "No grade on a red day"
    ],
    "kind": "mcq",
@@ -54087,10 +54087,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A goal for how you trade",
     "A dollar target for the month",
-    "A price target for one stock",
-    "A goal for your win rate"
+    "A goal for your win rate",
+    "A goal for how you trade",
+    "A price target for one stock"
    ],
    "kind": "mcq",
    "q": "What is a process goal?",
@@ -54175,8 +54175,8 @@
   "prompt_json": {
    "choices": [
     "Make $2,000",
-    "Never move a stop lower",
-    "Both, each one is a target"
+    "Both, each one is a target",
+    "Never move a stop lower"
    ],
    "kind": "mcq",
    "q": "Which one is the outcome goal?",
@@ -54406,9 +54406,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Neither, both were luck",
     "Trade A",
-    "Trade B",
-    "Neither, both were luck"
+    "Trade B"
    ],
    "kind": "mcq",
    "q": "Which trade do you want more of?",
@@ -54478,9 +54478,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Resulting",
+    "Revenge trading",
     "Curve fitting",
-    "Revenge trading"
+    "Resulting"
    ],
    "kind": "mcq",
    "q": "What is that mistake called?",
@@ -54543,10 +54543,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Judging a decision by its outcome",
     "Reviewing your results each month",
     "Taking profit at your target",
-    "Reporting trades to your broker"
+    "Reporting trades to your broker",
+    "Judging a decision by its outcome"
    ],
    "kind": "mcq",
    "q": "What does resulting mean?",
@@ -54668,8 +54668,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "11 trades is a small sample",
     "Nothing, most of the trades won",
+    "11 trades is a small sample",
     "Nothing, if the stop is tight"
    ],
    "kind": "mcq",
@@ -54733,10 +54733,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
+    "Testing a setup on past data",
     "Picturing the trade failed, then why",
     "Reviewing a trade after it closes",
-    "Checking the charts before the open",
-    "Testing a setup on past data"
+    "Checking the charts before the open"
    ],
    "kind": "mcq",
    "q": "What is a premortem?",
@@ -54792,10 +54792,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Premortem",
+    "Report card",
     "Post-trade review",
-    "Backtest",
-    "Report card"
+    "Premortem",
+    "Backtest"
    ],
    "kind": "mcq",
    "q": "What did you just run?",
@@ -55034,9 +55034,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Can't tell without win and loss size",
+    "Trader B, low win rates mean big wins",
     "Trader A, she wins twice as often",
-    "Trader B, low win rates mean big wins"
+    "Can't tell without win and loss size"
    ],
    "kind": "mcq",
    "q": "Who makes more money?",
@@ -55171,10 +55171,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Average win divided by average loss",
     "Winning trades divided by losing ones",
-    "Gross profit divided by gross loss",
-    "Profit divided by account size"
+    "Average win divided by average loss",
+    "Profit divided by account size",
+    "Gross profit divided by gross loss"
    ],
    "kind": "mcq",
    "q": "What is the payoff ratio?",
@@ -55307,10 +55307,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Profit factor",
     "Payoff ratio",
-    "Win rate",
-    "Expectancy"
+    "Expectancy",
+    "Profit factor",
+    "Win rate"
    ],
    "kind": "mcq",
    "q": "Total profit from all your winners, divided by total loss from all your losers. Which number is that?",
@@ -55565,8 +55565,8 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Little, streaks come with any edge",
     "The setup has stopped working",
+    "Little, streaks come with any edge",
     "Double your size to win it back"
    ],
    "kind": "mcq",
@@ -55638,9 +55638,9 @@
   "prompt_json": {
    "choices": [
     "Running a strategy on past data",
-    "Trading fake money in a live market",
+    "Picturing a trade failed in advance",
     "Reviewing your own closed trades",
-    "Picturing a trade failed in advance"
+    "Trading fake money in a live market"
    ],
    "kind": "mcq",
    "q": "What is a backtest?",
@@ -55867,9 +55867,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "It fits the past, not the future",
     "None, more testing is always safer",
-    "The test is now too cautious"
+    "The test is now too cautious",
+    "It fits the past, not the future"
    ],
    "kind": "mcq",
    "q": "What's the risk?",
@@ -55933,9 +55933,9 @@
   "prompt_json": {
    "choices": [
     "Paper trading",
-    "Backtesting",
+    "Day trading",
     "Swing trading",
-    "Day trading"
+    "Backtesting"
    ],
    "kind": "mcq",
    "q": "Trading with simulated money in a live market, for practice. What's that called?",
@@ -56058,8 +56058,8 @@
   "prompt_json": {
    "choices": [
     "Real fills and real losses are different",
-    "It won't, paper is the same as live",
-    "Live fills always beat paper fills"
+    "Live fills always beat paper fills",
+    "It won't, paper is the same as live"
    ],
    "kind": "mcq",
    "q": "Why might live trading feel different?",

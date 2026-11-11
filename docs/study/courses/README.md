@@ -79,6 +79,8 @@ under `docs/study/setups/criteria/`; pilot SET.07).
 | `numeric` | `q`, `answer` (a number), `calc`, optional `prefix` / `suffix` | type the number |
 | `scenario` | `story` (2 to 4 short sentences), `q`, `choices` (3 or 4), `answer` | a short story with a decision |
 
+**Choice order and variety.** Write the right answer first if you like: the bank builder deals it to a slot (`courses_lib.choice_orders`), so the order a member sees is balanced and stable. Add `"order": "fixed"` to a question whose choices have a real order (a ladder, a sequence). Do not make the right choice the longest, and keep True and False answers roughly even; `python -m scripts.study.library_audit` measures both, and the full rules are in `docs/study/LIBRARY.md`. A unit built to repeat one ask says `"variety_exempt": ["stems"]` at the top of its file.
+
 **Vocabulary questions** (track V, and any unit that defines a word): put the word in `"term"`. A "what does X
 mean?" question has the word as `term` and the short meaning as its `answer` (40 characters at most, so it fits a Word
 Match tile); a "which word is this?" question has the word as both `term` and `answer`. Word Match pairs only the

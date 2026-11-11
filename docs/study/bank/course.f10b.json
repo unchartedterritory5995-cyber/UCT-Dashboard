@@ -11,8 +11,8 @@
   "prompt_json": {
    "choices": [
     "Selling shares you don't own",
-    "Selling shares you bought earlier",
     "Any trade held for under a day",
+    "Selling shares you bought earlier",
     "Buying puts to bet on a drop"
    ],
    "kind": "mcq",
@@ -156,9 +156,9 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
+    "The exchange lends them to you",
     "Your broker lends them to you",
-    "The company issues new shares",
-    "The exchange lends them to you"
+    "The company issues new shares"
    ],
    "kind": "mcq",
    "q": "Where do the shares you sell short usually come from?",
@@ -283,10 +283,10 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
-    "As a yearly rate",
-    "As a flat fee per trade",
     "As a cut of your profit",
-    "Per share, paid up front"
+    "As a flat fee per trade",
+    "Per share, paid up front",
+    "As a yearly rate"
    ],
    "kind": "mcq",
    "q": "How is the fee to borrow shares for a short usually quoted?",
@@ -363,10 +363,10 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
+    "A cash loan to buy the shares",
     "Good grounds the shares can be borrowed",
-    "Proof you already own the shares",
     "A buyer lined up for your shares",
-    "A cash loan to buy the shares"
+    "Proof you already own the shares"
    ],
    "kind": "mcq",
    "q": "Before a short sale, your broker must have a locate. What is it?",
@@ -450,9 +450,9 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
-    "Barred shorts on a downtick",
+    "Made you borrow before shorting",
     "Barred shorts after a 10% drop",
-    "Made you borrow before shorting"
+    "Barred shorts on a downtick"
    ],
    "kind": "mcq",
    "q": "In 1938 the SEC adopted Rule 10a-1 for short sales. What did it do?",
@@ -890,8 +890,8 @@
   "prompt_json": {
    "choices": [
     "It must be priced above the best bid",
-    "Short sales are banned for the day",
-    "Nothing changes for short sellers"
+    "Nothing changes for short sellers",
+    "Short sales are banned for the day"
    ],
    "kind": "mcq",
    "q": "What rule now applies to your short sale order?",
@@ -1119,10 +1119,10 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
-    "$5,000",
+    "$2,500",
     "$3,000",
-    "$10,000",
-    "$2,500"
+    "$5,000",
+    "$10,000"
    ],
    "kind": "mcq",
    "q": "What is FINRA's minimum maintenance margin on this short?",
@@ -1202,8 +1202,8 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
-    "Yes, it runs through Monday",
     "No, it ended at Friday's close",
+    "Yes, it runs through Monday",
     "Only if it drops 10% again Monday"
    ],
    "kind": "mcq",
@@ -1354,9 +1354,9 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
-    "A higher fee, or the order refused",
+    "A sign the stock is about to drop",
     "The usual fee and a normal fill",
-    "A sign the stock is about to drop"
+    "A higher fee, or the order refused"
    ],
    "kind": "mcq",
    "q": "What should you expect when you try to short it?",
@@ -1441,8 +1441,8 @@
   "prompt_json": {
    "choices": [
     "About $2,000, most of your target",
-    "About $12,000, more than the target",
-    "Nothing until you buy to cover"
+    "Nothing until you buy to cover",
+    "About $12,000, more than the target"
    ],
    "kind": "mcq",
    "q": "If the price and the fee hold, what will two months of borrowing cost?",
@@ -1529,9 +1529,9 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
-    "No, it can only trip in regular hours",
     "Yes, any 10% drop trips it",
-    "No, it covers only small caps"
+    "No, it covers only small caps",
+    "No, it can only trip in regular hours"
    ],
    "kind": "mcq",
    "q": "You want to short it premarket. Is the short-sale price test on yet?",
@@ -1608,10 +1608,10 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
-    "Re-run the trade's cost at 85%",
-    "Nothing, your entry rate is locked",
+    "Nothing, fees only hit when you cover",
     "Add more, a pricey borrow means a drop",
-    "Nothing, fees only hit when you cover"
+    "Re-run the trade's cost at 85%",
+    "Nothing, your entry rate is locked"
    ],
    "kind": "mcq",
    "q": "What's your next move?",
@@ -1697,9 +1697,9 @@
   "prompt_json": {
    "choices": [
     "$2,700",
-    "$4,000",
     "$3,200",
-    "$3,500"
+    "$3,500",
+    "$4,000"
    ],
    "kind": "mcq",
    "q": "What did you net, before commissions?",
@@ -2080,10 +2080,10 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
-    "Selling shares you don't own",
-    "Shorts piling in as a stock collapses",
     "Shorts forced to buy back as price jumps",
-    "A broker's limit on new short sales"
+    "Selling shares you don't own",
+    "A broker's limit on new short sales",
+    "Shorts piling in as a stock collapses"
    ],
    "kind": "mcq",
    "q": "What is a short squeeze?",
@@ -2226,10 +2226,10 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
-    "Below the price, as a sell stop",
-    "Above the price, as a buy stop",
     "Above the price, as a sell stop",
-    "No stop; just watch it closely"
+    "No stop; just watch it closely",
+    "Below the price, as a sell stop",
+    "Above the price, as a buy stop"
    ],
    "kind": "mcq",
    "q": "You're short a stock. Where does your protective stop go?",
@@ -2362,10 +2362,10 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
-    "Days until borrowed shares must go back",
-    "Days since short interest was reported",
     "Days the average short has been open",
-    "Days of normal volume to buy back shorts"
+    "Days since short interest was reported",
+    "Days of normal volume to buy back shorts",
+    "Days until borrowed shares must go back"
    ],
    "kind": "mcq",
    "q": "What does days to cover tell you?",
@@ -2704,9 +2704,9 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
-    "At $74, your profit target",
     "Under the $66 low",
     "At the $84 bounce high",
+    "At $74, your profit target",
     "No stop until it's in profit"
    ],
    "kind": "mcq",
@@ -3268,9 +3268,9 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
-    "Buy now, before the squeeze starts",
     "Heavy short interest isn't a buy signal",
     "Shorts must cover by the week's end",
+    "Buy now, before the squeeze starts",
     "At 35% short, it can't fall further"
    ],
    "kind": "mcq",
@@ -3437,8 +3437,8 @@
   "prompt_json": {
    "choices": [
     "Next available price, maybe far higher",
-    "Exactly your stop price",
-    "The last price before the pause"
+    "The last price before the pause",
+    "Exactly your stop price"
    ],
    "kind": "mcq",
    "q": "If your stop triggers when trading resumes, where do you get filled?",
@@ -3872,8 +3872,8 @@
   "module": "F10b",
   "prompt_json": {
    "choices": [
-    "Short now; it's gone too far",
     "Short now, add if it goes higher",
+    "Short now; it's gone too far",
     "Wait for it to roll over first"
    ],
    "kind": "mcq",

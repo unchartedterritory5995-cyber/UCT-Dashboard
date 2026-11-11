@@ -10,10 +10,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "The account's loss if the stop hits",
-    "The share of the account in the stock",
     "The stop's distance below entry",
-    "The profit goal for each trade"
+    "The account's loss if the stop hits",
+    "The profit goal for each trade",
+    "The share of the account in the stock"
    ],
    "kind": "mcq",
    "q": "A trader says \"I risk 1% per trade.\" What is that 1%?",
@@ -149,10 +149,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "0.25% to 2% of the account",
+    "1% to 2% of the share price",
     "5% to 10% of the account",
-    "2% to 4% of the account",
-    "1% to 2% of the share price"
+    "0.25% to 2% of the account",
+    "2% to 4% of the account"
    ],
    "kind": "mcq",
    "q": "What is our range for the risk on one trade?",
@@ -621,10 +621,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
+    "$20",
     "$200",
     "$600",
-    "$800",
-    "$20"
+    "$800"
    ],
    "kind": "mcq",
    "q": "Your plan risks 1.5% on A+ setups and 0.5% on B setups. Account $40,000. A B setup triggers. How much do you risk?",
@@ -689,10 +689,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Near the low end of the range",
-    "The full 2%, setups are rare now",
     "Above 2%, to catch the next move",
-    "The same as in a strong market"
+    "The full 2%, setups are rare now",
+    "The same as in a strong market",
+    "Near the low end of the range"
    ],
    "kind": "mcq",
    "q": "A decent setup shows up. How much do you risk?",
@@ -959,8 +959,8 @@
   "prompt_json": {
    "choices": [
     "Less, toward the low end",
-    "3%, to win the losses back",
-    "2%, after three losses I'm due"
+    "2%, after three losses I'm due",
+    "3%, to win the losses back"
    ],
    "kind": "mcq",
    "q": "How much do you risk on it?",
@@ -1103,9 +1103,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "It fell to 0.4% of the account",
     "It's still 1% of the account",
-    "It grew along with the account"
+    "It grew along with the account",
+    "It fell to 0.4% of the account"
    ],
    "kind": "mcq",
    "q": "What has happened to your risk as a percent of the account?",
@@ -1172,8 +1172,8 @@
    "choices": [
     "Cap it at 2%",
     "4% is fine on an A+",
-    "Fine, it's the market's money",
-    "Fine, if the stop is tight"
+    "Fine, if the stop is tight",
+    "Fine, it's the market's money"
    ],
    "kind": "mcq",
    "q": "What does our rule say?",
@@ -1258,8 +1258,8 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Near the bottom of the range",
     "At the 2% ceiling, to learn fast",
+    "Near the bottom of the range",
     "Above 2%, it looks that good"
    ],
    "kind": "mcq",
@@ -1344,10 +1344,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Risk 3% on A+ setups only",
-    "Risk 0.5% on every trade",
     "Risk 0.25% to 2% by setup",
-    "Risk 1%, and 0.5% in a slump"
+    "Risk 1%, and 0.5% in a slump",
+    "Risk 0.5% on every trade",
+    "Risk 3% on A+ setups only"
    ],
    "kind": "mcq",
    "q": "Four traders describe their plans. Which plan breaks our rule?",
@@ -1418,8 +1418,8 @@
   "prompt_json": {
    "choices": [
     "Step back up toward 1%",
-    "Jump to 3% to catch up",
-    "Stay at 0.5% until it feels right"
+    "Stay at 0.5% until it feels right",
+    "Jump to 3% to catch up"
    ],
    "kind": "mcq",
    "q": "What now?",
@@ -1678,9 +1678,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Where your stop goes",
+    "A size that feels right",
     "Your profit target",
-    "A size that feels right"
+    "Where your stop goes"
    ],
    "kind": "mcq",
    "q": "You like a setup. Before you decide how many shares to buy, what do you need?",
@@ -1915,10 +1915,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Dollars at risk ÷ risk per share",
     "Account size ÷ share price",
-    "Dollars at risk ÷ share price",
-    "Risk per share ÷ dollars at risk"
+    "Risk per share ÷ dollars at risk",
+    "Dollars at risk ÷ risk per share",
+    "Dollars at risk ÷ share price"
    ],
    "kind": "mcq",
    "q": "Which of these gives you the number of shares to buy?",
@@ -2097,9 +2097,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
+    "Where it fits the size you want",
     "The low of the day or prior day's low",
-    "A flat 10% under your entry",
-    "Where it fits the size you want"
+    "A flat 10% under your entry"
    ],
    "kind": "mcq",
    "q": "What is our default stop on a new long trade?",
@@ -2368,10 +2368,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "150 shares",
-    "300 shares, stop $1 under",
+    "600 shares",
     "300 shares, stop $2 under",
-    "600 shares"
+    "300 shares, stop $1 under",
+    "150 shares"
    ],
    "kind": "mcq",
    "q": "What's the right size now?",
@@ -2504,9 +2504,9 @@
   "prompt_json": {
    "choices": [
     "31 shares",
-    "62 shares",
+    "1 share",
     "312 shares",
-    "1 share"
+    "62 shares"
    ],
    "kind": "mcq",
    "q": "How many shares?",
@@ -2709,9 +2709,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
+    "The risk is really 1%, not 0.5%",
     "A gap can open well below your stop",
-    "None, the risk is still 0.5%",
-    "The risk is really 1%, not 0.5%"
+    "None, the risk is still 0.5%"
    ],
    "kind": "mcq",
    "q": "What's the catch, if any?",
@@ -2867,10 +2867,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "2.4% of the account",
-    "1% of the account",
     "8% of the account",
-    "30% of the account"
+    "2.4% of the account",
+    "30% of the account",
+    "1% of the account"
    ],
    "kind": "mcq",
    "q": "What is he really risking?",
@@ -3074,10 +3074,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "0 shares, so you pass",
-    "1 share",
     "1 share, stop $20 under",
-    "12 shares"
+    "1 share",
+    "12 shares",
+    "0 shares, so you pass"
    ],
    "kind": "mcq",
    "q": "How many whole shares fit your plan?",
@@ -3151,10 +3151,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
+    "1% of the account",
     "16.67% of the account",
-    "40%, with the stop moved to 2.5%",
     "40%, with the stop at 6%",
-    "1% of the account"
+    "40%, with the stop moved to 2.5%"
    ],
    "kind": "mcq",
    "q": "What's the right size?",
@@ -3227,9 +3227,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Cut the size, a gap can skip the stop",
     "Hold, the stop caps the loss at 3%",
-    "Tighten the stop to 1.5%"
+    "Tighten the stop to 1.5%",
+    "Cut the size, a gap can skip the stop"
    ],
    "kind": "mcq",
    "q": "What do you do before the close?",
@@ -3454,10 +3454,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
+    "The stock's average daily range",
     "Your planned loss if the stop is hit",
-    "One percent of your account",
     "Your first profit target",
-    "The stock's average daily range"
+    "One percent of your account"
    ],
    "kind": "mcq",
    "q": "You're planning a trade. What does 1R mean?",
@@ -3650,10 +3650,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Its average result per trade, in R",
+    "Its best trade, in R",
     "How often it wins",
     "Its average winner, in R",
-    "Its best trade, in R"
+    "Its average result per trade, in R"
    ],
    "kind": "mcq",
    "q": "What does a trading system's expectancy tell you?",
@@ -4034,8 +4034,8 @@
   "prompt_json": {
    "choices": [
     "At 3R and 5R",
-    "At 1R and 2R",
-    "At 10% and 20% gains"
+    "At 10% and 20% gains",
+    "At 1R and 2R"
    ],
    "kind": "mcq",
    "q": "In our plan, where do the trims sit?",
@@ -4323,9 +4323,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Either +2R or -1R",
+    "Most likely +2R",
     "+0.35R, the expectancy",
-    "Most likely +2R"
+    "Either +2R or -1R"
    ],
    "kind": "mcq",
    "q": "What will your next single draw pay?",
@@ -4389,8 +4389,8 @@
   "prompt_json": {
    "choices": [
     "+1.5R",
-    "-1R, the stop was hit",
     "+3R",
+    "-1R, the stop was hit",
     "Can't tell, the stop moved"
    ],
    "kind": "mcq",
@@ -4464,9 +4464,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
+    "About 67%",
     "About 33%",
-    "50%",
-    "About 67%"
+    "50%"
    ],
    "kind": "mcq",
    "q": "Your winners average +2R and your losers -1R. What win rate makes the expectancy zero?",
@@ -4670,9 +4670,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "B, at +0.4R a trade",
     "A, it wins more often",
-    "They come out the same"
+    "They come out the same",
+    "B, at +0.4R a trade"
    ],
    "kind": "mcq",
    "q": "System A wins 60% at +1R and loses 40% at -1R. System B wins 40% at +2.5R and loses 60% at -1R. Which makes more per trade?",
@@ -4743,9 +4743,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
+    "-5R",
     "-2.5R",
-    "-1R, the stop caps it",
-    "-5R"
+    "-1R, the stop caps it"
    ],
    "kind": "mcq",
    "q": "What R is the loss?",
@@ -4956,10 +4956,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "About 19.5% of the time",
     "About 2.8% of the time",
-    "Under 1% of the time",
-    "About 55% of the time"
+    "About 55% of the time",
+    "About 19.5% of the time",
+    "Under 1% of the time"
    ],
    "kind": "mcq",
    "q": "How often will 20 draws include a run of 6 or more losers?",
@@ -5033,8 +5033,8 @@
   "prompt_json": {
    "choices": [
     "+7R",
-    "-2R",
     "+18R",
+    "-2R",
     "-6R, the streak sank it"
    ],
    "kind": "mcq",
@@ -5110,10 +5110,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Little, six trades is a tiny sample",
     "It's broken, stop trading it",
     "A winner is due, size up",
-    "The stop is too wide, tighten it"
+    "The stop is too wide, tighten it",
+    "Little, six trades is a tiny sample"
    ],
    "kind": "mcq",
    "q": "What do the six losses tell you about the setup?",
@@ -5264,10 +5264,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "The stop gets hit more often",
     "None, 4R beats 2R",
-    "The target gets further away",
-    "You'd have to buy fewer shares"
+    "The stop gets hit more often",
+    "You'd have to buy fewer shares",
+    "The target gets further away"
    ],
    "kind": "mcq",
    "q": "What's the catch, if any?",
@@ -5331,10 +5331,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "+0.23R a trade",
-    "+0.91R a trade",
+    "Negative, most trades lost",
     "+1.3R a trade",
-    "Negative, most trades lost"
+    "+0.23R a trade",
+    "+0.91R a trade"
    ],
    "kind": "mcq",
    "q": "Grade the system. What's its expectancy?",
@@ -5633,9 +5633,9 @@
   "prompt_json": {
    "choices": [
     "The drop from a high to the low after it",
-    "Your loss from the price you paid",
     "The average size of your losses",
-    "Your worst single-day loss"
+    "Your worst single-day loss",
+    "Your loss from the price you paid"
    ],
    "kind": "mcq",
    "q": "What does a drawdown measure?",
@@ -5948,9 +5948,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "About 33%",
     "25%",
-    "About 20%"
+    "About 20%",
+    "About 33%"
    ],
    "kind": "mcq",
    "q": "You're down 25% from your account's high. Roughly what gain gets you back to the high?",
@@ -6085,10 +6085,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "10% of the account",
     "20% of the account",
+    "6% of the account",
     "5% of the account",
-    "6% of the account"
+    "10% of the account"
    ],
    "kind": "mcq",
    "q": "On our drawdown ladder, what's your max position size after a 6% drawdown?",
@@ -6364,9 +6364,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "25%",
-    "About 18%",
     "20%",
+    "About 18%",
+    "25%",
     "10%"
    ],
    "kind": "mcq",
@@ -6447,8 +6447,8 @@
   "prompt_json": {
    "choices": [
     "About 18%",
-    "20%",
-    "2%"
+    "2%",
+    "20%"
    ],
    "kind": "mcq",
    "q": "How deep is your drawdown now?",
@@ -6513,10 +6513,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "10% of the account",
-    "20% of the account",
     "8% of the account",
-    "5% of the account"
+    "10% of the account",
+    "5% of the account",
+    "20% of the account"
    ],
    "kind": "mcq",
    "q": "Under our drawdown ladder, what's the most you put in it?",
@@ -6710,10 +6710,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Stop trading for the day",
-    "Take it with a tighter stop",
+    "Raise the limit and take it",
     "Take it at double size",
-    "Raise the limit and take it"
+    "Stop trading for the day",
+    "Take it with a tighter stop"
    ],
    "kind": "mcq",
    "q": "What do you do?",
@@ -6859,8 +6859,8 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "About 133%",
     "57%",
+    "About 133%",
     "About 100%"
    ],
    "kind": "mcq",
@@ -6987,8 +6987,8 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "A step at a time, as it keeps working",
     "All at once, the slump is over",
+    "A step at a time, as it keeps working",
     "Bigger than before, to catch up"
    ],
    "kind": "mcq",
@@ -7059,10 +7059,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
+    "10% of the account",
     "8% of the account",
-    "20% of the account",
     "1% of the account",
-    "10% of the account"
+    "20% of the account"
    ],
    "kind": "mcq",
    "q": "Under our drawdown ladder, how big is the position?",
@@ -7171,10 +7171,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "At least weekly",
-    "Only at month end",
     "After every trade",
-    "Only after a losing streak"
+    "Only at month end",
+    "Only after a losing streak",
+    "At least weekly"
    ],
    "kind": "mcq",
    "q": "How often, at least, do we check the account's drawdown?",
@@ -7417,9 +7417,9 @@
   "prompt_json": {
    "choices": [
     "8% of the account",
-    "5% of the account",
+    "40% of the account",
     "10% of the account",
-    "40% of the account"
+    "5% of the account"
    ],
    "kind": "mcq",
    "q": "Under our ladder, what's your max position now?",
@@ -7540,10 +7540,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "40% of the account",
     "100% of the account",
-    "20% of the account",
-    "10% of the account"
+    "10% of the account",
+    "40% of the account",
+    "20% of the account"
    ],
    "kind": "mcq",
    "q": "Under our rules, what's the most you can put in it?",
@@ -7615,9 +7615,9 @@
   "prompt_json": {
    "choices": [
     "No new trades, review first",
-    "Take it at 5% max",
+    "Take it, the ladder only caps size",
     "Take it at half your usual risk",
-    "Take it, the ladder only caps size"
+    "Take it at 5% max"
    ],
    "kind": "mcq",
    "q": "What does our rule say?",
@@ -7688,10 +7688,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "The monthly loss limit",
-    "The 15% drawdown stop",
     "Nothing, the ladder just caps size",
-    "The daily loss limit"
+    "The monthly loss limit",
+    "The daily loss limit",
+    "The 15% drawdown stop"
    ],
    "kind": "mcq",
    "q": "What stops you from opening new trades today?",
@@ -7953,8 +7953,8 @@
   "prompt_json": {
    "choices": [
     "What you lose if every stop is hit",
-    "What your worst trade could lose",
-    "Your losses so far this month"
+    "Your losses so far this month",
+    "What your worst trade could lose"
    ],
    "kind": "mcq",
    "q": "What does your total open risk measure?",
@@ -8253,9 +8253,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Both have 6% at risk",
+    "B, its trades are bigger",
     "A, it has more trades",
-    "B, its trades are bigger"
+    "Both have 6% at risk"
    ],
    "kind": "mcq",
    "q": "Account A has four trades risking 1.5% each. Account B has three trades risking 2% each. Which has more total open risk?",
@@ -8595,9 +8595,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
+    "Two: the stocks and the fund",
     "Close to one big bet",
-    "Four separate bets",
-    "Two: the stocks and the fund"
+    "Four separate bets"
    ],
    "kind": "mcq",
    "q": "You hold three chip stocks and a semiconductor ETF. How many separate bets do you really have?",
@@ -8790,8 +8790,8 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Now 3% rides on chips",
     "None, 6% is inside the cap",
+    "Now 3% rides on chips",
     "It breaks the 6% cap"
    ],
    "kind": "mcq",
@@ -8940,9 +8940,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Be picky and keep exposure low",
     "Use the room, there's 4% left",
-    "Size up to win back the losses"
+    "Size up to win back the losses",
+    "Be picky and keep exposure low"
    ],
    "kind": "mcq",
    "q": "What's the sound move?",
@@ -8998,10 +8998,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "About 3%",
-    "1%, the stop caps it",
+    "20%",
     "15%",
-    "20%"
+    "About 3%",
+    "1%, the stop caps it"
    ],
    "kind": "mcq",
    "q": "About how much did it cost the account?",
@@ -9201,9 +9201,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "The 200 you still hold",
     "All 300 you bought",
-    "None, the sale covered it"
+    "None, the sale covered it",
+    "The 200 you still hold"
    ],
    "kind": "mcq",
    "q": "You bought 300 shares, then sold 100 at a profit and left the stop. Which shares can still lose money at the stop?",
@@ -9333,10 +9333,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Sell shares, or raise the stop",
     "Buy more, or lower the stop",
+    "Raise the stop, or buy more",
     "Lower the stop, or sell shares",
-    "Raise the stop, or buy more"
+    "Sell shares, or raise the stop"
    ],
    "kind": "mcq",
    "q": "Which two moves cut what an open trade can lose at its stop?",
@@ -9482,10 +9482,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "The winner turning into a loss",
-    "Any pullback at all",
     "A gap down at the open",
-    "Selling too early"
+    "The winner turning into a loss",
+    "Selling too early",
+    "Any pullback at all"
    ],
    "kind": "mcq",
    "q": "Your stock is up, so you raise the stop to your entry price. What is that stop there to prevent?",
@@ -9569,9 +9569,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Selling part of the position",
-    "Adding shares as it rises",
     "A partly filled order",
+    "Adding shares as it rises",
+    "Selling part of the position",
     "Moving the stop halfway up"
    ],
    "kind": "mcq",
@@ -10215,10 +10215,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "$700",
-    "$1,200",
+    "$0",
     "$500",
-    "$0"
+    "$700",
+    "$1,200"
    ],
    "kind": "mcq",
    "q": "Counted from your entries, what's your total open risk now?",
@@ -10365,8 +10365,8 @@
   "prompt_json": {
    "choices": [
     "Under each higher low",
-    "A fixed 10% under the high",
     "At the entry, and leave it there",
+    "A fixed 10% under the high",
     "Under the 200-day average"
    ],
    "kind": "mcq",
@@ -10465,10 +10465,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Yes, you have $600 of room",
     "No, you're at $1,800 already",
-    "Yes, you have $2,000 of room",
-    "No, wait for a trade to close"
+    "Yes, you have $600 of room",
+    "No, wait for a trade to close",
+    "Yes, you have $2,000 of room"
    ],
    "kind": "mcq",
    "q": "Can you take a new trade that risks $500?",
@@ -10550,8 +10550,8 @@
   "prompt_json": {
    "choices": [
     "A normal dip can shake you out",
-    "It adds risk to the trade",
-    "None, it locks in a profit"
+    "None, it locks in a profit",
+    "It adds risk to the trade"
    ],
    "kind": "mcq",
    "q": "What's the catch, if any?",
@@ -10849,8 +10849,8 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Sold near $46, about $800 lost",
     "Sold at $50, nothing lost",
+    "Sold near $46, about $800 lost",
     "Held until it trades back to $50"
    ],
    "kind": "mcq",
@@ -11141,8 +11141,8 @@
   "prompt_json": {
    "choices": [
     "Borrow from your broker to buy",
-    "Cap your loss at what you deposit",
-    "Buy any stock with no money down"
+    "Buy any stock with no money down",
+    "Cap your loss at what you deposit"
    ],
    "kind": "mcq",
    "q": "What does a margin account let you do?",
@@ -11346,10 +11346,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Up to 50%",
-    "Up to 25%",
     "Up to 75%",
-    "Up to 100%"
+    "Up to 100%",
+    "Up to 50%",
+    "Up to 25%"
    ],
    "kind": "mcq",
    "q": "Under Regulation T, how much of a new stock purchase can your broker lend you?",
@@ -11478,9 +11478,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Friday",
     "Thursday, the same day",
-    "The next Monday"
+    "The next Monday",
+    "Friday"
    ],
    "kind": "mcq",
    "q": "You sell shares on a Thursday, with no holiday that week. When does the sale settle?",
@@ -11556,8 +11556,8 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "A margin account",
     "A cash account",
+    "A margin account",
     "Either one works"
    ],
    "kind": "mcq",
@@ -11808,9 +11808,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "$2,000",
     "$25,000",
-    "No minimum at all"
+    "No minimum at all",
+    "$2,000"
    ],
    "kind": "mcq",
    "q": "Under FINRA's rule as of November 2026, what's the least equity you need to borrow on margin?",
@@ -12037,9 +12037,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
+    "Only after you add new cash",
     "Once XYZ's sale has settled",
-    "Right away, XYZ already sold",
-    "Only after you add new cash"
+    "Right away, XYZ already sold"
    ],
    "kind": "mcq",
    "q": "When can you sell ABC without a good faith violation?",
@@ -12188,10 +12188,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Your equity against positions, all day",
     "Day trades counted over five days",
     "A $25,000 minimum balance",
-    "Nothing, day trading is unlimited"
+    "Nothing, day trading is unlimited",
+    "Your equity against positions, all day"
    ],
    "kind": "mcq",
    "q": "What does the new rule check?",
@@ -12262,9 +12262,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Flagged; need $25,000 to day trade",
     "Nothing, FINRA dropped that rule",
-    "Nothing until a fifth day trade"
+    "Nothing until a fifth day trade",
+    "Flagged; need $25,000 to day trade"
    ],
    "kind": "mcq",
    "q": "What happens?",
@@ -12341,8 +12341,8 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Buy only with settled cash",
     "Hold losers until the cash settles",
+    "Buy only with settled cash",
     "Sell with a limit order instead"
    ],
    "kind": "mcq",
@@ -12474,8 +12474,8 @@
    "choices": [
     "A margin call, right away",
     "Nothing, FINRA's floor is 25%",
-    "Nothing until your next buy",
-    "A week's notice before any sale"
+    "A week's notice before any sale",
+    "Nothing until your next buy"
    ],
    "kind": "mcq",
    "q": "What should you expect?",
@@ -12703,10 +12703,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "More cash, and build a watch list",
-    "Keep buying breakouts at full size",
     "Borrow on margin to buy the dip",
-    "Size up to win the losses back"
+    "More cash, and build a watch list",
+    "Size up to win the losses back",
+    "Keep buying breakouts at full size"
    ],
    "kind": "mcq",
    "q": "What's the best use of your account now?",
@@ -13037,10 +13037,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Account × risk % ÷ (entry − stop)",
-    "A fixed share count every trade",
+    "The stock's price alone",
     "How much you like the setup",
-    "The stock's price alone"
+    "Account × risk % ÷ (entry − stop)",
+    "A fixed share count every trade"
    ],
    "kind": "mcq",
    "q": "Under our rule, what sets how many shares you buy?",
@@ -13211,10 +13211,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "0.25% to 0.5%",
-    "0.5% to 1%",
     "1% to 1.5%",
-    "No range, we skip B- setups"
+    "0.5% to 1%",
+    "No range, we skip B- setups",
+    "0.25% to 0.5%"
    ],
    "kind": "mcq",
    "q": "A setup grades B- or lower. What's our risk range for it?",
@@ -13329,8 +13329,8 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "At least $20 million a day",
     "At least $2 million a day",
+    "At least $20 million a day",
     "At least $200 million a day",
     "No minimum, the price is enough"
    ],
@@ -13448,9 +13448,9 @@
   "prompt_json": {
    "choices": [
     "A judgment call, no fixed checklist",
-    "A points checklist adds it up",
+    "By the share price",
     "By the stop distance alone",
-    "By the share price"
+    "A points checklist adds it up"
    ],
    "kind": "mcq",
    "q": "How do we grade a setup A+, A, B or B-?",
@@ -13799,10 +13799,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
+    "$1,500",
     "$40,000",
-    "$100,000",
     "$60,000",
-    "$1,500"
+    "$100,000"
    ],
    "kind": "mcq",
    "q": "Under our rules, how big is the position?",
@@ -13941,10 +13941,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Cut it to 0.25% to 0.5%",
-    "1.5% is fine, risk is risk",
     "Skip it, B- is no trade",
-    "Raise it to 2%, the ceiling"
+    "Raise it to 2%, the ceiling",
+    "Cut it to 0.25% to 0.5%",
+    "1.5% is fine, risk is risk"
    ],
    "kind": "mcq",
    "q": "What do our rules say about his risk?",
@@ -14154,10 +14154,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Pass. Three tries a week is the limit",
     "Take it, the setup is cleaner",
-    "Take it at half size",
-    "Take it with a wider stop"
+    "Pass. Three tries a week is the limit",
+    "Take it with a wider stop",
+    "Take it at half size"
    ],
    "kind": "mcq",
    "q": "Under our rules, what do you do?",
@@ -14207,10 +14207,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "No, it doesn't trade enough",
-    "Yes, the price clears $10",
     "Yes, at a smaller size",
-    "Yes, with a limit order"
+    "Yes, with a limit order",
+    "Yes, the price clears $10",
+    "No, it doesn't trade enough"
    ],
    "kind": "mcq",
    "q": "Under our rules, is it a trade?",
@@ -14392,10 +14392,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "The position's value",
     "The account",
-    "The day's range",
-    "The buying power"
+    "The position's value",
+    "The buying power",
+    "The day's range"
    ],
    "kind": "mcq",
    "q": "Our line: \"I almost never take a loss greater than 3%.\" 3% of what?",
@@ -14458,10 +14458,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Recalculate weekly or monthly",
     "Keep $50,000, it's conservative",
     "Recalculate only after a drawdown",
-    "Recalculate before every trade"
+    "Recalculate before every trade",
+    "Recalculate weekly or monthly"
    ],
    "kind": "mcq",
    "q": "What does our rule say?",
@@ -14585,10 +14585,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "0.5% to 1%, the B range",
-    "2%, the ceiling",
     "1.5%, you've earned it",
-    "3%, you're hot"
+    "3%, you're hot",
+    "0.5% to 1%, the B range",
+    "2%, the ceiling"
    ],
    "kind": "mcq",
    "q": "Under our rules, what do you risk?",
@@ -14652,10 +14652,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "A 50% position when the stop is tight",
     "0.5% risk on every trade",
+    "200% long when the market is Green",
     "1.5% risk on an A+ setup",
-    "200% long when the market is Green"
+    "A 50% position when the stop is tight"
    ],
    "kind": "mcq",
    "q": "Four traders each describe one of their rules. Which one breaks ours?",
@@ -15029,10 +15029,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "When and how much the account trades",
     "Which stocks to buy",
-    "Where each stop goes",
-    "The grade of a setup"
+    "The grade of a setup",
+    "When and how much the account trades",
+    "Where each stop goes"
    ],
    "kind": "mcq",
    "q": "What does our market reading, Green, Yellow, Orange or Red, decide?",
@@ -15210,8 +15210,8 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Below the 200-day only",
     "Above the 200-day only",
+    "Below the 200-day only",
     "Either side, if the setup is right",
     "Only when the reading is Green"
    ],
@@ -15531,10 +15531,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "A parabolic or mean-reversion trade",
-    "An A+ setup in a Green market",
+    "A long that just cleared its 200-day",
     "A stock in the strongest group",
-    "A long that just cleared its 200-day"
+    "An A+ setup in a Green market",
+    "A parabolic or mean-reversion trade"
    ],
    "kind": "mcq",
    "q": "Which trade may skip our RS rating of 80 rule?",
@@ -15719,9 +15719,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Skip it. It's past our 4% line",
     "Buy it. The stop can go under $80",
-    "Buy half size to catch up"
+    "Buy half size to catch up",
+    "Skip it. It's past our 4% line"
    ],
    "kind": "mcq",
    "q": "What do you do?",
@@ -15784,8 +15784,8 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "No. No longs below the 200-day",
     "Yes. The setup is clean",
+    "No. No longs below the 200-day",
     "Yes, at half size"
    ],
    "kind": "mcq",
@@ -15857,8 +15857,8 @@
   "prompt_json": {
    "choices": [
     "Pass. Orange means A+ setups only",
-    "Take it. The RS is over 80",
-    "Take it at half size"
+    "Take it at half size",
+    "Take it. The RS is over 80"
    ],
    "kind": "mcq",
    "q": "What does our rule say?",
@@ -16108,9 +16108,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Sell it and free the money",
     "Hold. The stop hasn't hit",
-    "Move the stop to breakeven and wait"
+    "Move the stop to breakeven and wait",
+    "Sell it and free the money"
    ],
    "kind": "mcq",
    "q": "What does our time stop say?",
@@ -16173,9 +16173,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
+    "Buy. The alert came from a good trader",
     "Pass until you have your own plan",
-    "Buy a starter, plan after",
-    "Buy. The alert came from a good trader"
+    "Buy a starter, plan after"
    ],
    "kind": "mcq",
    "q": "What do you do?",
@@ -16284,8 +16284,8 @@
   "prompt_json": {
    "choices": [
     "Yes. A parabolic short, the exception",
-    "No. Shorts only below the 200-day",
-    "No. Its RS rating is surely over 80"
+    "No. Its RS rating is surely over 80",
+    "No. Shorts only below the 200-day"
    ],
    "kind": "mcq",
    "q": "Under our rules, can this be shorted?",
@@ -16390,10 +16390,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "No new buys outside regular hours",
     "Buy. A trigger is a trigger",
-    "Buy with a limit order only",
-    "Buy half now, half at the open"
+    "Buy half now, half at the open",
+    "No new buys outside regular hours",
+    "Buy with a limit order only"
    ],
    "kind": "mcq",
    "q": "A long setup triggers at 4:35 p.m. ET in after-hours trading. What does our rule say?",
@@ -16535,9 +16535,9 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "No new trades today",
     "Take it. The setup is an A",
-    "Take it at double size. You're hot"
+    "Take it at double size. You're hot",
+    "No new trades today"
    ],
    "kind": "mcq",
    "q": "What do you do?",
@@ -16600,10 +16600,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "A long under the 200-day, not parabolic",
-    "Six positions in a Yellow market",
     "A B setup at normal size in Green",
-    "A short below the 200-day in Red"
+    "A short below the 200-day in Red",
+    "Six positions in a Yellow market",
+    "A long under the 200-day, not parabolic"
    ],
    "kind": "mcq",
    "q": "Which of these breaks a hard rule, not a guide?",
@@ -16680,8 +16680,8 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Take it as a new trade, own stop",
     "Skip it. It already stopped you out",
+    "Take it as a new trade, own stop",
     "Buy without a stop; it keeps shaking you"
    ],
    "kind": "mcq",
@@ -16745,10 +16745,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Win rate, R per win and loss, expectancy",
     "Dollar profit for the month only",
-    "Number of trades and biggest winner",
-    "The index's return that month"
+    "Win rate, R per win and loss, expectancy",
+    "The index's return that month",
+    "Number of trades and biggest winner"
    ],
    "kind": "mcq",
    "q": "Which set of numbers belongs in our monthly review?",

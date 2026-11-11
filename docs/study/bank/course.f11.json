@@ -10,9 +10,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Bought and sold the same day",
     "Held one to five days",
     "Opened in the first hour",
+    "Bought and sold the same day",
     "Any trade in a margin account"
    ],
    "kind": "mcq",
@@ -408,8 +408,8 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "No, you held it overnight",
     "Yes, it was under 24 hours",
+    "No, you held it overnight",
     "Yes, it was one quick round trip"
    ],
    "kind": "mcq",
@@ -480,10 +480,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Bought 9:45 a.m., sold 3:30 p.m.",
+    "Bought and sold in 90 seconds",
     "Bought Monday, sold next Thursday",
-    "Bought in March, sold in October",
-    "Bought and sold in 90 seconds"
+    "Bought 9:45 a.m., sold 3:30 p.m.",
+    "Bought in March, sold in October"
    ],
    "kind": "mcq",
    "q": "Which of these holds is a swing trade?",
@@ -567,9 +567,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "A gap past your stop at the open",
     "None, the stop caps the loss at 4%",
-    "Only the usual swings during the day"
+    "Only the usual swings during the day",
+    "A gap past your stop at the open"
    ],
    "kind": "mcq",
    "q": "What risk are you carrying into tomorrow?",
@@ -694,9 +694,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "The position trader",
+    "The day trader",
     "The swing trader",
-    "The day trader"
+    "The position trader"
    ],
    "kind": "mcq",
    "q": "Which trader usually puts the most weight on business fundamentals and valuation?",
@@ -766,8 +766,8 @@
   "prompt_json": {
    "choices": [
     "One week",
-    "One hour",
-    "Five minutes"
+    "Five minutes",
+    "One hour"
    ],
    "kind": "mcq",
    "q": "You hold trades for months. Which bar size best suits your main chart?",
@@ -915,9 +915,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
+    "No, your stop sold it, not you",
     "Yes, in and out the same day",
-    "No, you planned a swing trade",
-    "No, your stop sold it, not you"
+    "No, you planned a swing trade"
    ],
    "kind": "mcq",
    "q": "Does it count as a day trade?",
@@ -981,8 +981,8 @@
   "prompt_json": {
    "choices": [
     "Hold through the pullback",
-    "Sell, the trend is broken",
-    "Sell now, rebuy the next swing"
+    "Sell now, rebuy the next swing",
+    "Sell, the trend is broken"
    ],
    "kind": "mcq",
    "q": "What fits your style here?",
@@ -1052,9 +1052,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Swing trading",
+    "Position trading",
     "Day trading",
-    "Position trading"
+    "Swing trading"
    ],
    "kind": "mcq",
    "q": "Which style fits Dana's hold and schedule?",
@@ -1138,8 +1138,8 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "FINRA replaced it; check your broker",
     "Right, $25,000 is still the rule",
+    "FINRA replaced it; check your broker",
     "No minimum applies to margin at all"
    ],
    "kind": "mcq",
@@ -1291,8 +1291,8 @@
   "prompt_json": {
    "choices": [
     "Swing trader",
-    "Day trader",
-    "Position trader"
+    "Position trader",
+    "Day trader"
    ],
    "kind": "mcq",
    "q": "What's your style?",
@@ -1686,8 +1686,8 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "A 5- or 15-minute chart",
     "The daily chart",
+    "A 5- or 15-minute chart",
     "The weekly chart"
    ],
    "kind": "mcq",
@@ -1885,9 +1885,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "A trader holding for months",
     "A day trader, flat by the close",
-    "A swing trader holding 1 to 5 days"
+    "A swing trader holding 1 to 5 days",
+    "A trader holding for months"
    ],
    "kind": "mcq",
    "q": "A stock clears a long base on the weekly chart, above a rising 30-week average. Who is this setup built for?",
@@ -2152,8 +2152,8 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "5-minute setups, flat by the close",
     "Daily flags held for weeks",
+    "5-minute setups, flat by the close",
     "Weekly breakouts held for months"
    ],
    "kind": "mcq",
@@ -2310,9 +2310,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Swing: days to weeks",
     "Day trade: out by the close",
-    "Buy and hold for years"
+    "Buy and hold for years",
+    "Swing: days to weeks"
    ],
    "kind": "mcq",
    "q": "Which style is a breakout from this flag built for?",
@@ -2655,9 +2655,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "$112, from last month's bar",
     "$115, from yesterday's bar",
-    "$116, last month's close"
+    "$116, last month's close",
+    "$112, from last month's bar"
    ],
    "kind": "mcq",
    "q": "By ChartSchool's rule, which base pivot fits your daily chart this month?",
@@ -2737,8 +2737,8 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "It's a weekly stop on a day trade",
     "None, more room means fewer stop-outs",
+    "It's a weekly stop on a day trade",
     "It should sit under the 200-day average"
    ],
    "kind": "mcq",
@@ -2961,9 +2961,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
+    "Fine, hold overnight until it hits",
     "Too far for a one-day clock",
-    "Fine, a big target is a bonus",
-    "Fine, hold overnight until it hits"
+    "Fine, a big target is a bonus"
    ],
    "kind": "mcq",
    "q": "How does that target fit the trade?",
@@ -3033,9 +3033,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Position trading",
+    "Every style equally",
     "Day trading",
-    "Every style equally"
+    "Position trading"
    ],
    "kind": "mcq",
    "q": "Which style has the hardest time here?",
@@ -3112,9 +3112,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Buy stop over opening range, hold days",
     "Scalp the 1-minute chart all day",
-    "Trade VWAP bounces into the close"
+    "Trade VWAP bounces into the close",
+    "Buy stop over opening range, hold days"
    ],
    "kind": "mcq",
    "q": "Which plan fits your day?",
@@ -3185,8 +3185,8 @@
   "prompt_json": {
    "choices": [
     "Pass, the weekly trend says no",
-    "Buy, a breakout is a breakout",
-    "Buy, with a tight 5-minute stop"
+    "Buy, with a tight 5-minute stop",
+    "Buy, a breakout is a breakout"
    ],
    "kind": "mcq",
    "q": "What does the bigger chart tell you?",
@@ -3539,8 +3539,8 @@
   "prompt_json": {
    "choices": [
     "None of it: same parts, shorter clock",
-    "The stop, since you'll be watching",
     "The size, it's only for a few hours",
+    "The stop, since you'll be watching",
     "The exit, you're out by the close"
    ],
    "kind": "mcq",
@@ -3684,8 +3684,8 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Setup, stop, size, manage, review",
     "Setup, size, stop, manage, review",
+    "Setup, stop, size, manage, review",
     "Size, setup, stop, manage, review"
    ],
    "kind": "mcq",
@@ -3814,10 +3814,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "The session's low",
-    "Under the last 30-minute bar",
     "A flat 10% under entry",
-    "Just under the prior close"
+    "Just under the prior close",
+    "The session's low",
+    "Under the last 30-minute bar"
    ],
    "kind": "mcq",
    "q": "You time our Go Signal entry on the 30-minute chart. Where does the stop go?",
@@ -3953,10 +3953,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Where your stop sits",
-    "Our 2% risk ceiling",
+    "Reviewing your trades",
     "Having a written plan",
-    "Reviewing your trades"
+    "Our 2% risk ceiling",
+    "Where your stop sits"
    ],
    "kind": "mcq",
    "q": "You trade more than one style. Which of these changes from style to style?",
@@ -4112,9 +4112,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "The 200-day average",
     "The 10-day average",
-    "The 21-day average"
+    "The 21-day average",
+    "The 200-day average"
    ],
    "kind": "mcq",
    "q": "Several of our setup plans trail under the 10-day or 21-day average. Which of these three gives the best read on a hold of up to a year?",
@@ -4281,10 +4281,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
+    "Nothing extra, the stop covers it",
     "What you'll do at each quarterly report",
-    "Where the first 10-minute low is",
     "Which hourly bar to buy on",
-    "Nothing extra, the stop covers it"
+    "Where the first 10-minute low is"
    ],
    "kind": "mcq",
    "q": "What must this plan cover that a day trade plan can skip?",
@@ -4470,10 +4470,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Fewer new buys, tighter stops",
     "Ignore it, the stock is what counts",
-    "Widen your stops to ride it out",
-    "Buy more, prices are lower now"
+    "Fewer new buys, tighter stops",
+    "Buy more, prices are lower now",
+    "Widen your stops to ride it out"
    ],
    "kind": "mcq",
    "q": "What's the right move?",
@@ -4623,8 +4623,8 @@
   "prompt_json": {
    "choices": [
     "Re-plan it: daily stop, size to fit",
-    "Nothing, it's already working",
     "Keep the size, stop to breakeven",
+    "Nothing, it's already working",
     "Keep the intraday stop and size"
    ],
    "kind": "mcq",
@@ -4731,10 +4731,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Neither: two clocks, two stops",
     "The position trader, for holding",
-    "The swing trader, for selling",
-    "Both, the stops should match"
+    "Both, the stops should match",
+    "Neither: two clocks, two stops",
+    "The swing trader, for selling"
    ],
    "kind": "mcq",
    "q": "Who broke their plan?",
@@ -4858,10 +4858,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Risk is now 2.5%, over our ceiling",
-    "None, the size didn't change",
     "Risk fell, the stop is farther away",
-    "Risk is still 0.5% a trade"
+    "Risk is still 0.5% a trade",
+    "None, the size didn't change",
+    "Risk is now 2.5%, over our ceiling"
    ],
    "kind": "mcq",
    "q": "What's the problem?",
@@ -4941,10 +4941,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Buy a capped size, far under 400%",
-    "Buy the full 400%, on margin",
+    "Tighten the stop even more",
     "Widen the stop to shrink the size",
-    "Tighten the stop even more"
+    "Buy the full 400%, on margin",
+    "Buy a capped size, far under 400%"
    ],
    "kind": "mcq",
    "q": "What do you do?",
@@ -5422,10 +5422,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Edge that fits your strengths",
     "The setup with the best win rate",
     "Whatever top traders are using",
-    "A corner of little-known stocks"
+    "A corner of little-known stocks",
+    "Edge that fits your strengths"
    ],
    "kind": "mcq",
    "q": "Coach Brett Steenbarger and SMB's Mike Bellafiore both say find your niche. What do they mean by a niche?",
@@ -5624,10 +5624,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
+    "They traded it too small",
     "It doesn't fit, so they don't follow it",
     "The seller hid the real rules",
-    "Markets change too fast for systems",
-    "They traded it too small"
+    "Markets change too fast for systems"
    ],
    "kind": "mcq",
    "q": "Van Tharp says hundreds of trading systems work. Why does the typical buyer still fail with one?",
@@ -5705,8 +5705,8 @@
   "prompt_json": {
    "choices": [
     "Their niche",
-    "The right software",
     "Enough trading books",
+    "The right software",
     "A strong bull market"
    ],
    "kind": "mcq",
@@ -5805,10 +5805,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Swing trades planned at night",
-    "Day trading the open from work",
     "Quit your job to day trade",
-    "Whatever made money last month"
+    "Whatever made money last month",
+    "Swing trades planned at night",
+    "Day trading the open from work"
    ],
    "kind": "mcq",
    "q": "Which lane fits your life right now?",
@@ -5895,8 +5895,8 @@
    "choices": [
     "Fast, short-term trades",
     "Multi-week position trades",
-    "Long-term buy and hold",
-    "Whatever his mentor trades"
+    "Whatever his mentor trades",
+    "Long-term buy and hold"
    ],
    "kind": "mcq",
    "q": "Which lane plays to Sam's strengths?",
@@ -5974,10 +5974,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Narrow to the multi-day swings",
     "Drill scalps until they work",
+    "Add a third style to compare",
     "Split time evenly between both",
-    "Add a third style to compare"
+    "Narrow to the multi-day swings"
    ],
    "kind": "mcq",
    "q": "What's your next move?",
@@ -6062,10 +6062,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Review them, keep going smaller",
-    "Drop it and start a new setup",
     "Double size to win it back",
-    "Keep going full size, no review"
+    "Review them, keep going smaller",
+    "Keep going full size, no review",
+    "Drop it and start a new setup"
    ],
    "kind": "mcq",
    "q": "What's your next step?",
@@ -6157,9 +6157,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "After months of proven, logged results",
     "After two big wins in a row",
     "When you feel sure about it",
+    "After months of proven, logged results",
     "When a mentor swears by it"
    ],
    "kind": "mcq",
@@ -6239,8 +6239,8 @@
    "choices": [
     "Drop setup A",
     "Keep both, A will turn",
-    "Size up setup A",
-    "Add a new setup C"
+    "Add a new setup C",
+    "Size up setup A"
    ],
    "kind": "mcq",
    "q": "What does your record tell you to do?",
@@ -6332,10 +6332,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Paper trade his setup on the side",
-    "Switch to his setup now",
     "Run both at full size",
-    "Never look at a new setup"
+    "Paper trade his setup on the side",
+    "Never look at a new setup",
+    "Switch to his setup now"
    ],
    "kind": "mcq",
    "q": "What do you do?",
@@ -6479,9 +6479,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Cut size and study what changed",
     "Keep full size and wait it out",
-    "Jump to whatever's working now"
+    "Jump to whatever's working now",
+    "Cut size and study what changed"
    ],
    "kind": "mcq",
    "q": "What's the move?",
@@ -6565,10 +6565,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Pass: it fits neither time nor money",
+    "Day trade on margin to grow it faster",
     "Sign up and day trade the $8,000",
     "Day trade only on lunch breaks",
-    "Day trade on margin to grow it faster"
+    "Pass: it fits neither time nor money"
    ],
    "kind": "mcq",
    "q": "What's the honest call?",
@@ -6921,9 +6921,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Near the open and near the close",
     "About evenly through the day",
-    "Mostly in the middle of the day"
+    "Mostly in the middle of the day",
+    "Near the open and near the close"
    ],
    "kind": "mcq",
    "q": "On a normal day, when do the most shares trade?",
@@ -7236,8 +7236,8 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Index funds, to match their benchmark",
     "Companies, to report earnings at 4:00",
+    "Index funds, to match their benchmark",
     "Day traders, to open overnight trades"
    ],
    "kind": "mcq",
@@ -7380,10 +7380,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Closing imbalance info goes out",
     "The regular session ends",
+    "Market orders stop being accepted",
     "After-hours trading begins",
-    "Market orders stop being accepted"
+    "Closing imbalance info goes out"
    ],
    "kind": "mcq",
    "q": "What starts at 3:50 p.m. on both NYSE and Nasdaq?",
@@ -7669,9 +7669,9 @@
   "prompt_json": {
    "choices": [
     "A break of the 30-minute opening range",
-    "Buy now, before it runs further",
+    "Wait for a quiet midday dip",
     "Buy the close, once the day is done",
-    "Wait for a quiet midday dip"
+    "Buy now, before it runs further"
    ],
    "kind": "mcq",
    "q": "What's our plan's other way in today?",
@@ -7813,8 +7813,8 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "The close comes at 1:00 p.m. that day",
     "Nothing, it's a normal session",
+    "The close comes at 1:00 p.m. that day",
     "The market is shut all day"
    ],
    "kind": "mcq",
@@ -7871,9 +7871,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "A market-on-close sell, sent early",
+    "A sell order after hours at 4:05",
     "A sell stop under today's low",
-    "A sell order after hours at 4:05"
+    "A market-on-close sell, sent early"
    ],
    "kind": "mcq",
    "q": "Which order best gets you out before the report?",
@@ -7985,10 +7985,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "The Russell indexes rebalance",
-    "Monthly options expire",
     "The jobs report comes out",
-    "It's an early 1:00 p.m. close"
+    "The Russell indexes rebalance",
+    "It's an early 1:00 p.m. close",
+    "Monthly options expire"
    ],
    "kind": "mcq",
    "q": "What makes this Friday's 4:00 p.m. close unusual?",
@@ -8101,9 +8101,9 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Index funds rebalancing at the close",
+    "A breakout pulling in new buyers",
     "Big buyers quietly loading up",
-    "A breakout pulling in new buyers"
+    "Index funds rebalancing at the close"
    ],
    "kind": "mcq",
    "q": "What most likely explains that volume?",
@@ -8173,10 +8173,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Act on the close, if it still holds",
-    "Buy now, it's already over the line",
+    "Wait and buy Monday's open instead",
     "Skip it, Fridays are bad days to buy",
-    "Wait and buy Monday's open instead"
+    "Act on the close, if it still holds",
+    "Buy now, it's already over the line"
    ],
    "kind": "mcq",
    "q": "What does our plan say to do?",
@@ -8348,10 +8348,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "No: it's small and may not last",
+    "No: calendar studies are all made up",
     "Yes: five times normal is a real edge",
-    "Yes, and size up before each holiday",
-    "No: calendar studies are all made up"
+    "No: it's small and may not last",
+    "Yes, and size up before each holiday"
    ],
    "kind": "mcq",
    "q": "Do you build your plan around it?",
