@@ -10321,7 +10321,7 @@
         "refusal": false
       },
       "phrasings": [
-        {"text": "how is that one set right now", "gaps": {"a": {"id": "GAP-WIDGET-READ-ROUTE", "reason": "boardEdit has no words of its own and phrase rules are frozen: a message reaches this action through the model's need_groups reroute (the group title names it) until description-driven discovery lands", "owner": "agent-lead", "mode": "\"how is that one set right now\" → widget.readOptions"}}}
+        {"text": "how is that one set right now", "gaps": {"a": {"id": "GAP-WIDGET-READ-ROUTE", "reason": "a BUDGET CUT under routing v2 (production): the message wants boardEdit, but charts 21 + workspace 13 + lists 17 + agent 1 = 52 leave no room for boardEdit (5) under the 55-action budget (routeReachability.test.js). Under v1 (the kill-switch fallback, which this level runs) boardEdit has no words of its own; the model can still ask for the group (need_groups)", "owner": "agent-lead", "mode": "\"how is that one set right now\" → widget.readOptions"}}}
       ]
     },
     {

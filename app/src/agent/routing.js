@@ -437,6 +437,18 @@ export function selectGroups(message, { pendingActions = [], recentActions = [],
 }
 
 /**
+ * ROUTE REACHABILITY guard: a group a request needed that the per-request budget could not carry is never cut SILENTLY —
+ * one console line names the groups and their actions (names only, never the message). Nothing member-visible changes:
+ * the cut groups stay named to the model (need_groups), as before. Pinned by qa/capabilityRegression/routeReachability.test.js.
+ */
+export function warnBudgetCut(manifest, groupOf, ids) {
+  if (!ids || !ids.length) return
+  const names = manifest.filter(c => ids.includes(groupOf(c.name))).map(c => c.name)
+  if (!names.length) return
+  try { console.warn(`[uct-agent] routing budget cut: ${ids.join(', ')} not sent (${names.join(', ')})`) } catch { /* no console */ }
+}
+
+/**
  * Route a manifest. Returns { manifest, routing } — `routing` is what the server needs to tell
  * the model about the groups it was NOT given (null = the full manifest, no routing).
  * `extra` adds groups (the bounded reroute).
@@ -491,6 +503,10 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
     if (used + n > budget && want.size >= always.length) { over.push(id); continue }
     want.add(id); used += n
   }
+  // a group this message NEEDED (pinned, its own words, a carried answer, soft vocabulary) that the budget cut is logged —
+  // the fallback's fill groups are not: past the catalog size they are expected not to fit
+  const needed = new Set([...pinned, ...carried, ...(matched ? own : (soft || []))])
+  warnBudgetCut(manifest, groupOf, over.filter(id => needed.has(id)))
   const present = GROUPS.filter(g => counts.has(g.id))
   const routed = manifest.filter(c => want.has(groupOf(c.name)) || groupOf(c.name) === null)
   if (routed.length === manifest.length) return { manifest, routing: null }
