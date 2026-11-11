@@ -169,3 +169,171 @@ def test_unreadable_bounds_degrade_to_empty_not_an_exception():
     out = _resilient_fetch(_DeadConn(), _runner(0, 1, {}),
                            "source='stocks'", "11/9/2026", "", ())
     assert out == []
+
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# THE MARKET READ (`_build_day_stats`) — wired 2026-11-10, a day too late
+#
+# ⚰️ This file's own header has said since 2026-11-09 that the corrupt page took
+# "the curated feed, the Market Read, the by-contract panel AND the Discord
+# auto-push scheduler" down. The fix was then applied to the feed and the ask
+# ledger and NOT to the Market Read. So on 2026-11-10, when flow.db corrupted a
+# third time, the two wired paths logged "retrying in bounded id windows" and kept
+# serving while `_build_day_stats` raised `database disk image is malformed`
+# straight out of the build — `[flow-prepare] build raised: ...` ~32x/minute, and
+# the Options Flow day card returned nothing for SIX HOURS.
+#
+# The rows were readable the whole time: 48 of 48 sampled id windows were clean and
+# only the write-head tail was damaged. **A listed victim without a rail is just a
+# note.** These are the rails.
+# ─────────────────────────────────────────────────────────────────────────────────
+import inspect
+
+from api import live_massive_router as lmr
+
+_COLS = ("source,CreatedDate,CreatedTime,Symbol,Type,Volume,Price,Side,CallPut,Strike,"
+         "Spot,Premium,ExpirationDate,Color,ImpliedVolatility,Dte,ER,StockEtf,Sector,"
+         "Uoa,Weekly,MktCap,OI,dedup_key")
+
+
+def _temp_flow_db(tmp_path, per_source=4, sources=("stocks", "indexes")):
+    """A real flow.db with real rows — the fault is injected at the CONNECTION, so
+    the data underneath has to be genuinely readable for the test to mean anything."""
+    p = tmp_path / "flow.db"
+    c = sqlite3.connect(str(p))
+    c.execute(
+        "CREATE TABLE flow (id INTEGER PRIMARY KEY AUTOINCREMENT, source TEXT NOT NULL "
+        "DEFAULT 'stocks', CreatedDate TEXT, CreatedTime TEXT, Symbol TEXT, Type TEXT, "
+        "Volume TEXT, Price TEXT, Side TEXT, CallPut TEXT, Strike TEXT, Spot TEXT, "
+        "Premium TEXT, ExpirationDate TEXT, Color TEXT, ImpliedVolatility TEXT, Dte TEXT, "
+        "ER TEXT, StockEtf TEXT, Sector TEXT, Uoa TEXT, Weekly TEXT, MktCap TEXT, OI TEXT, "
+        "dedup_key TEXT UNIQUE, created_at TIMESTAMP, ts_ns INTEGER)")
+    k = 0
+    for s in sources:
+        for i in range(per_source):
+            k += 1
+            c.execute(
+                "INSERT INTO flow (" + _COLS + ") VALUES "
+                "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (s, "11/10/2026", "10:0%d:00 AM" % (i % 10), "NVDA", "SWEEP", "100", "1.0",
+                 "A", "CALL", "185", "180", "5000000", "12/18/2026", "MAGENTA", "0.5",
+                 "38", "N", "Stock", "Tech", "N", "N", "3000000000000", "500", "k%d" % k))
+    c.commit()
+    c.close()
+    return p
+
+
+class _CorruptHeadConn:
+    """A real connection that raises SQLite's corrupt-page error for any UNBOUNDED
+    read of `flow`, and answers normally once the read is bounded by an explicit id
+    window. That is exactly how a damaged table page behaves (PR ca9c5eb2b1)."""
+
+    def __init__(self, real):
+        object.__setattr__(self, "_real", real)
+        object.__setattr__(self, "unbounded", 0)
+        object.__setattr__(self, "bounded", 0)
+
+    def execute(self, sql, params=()):
+        if "FROM flow" in sql and "MIN(id)" not in sql:
+            if "id >=" in sql:
+                object.__setattr__(self, "bounded", self.bounded + 1)
+            else:
+                object.__setattr__(self, "unbounded", self.unbounded + 1)
+                raise _malformed()
+        return object.__getattribute__(self, "_real").execute(sql, params)
+
+    def __getattr__(self, n):
+        return getattr(object.__getattribute__(self, "_real"), n)
+
+    def __setattr__(self, n, v):
+        setattr(object.__getattribute__(self, "_real"), n, v)
+
+
+@pytest.fixture
+def corrupt_head(monkeypatch):
+    """Patch sqlite3.connect so flow.db reads behave like a damaged write head."""
+    made = []
+    real_connect = sqlite3.connect
+
+    def fake_connect(path, *a, **kw):
+        conn = real_connect(path, *a, **kw)
+        if str(path).endswith("flow.db"):
+            conn = _CorruptHeadConn(conn)
+            made.append(conn)
+        return conn
+
+    monkeypatch.setattr(lmr.sqlite3, "connect", fake_connect)
+    return made
+
+
+@pytest.fixture
+def rf_spy(monkeypatch):
+    """Record how many rows each _resilient_fetch call RETURNED, by label."""
+    real = lmr._resilient_fetch
+    seen = {}
+
+    def spy(conn, run, *a, **kw):
+        out = real(conn, run, *a, **kw)
+        label = kw.get("label", "?")
+        seen[label] = seen.get(label, 0) + len(out)
+        return out
+
+    monkeypatch.setattr(lmr, "_resilient_fetch", spy)
+    return seen
+
+
+def test_build_day_stats_survives_a_corrupt_unbounded_read(
+        tmp_path, monkeypatch, corrupt_head, rf_spy):
+    """⛔ MUTATION-PROOF. Against the pre-2026-11-10 body (a bare conn.execute of a
+    UNION ALL) this raises `database disk image is malformed` and the endpoint 500s."""
+    monkeypatch.setattr(lmr, "DB_PATH", str(_temp_flow_db(tmp_path)))
+    monkeypatch.setattr(lmr, "_load_thresholds", lambda: {"etf_enabled": True})
+
+    payload = lmr._build_day_stats("11/10/2026")        # must NOT raise
+
+    assert isinstance(payload, dict)
+    assert payload["query_date"] == "11/10/2026"
+    # The fault was real: an unbounded attempt happened and failed.
+    assert any(c.unbounded > 0 for c in corrupt_head), "the fault never fired"
+    assert any(c.bounded > 0 for c in corrupt_head), "the bounded retry never ran"
+    # And the rows were actually RECOVERED, not silently dropped.
+    assert rf_spy.get("day-stats:stocks") == 4, rf_spy
+    assert rf_spy.get("day-stats:indexes") == 4, rf_spy
+
+
+def test_each_source_is_fetched_separately_so_one_bad_span_costs_only_that_source(
+        tmp_path, monkeypatch, corrupt_head, rf_spy):
+    """⭐ The per-source loop is the point: a UNION ALL has no single id range to
+    bound, and a corrupt span anywhere in it would take BOTH partitions down."""
+    monkeypatch.setattr(lmr, "DB_PATH", str(_temp_flow_db(tmp_path)))
+    monkeypatch.setattr(lmr, "_load_thresholds", lambda: {"etf_enabled": True})
+
+    lmr._build_day_stats("11/10/2026")
+
+    assert "day-stats:stocks" in rf_spy and "day-stats:indexes" in rf_spy, rf_spy
+
+
+def test_clean_db_needs_no_bounded_retry(tmp_path, monkeypatch, rf_spy):
+    """POSITIVE CONTROL: on a healthy file the wiring must cost nothing extra — the
+    unbounded query still answers and no windowing happens."""
+    monkeypatch.setattr(lmr, "DB_PATH", str(_temp_flow_db(tmp_path)))
+    monkeypatch.setattr(lmr, "_load_thresholds", lambda: {"etf_enabled": True})
+
+    payload = lmr._build_day_stats("11/10/2026")
+
+    assert payload["query_date"] == "11/10/2026"
+    assert rf_spy.get("day-stats:stocks") == 4
+    assert rf_spy.get("day-stats:indexes") == 4
+
+
+def test_build_day_stats_source_routes_through_resilient_fetch():
+    """Structural rail: pins the wiring so it cannot be refactored back into a bare
+    UNION ALL that passes the behavioural tests only because nothing corrupted."""
+    src = inspect.getsource(lmr._build_day_stats)
+    assert "_resilient_fetch(" in src, (
+        "_build_day_stats must read `flow` through _resilient_fetch — see this "
+        "section's header for what happens when it does not")
+    assert '" UNION ALL ".join' not in src, (
+        "the UNION ALL flow read is back; _resilient_fetch cannot bound an id range "
+        "across a union, so the corrupt-page retry would be unreachable again")
+    assert "day-stats:" in src, "each source's fetch must carry its own log label"
