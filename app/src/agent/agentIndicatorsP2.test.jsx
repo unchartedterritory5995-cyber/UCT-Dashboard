@@ -371,6 +371,60 @@ describe('definition.* — uct.indicators.definitions/1', () => {
       .rejects.toMatchObject({ message: READ_BACK, unreverted: true })
     expect(srv.rows.get(COPY).live).toBe(false) // the write happened
   })
+  // ⛔ The runtime's Undo sentence after a REAL write (`unreverted`): the same words a failed plan
+  // gets (`commitPlan.fail`), never "Nothing was undone." A plain refusal keeps "Nothing was undone."
+  // (pinned by the two F-15 Undo refusal tests below and the first-read one above).
+  const UNDO_LEFT = `Your indicators could not be undone (${READ_BACK}) — and some changes could not be reversed.`
+  it('after-write rail :401, through the runtime — the member reads that a change could not be reversed, not "Nothing was undone."', async () => {
+    const srv = server()
+    setDefinitionDeps(srv)
+    const b = board()
+    const { res } = await run(b.host, [{ action: 'definition.delete', target: 'definitions', args: { defId: MINE } }], lib)
+    const base = srv.read
+    const save = srv.save
+    let saved = false
+    srv.save = async (...a) => { const r = await save(...a); saved = true; return r }
+    srv.read = async (id) => (saved ? { ok: false, status: 500, error: 'The server could not read this indicator (500).' } : base(id))
+    const back = await undoEntry(b.host, res.undo)
+    expect(back.ok).toBe(false)
+    expect(back.reason).toBe(UNDO_LEFT)
+    expect(srv.rows.get(MINE).live).toBe(true)
+  })
+  it('after-write rail :421, through the runtime — an Undo of a copy whose delete ran but is unconfirmed says so', async () => {
+    const srv = server()
+    const COPY = 'u_cccccccccc7c'
+    srv.fork = async () => {
+      const definition = { ...FIX.styled_markers, id: COPY, version: 1, meta: { ...(FIX.styled_markers.meta || {}), name: 'My Breakout Dots (copy)' } }
+      srv.rows.set(COPY, { def_id: COPY, version: 1, definition, repaint: null, live: true })
+      return { ok: true, row: { def_id: COPY, version: 1, definition } }
+    }
+    setDefinitionDeps(srv)
+    const b = board()
+    const { res } = await run(b.host, [{ action: 'definition.duplicate', target: 'definitions', args: { defId: MINE } }], lib)
+    expect(res.ok, JSON.stringify(res.failed)).toBe(true)
+    const base = srv.read
+    const remove = srv.remove
+    let removed = false
+    srv.remove = async (id) => { const r = await remove(id); removed = true; return r }
+    srv.read = async (id) => (removed ? { ok: false, status: 500, error: 'The server could not read this indicator (500).' } : base(id))
+    const back = await undoEntry(b.host, res.undo)
+    expect(back.ok).toBe(false)
+    expect(back.reason).toBe(UNDO_LEFT)
+    expect(srv.rows.get(COPY).live).toBe(false)
+  })
+  it('runtime Undo: a kind’s own complete sentence gets the shared not-reversed sentence only when it left a write', async () => {
+    const srv = server()
+    setDefinitionDeps(srv)
+    const b = board()
+    const { res } = await run(b.host, [{ action: 'definition.delete', target: 'definitions', args: { defId: MINE } }], lib)
+    const spy = vi.spyOn(definitionLibraryKind, 'commit')
+    try {
+      spy.mockImplementationOnce(async () => { throw Object.assign(new Error('The restore stopped part-way.'), { complete: true, unreverted: true }) })
+      expect((await undoEntry(b.host, res.undo)).reason).toBe('The restore stopped part-way. Some earlier changes could not be reversed.')
+      spy.mockImplementationOnce(async () => { throw Object.assign(new Error('The restore did not start.'), { complete: true }) })
+      expect((await undoEntry(b.host, res.undo)).reason).toBe('The restore did not start.')
+    } finally { spy.mockRestore() }
+  })
   it('F-15: an Undo that cannot be exact says WHY, each fact once (the exact text the member reads)', async () => {
     const srv = server()
     const row = srv.rows.get(MINE)
