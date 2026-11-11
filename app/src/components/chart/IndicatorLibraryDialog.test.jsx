@@ -11,6 +11,7 @@ import { isIndicatorEnabled, setIndicatorEnabled, definitionVisibility, addInsta
 import { ENGINE_OWNED } from './engine/flipState'
 import * as engineRegistry from './engine/nativeRegistry'
 import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
+import { isCatalogRowOffered } from './engine/serverCompute'
 import { resultRows, getResultRow, primaryOf } from './__tests__/resultRows'
 
 // ─── …AND THE DIALOG'S LIST IS NOW `BUILT_IN_ROWS ∪ catalogRows ∪ userCatalogRows`
@@ -41,9 +42,12 @@ import { resultRows, getResultRow, primaryOf } from './__tests__/resultRows'
 // only to definitions, because only a definition had ever needed hiding; the
 // legacy `ma` BUILT-IN row is the first that does, so this mirror has to subtract
 // it from both halves or it stops describing the dialog.
+// ⭐ RS split U1 — AND MINUS A `meta.requiresServer` DEFINITION THE LIVE SERVER
+// HAS NOT LISTED (`isCatalogRowOffered`; nothing lands under vitest). Read from
+// the gate the dialog reads, for the same reason as the constant above.
 const OFFERED = () => [
   ...BUILT_IN_ROWS.filter((r) => !LIBRARY_HIDDEN_IDS.includes(r.id)),
-  ...catalogRows().filter((r) => !LIBRARY_HIDDEN_IDS.includes(r.id))]
+  ...catalogRows().filter((r) => !LIBRARY_HIDDEN_IDS.includes(r.id) && isCatalogRowOffered(r, engineRegistry))]
 
 // ─── THE BROWSE / ADD SURFACE (spec §6) ─────────────────────────────────────
 //

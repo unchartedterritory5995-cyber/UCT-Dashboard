@@ -190,6 +190,32 @@ def _other_methods() -> list:
 
 
 def _rs_rank_method() -> dict:
+    """The RS Rank method, READ FROM THE FLAG that decides which rating the
+    column carries (RS split unit U5a). Off: the hourly weighted-return
+    percentile, as before. On (``RS_RANK_IBD_ENABLED``): the column is the
+    nightly IBD-style RS Rating, the same number as the RS Rating column and
+    the chart's UCT RS, with the hourly rank only where a name has no stored
+    rating; the prose says so, and says the number moves once a night."""
+    from api.services import rs_ranking as _rsr                 # noqa: PLC0415
+    if _rsr.rs_rank_ibd_enabled():
+        p = _rs_params()
+        return {
+            "column": "rs_rank", "label": "RS Rank",
+            "one_line": "The nightly IBD-style RS Rating, 1-99: one number, the same as "
+                        "the chart's UCT RS and the RS Rating column.",
+            "scale": f"1-{p['max']}, higher is stronger",
+            "how": (f"Since the two were unified, this column IS the RS Rating: over the "
+                    f"stock's daily closes, {_ibd_formula_prose(p)}, ranked as a percentile "
+                    f"across the cap universe excluding ETFs. It is written once a night by "
+                    f"the 04:15 ET rating job and does not move during the session. Where a "
+                    f"name has no stored rating for the newest session, the hourly weighted "
+                    f"return rank (" + _rs_terms_prose() + ") stands in and the row's "
+                    f"source says so."),
+            "caveat": ("The universe is our own coverage list minus ETFs, not the whole "
+                       "market, so the rank is relative to what we screen. RS Ret is still "
+                       "the hourly weighted return, so this column is no longer its "
+                       "percentile; read RS Rating and RS Rank as one number."),
+        }
     return {
         "column": "rs_rank", "label": "RS Rank",
         "one_line": "Price performance rank against the whole universe, 1-99.",
@@ -500,15 +526,17 @@ def _rs_column_methods() -> list:
          "how": (f"1 when the sign of the {agree}-session least-squares slope of the stock's "
                  f"RS line is the same against SPY and against RSP, the equal-weight S&P 500 "
                  f"(both rising or both falling); 0 when they disagree or either slope is "
-                 f"flat; blank until {agree} sessions exist against both. The chart's "
-                 f"sensitivity read has a third leg, the sector ETF, which the nightly build "
-                 f"does not read, so this is a TWO-benchmark test. " + _RS_BAR_NOTE),
+                 f"flat; blank until {agree} sessions exist against both. The nightly build "
+                 f"reads two benchmarks, SPY and RSP, and not the sector ETF, so this is a "
+                 f"TWO-benchmark test. " + _RS_BAR_NOTE),
          "caveat": ("Agreement cuts both ways: two falling slopes agree too. To mean leaders, "
                     "pair it with an RS rank floor or the RS line above its average, as the "
                     "starter does. It answers the denominator question (did the share "
                     "strengthen, or did a few megacaps weaken the index), nothing more.")},
         {"column": "rs_rating_ibd", "label": "RS Rating (IBD-style)",
-         "one_line": "An IBD-style 1-99 price-performance rating, our own calculation.",
+         "one_line": "An IBD-style 1-99 price-performance rating, our own calculation. "
+                     "Once RS Rank is unified with it, RS Rating is the RS column: the "
+                     "same number, so this column leaves the picker (saved screens keep it).",
          "scale": rating_scale,
          "how": (f"Over the stock's daily closes: {_ibd_formula_prose(p)}. The score is "
                  f"ranked across the cap universe excluding ETFs, as a percentile with ties "
@@ -561,6 +589,25 @@ def _rs_column_methods() -> list:
                        "weighted rating; a high short-window rank beside a low long-window one "
                        "is a young move, not a leader yet."),
         })
+    # S1 (2026-11-10): the ninth-month window. NOT one of the four the rating
+    # weights (`IBD_COMPONENTS`), so it gets its own entry and its own sentence.
+    from api.services import rs_weighted_return as _rsw9        # noqa: PLC0415
+    _label9, bars9 = _rsw9.IBD_M9_COMPONENT
+    out.append({
+        "column": "rs_rating_9m", "label": "9M Return Rank",
+        "one_line": f"Percentile rank of the plain nine-month return, 1-{top}.",
+        "scale": rating_scale,
+        "how": (f"The close over the close {bars9} sessions earlier, ranked across the "
+                f"same cap universe minus ETFs as the IBD-style rating and scored the same "
+                f"way, max(1, ceil(percentile x {top})). Unlike the other four windows it is "
+                f"NOT one of the terms the rating weights; it sits between the six- and "
+                f"twelve-month ranks so a long move can be read in five steps. "
+                + _RS_RATING_NOTE),
+        "caveat": ("A single-window rank reacts faster and flips more often than the "
+                   "weighted rating. Blank until the rating history carries the nine-month "
+                   "figure for the session, which older stored sessions fill by a one-off "
+                   "backfill."),
+    })
     out.extend(_rs_phase3_methods())
     for m in out:
         m["family"] = RS_FAMILY
@@ -716,13 +763,14 @@ def rs_columns_section() -> dict:
             "03:00 ET step from the same bars, only while that step's Phase 3 part is switched "
             "on, and are empty until then."),
         "notes": [
+            # U9 (RS split): these two notes no longer name a chart Reading. The slim UCT RS
+            # Line draws no Mansfield line and no sensitivity row (map §(a) U7); the screener
+            # columns are the readings that stay, and this page describes the columns.
             f"Mansfield RS is read on {p['mansfield']} DAILY bars, the curriculum's daily form "
-            f"of Weinstein's 52-week weekly average, never on weekly bars; the chart's "
-            f"Mansfield plot reads the same series.",
+            f"of Weinstein's 52-week weekly average, never on weekly bars.",
             f"RS Agrees vs SPY and RSP is a TWO-benchmark test: the sign of the "
-            f"{p['agree']}-session RS slope against SPY and against equal-weight RSP. The "
-            f"chart's sensitivity read adds a third leg, the sector ETF, which the nightly "
-            f"build does not read.",
+            f"{p['agree']}-session RS slope against SPY and against equal-weight RSP; the "
+            f"nightly build does not read the sector ETF.",
             f"The rating is IBD-style, our own calculation, not MarketSurge's: "
             f"{_ibd_formula_prose(p)}; percentile across the cap universe minus ETFs; "
             f"max(1, ceil(percentile x {p['max']})). Measured difference to MarketSurge: "

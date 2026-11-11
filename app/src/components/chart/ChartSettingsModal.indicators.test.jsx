@@ -8,6 +8,7 @@ import { mergeChartSettings, instanceTombstone } from './chartDefaults'
 import { getDefinition, listDefinitions } from './engine/nativeRegistry'
 import { CARVED_OUT_ROWS } from './indicatorCatalog'
 import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
+import { isDefinitionOffered } from './engine/serverCompute'
 import { resultRows, getResultRow, resultIsOn, rowIsSelected } from './__tests__/resultRows'
 
 // ─── THE INDICATORS TAB, END TO END ─────────────────────────────────────────
@@ -252,6 +253,10 @@ describe('ChartSettingsModal — the ACTIVE list is what the chart draws', () =>
       // reachable from Chart Settings. The sweep stays a sweep; the exclusion is
       // read from the frozen list rather than spelled again.
       if (LIBRARY_HIDDEN_IDS.includes(def.id)) continue
+      // ⭐ RS split U1 — a `meta.requiresServer` definition is REGISTERED and not
+      // OFFERED until the live server lists it; nothing lands under vitest, so the
+      // sweep reads the same gate the tab reads (`isDefinitionOffered`).
+      if (!isDefinitionOffered(def)) continue
       expect(options, `${def.id} is in the registry and offered nowhere`).toContain(def.id)
     }
     for (const row of CARVED_OUT_ROWS) {

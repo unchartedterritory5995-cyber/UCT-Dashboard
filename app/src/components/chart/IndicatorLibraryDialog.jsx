@@ -64,7 +64,10 @@
 // owes them a sentence when it cannot. See `indicatorCatalog.userRefusalRows`.
 import { withoutGuardIds } from './engine/ast/guardIdText'
 import { orderCategories } from './technicalCategories'
-import { useState, useMemo, useRef, useEffect, useCallback, useId } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback, useId, useSyncExternalStore } from 'react'
+// ⭐ RS split U1 — a `meta.requiresServer` definition is offered only once the
+// live server lists it; the version is what re-lists when the answer lands.
+import { isCatalogRowOffered, subscribeServerDefinitions, serverDefinitionsVersion } from './engine/serverCompute'
 import Sheet from '../mobile/Sheet'
 import { PORTAL_POPUP_ATTR } from './ColorPicker'
 import { useUserDefinitions, useInstalledUserDefinitions } from '../../hooks/useUserDefinitions'
@@ -361,17 +364,23 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   // hidden on an ordinary chart so browse shows one Moving Average, offered again
   // when there is a tombstoned overlay to revive. See `hiddenLibraryIds`.
   const hidden = hiddenLibraryIds(settings)
+  // ⭐ RS split U1 — AND A `meta.requiresServer` DEFINITION IS SUBTRACTED UNTIL
+  // THE LIVE SERVER LISTS IT (`isCatalogRowOffered`, the same fail-closed fetch
+  // as the per-input gate). Subtracted here, not inside `catalogRows()`, for the
+  // reason written above. `serverVersion` moves when the answer lands, so the
+  // row appears without a reopen.
+  const serverVersion = useSyncExternalStore(subscribeServerDefinitions, serverDefinitionsVersion, () => 0)
   // ⭐ AND THE REVEALED REVIVE ROW IS RENAMED — *Restore EMA 9*, not a second row
   // reading "Moving Average". See `discoveryCatalog.libraryRowFor`.
   const all = useMemo(
     () => [
       ...(Array.isArray(extraRows) ? extraRows : []),
       ...BUILT_IN_ROWS.filter((r) => !hidden.includes(r.id)).map((r) => libraryRowFor(r, settings)),
-      ...catalogRows(registry).filter((r) => !hidden.includes(r.id)),
+      ...catalogRows(registry).filter((r) => !hidden.includes(r.id) && isCatalogRowOffered(r, registry)),
       ...userCatalogRows(registry),
     ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `generation` IS the registry's version
-    [registry, generation, hidden, settings, extraRows],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `generation` IS the registry's version; `serverVersion` the gate's
+    [registry, generation, hidden, settings, extraRows, serverVersion],
   )
   // ⛔ ONE SEARCH, SHARED WITH THE SETTINGS TAB AND THE SOURCE PICKER. Same hook,
   // same endpoints, same debounce, same facade adapters — see the import block.
