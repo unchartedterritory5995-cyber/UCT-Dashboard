@@ -174,6 +174,14 @@ export async function readFundamentalsFacts(symbol) {
   const env = await readData('fundamentals', { symbol: sym, period: 'quarterly', periods: 4 }, { purpose: 'answer', turnId })
   return fundamentalsFacts(env, sym)
 }
+/** TERM-033: stock.profile's statements block when the read itself FAILED (it threw). Said in the profile and logged
+ *  with its cause, with no statement figure; distinct from `null` above (not served / no open turn), where the profile
+ *  carries its snapshot fields alone. -> { lines, items, source } like fundamentalsFacts. */
+export function fundamentalsUnread(symbol, e) {
+  const sym = String(symbol || '').toUpperCase()
+  console.warn(`[uct-agent] stock.profile: the fundamentals read for ${sym} failed (${e?.message || 'error'}); the profile says so and states no statement figure`)
+  return { lines: [`Financial statements: I couldn't read ${sym}'s financial statements from UCT's data gateway right now; no statement figure is stated.`], items: [], source: null }
+}
 
 // ── earnings → stock.earnings ────────────────────────────────────────────────────────────────────────────────────────
 

@@ -40,7 +40,19 @@ export const calendarKind = {
   fingerprint: () => 'calendar',
 }
 
-const request = (u) => fetch(u, { credentials: 'include' }).then(r => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: one read is a TAGGED outcome, { ok: true, body } or { ok: false, why }, so a failure is never the same value
+// as an empty answer. A failure is logged with its cause, and the answer says the calendar couldn't be LOADED.
+async function request(u) {
+  let why
+  try {
+    const r = await fetch(u, { credentials: 'include' })
+    if (r.ok) {
+      try { return { ok: true, body: await r.json() } } catch { why = 'an unreadable answer' }
+    } else why = `HTTP ${r.status}`
+  } catch { why = "the request didn't reach UCT" }
+  console.warn(`[uct-agent] calendar: ${u} failed (${why})`)
+  return { ok: false, why }
+}
 const isoOf = (d) => (d ? new Date(d).toISOString().slice(0, 10) : null)
 const mondayOf = (iso) => {
   const d = new Date(`${iso}T12:00:00Z`)
@@ -79,8 +91,10 @@ function dayLines(ds, d) {
 async function weekFor(page, iso) {
   const monday = mondayOf(iso)
   if (page?.weekStart === monday && page.days && Object.keys(page.days).length) return { days: page.days, from: 'page' }
-  const body = await request(`/api/calendar?week=${encodeURIComponent(monday)}`)
-  if (!body?.days) return null
+  const res = await request(`/api/calendar?week=${encodeURIComponent(monday)}`)
+  if (!res.ok) return { unread: res.why }
+  const body = res.body
+  if (!body?.days || typeof body.days !== 'object') return { unread: 'an answer without its days' }
   const days = {}
   for (const [ds, d] of Object.entries(body.days)) {
     days[ds] = { label: d?.label || ds, ...Object.fromEntries(['bmo', 'amc', 'tbd'].map(k => [k, (d?.[k] || []).map(e => upper(e?.sym)).filter(Boolean)])), econ: (d?.econ || []).map(e => String(e?.title || e?.event || e?.name || '')).filter(Boolean) }
@@ -127,8 +141,9 @@ export function registerCalendarCapabilities() {
     async answer(_s, { symbol }) {
       const sym = upper(symbol)
       if (!TICKER.test(sym)) return 'Which stock should I look up?'
-      const r = await request(`/api/calendar/next-report?sym=${encodeURIComponent(sym)}`)
-      if (!r) return `I couldn't read the calendar for ${sym} right now.`
+      const res = await request(`/api/calendar/next-report?sym=${encodeURIComponent(sym)}`)
+      const r = res.ok && res.body && typeof res.body === 'object' ? res.body : null
+      if (!r) return `I couldn't load UCT's calendar for ${sym} right now (${res.ok ? 'an unreadable answer' : res.why}), so I can't say when it reports.`
       if (!r.date) return `UCT's calendar has no upcoming report date for ${sym}${r.date_est ? ` (estimated ${r.date_est})` : ''}.`
       const when = r.timing && SESSION_WORD[r.timing] ? `, ${SESSION_WORD[r.timing]}` : ''
       return { text: `${sym} next reports on ${r.date}${when}${r.date_est && r.date_est !== r.date ? ` (estimate ${r.date_est})` : ''}.`, link: { href: `/calendar?week=${encodeURIComponent(mondayOf(r.date))}`, label: 'Jump to that week' } }
@@ -156,7 +171,7 @@ export function registerCalendarCapabilities() {
       if (date && !want) return `I couldn't read “${date}” as a day — say it as YYYY-MM-DD, or “Thursday”.`
       const anchor = want || page?.weekStart || isoOf(Date.now())
       const w = await weekFor(page, anchor)
-      if (!w) return 'I couldn\'t read the calendar right now.'
+      if (w.unread) return `I couldn't load UCT's calendar for that week right now (${w.unread}), so I can't say what reports.`
       if (want) {
         const d = w.days[want]
         if (!d) return `${want} isn't in that calendar week.`

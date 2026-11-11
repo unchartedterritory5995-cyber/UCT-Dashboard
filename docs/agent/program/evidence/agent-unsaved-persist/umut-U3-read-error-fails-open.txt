@@ -1,0 +1,83 @@
+# pl-widget no lock, BelowNormal, label umut-U3-read-error-fails-open 
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+7d1250fb57
+ M src/agent/capabilities/scanRefine.js
+
+ RUN  v4.0.18 C:/w/pl-unsaved/app
+
+stderr | src/agent/agentUnsavedScreen.rail.test.jsx > an unsaved screen survives a reload (exact key uct.agent.unsavedScreens.v1) > starting fresh: a new screen saved after the reload removes this chat's entry only (another chat's stays)
+[uct-agent] screener: this chat's last screen was not saved (HTTP 503); a chat switch or reload starts fresh
+
+ ✓ src/agent/agentScanRefine.test.jsx (11 tests) 92ms
+ ❯ src/agent/agentUnsavedScreen.rail.test.jsx (8 tests | 1 failed) 477ms
+     ✓ failed save, reload, "narrow that to tech": the older server copy is NOT refined, the member is asked, the entry is kept 10ms
+     ✓ "refine it" after the question: this browser's copy is saved again FIRST, then narrowed; the entry is removed by its exact id 13ms
+     ✓ the retry fails too: nothing is refined, the member is told, the entry is kept 14ms
+     ✓ starting fresh: a new screen saved after the reload removes this chat's entry only (another chat's stays) 30ms
+     ✓ capped at 20 chats: the oldest entries go first  359ms
+     ✓ touches ONLY the exact key: no other key is read, written or removed, and storage is never enumerated 17ms
+     × a storage ACCESS error after a reload fails closed: start fresh, the older server copy is never refined 19ms
+     ✓ a QUOTA error on the write is logged and never breaks the answer; in this session the refinement still starts fresh 13ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent/agentUnsavedScreen.rail.test.jsx > an unsaved screen survives a reload (exact key uct.agent.unsavedScreens.v1) > a storage ACCESS error after a reload fails closed: start fresh, the older server copy is never refined
+AssertionError: expected { …(3) } to be 'I didn\'t run it: I couldn\'t read th…' // Object.is equality
+
+- Expected: 
+"I didn't run it: I couldn't read this chat's last screen back from UCT, so I'm starting fresh: run the screen again first, e.g. “stocks above their 20-day EMA with volume at least twice average”."
+
++ Received: 
+{
+  "link": {
+    "href": "/screener?s=eyJmIjp7InByaWNlIjp7Im9wIjoiZ3RlIiwibWluIjo1MH0sInNlY3RvciI6eyJvcCI6ImluIiwidmFsdWVzIjpbIlRlY2hub2xvZ3kiXX19fQ",
+    "label": "Open in Screener",
+  },
+  "table": {
+    "columns": [
+      {
+        "key": "ticker",
+        "label": "Symbol",
+      },
+      {
+        "key": "price",
+        "label": "Price",
+      },
+      {
+        "key": "chg_pct_1d",
+        "label": "Chg 1D",
+      },
+    ],
+    "rows": [
+      {
+        "chg_pct_1d": "1.00%",
+        "price": "$12.00",
+        "ticker": "AAA",
+      },
+      {
+        "chg_pct_1d": "2.00%",
+        "price": "$40.00",
+        "ticker": "BBB",
+      },
+    ],
+  },
+  "text": "2 stocks match (Price ≥ $50 · Sector: Technology). Showing the first 2, ordered by market cap, largest first (no other order was asked for). Data: 2026-10-30 snapshot.",
+}
+
+ ❯ src/agent/agentUnsavedScreen.rail.test.jsx:149:15
+    147|     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { …
+    148|     const a = await run({ mode: 'refine', filters: TECH })
+    149|     expect(a).toBe(`I didn't run it: ${LAST_SCREEN_UNREAD.replace(/\.$…
+       |               ^
+    150|     expect(scans()).toHaveLength(1)
+    151|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 18 passed (19)
+   Start at  21:57:06
+   Duration  7.94s (transform 10.03s, setup 538ms, import 13.04s, tests 569ms, environment 1.07s)
+
+RUN-DONE 

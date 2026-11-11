@@ -8,7 +8,7 @@ import { registerBuiltins } from './builtins'
 import { _resetScreenerCache, lastScreenNow, ensureLast } from './capabilities/screener'
 import { noteConversation } from './agentClient'
 import {
-  composeRefine, refineRefusal, publicAlternative, hiddenKeys, RATINGS_REFUSAL, FLOW_REFUSAL, ALT_STRENGTH, ALT_SETUP, ALT_FLOW, NO_LAST_SCREEN,
+  composeRefine, refineRefusal, publicAlternative, hiddenKeys, RATINGS_REFUSAL, FLOW_REFUSAL, ALT_STRENGTH, ALT_SETUP, ALT_FLOW, NO_LAST_SCREEN, LAST_SCREEN_UNREAD, UNSAVED_KEY, unsavedQuestion,
 } from './capabilities/scanRefine'
 
 registerBuiltins()
@@ -28,6 +28,7 @@ const ROWS = [{ ticker: 'AAA', company: 'A', price: 12, chg_pct_1d: 1 }, { ticke
 
 let calls, state
 beforeEach(() => {
+  localStorage.removeItem(UNSAVED_KEY)                      // the browser's unsaved-screen record (exact key) starts empty
   _resetScreenerCache(); noteConversation('ac_1')
   calls = []; state = {}                                     // the server's agent_conversation_state rows, by conversation
   globalThis.fetch = vi.fn(async (url, init = {}) => {
@@ -108,13 +109,43 @@ describe('persisted per conversation', () => {
     await flush()
     expect(puts().map(p => p[1])).toEqual(['/api/agent/conversations/ac_9/state/lastScreen'])
   })
-  it('the server unreachable: the answer is unaffected, nothing is retried in the answer path', async () => {
+  // TERM-033 (AUDIT bar, 2026-11-10): the state write and read ended in `.catch(() => null)` and ignored a failed
+  // result, so an UNREADABLE last screen read exactly like NO last screen ("Which screen should I narrow?"), and a
+  // failed write was dropped without a word. Both are now logged, and the refinement says it is starting fresh.
+  it('the server unreachable: the answer is unaffected; the failed write and read are logged; the refinement says it is starting fresh', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const real = globalThis.fetch
     globalThis.fetch = vi.fn(async (u, i) => (/\/state\/lastScreen$/.test(String(u)) ? new Response('', { status: 500 }) : real(u, i)))
     const a = await run({ filters: [F('pct_vs_ema20', 'gt', 0)] })
     expect(a.text).toMatch(/^2 stocks match/)
+    await flush()
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^\[uct-agent\] screener: this chat's last screen was not saved \(/))
+    expect(JSON.parse(localStorage.getItem(UNSAVED_KEY)).ac_1).toBeTruthy()      // this browser kept the unsaved screen
+    localStorage.removeItem(UNSAVED_KEY)                       // without that record (agentUnsavedScreen.rail has it): the read-failure path
     _resetScreenerCache()
-    expect(await run({ mode: 'refine', filters: [F('price', 'gte', 10)] })).toMatch(/Which screen should I narrow\?/)
+    expect(await run({ mode: 'refine', filters: [F('price', 'gte', 10)] })).toBe(`I didn't run it: ${LAST_SCREEN_UNREAD.replace(/\.$/, '')}.`)
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^\[uct-agent\] screener: this chat's last screen could not be read back \(/))
+    expect(scans()).toHaveLength(1)                            // nothing was narrowed from a guess
+  })
+  it('a FAILED write is not silently lost: switching away and back does not refine the OLDER server copy, it starts fresh', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    state.ac_1 = { spec: { filters: [{ key: 'price', op: 'gte', min: 50 }], post: [], sort: null }, symbols: ['OLD'], total: 1, asOf: '2026-10-29', name: null, savedId: null }
+    const real = globalThis.fetch
+    globalThis.fetch = vi.fn(async (u, i) => ((i?.method === 'PUT' && /\/state\/lastScreen$/.test(String(u))) ? new Response('', { status: 503 }) : real(u, i)))
+    await run({ filters: [F('pct_vs_ema20', 'gt', 0)] })      // the newer screen; its write fails
+    await flush()
+    noteConversation('ac_2'); await ensureLast()
+    noteConversation('ac_1')
+    // this browser kept the newer screen, so the member is ASKED (agentUnsavedScreen.rail), never the older copy refined
+    expect(await run({ mode: 'refine', filters: [F('vol_ratio', 'gte', 2)] })).toBe(`I didn't run it: ${unsavedQuestion({ spec: { filters: [{}] } }).replace(/\.$/, '')}.`)
+    expect(scans().map(s => s[2].filters)).toEqual([[{ key: 'pct_vs_ema20', op: 'gt', min: 0 }]])   // never the OLD price ≥ 50 screen
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^\[uct-agent\] screener: this chat's last screen was not saved \(HTTP 503/))
+  })
+  it('a read that succeeds with NO stored screen is still the plain question (empty is not unavailable)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    expect(await run({ mode: 'refine', filters: [F('price', 'gte', 10)] })).toBe(`I didn't run it: ${NO_LAST_SCREEN.replace(/\.$/, '')}.`)
+    expect(gets()).toHaveLength(1)
+    expect(warn).not.toHaveBeenCalled()
   })
 })
 

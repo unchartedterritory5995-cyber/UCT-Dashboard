@@ -1,0 +1,22 @@
+# pl-widget no lock, BelowNormal, label unsaved-green2 
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+16adf9194d
+ M src/agent/agentScanRefine.test.jsx
+ M src/agent/capabilities/scanRefine.js
+ M src/agent/capabilities/screener.js
+
+ RUN  v4.0.18 C:/w/pl-unsaved/app
+
+stderr | src/agent/agentUnsavedScreen.rail.test.jsx > an unsaved screen survives a reload (exact key uct.agent.unsavedScreens.v1) > starting fresh: a new screen saved after the reload removes this chat's entry only (another chat's stays)
+[uct-agent] screener: this chat's last screen was not saved (HTTP 503); a chat switch or reload starts fresh
+
+ ✓ src/agent/agentScanRefine.test.jsx (11 tests) 88ms
+ ✓ src/agent/agentUnsavedScreen.rail.test.jsx (8 tests) 499ms
+     ✓ capped at 20 chats: the oldest entries go first  390ms
+
+ Test Files  2 passed (2)
+      Tests  19 passed (19)
+   Start at  21:54:54
+   Duration  8.18s (transform 10.75s, setup 498ms, import 13.77s, tests 587ms, environment 839ms)
+
+RUN-DONE 

@@ -1,0 +1,93 @@
+# pl-widget no lock, BelowNormal, label umut-U1-no-storage-read 
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+7d1250fb57
+ M src/agent/capabilities/scanRefine.js
+
+ RUN  v4.0.18 C:/w/pl-unsaved/app
+
+stderr | src/agent/agentUnsavedScreen.rail.test.jsx > an unsaved screen survives a reload (exact key uct.agent.unsavedScreens.v1) > starting fresh: a new screen saved after the reload removes this chat's entry only (another chat's stays)
+[uct-agent] screener: this chat's last screen was not saved (HTTP 503); a chat switch or reload starts fresh
+
+ ❯ src/agent/agentScanRefine.test.jsx (11 tests | 1 failed) 108ms
+     ✓ a screen run here is written to the conversation state (spec + result ids), fire-and-forget 15ms
+     ✓ after a reload, a refinement composes onto the SERVER copy of the last screen (one GET), and is persisted again 19ms
+     ✓ "now only technology" replaces the universe slot; "sort by three-month change" replaces only the sort 2ms
+     ✓ a chat switch: the other conversation's screen is restored; a brand-new chat has none and asks 2ms
+     ✓ a screen run before the chat had an id is adopted by the chat on its first id, and persisted then 22ms
+     ✓ the server unreachable: the answer is unaffected; the failed write and read are logged; the refinement says it is starting fresh 18ms
+     × a FAILED write is not silently lost: switching away and back does not refine the OLDER server copy, it starts fresh 20ms
+     ✓ a read that succeeds with NO stored screen is still the plain question (empty is not unavailable) 1ms
+     ✓ adding a hidden field to the last screen is refused before any scan; the alternative is a public field 1ms
+     ✓ pure: refineRefusal / publicAlternative for the whole hidden set (scanHidden.js); the wording never names a weight or formula 6ms
+     ✓ composeRefine: add / narrow replace by key, universe replaces the slot, sort replaces only the sort (the server mirror has the same rules) 1ms
+ ❯ src/agent/agentUnsavedScreen.rail.test.jsx (8 tests | 3 failed) 468ms
+     × failed save, reload, "narrow that to tech": the older server copy is NOT refined, the member is asked, the entry is kept 14ms
+     × "refine it" after the question: this browser's copy is saved again FIRST, then narrowed; the entry is removed by its exact id 18ms
+     × the retry fails too: nothing is refined, the member is told, the entry is kept 14ms
+     ✓ starting fresh: a new screen saved after the reload removes this chat's entry only (another chat's stays) 15ms
+     ✓ capped at 20 chats: the oldest entries go first  361ms
+     ✓ touches ONLY the exact key: no other key is read, written or removed, and storage is never enumerated 16ms
+     ✓ a storage ACCESS error after a reload fails closed: start fresh, the older server copy is never refined 15ms
+     ✓ a QUOTA error on the write is logged and never breaks the answer; in this session the refinement still starts fresh 16ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent/agentScanRefine.test.jsx > persisted per conversation > a FAILED write is not silently lost: switching away and back does not refine the OLDER server copy, it starts fresh
+AssertionError: expected 'I didn\'t run it: I couldn\'t read th…' to be 'I didn\'t run it: This chat\'s newest…' // Object.is equality
+
+Expected: "I didn't run it: This chat's newest screen (1 condition) wasn't saved to UCT, so UCT still holds an older one. Say “refine it” to save this browser's copy again and narrow it, or run a new screen to start fresh."
+Received: "I didn't run it: I couldn't read this chat's last screen back from UCT, so I'm starting fresh: run the screen again first, e.g. “stocks above their 20-day EMA with volume at least twice average”."
+
+ ❯ src/agent/agentScanRefine.test.jsx:140:80
+    138|     noteConversation('ac_1')
+    139|     // this browser kept the newer screen, so the member is ASKED (age…
+    140|     expect(await run({ mode: 'refine', filters: [F('vol_ratio', 'gte',…
+       |                                                                                ^
+    141|     expect(scans().map(s => s[2].filters)).toEqual([[{ key: 'pct_vs_em…
+    142|     expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^\[uct-ag…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/agent/agentUnsavedScreen.rail.test.jsx > an unsaved screen survives a reload (exact key uct.agent.unsavedScreens.v1) > failed save, reload, "narrow that to tech": the older server copy is NOT refined, the member is asked, the entry is kept
+TypeError: .toMatch() expects to receive a string, but got object
+ ❯ src/agent/agentUnsavedScreen.rail.test.jsx:71:15
+     69|     await failedSaveThenReload()
+     70|     const a = await run({ mode: 'refine', filters: TECH })
+     71|     expect(a).toMatch(QUESTION)
+       |               ^
+     72|     expect(scans().map(s => s[2].filters)).toEqual([NEW_FILTERS])   //…
+     73|     expect(stored()?.ac_1?.screen?.spec?.filters).toEqual(NEW_FILTERS)…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  src/agent/agentUnsavedScreen.rail.test.jsx > an unsaved screen survives a reload (exact key uct.agent.unsavedScreens.v1) > "refine it" after the question: this browser's copy is saved again FIRST, then narrowed; the entry is removed by its exact id
+AssertionError: expected 1 to be less than 0
+ ❯ src/agent/agentUnsavedScreen.rail.test.jsx:87:19
+     85|     const scan = after.findIndex(c => c[1] === '/api/screener/scan')
+     86|     expect(retry).toBeGreaterThanOrEqual(0)
+     87|     expect(retry).toBeLessThan(scan)                              // t…
+       |                   ^
+     88|     expect(after[retry][2].value.spec.filters).toEqual(NEW_FILTERS)
+     89|     expect(scans()[1][2].filters).toEqual([...NEW_FILTERS, { key: 'sec…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  src/agent/agentUnsavedScreen.rail.test.jsx > an unsaved screen survives a reload (exact key uct.agent.unsavedScreens.v1) > the retry fails too: nothing is refined, the member is told, the entry is kept
+TypeError: .toMatch() expects to receive a string, but got object
+ ❯ src/agent/agentUnsavedScreen.rail.test.jsx:97:15
+     95|     await run({ mode: 'refine', filters: TECH })
+     96|     const a = await run({ mode: 'refine', filters: TECH })
+     97|     expect(a).toMatch(/^I didn't run it: I still couldn't save this ch…
+       |               ^
+     98|     expect(scans()).toHaveLength(1)
+     99|     expect(stored()?.ac_1?.screen?.spec?.filters).toEqual(NEW_FILTERS)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  4 failed | 15 passed (19)
+   Start at  21:56:46
+   Duration  7.32s (transform 9.23s, setup 516ms, import 11.86s, tests 577ms, environment 926ms)
+
+RUN-DONE 

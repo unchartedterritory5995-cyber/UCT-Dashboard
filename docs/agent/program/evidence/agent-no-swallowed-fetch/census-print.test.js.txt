@@ -1,0 +1,19 @@
+import { it } from 'vitest'
+import path from 'node:path'
+import fs from 'node:fs'
+import baseline from './swallowedFetch.baseline.json'
+import { stripComments } from '../components/chart/engine/__tests__/sourceScan'
+const SWALLOW_RE = /\.catch\(\s*\(\s*\)\s*=>\s*(?:null|undefined)\s*\)/g
+it('print census offenders', () => {
+  const SRC = path.resolve(__dirname, '..'); const out = {}
+  const walk = (dir) => { for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (e.name === 'node_modules' || e.name.startsWith('.')) continue
+    const p = path.join(dir, e.name); if (e.isDirectory()) { walk(p); continue }
+    if (!/\.(jsx?|mjs)$/.test(e.name) || /\.test\.(jsx?|mjs)$/.test(e.name)) continue
+    if (/__tests__/.test(p)) continue
+    const n = (stripComments(fs.readFileSync(p, 'utf8')).match(SWALLOW_RE) || []).length
+    if (n) out[path.relative(SRC, p).split(path.sep).join('/')] = n } }
+  walk(SRC)
+  const grew = Object.entries(out).filter(([f, n]) => n > (baseline.files[f] || 0)).map(([f, n]) => `${f} ${baseline.files[f] || 0}->${n}`)
+  console.log('CENSUS-OFFENDERS ' + grew.length + ' :: ' + grew.join(' | '))
+})
