@@ -1090,12 +1090,12 @@
    "format": "mcq",
    "q": "Stock A's options show an IV of 60%. Stock B's show 30%. What can you fairly conclude?",
    "choices": [
-    "A is expected to swing more than B",
+    "A is expected to swing more",
     "A's options are overpriced",
-    "A is more likely to go up",
-    "B's options are a bargain"
+    "A is more likely to go up soon",
+    "B's options are a real bargain"
    ],
-   "answer": "A is expected to swing more than B",
+   "answer": "A is expected to swing more",
    "why": "A is expected to swing more than B. Comparing IV across stocks tells you who the market expects to move more. It doesn't say either one is mispriced.",
    "lesson_line": "Comparing IV across stocks shows who the market expects to move more, not who's mispriced. Check each against its own history.",
    "facts": [
@@ -1107,8 +1107,8 @@
    ],
    "wrong": {
     "A's options are overpriced": "Not from this alone. IV can run high because the stock really does move a lot. Check A's IV against its own past.",
-    "A is more likely to go up": "IV has no direction. It sizes the swing, up or down.",
-    "B's options are a bargain": "Low IV can be right for a quiet stock. Cheap or not depends on B's own history."
+    "A is more likely to go up soon": "IV has no direction. It sizes the swing, up or down.",
+    "B's options are a real bargain": "Low IV can be right for a quiet stock. Cheap or not depends on B's own history."
    }
   },
   {
@@ -1213,12 +1213,12 @@
    "story": "You're bullish into a report. The front-week calls show IV near the top of its one-year range.",
    "q": "What's the main risk in buying those calls?",
    "choices": [
-    "A crush can sink it even if you're right",
+    "A crush, even if you're right",
     "None, high IV signals a rally",
-    "IV tends to keep rising after",
-    "High IV makes calls cheap"
+    "IV will likely keep rising after",
+    "High IV makes the calls cheap"
    ],
-   "answer": "A crush can sink it even if you're right",
+   "answer": "A crush, even if you're right",
    "why": "A crush can sink it even if you're right. You're paying top-of-range IV, and IV can collapse once the news is out.",
    "lesson_line": "Into a report with IV at the top of its range, I want a move bigger than the crush, or I pass.",
    "facts": [
@@ -1230,8 +1230,8 @@
    ],
    "wrong": {
     "None, high IV signals a rally": "High IV prices a big move either way. It says nothing about direction.",
-    "IV tends to keep rising after": "After a report, IV tends to fall. That's the crush.",
-    "High IV makes calls cheap": "It's the reverse. High IV makes options more expensive to buy."
+    "IV will likely keep rising after": "After a report, IV tends to fall. That's the crush.",
+    "High IV makes the calls cheap": "It's the reverse. High IV makes options more expensive to buy."
    }
   },
   {
@@ -1401,7 +1401,7 @@
   },
   "q18": {
    "status": "pass",
-   "notes": "All 20 sources re-fetched 2026-11-09 by my own plain client (73/73 quotes found, read in context); Investopedia iv.asp refused my client today (403/402), so its quotes were read in context in the quote checker's 200 copy fetched 2026-11-09 00:38. Lesson line said comparing IV 'tells you who moves more', which overstates a forecast (f33); now 'shows who the market expects to move more'. Key = Fidelity f73 + OIC f13; f74 and f22 back the 'not mispriced' notes.",
+   "notes": "All 20 sources re-fetched 2026-11-09 by my own plain client (73/73 quotes found, read in context); Investopedia iv.asp refused my client today (403/402), so its quotes were read in context in the quote checker's 200 copy fetched 2026-11-09 00:38. Lesson line said comparing IV 'tells you who moves more', which overstates a forecast (f33); now 'shows who the market expects to move more'. Key = Fidelity f73 + OIC f13; f74 and f22 back the 'not mispriced' notes. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },
@@ -1431,7 +1431,7 @@
   },
   "q23": {
    "status": "pass",
-   "notes": "All 20 sources re-fetched 2026-11-09 by my own plain client (73/73 quotes found, read in context); Investopedia iv.asp refused my client today (403/402), so its quotes were read in context in the quote checker's 200 copy fetched 2026-11-09 00:38. Story ended 'The calls look pricey', which gave away the 'High IV makes calls cheap' distractor; removed so that choice tests f61. Key: f44 and f45 (Schwab: IV elevated before earnings, can collapse after), f29 (OIC), f61 and f48 (high IV = expensive options). First-person lesson line is sound risk sense.",
+   "notes": "All 20 sources re-fetched 2026-11-09 by my own plain client (73/73 quotes found, read in context); Investopedia iv.asp refused my client today (403/402), so its quotes were read in context in the quote checker's 200 copy fetched 2026-11-09 00:38. Story ended 'The calls look pricey', which gave away the 'High IV makes calls cheap' distractor; removed so that choice tests f61. Key: f44 and f45 (Schwab: IV elevated before earnings, can collapse after), f29 (OIC), f61 and f48 (high IV = expensive options). First-person lesson line is sound risk sense. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },

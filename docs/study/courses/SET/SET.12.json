@@ -2243,9 +2243,9 @@
    "choices": [
     "50% of the account",
     "20% of the account",
-    "40% of the account, the cap"
+    "40% of the account"
    ],
-   "answer": "40% of the account, the cap",
+   "answer": "40% of the account",
    "why": "40% of the account. A 1% risk on a 2% stop is 50% of the account, capped to 40% by the position cap.",
    "lesson_line": "A tight stop can ask for a huge size. The cap holds it at 40%.",
    "facts": [
@@ -2332,11 +2332,11 @@
    "criterion": "vcp.trigger",
    "q": "What do you do?",
    "choices": [
-    "Check the base, stop and size first",
-    "Buy half and decide later",
-    "Buy now before it runs"
+    "Check the base and stop first",
+    "Buy half and set a stop later",
+    "Buy now before it runs away"
    ],
-   "answer": "Check the base, stop and size first",
+   "answer": "Check the base and stop first",
    "why": "Check it yourself. Never take a trade from an alert, a post or a video without your own entry, stop and size.",
    "lesson_line": "Someone else's alert is not a plan. Build your own entry, stop and size.",
    "facts": [
@@ -2344,8 +2344,8 @@
     "h39"
    ],
    "wrong": {
-    "Buy now before it runs": "A buy with no stop and no size is a gamble.",
-    "Buy half and decide later": "Half a gamble is still a gamble."
+    "Buy now before it runs away": "A buy with no stop and no size is a gamble.",
+    "Buy half and set a stop later": "Half a gamble is still a gamble."
    },
    "house": true,
    "story": "A video says a stock is breaking out of a VCP right now. You have not looked at its base, stop or size."
@@ -3171,7 +3171,7 @@
   },
   "q61": {
    "status": "pass",
-   "notes": "A7 settled: 1% risk on a 2% stop asks for 50% of the account, capped at 40%. Arithmetic: 1,000 / 0.02 = 50,000. Right.",
+   "notes": "A7 settled: 1% risk on a 2% stop asks for 50% of the account, capped at 40%. Arithmetic: 1,000 / 0.02 = 50,000. Right. | flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -3189,7 +3189,7 @@
   },
   "q64": {
    "status": "pass",
-   "notes": "F66 and D39 settled. Right.",
+   "notes": "F66 and D39 settled. Right. | flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },

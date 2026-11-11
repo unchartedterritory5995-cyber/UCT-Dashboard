@@ -1081,9 +1081,9 @@
    "rung": 3,
    "format": "tf",
    "criterion": "oops.stop",
-   "q": "The Oops stop can be a level you watch in your head, as long as you act on it.",
+   "q": "A phone alert set at the Oops-day low can replace the stop order, if you act on it.",
    "answer": "False",
-   "why": "False. Every position has a real stop order with the broker, not a stop kept in your head.",
+   "why": "False. Every position has a real stop order with the broker. An alert only tells you; it does not sell for you.",
    "lesson_line": "A stop in your head is a debate. A stop with the broker is an appointment.",
    "facts": [
     "h18",
@@ -1626,15 +1626,15 @@
    "rung": 6,
    "format": "mcq",
    "criterion": "oops.trail",
-   "q": "Which average is the default trail for a fast mover?",
+   "q": "Which average is the default trail for a steadier name?",
    "choices": [
-    "The 10-day",
+    "The 21-day",
     "The 50-day",
     "The 200-day",
-    "The 5-day"
+    "The 10-day"
    ],
-   "answer": "The 10-day",
-   "why": "The 10-day. Sell on a close below it. Steadier names trail the 21-day.",
+   "answer": "The 21-day",
+   "why": "The 21-day. Sell on a close below it. Fast movers trail the 10-day.",
    "lesson_line": "Fast mover, 10-day. Steadier name, 21-day. Sell on a close below.",
    "facts": [
     "h21"
@@ -1642,7 +1642,7 @@
    "wrong": {
     "The 50-day": "Too slow for the default trail.",
     "The 200-day": "That is the long-term line, far too slow for a trail.",
-    "The 5-day": "The defaults are the 10-day and the 21-day."
+    "The 10-day": "That is the fast-mover trail. Steadier names trail the 21-day."
    },
    "house": true
   },
@@ -2033,14 +2033,14 @@
    "criterion": "oops.super_oops",
    "q": "What did the Super close buy you?",
    "choices": [
-    "Nothing; it grades the setup",
-    "A guaranteed trend",
-    "A wider stop",
-    "A bigger size"
+    "A grade for the setup",
+    "A guaranteed new uptrend",
+    "A wider stop on day two",
+    "A bigger size next time"
    ],
    "story": "A Super Oops closes at 167.00 over the 166.53 prior high. You bought at 157.19 with the stop at 155.55. The next day opens at 165.36 and falls to 151.52.",
-   "answer": "Nothing; it grades the setup",
-   "why": "Nothing. A Super close is a grade mark, not a guarantee. AMAT closed over the prior high on 2022-01-14 and fell through its stop.",
+   "answer": "A grade for the setup",
+   "why": "A grade, nothing more. A Super close is a grade mark, not a guarantee. AMAT closed over the prior high on 2022-01-14 and fell through its stop.",
    "lesson_line": "A Super close grades the setup. It does not guarantee it.",
    "facts": [
     "dAMAT",
@@ -2049,9 +2049,9 @@
     "o_super"
    ],
    "wrong": {
-    "A guaranteed trend": "No close guarantees a trend.",
-    "A wider stop": "The stop is the Oops-day low, whatever the close.",
-    "A bigger size": "Size comes from the stop."
+    "A guaranteed new uptrend": "No close guarantees a trend.",
+    "A wider stop on day two": "The stop is the Oops-day low, whatever the close.",
+    "A bigger size next time": "Size comes from the stop."
    },
    "house": true
   },
@@ -2177,11 +2177,11 @@
    "criterion": "oops.location",
    "q": "Hidden ticker, yesterday's close. Tomorrow it undercuts the low and reclaims the close. Take it or pass?",
    "choices": [
-    "Take it; a leader onto two averages",
-    "Pass; there is no pullback",
-    "Pass; a news bar came first"
+    "Take it; leader on two averages",
+    "Pass; there is no real pullback",
+    "Pass; a big news bar came first"
    ],
-   "answer": "Take it; a leader onto two averages",
+   "answer": "Take it; leader on two averages",
    "why": "Take it. A clean leader drifted three weeks onto its converging 21-day and 50-day. The undercut tagged both and it closed over the prior high.",
    "lesson_line": "Judge the setup yesterday: orderly drift onto averages.",
    "facts": [
@@ -2191,8 +2191,8 @@
     "o_pull"
    ],
    "wrong": {
-    "Pass; there is no pullback": "It drifted 5.2% off its high, inside the 3% to 12% range.",
-    "Pass; a news bar came first": "The drift was orderly. No news bar."
+    "Pass; there is no real pullback": "It drifted 5.2% off its high, inside the 3% to 12% range.",
+    "Pass; a big news bar came first": "The drift was orderly. No news bar."
    },
    "house": true,
    "chart": {
@@ -2565,10 +2565,9 @@
    "by": "checker"
   },
   "q16": {
-   "status": "pass",
-   "notes": "B19/E51 settled.",
-   "fixed": false,
-   "by": "checker"
+   "status": "cut",
+   "notes": "cut 2026-11-11: duplicate of SET.23 q18; cut confirmed, flagged-question fix checked 2026-11-11",
+   "by": "writer"
   },
   "q17": {
    "status": "pass",
@@ -2578,7 +2577,7 @@
   },
   "q18": {
    "status": "pass",
-   "notes": "D41 settled.",
+   "notes": "D41 settled. | flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -2704,7 +2703,7 @@
   },
   "q39": {
    "status": "pass",
-   "notes": "E52 settled.",
+   "notes": "E52 settled. | flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -2800,7 +2799,7 @@
   },
   "q55": {
    "status": "pass",
-   "notes": "Bars: AMAT 2022-01-14 close 167.00 over the 166.53 prior high; 01-18 opens 165.36, low 151.52. Matches the story.",
+   "notes": "Bars: AMAT 2022-01-14 close 167.00 over the 166.53 prior high; 01-18 opens 165.36, low 151.52. Matches the story. | right choice reshaped to match the others (no comma and negation clause). flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -2830,7 +2829,7 @@
   },
   "q60": {
    "status": "pass",
-   "notes": "Chart ADBE asof 2018-05-02 (the day before the Oops day 05-03): 5,859 bars before it. The premise 'tomorrow it undercuts and reclaims' is stated. Voice: 'the band' (a house word) replaced by 'the 3% to 12% range'.",
+   "notes": "Chart ADBE asof 2018-05-02 (the day before the Oops day 05-03): 5,859 bars before it. The premise 'tomorrow it undercuts and reclaims' is stated. Voice: 'the band' (a house word) replaced by 'the 3% to 12% range'. | flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },

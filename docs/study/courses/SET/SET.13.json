@@ -2623,13 +2623,13 @@
    "criterion": "htf.not_late",
    "q": "A reader's mechanical scan of these found them a good short. What was Bonde's answer?",
    "choices": [
-    "Late flags break down; context decides",
-    "The scan is right; avoid them",
-    "Use a much wider stop",
-    "Buy the trendline break"
+    "Late flags fail; context decides",
+    "The scan is right; skip them all",
+    "Use a much wider stop on them",
+    "Buy the trendline break early"
    ],
-   "answer": "Late flags break down; context decides",
-   "why": "Late flags break down; context decides. It cannot be traded as a mechanical system. Weigh the earnings and whether it is the first base.",
+   "answer": "Late flags fail; context decides",
+   "why": "Late flags fail; context decides. It cannot be traded as a mechanical system. Weigh the earnings and whether it is the first base.",
    "lesson_line": "The pattern is the start. The context decides whether it is ours.",
    "facts": [
     "p03",
@@ -2638,9 +2638,9 @@
     "c11"
    ],
    "wrong": {
-    "The scan is right; avoid them": "Bonde did not drop the pattern. He said the reading becomes critical.",
-    "Use a much wider stop": "He said nothing about the stop. His point was where the flag sits in the move.",
-    "Buy the trendline break": "Bulkowski found that entry fails too often. Bonde's answer was context."
+    "The scan is right; skip them all": "Bonde did not drop the pattern. He said the reading becomes critical.",
+    "Use a much wider stop on them": "He said nothing about the stop. His point was where the flag sits in the move.",
+    "Buy the trendline break early": "Bulkowski found that entry fails too often. Bonde's answer was context."
    },
    "house": true
   },
@@ -2706,11 +2706,11 @@
    "criterion": "htf.pole_size",
    "q": "Hidden ticker, the day before a breakout. Count the pole. Take it or pass?",
    "choices": [
-    "Take it; the pole more than doubled",
-    "Pass; the run is too small",
-    "Pass; the flag is too deep"
+    "Take it; the pole doubled",
+    "Pass; the run is far too small",
+    "Pass; the flag is far too deep"
    ],
-   "answer": "Take it; the pole more than doubled",
+   "answer": "Take it; the pole doubled",
    "why": "Take it. +129% in 14 sessions, then a 14-day sideways flag 15.0% deep that held the 21-day EMA. It ran to 10.9R.",
    "lesson_line": "Count the pole first. A real double, then a quiet shelf: that is the setup.",
    "facts": [
@@ -2721,8 +2721,8 @@
     "i02"
    ],
    "wrong": {
-    "Pass; the run is too small": "Look at the run in front of the shelf: well over a double, in weeks.",
-    "Pass; the flag is too deep": "The flag gave back 15.0% of price, a normal depth for this pattern."
+    "Pass; the run is far too small": "Look at the run in front of the shelf: well over a double, in weeks.",
+    "Pass; the flag is far too deep": "The flag gave back 15.0% of price, a normal depth for this pattern."
    },
    "house": true,
    "chart": {
@@ -3401,7 +3401,7 @@
   },
   "q62": {
    "status": "pass",
-   "notes": "Bonde p03/p04/p05 found; the reader's 'good short scan' is on the same Stockbee page (checked by reading the page text).",
+   "notes": "Bonde p03/p04/p05 found; the reader's 'good short scan' is on the same Stockbee page (checked by reading the page text). flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -3419,7 +3419,7 @@
   },
   "q65": {
    "status": "pass",
-   "notes": "SRPT d01/d02 verbatim; trigger 2015-06-10 follows chart date 2015-06-09. 15.0% is inside IBD's 10% to 20%. Chart not viewed (no browser).",
+   "notes": "SRPT d01/d02 verbatim; trigger 2015-06-10 follows chart date 2015-06-09. 15.0% is inside IBD's 10% to 20%. Chart not viewed (no browser). flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },

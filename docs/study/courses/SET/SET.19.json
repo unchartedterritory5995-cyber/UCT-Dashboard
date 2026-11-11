@@ -2500,11 +2500,11 @@
    "criterion": "peg.above_200",
    "q": "Hidden ticker, an earnings gap day is the last bar. Is the close over the 200-day? Take the pause break or pass.",
    "choices": [
-    "Pass; the close is under the 200-day",
-    "Take it; the gap is huge",
+    "Pass; it is under the 200-day",
+    "Take it; the gap is very large",
     "Take it; the close is strong"
    ],
-   "answer": "Pass; the close is under the 200-day",
+   "answer": "Pass; it is under the 200-day",
    "why": "Pass. The gap-day close was under the 200-day: a bear-market relief gap, so no long. No longs below the 200-day simple moving average.",
    "lesson_line": "Under the 200-day, there is no long to buy.",
    "facts": [
@@ -2514,7 +2514,7 @@
     "mo1"
    ],
    "wrong": {
-    "Take it; the gap is huge": "The gap is big, but size does not lift a stock over the 200-day.",
+    "Take it; the gap is very large": "The gap is big, but size does not lift a stock over the 200-day.",
     "Take it; the close is strong": "A strong close under the 200-day is still under it."
    },
    "house": true,
@@ -3071,7 +3071,7 @@
   },
   "q64": {
    "status": "pass",
-   "notes": "Chart META asof 2022-04-28: 2,503 daily bars on or before it (120 needed), the as-of bar present, 1,138 after. Re-derived from the bars db: close 205.73, 200-day SMA 302.98, gap 16.0%, close 0.82 of range. B26 decides under every D-020 option. d26, d27, h10 verbatim.",
+   "notes": "Chart META asof 2022-04-28: 2,503 daily bars on or before it (120 needed), the as-of bar present, 1,138 after. Re-derived from the bars db: close 205.73, 200-day SMA 302.98, gap 16.0%, close 0.82 of range. B26 decides under every D-020 option. d26, d27, h10 verbatim. | flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },

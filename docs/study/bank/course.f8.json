@@ -508,7 +508,7 @@
  },
  {
   "answer_json": {
-   "answer": "What you thought and felt before buying"
+   "answer": "Your thoughts and feelings then"
   },
   "difficulty": 2,
   "id": "si_cc3160e1d830",
@@ -517,9 +517,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "The exact loss, to the cent",
-    "Who or what to blame for it",
-    "What you thought and felt before buying",
+    "The exact loss, down to the cent",
+    "Who or what is to blame for it",
+    "Your thoughts and feelings then",
     "A promise to do better tomorrow"
    ],
    "kind": "mcq",
@@ -583,15 +583,15 @@
     "summary": "Mapping starts with a record of what happens before, during and after each mistake. The emotions, thoughts, actions and decisions around a mistake are the data that explain it. Your emotional reactions repeat for the same reasons; they are not random. Naming how you feel is the first step to changing your state. Notice your emotional reactions when the market moves. After a big loss, people often blame someone or something else instead of owning their decisions. A vague goal isn't enough; spell out exactly how you'll improve."
    },
    "facts": {
-    "given": "What would make this note useful for finding your pattern? Your journal note on a losing trade reads: 'Down $400. Bad day.' What you thought and felt before buying Who or what to blame for it The exact loss, to the cent A promise to do better tomorrow"
+    "given": "What would make this note useful for finding your pattern? Your journal note on a losing trade reads: 'Down $400. Bad day.' Your thoughts and feelings then Who or what is to blame for it The exact loss, down to the cent A promise to do better tomorrow"
    },
    "lesson_line": "The P&L says what happened. Your thoughts and feelings say why.",
    "unit": "F8.01",
    "why": "What you thought and felt before buying. Tendler maps the thoughts, emotions and decisions around a mistake, because that's the part that repeats. The dollar figure tells you what happened, not why.",
    "wrong": {
     "A promise to do better tomorrow": "Steenbarger says a vague goal isn't enough. Spell out how you'll do it.",
-    "The exact loss, to the cent": "You already have the number. What's missing is the why.",
-    "Who or what to blame for it": "Blaming someone or something else skips your own part in it. Investopedia lists that as projection, an unhealthy way to cope."
+    "The exact loss, down to the cent": "You already have the number. What's missing is the why.",
+    "Who or what is to blame for it": "Blaming someone or something else skips your own part in it. Investopedia lists that as projection, an unhealthy way to cope."
    }
   },
   "review_status": "draft",
@@ -3048,7 +3048,7 @@
  },
  {
   "answer_json": {
-   "answer": "No, it's a pullback buy near support"
+   "answer": "No, it's a pullback near support"
   },
   "difficulty": 3,
   "id": "si_7d9271a3b28e",
@@ -3057,9 +3057,9 @@
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "No, it's a pullback buy near support",
+    "No, it's a pullback near support",
     "Yes, only new highs are safe",
-    "Yes, it already broke out"
+    "Yes, it already broke out at $40"
    ],
    "kind": "mcq",
    "q": "You buy the turn near $41, stop just under the pullback low. Is it a chase?",
@@ -3108,13 +3108,13 @@
     "summary": "Murphy: a broken resistance level usually acts as support on later pullbacks. Murphy: the best place to buy is near support, usually a prior reaction low. Rhodes' rule: if you miss a trade, wait for a pullback before putting it on. An uptrend is a series of higher highs and higher lows. The fear of missing makes you chase instead of buying pullbacks."
    },
    "facts": {
-    "given": "You buy the turn near $41, stop just under the pullback low. Is it a chase? You missed the breakout over $40. It ran to $45, then pulled back to $41, above its last low, and turned up. No, it's a pullback buy near support Yes, it already broke out Yes, only new highs are safe"
+    "given": "You buy the turn near $41, stop just under the pullback low. Is it a chase? You missed the breakout over $40. It ran to $45, then pulled back to $41, above its last low, and turned up. No, it's a pullback near support Yes, it already broke out at $40 Yes, only new highs are safe"
    },
    "lesson_line": "Miss the break, wait for the pullback that holds. That's your second chance.",
    "unit": "F8.02",
    "why": "No. Broken resistance usually turns into support on pullbacks, and the best place to buy is near support. The pullback held a higher low, and your stop sits just under it.",
    "wrong": {
-    "Yes, it already broke out": "A breakout you missed isn't gone. Rhodes: if a trade is missed, wait for a correction, then put it on. That's this.",
+    "Yes, it already broke out at $40": "A breakout you missed isn't gone. Rhodes: if a trade is missed, wait for a correction, then put it on. That's this.",
     "Yes, only new highs are safe": "Buying near support with a close stop is the spot Murphy calls best. A new high far from support means a wider stop."
    }
   },
@@ -7349,18 +7349,18 @@
  },
  {
   "answer_json": {
-   "answer": "Earned less than the market"
+   "answer": "Fell short of the market"
   },
   "difficulty": 1,
   "id": "si_382886b39de6",
   "lesson_origin": "session",
-  "lesson_text": "Earned less than the market. From 1991 to 1996 they earned 11.4% a year after costs, while the market returned 17.9%. The authors say overconfidence can explain the heavy trading. More trades is not more profit. Every trade has to earn its place.",
+  "lesson_text": "Fell short of the market. From 1991 to 1996 they earned 11.4% a year after costs, while the market returned 17.9%. The authors say overconfidence can explain the heavy trading. More trades is not more profit. Every trade has to earn its place.",
   "module": "F8",
   "prompt_json": {
    "choices": [
-    "Beat the market",
-    "Matched the market",
-    "Earned less than the market"
+    "Beat the market by a bit",
+    "Kept pace with the market",
+    "Fell short of the market"
    ],
    "kind": "mcq",
    "q": "In Barber and Odean's study of 66,465 households, how did the ones that traded most do?",
@@ -7408,14 +7408,14 @@
     "summary": "In 1991 to 1996 the households that traded most earned 11.4% a year; the market returned 17.9%. Barber and Odean: overconfidence explains the heavy trading and the poor results. In Barber and Odean's study, the most active traders trailed the market, and heavy trading goes with overconfidence. After costs, the most active households earned 11.4% a year and the least active 18.5%. More overconfidence means more trading and worse outcomes for the trader."
    },
    "facts": {
-    "given": "In Barber and Odean's study of 66,465 households, how did the ones that traded most do? Earned less than the market Beat the market Matched the market"
+    "given": "In Barber and Odean's study of 66,465 households, how did the ones that traded most do? Fell short of the market Beat the market by a bit Kept pace with the market"
    },
    "lesson_line": "More trades is not more profit. Every trade has to earn its place.",
    "unit": "F8.05",
-   "why": "Earned less than the market. From 1991 to 1996 they earned 11.4% a year after costs, while the market returned 17.9%. The authors say overconfidence can explain the heavy trading.",
+   "why": "Fell short of the market. From 1991 to 1996 they earned 11.4% a year after costs, while the market returned 17.9%. The authors say overconfidence can explain the heavy trading.",
    "wrong": {
-    "Beat the market": "The opposite. The busiest traders trailed: 11.4% a year against the market's 17.9%.",
-    "Matched the market": "They fell well short. In the full paper, the least active households netted 18.5% a year and the most active 11.4%."
+    "Beat the market by a bit": "The opposite. The busiest traders trailed: 11.4% a year against the market's 17.9%.",
+    "Kept pace with the market": "They fell well short. In the full paper, the least active households netted 18.5% a year and the most active 11.4%."
    }
   },
   "review_status": "draft",

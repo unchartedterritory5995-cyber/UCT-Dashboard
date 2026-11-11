@@ -720,12 +720,12 @@
    "story": "A stock trades at 38. You look at the 40 call, priced at 1.10. Expiry is three weeks out.",
    "q": "How much of the 1.10 is time value?",
    "choices": [
-    "$1.10, all of it",
+    "$1.10",
     "$3.10",
-    "$0",
-    "$2"
+    "$0.00",
+    "$2.00"
    ],
-   "answer": "$1.10, all of it",
+   "answer": "$1.10",
    "calc": {
     "fn": "extrinsic",
     "args": {
@@ -744,8 +744,8 @@
    ],
    "wrong": {
     "$3.10": "That counts the 2 points below the strike as negative intrinsic value. Intrinsic stops at zero.",
-    "$0": "Out of the money means no intrinsic value, not no value. The 1.10 is real, and all of it is time.",
-    "$2": "That's how far the stock is from the strike. It isn't a part of the price."
+    "$0.00": "Out of the money means no intrinsic value, not no value. The 1.10 is real, and all of it is time.",
+    "$2.00": "That's how far the stock is from the strike. It isn't a part of the price."
    }
   },
   {
@@ -1189,7 +1189,7 @@
   },
   "q16": {
    "status": "pass",
-   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Recomputed: 40 call with stock 38 has 0 intrinsic, so all 1.10 is time value; calc agrees. The 3.10 distractor (negative intrinsic) and 2 (distance) are real mistakes. f10, f4, f39.",
+   "notes": "Sources re-fetched 2026-11-08 by the quote checker's own client (all 200, 41/41 found) and read in context; OIC pages also opened with WebFetch. Recomputed: 40 call with stock 38 has 0 intrinsic, so all 1.10 is time value; calc agrees. The 3.10 distractor (negative intrinsic) and 2 (distance) are real mistakes. f10, f4, f39. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },

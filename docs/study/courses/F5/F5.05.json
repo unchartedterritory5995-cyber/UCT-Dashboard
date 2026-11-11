@@ -647,12 +647,12 @@
    "format": "mcq",
    "q": "Which options give the quickest read of the implied move?",
    "choices": [
-    "At-the-money straddle, nearest expiry",
+    "Nearest at-the-money straddle",
     "Far out-of-the-money calls",
-    "The longest-dated puts",
+    "The longest-dated puts listed",
     "The call with the most volume"
    ],
-   "answer": "At-the-money straddle, nearest expiry",
+   "answer": "Nearest at-the-money straddle",
    "why": "The at-the-money straddle in the nearest expiry that covers the report. Add the call and the put at the strike nearest the stock price.",
    "lesson_line": "Nearest expiry, strike nearest the price, call plus put. That's your quick read.",
    "facts": [
@@ -663,7 +663,7 @@
    ],
    "wrong": {
     "Far out-of-the-money calls": "Those only pay on a big move up. The at-the-money straddle prices a move either way.",
-    "The longest-dated puts": "Long-dated options mix in months of other risk. You want the nearest expiry that covers the report.",
+    "The longest-dated puts listed": "Long-dated options mix in months of other risk. You want the nearest expiry that covers the report.",
     "The call with the most volume": "Volume shows activity, not the priced move. Read the at-the-money straddle."
    }
   },
@@ -1208,7 +1208,7 @@
   },
   "q04": {
    "status": "pass",
-   "notes": "Key from f35 (IBKR 'nearest term, at-money straddle'), f26 (Fidelity), f17 (Cboe short-dated). Why now says the nearest expiry 'that covers the report', matching the wrong-choice note; dropped 'That total is the quick read' (IBKR subtracts intrinsic value, so 'total' overstated it).",
+   "notes": "Key from f35 (IBKR 'nearest term, at-money straddle'), f26 (Fidelity), f17 (Cboe short-dated). Why now says the nearest expiry 'that covers the report', matching the wrong-choice note; dropped 'That total is the quick read' (IBKR subtracts intrinsic value, so 'total' overstated it). flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },

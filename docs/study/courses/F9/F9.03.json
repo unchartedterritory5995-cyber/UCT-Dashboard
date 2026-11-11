@@ -654,12 +654,12 @@
    "term": "Expectancy",
    "q": "What does a trading system's expectancy tell you?",
    "choices": [
-    "Its average result per trade, in R",
-    "How often it wins",
+    "Its average per trade, in R",
+    "How often it wins, in percent",
     "Its average winner, in R",
-    "Its best trade, in R"
+    "Its best single trade, in R"
    ],
-   "answer": "Its average result per trade, in R",
+   "answer": "Its average per trade, in R",
    "why": "Its average result per trade, in R. Expectancy is the mean R across every trade, winners and losers together.",
    "lesson_line": "Expectancy is your average R per trade, losers included.",
    "facts": [
@@ -668,9 +668,9 @@
     "f33"
    ],
    "wrong": {
-    "How often it wins": "That's the win rate. It says nothing about how big the wins and losses are.",
+    "How often it wins, in percent": "That's the win rate. It says nothing about how big the wins and losses are.",
     "Its average winner, in R": "That leaves the losers out. Expectancy averages every trade.",
-    "Its best trade, in R": "One big trade can flatter a system. Expectancy is the average of all of them."
+    "Its best single trade, in R": "One big trade can flatter a system. Expectancy is the average of all of them."
    }
   },
   {
@@ -1362,7 +1362,7 @@
    "status": "pass",
    "fixed": false,
    "by": "checker",
-   "notes": "f10, f22 (Tharp, live) and f33 (Investopedia: EV is the long-term average) confirmed: expectancy is the mean R of every trade. Wrong choices are real confusions (win rate, average winner, best trade)."
+   "notes": "f10, f22 (Tharp, live) and f33 (Investopedia: EV is the long-term average) confirmed: expectancy is the mean R of every trade. Wrong choices are real confusions (win rate, average winner, best trade). flagged-question fix checked 2026-11-11"
   },
   "q05": {
    "status": "pass",

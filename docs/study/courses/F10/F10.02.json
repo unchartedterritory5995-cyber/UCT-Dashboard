@@ -925,9 +925,9 @@
    "q": "What happened to your order?",
    "choices": [
     "Triggered, but nothing sold",
-    "It sold at $47.50",
-    "It sold near $44",
-    "The gap canceled it"
+    "It sold at the $47.50 limit",
+    "It sold near the $44 open",
+    "The gap canceled the order"
    ],
    "answer": "Triggered, but nothing sold",
    "why": "Triggered, but nothing sold. The open at $44 set off the stop, and the order became a limit to sell at $47.50 or better. With the stock under $47.50, it can't fill.",
@@ -940,9 +940,9 @@
     "f48"
    ],
    "wrong": {
-    "It sold at $47.50": "A limit fills only when someone will pay your price. At $44 and falling, nobody is paying $47.50.",
-    "It sold near $44": "That's what a plain stop does. A stop-limit won't sell below its limit.",
-    "The gap canceled it": "It's still working, as a limit at $47.50. It fills only if the stock trades back up there."
+    "It sold at the $47.50 limit": "A limit fills only when someone will pay your price. At $44 and falling, nobody is paying $47.50.",
+    "It sold near the $44 open": "That's what a plain stop does. A stop-limit won't sell below its limit.",
+    "The gap canceled the order": "It's still working, as a limit at $47.50. It fills only if the stock trades back up there."
    }
   },
   {
@@ -1297,7 +1297,7 @@
   },
   "q15": {
    "status": "pass",
-   "notes": "Checked: a $44 open is through the $48 stop, so it triggers; the $47.50 sell limit cannot fill with the stock under it (f7, f8 SEC; f39, f40 Schwab; f48 IBKR; all live). Removed f57 (Investopedia stop-limit page, unreachable live); support stands on the SEC.",
+   "notes": "Checked: a $44 open is through the $48 stop, so it triggers; the $47.50 sell limit cannot fill with the stock under it (f7, f8 SEC; f39, f40 Schwab; f48 IBKR; all live). Removed f57 (Investopedia stop-limit page, unreachable live); support stands on the SEC. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },

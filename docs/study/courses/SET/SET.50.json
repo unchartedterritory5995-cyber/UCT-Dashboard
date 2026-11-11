@@ -1637,13 +1637,13 @@
    "criterion": "spr.trim_1",
    "q": "What do you do at 3R?",
    "choices": [
-    "Sell a third at 148; stop to 142",
-    "Sell it all at 148",
-    "Hold everything for 160",
-    "Add at 148"
+    "Sell a third at 148; stop 142",
+    "Sell half at 148; stop stays put",
+    "Hold everything and aim for 160",
+    "Add to the winner at 148"
    ],
    "story": "You bought at 142.00 with a stop at 140.00. Price reaches 148.00.",
-   "answer": "Sell a third at 148; stop to 142",
+   "answer": "Sell a third at 148; stop 142",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1664,9 +1664,9 @@
    ],
    "house": true,
    "wrong": {
-    "Sell it all at 148": "We sell a third at 3R and keep the rest working.",
-    "Hold everything for 160": "A trim at 3R is the rule. Hoping for 160 skips it.",
-    "Add at 148": "We never add. It is one price with one stop."
+    "Sell half at 148; stop stays put": "The hard rule is a third at 3R, not half.",
+    "Hold everything and aim for 160": "A trim at 3R is the rule. Hoping for 160 skips it.",
+    "Add to the winner at 148": "We never add. It is one price with one stop."
    }
   },
   {
@@ -1704,12 +1704,12 @@
    "criterion": "spr.range_top_resistance",
    "q": "From a reclaim entry, about how far is the range top?",
    "choices": [
-    "About 4.8R, so 3R comes first",
-    "About 1R",
-    "About 20R",
-    "Right at the entry"
+    "About 4.8R, past the 3R trim",
+    "About 1R, before the 3R trim",
+    "About 20R, well past the trim",
+    "Right at the entry price"
    ],
-   "answer": "About 4.8R, so 3R comes first",
+   "answer": "About 4.8R, past the 3R trim",
    "why": "About 4.8R in the median case, and 3R or more 72% of the time. So the 3R trim usually comes at or before the range top.",
    "lesson_line": "The range top is the first resistance. The 3R trim comes first.",
    "facts": [
@@ -1717,9 +1717,9 @@
    ],
    "house": true,
    "wrong": {
-    "About 1R": "The median is 4.8R, and 72% of the time it is 3R or more.",
-    "About 20R": "The median is 4.8R.",
-    "Right at the entry": "The entry is at the floor. The top is the far side of the range."
+    "About 1R, before the 3R trim": "The median is 4.8R, and 72% of the time it is 3R or more.",
+    "About 20R, well past the trim": "The median is 4.8R.",
+    "Right at the entry price": "The entry is at the floor. The top is the far side of the range."
    }
   },
   {
@@ -1730,13 +1730,13 @@
    "criterion": "spr.stop_gap",
    "q": "What now?",
    "choices": [
-    "Out; the loss is 2.5R, past 2R",
-    "Hold; it will bounce",
-    "Move the stop to 94.00",
-    "Buy more at 95.00"
+    "Out; 2.5R is past the 2R cap",
+    "Hold; it should bounce back",
+    "Move the stop down to 94.00",
+    "Buy more at 95.00 to average"
    ],
    "story": "You bought at 100.00 with a stop at 98.00. The stock gaps down and the first 30-minute low is 95.00.",
-   "answer": "Out; the loss is 2.5R, past 2R",
+   "answer": "Out; 2.5R is past the 2R cap",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1757,9 +1757,9 @@
    ],
    "house": true,
    "wrong": {
-    "Hold; it will bounce": "The stop is the exit. Hope is not a plan.",
-    "Move the stop to 94.00": "The stop only moves up, never wider.",
-    "Buy more at 95.00": "We never add when down."
+    "Hold; it should bounce back": "The stop is the exit. Hope is not a plan.",
+    "Move the stop down to 94.00": "The stop only moves up, never wider.",
+    "Buy more at 95.00 to average": "We never add when down."
    }
   },
   {
@@ -2953,7 +2953,7 @@
   },
   "q35": {
    "status": "pass",
-   "notes": "calc re-derived: 142 + 3 x (142 - 140) = 148. B19 (settled): a third at 3R, breakeven at the first trim by default. Key right.",
+   "notes": "calc re-derived: 142 + 3 x (142 - 140) = 148. B19 (settled): a third at 3R, breakeven at the first trim by default. Key right. | flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -2965,13 +2965,13 @@
   },
   "q37": {
    "status": "pass",
-   "notes": "c22 on the card: a median 4.8R, 72% at 3R or more. Key right.",
+   "notes": "c22 on the card: a median 4.8R, 72% at 3R or more. Key right. | flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
   "q38": {
    "status": "pass",
-   "notes": "calc re-derived: (100 - 95) / (100 - 98) = 2.5R, past B20's 2R ceiling. Key right.",
+   "notes": "calc re-derived: (100 - 95) / (100 - 98) = 2.5R, past B20's 2R ceiling. Key right. | flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },

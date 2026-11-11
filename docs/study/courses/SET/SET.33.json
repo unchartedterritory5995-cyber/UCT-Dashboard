@@ -1064,7 +1064,7 @@
   },
   "q09": {
    "status": "pass",
-   "notes": "o05 verbatim; d26 (HOOD: first green candle low 101.20, his stop 101.16 = 4 cents under) verified. The question asks what the originator does, not what is ours.",
+   "notes": "o05 verbatim; d26 (HOOD: first green candle low 101.20, his stop 101.16 = 4 cents under) verified. The question asks what the originator does, not what is ours. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -1322,7 +1322,7 @@
   },
   "q52": {
    "status": "pass",
-   "notes": "c13, c29, u03 verbatim (LITE: 'Main entry day at the 20EMA shake and 30 Minute Pivot at $895'). The why said our LITE trade 'was that shape' (6 reds undercutting the average), which no source says; now 'a 20-day EMA shake like that'. A wrong note's 'B- doji row' reworded.",
+   "notes": "c13, c29, u03 verbatim (LITE: 'Main entry day at the 20EMA shake and 30 Minute Pivot at $895'). The why said our LITE trade 'was that shape' (6 reds undercutting the average), which no source says; now 'a 20-day EMA shake like that'. A wrong note's 'B- doji row' reworded. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },
@@ -1610,12 +1610,12 @@
    "criterion": "pvt.stop",
    "q": "Where does the originator put his stop on a 30-minute pivot?",
    "choices": [
-    "Just under the recent 30-minute low",
-    "3% under the entry",
-    "Under the 50-day average",
+    "Just under the 30-minute low",
+    "A flat 3% under the entry price",
+    "Under the 50-day moving average",
     "Under last week's low"
    ],
-   "answer": "Just under the recent 30-minute low",
+   "answer": "Just under the 30-minute low",
    "why": "Just under the recent 30-minute low. On his HOOD trade the stop, 101.16, sat 4 cents under the first green candle's low.",
    "lesson_line": "The turn candle's low is the originator's line in the sand.",
    "facts": [
@@ -1623,8 +1623,8 @@
     "d26"
    ],
    "wrong": {
-    "3% under the entry": "A percent is not a level. His stop sits under the 30-minute low, usually much closer.",
-    "Under the 50-day average": "That is a daily level, far wider. The point of the timer is a stop under one candle.",
+    "A flat 3% under the entry price": "A percent is not a level. His stop sits under the 30-minute low, usually much closer.",
+    "Under the 50-day moving average": "That is a daily level, far wider. The point of the timer is a stop under one candle.",
     "Under last week's low": "Far too wide for this timer. The stop sits just under the recent 30-minute low."
    },
    "house": true
@@ -2664,11 +2664,11 @@
    "story": "Two pivots at the rising 10-day EMA. One after two small reds. One after 6 reds that undercut the average and closed back over it.",
    "q": "Which grades higher?",
    "choices": [
-    "The 6-red undercut and reclaim",
-    "The two small reds",
-    "Equal; both are pivots"
+    "The 6-red undercut shake",
+    "The two small-red pivot",
+    "Equal; both are good pivots"
    ],
-   "answer": "The 6-red undercut and reclaim",
+   "answer": "The 6-red undercut shake",
    "why": "The 6 reds that undercut the line and closed back over it. A clean string of 3 or more is the top cue, and a shake that closes back above the average is the A+ pivot. Our LITE trade was a 20-day EMA shake like that.",
    "lesson_line": "A long string into a shake of the average is the best version of this trade.",
    "facts": [
@@ -2678,8 +2678,8 @@
     "c31"
    ],
    "wrong": {
-    "The two small reds": "Small reds into a tiny candle is close to noise. The longer string grades higher.",
-    "Equal; both are pivots": "Both may trigger. The grade, and so the size, differs."
+    "The two small-red pivot": "Small reds into a tiny candle is close to noise. The longer string grades higher.",
+    "Equal; both are good pivots": "Both may trigger. The grade, and so the size, differs."
    },
    "house": true
   },

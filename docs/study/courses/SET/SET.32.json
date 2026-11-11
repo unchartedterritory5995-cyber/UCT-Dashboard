@@ -1105,7 +1105,7 @@
   },
   "q37": {
    "status": "pass",
-   "notes": "c16 and x02 verbatim (Crabel via the publisher abstract). A wrong note called an expansion day 'the B- row'; reworded as a weaker cue (E50).",
+   "notes": "c16 and x02 verbatim (Crabel via the publisher abstract). A wrong note called an expansion day 'the B- row'; reworded as a weaker cue (E50). | right choice reshaped (no 'or' list) to match the others. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },
@@ -1159,7 +1159,7 @@
   },
   "q46": {
    "status": "pass",
-   "notes": "c21 and c28 verbatim. A wrong note said an EP is 'in a neglected name', which no cited fact says; now only the 10% gap on a catalyst.",
+   "notes": "c21 and c28 verbatim. A wrong note said an EP is 'in a neglected name', which no cited fact says; now only the 10% gap on a catalyst. | c22 added to facts: the wrong note's 10% is quoted there. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },
@@ -2196,12 +2196,12 @@
    "criterion": "orb.contraction_before",
    "q": "Which kind of day before the open grades an ORB higher on our card?",
    "choices": [
-    "An inside day or a narrow-range day",
-    "A wide expansion day",
-    "A gap-down day",
+    "An inside day, tight and quiet",
+    "A wide-range expansion day",
+    "A day that gapped down hard",
     "A climax day on huge volume"
    ],
-   "answer": "An inside day or a narrow-range day",
+   "answer": "An inside day, tight and quiet",
    "why": "An inside day, an NR4 or NR7, or a tight base. Crabel's hypothesis: inside days precede trend days and successful opening range breakouts.",
    "lesson_line": "Quiet before the open, loud after it. Contraction is the cue.",
    "facts": [
@@ -2209,8 +2209,8 @@
     "x02"
    ],
    "wrong": {
-    "A wide expansion day": "The opposite. The card counts an expansion day before as a weaker cue.",
-    "A gap-down day": "A gap down the day before says nothing about contraction. It may say the setup is broken.",
+    "A wide-range expansion day": "The opposite. The card counts an expansion day before as a weaker cue.",
+    "A day that gapped down hard": "A gap down the day before says nothing about contraction. It may say the setup is broken.",
     "A climax day on huge volume": "A climax is the end of a move, not a coiled spring."
    },
    "house": true
@@ -2443,21 +2443,22 @@
    "story": "A stock gaps up 3% and breaks its 30-minute high at 10:00. The day before the gap was a doji, not a red day.",
    "q": "What is it?",
    "choices": [
-    "A plain gap ORB, no Kicker behind it",
-    "A Kicker ORB",
-    "An EP"
+    "A plain gap ORB, no Kicker",
+    "A Kicker ORB after the doji",
+    "An EP, a gap on a catalyst"
    ],
-   "answer": "A plain gap ORB, no Kicker behind it",
+   "answer": "A plain gap ORB, no Kicker",
    "why": "A plain gap ORB. A Kicker needs a real red day before the gap; a doji before it makes a plain gap ORB. Then the question is which daily setup, if any, stands behind it.",
    "lesson_line": "Look at yesterday. No red day, no Kicker, and the ORB needs another setup to time.",
    "facts": [
     "c21",
     "c28",
-    "b09"
+    "b09",
+    "c22"
    ],
    "wrong": {
-    "A Kicker ORB": "The Kicker's red day is missing. A doji is not a trap for anyone.",
-    "An EP": "An EP opens 10% or more on a named catalyst. A 3% gap is far short of that."
+    "A Kicker ORB after the doji": "The Kicker's red day is missing. A doji is not a trap for anyone.",
+    "An EP, a gap on a catalyst": "An EP opens 10% or more on a named catalyst. A 3% gap is far short of that."
    },
    "house": true
   },

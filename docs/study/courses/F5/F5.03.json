@@ -806,12 +806,12 @@
    "format": "mcq",
    "q": "What did O'Neil's study of big stock market winners find before their big price runs?",
    "choices": [
-    "Big jumps in quarterly EPS",
-    "Low P/E ratios",
-    "Rising dividends"
+    "Big quarterly EPS jumps",
+    "Unusually low P/E ratios",
+    "Rising dividend payouts"
    ],
-   "answer": "Big jumps in quarterly EPS",
-   "why": "Big jumps in quarterly EPS. Of the 500 top performers from 1953 to 1993, three-quarters showed quarterly earnings gains of at least 70% before the big move.",
+   "answer": "Big quarterly EPS jumps",
+   "why": "Big quarterly EPS jumps. Of the 500 top performers from 1953 to 1993, three-quarters showed quarterly earnings gains of at least 70% before the big move.",
    "lesson_line": "The biggest winners usually showed the earnings first. That's why a growth screen starts there.",
    "facts": [
     "f39",
@@ -820,8 +820,8 @@
     "f27"
    ],
    "wrong": {
-    "Low P/E ratios": "That's not what O'Neil looks for. In his view, stocks that seem cheap often go even lower.",
-    "Rising dividends": "Growth stocks generally don't pay dividends. They put the money back into growing."
+    "Unusually low P/E ratios": "That's not what O'Neil looks for. In his view, stocks that seem cheap often go even lower.",
+    "Rising dividend payouts": "Growth stocks generally don't pay dividends. They put the money back into growing."
    }
   },
   {
@@ -1309,7 +1309,7 @@
   },
   "q08": {
    "status": "pass",
-   "notes": "Disnat (500 winners 1953-1993, three-quarters with quarterly gains of at least 70%) and Stockopedia (strong quarterly EPS before run-ups) agree. Secondary write-ups word the 70% slightly differently (see conflicts); the key is the broad point, which every version supports.",
+   "notes": "Disnat (500 winners 1953-1993, three-quarters with quarterly gains of at least 70%) and Stockopedia (strong quarterly EPS before run-ups) agree. Secondary write-ups word the 70% slightly differently (see conflicts); the key is the broad point, which every version supports. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },

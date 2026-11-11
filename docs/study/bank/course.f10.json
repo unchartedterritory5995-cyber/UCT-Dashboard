@@ -2814,9 +2814,9 @@
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "The gap canceled it",
-    "It sold at $47.50",
-    "It sold near $44",
+    "The gap canceled the order",
+    "It sold at the $47.50 limit",
+    "It sold near the $44 open",
     "Triggered, but nothing sold"
    ],
    "kind": "mcq",
@@ -2866,15 +2866,15 @@
     "summary": "Once triggered, a stop-limit becomes a limit order that fills only at its limit price or better. If the price moves away from the limit, a stop-limit order may not fill at all. In the same gap, a stop-limit with a $34 stop and a $33 limit does not sell; the trader waits for $33 while the stock trades lower. A triggered stop-limit may not execute, and the stock can keep falling. A stop-limit removes the fill-price risk of a stop but adds the risk of no fill at all."
    },
    "facts": {
-    "given": "What happened to your order? You bought a stock at $50. Your exit is a sell stop-limit: stop $48, limit $47.50. Bad news hits overnight. It opens at $44 and keeps sliding. Triggered, but nothing sold It sold at $47.50 It sold near $44 The gap canceled it"
+    "given": "What happened to your order? You bought a stock at $50. Your exit is a sell stop-limit: stop $48, limit $47.50. Bad news hits overnight. It opens at $44 and keeps sliding. Triggered, but nothing sold It sold at the $47.50 limit It sold near the $44 open The gap canceled the order"
    },
    "lesson_line": "On an exit, a stop-limit can leave you holding the stock all the way down.",
    "unit": "F10.02",
    "why": "Triggered, but nothing sold. The open at $44 set off the stop, and the order became a limit to sell at $47.50 or better. With the stock under $47.50, it can't fill.",
    "wrong": {
-    "It sold at $47.50": "A limit fills only when someone will pay your price. At $44 and falling, nobody is paying $47.50.",
-    "It sold near $44": "That's what a plain stop does. A stop-limit won't sell below its limit.",
-    "The gap canceled it": "It's still working, as a limit at $47.50. It fills only if the stock trades back up there."
+    "It sold at the $47.50 limit": "A limit fills only when someone will pay your price. At $44 and falling, nobody is paying $47.50.",
+    "It sold near the $44 open": "That's what a plain stop does. A stop-limit won't sell below its limit.",
+    "The gap canceled the order": "It's still working, as a limit at $47.50. It fills only if the stock trades back up there."
    }
   },
   "review_status": "draft",

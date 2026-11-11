@@ -2213,11 +2213,11 @@
    "criterion": "map.near_high",
    "q": "Which check fails?",
    "choices": [
-    "Within 25% of the 52-week high",
+    "Near the 52-week high",
     "The length of the dip",
-    "The line is rising"
+    "The 10-day line is rising"
    ],
-   "answer": "Within 25% of the 52-week high",
+   "answer": "Near the 52-week high",
    "why": "Within 25% of the 52-week high. At 32.7% under it, this is a recovering stock's 10-day, not a leader's pullback.",
    "lesson_line": "A stock far under its high is recovering, not leading.",
    "facts": [
@@ -2228,7 +2228,7 @@
    ],
    "wrong": {
     "The length of the dip": "That check passes here. Exactly one check fails, and it is the distance from the high.",
-    "The line is rising": "That check passes here. The distance from the 52-week high is what fails."
+    "The 10-day line is rising": "That check passes here. The distance from the 52-week high is what fails."
    },
    "house": true,
    "story": "AMD, 2019. A dip touches its 10-day on the hold day. The 52-week high is 34.14 and the close is 32.7% under it."
@@ -2565,11 +2565,11 @@
    "criterion": "map.trail",
    "q": "What does the plan do with the last third?",
    "choices": [
-    "Hold until the 50-day breaks",
-    "Sell it on the close under the 10-day",
-    "Add back what you sold"
+    "Hold until the 50-day breaks down",
+    "Sell on a close below the 10-day",
+    "Add back the third sold at 5R"
    ],
-   "answer": "Sell it on the close under the 10-day",
+   "answer": "Sell on a close below the 10-day",
    "why": "Sell it. The last third is trailed under the 10-day for a fast mover and sold on a close below it.",
    "lesson_line": "The last third rides the trail and leaves on a close below it.",
    "facts": [
@@ -2578,8 +2578,8 @@
     "c26"
    ],
    "wrong": {
-    "Hold until the 50-day breaks": "For a fast mover the trail is the 10-day, sold on a close below it.",
-    "Add back what you sold": "No adds. The plan sells the last third."
+    "Hold until the 50-day breaks down": "For a fast mover the trail is the 10-day, sold on a close below it.",
+    "Add back the third sold at 5R": "No adds. The plan sells the last third."
    },
    "house": true,
    "story": "A fast mover you bought has reached 5R. You sold a third at 3R and a third at 5R. Price then closes under the 10-day."
@@ -2873,8 +2873,8 @@
    "rung": 2,
    "format": "fill",
    "criterion": "map.trim_gap_open",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "A trim level the stock gaps over is taken at the ___.",
+   "q": "Complete the trim rule.",
+   "sentence": "Price jumps past your 5R level overnight. You take that trim at the ___.",
    "bank": [
     "open",
     "close",
@@ -3312,7 +3312,7 @@
   },
   "q55": {
    "status": "pass",
-   "notes": "AMD row: 32.7% under the 52-week high 34.14, hold 2019-02-11; 32.7% fails 25%, 15% and 10%. The wrong choice 'The market reading' was not tested in the scan (dossier: no market reading in the sandbox), so it is now 'The line is rising'.",
+   "notes": "AMD row: 32.7% under the 52-week high 34.14, hold 2019-02-11; 32.7% fails 25%, 15% and 10%. The wrong choice 'The market reading' was not tested in the scan (dossier: no market reading in the sandbox), so it is now 'The line is rising'. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },
@@ -3390,7 +3390,7 @@
   },
   "q68": {
    "status": "pass",
-   "notes": "E51/E52/c26 verbatim. The story did not say the stock was a fast mover, so 10-day vs 21-day was undecided; it now says 'A fast mover'.",
+   "notes": "E51/E52/c26 verbatim. The story did not say the stock was a fast mover, so 10-day vs 21-day was undecided; it now says 'A fast mover'. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },
@@ -3486,7 +3486,7 @@
   },
   "q84": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10; fixed: sentence repeated 'opens' next to the blank (a word-match tell)",
+   "notes": "coverage question checked 2026-11-10; fixed: sentence repeated 'opens' next to the blank (a word-match tell). flagged-question fix checked 2026-11-11",
    "by": "checker",
    "fixed": true
   },

@@ -2446,11 +2446,11 @@
    "criterion": "lp.stop",
    "q": "Buy again?",
    "choices": [
-    "Yes; a new launch, a new trade",
-    "No; one try per pad",
+    "Yes, but as a new trade",
+    "No; each pad gets one try",
     "Yes, with a wider stop"
    ],
-   "answer": "Yes; a new launch, a new trade",
+   "answer": "Yes, but as a new trade",
    "why": "Yes. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. At most 3 tries in a week.",
    "lesson_line": "A stop-out is not a verdict on the setup. The next launch is a new trade.",
    "facts": [
@@ -2460,7 +2460,7 @@
    ],
    "house": true,
    "wrong": {
-    "No; one try per pad": "The limit is 3 tries in a week and 6 in a month, not one.",
+    "No; each pad gets one try": "The limit is 3 tries in a week and 6 in a month, not one.",
     "Yes, with a wider stop": "The stop is the day's low again. A wider stop to avoid a repeat is the mistake."
    },
    "story": "Stopped out of a launchpad on Tuesday. Thursday the stock closes back above all four averages, up 3%, on volume."
@@ -3046,7 +3046,7 @@
   },
   "q61": {
    "status": "pass",
-   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },

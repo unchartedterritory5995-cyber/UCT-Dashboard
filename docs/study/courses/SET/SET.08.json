@@ -2176,11 +2176,11 @@
    "criterion": "bf.stop_gap",
    "q": "What is the stop now?",
    "choices": [
-    "The first 30-minute low, out if past 2R",
-    "Still 61.65; sell at the open",
-    "No stop; wait for the close"
+    "First 30-minute low; out past 2R",
+    "Still 61.65, so sell at the open",
+    "No stop at all; wait for close"
    ],
-   "answer": "The first 30-minute low, out if past 2R",
+   "answer": "First 30-minute low; out past 2R",
    "why": "The first 30-minute low of the gap-down day is the new stop. The ceiling: if the first 30 minutes take the loss past 2R, get out. That is the one exception to a stop that never widens.",
    "lesson_line": "A gap through the stop gets 30 minutes, not a new opinion.",
    "facts": [
@@ -2189,8 +2189,8 @@
     "c43"
    ],
    "wrong": {
-    "Still 61.65; sell at the open": "The stop was gapped over. The gap rule gives the first 30-minute bar's low as the new one.",
-    "No stop; wait for the close": "The close is hours away. The first 30 minutes decide, and past 2R you are out."
+    "Still 61.65, so sell at the open": "The stop was gapped over. The gap rule gives the first 30-minute bar's low as the new one.",
+    "No stop at all; wait for close": "The close is hours away. The first 30 minutes decide, and past 2R you are out."
    },
    "house": true,
    "story": "Your flag long filled at 62.80 with the stop at 61.65. Next morning it opens at 61.10 on sector news."
@@ -2283,11 +2283,11 @@
    "criterion": "bf.pole",
    "q": "Which lesson is this?",
    "choices": [
-    "A moving-average pullback; no pole",
-    "A bull flag",
-    "A wedge up"
+    "A pullback; it has no pole",
+    "A bull flag on a steep run",
+    "A wedge up into resistance"
    ],
-   "answer": "A moving-average pullback; no pole",
+   "answer": "A pullback; it has no pole",
    "why": "A moving-average pullback. Find the pole: a pullback to the 10, 20 or 50-day with no pole is setup 12. Bulkowski: no straight-line run, no flag.",
    "lesson_line": "No run, no flag. A drift to the 20-day after a grind is a pullback lesson.",
    "facts": [
@@ -2295,8 +2295,8 @@
     "b2"
    ],
    "wrong": {
-    "A bull flag": "An 8% grind over six weeks is not a steep run. No pole, no flag.",
-    "A wedge up": "The drift is down to a line, not up. The missing piece is the run before it."
+    "A bull flag on a steep run": "An 8% grind over six weeks is not a steep run. No pole, no flag.",
+    "A wedge up into resistance": "The drift is down to a line, not up. The missing piece is the run before it."
    },
    "house": true,
    "story": "A leader grinds 8% higher over six weeks, then drifts three days down to its 20-day EMA on light volume."
@@ -3347,7 +3347,7 @@
   },
   "q45": {
    "status": "pass",
-   "notes": "Wrong number fixed: an open at 60.10 is already 2.35R below a 62.80 fill with a 61.65 stop, so B20's 2R ceiling meant out, and the key's 'new stop' was moot. Now opens at 61.10 (1.48R). Why had a 27-word sentence: split.",
+   "notes": "Wrong number fixed: an open at 60.10 is already 2.35R below a 62.80 fill with a 61.65 stop, so B20's 2R ceiling meant out, and the key's 'new stop' was moot. Now opens at 61.10 (1.48R). Why had a 27-word sentence: split. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },
@@ -3371,7 +3371,7 @@
   },
   "q49": {
    "status": "pass",
-   "notes": "Key holds under every D-029 option (an 8% grind is no steep run). The wrong note graded META on the pending 20% pole number (D-029): now says only that a grind is not a steep run; d28 dropped.",
+   "notes": "Key holds under every D-029 option (an 8% grind is no steep run). The wrong note graded META on the pending 20% pole number (D-029): now says only that a grind is not a steep run; d28 dropped. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },

@@ -2240,12 +2240,12 @@
    "criterion": "ps.burst_boxes",
    "q": "What is it?",
    "choices": [
-    "A News Failure shape, no burst",
-    "A Parabolic Short",
-    "A Wedge Drop",
-    "A Parabolic Long"
+    "A News Failure, no burst",
+    "A Parabolic Short setup",
+    "A Wedge Drop after a top",
+    "A Parabolic Long setup"
    ],
-   "answer": "A News Failure shape, no burst",
+   "answer": "A News Failure, no burst",
    "why": "A News Failure shape. A good-news gap up that closes red with no burst before it; a Parabolic Short needs the 3-5 day burst first. AAOI ran 2.16R, then stopped.",
    "lesson_line": "Same candle, different setup. Look at the days before the gap.",
    "facts": [
@@ -2256,9 +2256,9 @@
     "c21"
    ],
    "wrong": {
-    "A Parabolic Short": "No burst, no parabola. The slow drift before the gap is the tell.",
-    "A Wedge Drop": "A Wedge Drop comes days after a top, at the averages, under the 200-day.",
-    "A Parabolic Long": "That is a burst down and a gap down. This gapped up."
+    "A Parabolic Short setup": "No burst, no parabola. The slow drift before the gap is the tell.",
+    "A Wedge Drop after a top": "A Wedge Drop comes days after a top, at the averages, under the 200-day.",
+    "A Parabolic Long setup": "That is a burst down and a gap down. This gapped up."
    },
    "house": true,
    "story": "A stock drifted up slowly for weeks. Today it gaps up 27.7% on news and closes red. No three straight up closes, no acceleration before it."
@@ -2734,11 +2734,11 @@
    "criterion": "ps.not_this",
    "q": "Bracco's name for that, and his view of it?",
    "choices": [
-    "Quick opening range breakdown; weakest",
-    "The U-Turn; his favorite",
-    "A five-star climax"
+    "Quick range breakdown; weakest",
+    "The U-Turn, which he likes best",
+    "A five-star climax; best of all"
    ],
-   "answer": "Quick opening range breakdown; weakest",
+   "answer": "Quick range breakdown; weakest",
    "why": "The Quick Opening Range Breakdown: the high set on the first 5-minute candle, then the opening range breaks. His least liked, and it often appears on day 1 or 2 of the burst.",
    "lesson_line": "A top on the first candle of day two is usually not the top.",
    "facts": [
@@ -2749,8 +2749,8 @@
     "b08"
    ],
    "wrong": {
-    "The U-Turn; his favorite": "The U-Turn runs higher first and turns 10 to 60 minutes in. This topped on the first candle.",
-    "A five-star climax": "Day two of a burst is early. The climax gap usually comes on day 3 to 5."
+    "The U-Turn, which he likes best": "The U-Turn runs higher first and turns 10 to 60 minutes in. This topped on the first candle.",
+    "A five-star climax; best of all": "Day two of a burst is early. The climax gap usually comes on day 3 to 5."
    },
    "house": true,
    "story": "Day two of a burst: two up days. Today it gaps up, sets its high on the first 5-minute candle and breaks the opening range low."
@@ -3329,7 +3329,7 @@
   },
   "q42": {
    "status": "pass",
-   "notes": "d28/d29 verbatim (AAOI 2026-03-02: 2 of 4 boxes, a one-day 27.7% gap, the News Failure shape, 2.16R then stopped), c22, c21, b01. The one failing rule is the burst (ps.burst_boxes), as the card names.",
+   "notes": "d28/d29 verbatim (AAOI 2026-03-02: 2 of 4 boxes, a one-day 27.7% gap, the News Failure shape, 2.16R then stopped), c22, c21, b01. The one failing rule is the burst (ps.burst_boxes), as the card names. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -3443,7 +3443,7 @@
   },
   "q61": {
    "status": "pass",
-   "notes": "b20, b19, c33, b11, b08 verbatim. The why gave 'because' as Bracco's reason; he names it least liked and separately warns it often comes on day 1 or 2, so 'because' became 'and'.",
+   "notes": "b20, b19, c33, b11, b08 verbatim. The why gave 'because' as Bracco's reason; he names it least liked and separately warns it often comes on day 1 or 2, so 'because' became 'and'. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },

@@ -2099,12 +2099,12 @@
    "criterion": "cap.trail",
    "q": "How do we trail the last third?",
    "choices": [
-    "Higher daily lows, then the 10-day",
-    "The 200-day",
-    "A fixed 10% stop",
-    "We never trail"
+    "Higher lows, then the 10-day",
+    "A trailing stop on the 200-day",
+    "A fixed 10% stop under the buy",
+    "We never trail the last third"
    ],
-   "answer": "Higher daily lows, then the 10-day",
+   "answer": "Higher lows, then the 10-day",
    "why": "Under each higher daily low until price closes back above the 10-day. After that we sell on a close below the 10-day.",
    "lesson_line": "Trail the lows, then the 10-day.",
    "facts": [
@@ -2113,9 +2113,9 @@
    ],
    "house": true,
    "wrong": {
-    "The 200-day": "The 200-day is far too slow for a bounce trade.",
-    "A fixed 10% stop": "A fixed stop does not follow the bounce.",
-    "We never trail": "We trail the last third."
+    "A trailing stop on the 200-day": "The 200-day is far too slow for a bounce trade.",
+    "A fixed 10% stop under the buy": "A fixed stop does not follow the bounce.",
+    "We never trail the last third": "We trail the last third."
    }
   },
   {
@@ -2142,12 +2142,12 @@
    "criterion": "cap.vix",
    "q": "Which backdrop helps a market-wide flush?",
    "choices": [
-    "A VIX near 30 and washed-out breadth",
-    "A VIX near 10 and calm",
-    "Breadth near its highs",
-    "A slow drift lower"
+    "VIX near 30, washed-out breadth",
+    "VIX near 10, calm and quiet tape",
+    "Breadth near highs, VIX very low",
+    "A slow drift lower, VIX calm"
    ],
-   "answer": "A VIX near 30 and washed-out breadth",
+   "answer": "VIX near 30, washed-out breadth",
    "why": "A VIX near 30 and washed-out breadth. Fear is high and rising fast, and T2108 sits near or under 15% to 20%.",
    "lesson_line": "A real flush has fear and washed-out breadth behind it.",
    "facts": [
@@ -2158,9 +2158,9 @@
    ],
    "house": true,
    "wrong": {
-    "A VIX near 10 and calm": "A calm market has no fear behind it.",
-    "Breadth near its highs": "Strong breadth is the opposite of a washout.",
-    "A slow drift lower": "A slow, controlled mark down is not a capitulation."
+    "VIX near 10, calm and quiet tape": "A calm market has no fear behind it.",
+    "Breadth near highs, VIX very low": "Strong breadth is the opposite of a washout.",
+    "A slow drift lower, VIX calm": "A slow, controlled mark down is not a capitulation."
    }
   },
   {
@@ -2424,13 +2424,13 @@
    "criterion": "cap.stop",
    "q": "What do you do?",
    "choices": [
-    "Log it; a new buy needs a new trigger",
-    "Buy back at once, bigger",
-    "Move the old stop lower",
-    "Blame the setup and quit"
+    "Log it; wait for a new trigger",
+    "Buy back at once, a bigger size",
+    "Move the old stop lower and wait",
+    "Blame the setup and drop it"
    ],
    "story": "You bought the reclaim at 64.66 with a stop at 63.75. Next day trades 23 cents under the stop, stops you out, then closes near its high.",
-   "answer": "Log it; a new buy needs a new trigger",
+   "answer": "Log it; wait for a new trigger",
    "why": "Log it. The stop was right by the rule and the trade still lost. After a stop-out a new buy needs the setup to trigger again, as a new trade.",
    "lesson_line": "A right stop can still lose. Take it and wait for a new trigger.",
    "facts": [
@@ -2441,9 +2441,9 @@
    ],
    "house": true,
    "wrong": {
-    "Buy back at once, bigger": "A new buy needs a new trigger, not a bigger size.",
-    "Move the old stop lower": "The stop was the exit. It is already used.",
-    "Blame the setup and quit": "A planned loss is the cost of the trade, not proof the setup is broken."
+    "Buy back at once, a bigger size": "A new buy needs a new trigger, not a bigger size.",
+    "Move the old stop lower and wait": "The stop was the exit. It is already used.",
+    "Blame the setup and drop it": "A planned loss is the cost of the trade, not proof the setup is broken."
    }
   },
   {
@@ -2537,12 +2537,12 @@
    "criterion": "cap.breakeven",
    "q": "81% were stopped at some point, yet 52.3% reached 3R. Why?",
    "choices": [
-    "The fixed stop never moves; fades return",
-    "The scan used a wide stop",
-    "3R is a bad target",
+    "Fixed stop, so fades come back",
+    "The scan's stop was far too wide",
+    "3R is just a bad target here",
     "The scan only kept the winners"
    ],
-   "answer": "The fixed stop never moves; fades return",
+   "answer": "Fixed stop, so fades come back",
    "why": "The stop never moves in the scan, so the fade after the bounce usually comes back to it. That is why we trim at 3R and move to breakeven.",
    "lesson_line": "Bounces fade. Trim, then protect the rest.",
    "facts": [
@@ -2553,8 +2553,8 @@
    ],
    "house": true,
    "wrong": {
-    "The scan used a wide stop": "The median stop was tight, about 1.7%.",
-    "3R is a bad target": "52.3% reached it. The point is what happens after.",
+    "The scan's stop was far too wide": "The median stop was tight, about 1.7%.",
+    "3R is just a bad target here": "52.3% reached it. The point is what happens after.",
     "The scan only kept the winners": "The scan counted all 2,220 reclaims that passed its rules."
    }
   },
@@ -2595,13 +2595,13 @@
    "criterion": "cap.monday",
    "q": "What is the trade?",
    "choices": [
-    "Buy the Monday reclaim of the flush low",
-    "Buy the Friday close",
-    "Short the Monday gap",
-    "Wait two weeks"
+    "Buy the Monday reclaim of the low",
+    "Buy the Friday close of the flush",
+    "Short the Monday gap down",
+    "Wait two weeks and recheck"
    ],
    "story": "Thursday and Friday flush a leader 23% on 2.28x volume. Monday it opens under the flush low, undercuts it and closes above it.",
-   "answer": "Buy the Monday reclaim of the flush low",
+   "answer": "Buy the Monday reclaim of the low",
    "why": "Buy the Monday reclaim of the flush low. OKTA opened 88.34 under the flush low, undercut 87.93 and closed 91.24.",
    "lesson_line": "Several down days, then a Monday gap and reclaim.",
    "facts": [
@@ -2612,9 +2612,9 @@
    ],
    "house": true,
    "wrong": {
-    "Buy the Friday close": "That is the knife. Nearly half of flush closes are undercut.",
-    "Short the Monday gap": "The Monday closed above the flush low. That is the turn, not a short.",
-    "Wait two weeks": "The reclaim is the trigger, and it came on Monday."
+    "Buy the Friday close of the flush": "That is the knife. Nearly half of flush closes are undercut.",
+    "Short the Monday gap down": "The Monday closed above the flush low. That is the turn, not a short.",
+    "Wait two weeks and recheck": "The reclaim is the trigger, and it came on Monday."
    }
   },
   {
@@ -3186,7 +3186,7 @@
   },
   "q45": {
    "status": "pass",
-   "notes": "c23 on the card (proposed); h21 (E52). Key right.",
+   "notes": "c23 on the card (proposed); h21 (E52). Key right. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -3198,7 +3198,7 @@
   },
   "q47": {
    "status": "pass",
-   "notes": "c29/c30 on the card; u07/u06 verbatim. Key right.",
+   "notes": "c29/c30 on the card; u07/u06 verbatim. Key right. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -3234,7 +3234,7 @@
   },
   "q57": {
    "status": "pass",
-   "notes": "d16/d17 verbatim; bars: VOYA 2023-03-16 low 63.52 = 23 cents under 63.75, close 66.15. B21 (h28). A loss with the rules followed, framed as such. Key right.",
+   "notes": "d16/d17 verbatim; bars: VOYA 2023-03-16 low 63.52 = 23 cents under 63.75, close 66.15. B21 (h28). A loss with the rules followed, framed as such. Key right. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -3246,7 +3246,7 @@
   },
   "q63": {
    "status": "pass",
-   "notes": "d07-d09 and u13; bars re-derived (OKTA Monday open 88.345, low 87.93, close 91.24 against a flush low of 89.36). Key right.",
+   "notes": "d07-d09 and u13; bars re-derived (OKTA Monday open 88.345, low 87.93, close 91.24 against a flush low of 89.36). Key right. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -3306,7 +3306,7 @@
   },
   "q61": {
    "status": "pass",
-   "notes": "d28/d29/d30 verbatim. The fourth choice 'Most reached 3R and failed' is close to true (many that reached 3R were stopped later), so it was not a wrong choice; replaced. The scan is fixed-stop with no trims and its universe is survivor-tilted (dossier 12).",
+   "notes": "d28/d29/d30 verbatim. The fourth choice 'Most reached 3R and failed' is close to true (many that reached 3R were stopped later), so it was not a wrong choice; replaced. The scan is fixed-stop with no trims and its universe is survivor-tilted (dossier 12). flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },
@@ -3395,10 +3395,9 @@
    "fixed": false
   },
   "q71": {
-   "status": "pass",
-   "notes": "coverage question checked 2026-11-10",
-   "by": "checker",
-   "fixed": false
+   "status": "cut",
+   "notes": "cut 2026-11-11: duplicate of SET.15 q41 Cut confirmed: SET.15 q41 asks the same thing (3 tries a week, 6 a month); that twin is kept. flagged-question fix checked 2026-11-11",
+   "by": "writer"
   },
   "q72": {
    "status": "cut",

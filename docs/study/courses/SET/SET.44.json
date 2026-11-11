@@ -1233,24 +1233,24 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "hg.not_stretched",
-   "q": "At the trigger the stock is 12% above its 10-day average. Our rule?",
+   "q": "At the trigger, one stock sits 7% above its 10-day average and another sits 13% above. Which do we skip?",
    "choices": [
-    "Skip it, too stretched",
-    "Buy, the trigger is what matters",
-    "Buy half size",
-    "Wait for the close"
+    "Only the one 13% above",
+    "Both of the two stocks",
+    "Only the one 7% above",
+    "Neither of the two stocks"
    ],
-   "answer": "Skip it, too stretched",
-   "why": "Skip it. A long more than 10% above its 10-day average is too stretched to buy. All ten of our examples filled within 2.5% of the 10-day.",
+   "answer": "Only the one 13% above",
+   "why": "Only the one 13% above. A long more than 10% above its 10-day average is too stretched to buy, and 7% is inside that line. All ten of our examples filled within 2.5% of the 10-day.",
    "lesson_line": "A stock at its line is rarely stretched. When it is, pass.",
    "facts": [
     "h13",
     "d14"
    ],
    "wrong": {
-    "Buy, the trigger is what matters": "The trigger is the trigger. The stretch rule still applies at the fill.",
-    "Buy half size": "Size does not fix a stretched entry. The rule is skip.",
-    "Wait for the close": "The close does not matter here. Distance from the 10-day does."
+    "Both of the two stocks": "7% is under the 10% line, so that one still passes the stretch rule.",
+    "Only the one 7% above": "Backwards. The further above the 10-day, the more stretched the entry.",
+    "Neither of the two stocks": "13% is past the 10% line, so that one is skipped."
    },
    "house": true
   },
@@ -1400,24 +1400,24 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "hg.trim_1",
-   "q": "Where does the first trim come on a Holy Grail winner, by our hard rule?",
+   "q": "How much of the position do we sell at the first trim on a Holy Grail winner?",
    "choices": [
-    "A third at 3R",
-    "Half at 2R",
-    "All of it at 5R",
-    "A third at 1R"
+    "A third, at 3R",
+    "Half, at 3R",
+    "A quarter, at 3R",
+    "All of it, at 3R"
    ],
-   "answer": "A third at 3R",
-   "why": "A third at 3R. That is the hard rule; in practice we mostly wait for 5R. The next third comes at 5R.",
+   "answer": "A third, at 3R",
+   "why": "A third, at 3R. That is the hard rule; the plan sells in thirds. The next third comes at 5R and the last third rides the trail.",
    "lesson_line": "A third at 3R, a third at 5R, trail the rest.",
    "facts": [
     "h05",
     "h20"
    ],
    "wrong": {
-    "Half at 2R": "Too early and too much. Breakeven can move at 2R; the trim waits for 3R.",
-    "All of it at 5R": "5R is the second third, not the exit. The last third rides the trail.",
-    "A third at 1R": "Too early. The first trim waits for 3R."
+    "Half, at 3R": "Too much. The plan sells in thirds, so the first trim is a third.",
+    "A quarter, at 3R": "The plan sells in thirds, not quarters.",
+    "All of it, at 3R": "That sells the whole position. The last third rides the trail."
    },
    "house": true
   },
@@ -2147,11 +2147,11 @@
    "criterion": "hg.length",
    "q": "What was the grade going in?",
    "choices": [
-    "A or B; 6 to 10 sessions is not A+",
-    "A+; every box ticked",
-    "Not a setup; too long"
+    "A or B; 10 sessions, not A+",
+    "A+; all the boxes are ticked",
+    "Not a setup; it ran too long"
    ],
-   "answer": "A or B; 6 to 10 sessions is not A+",
+   "answer": "A or B; 10 sessions, not A+",
    "why": "An A or B. Our A+ is 2 to 5 sessions; 6 to 10 is an A or B. Ten days is a flag that has already lost its urgency, and the loss was a planned 1R.",
    "lesson_line": "Ten days is a flag that has already lost its urgency.",
    "facts": [
@@ -2161,8 +2161,8 @@
     "d31"
    ],
    "wrong": {
-    "A+; every box ticked": "A+ is 2 to 5 sessions, shallow and orderly. Ten days is the far end of the range.",
-    "Not a setup; too long": "Ten sessions is still inside the 2 to 10 the card allows. It trades, graded down."
+    "A+; all the boxes are ticked": "A+ is 2 to 5 sessions, shallow and orderly. Ten days is the far end of the range.",
+    "Not a setup; it ran too long": "Ten sessions is still inside the 2 to 10 the card allows. It trades, graded down."
    },
    "story": "A strong ADX push, then a 10-day pullback to the 20 EMA, the longest the rule allows. You bought at 84.24, stop 81.37. It stopped out with no excursion past 0.5R.",
    "house": true
@@ -2739,7 +2739,7 @@
   },
   "q11": {
    "status": "pass",
-   "notes": "C29 (h13 verbatim, settled): skip a long more than 10% above its 10-day. d14 verbatim: all ten fills were within 2.5% of the 10-day.",
+   "notes": "C29 (h13 verbatim, settled): skip a long more than 10% above its 10-day. d14 verbatim: all ten fills were within 2.5% of the 10-day. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -2781,7 +2781,7 @@
   },
   "q18": {
    "status": "pass",
-   "notes": "B19 (h05 verbatim, settled): the hard rule is a third at 3R; E51 (h20) the next third at 5R. A wrong note on 1R claimed '1R is a normal day's swing on a fast stock', which no source gives; now 'Too early. The first trim waits for 3R.'",
+   "notes": "B19 (h05 verbatim, settled): the hard rule is a third at 3R; E51 (h20) the next third at 5R. A wrong note on 1R claimed '1R is a normal day's swing on a fast stock', which no source gives; now 'Too early. The first trim waits for 3R.' flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },
@@ -2961,7 +2961,7 @@
   },
   "q48": {
    "status": "pass",
-   "notes": "CELH 2024-04-01: 10-day pullback, buy 84.24, stop 81.37 = 3.41%, no excursion past 0.5R (d24 verbatim). c09: 6 to 10 sessions is an A or B. The lesson 'the weakest one it allows' overreached one example; now the dossier's own line. The question grades on length alone, so the story gives no other grade cues. Overlaps q29 (same grade line, applied here); kept.",
+   "notes": "CELH 2024-04-01: 10-day pullback, buy 84.24, stop 81.37 = 3.41%, no excursion past 0.5R (d24 verbatim). c09: 6 to 10 sessions is an A or B. The lesson 'the weakest one it allows' overreached one example; now the dossier's own line. The question grades on length alone, so the story gives no other grade cues. Overlaps q29 (same grade line, applied here); kept. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },

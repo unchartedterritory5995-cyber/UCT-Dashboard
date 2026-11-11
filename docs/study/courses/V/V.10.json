@@ -2212,12 +2212,12 @@
    "term": "M2",
    "q": "What does M2 measure?",
    "choices": [
-    "A broad measure of the money supply",
+    "A broad money supply measure",
     "Total Fed holdings of bonds",
     "New cash printed this year",
-    "Bank loans to businesses"
+    "Bank loans to small businesses"
    ],
-   "answer": "A broad measure of the money supply",
+   "answer": "A broad money supply measure",
    "why": "A broad measure of the money supply. M2 is M1 plus small time deposits and retail money market fund shares. The Fed reports it in its H.6 release.",
    "lesson_line": "M2 is cash, bank deposits and retail money funds: money people can spend or park short term.",
    "facts": [
@@ -2231,7 +2231,7 @@
    "wrong": {
     "Total Fed holdings of bonds": "That's the Fed's securities holdings, which grow with QE and shrink with QT.",
     "New cash printed this year": "Currency is only one piece. M2 also counts bank deposits and retail money funds.",
-    "Bank loans to businesses": "Loans are credit. M2 counts money: cash, deposits and money fund balances."
+    "Bank loans to small businesses": "Loans are credit. M2 counts money: cash, deposits and money fund balances."
    }
   },
   {
@@ -2684,8 +2684,8 @@
    "q": "How does BLS classify Dana?",
    "choices": [
     "Not in the labor force",
-    "Unemployed",
-    "Employed"
+    "Unemployed; wants work",
+    "Employed, between jobs"
    ],
    "answer": "Not in the labor force",
    "why": "Not in the labor force. To count as unemployed you must have looked for work in the prior 4 weeks. Wanting a job isn't enough.",
@@ -2697,8 +2697,8 @@
     "f173"
    ],
    "wrong": {
-    "Unemployed": "She hasn't actively looked in the prior 4 weeks, so she doesn't meet the test.",
-    "Employed": "She has no job, so she isn't employed."
+    "Unemployed; wants work": "She hasn't actively looked in the prior 4 weeks, so she doesn't meet the test.",
+    "Employed, between jobs": "She has no job, so she isn't employed."
    }
   },
   {
@@ -2740,8 +2740,8 @@
    "q": "What shape is the curve?",
    "choices": [
     "Sloping up, the usual shape",
-    "Inverted",
-    "Flat"
+    "Inverted, short yields on top",
+    "Flat, short close to long"
    ],
    "answer": "Sloping up, the usual shape",
    "why": "Sloping up, the usual shape. Yields climb from 4.16% at 3 months to 5.31% at 30 years. Longer maturities pay more, as they usually do.",
@@ -2755,8 +2755,8 @@
     "f142"
    ],
    "wrong": {
-    "Inverted": "Inverted would need short yields above long ones. Here the 3-month is the lowest of the four.",
-    "Flat": "Flat means a narrow gap between short and long yields. Here the 30-year, at 5.31%, sits well above the 3-month at 4.16%."
+    "Inverted, short yields on top": "Inverted would need short yields above long ones. Here the 3-month is the lowest of the four.",
+    "Flat, short close to long": "Flat means a narrow gap between short and long yields. Here the 30-year, at 5.31%, sits well above the 3-month at 4.16%."
    }
   },
   {
@@ -3119,12 +3119,12 @@
    "story": "A loan rate goes from 10% to 11%. One headline says the rate rose 10%. Another says it rose 1%.",
    "q": "Which way of saying it can't be misread?",
    "choices": [
-    "Up 100 basis points",
-    "Up 10%",
-    "Up 1%"
+    "Up by 100 basis points",
+    "Up 10% in the headline",
+    "Up 1% in the headline"
    ],
-   "answer": "Up 100 basis points",
-   "why": "Up 100 basis points. A 10% rise could mean 11% or 20%. Basis points measure the rate's own move, so there's no mix-up.",
+   "answer": "Up by 100 basis points",
+   "why": "Up by 100 basis points. A 10% rise could mean 11% or 20%. Basis points measure the rate's own move, so there's no mix-up.",
    "lesson_line": "Say rate moves in basis points or percentage points, never in percent.",
    "facts": [
     "f150",
@@ -3133,8 +3133,8 @@
     "f136"
    ],
    "wrong": {
-    "Up 10%": "That's a percent of the old rate. Some readers will think the rate is now 20%.",
-    "Up 1%": "One percent of what? Read as a share of the old rate, it would barely be a change."
+    "Up 10% in the headline": "That's a percent of the old rate. Some readers will think the rate is now 20%.",
+    "Up 1% in the headline": "One percent of what? Read as a share of the old rate, it would barely be a change."
    }
   },
   {
@@ -3362,7 +3362,7 @@
   },
   "q25": {
    "status": "pass",
-   "notes": "Fed FAQ f44-f47: M2 = M1 + small time deposits + retail money funds, H.6 release. Bond-holdings wrong-line now says 'securities holdings' (f48) instead of equating them with the whole balance sheet.",
+   "notes": "Fed FAQ f44-f47: M2 = M1 + small time deposits + retail money funds, H.6 release. Bond-holdings wrong-line now says 'securities holdings' (f48) instead of equating them with the whole balance sheet. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },
@@ -3476,7 +3476,7 @@
   },
   "q44": {
    "status": "pass",
-   "notes": "CPS page f93/f95 and Oct 2026 release f102: no search in prior 4 weeks means not unemployed. 'Ended for good' rules out the temporary-layoff exception (f173 added). Lesson now says 'usually'.",
+   "notes": "CPS page f93/f95 and Oct 2026 release f102: no search in prior 4 weeks means not unemployed. 'Ended for good' rules out the temporary-layoff exception (f173 added). Lesson now says 'usually'. flagged-question fix checked 2026-11-11 Wrong choice shortened to \"Unemployed; wants work\" so the three choices are the same length.",
    "fixed": true,
    "by": "checker"
   },
@@ -3488,7 +3488,7 @@
   },
   "q46": {
    "status": "pass",
-   "notes": "Re-parsed Treasury HTML for 10/30/2026: 3 Mo 4.16, 2 Yr 4.56, 10 Yr 4.94, 30 Yr 5.31, all rising (20 Yr 5.34 omitted, noted in conflicts). Flat wrong-line had an uncomputed 'more than a point'; now quotes the two yields.",
+   "notes": "Re-parsed Treasury HTML for 10/30/2026: 3 Mo 4.16, 2 Yr 4.56, 10 Yr 4.94, 30 Yr 5.31, all rising (20 Yr 5.34 omitted, noted in conflicts). Flat wrong-line had an uncomputed 'more than a point'; now quotes the two yields. flagged-question fix checked 2026-11-11 Flat choice shortened to \"Flat, short close to long\" so the right choice is not the shortest.",
    "fixed": true,
    "by": "checker"
   },
@@ -3578,7 +3578,7 @@
   },
   "q61": {
    "status": "pass",
-   "notes": "Investopedia basis-point page f150/f151: a 10% rate 'up 10%' could mean 11% or 20%; 100 bp takes 10% to 11%. Both percent wordings genuinely ambiguous.",
+   "notes": "Investopedia basis-point page f150/f151: a 10% rate 'up 10%' could mean 11% or 20%; 100 bp takes 10% to 11%. Both percent wordings genuinely ambiguous. flagged-question fix checked 2026-11-11 Right choice lengthened to \"Up by 100 basis points\" so it is not the shortest.",
    "fixed": false,
    "by": "checker"
   },

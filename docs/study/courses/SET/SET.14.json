@@ -2125,11 +2125,11 @@
    "criterion": "e20.hold_close",
    "q": "Which name fits?",
    "choices": [
-    "The MAU&R costume of the U&R",
-    "The 20 EMA pullback",
-    "A Remount"
+    "The MAU&R costume of U&R",
+    "The 20 EMA pullback setup",
+    "A Remount of the lost line"
    ],
-   "answer": "The MAU&R costume of the U&R",
+   "answer": "The MAU&R costume of U&R",
    "why": "The undercut and rally in its moving-average costume. Ask what the buy is. By our current default, a low that undercut the 20 EMA, bought as the move back above the line, is the U&R.",
    "lesson_line": "Same line, different buy. Buying the move back through the line is the U&R, not the pullback.",
    "facts": [
@@ -2138,8 +2138,8 @@
     "r1"
    ],
    "wrong": {
-    "The 20 EMA pullback": "Its buy is the turn off a held line, such as red to green. Buying the move back above the line is the U&R.",
-    "A Remount": "The line was under water for two hours, not a week or more. That is an undercut, not a lost line."
+    "The 20 EMA pullback setup": "Its buy is the turn off a held line, such as red to green. Buying the move back above the line is the U&R.",
+    "A Remount of the lost line": "The line was under water for two hours, not a week or more. That is an undercut, not a lost line."
    },
    "house": true,
    "story": "At 10 am the low breaks 1% under the 20 EMA. By noon price is back above the line and you buy the move back through it."
@@ -2967,7 +2967,7 @@
   },
   "q51": {
    "status": "pass",
-   "notes": "Kept the key and keyed it on the adopted defaults: D-002 row 12:7 (the moving-average undercut and rally is a named variant of the U&R), D-036 (an undercut within about 1 ATR that reclaims the same day is a valid undercut, so the 1% morning dip is not disqualifying) and D-003 (the pullback buys the intraday turn on the hold session, the U&R buys the move back through the line). The story already says the buy is the move back through the line, so the key does not depend on depth. Added the card's trigger line so the why can say what the pullback's own buy is.",
+   "notes": "Kept the key and keyed it on the adopted defaults: D-002 row 12:7 (the moving-average undercut and rally is a named variant of the U&R), D-036 (an undercut within about 1 ATR that reclaims the same day is a valid undercut, so the 1% morning dip is not disqualifying) and D-003 (the pullback buys the intraday turn on the hold session, the U&R buys the move back through the line). The story already says the buy is the move back through the line, so the key does not depend on depth. Added the card's trigger line so the why can say what the pullback's own buy is. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "resolver"
   },

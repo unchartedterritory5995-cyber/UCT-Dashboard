@@ -998,11 +998,11 @@
    "story": "A stock went public about six months ago. Its insiders signed a 180-day lockup, and it ends next week.",
    "q": "What should you watch for as that date gets close?",
    "choices": [
-    "More shares able to hit the market",
-    "The float shrinking",
-    "A guaranteed price drop"
+    "More shares free to sell",
+    "Fewer shares in the float",
+    "A guaranteed drop in price"
    ],
-   "answer": "More shares able to hit the market",
+   "answer": "More shares free to sell",
    "why": "More shares able to hit the market. When the lockup ends, insiders can start selling, and those shares join the float. The SEC notes the price may drop ahead of it.",
    "lesson_line": "Mark lockup dates on new issues. Fresh supply can weigh on the stock.",
    "facts": [
@@ -1012,8 +1012,8 @@
     "f48"
    ],
    "wrong": {
-    "The float shrinking": "It's the other way. Locked-up shares join the float once they're free to sell.",
-    "A guaranteed price drop": "Nothing guarantees it. The SEC says the price may drop, not that it will."
+    "Fewer shares in the float": "It's the other way. Locked-up shares join the float once they're free to sell.",
+    "A guaranteed drop in price": "Nothing guarantees it. The SEC says the price may drop, not that it will."
    }
   },
   {
@@ -1267,7 +1267,7 @@
   },
   "q16": {
    "status": "pass",
-   "notes": "f31, f33 (Investor.gov) confirmed in context. 'Went public last spring' goes stale with time; now 'about six months ago' (matches 180 days ending next week). 'A forced company buyback' was a silly distractor; now 'A guaranteed price drop', a real trap that f33 settles ('may drop'). 'Insiders are free to sell' was too strong (affiliates still face Rule 144); now 'can start selling'.",
+   "notes": "f31, f33 (Investor.gov) confirmed in context. 'Went public last spring' goes stale with time; now 'about six months ago' (matches 180 days ending next week). 'A forced company buyback' was a silly distractor; now 'A guaranteed price drop', a real trap that f33 settles ('may drop'). 'Insiders are free to sell' was too strong (affiliates still face Rule 144); now 'can start selling'. | flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },

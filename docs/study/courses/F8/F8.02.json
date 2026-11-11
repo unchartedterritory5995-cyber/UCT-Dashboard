@@ -1191,11 +1191,11 @@
    "story": "You missed the breakout over $40. It ran to $45, then pulled back to $41, above its last low, and turned up.",
    "q": "You buy the turn near $41, stop just under the pullback low. Is it a chase?",
    "choices": [
-    "No, it's a pullback buy near support",
-    "Yes, it already broke out",
+    "No, it's a pullback near support",
+    "Yes, it already broke out at $40",
     "Yes, only new highs are safe"
    ],
-   "answer": "No, it's a pullback buy near support",
+   "answer": "No, it's a pullback near support",
    "why": "No. Broken resistance usually turns into support on pullbacks, and the best place to buy is near support. The pullback held a higher low, and your stop sits just under it.",
    "lesson_line": "Miss the break, wait for the pullback that holds. That's your second chance.",
    "facts": [
@@ -1206,7 +1206,7 @@
     "f57"
    ],
    "wrong": {
-    "Yes, it already broke out": "A breakout you missed isn't gone. Rhodes: if a trade is missed, wait for a correction, then put it on. That's this.",
+    "Yes, it already broke out at $40": "A breakout you missed isn't gone. Rhodes: if a trade is missed, wait for a correction, then put it on. That's this.",
     "Yes, only new highs are safe": "Buying near support with a close stop is the spot Murphy calls best. A new high far from support means a wider stop."
    },
    "skill": "psych.fomo"
@@ -1421,7 +1421,7 @@
   },
   "q23": {
    "status": "pass",
-   "notes": "f41, f40 (Murphy on ChartSchool: broken resistance becomes support; buy near support), f37 (Rhodes), f42 confirmed live. The $40 breakout level, the $41 pullback holding a higher low: a pullback buy, not a chase. Changed 'stop just under that low' (ambiguous) to 'just under the pullback low'.",
+   "notes": "f41, f40 (Murphy on ChartSchool: broken resistance becomes support; buy near support), f37 (Rhodes), f42 confirmed live. The $40 breakout level, the $41 pullback holding a higher low: a pullback buy, not a chase. Changed 'stop just under that low' (ambiguous) to 'just under the pullback low'. | flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },

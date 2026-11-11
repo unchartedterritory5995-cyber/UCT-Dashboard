@@ -1166,9 +1166,9 @@
    "rung": 1,
    "format": "tf",
    "criterion": "od.leader",
-   "q": "We take drives in leaders: an RS rating of 80 or more, in a strong group.",
+   "q": "An RS rating of 84, in one of the strongest groups, meets our leader test for a drive.",
    "answer": "True",
-   "why": "True. We buy leaders: an RS rating of 80 or more, in one of the strongest groups.",
+   "why": "True. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. An 84 clears it.",
    "lesson_line": "Drives belong to leaders. RS 80 or more, in a strong group.",
    "facts": [
     "h14",
@@ -1915,13 +1915,13 @@
    "q": "What did our rules keep?",
    "story": "You bought CNC's drive at 72.00, stop 70.16. At 9:35 the next day it prints 3R, 77.52. Two days later it falls back to the old stop.",
    "choices": [
-    "A full-size loss",
-    "A third banked at 3R, the rest near even",
+    "A full-size loss at the old stop",
+    "A third banked, rest near even",
     "Nothing; it round-tripped",
-    "Two thirds, sold at 5R"
+    "Two thirds banked at 5R"
    ],
-   "answer": "A third banked at 3R, the rest near even",
-   "why": "A third banked at 3R. The rule is a third off at 3R, with the stop to breakeven by default. Trim a third at 3R or keep nothing.",
+   "answer": "A third banked, rest near even",
+   "why": "A third banked, the rest near even. The rule is a third off at 3R, with the stop to breakeven by default. Trim a third at 3R or keep nothing.",
    "lesson_line": "The first trim turns a round trip into a win. Take the third at 3R.",
    "facts": [
     "h05",
@@ -1930,8 +1930,8 @@
    ],
    "wrong": {
     "Nothing; it round-tripped": "The third sold at 3R was already banked. That is why we trim.",
-    "Two thirds, sold at 5R": "The stock never reached 5R. Only the first third came off.",
-    "A full-size loss": "The stop moved to breakeven at the first trim, so the rest left near even."
+    "Two thirds banked at 5R": "The stock never reached 5R. Only the first third came off.",
+    "A full-size loss at the old stop": "The stop moved to breakeven at the first trim, so the rest left near even."
    },
    "house": true
   },
@@ -1944,13 +1944,13 @@
    "q": "What does the rulebook say?",
    "story": "You bought a drive at 9:35. It closes at 24% of its range, still above your stop.",
    "choices": [
-    "A warning; the stop is the only exit",
-    "Sell at the close to be safe",
+    "A warning; the stop is the exit",
+    "Sell it at the close to be safe",
     "Sell at tomorrow's open",
     "Hold and add on the next dip"
    ],
-   "answer": "A warning; the stop is the only exit",
-   "why": "A warning; the stop is the only exit. A drive day that closes in the bottom third has failed, but we do not add an exit the rulebook lacks.",
+   "answer": "A warning; the stop is the exit",
+   "why": "A warning; the stop is the exit. A drive day that closes in the bottom third has failed, but we do not add an exit the rulebook lacks.",
    "lesson_line": "A weak close is a warning, not an order. The stop is the exit.",
    "facts": [
     "c11",
@@ -1958,7 +1958,7 @@
     "d21"
    ],
    "wrong": {
-    "Sell at the close to be safe": "That adds an exit we do not have. The stop is the only exit.",
+    "Sell it at the close to be safe": "That adds an exit we do not have. The stop is the only exit.",
     "Sell at tomorrow's open": "Same mistake, a day later. The stop is the only exit.",
     "Hold and add on the next dip": "Full size at one price with one stop, no adding."
    },
@@ -2794,7 +2794,7 @@
   },
   "q39": {
    "status": "pass",
-   "notes": "d08/d09 verbatim: 72.00 + 3 x (72.00 - 70.16) = 77.52. The house plan (stop to breakeven at the first trim, B19) was not simulated by the scan, so 'the rest near even' is the plan applied to the dossier's prices; the unit's conflicts say so.",
+   "notes": "d08/d09 verbatim: 72.00 + 3 x (72.00 - 70.16) = 77.52. The house plan (stop to breakeven at the first trim, B19) was not simulated by the scan, so 'the rest near even' is the plan applied to the dossier's prices; the unit's conflicts say so. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -2924,7 +2924,7 @@
   },
   "q07": {
    "status": "pass",
-   "notes": "h14, c24 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "notes": "h14, c24 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -2999,7 +2999,7 @@
    "fixed": false,
    "by": "checker"
   },
-  "q40": {"status": "pass", "notes": "c11, h02, d21 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. variety rewrite checked 2026-11-10: shortened a wrong choice (the wrong choice was the unique longest on every edited choice question of the unit).", "fixed": false, "by": "checker"},
+  "q40": {"status": "pass", "notes": "c11, h02, d21 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. variety rewrite checked 2026-11-10: shortened a wrong choice (the wrong choice was the unique longest on every edited choice question of the unit). flagged-question fix checked 2026-11-11", "fixed": false, "by": "checker"},
   "q42": {"status": "pass", "notes": "h20, h21 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},
   "q43": {"status": "pass", "notes": "c21, u04 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. variety rewrite checked 2026-11-10: the right choice began 'A cue' while both wrong choices began 'It'; it now begins 'It is'.", "fixed": false, "by": "checker"},
   "q49": {"status": "pass", "notes": "h03b, m08, m10, m13, c30 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. variety rewrite checked 2026-11-10", "fixed": false, "by": "checker"},

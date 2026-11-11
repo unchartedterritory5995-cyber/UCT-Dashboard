@@ -1992,11 +1992,11 @@
    "q": "The stop traded. Was the loss a mistake?",
    "story": "You bought a 4B- at 12.99 with the stop at 12.59. A 37.5% decline, a higher low, a 12-day pause. The next session fell to 12.48.",
    "choices": [
-    "No; a planned loss, stop did its job",
-    "Yes; the stop was too tight",
-    "Yes; we bought too late"
+    "No; a planned loss, stop worked",
+    "Yes; the stop was set too tight",
+    "Yes; we bought it too late"
    ],
-   "answer": "No; a planned loss, stop did its job",
+   "answer": "No; a planned loss, stop worked",
    "why": "No. The stop is the plan, and the loss was the planned 3.1%. A correct-looking 4B- can still lose.",
    "lesson_line": "A correct setup can lose. The stop makes it small.",
    "facts": [
@@ -2006,8 +2006,8 @@
     "c40"
    ],
    "wrong": {
-    "Yes; the stop was too tight": "The stop sits where the rules put it. Widening it to dodge a loss is the mistake.",
-    "Yes; we bought too late": "The buy was at the pause high, not a chase."
+    "Yes; the stop was set too tight": "The stop sits where the rules put it. Widening it to dodge a loss is the mistake.",
+    "Yes; we bought it too late": "The buy was at the pause high, not a chase."
    },
    "house": true
   },
@@ -2020,11 +2020,11 @@
    "q": "After the first stop-out, when do you buy again?",
    "story": "A 39% drop to the March 2020 low, a higher low, a 13-day pause. The break took the 1.4% stop the next day.",
    "choices": [
-    "Only on a new trigger, as a new trade",
+    "Only when it triggers again",
     "At once; it is the same setup",
-    "Never again on this stock"
+    "Never buy this stock again"
    ],
-   "answer": "Only on a new trigger, as a new trade",
+   "answer": "Only when it triggers again",
    "why": "Only on a new trigger. After a stop-out, buy again only if the setup triggers again, as a new trade. META's second trigger also stopped; the real move came from a third base.",
    "lesson_line": "A V bottom can fail twice. Only a new trigger buys it again.",
    "facts": [
@@ -2036,7 +2036,7 @@
    ],
    "wrong": {
     "At once; it is the same setup": "After a stop-out, buy again only on a new trigger, as a new trade.",
-    "Never again on this stock": "The setup can trigger again. The real move came from a third base."
+    "Never buy this stock again": "The setup can trigger again. The real move came from a third base."
    },
    "house": true
   },
@@ -2158,11 +2158,11 @@
    "q": "Does our earnings rule allow that buy?",
    "story": "A vendor's example buys a 50-day reclaim at 189 on 2022-07-15 or 2022-07-18. The company reports after the close on 2022-07-19.",
    "choices": [
-    "No; within 3 sessions of the report",
+    "No; too close to the report",
     "Yes; the reclaim was clean",
     "Yes, if it holds the 50-day"
    ],
-   "answer": "No; within 3 sessions of the report",
+   "answer": "No; too close to the report",
    "why": "No. No new buy in the 3 sessions before a report. That 50-day reclaim was bought one to two sessions before the report.",
    "lesson_line": "Check the report date, even on a famous chart.",
    "facts": [
@@ -2287,11 +2287,11 @@
    "criterion": "w4b.version_h_200",
    "q": "Hidden ticker. A washout, a higher low, a pause over the 50-day. Above its 200-day? Take it or pass.",
    "choices": [
-    "Take it; above the 200-day, higher low",
-    "Pass; the 200-day is overhead",
-    "Pass; there is no higher low"
+    "Take it; it is above the 200-day",
+    "Pass; the 200-day line is overhead",
+    "Pass; there is no real higher low"
    ],
-   "answer": "Take it; above the 200-day, higher low",
+   "answer": "Take it; it is above the 200-day",
    "why": "Take it. A spring washout, a higher low, and an 11-day pause that walked up through the 50, 150 and 200-day lines. The prior close was above the 200-day. It ran past 5R within two weeks.",
    "lesson_line": "The 200-day first, then the base. Both passed here.",
    "facts": [
@@ -2301,8 +2301,8 @@
     "d00"
    ],
    "wrong": {
-    "Pass; the 200-day is overhead": "Look again: price sits above the 200-day here.",
-    "Pass; there is no higher low": "Look again: the second low sits well above the first."
+    "Pass; the 200-day line is overhead": "Look again: price sits above the 200-day here.",
+    "Pass; there is no real higher low": "Look again: the second low sits well above the first."
    },
    "chart": {
     "sym": "DY",
@@ -2602,6 +2602,51 @@
     "h31"
    ],
    "house": true
+  },
+  {
+   "key": "q72",
+   "skill": "setup.weinstein_4b",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "w4b.trail",
+   "q": "On a steadier mover, we trail the last third under the 21-day, not the 10-day.",
+   "answer": "True",
+   "why": "True. A steadier mover trails the 21-day, and a fast mover trails the 10-day. We sell on a close below it.",
+   "lesson_line": "Fast mover, 10-day. Steadier mover, 21-day. Sell on the close below.",
+   "facts": [
+    "c31",
+    "h21"
+   ],
+   "house": true
+  },
+  {
+   "key": "q73",
+   "skill": "setup.weinstein_4b",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "w4b.climax",
+   "q": "What do you do?",
+   "story": "You hold two thirds after the 3R trim. In three days the stock goes parabolic, 4.5R up and far over its 10-day.",
+   "choices": [
+    "Sell a big part of it into the move",
+    "Hold it all until a 10-day close",
+    "Add to it while it keeps running",
+    "Hold it all; the burst proves it works"
+   ],
+   "answer": "Sell a big part of it into the move",
+   "why": "Sell a big part into the burst. A climax run on your own long is sold into; how much is a judgment call.",
+   "lesson_line": "A parabolic burst is for selling into. How much is your call.",
+   "facts": [
+    "c34",
+    "h30",
+    "c26"
+   ],
+   "wrong": {
+    "Hold it all until a 10-day close": "The trail catches the turn late. A parabolic burst is the moment to sell a big part.",
+    "Add to it while it keeps running": "No adding along the way: one price, one stop. A burst is for selling into.",
+    "Hold it all; the burst proves it works": "A burst is for selling into, not for holding all of it."
+   },
+   "house": true
   }
  ],
  "conflicts": [
@@ -2888,10 +2933,9 @@
    "by": "checker"
   },
   "q42": {
-   "status": "pass",
-   "notes": "E52 (h21), c31 verbatim; A4 for the wrong note. Key right. variety rewrite checked 2026-11-10",
-   "fixed": false,
-   "by": "checker"
+   "status": "cut",
+   "notes": "cut 2026-11-11: duplicate of SET.41 q42. flagged-question fix checked 2026-11-11: the cut is right, kept twin SET.41 q42 asks the same thing.",
+   "by": "writer"
   },
   "q43": {
    "status": "pass",
@@ -2900,10 +2944,9 @@
    "by": "checker"
   },
   "q44": {
-   "status": "pass",
-   "notes": "C34 (h30) and c34 verbatim ('sell a big part into it, a judgment call'). The why called selling a big part 'the rule' and 'a judgment call' in one breath; reworded.",
-   "fixed": true,
-   "by": "checker"
+   "status": "cut",
+   "notes": "cut 2026-11-11: duplicate of SET.41 q46. flagged-question fix checked 2026-11-11: the cut is right, kept twin SET.41 q46 asks the same thing.",
+   "by": "writer"
   },
   "q45": {
    "status": "pass",
@@ -2925,13 +2968,13 @@
   },
   "q48": {
    "status": "pass",
-   "notes": "Bars: F 2024-02-12 buy 12.99, stop 12.59 (3.08%), next low 12.48. The old key 'rules followed' and wrong note 'everything passed' claimed more than the data shows: the widest stop allowed (3%, 5% or 8%) is pending (D-005), so a 3.1% stop passes only under 5% or 8%, and RS and the market reading were never tested. Re-keyed on 'the stop did its job'.",
+   "notes": "Bars: F 2024-02-12 buy 12.99, stop 12.59 (3.08%), next low 12.48. The old key 'rules followed' and wrong note 'everything passed' claimed more than the data shows: the widest stop allowed (3%, 5% or 8%) is pending (D-005), so a 3.1% stop passes only under 5% or 8%, and RS and the market reading were never tested. Re-keyed on 'the stop did its job'. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },
   "q49": {
    "status": "pass",
-   "notes": "Bars: META 2020-05-11 buy 213.22, stop 210.32 (1.36%), next session low 210.00. The story said 'the break closed mid-range', which no source states (it closed 61% up its range); removed. The key said 'after a new pause', but B21 asks only for a new trigger (the re-arm rule c36 is about a close under the 50-day); re-keyed on B21.",
+   "notes": "Bars: META 2020-05-11 buy 213.22, stop 210.32 (1.36%), next session low 210.00. The story said 'the break closed mid-range', which no source states (it closed 61% up its range); removed. The key said 'after a new pause', but B21 asks only for a new trigger (the re-arm rule c36 is about a close under the 50-day); re-keyed on B21. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },
@@ -2961,7 +3004,7 @@
   },
   "q54": {
    "status": "pass",
-   "notes": "Bars: NFLX closed back over its 50-day on 2022-07-15 (18.91 split-adjusted, 189.1 as traded) and 07-18, reported after the close on 07-19. d23/d24 verbatim. The why's 'most of the move was the earnings gap' had no source; removed.",
+   "notes": "Bars: NFLX closed back over its 50-day on 2022-07-15 (18.91 split-adjusted, 189.1 as traded) and 07-18, reported after the close on 07-19. d23/d24 verbatim. The why's 'most of the move was the earnings gap' had no source; removed. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },
@@ -2991,7 +3034,7 @@
   },
   "q59": {
    "status": "pass",
-   "notes": "Chart: DY 2025-05-07 has 7,622 daily bars up to the date and 380 after; close 183.33, 50-day 157.14, 200-day 177.27 (above both). Bars: buy 186.41 on 2025-05-08, stop 182.62, 5R = 205.36 first traded on 2025-05-21, the 9th session after the buy day; the dossier says 'in 8 sessions' (3R came on the 8th). Reworded to 'within two weeks'. Requoted 2026-11-10: dossier now says 5R in 9 sessions (was 8); the why already says 'within two weeks'. No text change.",
+   "notes": "Chart: DY 2025-05-07 has 7,622 daily bars up to the date and 380 after; close 183.33, 50-day 157.14, 200-day 177.27 (above both). Bars: buy 186.41 on 2025-05-08, stop 182.62, 5R = 205.36 first traded on 2025-05-21, the 9th session after the buy day; the dossier says 'in 8 sessions' (3R came on the 8th). Reworded to 'within two weeks'. Requoted 2026-11-10: dossier now says 5R in 9 sessions (was 8); the why already says 'within two weeks'. No text change. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "requoter"
   },
@@ -3062,10 +3105,19 @@
    "fixed": false
   },
   "q71": {
+   "status": "cut",
+   "notes": "cut 2026-11-11: duplicate of SET.09 q84. flagged-question fix checked 2026-11-11: the cut is right, kept twin SET.09 q84 asks the same thing and names the gap exception.",
+   "by": "writer"
+  },
+  "q72": {
    "status": "pass",
-   "notes": "coverage question checked 2026-11-10",
-   "by": "checker",
-   "fixed": false
+   "notes": "coverage question checked 2026-11-11",
+   "by": "writer"
+  },
+  "q73": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-11: fixed the story: it said 8R up with only the 3R trim taken, but the plan sells the next third at 5R, so it now stops at 4.5R",
+   "by": "writer"
   }
  }
 }

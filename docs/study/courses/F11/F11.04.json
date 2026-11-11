@@ -1080,12 +1080,12 @@
    "story": "Your pullback setup is solidly positive over 150 logged trades. A friend's new setup made him 30% last month. You're tempted to switch.",
    "q": "What do you do?",
    "choices": [
-    "Paper trade his setup on the side",
-    "Switch to his setup now",
-    "Run both at full size",
+    "Paper trade his on the side",
+    "Switch to his setup this week",
+    "Run both at full size now",
     "Never look at a new setup"
    ],
-   "answer": "Paper trade his setup on the side",
+   "answer": "Paper trade his on the side",
    "why": "Paper trade his setup on the side. One month of someone else's results is a tiny sample. Investopedia's rules say learn from others, then build your own identity. Your lane has the record.",
    "lesson_line": "Keep your lane. Test new ideas on the side, small, until they earn a place.",
    "facts": [
@@ -1097,8 +1097,8 @@
     "f27"
    ],
    "wrong": {
-    "Switch to his setup now": "You'd swap 150 trades of your own proof for one month of his. Small samples give unreliable results.",
-    "Run both at full size": "Tharp says start a new strategy very small, so learning it costs little.",
+    "Switch to his setup this week": "You'd swap 150 trades of your own proof for one month of his. Small samples give unreliable results.",
+    "Run both at full size now": "Tharp says start a new strategy very small, so learning it costs little.",
     "Never look at a new setup": "Too rigid. Bellafiore leaves some time to add new trades, and Steenbarger says adding new processes keeps traders profitable as markets change."
    }
   },
@@ -1306,7 +1306,7 @@
   },
   "q17": {
    "status": "pass",
-   "notes": "f56, f39, f48, f40, f27 confirmed in context. Changed: the why said Investopedia warns 'copying other traders' loses money, but f60 is about emulating 'financial heroes', not a friend; now uses f59 ('Learn what you can from others, then ... establish your own market identity'), and the long sentence is split.",
+   "notes": "f56, f39, f48, f40, f27 confirmed in context. Changed: the why said Investopedia warns 'copying other traders' loses money, but f60 is about emulating 'financial heroes', not a friend; now uses f59 ('Learn what you can from others, then ... establish your own market identity'), and the long sentence is split. | flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },

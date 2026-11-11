@@ -2782,6 +2782,33 @@
     "h10"
    ],
    "house": true
+  },
+  {
+   "key": "q77",
+   "skill": "setup.gap_support",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "gs.trail",
+   "q": "What is your move today?",
+   "story": "You hold the last third of a steadier Gap Support winner, both trims done. Today it closes under its 10-day but still above its 21-day.",
+   "choices": [
+    "Hold; the line for it is the 21-day",
+    "Sell the last third; the 10-day broke",
+    "Add a little; the 21-day still holds"
+   ],
+   "answer": "Hold; the line for it is the 21-day",
+   "why": "Hold. A steadier mover trails the 21-day, and we sell on a close below it. The 10-day is the fast mover's line.",
+   "lesson_line": "Steadier mover, 21-day line. A close under that line is the sell.",
+   "facts": [
+    "g21",
+    "h21",
+    "h31"
+   ],
+   "wrong": {
+    "Sell the last third; the 10-day broke": "The 10-day is the fast mover's trail. This steadier mover trails the 21-day.",
+    "Add a little; the 21-day still holds": "No adding along the way. The full size goes in at one price with one stop."
+   },
+   "house": true
   }
  ],
  "conflicts": [
@@ -3007,10 +3034,9 @@
    "by": "checker"
   },
   "q21": {
-   "status": "pass",
-   "notes": "g21, h21 verbatim (E52). | variety rewrite checked 2026-11-10",
-   "fixed": false,
-   "by": "checker"
+   "status": "cut",
+   "notes": "cut 2026-11-11: duplicate of SET.20 q19 Cut confirmed: SET.20 q19 is word for word the same and is kept. flagged-question fix checked 2026-11-11",
+   "by": "writer"
   },
   "q23": {
    "status": "pass",
@@ -3275,6 +3301,11 @@
    "notes": "coverage question checked 2026-11-10",
    "by": "checker",
    "fixed": false
+  },
+  "q77": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-11",
+   "by": "writer"
   }
  }
 }

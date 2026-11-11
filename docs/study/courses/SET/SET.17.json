@@ -1149,12 +1149,12 @@
    "criterion": "wd.trigger_close",
    "q": "In one line, what is a Wedge Drop?",
    "choices": [
-    "A close under the averages after a stall",
+    "A close under the averages",
     "A breakout over a flat base",
-    "A gap up on earnings",
-    "A bounce off the 200-day"
+    "A gap up on strong earnings",
+    "A bounce off the 200-day line"
    ],
-   "answer": "A close under the averages after a stall",
+   "answer": "A close under the averages",
    "why": "A close under the averages after a stall. The Wedge Drop happens when the market trades back below the moving averages after a rally. Deepvue says the same: sellers push the stock below the averages.",
    "lesson_line": "A rally, a rest on the averages, then the close through them. That is the drop.",
    "facts": [
@@ -1166,8 +1166,8 @@
    ],
    "wrong": {
     "A breakout over a flat base": "That is a long setup through a ceiling. The Wedge Drop is a close down through the averages.",
-    "A gap up on earnings": "A gap up is strength. The drop is price falling through its averages.",
-    "A bounce off the 200-day": "A bounce is a rally. The drop is what ends one."
+    "A gap up on strong earnings": "A gap up is strength. The drop is price falling through its averages.",
+    "A bounce off the 200-day line": "A bounce is a rally. The drop is what ends one."
    }
   },
   {
@@ -2629,11 +2629,11 @@
    "story": "The trigger level was 64.63. You missed the close. Next morning the stock opens at 61.50.",
    "q": "Short at the open?",
    "choices": [
-    "No; more than 4% under the trigger",
-    "Yes; the drop is confirmed",
-    "Yes, half size"
+    "No; over 4% under the trigger",
+    "Yes; the drop is now confirmed",
+    "Yes, at half the usual size"
    ],
-   "answer": "No; more than 4% under the trigger",
+   "answer": "No; over 4% under the trigger",
    "why": "No. 61.50 is more than 4% under 64.63, and no short goes more than 4% under the trigger level. Chasing costs size: the stop stays over the high, so the distance grows and the shares shrink.",
    "lesson_line": "Four percent under the trigger and I am done. The next stall will come.",
    "facts": [
@@ -2643,8 +2643,8 @@
    ],
    "house": true,
    "wrong": {
-    "Yes; the drop is confirmed": "Confirmed and too far away are both true. The chase line is 4%.",
-    "Yes, half size": "Half of a chased entry is still a chased entry."
+    "Yes; the drop is now confirmed": "Confirmed and too far away are both true. The chase line is 4%.",
+    "Yes, at half the usual size": "Half of a chased entry is still a chased entry."
    }
   },
   {
@@ -2744,11 +2744,11 @@
    "story": "Kell flags a laggard: a loss of 166.50 would trigger a Wedge Drop short. It closes at 166.35, 19% under its 200-day, in a strong market, and he adds it might just be an avoid.",
    "q": "Take it?",
    "choices": [
-    "Pass; a strong market runs shorts over",
+    "Pass; the market is too strong",
     "Short; it is under the 200-day",
-    "Short; Kell flagged it"
+    "Short; Kell flagged the stock"
    ],
-   "answer": "Pass; a strong market runs shorts over",
+   "answer": "Pass; the market is too strong",
    "why": "Pass. TSLA 2023-05-15 failed: a 1R loss, then up 55.5% over the next 20 sessions. Not in a strongly uptrending market or stock, and never from a flag without your own read.",
    "lesson_line": "Under the 200-day is one gate. A strong market fails another, and the originator's own hedge was the tell.",
    "facts": [
@@ -2761,7 +2761,7 @@
    "house": true,
    "wrong": {
     "Short; it is under the 200-day": "The 200-day gate passed. The market gate did not, and the stock rose 55.5% in 20 sessions.",
-    "Short; Kell flagged it": "He also wrote it might just be an avoid. A flag is not a plan; your own entry, stop and read are."
+    "Short; Kell flagged the stock": "He also wrote it might just be an avoid. A flag is not a plan; your own entry, stop and read are."
    }
   },
   {
@@ -2887,7 +2887,7 @@
  "verify": {
   "q01": {
    "status": "pass",
-   "notes": "t01, v01, v02 verbatim (TraderLion and Deepvue, two publishers). Wrong notes true; choices 40 characters or fewer.",
+   "notes": "t01, v01, v02 verbatim (TraderLion and Deepvue, two publishers). Wrong notes true; choices 40 characters or fewer. | flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -3229,7 +3229,7 @@
   },
   "q58": {
    "status": "pass",
-   "notes": "re-derived: 64.63-61.50 = 3.13 = 4.8% under (card measure 64.63/61.50-1 = 5.1%), both over 4%. c56, h11 verbatim (INCY trigger level 64.63, d1 table).",
+   "notes": "re-derived: 64.63-61.50 = 3.13 = 4.8% under (card measure 64.63/61.50-1 = 5.1%), both over 4%. c56, h11 verbatim (INCY trigger level 64.63, d1 table). | flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -3253,7 +3253,7 @@
   },
   "q62": {
    "status": "pass",
-   "notes": "k06, d37 verbatim; 166.35 close is in the dossier (line on TSLA 2023-05-15). Key rests on 'a strong market' (the story's cue), true under both wd.market options.",
+   "notes": "k06, d37 verbatim; 166.35 close is in the dossier (line on TSLA 2023-05-15). Key rests on 'a strong market' (the story's cue), true under both wd.market options. | flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },

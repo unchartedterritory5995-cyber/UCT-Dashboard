@@ -3641,7 +3641,7 @@
  },
  {
   "answer_json": {
-   "answer": "Its average result per trade, in R"
+   "answer": "Its average per trade, in R"
   },
   "difficulty": 1,
   "id": "si_5c93d430cf6c",
@@ -3650,10 +3650,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "Its best trade, in R",
-    "How often it wins",
+    "Its best single trade, in R",
+    "How often it wins, in percent",
     "Its average winner, in R",
-    "Its average result per trade, in R"
+    "Its average per trade, in R"
    ],
    "kind": "mcq",
    "q": "What does a trading system's expectancy tell you?",
@@ -3687,15 +3687,15 @@
     "summary": "Expectancy is a system's average R-multiple per trade. Expectancy is the mean R of all a system's trades. Expected value is the long-run average."
    },
    "facts": {
-    "given": "What does a trading system's expectancy tell you? Its average result per trade, in R How often it wins Its average winner, in R Its best trade, in R"
+    "given": "What does a trading system's expectancy tell you? Its average per trade, in R How often it wins, in percent Its average winner, in R Its best single trade, in R"
    },
    "lesson_line": "Expectancy is your average R per trade, losers included.",
    "unit": "F9.03",
    "why": "Its average result per trade, in R. Expectancy is the mean R across every trade, winners and losers together.",
    "wrong": {
-    "How often it wins": "That's the win rate. It says nothing about how big the wins and losses are.",
+    "How often it wins, in percent": "That's the win rate. It says nothing about how big the wins and losses are.",
     "Its average winner, in R": "That leaves the losers out. Expectancy averages every trade.",
-    "Its best trade, in R": "One big trade can flatter a system. Expectancy is the average of all of them."
+    "Its best single trade, in R": "One big trade can flatter a system. Expectancy is the average of all of them."
    }
   },
   "review_status": "draft",
@@ -9473,7 +9473,7 @@
  },
  {
   "answer_json": {
-   "answer": "The winner turning into a loss"
+   "answer": "A winner turning into a loss"
   },
   "difficulty": 1,
   "id": "si_4f2165e5ddea",
@@ -9482,10 +9482,10 @@
   "module": "F9",
   "prompt_json": {
    "choices": [
-    "A gap down at the open",
-    "The winner turning into a loss",
-    "Selling too early",
-    "Any pullback at all"
+    "A gap down at tomorrow's open",
+    "A winner turning into a loss",
+    "Selling too early on a dip",
+    "Any pullback after the rally"
    ],
    "kind": "mcq",
    "q": "Your stock is up, so you raise the stop to your entry price. What is that stop there to prevent?",
@@ -9540,15 +9540,15 @@
     "summary": "A sell stop can limit a loss, or protect a profit on a stock you own. A sell stop can limit a loss or preserve a gain on a stock you own. O'Neil: don't let a stock with a good gain fall back below your purchase price. Leave only your first stop in place and a winning trade can turn into a loser. Once triggered, a stop is a market order and can fill far from the stop price. Too tight a stop gets hit by normal swings; too loose a stop gives back most of a big win."
    },
    "facts": {
-    "given": "Your stock is up, so you raise the stop to your entry price. What is that stop there to prevent? The winner turning into a loss Any pullback at all A gap down at the open Selling too early"
+    "given": "Your stock is up, so you raise the stop to your entry price. What is that stop there to prevent? A winner turning into a loss Any pullback after the rally A gap down at tomorrow's open Selling too early on a dip"
    },
    "lesson_line": "O'Neil's rule: don't let a good gain fall back below your purchase price.",
    "unit": "F9.06",
    "why": "The winner turning into a loss. A sell stop can protect a profit as well as limit a loss. Filled at your entry, the shares you hold come out even.",
    "wrong": {
-    "A gap down at the open": "A stop can't stop a gap. It turns into a market order and fills at the next price, which can be below your entry.",
-    "Any pullback at all": "A stop only acts at its price. The stock can still pull back to just above your entry.",
-    "Selling too early": "If anything, it raises that risk. A stop close to the price can sell you on a normal dip."
+    "A gap down at tomorrow's open": "A stop can't stop a gap. It turns into a market order and fills at the next price, which can be below your entry.",
+    "Any pullback after the rally": "A stop only acts at its price. The stock can still pull back to just above your entry.",
+    "Selling too early on a dip": "If anything, it raises that risk. A stop close to the price can sell you on a normal dip."
    }
   },
   "review_status": "draft",

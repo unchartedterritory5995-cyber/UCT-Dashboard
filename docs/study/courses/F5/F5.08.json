@@ -1307,13 +1307,13 @@
    "story": "Walmart, first quarter of fiscal 2023. Revenue: $141.57 billion vs $138.94 billion expected. Adjusted EPS: $1.30 vs $1.48 expected.",
    "q": "What does that mix tell you about the quarter?",
    "choices": [
-    "Sales held up; costs ate the profit",
-    "Shoppers pulled back hard",
+    "Sales held; costs hit profit",
+    "Shoppers pulled back sharply",
     "A one-time charge hit EPS",
-    "A strong quarter overall"
+    "A strong quarter all around"
    ],
-   "answer": "Sales held up; costs ate the profit",
-   "why": "Sales held up; costs ate the profit. The CEO said food and fuel inflation put more pressure on margins and costs than expected. The stock closed down 11.38% that day.",
+   "answer": "Sales held; costs hit profit",
+   "why": "Sales held; costs hit profit. The CEO said food and fuel inflation put more pressure on margins and costs than expected. The stock closed down 11.38% that day.",
    "lesson_line": "A sales beat with a profit miss points at costs and margins. Find out which, and whether they'll last.",
    "facts": [
     "f48",
@@ -1326,9 +1326,9 @@
     "f96"
    ],
    "wrong": {
-    "Shoppers pulled back hard": "Revenue beat the estimate, so shoppers kept buying. The squeeze came below the sales line.",
+    "Shoppers pulled back sharply": "Revenue beat the estimate, so shoppers kept buying. The squeeze came below the sales line.",
     "A one-time charge hit EPS": "Adjusted EPS already leaves out the investment gains and losses. The miss came from running costs: labor, fuel and inventory.",
-    "A strong quarter overall": "Profit missed by a wide margin. A sales beat doesn't make up for that."
+    "A strong quarter all around": "Profit missed by a wide margin. A sales beat doesn't make up for that."
    }
   },
   {
@@ -1684,7 +1684,7 @@
   },
   "q17": {
    "status": "pass",
-   "notes": "Revenue beat and EPS miss confirmed (CNBC; release $141.6B, $1.30). f54 was CNBC's line mixing in a prior-year divestiture loss; replaced with the release's own line (this quarter removes only equity-investment gains and losses). Added AP f96 (labor, fuel, inventory costs); the 'one-time charge' wrong note now names them. Lesson line now says 'costs and margins': the CEO named margin mix as well as operating costs.",
+   "notes": "Revenue beat and EPS miss confirmed (CNBC; release $141.6B, $1.30). f54 was CNBC's line mixing in a prior-year divestiture loss; replaced with the release's own line (this quarter removes only equity-investment gains and losses). Added AP f96 (labor, fuel, inventory costs); the 'one-time charge' wrong note now names them. Lesson line now says 'costs and margins': the CEO named margin mix as well as operating costs. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },

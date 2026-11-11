@@ -2158,7 +2158,7 @@
  },
  {
   "answer_json": {
-   "answer": "Pull the stop up to 3% to fit the size"
+   "answer": "Pull the stop in to 3% to fit size"
   },
   "difficulty": 2,
   "id": "si_a4805256b7cb",
@@ -2167,9 +2167,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Skip the trade",
-    "Wait for a tighter entry",
-    "Pull the stop up to 3% to fit the size"
+    "Skip it when the stop will not fit",
+    "Wait a day for a tighter entry",
+    "Pull the stop in to 3% to fit size"
    ],
    "kind": "mcq",
    "q": "Which is the one thing you never do?",
@@ -2204,14 +2204,14 @@
     "summary": "A3: stop first, a few cents under the day's low; the size comes from the stop; if the honest stop does not fit, skip. A13: the stop usually sits within about 3% of the buy. A named mistake: the stop at the base low, or pulled tighter to fit the size."
    },
    "facts": {
-    "given": "Which is the one thing you never do? The breakout fills at 48.60. The day's low sits at 46.40, about 4.5% under your fill. Pull the stop up to 3% to fit the size Skip the trade Wait for a tighter entry"
+    "given": "Which is the one thing you never do? The breakout fills at 48.60. The day's low sits at 46.40, about 4.5% under your fill. Pull the stop in to 3% to fit size Skip it when the stop will not fit Wait a day for a tighter entry"
    },
    "lesson_line": "You never pick a size and back-fit a stop inside the noise.",
    "unit": "SET.07",
    "why": "Never pull the stop in to fit. Stop first; the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
    "wrong": {
-    "Skip the trade": "Skipping is allowed. A3 says so when the honest stop does not fit.",
-    "Wait for a tighter entry": "Waiting is fine. The mistake is moving the stop, not the entry."
+    "Skip it when the stop will not fit": "Skipping is allowed. A3 says so when the honest stop does not fit.",
+    "Wait a day for a tighter entry": "Waiting is fine. The mistake is moving the stop, not the entry."
    }
   },
   "review_status": "draft",
@@ -2664,7 +2664,7 @@
  },
  {
   "answer_json": {
-   "answer": "No; under $10 and $20 million a day"
+   "answer": "No; it fails our liquidity floor"
   },
   "difficulty": 2,
   "id": "si_b3b4b1ce3b5a",
@@ -2673,9 +2673,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "No; under $10 and $20 million a day",
-    "Yes; the base is the base",
-    "Yes, half size"
+    "No; it fails our liquidity floor",
+    "Yes; the base is clean enough",
+    "Yes, but at half our normal size"
    ],
    "kind": "mcq",
    "q": "Take the breakout?",
@@ -2696,14 +2696,14 @@
     "summary": "B23: only stocks at $10 or more trading at least $20 million a day."
    },
    "facts": {
-    "given": "Take the breakout? A clean flat base on a $7 stock that trades about $4 million a day. No; under $10 and $20 million a day Yes; the base is the base Yes, half size"
+    "given": "Take the breakout? A clean flat base on a $7 stock that trades about $4 million a day. No; it fails our liquidity floor Yes; the base is clean enough Yes, but at half our normal size"
    },
    "lesson_line": "A clean box in a thin stock is still a thin stock.",
    "unit": "SET.07",
    "why": "No. We trade only stocks at $10 or more that trade at least $20 million a day.",
    "wrong": {
-    "Yes, half size": "Size does not make a thin stock liquid.",
-    "Yes; the base is the base": "The base is fine and the stock is not ours. The liquidity rule comes before the chart."
+    "Yes, but at half our normal size": "Size does not make a thin stock liquid.",
+    "Yes; the base is clean enough": "The base is fine and the stock is not ours. The liquidity rule comes before the chart."
    }
   },
   "review_status": "draft",
@@ -3435,7 +3435,7 @@
  },
  {
   "answer_json": {
-   "answer": "A few; add more as the first ones work"
+   "answer": "A few; add more as they work"
   },
   "difficulty": 3,
   "id": "si_1a69670c2914",
@@ -3444,8 +3444,8 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "A few; add more as the first ones work",
-    "None; wait a week",
+    "A few; add more as they work",
+    "None; wait a week to be sure",
     "All eight; Green is full risk"
    ],
    "kind": "mcq",
@@ -3474,14 +3474,14 @@
     "summary": "F68: after a correction, start with a few positions and add as they work. The setup is best when many leaders are basing sideways after a pullback."
    },
    "facts": {
-    "given": "How many do you take on day one? After a correction the reading just turned Green. Your list shows eight flat bases sitting at their pivots. A few; add more as the first ones work All eight; Green is full risk None; wait a week"
+    "given": "How many do you take on day one? After a correction the reading just turned Green. Your list shows eight flat bases sitting at their pivots. A few; add more as they work All eight; Green is full risk None; wait a week to be sure"
    },
    "lesson_line": "Green after a correction: a few positions first. Let the winners earn the next ones.",
    "unit": "SET.07",
    "why": "A few. After a correction, when the reading turns Green again, start with a few positions. Add more only as the first ones work. Many leaders basing sideways is the best setting for the setup.",
    "wrong": {
     "All eight; Green is full risk": "Full risk per grade is the ceiling, not the first day's order. Earn it.",
-    "None; wait a week": "Waiting a week after the turn is how you miss the first leg. A few is the rule."
+    "None; wait a week to be sure": "Waiting a week after the turn is how you miss the first leg. A few is the rule."
    }
   },
   "review_status": "draft",
@@ -3572,7 +3572,7 @@
  },
  {
   "answer_json": {
-   "answer": "No; hold through only if up 5R"
+   "answer": "No; only a 5R winner holds"
   },
   "difficulty": 3,
   "id": "si_e5eff970998b",
@@ -3581,9 +3581,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Yes; the trend is up",
-    "Yes; sell half first",
-    "No; hold through only if up 5R"
+    "Yes; the trend is still up",
+    "Yes, after trimming half",
+    "No; only a 5R winner holds"
    ],
    "kind": "mcq",
    "q": "Hold through the report?",
@@ -3604,14 +3604,14 @@
     "summary": "B22: no new buys in the 3 days before a report; hold through one only if up 5R."
    },
    "facts": {
-    "given": "Hold through the report? Your flat base long is up 2R and earnings are tomorrow after the close. No; hold through only if up 5R Yes; the trend is up Yes; sell half first"
+    "given": "Hold through the report? Your flat base long is up 2R and earnings are tomorrow after the close. No; only a 5R winner holds Yes; the trend is still up Yes, after trimming half"
    },
    "lesson_line": "Earnings is a gap you cannot stop. Five R buys the ticket; 2R does not.",
    "unit": "SET.07",
    "why": "No. We hold through a report only if the trade is up 5R. At 2R the gap risk is bigger than the cushion.",
    "wrong": {
-    "Yes; sell half first": "Half of a 2R cushion is still under the 5R line.",
-    "Yes; the trend is up": "The trend does not report earnings. The gap does."
+    "Yes, after trimming half": "Half of a 2R cushion is still under the 5R line.",
+    "Yes; the trend is still up": "The trend does not report earnings. The gap does."
    }
   },
   "review_status": "draft",
@@ -7276,7 +7276,7 @@
  },
  {
   "answer_json": {
-   "answer": "The first 30-minute low, out if past 2R"
+   "answer": "First 30-minute low; out past 2R"
   },
   "difficulty": 2,
   "id": "si_e8e591032885",
@@ -7285,9 +7285,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "The first 30-minute low, out if past 2R",
-    "Still 61.65; sell at the open",
-    "No stop; wait for the close"
+    "First 30-minute low; out past 2R",
+    "Still 61.65, so sell at the open",
+    "No stop at all; wait for close"
    ],
    "kind": "mcq",
    "q": "What is the stop now?",
@@ -7322,14 +7322,14 @@
     "summary": "B20: on a gap through the stop, the first 30-minute low is the new stop. B20's ceiling: if the first 30 minutes take the loss past 2R, get out. A gap through the stop: the first 30-minute low is the new stop; out past 2R."
    },
    "facts": {
-    "given": "What is the stop now? Your flag long filled at 62.80 with the stop at 61.65. Next morning it opens at 61.10 on sector news. The first 30-minute low, out if past 2R Still 61.65; sell at the open No stop; wait for the close"
+    "given": "What is the stop now? Your flag long filled at 62.80 with the stop at 61.65. Next morning it opens at 61.10 on sector news. First 30-minute low; out past 2R Still 61.65, so sell at the open No stop at all; wait for close"
    },
    "lesson_line": "A gap through the stop gets 30 minutes, not a new opinion.",
    "unit": "SET.08",
    "why": "The first 30-minute low of the gap-down day is the new stop. The ceiling: if the first 30 minutes take the loss past 2R, get out. That is the one exception to a stop that never widens.",
    "wrong": {
-    "No stop; wait for the close": "The close is hours away. The first 30 minutes decide, and past 2R you are out.",
-    "Still 61.65; sell at the open": "The stop was gapped over. The gap rule gives the first 30-minute bar's low as the new one."
+    "No stop at all; wait for close": "The close is hours away. The first 30 minutes decide, and past 2R you are out.",
+    "Still 61.65, so sell at the open": "The stop was gapped over. The gap rule gives the first 30-minute bar's low as the new one."
    }
   },
   "review_status": "draft",
@@ -7529,7 +7529,7 @@
  },
  {
   "answer_json": {
-   "answer": "A moving-average pullback; no pole"
+   "answer": "A pullback; it has no pole"
   },
   "difficulty": 3,
   "id": "si_e47592954bd0",
@@ -7538,9 +7538,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "A wedge up",
-    "A bull flag",
-    "A moving-average pullback; no pole"
+    "A wedge up into resistance",
+    "A bull flag on a steep run",
+    "A pullback; it has no pole"
    ],
    "kind": "mcq",
    "q": "Which lesson is this?",
@@ -7568,14 +7568,14 @@
     "summary": "The tell against the moving-average pullback: find the pole; no pole, no flag. Bulkowski: no straight-line run, no flag."
    },
    "facts": {
-    "given": "Which lesson is this? A leader grinds 8% higher over six weeks, then drifts three days down to its 20-day EMA on light volume. A moving-average pullback; no pole A bull flag A wedge up"
+    "given": "Which lesson is this? A leader grinds 8% higher over six weeks, then drifts three days down to its 20-day EMA on light volume. A pullback; it has no pole A bull flag on a steep run A wedge up into resistance"
    },
    "lesson_line": "No run, no flag. A drift to the 20-day after a grind is a pullback lesson.",
    "unit": "SET.08",
    "why": "A moving-average pullback. Find the pole: a pullback to the 10, 20 or 50-day with no pole is setup 12. Bulkowski: no straight-line run, no flag.",
    "wrong": {
-    "A bull flag": "An 8% grind over six weeks is not a steep run. No pole, no flag.",
-    "A wedge up": "The drift is down to a line, not up. The missing piece is the run before it."
+    "A bull flag on a steep run": "An 8% grind over six weeks is not a steep run. No pole, no flag.",
+    "A wedge up into resistance": "The drift is down to a line, not up. The missing piece is the run before it."
    }
   },
   "review_status": "draft",
@@ -22866,7 +22866,7 @@
  },
  {
   "answer_json": {
-   "answer": "Yes; a new launch, a new trade"
+   "answer": "Yes, but as a new trade"
   },
   "difficulty": 3,
   "id": "si_a6aa7f295041",
@@ -22875,8 +22875,8 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Yes; a new launch, a new trade",
-    "No; one try per pad",
+    "Yes, but as a new trade",
+    "No; each pad gets one try",
     "Yes, with a wider stop"
    ],
    "kind": "mcq",
@@ -22912,13 +22912,13 @@
     "summary": "B21: after a stop-out, buy again only on a new trigger, as a new trade. E56: at most 3 tries in a week and 6 in a month on one stock. The launch bar closes above all four averages; a close inside the bundle or under the 200-day is not the launch."
    },
    "facts": {
-    "given": "Buy again? Stopped out of a launchpad on Tuesday. Thursday the stock closes back above all four averages, up 3%, on volume. Yes; a new launch, a new trade No; one try per pad Yes, with a wider stop"
+    "given": "Buy again? Stopped out of a launchpad on Tuesday. Thursday the stock closes back above all four averages, up 3%, on volume. Yes, but as a new trade No; each pad gets one try Yes, with a wider stop"
    },
    "lesson_line": "A stop-out is not a verdict on the setup. The next launch is a new trade.",
    "unit": "SET.11",
    "why": "Yes. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. At most 3 tries in a week.",
    "wrong": {
-    "No; one try per pad": "The limit is 3 tries in a week and 6 in a month, not one.",
+    "No; each pad gets one try": "The limit is 3 tries in a week and 6 in a month, not one.",
     "Yes, with a wider stop": "The stop is the day's low again. A wider stop to avoid a repeat is the mistake."
    }
   },
@@ -26641,7 +26641,7 @@
  },
  {
   "answer_json": {
-   "answer": "40% of the account, the cap"
+   "answer": "40% of the account"
   },
   "difficulty": 3,
   "id": "si_0558ff948057",
@@ -26650,7 +26650,7 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "40% of the account, the cap",
+    "40% of the account",
     "20% of the account",
     "50% of the account"
    ],
@@ -26680,7 +26680,7 @@
     "summary": "A tight stop makes big sizes: 1% risk on a 2% stop is 50%, capped to 40%. A5: shares are account times risk percent, divided by entry minus stop, rounded down, then capped."
    },
    "facts": {
-    "given": "How big is the position? Account 100,000. You risk 1% on a stop 2% under the entry. The risk-based size is 50% of the account. 50% of the account 20% of the account 40% of the account, the cap"
+    "given": "How big is the position? Account 100,000. You risk 1% on a stop 2% under the entry. The risk-based size is 50% of the account. 50% of the account 20% of the account 40% of the account"
    },
    "lesson_line": "A tight stop can ask for a huge size. The cap holds it at 40%.",
    "unit": "SET.12",
@@ -26862,7 +26862,7 @@
  },
  {
   "answer_json": {
-   "answer": "Check the base, stop and size first"
+   "answer": "Check the base and stop first"
   },
   "difficulty": 3,
   "id": "si_1b8c8f5ac868",
@@ -26871,9 +26871,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Check the base, stop and size first",
-    "Buy half and decide later",
-    "Buy now before it runs"
+    "Check the base and stop first",
+    "Buy half and set a stop later",
+    "Buy now before it runs away"
    ],
    "kind": "mcq",
    "q": "What do you do?",
@@ -26901,14 +26901,14 @@
     "summary": "F66: never take a trade from an alert, a post or a video without your own entry, stop and size. D39: entry, stop and size written down before the open."
    },
    "facts": {
-    "given": "What do you do? A video says a stock is breaking out of a VCP right now. You have not looked at its base, stop or size. Check the base, stop and size first Buy half and decide later Buy now before it runs"
+    "given": "What do you do? A video says a stock is breaking out of a VCP right now. You have not looked at its base, stop or size. Check the base and stop first Buy half and set a stop later Buy now before it runs away"
    },
    "lesson_line": "Someone else's alert is not a plan. Build your own entry, stop and size.",
    "unit": "SET.12",
    "why": "Check it yourself. Never take a trade from an alert, a post or a video without your own entry, stop and size.",
    "wrong": {
-    "Buy half and decide later": "Half a gamble is still a gamble.",
-    "Buy now before it runs": "A buy with no stop and no size is a gamble."
+    "Buy half and set a stop later": "Half a gamble is still a gamble.",
+    "Buy now before it runs away": "A buy with no stop and no size is a gamble."
    }
   },
   "review_status": "draft",
@@ -31796,19 +31796,19 @@
  },
  {
   "answer_json": {
-   "answer": "Late flags break down; context decides"
+   "answer": "Late flags fail; context decides"
   },
   "difficulty": 3,
   "id": "si_3274a4423872",
   "lesson_origin": "session",
-  "lesson_text": "Late flags break down; context decides. It cannot be traded as a mechanical system. Weigh the earnings and whether it is the first base. The pattern is the start. The context decides whether it is ours.",
+  "lesson_text": "Late flags fail; context decides. It cannot be traded as a mechanical system. Weigh the earnings and whether it is the first base. The pattern is the start. The context decides whether it is ours.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Use a much wider stop",
-    "Buy the trendline break",
-    "The scan is right; avoid them",
-    "Late flags break down; context decides"
+    "Use a much wider stop on them",
+    "Buy the trendline break early",
+    "The scan is right; skip them all",
+    "Late flags fail; context decides"
    ],
    "kind": "mcq",
    "q": "A reader's mechanical scan of these found them a good short. What was Bonde's answer?",
@@ -31849,15 +31849,15 @@
     "summary": "Bonde: a tight flag late in the move breaks down. Bonde: weigh the earnings and whether it is the first base. Bonde: it cannot be traded as a mechanical system; interpretation is critical. Not late: the first or second big leg, not already up more than 200% in 6 months."
    },
    "facts": {
-    "given": "A reader's mechanical scan of these found them a good short. What was Bonde's answer? Late flags break down; context decides The scan is right; avoid them Use a much wider stop Buy the trendline break"
+    "given": "A reader's mechanical scan of these found them a good short. What was Bonde's answer? Late flags fail; context decides The scan is right; skip them all Use a much wider stop on them Buy the trendline break early"
    },
    "lesson_line": "The pattern is the start. The context decides whether it is ours.",
    "unit": "SET.13",
-   "why": "Late flags break down; context decides. It cannot be traded as a mechanical system. Weigh the earnings and whether it is the first base.",
+   "why": "Late flags fail; context decides. It cannot be traded as a mechanical system. Weigh the earnings and whether it is the first base.",
    "wrong": {
-    "Buy the trendline break": "Bulkowski found that entry fails too often. Bonde's answer was context.",
-    "The scan is right; avoid them": "Bonde did not drop the pattern. He said the reading becomes critical.",
-    "Use a much wider stop": "He said nothing about the stop. His point was where the flag sits in the move."
+    "Buy the trendline break early": "Bulkowski found that entry fails too often. Bonde's answer was context.",
+    "The scan is right; skip them all": "Bonde did not drop the pattern. He said the reading becomes critical.",
+    "Use a much wider stop on them": "He said nothing about the stop. His point was where the flag sits in the move."
    }
   },
   "review_status": "draft",
@@ -31982,7 +31982,7 @@
  {
   "adjustment_basis": "split-adjusted",
   "answer_json": {
-   "answer": "Take it; the pole more than doubled"
+   "answer": "Take it; the pole doubled"
   },
   "asof": "2015-06-09",
   "bars": {
@@ -32003,9 +32003,9 @@
     "window_bars": 120
    },
    "choices": [
-    "Pass; the flag is too deep",
-    "Take it; the pole more than doubled",
-    "Pass; the run is too small"
+    "Pass; the flag is far too deep",
+    "Take it; the pole doubled",
+    "Pass; the run is far too small"
    ],
    "kind": "mcq",
    "q": "Hidden ticker, the day before a breakout. Count the pole. Take it or pass?",
@@ -32053,14 +32053,14 @@
     "summary": "SRPT, trigger 2015-06-10: +129% in 14 sessions; a 14-day flag 15.0% deep; buy 27.50, stop 26.59; 10.9R, 3R on day 5. SRPT: a report-driven two-week pole, then a 14-day flag holding the 21-day EMA. The bull flag tell: measure the pole; a bull flag follows a much smaller run. A tight flag in a leader that never doubled is a bull flag. IBD: the flag pulls back usually 10% to 20%, sometimes 25%, over the next three to five weeks."
    },
    "facts": {
-    "given": "Hidden ticker, the day before a breakout. Count the pole. Take it or pass? Take it; the pole more than doubled Pass; the run is too small Pass; the flag is too deep"
+    "given": "Hidden ticker, the day before a breakout. Count the pole. Take it or pass? Take it; the pole doubled Pass; the run is far too small Pass; the flag is far too deep"
    },
    "lesson_line": "Count the pole first. A real double, then a quiet shelf: that is the setup.",
    "unit": "SET.13",
    "why": "Take it. +129% in 14 sessions, then a 14-day sideways flag 15.0% deep that held the 21-day EMA. It ran to 10.9R.",
    "wrong": {
-    "Pass; the flag is too deep": "The flag gave back 15.0% of price, a normal depth for this pattern.",
-    "Pass; the run is too small": "Look at the run in front of the shelf: well over a double, in weeks."
+    "Pass; the flag is far too deep": "The flag gave back 15.0% of price, a normal depth for this pattern.",
+    "Pass; the run is far too small": "Look at the run in front of the shelf: well over a double, in weeks."
    }
   },
   "review_status": "draft",
@@ -35825,7 +35825,7 @@
  },
  {
   "answer_json": {
-   "answer": "The MAU&R costume of the U&R"
+   "answer": "The MAU&R costume of U&R"
   },
   "difficulty": 3,
   "id": "si_e0adb9bbe7d1",
@@ -35834,9 +35834,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "A Remount",
-    "The MAU&R costume of the U&R",
-    "The 20 EMA pullback"
+    "A Remount of the lost line",
+    "The MAU&R costume of U&R",
+    "The 20 EMA pullback setup"
    ],
    "kind": "mcq",
    "q": "Which name fits?",
@@ -35871,14 +35871,14 @@
     "summary": "The U&R tell: a low that undercut the 20 EMA, bought as the move back above the line, is the MAU&R costume of the Undercut and Rally. The fallback trigger: buy at market when price trades a cent above the hold session's high, on a later session. The 20 EMA Pullback buy is the intraday turn on the hold session, such as red to green."
    },
    "facts": {
-    "given": "Which name fits? At 10 am the low breaks 1% under the 20 EMA. By noon price is back above the line and you buy the move back through it. The MAU&R costume of the U&R The 20 EMA pullback A Remount"
+    "given": "Which name fits? At 10 am the low breaks 1% under the 20 EMA. By noon price is back above the line and you buy the move back through it. The MAU&R costume of U&R The 20 EMA pullback setup A Remount of the lost line"
    },
    "lesson_line": "Same line, different buy. Buying the move back through the line is the U&R, not the pullback.",
    "unit": "SET.14",
    "why": "The undercut and rally in its moving-average costume. Ask what the buy is. By our current default, a low that undercut the 20 EMA, bought as the move back above the line, is the U&R.",
    "wrong": {
-    "A Remount": "The line was under water for two hours, not a week or more. That is an undercut, not a lost line.",
-    "The 20 EMA pullback": "Its buy is the turn off a held line, such as red to green. Buying the move back above the line is the U&R."
+    "A Remount of the lost line": "The line was under water for two hours, not a week or more. That is an undercut, not a lost line.",
+    "The 20 EMA pullback setup": "Its buy is the turn off a held line, such as red to green. Buying the move back above the line is the U&R."
    }
   },
   "review_status": "draft",
@@ -39796,7 +39796,7 @@
  },
  {
   "answer_json": {
-   "answer": "It was late in the stock's own advance"
+   "answer": "It came late in its own run"
   },
   "difficulty": 3,
   "id": "si_8ebda82e211a",
@@ -39806,8 +39806,8 @@
   "prompt_json": {
    "choices": [
     "The 9 had crossed under the 20",
-    "The hold day had no volume",
-    "It was late in the stock's own advance"
+    "The hold day had thin volume",
+    "It came late in its own run"
    ],
    "kind": "mcq",
    "q": "What warning did it carry?",
@@ -39842,14 +39842,14 @@
     "summary": "LLY, entry 2024-09-03: buy 961.02, stop 940.48; stopped on 09-04, day 1, low 938.01. LLY: sixteen sessions after the pop, late in the stock's own advance. Late crossbacks and crossbacks taken with the Nasdaq under its 20 EMA fail most."
    },
    "facts": {
-    "given": "What warning did it carry? LLY gave a crossback sixteen sessions after its pop, after a long advance. The next day it hit the stop. It was late in the stock's own advance The 9 had crossed under the 20 The hold day had no volume"
+    "given": "What warning did it carry? LLY gave a crossback sixteen sessions after its pop, after a long advance. The next day it hit the stop. It came late in its own run The 9 had crossed under the 20 The hold day had thin volume"
    },
    "lesson_line": "A long wait after the pop is a warning, not a gate. The stop still decides.",
    "unit": "SET.15",
    "why": "It was late in the stock's own advance, sixteen sessions after the pop. Late crossbacks fail most. LLY was stopped the next day.",
    "wrong": {
     "The 9 had crossed under the 20": "Nothing in the story says so.",
-    "The hold day had no volume": "Nothing in the story says so."
+    "The hold day had thin volume": "Nothing in the story says so."
    }
   },
   "review_status": "draft",
@@ -39926,7 +39926,7 @@
  },
  {
   "answer_json": {
-   "answer": "The same: under the hold day's low"
+   "answer": "Same stop: the hold day's low"
   },
   "difficulty": 3,
   "id": "si_9454b9cf4e52",
@@ -39935,9 +39935,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Under the 200-day average",
-    "The same: under the hold day's low",
-    "At breakeven right away"
+    "Just under the 200-day average",
+    "Same stop: the hold day's low",
+    "At breakeven the moment you buy"
    ],
    "kind": "mcq",
    "q": "Where does the stop go?",
@@ -39965,14 +39965,14 @@
     "summary": "The advanced version: an intraday trigger on the hold day itself, with the same stop. The stop: a few cents under the hold day's low."
    },
    "facts": {
-    "given": "Where does the stop go? On the hold day itself, the stock breaks its 65-minute high and you buy the advanced version. The same: under the hold day's low At breakeven right away Under the 200-day average"
+    "given": "Where does the stop go? On the hold day itself, the stock breaks its 65-minute high and you buy the advanced version. Same stop: the hold day's low At breakeven the moment you buy Just under the 200-day average"
    },
    "lesson_line": "An earlier entry keeps the same stop. It does not widen it.",
    "unit": "SET.15",
    "why": "The same. The advanced version buys an intraday trigger on the hold day itself, with the same stop, the day's low.",
    "wrong": {
-    "At breakeven right away": "Breakeven comes at the first trim.",
-    "Under the 200-day average": "That ignores the hold day's low."
+    "At breakeven the moment you buy": "Breakeven comes at the first trim.",
+    "Just under the 200-day average": "That ignores the hold day's low."
    }
   },
   "review_status": "draft",
@@ -40158,7 +40158,7 @@
  },
  {
   "answer_json": {
-   "answer": "Pass; it is not a leader by our rule"
+   "answer": "Pass; not a leader by our rule"
   },
   "difficulty": 3,
   "id": "si_4dc157b826b6",
@@ -40167,9 +40167,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Take it; 72 is close enough",
-    "Take it at half size",
-    "Pass; it is not a leader by our rule"
+    "Take it; 72 is close enough to 80",
+    "Take it at half size for now",
+    "Pass; not a leader by our rule"
    ],
    "kind": "mcq",
    "q": "What do you do?",
@@ -40197,14 +40197,14 @@
     "summary": "A leader: RS rating 80 or more, in a strong group. C31: buy leaders, an RS rating of 80 or more in a strong group."
    },
    "facts": {
-    "given": "What do you do? A clean crossback sets up in a stock with an RS rating of 72. Pass; it is not a leader by our rule Take it; 72 is close enough Take it at half size"
+    "given": "What do you do? A clean crossback sets up in a stock with an RS rating of 72. Pass; not a leader by our rule Take it; 72 is close enough to 80 Take it at half size for now"
    },
    "lesson_line": "Buy leaders. A neat chart on a laggard waits.",
    "unit": "SET.15",
    "why": "Pass. We buy leaders, with an RS rating of 80 or more in a strong group. An RS of 72 is not that.",
    "wrong": {
-    "Take it at half size": "Size does not fix a leadership gap.",
-    "Take it; 72 is close enough": "The rule is 80 or more."
+    "Take it at half size for now": "Size does not fix a leadership gap.",
+    "Take it; 72 is close enough to 80": "The rule is 80 or more."
    }
   },
   "review_status": "draft",
@@ -40591,7 +40591,7 @@
  },
  {
   "answer_json": {
-   "answer": "Check the hold day, stop and size first"
+   "answer": "Check the hold day and stop"
   },
   "difficulty": 3,
   "id": "si_91a23ade1792",
@@ -40600,9 +40600,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Check the hold day, stop and size first",
-    "Buy now before it runs",
-    "Buy half and decide later"
+    "Check the hold day and stop",
+    "Buy now before it runs away",
+    "Buy half and set a stop later"
    ],
    "kind": "mcq",
    "q": "What do you do?",
@@ -40630,14 +40630,14 @@
     "summary": "F66: never take a trade from an alert, a post or a video without your own entry, stop and size. D39: entry, stop and size written down before the open."
    },
    "facts": {
-    "given": "What do you do? A post says a stock is on its EMA Crossback right now. You have not looked at its hold day, stop or size. Buy half and decide later Buy now before it runs Check the hold day, stop and size first"
+    "given": "What do you do? A post says a stock is on its EMA Crossback right now. You have not looked at its hold day, stop or size. Buy half and set a stop later Buy now before it runs away Check the hold day and stop"
    },
    "lesson_line": "Someone else's alert is not a plan. Build your own entry, stop and size.",
    "unit": "SET.15",
    "why": "Check it yourself. Never take a trade from an alert, a post or a video without your own entry, stop and size.",
    "wrong": {
-    "Buy half and decide later": "Half a gamble is still a gamble.",
-    "Buy now before it runs": "A buy with no stop and no size is a gamble."
+    "Buy half and set a stop later": "Half a gamble is still a gamble.",
+    "Buy now before it runs away": "A buy with no stop and no size is a gamble."
    }
   },
   "review_status": "draft",
@@ -46208,7 +46208,7 @@
  },
  {
   "answer_json": {
-   "answer": "A close under the averages after a stall"
+   "answer": "A close under the averages"
   },
   "difficulty": 1,
   "id": "si_5b2c4672b51b",
@@ -46218,9 +46218,9 @@
   "prompt_json": {
    "choices": [
     "A breakout over a flat base",
-    "A close under the averages after a stall",
-    "A gap up on earnings",
-    "A bounce off the 200-day"
+    "A close under the averages",
+    "A gap up on strong earnings",
+    "A bounce off the 200-day line"
    ],
    "kind": "mcq",
    "q": "In one line, what is a Wedge Drop?",
@@ -46268,15 +46268,15 @@
     "summary": "TraderLion: the Wedge Drop is the trade back below the moving averages after a strong rally. Deepvue: a Wedge Drop is the break below the averages after an extension. Deepvue: buyers weaken and sellers push the stock below the averages. Kell's cycle page: the Wedge Drop is price falling through the averages with an influx of sellers. Kell's pair is the 10 and 20-day exponential moving averages."
    },
    "facts": {
-    "given": "In one line, what is a Wedge Drop? A close under the averages after a stall A breakout over a flat base A gap up on earnings A bounce off the 200-day"
+    "given": "In one line, what is a Wedge Drop? A close under the averages A breakout over a flat base A gap up on strong earnings A bounce off the 200-day line"
    },
    "lesson_line": "A rally, a rest on the averages, then the close through them. That is the drop.",
    "unit": "SET.17",
    "why": "A close under the averages after a stall. The Wedge Drop happens when the market trades back below the moving averages after a rally. Deepvue says the same: sellers push the stock below the averages.",
    "wrong": {
-    "A bounce off the 200-day": "A bounce is a rally. The drop is what ends one.",
+    "A bounce off the 200-day line": "A bounce is a rally. The drop is what ends one.",
     "A breakout over a flat base": "That is a long setup through a ceiling. The Wedge Drop is a close down through the averages.",
-    "A gap up on earnings": "A gap up is strength. The drop is price falling through its averages."
+    "A gap up on strong earnings": "A gap up is strength. The drop is price falling through its averages."
    }
   },
   "review_status": "draft",
@@ -49901,7 +49901,7 @@
  },
  {
   "answer_json": {
-   "answer": "No; more than 4% under the trigger"
+   "answer": "No; over 4% under the trigger"
   },
   "difficulty": 3,
   "id": "si_8485d377bb7c",
@@ -49910,9 +49910,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "No; more than 4% under the trigger",
-    "Yes, half size",
-    "Yes; the drop is confirmed"
+    "No; over 4% under the trigger",
+    "Yes, at half the usual size",
+    "Yes; the drop is now confirmed"
    ],
    "kind": "mcq",
    "q": "Short at the open?",
@@ -49947,14 +49947,14 @@
     "summary": "No short more than 4% under the trigger level. C28: never chase more than 4% past the trigger. D47: shorts are our long setups reversed."
    },
    "facts": {
-    "given": "Short at the open? The trigger level was 64.63. You missed the close. Next morning the stock opens at 61.50. No; more than 4% under the trigger Yes; the drop is confirmed Yes, half size"
+    "given": "Short at the open? The trigger level was 64.63. You missed the close. Next morning the stock opens at 61.50. No; over 4% under the trigger Yes; the drop is now confirmed Yes, at half the usual size"
    },
    "lesson_line": "Four percent under the trigger and I am done. The next stall will come.",
    "unit": "SET.17",
    "why": "No. 61.50 is more than 4% under 64.63, and no short goes more than 4% under the trigger level. Chasing costs size: the stop stays over the high, so the distance grows and the shares shrink.",
    "wrong": {
-    "Yes, half size": "Half of a chased entry is still a chased entry.",
-    "Yes; the drop is confirmed": "Confirmed and too far away are both true. The chase line is 4%."
+    "Yes, at half the usual size": "Half of a chased entry is still a chased entry.",
+    "Yes; the drop is now confirmed": "Confirmed and too far away are both true. The chase line is 4%."
    }
   },
   "review_status": "draft",
@@ -50198,7 +50198,7 @@
  },
  {
   "answer_json": {
-   "answer": "Pass; a strong market runs shorts over"
+   "answer": "Pass; the market is too strong"
   },
   "difficulty": 3,
   "id": "si_f8bec8b7b680",
@@ -50208,8 +50208,8 @@
   "prompt_json": {
    "choices": [
     "Short; it is under the 200-day",
-    "Pass; a strong market runs shorts over",
-    "Short; Kell flagged it"
+    "Pass; the market is too strong",
+    "Short; Kell flagged the stock"
    ],
    "kind": "mcq",
    "q": "Take it?",
@@ -50258,13 +50258,13 @@
     "summary": "Kell's one written short trigger was a price level on a laggard, and he hedged it. Not early in a new bull market, not in a strong uptrend, not late in the fall. TSLA 2023-05-15, Kell's own trigger: 19% under the 200-day, a 1R loss, then up 55.5% in 20 sessions. TraderLion: avoid shorting early in new bull markets or strong uptrending stocks. The no-trade row: a Green or Yellow reading, or early in a new bull market."
    },
    "facts": {
-    "given": "Take it? Kell flags a laggard: a loss of 166.50 would trigger a Wedge Drop short. It closes at 166.35, 19% under its 200-day, in a strong market, and he adds it might just be an avoid. Pass; a strong market runs shorts over Short; it is under the 200-day Short; Kell flagged it"
+    "given": "Take it? Kell flags a laggard: a loss of 166.50 would trigger a Wedge Drop short. It closes at 166.35, 19% under its 200-day, in a strong market, and he adds it might just be an avoid. Pass; the market is too strong Short; it is under the 200-day Short; Kell flagged the stock"
    },
    "lesson_line": "Under the 200-day is one gate. A strong market fails another, and the originator's own hedge was the tell.",
    "unit": "SET.17",
    "why": "Pass. TSLA 2023-05-15 failed: a 1R loss, then up 55.5% over the next 20 sessions. Not in a strongly uptrending market or stock, and never from a flag without your own read.",
    "wrong": {
-    "Short; Kell flagged it": "He also wrote it might just be an avoid. A flag is not a plan; your own entry, stop and read are.",
+    "Short; Kell flagged the stock": "He also wrote it might just be an avoid. A flag is not a plan; your own entry, stop and read are.",
     "Short; it is under the 200-day": "The 200-day gate passed. The market gate did not, and the stock rose 55.5% in 20 sessions."
    }
   },
@@ -58679,7 +58679,7 @@
  {
   "adjustment_basis": "split-adjusted",
   "answer_json": {
-   "answer": "Pass; the close is under the 200-day"
+   "answer": "Pass; it is under the 200-day"
   },
   "asof": "2022-04-28",
   "bars": {
@@ -58700,9 +58700,9 @@
     "window_bars": 120
    },
    "choices": [
-    "Take it; the gap is huge",
+    "Take it; the gap is very large",
     "Take it; the close is strong",
-    "Pass; the close is under the 200-day"
+    "Pass; it is under the 200-day"
    ],
    "kind": "mcq",
    "q": "Hidden ticker, an earnings gap day is the last bar. Is the close over the 200-day? Take the pause break or pass.",
@@ -58743,14 +58743,14 @@
     "summary": "META: a 16.0% gap on 3.1x, close at 0.82 after a 42% fall; the PEG-day close 205.73 was under the 200-day (302.98). META: a bear-market relief gap under the 200-day, no long. B26: no longs below the 200-day simple moving average, except a parabolic long; shorts only below it. Morales: a buyable gap-up comes in an uptrend or a constructive base, not a downtrend."
    },
    "facts": {
-    "given": "Hidden ticker, an earnings gap day is the last bar. Is the close over the 200-day? Take the pause break or pass. Pass; the close is under the 200-day Take it; the gap is huge Take it; the close is strong"
+    "given": "Hidden ticker, an earnings gap day is the last bar. Is the close over the 200-day? Take the pause break or pass. Pass; it is under the 200-day Take it; the gap is very large Take it; the close is strong"
    },
    "lesson_line": "Under the 200-day, there is no long to buy.",
    "unit": "SET.19",
    "why": "Pass. The gap-day close was under the 200-day: a bear-market relief gap, so no long. No longs below the 200-day simple moving average.",
    "wrong": {
     "Take it; the close is strong": "A strong close under the 200-day is still under it.",
-    "Take it; the gap is huge": "The gap is big, but size does not lift a stock over the 200-day."
+    "Take it; the gap is very large": "The gap is big, but size does not lift a stock over the 200-day."
    }
   },
   "review_status": "draft",
@@ -61362,7 +61362,7 @@
  },
  {
   "answer_json": {
-   "answer": "A few cents under the pullback low"
+   "answer": "Just under the pullback low"
   },
   "difficulty": 2,
   "id": "si_e2bec8861370",
@@ -61372,9 +61372,9 @@
   "prompt_json": {
    "choices": [
     "2% under the pullback low",
-    "At the prior close",
-    "A few cents under the pullback low",
-    "Under the gap-day low"
+    "At the prior day's close",
+    "Just under the pullback low",
+    "Under the gap day's own low"
    ],
    "kind": "mcq",
    "q": "Where does the stop go?",
@@ -61409,15 +61409,15 @@
     "summary": "No porosity: the stop is the exit and it only moves up. Morales and Kacher allow a 1 to 2% undercut of the gap-up low in some cases. On the pullback buy the stop is a few cents under the pullback low."
    },
    "facts": {
-    "given": "Where does the stop go? A friend quotes Morales and Kacher and says to allow a little room: put the stop 2% under the pullback low. A few cents under the pullback low 2% under the pullback low Under the gap-day low At the prior close"
+    "given": "Where does the stop go? A friend quotes Morales and Kacher and says to allow a little room: put the stop 2% under the pullback low. Just under the pullback low 2% under the pullback low Under the gap day's own low At the prior day's close"
    },
    "lesson_line": "No porosity. The stop is the exit.",
    "unit": "SET.20",
    "why": "A few cents under the pullback low. No porosity: Morales and Kacher allow a 1 to 2% undercut. Here the stop is the exit and it only moves up.",
    "wrong": {
     "2% under the pullback low": "That is porosity. Our stop is a few cents under a real low.",
-    "At the prior close": "The prior close is far too wide for a stop.",
-    "Under the gap-day low": "The gap-day low is the line to hold, not our stop."
+    "At the prior day's close": "The prior close is far too wide for a stop.",
+    "Under the gap day's own low": "The gap-day low is the line to hold, not our stop."
    }
   },
   "review_status": "draft",
@@ -68720,58 +68720,6 @@
  },
  {
   "answer_json": {
-   "answer": "False"
-  },
-  "difficulty": 1,
-  "id": "si_a48c6d21b28a",
-  "lesson_origin": "session",
-  "lesson_text": "False. It is the other way round. Sell the last third on a close under the 10-day for a fast mover or the 21-day for a steadier one. Trail the last third under the 10- or 21-day.",
-  "module": "SET",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "The last third trails a close under the 21-day for a fast mover or the 10-day for a steadier one.",
-   "subject": "SET.22#q21"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT setup criteria card: Gap Support criteria card (docs/study/setups/criteria/25-gap-support.json, as of 2026-11-09)",
-      "quote": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
-      "tier": 3,
-      "url": "repo:docs/study/setups/criteria/25-gap-support.json"
-     },
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     }
-    ],
-    "summary": "Trail the last third under the 10-day (fast) or the 21-day (steadier). E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
-   },
-   "facts": {
-    "given": "The last third trails a close under the 21-day for a fast mover or the 10-day for a steadier one."
-   },
-   "lesson_line": "Trail the last third under the 10- or 21-day.",
-   "unit": "SET.22",
-   "why": "False. It is the other way round. Sell the last third on a close under the 10-day for a fast mover or the 21-day for a steadier one."
-  },
-  "review_status": "draft",
-  "skill_id": "setup.gap_support",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/SET/SET.22.json#q21",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "accept": [
     "3",
     "3.0",
@@ -71685,6 +71633,71 @@
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.22.json#q76",
   "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Hold; the line for it is the 21-day"
+  },
+  "difficulty": 3,
+  "id": "si_aa63921983b0",
+  "lesson_origin": "session",
+  "lesson_text": "Hold. A steadier mover trails the 21-day, and we sell on a close below it. The 10-day is the fast mover's line. Steadier mover, 21-day line. A close under that line is the sell.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Sell the last third; the 10-day broke",
+    "Hold; the line for it is the 21-day",
+    "Add a little; the 21-day still holds"
+   ],
+   "kind": "mcq",
+   "q": "What is your move today?",
+   "story": "You hold the last third of a steadier Gap Support winner, both trims done. Today it closes under its 10-day but still above its 21-day.",
+   "subject": "SET.22#q77"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Gap Support criteria card (docs/study/setups/criteria/25-gap-support.json, as of 2026-11-09)",
+      "quote": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/25-gap-support.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The full size at one price with one stop; no adding.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "Trail the last third under the 10-day (fast) or the 21-day (steadier). E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it. A5: the full size at one price with one stop; no adding."
+   },
+   "facts": {
+    "given": "What is your move today? You hold the last third of a steadier Gap Support winner, both trims done. Today it closes under its 10-day but still above its 21-day. Hold; the line for it is the 21-day Sell the last third; the 10-day broke Add a little; the 21-day still holds"
+   },
+   "lesson_line": "Steadier mover, 21-day line. A close under that line is the sell.",
+   "unit": "SET.22",
+   "why": "Hold. A steadier mover trails the 21-day, and we sell on a close below it. The 10-day is the fast mover's line.",
+   "wrong": {
+    "Add a little; the 21-day still holds": "No adding along the way. The full size goes in at one price with one stop.",
+    "Sell the last third; the 10-day broke": "The 10-day is the fast mover's trail. This steadier mover trails the 21-day."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.gap_support",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.22.json#q77",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -78459,65 +78472,6 @@
  },
  {
   "answer_json": {
-   "answer": "A third"
-  },
-  "difficulty": 1,
-  "id": "si_828a49bebc4f",
-  "lesson_origin": "session",
-  "lesson_text": "A third. The hard rule is a third at 3R, another third at 5R, then trail the rest. A third at 3R, a third at 5R, and trail the last third.",
-  "module": "SET",
-  "prompt_json": {
-   "choices": [
-    "A quarter",
-    "Half",
-    "A third",
-    "All of it"
-   ],
-   "kind": "mcq",
-   "q": "How much comes off at the first trim, 3R?",
-   "subject": "SET.24#q17"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     }
-    ],
-    "summary": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R. E51: another third at 5R, then trail the last third."
-   },
-   "facts": {
-    "given": "How much comes off at the first trim, 3R? A third Half All of it A quarter"
-   },
-   "lesson_line": "A third at 3R, a third at 5R, and trail the last third.",
-   "unit": "SET.24",
-   "why": "A third. The hard rule is a third at 3R, another third at 5R, then trail the rest.",
-   "wrong": {
-    "A quarter": "The hard rule is a third at 3R.",
-    "All of it": "Trims are thirds. The last third is trailed.",
-    "Half": "The hard rule is a third, not half."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "setup.two_b_reversal",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/SET/SET.24.json#q17",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "accept": [
     "50.87",
     "50.870"
@@ -78580,7 +78534,7 @@
  },
  {
   "answer_json": {
-   "answer": "$10 a share and $20 million a day"
+   "answer": "At least $10 and $20 million a day"
   },
   "difficulty": 1,
   "id": "si_b5311e2aba86",
@@ -78589,13 +78543,13 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "$5 a share and $5 million a day",
-    "$10 a share and $20 million a day",
-    "$2 a share and $10,000 a day traded",
-    "No floor for leaders"
+    "At least $10 and $5 million a day",
+    "At least $10 and $20 million a day",
+    "At least $20 and $10 million a day",
+    "Any price, if the volume is high"
    ],
    "kind": "mcq",
-   "q": "What floor must a 2B stock clear?",
+   "q": "Your 2B screen needs a liquidity floor. Which pair is ours?",
    "subject": "SET.24#q19"
   },
   "reveal_json": {
@@ -78626,15 +78580,15 @@
     "summary": "B23: only stocks at $10 or more trading at least $20 million a day. D42: never own more than 1% of a stock's average daily volume. Price $10 or more and $20 million or more traded a day."
    },
    "facts": {
-    "given": "What floor must a 2B stock clear? $10 a share and $20 million a day $5 a share and $5 million a day $2 a share and $10,000 a day traded No floor for leaders"
+    "given": "Your 2B screen needs a liquidity floor. Which pair is ours? At least $10 and $20 million a day At least $10 and $5 million a day At least $20 and $10 million a day Any price, if the volume is high"
    },
    "lesson_line": "Ten dollars a share, twenty million a day. Below that, no 2B.",
    "unit": "SET.24",
    "why": "$10 a share and $20 million a day. Thin stocks are not even watched.",
    "wrong": {
-    "$2 a share and $10,000 a day traded": "Far under our floor of $10 and $20 million.",
-    "$5 a share and $5 million a day": "Too low. Our floor is $10 a share and $20 million a day.",
-    "No floor for leaders": "Every setup has the floor."
+    "Any price, if the volume is high": "Every setup has the floor, price included. Thin stocks are not even watched.",
+    "At least $10 and $5 million a day": "Too thin on volume. Our floor is $10 a share and $20 million a day.",
+    "At least $20 and $10 million a day": "Swapped. Our floor is $10 a share and $20 million a day."
    }
   },
   "review_status": "draft",
@@ -80718,7 +80672,7 @@
  },
  {
   "answer_json": {
-   "answer": "The market had not stopped falling"
+   "answer": "The market had not bottomed"
   },
   "difficulty": 3,
   "id": "si_d87c3a112797",
@@ -80728,9 +80682,9 @@
   "prompt_json": {
    "choices": [
     "The reclaim took too long",
-    "The 200-day was falling",
-    "The market had not stopped falling",
-    "The undercut was too deep"
+    "The 200-day was still falling",
+    "The market had not bottomed",
+    "The undercut was far too deep"
    ],
    "kind": "mcq",
    "q": "What did the daily chart miss?",
@@ -80765,15 +80719,15 @@
     "summary": "PYPL, 2018-03-26: level 76.93, undercut 0.75%, back in next day; buy at the open 77.98; stop 76.30 (2.15%). PYPL: the day after the entry it closed 76.31 through the stop while SPY was still making lower lows. The indexes wash out under their own prior lows and reclaim them; a market still making lower lows with no reclaim is not the place."
    },
    "facts": {
-    "given": "What did the daily chart miss? A leader undercuts a low by 0.75% and closes under it. The next morning it opens over the low and you buy at 77.98. The next day it falls through your stop. The market had not stopped falling The undercut was too deep The 200-day was falling The reclaim took too long"
+    "given": "What did the daily chart miss? A leader undercuts a low by 0.75% and closes under it. The next morning it opens over the low and you buy at 77.98. The next day it falls through your stop. The market had not bottomed The undercut was far too deep The 200-day was still falling The reclaim took too long"
    },
    "lesson_line": "The chart looks clean. The index is the tell.",
    "unit": "SET.24",
    "why": "The market had not stopped falling. PYPL reclaimed on 2018-03-26 and fell through its stop the next day. SPY made a lower low days later.",
    "wrong": {
-    "The 200-day was falling": "The index, not the 200-day, was the problem.",
+    "The 200-day was still falling": "The index, not the 200-day, was the problem.",
     "The reclaim took too long": "It reclaimed in a day.",
-    "The undercut was too deep": "The undercut was shallow."
+    "The undercut was far too deep": "The undercut was shallow."
    }
   },
   "review_status": "draft",
@@ -82639,72 +82593,6 @@
  },
  {
   "answer_json": {
-   "answer": "A third"
-  },
-  "difficulty": 1,
-  "id": "si_cdce06eb333a",
-  "lesson_origin": "session",
-  "lesson_text": "A third. The hard rule is a third at 3R, another third at 5R, then trail the rest. A third at 3R, a third at 5R, and trail the last third.",
-  "module": "SET",
-  "prompt_json": {
-   "choices": [
-    "A quarter",
-    "A third",
-    "All of it",
-    "Half"
-   ],
-   "kind": "mcq",
-   "q": "How much comes off at the first trim, 3R?",
-   "subject": "SET.25#q16"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT setup criteria card: Oops Reversal criteria card (docs/study/setups/criteria/30-oops-reversal.json, as of 2026-11-10)",
-      "quote": "Treating the app's 2R and 3R targets as the plan; the house plan is 3R and 5R thirds.",
-      "tier": 3,
-      "url": "repo:docs/study/setups/criteria/30-oops-reversal.json"
-     }
-    ],
-    "summary": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R. E51: another third at 5R, then trail the last third. Treating the app's 2R and 3R targets as the plan is a named mistake; the house plan is 3R and 5R thirds."
-   },
-   "facts": {
-    "given": "How much comes off at the first trim, 3R? A third Half All of it A quarter"
-   },
-   "lesson_line": "A third at 3R, a third at 5R, and trail the last third.",
-   "unit": "SET.25",
-   "why": "A third. The hard rule is a third at 3R, another third at 5R, then trail the rest.",
-   "wrong": {
-    "A quarter": "The hard rule is a third at 3R.",
-    "All of it": "Trims are thirds. The last third is trailed.",
-    "Half": "The hard rule is a third, not half."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "setup.oops_reversal",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/SET/SET.25.json#q16",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "accept": [
     "157.32",
     "157.320"
@@ -82772,7 +82660,7 @@
   "difficulty": 1,
   "id": "si_94d53c32acef",
   "lesson_origin": "session",
-  "lesson_text": "False. Every position has a real stop order with the broker, not a stop kept in your head. A stop in your head is a debate. A stop with the broker is an appointment.",
+  "lesson_text": "False. Every position has a real stop order with the broker. An alert only tells you; it does not sell for you. A stop in your head is a debate. A stop with the broker is an appointment.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -82780,7 +82668,7 @@
     "False"
    ],
    "kind": "tf",
-   "q": "The Oops stop can be a level you watch in your head, as long as you act on it.",
+   "q": "A phone alert set at the Oops-day low can replace the stop order, if you act on it.",
    "subject": "SET.25#q18"
   },
   "reveal_json": {
@@ -82804,11 +82692,11 @@
     "summary": "D41: a real stop order with the broker. A few cents under the Oops-day low, a real stop order with the broker."
    },
    "facts": {
-    "given": "The Oops stop can be a level you watch in your head, as long as you act on it."
+    "given": "A phone alert set at the Oops-day low can replace the stop order, if you act on it."
    },
    "lesson_line": "A stop in your head is a debate. A stop with the broker is an appointment.",
    "unit": "SET.25",
-   "why": "False. Every position has a real stop order with the broker, not a stop kept in your head."
+   "why": "False. Every position has a real stop order with the broker. An alert only tells you; it does not sell for you."
   },
   "review_status": "draft",
   "skill_id": "setup.oops_reversal",
@@ -84035,22 +83923,22 @@
  },
  {
   "answer_json": {
-   "answer": "The 10-day"
+   "answer": "The 21-day"
   },
   "difficulty": 2,
   "id": "si_4e6bb206bf1f",
   "lesson_origin": "session",
-  "lesson_text": "The 10-day. Sell on a close below it. Steadier names trail the 21-day. Fast mover, 10-day. Steadier name, 21-day. Sell on a close below.",
+  "lesson_text": "The 21-day. Sell on a close below it. Fast movers trail the 10-day. Fast mover, 10-day. Steadier name, 21-day. Sell on a close below.",
   "module": "SET",
   "prompt_json": {
    "choices": [
+    "The 21-day",
     "The 10-day",
-    "The 5-day",
     "The 200-day",
     "The 50-day"
    ],
    "kind": "mcq",
-   "q": "Which average is the default trail for a fast mover?",
+   "q": "Which average is the default trail for a steadier name?",
    "subject": "SET.25#q39"
   },
   "reveal_json": {
@@ -84067,14 +83955,14 @@
     "summary": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
    },
    "facts": {
-    "given": "Which average is the default trail for a fast mover? The 10-day The 50-day The 200-day The 5-day"
+    "given": "Which average is the default trail for a steadier name? The 21-day The 50-day The 200-day The 10-day"
    },
    "lesson_line": "Fast mover, 10-day. Steadier name, 21-day. Sell on a close below.",
    "unit": "SET.25",
-   "why": "The 10-day. Sell on a close below it. Steadier names trail the 21-day.",
+   "why": "The 21-day. Sell on a close below it. Fast movers trail the 10-day.",
    "wrong": {
+    "The 10-day": "That is the fast-mover trail. Steadier names trail the 21-day.",
     "The 200-day": "That is the long-term line, far too slow for a trail.",
-    "The 5-day": "The defaults are the 10-day and the 21-day.",
     "The 50-day": "Too slow for the default trail."
    }
   },
@@ -84957,19 +84845,19 @@
  },
  {
   "answer_json": {
-   "answer": "Nothing; it grades the setup"
+   "answer": "A grade for the setup"
   },
   "difficulty": 3,
   "id": "si_94bc59ce4030",
   "lesson_origin": "session",
-  "lesson_text": "Nothing. A Super close is a grade mark, not a guarantee. AMAT closed over the prior high on 2022-01-14 and fell through its stop. A Super close grades the setup. It does not guarantee it.",
+  "lesson_text": "A grade, nothing more. A Super close is a grade mark, not a guarantee. AMAT closed over the prior high on 2022-01-14 and fell through its stop. A Super close grades the setup. It does not guarantee it.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "A wider stop",
-    "A bigger size",
-    "A guaranteed trend",
-    "Nothing; it grades the setup"
+    "A wider stop on day two",
+    "A bigger size next time",
+    "A guaranteed new uptrend",
+    "A grade for the setup"
    ],
    "kind": "mcq",
    "q": "What did the Super close buy you?",
@@ -85011,15 +84899,15 @@
     "summary": "AMAT, 2022-01-14: a Super Oops, close 167.00 over the 166.53 prior high; buy 157.19, stop 155.55 (1.04%). AMAT: the best-looking close, then a 9% down day through the stop, the first of three straight down days. The Super close is a grade mark, not a guarantee. A Super Oops closes over the prior high."
    },
    "facts": {
-    "given": "What did the Super close buy you? A Super Oops closes at 167.00 over the 166.53 prior high. You bought at 157.19 with the stop at 155.55. The next day opens at 165.36 and falls to 151.52. Nothing; it grades the setup A guaranteed trend A wider stop A bigger size"
+    "given": "What did the Super close buy you? A Super Oops closes at 167.00 over the 166.53 prior high. You bought at 157.19 with the stop at 155.55. The next day opens at 165.36 and falls to 151.52. A grade for the setup A guaranteed new uptrend A wider stop on day two A bigger size next time"
    },
    "lesson_line": "A Super close grades the setup. It does not guarantee it.",
    "unit": "SET.25",
-   "why": "Nothing. A Super close is a grade mark, not a guarantee. AMAT closed over the prior high on 2022-01-14 and fell through its stop.",
+   "why": "A grade, nothing more. A Super close is a grade mark, not a guarantee. AMAT closed over the prior high on 2022-01-14 and fell through its stop.",
    "wrong": {
-    "A bigger size": "Size comes from the stop.",
-    "A guaranteed trend": "No close guarantees a trend.",
-    "A wider stop": "The stop is the Oops-day low, whatever the close."
+    "A bigger size next time": "Size comes from the stop.",
+    "A guaranteed new uptrend": "No close guarantees a trend.",
+    "A wider stop on day two": "The stop is the Oops-day low, whatever the close."
    }
   },
   "review_status": "draft",
@@ -85166,7 +85054,7 @@
  {
   "adjustment_basis": "split-adjusted",
   "answer_json": {
-   "answer": "Take it; a leader onto two averages"
+   "answer": "Take it; leader on two averages"
   },
   "asof": "2018-05-02",
   "bars": {
@@ -85187,9 +85075,9 @@
     "window_bars": 120
    },
    "choices": [
-    "Pass; there is no pullback",
-    "Take it; a leader onto two averages",
-    "Pass; a news bar came first"
+    "Pass; there is no real pullback",
+    "Take it; leader on two averages",
+    "Pass; a big news bar came first"
    ],
    "kind": "mcq",
    "q": "Hidden ticker, yesterday's close. Tomorrow it undercuts the low and reclaims the close. Take it or pass?",
@@ -85230,14 +85118,14 @@
     "summary": "ADBE, 2018-05-03: a 5.2% pullback; undercut 0.82%; closed at 0.85 of its range; buy 221.11, stop 218.69 (1.09%); 3R in 1 day. ADBE: a clean leader drifting three weeks onto its converging 21-day EMA and 50-day SMA; the undercut tags both and the close is over the prior high. The Oops-day low is within 0.5 ATR of the rising 21-day EMA or 50-day SMA, or it undercuts a visible level. A real pullback first: the prior close is 3% to 12% below the highest high of the 20 sessions before."
    },
    "facts": {
-    "given": "Hidden ticker, yesterday's close. Tomorrow it undercuts the low and reclaims the close. Take it or pass? Take it; a leader onto two averages Pass; there is no pullback Pass; a news bar came first"
+    "given": "Hidden ticker, yesterday's close. Tomorrow it undercuts the low and reclaims the close. Take it or pass? Take it; leader on two averages Pass; there is no real pullback Pass; a big news bar came first"
    },
    "lesson_line": "Judge the setup yesterday: orderly drift onto averages.",
    "unit": "SET.25",
    "why": "Take it. A clean leader drifted three weeks onto its converging 21-day and 50-day. The undercut tagged both and it closed over the prior high.",
    "wrong": {
-    "Pass; a news bar came first": "The drift was orderly. No news bar.",
-    "Pass; there is no pullback": "It drifted 5.2% off its high, inside the 3% to 12% range."
+    "Pass; a big news bar came first": "The drift was orderly. No news bar.",
+    "Pass; there is no real pullback": "It drifted 5.2% off its high, inside the 3% to 12% range."
    }
   },
   "review_status": "draft",
@@ -93761,7 +93649,7 @@
  },
  {
   "answer_json": {
-   "answer": "No; there is no drive to sling from"
+   "answer": "No; no drive to sling from"
   },
   "difficulty": 3,
   "id": "si_4055c5c3e3d9",
@@ -93770,7 +93658,7 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "No; there is no drive to sling from",
+    "No; no drive to sling from",
     "Yes; the close is decisive",
     "Yes; the shape is the setup"
    ],
@@ -93828,13 +93716,13 @@
     "summary": "The drive comes first. Scot1and: take a powerful stock, let a pullback stretch it, and enter when momentum resumes. Scot1and: find a stock that has recently made a strong move. ASO: a pullback in a steady climb with nothing to sling from. ASO reached 4.1R; the test cannot say whether that was the setup or the climb. Deepvue: Scot1and's Slingshot enters powerful stocks right after a pullback."
    },
    "facts": {
-    "given": "Slingshot? A steady climber: no gap, no 4% volume day, no 20% in five sessions in the 25 sessions before. Four closes under the 4-day line, then a decisive close over it. No; there is no drive to sling from Yes; the shape is the setup Yes; the close is decisive"
+    "given": "Slingshot? A steady climber: no gap, no 4% volume day, no 20% in five sessions in the 25 sessions before. Four closes under the 4-day line, then a decisive close over it. No; no drive to sling from Yes; the shape is the setup Yes; the close is decisive"
    },
    "lesson_line": "The shape without the drive is a pullback, not a Slingshot. The engine comes first.",
    "unit": "SET.27",
    "why": "No. By our current default, the drive is a gap or a strong rally, and this climb has neither. The drive comes first; Scot1and takes a powerful stock that recently made a strong move. This one reached 4.1R anyway, which the test cannot credit to the setup.",
    "wrong": {
-    "Yes; the close is decisive": "A decisive close ends a Slingshot; it does not start one. The drive has to come first.",
+    "Yes; the close is decisive": "A decisive close is only the trigger. The drive has to come first.",
     "Yes; the shape is the setup": "The shape is half the setup. The drive is the other half, and it is missing."
    }
   },
@@ -101079,7 +100967,7 @@
  },
  {
   "answer_json": {
-   "answer": "Yes; volume is a grade cue, not a gate"
+   "answer": "Yes; volume is a cue, no gate"
   },
   "difficulty": 2,
   "id": "si_fc1ac0320bdb",
@@ -101088,9 +100976,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "No; wait for a heavier day",
-    "Yes; volume is a grade cue, not a gate",
-    "No; it needs 2x volume"
+    "No; wait for more volume first",
+    "Yes; volume is a cue, no gate",
+    "No; it needs 2x the average"
    ],
    "kind": "mcq",
    "q": "The trigger day prints 1.0x its average volume. Does the trade still count?",
@@ -101124,14 +101012,14 @@
     "summary": "Volume is a grade cue: 1.25x the 50-day average is a plus, never a gate. ICLR: triggered on 1.0x volume, 3R took three weeks, then a 25% run; no volume spike needed. Bulkowski: heavy breakout volume suggests better performance."
    },
    "facts": {
-    "given": "The trigger day prints 1.0x its average volume. Does the trade still count? Yes; volume is a grade cue, not a gate No; it needs 2x volume No; wait for a heavier day"
+    "given": "The trigger day prints 1.0x its average volume. Does the trade still count? Yes; volume is a cue, no gate No; it needs 2x the average No; wait for more volume first"
    },
    "lesson_line": "Volume grades the trigger. It does not decide it.",
    "unit": "SET.29",
    "why": "Yes. No hard volume rule; 1.25x or more of the 50-day average is a grading plus. ICLR triggered on 1.0x and still ran 25%. Bulkowski: heavy breakout volume suggests better performance, so it grades the day up.",
    "wrong": {
-    "No; it needs 2x volume": "There is no volume gate on this card. Heavy volume grades the day up; light volume does not cancel it.",
-    "No; wait for a heavier day": "The trigger is the trade over the level, not the volume. Waiting is a missed entry."
+    "No; it needs 2x the average": "There is no volume gate on this card. Heavy volume grades the day up; light volume does not cancel it.",
+    "No; wait for more volume first": "The trigger is the trade over the level, not the volume. Waiting is a missed entry."
    }
   },
   "review_status": "draft",
@@ -105062,7 +104950,7 @@
  },
  {
   "answer_json": {
-   "answer": "When the index is capitulating too"
+   "answer": "When the index capitulates too"
   },
   "difficulty": 1,
   "id": "si_808dea8c3665",
@@ -105071,10 +104959,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "On day one of a breakdown",
-    "When the index is capitulating too",
-    "When one stock falls alone",
-    "In a calm, rising market"
+    "On day one of a market breakdown",
+    "When the index capitulates too",
+    "When one stock falls on its own",
+    "In a calm market, drifting up"
    ],
    "kind": "mcq",
    "q": "When is the parabolic long at its best?",
@@ -105108,15 +104996,15 @@
     "summary": "Best when the index is capitulating too: a stretched index, a gap down, a Monday, a VIX spike, washed-out breadth. Kell: get aggressive in stocks when the index itself prints a Reversal Extension. Bracco: a fast VIX move into 30 is the time to watch for a mean reversion."
    },
    "facts": {
-    "given": "When is the parabolic long at its best? When the index is capitulating too In a calm, rising market On day one of a breakdown When one stock falls alone"
+    "given": "When is the parabolic long at its best? When the index capitulates too In a calm market, drifting up On day one of a market breakdown When one stock falls on its own"
    },
    "lesson_line": "One stock crashing is a story. The whole market crashing is a setup.",
    "unit": "SET.30",
    "why": "When the index is capitulating too: a stretched index, a gap down, a Monday, a VIX spike. Kell says the same: get aggressive when the index prints the reversal.",
    "wrong": {
-    "In a calm, rising market": "A calm market has no panic to reverse. This is a fear trade.",
-    "On day one of a breakdown": "Day one is the start of the fall. The burst comes later.",
-    "When one stock falls alone": "A lone crash is often the company's own news. The best turns are market-wide."
+    "In a calm market, drifting up": "A calm market has no panic to reverse. This is a fear trade.",
+    "On day one of a market breakdown": "Day one is the start of the fall. The burst comes later.",
+    "When one stock falls on its own": "A lone crash is often the company's own news. The best turns are market-wide."
    }
   },
   "review_status": "draft",
@@ -105128,7 +105016,7 @@
  },
  {
   "answer_json": {
-   "answer": "Wait; Monday may bring the real flush"
+   "answer": "Wait; Monday may bring a flush"
   },
   "difficulty": 1,
   "id": "si_5337336f50a3",
@@ -105137,9 +105025,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Wait; Monday may bring the real flush",
-    "Buy half now, add Monday",
-    "Short it into Monday",
+    "Wait; Monday may bring a flush",
+    "Buy half now, add more on Monday",
+    "Short it into the Monday open",
     "Buy the close; the turn is in"
    ],
    "kind": "mcq",
@@ -105175,15 +105063,15 @@
     "summary": "Do not buy the Friday before a possible Monday flush. Bracco's Monday Effect: notable capitulations and turns have come on a Monday. Three of the four failures were Friday buys with the real low on the Monday or later."
    },
    "facts": {
-    "given": "Buy the close, or wait? It is Friday. The index is four down days deep and stretched under its 50-day. The VIX is 28. A liquid ETF has three boxes and a green close. Wait; Monday may bring the real flush Buy the close; the turn is in Buy half now, add Monday Short it into Monday"
+    "given": "Buy the close, or wait? It is Friday. The index is four down days deep and stretched under its 50-day. The VIX is 28. A liquid ETF has three boxes and a green close. Wait; Monday may bring a flush Buy the close; the turn is in Buy half now, add more on Monday Short it into the Monday open"
    },
    "lesson_line": "Friday's turn is often Monday's gap. Let the weekend decide.",
    "unit": "SET.30",
    "why": "Wait. Do not buy the Friday before a possible Monday flush; Bracco's best turns come on Mondays. Three of the four stopped-out examples we studied (BAC, WDC, KRE) were Friday buys.",
    "wrong": {
-    "Buy half now, add Monday": "Half of a Friday buy still eats the gap. One entry, on the turn.",
-    "Buy the close; the turn is in": "A Friday close is the worst place to find out. The Monday gap goes through every stop.",
-    "Short it into Monday": "Four days down and stretched is not where we short. Cash, then watch Monday."
+    "Buy half now, add more on Monday": "Half of a Friday buy still eats the gap. One entry, on the turn.",
+    "Buy the close; the turn is in": "A Friday close is the worst place to find out. A Monday gap can go through the stop.",
+    "Short it into the Monday open": "Four days down and stretched is not where we short. Cash, then watch Monday."
    }
   },
   "review_status": "draft",
@@ -106392,7 +106280,7 @@
  },
  {
   "answer_json": {
-   "answer": "No; an orderly, overlapping decline"
+   "answer": "No; it is an orderly decline"
   },
   "difficulty": 2,
   "id": "si_487a08cffb06",
@@ -106401,9 +106289,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "No; an orderly, overlapping decline",
-    "Yes; it is 20% down",
-    "Yes, if tomorrow gaps down"
+    "No; it is an orderly decline",
+    "Yes; it is already 20% down",
+    "Yes, if tomorrow gaps down hard"
    ],
    "kind": "mcq",
    "q": "Is it a parabolic long candidate?",
@@ -106438,14 +106326,14 @@
     "summary": "The shape: an accelerating fall, little bar overlap; an orderly overlapping decline is not this setup. Bracco passed on a market that was not parabolic to the downside. Bulkowski: minimal overlap from bar to bar."
    },
    "facts": {
-    "given": "Is it a parabolic long candidate? Over three weeks a stock drifts from 60 to 48 in small, overlapping bars: a down day or two, then a bounce. Volume stays flat. Today it closes at the low. No; an orderly, overlapping decline Yes; it is 20% down Yes, if tomorrow gaps down"
+    "given": "Is it a parabolic long candidate? Over three weeks a stock drifts from 60 to 48 in small, overlapping bars: a down day or two, then a bounce. Volume stays flat. Today it closes at the low. No; it is an orderly decline Yes; it is already 20% down Yes, if tomorrow gaps down hard"
    },
    "lesson_line": "Twenty percent down slowly is a grind. The setup needs a burst.",
    "unit": "SET.30",
    "why": "No. An orderly, overlapping decline is not this setup; the fall has to accelerate with little bar overlap. Bracco passed on a market that was not parabolic.",
    "wrong": {
-    "Yes, if tomorrow gaps down": "A gap into a grind is one box out of five. The burst is still missing.",
-    "Yes; it is 20% down": "Percent alone is Bracco's named mistake. The structure is a stair-step."
+    "Yes, if tomorrow gaps down hard": "A gap into a grind is one box out of five. The burst is still missing.",
+    "Yes; it is already 20% down": "Percent alone is Bracco's named mistake. The structure is a stair-step."
    }
   },
   "review_status": "draft",
@@ -111048,7 +110936,7 @@
  },
  {
   "answer_json": {
-   "answer": "A News Failure shape, no burst"
+   "answer": "A News Failure, no burst"
   },
   "difficulty": 3,
   "id": "si_638687205e79",
@@ -111057,10 +110945,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "A Parabolic Long",
-    "A Wedge Drop",
-    "A News Failure shape, no burst",
-    "A Parabolic Short"
+    "A Parabolic Long setup",
+    "A Wedge Drop after a top",
+    "A News Failure, no burst",
+    "A Parabolic Short setup"
    ],
    "kind": "mcq",
    "q": "What is it?",
@@ -111109,15 +110997,15 @@
     "summary": "AAOI 2026-03-02 near-miss: no three straight up closes, no acceleration. AAOI: a one-day 27.7% gap after a slow rise, the News Failure shape. A News Failure short needs no burst before the gap. Bracco: the parabolic burst is a 3 to 5 day move, the final leg of a parabolic run. A Wedge Drop comes days later, after a stall at the 10-day EMA, only below the 200-day."
    },
    "facts": {
-    "given": "What is it? A stock drifted up slowly for weeks. Today it gaps up 27.7% on news and closes red. No three straight up closes, no acceleration before it. A News Failure shape, no burst A Parabolic Short A Wedge Drop A Parabolic Long"
+    "given": "What is it? A stock drifted up slowly for weeks. Today it gaps up 27.7% on news and closes red. No three straight up closes, no acceleration before it. A News Failure, no burst A Parabolic Short setup A Wedge Drop after a top A Parabolic Long setup"
    },
    "lesson_line": "Same candle, different setup. Look at the days before the gap.",
    "unit": "SET.31",
    "why": "A News Failure shape. A good-news gap up that closes red with no burst before it; a Parabolic Short needs the 3-5 day burst first. AAOI ran 2.16R, then stopped.",
    "wrong": {
-    "A Parabolic Long": "That is a burst down and a gap down. This gapped up.",
-    "A Parabolic Short": "No burst, no parabola. The slow drift before the gap is the tell.",
-    "A Wedge Drop": "A Wedge Drop comes days after a top, at the averages, under the 200-day."
+    "A Parabolic Long setup": "That is a burst down and a gap down. This gapped up.",
+    "A Parabolic Short setup": "No burst, no parabola. The slow drift before the gap is the tell.",
+    "A Wedge Drop after a top": "A Wedge Drop comes days after a top, at the averages, under the 200-day."
    }
   },
   "review_status": "draft",
@@ -112060,7 +111948,7 @@
  },
  {
   "answer_json": {
-   "answer": "Quick opening range breakdown; weakest"
+   "answer": "Quick range breakdown; weakest"
   },
   "difficulty": 3,
   "id": "si_32fadd743b82",
@@ -112069,9 +111957,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "A five-star climax",
-    "The U-Turn; his favorite",
-    "Quick opening range breakdown; weakest"
+    "A five-star climax; best of all",
+    "The U-Turn, which he likes best",
+    "Quick range breakdown; weakest"
    ],
    "kind": "mcq",
    "q": "Bracco's name for that, and his view of it?",
@@ -112120,14 +112008,14 @@
     "summary": "Bracco's Quick Opening Range Breakdown: the high is set on the first 5-minute candle and the opening range breaks. Bracco: the Quick Opening Range Breakdown often appears on day 1 or 2 of the burst. The B- row: a drawn-out range, or a quick breakdown on day 1 or 2. Bracco's U-Turn: 10 to 60 minutes in, sellers emerge; the first entry is the break below VWAP. Bracco: the climax gap up usually comes on day 3 to 5 of the burst."
    },
    "facts": {
-    "given": "Bracco's name for that, and his view of it? Day two of a burst: two up days. Today it gaps up, sets its high on the first 5-minute candle and breaks the opening range low. Quick opening range breakdown; weakest The U-Turn; his favorite A five-star climax"
+    "given": "Bracco's name for that, and his view of it? Day two of a burst: two up days. Today it gaps up, sets its high on the first 5-minute candle and breaks the opening range low. Quick range breakdown; weakest The U-Turn, which he likes best A five-star climax; best of all"
    },
    "lesson_line": "A top on the first candle of day two is usually not the top.",
    "unit": "SET.31",
    "why": "The Quick Opening Range Breakdown: the high set on the first 5-minute candle, then the opening range breaks. His least liked, and it often appears on day 1 or 2 of the burst.",
    "wrong": {
-    "A five-star climax": "Day two of a burst is early. The climax gap usually comes on day 3 to 5.",
-    "The U-Turn; his favorite": "The U-Turn runs higher first and turns 10 to 60 minutes in. This topped on the first candle."
+    "A five-star climax; best of all": "Day two of a burst is early. The climax gap usually comes on day 3 to 5.",
+    "The U-Turn, which he likes best": "The U-Turn runs higher first and turns 10 to 60 minutes in. This topped on the first candle."
    }
   },
   "review_status": "draft",
@@ -115300,7 +115188,7 @@
  },
  {
   "answer_json": {
-   "answer": "An inside day or a narrow-range day"
+   "answer": "An inside day, tight and quiet"
   },
   "difficulty": 2,
   "id": "si_336a8358c404",
@@ -115310,9 +115198,9 @@
   "prompt_json": {
    "choices": [
     "A climax day on huge volume",
-    "A gap-down day",
-    "A wide expansion day",
-    "An inside day or a narrow-range day"
+    "A day that gapped down hard",
+    "A wide-range expansion day",
+    "An inside day, tight and quiet"
    ],
    "kind": "mcq",
    "q": "Which kind of day before the open grades an ORB higher on our card?",
@@ -115339,15 +115227,15 @@
     "summary": "A cue: contraction the day before (an inside day, NR4, NR7 or a tight base). Crabel: inside days precede trend days and successful opening range breakouts."
    },
    "facts": {
-    "given": "Which kind of day before the open grades an ORB higher on our card? An inside day or a narrow-range day A wide expansion day A gap-down day A climax day on huge volume"
+    "given": "Which kind of day before the open grades an ORB higher on our card? An inside day, tight and quiet A wide-range expansion day A day that gapped down hard A climax day on huge volume"
    },
    "lesson_line": "Quiet before the open, loud after it. Contraction is the cue.",
    "unit": "SET.32",
    "why": "An inside day, an NR4 or NR7, or a tight base. Crabel's hypothesis: inside days precede trend days and successful opening range breakouts.",
    "wrong": {
     "A climax day on huge volume": "A climax is the end of a move, not a coiled spring.",
-    "A gap-down day": "A gap down the day before says nothing about contraction. It may say the setup is broken.",
-    "A wide expansion day": "The opposite. The card counts an expansion day before as a weaker cue."
+    "A day that gapped down hard": "A gap down the day before says nothing about contraction. It may say the setup is broken.",
+    "A wide-range expansion day": "The opposite. The card counts an expansion day before as a weaker cue."
    }
   },
   "review_status": "draft",
@@ -115916,7 +115804,7 @@
  },
  {
   "answer_json": {
-   "answer": "A plain gap ORB, no Kicker behind it"
+   "answer": "A plain gap ORB, no Kicker"
   },
   "difficulty": 3,
   "id": "si_3ce258b2ebe0",
@@ -115925,9 +115813,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "An EP",
-    "A plain gap ORB, no Kicker behind it",
-    "A Kicker ORB"
+    "An EP, a gap on a catalyst",
+    "A plain gap ORB, no Kicker",
+    "A Kicker ORB after the doji"
    ],
    "kind": "mcq",
    "q": "What is it?",
@@ -115957,19 +115845,26 @@
       "quote": "First identify a list of candidates based on your swing trade criteria, and then use the OR to time your entry.",
       "tier": 2,
       "url": "https://www.marketgauge.com/TradingThe10OclockBulls.pdf"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Opening Range Breakout criteria card (docs/study/setups/criteria/40-opening-range-breakout.json, as of 2026-11-09)",
+      "quote": "An EP opens 10% or more above the prior close on a named catalyst, and its 30-minute range is usually too wide for a 3% stop.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/40-opening-range-breakout.json"
      }
     ],
-    "summary": "The Kicker lookalike: a Kicker needs a real red day before the gap; a doji before the gap makes a plain gap ORB. The ORB is an entry trigger for a daily setup on the focus list, not a trade of its own. Bysshe: pick the swing candidates first, then use the opening range to time the entry."
+    "summary": "The Kicker lookalike: a Kicker needs a real red day before the gap; a doji before the gap makes a plain gap ORB. The ORB is an entry trigger for a daily setup on the focus list, not a trade of its own. Bysshe: pick the swing candidates first, then use the opening range to time the entry. The EP lookalike: a 10% gap on a catalyst whose 30-minute range is usually too wide for a 3% stop."
    },
    "facts": {
-    "given": "What is it? A stock gaps up 3% and breaks its 30-minute high at 10:00. The day before the gap was a doji, not a red day. A plain gap ORB, no Kicker behind it A Kicker ORB An EP"
+    "given": "What is it? A stock gaps up 3% and breaks its 30-minute high at 10:00. The day before the gap was a doji, not a red day. A plain gap ORB, no Kicker A Kicker ORB after the doji An EP, a gap on a catalyst"
    },
    "lesson_line": "Look at yesterday. No red day, no Kicker, and the ORB needs another setup to time.",
    "unit": "SET.32",
    "why": "A plain gap ORB. A Kicker needs a real red day before the gap; a doji before it makes a plain gap ORB. Then the question is which daily setup, if any, stands behind it.",
    "wrong": {
-    "A Kicker ORB": "The Kicker's red day is missing. A doji is not a trap for anyone.",
-    "An EP": "An EP opens 10% or more on a named catalyst. A 3% gap is far short of that."
+    "A Kicker ORB after the doji": "The Kicker's red day is missing. A doji is not a trap for anyone.",
+    "An EP, a gap on a catalyst": "An EP opens 10% or more on a named catalyst. A 3% gap is far short of that."
    }
   },
   "review_status": "draft",
@@ -117719,7 +117614,7 @@
  },
  {
   "answer_json": {
-   "answer": "Just under the recent 30-minute low"
+   "answer": "Just under the 30-minute low"
   },
   "difficulty": 1,
   "id": "si_b02f08ab0658",
@@ -117728,10 +117623,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Just under the recent 30-minute low",
+    "Just under the 30-minute low",
     "Under last week's low",
-    "Under the 50-day average",
-    "3% under the entry"
+    "Under the 50-day moving average",
+    "A flat 3% under the entry price"
    ],
    "kind": "mcq",
    "q": "Where does the originator put his stop on a 30-minute pivot?",
@@ -117758,15 +117653,15 @@
     "summary": "The originator's stop: usually just below the recent 30-minute low. HOOD: the 10:30 candle was the first green one, low 101.20; his stop sat 4 cents under it."
    },
    "facts": {
-    "given": "Where does the originator put his stop on a 30-minute pivot? Just under the recent 30-minute low 3% under the entry Under the 50-day average Under last week's low"
+    "given": "Where does the originator put his stop on a 30-minute pivot? Just under the 30-minute low A flat 3% under the entry price Under the 50-day moving average Under last week's low"
    },
    "lesson_line": "The turn candle's low is the originator's line in the sand.",
    "unit": "SET.33",
    "why": "Just under the recent 30-minute low. On his HOOD trade the stop, 101.16, sat 4 cents under the first green candle's low.",
    "wrong": {
-    "3% under the entry": "A percent is not a level. His stop sits under the 30-minute low, usually much closer.",
+    "A flat 3% under the entry price": "A percent is not a level. His stop sits under the 30-minute low, usually much closer.",
     "Under last week's low": "Far too wide for this timer. The stop sits just under the recent 30-minute low.",
-    "Under the 50-day average": "That is a daily level, far wider. The point of the timer is a stop under one candle."
+    "Under the 50-day moving average": "That is a daily level, far wider. The point of the timer is a stop under one candle."
    }
   },
   "review_status": "draft",
@@ -120331,7 +120226,7 @@
  },
  {
   "answer_json": {
-   "answer": "The 6-red undercut and reclaim"
+   "answer": "The 6-red undercut shake"
   },
   "difficulty": 3,
   "id": "si_43e95afdd957",
@@ -120340,9 +120235,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "The two small reds",
-    "Equal; both are pivots",
-    "The 6-red undercut and reclaim"
+    "The two small-red pivot",
+    "Equal; both are good pivots",
+    "The 6-red undercut shake"
    ],
    "kind": "mcq",
    "q": "Which grades higher?",
@@ -120384,14 +120279,14 @@
     "summary": "A clean red string of 3 or more is the A+ version. The A+ shake: the low undercuts the average and the candle closes back above it. LITE: the 20-day EMA shake and the 30-minute pivot, a top-tier example. The B- row: a tiny midday doji after small reds, a stop of a few tenths of a percent."
    },
    "facts": {
-    "given": "Which grades higher? Two pivots at the rising 10-day EMA. One after two small reds. One after 6 reds that undercut the average and closed back over it. The 6-red undercut and reclaim The two small reds Equal; both are pivots"
+    "given": "Which grades higher? Two pivots at the rising 10-day EMA. One after two small reds. One after 6 reds that undercut the average and closed back over it. The 6-red undercut shake The two small-red pivot Equal; both are good pivots"
    },
    "lesson_line": "A long string into a shake of the average is the best version of this trade.",
    "unit": "SET.33",
    "why": "The 6 reds that undercut the line and closed back over it. A clean string of 3 or more is the top cue, and a shake that closes back above the average is the A+ pivot. Our LITE trade was a 20-day EMA shake like that.",
    "wrong": {
-    "Equal; both are pivots": "Both may trigger. The grade, and so the size, differs.",
-    "The two small reds": "Small reds into a tiny candle is close to noise. The longer string grades higher."
+    "Equal; both are good pivots": "Both may trigger. The grade, and so the size, differs.",
+    "The two small-red pivot": "Small reds into a tiny candle is close to noise. The longer string grades higher."
    }
   },
   "review_status": "draft",
@@ -122406,24 +122301,24 @@
  },
  {
   "answer_json": {
-   "answer": "10"
+   "answer": "1R"
   },
   "difficulty": 1,
   "id": "si_83b6218c6adb",
   "lesson_origin": "session",
-  "lesson_text": "10. A trade still under 1R after 10 trading days is sold, freeing the money. Ten days under 1R: out.",
+  "lesson_text": "1R. A trade still under 1R after 10 trading days is sold, freeing the money. Ten days under 1R: out.",
   "module": "SET",
   "prompt_json": {
    "bank": [
-    "10",
-    "5",
-    "3",
-    "15",
-    "20"
+    "1R",
+    "2R",
+    "3R",
+    "5R",
+    "breakeven"
    ],
    "kind": "fill",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "A trade still under 1R after ___ trading days is sold.",
+   "q": "Tap the level that fits the blank.",
+   "sentence": "A trade still under ___ after 10 trading days is sold.",
    "subject": "SET.34#q18"
   },
   "reveal_json": {
@@ -122440,11 +122335,11 @@
     "summary": "C33: a trade still under 1R after 10 trading days is sold."
    },
    "facts": {
-    "given": "Tap the word that fits the blank. A trade still under 1R after ___ trading days is sold."
+    "given": "Tap the level that fits the blank. A trade still under ___ after 10 trading days is sold."
    },
    "lesson_line": "Ten days under 1R: out.",
    "unit": "SET.34",
-   "why": "10. A trade still under 1R after 10 trading days is sold, freeing the money."
+   "why": "1R. A trade still under 1R after 10 trading days is sold, freeing the money."
   },
   "review_status": "draft",
   "skill_id": "setup.go_signal",
@@ -123088,66 +122983,6 @@
  },
  {
   "answer_json": {
-   "answer": "Sell; under 1R at 10 sessions"
-  },
-  "difficulty": 2,
-  "id": "si_2183a86ebd0b",
-  "lesson_origin": "session",
-  "lesson_text": "Sell. A trade still under 1R after 10 trading days is sold, which frees the money. Ten sessions, under 1R: out.",
-  "module": "SET",
-  "prompt_json": {
-   "choices": [
-    "Move the stop to breakeven",
-    "Sell; under 1R at 10 sessions",
-    "Hold; the stop has not been hit",
-    "Add to it while it is quiet"
-   ],
-   "kind": "mcq",
-   "q": "What now?",
-   "story": "Ten sessions after the buy, the stock sits at 0.4R. The stop has not been hit and no trim has come off.",
-   "subject": "SET.34#q32"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     }
-    ],
-    "summary": "C33: a trade still under 1R after 10 trading days is sold. B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
-   },
-   "facts": {
-    "given": "What now? Ten sessions after the buy, the stock sits at 0.4R. The stop has not been hit and no trim has come off. Sell; under 1R at 10 sessions Hold; the stop has not been hit Add to it while it is quiet Move the stop to breakeven"
-   },
-   "lesson_line": "Ten sessions, under 1R: out.",
-   "unit": "SET.34",
-   "why": "Sell. A trade still under 1R after 10 trading days is sold, which frees the money.",
-   "wrong": {
-    "Add to it while it is quiet": "We do not add. The money is better used on a new setup.",
-    "Hold; the stop has not been hit": "The stop is not the only exit. A trade still under 1R after 10 sessions is sold.",
-    "Move the stop to breakeven": "Breakeven comes at 2R to 5R, not at 0.4R."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "setup.go_signal",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/SET/SET.34.json#q32",
-  "type": "scenario",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "True"
   },
   "difficulty": 2,
@@ -123426,23 +123261,23 @@
  },
  {
   "answer_json": {
-   "answer": "Pass; Orange allows only A plus"
+   "answer": "Yes; Orange takes A plus setups"
   },
   "difficulty": 2,
   "id": "si_1dd85b56860c",
   "lesson_origin": "session",
-  "lesson_text": "Pass. Orange allows only A+ setups. Green is full risk, Yellow is smaller and fewer, and Red is mostly cash. Orange means A plus only. A B waits.",
+  "lesson_text": "Yes. Orange allows only A+ setups, and this one grades A plus. Green is full risk, Yellow is smaller and fewer, and Red is mostly cash. Orange means A plus only. An A plus still goes.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Pass; Orange allows only A plus",
-    "Take it at full size",
-    "Take it; Orange is Green with a tint",
-    "Take it and skip the stop"
+    "Yes; Orange takes A plus setups",
+    "Yes, and size above Green risk",
+    "No; only a Green reading trades",
+    "No; Orange means mostly cash"
    ],
    "kind": "mcq",
-   "q": "What do you do?",
-   "story": "The market reading is Orange. A Go Signal sets up cleanly, but you grade it a B.",
+   "q": "Can you take it?",
+   "story": "The market reading is Orange. A Go Signal sets up cleanly, and you grade it A plus.",
    "subject": "SET.34#q38"
   },
   "reveal_json": {
@@ -123466,15 +123301,15 @@
     "summary": "Card: a Green market reading; Orange only A+; Red is mostly cash, plus shorts below the 200-day. F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
    },
    "facts": {
-    "given": "What do you do? The market reading is Orange. A Go Signal sets up cleanly, but you grade it a B. Pass; Orange allows only A plus Take it at full size Take it; Orange is Green with a tint Take it and skip the stop"
+    "given": "Can you take it? The market reading is Orange. A Go Signal sets up cleanly, and you grade it A plus. Yes; Orange takes A plus setups Yes, and size above Green risk No; only a Green reading trades No; Orange means mostly cash"
    },
-   "lesson_line": "Orange means A plus only. A B waits.",
+   "lesson_line": "Orange means A plus only. An A plus still goes.",
    "unit": "SET.34",
-   "why": "Pass. Orange allows only A+ setups. Green is full risk, Yellow is smaller and fewer, and Red is mostly cash.",
+   "why": "Yes. Orange allows only A+ setups, and this one grades A plus. Green is full risk, Yellow is smaller and fewer, and Red is mostly cash.",
    "wrong": {
-    "Take it and skip the stop": "The stop is never optional.",
-    "Take it at full size": "Full risk is the Green reading. Orange allows only A+ setups.",
-    "Take it; Orange is Green with a tint": "Orange is two steps down from Green. It allows only A+ setups."
+    "No; Orange means mostly cash": "Mostly cash is the Red reading. Orange allows only A+ setups.",
+    "No; only a Green reading trades": "Orange still allows A+ setups. Only Red is mostly cash.",
+    "Yes, and size above Green risk": "Green is already full risk. Orange is two steps down from it."
    }
   },
   "review_status": "draft",
@@ -123672,7 +123507,7 @@
  },
  {
   "answer_json": {
-   "answer": "The blind open buy; wait for the turn"
+   "answer": "It buys before the turn"
   },
   "difficulty": 2,
   "id": "si_28f19d24f05c",
@@ -123683,7 +123518,7 @@
    "choices": [
     "It is fine at half size",
     "Nothing; early is better",
-    "The blind open buy; wait for the turn",
+    "It buys before the turn",
     "The stop should be wider"
    ],
    "kind": "mcq",
@@ -123712,7 +123547,7 @@
     "summary": "Card mistake: buying the open before the turn, the blind open buy that gets stopped at the low. Card pattern: buyers push it back above the prior close in the first or second hourly candle."
    },
    "facts": {
-    "given": "What is wrong with that? At 9:35 the stock is red, 1% under the prior close. You buy now to get ahead of the turn. The blind open buy; wait for the turn Nothing; early is better It is fine at half size The stop should be wider"
+    "given": "What is wrong with that? At 9:35 the stock is red, 1% under the prior close. You buy now to get ahead of the turn. It buys before the turn Nothing; early is better It is fine at half size The stop should be wider"
    },
    "lesson_line": "Do not buy the red. Wait for the green.",
    "unit": "SET.34",
@@ -124498,7 +124333,7 @@
  },
  {
   "answer_json": {
-   "answer": "Thesis over; the stop is still the exit"
+   "answer": "Thesis over; the stop decides"
   },
   "difficulty": 3,
   "id": "si_caa57cf379cb",
@@ -124507,10 +124342,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Thesis over; the stop is still the exit",
+    "Thesis over; the stop decides",
     "Move the stop to the 50-day",
-    "Add on the dip",
-    "Nothing; ignore the 50-day"
+    "Add a little on the dip",
+    "Nothing yet; ignore the 50-day"
    ],
    "kind": "mcq",
    "q": "How do you read it?",
@@ -124545,15 +124380,15 @@
     "summary": "Card (proposed): a close under the 20-day EMA after entry is a warning; a close under the 50-day ends the pullback thesis. Card: after the entry, a trade below the session low, the stop, is the exit. A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception."
    },
    "facts": {
-    "given": "How do you read it? You hold a Go Signal. The stock closes under its 50-day, though your stop is not hit yet. Thesis over; the stop is still the exit Nothing; ignore the 50-day Add on the dip Move the stop to the 50-day"
+    "given": "How do you read it? You hold a Go Signal. The stock closes under its 50-day, though your stop is not hit yet. Thesis over; the stop decides Nothing yet; ignore the 50-day Add a little on the dip Move the stop to the 50-day"
    },
    "lesson_line": "A close under the 50-day ends the thesis. The stop still decides.",
    "unit": "SET.34",
    "why": "The pullback thesis is over, but the stop is still the exit. A close under the 20-day EMA is a warning; a close under the 50-day ends the thesis.",
    "wrong": {
-    "Add on the dip": "We do not add, least of all when the thesis is ending.",
+    "Add a little on the dip": "We do not add, least of all when the thesis is ending.",
     "Move the stop to the 50-day": "The stop only moves up, and the card keeps the session low as the stop.",
-    "Nothing; ignore the 50-day": "A close under the 50-day ends the pullback thesis."
+    "Nothing yet; ignore the 50-day": "A close under the 50-day ends the pullback thesis."
    }
   },
   "review_status": "draft",
@@ -128363,7 +128198,7 @@
  },
  {
   "answer_json": {
-   "answer": "No; no setup behind the bar"
+   "answer": "No; no setup behind it"
   },
   "difficulty": 2,
   "id": "si_ee163ab45bd8",
@@ -128372,9 +128207,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "No; no setup behind the bar",
-    "Yes, small",
-    "Yes; tight is tight"
+    "No; no setup behind it",
+    "Yes, but small size",
+    "Yes; this bar is tight"
    ],
    "kind": "mcq",
    "q": "Take the break?",
@@ -128402,14 +128237,14 @@
     "summary": "The inside day is an entry tool inside a bigger setup; the bar alone is near random. The B- end: the middle of a choppy range under a falling 50-day."
    },
    "facts": {
-    "given": "Take the break? A stock in the middle of a choppy range, under a falling 50-day, prints a tight inside day. No; no setup behind the bar Yes; tight is tight Yes, small"
+    "given": "Take the break? A stock in the middle of a choppy range, under a falling 50-day, prints a tight inside day. No; no setup behind it Yes; this bar is tight Yes, but small size"
    },
    "lesson_line": "A quiet day in chop is just a quiet day in chop.",
    "unit": "SET.40",
    "why": "No. The inside day is an entry tool inside a bigger setup. A choppy range under a falling 50-day has nothing to enter. It is the B- end of the spots.",
    "wrong": {
-    "Yes, small": "Small size does not create a setup. There is no structure here to buy.",
-    "Yes; tight is tight": "Tight inside nothing is nothing. The location carries the edge."
+    "Yes, but small size": "Small size does not create a setup. There is no structure here to buy.",
+    "Yes; this bar is tight": "Tight inside nothing is nothing. The location carries the edge."
    }
   },
   "review_status": "draft",
@@ -128652,7 +128487,7 @@
  },
  {
   "answer_json": {
-   "answer": "No; too stretched over the 10-day"
+   "answer": "No; it is too stretched"
   },
   "difficulty": 3,
   "id": "si_9eb4eb17bbbf",
@@ -128661,9 +128496,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "No; too stretched over the 10-day",
-    "Yes; the bar is clean",
-    "Yes, on half size"
+    "No; it is too stretched",
+    "Yes; the bar is very clean",
+    "Yes, but on half size"
    ],
    "kind": "mcq",
    "q": "Take the break?",
@@ -128684,14 +128519,14 @@
     "summary": "C29: skip a long more than 10% above its 10-day average."
    },
    "facts": {
-    "given": "Take the break? A clean inside day sits three sessions after an earnings gap. It closes 14% over its 10-day average. No; too stretched over the 10-day Yes; the bar is clean Yes, on half size"
+    "given": "Take the break? A clean inside day sits three sessions after an earnings gap. It closes 14% over its 10-day average. No; it is too stretched Yes; the bar is very clean Yes, but on half size"
    },
    "lesson_line": "A clean bar, too far above its average, is still a pass.",
    "unit": "SET.40",
    "why": "No. Skip a long that is more than 10% above its 10-day average. This one closes 14% over it, so the pause came too high.",
    "wrong": {
-    "Yes, on half size": "Half size does not cure a stretch. Skip the long over the line.",
-    "Yes; the bar is clean": "The bar was clean. The stock was stretched, and the stretch rule comes before the bar."
+    "Yes, but on half size": "Half size does not cure a stretch. Skip the long over the line.",
+    "Yes; the bar is very clean": "The bar was clean. The stock was stretched, and the stretch rule comes before the bar."
    }
   },
   "review_status": "draft",
@@ -128703,7 +128538,7 @@
  },
  {
   "answer_json": {
-   "answer": "The flag's entry, not a second setup"
+   "answer": "The flag's entry, not a setup"
   },
   "difficulty": 3,
   "id": "si_900ef401bb2d",
@@ -128712,9 +128547,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "A warning; the flag failed",
-    "A second setup; two trades",
-    "The flag's entry, not a second setup"
+    "A warning; the flag has failed",
+    "A second setup; two buys",
+    "The flag's entry, not a setup"
    ],
    "kind": "mcq",
    "q": "What is the inside day here?",
@@ -128742,14 +128577,14 @@
     "summary": "An inside day inside a flag is the flag's entry, not a second setup. The inside day is an entry tool inside a bigger setup; the bar alone is near random."
    },
    "facts": {
-    "given": "What is the inside day here? A 20% pole, then eight sessions of quiet drift. The sixth drift day is an inside day. The flag's entry, not a second setup A second setup; two trades A warning; the flag failed"
+    "given": "What is the inside day here? A 20% pole, then eight sessions of quiet drift. The sixth drift day is an inside day. The flag's entry, not a setup A second setup; two buys A warning; the flag has failed"
    },
    "lesson_line": "The structure is the setup. The quiet day is how you get in.",
    "unit": "SET.40",
    "why": "The flag's entry. An inside day inside a flag is the flag's entry, not a second setup. One structure, one trade, one stop.",
    "wrong": {
-    "A second setup; two trades": "Full size at one price with one stop. The inside day times the flag's entry; it does not double it.",
-    "A warning; the flag failed": "A quiet day inside a flag is the drift the flag wants, not a failure."
+    "A second setup; two buys": "Full size at one price with one stop. The inside day times the flag's entry; it does not double it.",
+    "A warning; the flag has failed": "A quiet day inside a flag is the drift the flag wants, not a failure."
    }
   },
   "review_status": "draft",
@@ -129481,7 +129316,7 @@
  },
  {
   "answer_json": {
-   "answer": "Take it; location, stock, market agree"
+   "answer": "Take it; stock, spot, market agree"
   },
   "difficulty": 3,
   "id": "si_9d053680bee7",
@@ -129490,9 +129325,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Take it; location, stock, market agree",
-    "Wait for the close",
-    "Pass; the bar alone is random"
+    "Take it; stock, spot, market agree",
+    "Wait for the close to confirm",
+    "Pass; the bar alone is near random"
    ],
    "kind": "mcq",
    "q": "Your call?",
@@ -129534,14 +129369,14 @@
     "summary": "The inside day is an entry tool inside a bigger setup; the bar alone is near random. The failure mode: the low trades first, or the break lasts a day; the stock, the location and the market carry the edge. UCT's Sunday Scan points to an inside day and a higher low at a rising 20 EMA. E57: entries are market orders."
    },
    "facts": {
-    "given": "Your call? A clean inside day at a rising 20-day in a leader. Green market, no earnings for weeks, the stop 1.5% under the trigger. At 10:20 the high trades. Take it; location, stock, market agree Pass; the bar alone is random Wait for the close"
+    "given": "Your call? A clean inside day at a rising 20-day in a leader. Green market, no earnings for weeks, the stop 1.5% under the trigger. At 10:20 the high trades. Take it; stock, spot, market agree Pass; the bar alone is near random Wait for the close to confirm"
    },
    "lesson_line": "When the stock, the spot and the market all say yes, the quiet day is the door.",
    "unit": "SET.40",
    "why": "Take it, at market. The bar alone is near random; the stock, the location and the market carry the edge, and all three agree here. Our Sunday Scans point to this picture: an inside day and a higher low at a rising 20 EMA.",
    "wrong": {
-    "Pass; the bar alone is random": "Alone, yes. Here it sits inside a leader's pullback in a Green market. That is the setup.",
-    "Wait for the close": "The trigger is the trade over the high, bought at market. Our default does not wait for the close."
+    "Pass; the bar alone is near random": "Alone, yes. Here it sits inside a leader's pullback in a Green market. That is the setup.",
+    "Wait for the close to confirm": "The trigger is the trade over the high, bought at market. Our default does not wait for the close."
    }
   },
   "review_status": "draft",
@@ -130204,7 +130039,7 @@
   "difficulty": 1,
   "id": "si_e23e7f8fecab",
   "lesson_origin": "session",
-  "lesson_text": "True. A real stop order with the broker, not a stop kept in your head. It only moves up, never down or wider. A real order with the broker, moved up only.",
+  "lesson_text": "True. The stop only moves up, never down or wider, and it stays a real stop order with the broker. Raise it if the trade works. Keep it a real order.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -130212,7 +130047,7 @@
     "False"
    ],
    "kind": "tf",
-   "q": "The stop sits with the broker as a real order, and it only moves up.",
+   "q": "Raising the stop as the break works is fine, if the new stop is still a real order with the broker.",
    "subject": "SET.41#q07"
   },
   "reveal_json": {
@@ -130243,11 +130078,11 @@
     "summary": "Card: the stop sits with the broker and only moves up. D41: a real stop order with the broker. A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception."
    },
    "facts": {
-    "given": "The stop sits with the broker as a real order, and it only moves up."
+    "given": "Raising the stop as the break works is fine, if the new stop is still a real order with the broker."
    },
-   "lesson_line": "A real order with the broker, moved up only.",
+   "lesson_line": "Raise it if the trade works. Keep it a real order.",
    "unit": "SET.41",
-   "why": "True. A real stop order with the broker, not a stop kept in your head. It only moves up, never down or wider."
+   "why": "True. The stop only moves up, never down or wider, and it stays a real stop order with the broker."
   },
   "review_status": "draft",
   "skill_id": "setup.trendline_break",
@@ -131131,7 +130966,7 @@
  },
  {
   "answer_json": {
-   "answer": "A flat-top break, not this setup"
+   "answer": "A flat-top break, no slope"
   },
   "difficulty": 2,
   "id": "si_9a88efe60d49",
@@ -131140,9 +130975,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "A wedge pop",
-    "A trendline break",
-    "A flat-top break, not this setup"
+    "A wedge pop off the lows",
+    "A descending trendline break",
+    "A flat-top break, no slope"
    ],
    "kind": "mcq",
    "q": "Trendline break or flat top?",
@@ -131170,14 +131005,14 @@
     "summary": "Card: a trendline falls, at least a little, from lower swing highs. Card: a line with no slope is a horizontal resistance break, not this setup."
    },
    "facts": {
-    "given": "Trendline break or flat top? Three highs sit at exactly 50.00 over six weeks. You are weighing a buy through 50.00. A flat-top break, not this setup A trendline break A wedge pop"
+    "given": "Trendline break or flat top? Three highs sit at exactly 50.00 over six weeks. You are weighing a buy through 50.00. A flat-top break, no slope A descending trendline break A wedge pop off the lows"
    },
    "lesson_line": "No slope, no trendline. Three equal highs are a flat top.",
    "unit": "SET.41",
    "why": "A flat top. A trendline falls, at least a little, from lower swing highs. A line with no slope is a horizontal resistance break.",
    "wrong": {
-    "A trendline break": "The highs are level, so there is no falling line to break.",
-    "A wedge pop": "A wedge pop follows a decline and reclaims the fast averages. Level highs do not."
+    "A descending trendline break": "The highs are level, so there is no falling line to break.",
+    "A wedge pop off the lows": "A wedge pop follows a decline and reclaims the fast averages. Level highs do not."
    }
   },
   "review_status": "draft",
@@ -132157,12 +131992,12 @@
  },
  {
   "answer_json": {
-   "answer": "True"
+   "answer": "False"
   },
   "difficulty": 2,
   "id": "si_62a9d6e3e375",
   "lesson_origin": "session",
-  "lesson_text": "True. After a stop-out, only a new trigger buys it again. The cap is 3 tries a week and 6 a month on one stock. Three tries a week, six a month. Then leave it alone.",
+  "lesson_text": "False. The cap is 3 tries a week and 6 a month on one stock. After a stop-out, only a new trigger buys it again. Cap the tries at 3 a week and 6 a month.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -132170,7 +132005,7 @@
     "False"
    ],
    "kind": "tf",
-   "q": "On one stock we take at most 3 tries a week and 6 a month.",
+   "q": "On one stock we allow up to 10 tries a month.",
    "subject": "SET.41#q44"
   },
   "reveal_json": {
@@ -132194,11 +132029,11 @@
     "summary": "Card: after a stop-out only a new trigger; do not redraw the line to get back in. E56: at most 3 tries in a week and 6 in a month on one stock."
    },
    "facts": {
-    "given": "On one stock we take at most 3 tries a week and 6 a month."
+    "given": "On one stock we allow up to 10 tries a month."
    },
-   "lesson_line": "Three tries a week, six a month. Then leave it alone.",
+   "lesson_line": "Cap the tries at 3 a week and 6 a month.",
    "unit": "SET.41",
-   "why": "True. After a stop-out, only a new trigger buys it again. The cap is 3 tries a week and 6 a month on one stock."
+   "why": "False. The cap is 3 tries a week and 6 a month on one stock. After a stop-out, only a new trigger buys it again."
   },
   "review_status": "draft",
   "skill_id": "setup.trendline_break",
@@ -135864,71 +135699,6 @@
  },
  {
   "answer_json": {
-   "answer": "Sell the last third on that close"
-  },
-  "difficulty": 2,
-  "id": "si_dfa15eb733d7",
-  "lesson_origin": "session",
-  "lesson_text": "Sell the last third. A fast mover trails the 10-day, and we sell on a close below it. The trail is a close under the 10-day. Sell it.",
-  "module": "SET",
-  "prompt_json": {
-   "choices": [
-    "Hold until the 50-day breaks down",
-    "Move the stop down to the 50-day",
-    "Sell the last third on that close"
-   ],
-   "kind": "mcq",
-   "q": "What now?",
-   "story": "You hold the last third of a fast mover after both trims. Today it closes under its 10-day.",
-   "subject": "SET.42#q42"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT setup criteria card: 4B- (Stan Weinstein) criteria card (docs/study/setups/criteria/10-weinstein-4b.json, as of 2026-11-09)",
-      "quote": "Trail the rest under the 10-day (fast movers) or the 21-day (steadier) on a close below it.",
-      "tier": 3,
-      "url": "repo:docs/study/setups/criteria/10-weinstein-4b.json"
-     },
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     }
-    ],
-    "summary": "Card: trail the rest under the 10-day (fast) or 21-day (steadier) on a close below it. E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it. A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception."
-   },
-   "facts": {
-    "given": "What now? You hold the last third of a fast mover after both trims. Today it closes under its 10-day. Sell the last third on that close Hold until the 50-day breaks down Move the stop down to the 50-day"
-   },
-   "lesson_line": "The trail is a close under the 10-day. Sell it.",
-   "unit": "SET.42",
-   "why": "Sell the last third. A fast mover trails the 10-day, and we sell on a close below it.",
-   "wrong": {
-    "Hold until the 50-day breaks down": "The trail is the 10-day for a fast mover, not the 50-day.",
-    "Move the stop down to the 50-day": "The stop only moves up, never down or wider."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "setup.weinstein_4b",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/SET/SET.42.json#q42",
-  "type": "scenario",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "No; one price, one stop, no adds"
   },
   "difficulty": 2,
@@ -135982,64 +135752,6 @@
   "skill_id": "setup.weinstein_4b",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.42.json#q43",
-  "type": "scenario",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "Sell a big part into the burst"
-  },
-  "difficulty": 2,
-  "id": "si_b4e666ce426c",
-  "lesson_origin": "session",
-  "lesson_text": "Sell a big part into it. A climax run on your own long is for selling into; how much is a judgment call. A vertical burst is for selling into.",
-  "module": "SET",
-  "prompt_json": {
-   "choices": [
-    "Hold it all; the trail will handle it",
-    "Sell a big part into the burst",
-    "Add; it is going parabolic"
-   ],
-   "kind": "mcq",
-   "q": "What do you do?",
-   "story": "You are up 4R in four days on a vertical, wide-range burst.",
-   "subject": "SET.42#q44"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT setup criteria card: 4B- (Stan Weinstein) criteria card (docs/study/setups/criteria/10-weinstein-4b.json, as of 2026-11-09)",
-      "quote": "A climax run (Bracco's parabolic burst): sell a big part into it.",
-      "tier": 3,
-      "url": "repo:docs/study/setups/criteria/10-weinstein-4b.json"
-     },
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "A climax run on your own long (Bracco's parabolic burst): sell a big part into it, a judgment call.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     }
-    ],
-    "summary": "Card: a climax run: sell a big part into it. C34: a climax run on your own long: sell a big part into it."
-   },
-   "facts": {
-    "given": "What do you do? You are up 4R in four days on a vertical, wide-range burst. Sell a big part into the burst Add; it is going parabolic Hold it all; the trail will handle it"
-   },
-   "lesson_line": "A vertical burst is for selling into.",
-   "unit": "SET.42",
-   "why": "Sell a big part into it. A climax run on your own long is for selling into; how much is a judgment call.",
-   "wrong": {
-    "Add; it is going parabolic": "Adding is the named mistake, and a burst is for selling into.",
-    "Hold it all; the trail will handle it": "The trail catches the turn late. A burst is the moment to bank a big part."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "setup.weinstein_4b",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/SET/SET.42.json#q44",
   "type": "scenario",
   "version": 1
  },
@@ -136227,7 +135939,7 @@
  },
  {
   "answer_json": {
-   "answer": "No; a planned loss, stop did its job"
+   "answer": "No; a planned loss, stop worked"
   },
   "difficulty": 3,
   "id": "si_3590d6129ecd",
@@ -136236,9 +135948,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "No; a planned loss, stop did its job",
-    "Yes; we bought too late",
-    "Yes; the stop was too tight"
+    "No; a planned loss, stop worked",
+    "Yes; we bought it too late",
+    "Yes; the stop was set too tight"
    ],
    "kind": "mcq",
    "q": "The stop traded. Was the loss a mistake?",
@@ -136280,14 +135992,14 @@
     "summary": "F, trigger 2024-02-12: buy 12.99, stop 12.59 (3.1%); the next session's low was 12.48. F: a 37.5% decline, a higher low, a 12-day pause; the next session fell through the stop. Dossier: F 2024 is the plain case of a correct 4B- that lost. Card: after entry the stop is the exit."
    },
    "facts": {
-    "given": "The stop traded. Was the loss a mistake? You bought a 4B- at 12.99 with the stop at 12.59. A 37.5% decline, a higher low, a 12-day pause. The next session fell to 12.48. No; a planned loss, stop did its job Yes; the stop was too tight Yes; we bought too late"
+    "given": "The stop traded. Was the loss a mistake? You bought a 4B- at 12.99 with the stop at 12.59. A 37.5% decline, a higher low, a 12-day pause. The next session fell to 12.48. No; a planned loss, stop worked Yes; the stop was set too tight Yes; we bought it too late"
    },
    "lesson_line": "A correct setup can lose. The stop makes it small.",
    "unit": "SET.42",
    "why": "No. The stop is the plan, and the loss was the planned 3.1%. A correct-looking 4B- can still lose.",
    "wrong": {
-    "Yes; the stop was too tight": "The stop sits where the rules put it. Widening it to dodge a loss is the mistake.",
-    "Yes; we bought too late": "The buy was at the pause high, not a chase."
+    "Yes; the stop was set too tight": "The stop sits where the rules put it. Widening it to dodge a loss is the mistake.",
+    "Yes; we bought it too late": "The buy was at the pause high, not a chase."
    }
   },
   "review_status": "draft",
@@ -136299,7 +136011,7 @@
  },
  {
   "answer_json": {
-   "answer": "Only on a new trigger, as a new trade"
+   "answer": "Only when it triggers again"
   },
   "difficulty": 3,
   "id": "si_4bb86962d2d5",
@@ -136309,8 +136021,8 @@
   "prompt_json": {
    "choices": [
     "At once; it is the same setup",
-    "Only on a new trigger, as a new trade",
-    "Never again on this stock"
+    "Only when it triggers again",
+    "Never buy this stock again"
    ],
    "kind": "mcq",
    "q": "After the first stop-out, when do you buy again?",
@@ -136359,14 +136071,14 @@
     "summary": "B21: after a stop-out, buy again only on a new trigger, as a new trade. Card: a close back under the 50-day before the trigger; it re-arms only after a new 2-session pause. META, trigger 2020-05-11: buy 213.22, stop 210.32 (1.4%); stopped the next session. META: a 39% drop to the March 2020 low, a higher low, a 13-day pause above the 50-day. META: the second trigger also stopped; the real move came from a third base."
    },
    "facts": {
-    "given": "After the first stop-out, when do you buy again? A 39% drop to the March 2020 low, a higher low, a 13-day pause. The break took the 1.4% stop the next day. Only on a new trigger, as a new trade At once; it is the same setup Never again on this stock"
+    "given": "After the first stop-out, when do you buy again? A 39% drop to the March 2020 low, a higher low, a 13-day pause. The break took the 1.4% stop the next day. Only when it triggers again At once; it is the same setup Never buy this stock again"
    },
    "lesson_line": "A V bottom can fail twice. Only a new trigger buys it again.",
    "unit": "SET.42",
    "why": "Only on a new trigger. After a stop-out, buy again only if the setup triggers again, as a new trade. META's second trigger also stopped; the real move came from a third base.",
    "wrong": {
     "At once; it is the same setup": "After a stop-out, buy again only on a new trigger, as a new trade.",
-    "Never again on this stock": "The setup can trigger again. The real move came from a third base."
+    "Never buy this stock again": "The setup can trigger again. The real move came from a third base."
    }
   },
   "review_status": "draft",
@@ -136494,7 +136206,7 @@
  },
  {
   "answer_json": {
-   "answer": "No; within 3 sessions of the report"
+   "answer": "No; too close to the report"
   },
   "difficulty": 3,
   "id": "si_bde06ce679f9",
@@ -136503,7 +136215,7 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "No; within 3 sessions of the report",
+    "No; too close to the report",
     "Yes; the reclaim was clean",
     "Yes, if it holds the 50-day"
    ],
@@ -136540,7 +136252,7 @@
     "summary": "NFLX closed back over its 50-day on 2022-07-15 and 2022-07-18; it reported after the close on 2022-07-19. Deepvue's $189 NFLX 4B- entry was bought one to two sessions before the report. Card: no new buy in the 3 sessions before a report."
    },
    "facts": {
-    "given": "Does our earnings rule allow that buy? A vendor's example buys a 50-day reclaim at 189 on 2022-07-15 or 2022-07-18. The company reports after the close on 2022-07-19. No; within 3 sessions of the report Yes; the reclaim was clean Yes, if it holds the 50-day"
+    "given": "Does our earnings rule allow that buy? A vendor's example buys a 50-day reclaim at 189 on 2022-07-15 or 2022-07-18. The company reports after the close on 2022-07-19. No; too close to the report Yes; the reclaim was clean Yes, if it holds the 50-day"
    },
    "lesson_line": "Check the report date, even on a famous chart.",
    "unit": "SET.42",
@@ -136797,7 +136509,7 @@
  {
   "adjustment_basis": "split-adjusted",
   "answer_json": {
-   "answer": "Take it; above the 200-day, higher low"
+   "answer": "Take it; it is above the 200-day"
   },
   "asof": "2025-05-07",
   "bars": {
@@ -136818,9 +136530,9 @@
     "window_bars": 120
    },
    "choices": [
-    "Pass; there is no higher low",
-    "Pass; the 200-day is overhead",
-    "Take it; above the 200-day, higher low"
+    "Pass; there is no real higher low",
+    "Pass; the 200-day line is overhead",
+    "Take it; it is above the 200-day"
    ],
    "kind": "mcq",
    "q": "Hidden ticker. A washout, a higher low, a pause over the 50-day. Above its 200-day? Take it or pass.",
@@ -136861,14 +136573,14 @@
     "summary": "B26: no longs below the 200-day simple moving average, except a parabolic long. DY, trigger 2025-05-08: cycle low 131.37, 37% under the 52-week high; buy 186.41, stop 182.62 (2.0%). DY: a spring 2025 washout, a higher low, an 11-day pause, a 2% stop and a run to 5R in 9 sessions. The dossier's ten examples all have a prior close above the 200-day."
    },
    "facts": {
-    "given": "Hidden ticker. A washout, a higher low, a pause over the 50-day. Above its 200-day? Take it or pass. Take it; above the 200-day, higher low Pass; the 200-day is overhead Pass; there is no higher low"
+    "given": "Hidden ticker. A washout, a higher low, a pause over the 50-day. Above its 200-day? Take it or pass. Take it; it is above the 200-day Pass; the 200-day line is overhead Pass; there is no real higher low"
    },
    "lesson_line": "The 200-day first, then the base. Both passed here.",
    "unit": "SET.42",
    "why": "Take it. A spring washout, a higher low, and an 11-day pause that walked up through the 50, 150 and 200-day lines. The prior close was above the 200-day. It ran past 5R within two weeks.",
    "wrong": {
-    "Pass; the 200-day is overhead": "Look again: price sits above the 200-day here.",
-    "Pass; there is no higher low": "Look again: the second low sits well above the first."
+    "Pass; the 200-day line is overhead": "Look again: price sits above the 200-day here.",
+    "Pass; there is no real higher low": "Look again: the second low sits well above the first."
    }
   },
   "review_status": "draft",
@@ -137550,10 +137262,10 @@
   "answer_json": {
    "answer": "True"
   },
-  "difficulty": 1,
-  "id": "si_4ec19ad5f96d",
+  "difficulty": 2,
+  "id": "si_2acb09abfd07",
   "lesson_origin": "session",
-  "lesson_text": "True. A real stop order with the broker, and it only moves up. Real order, with the broker. It only moves up.",
+  "lesson_text": "True. A steadier mover trails the 21-day, and a fast mover trails the 10-day. We sell on a close below it. Fast mover, 10-day. Steadier mover, 21-day. Sell on the close below.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -137561,8 +137273,8 @@
     "False"
    ],
    "kind": "tf",
-   "q": "Our stop is a real order with the broker, and it only moves up.",
-   "subject": "SET.42#q71"
+   "q": "On a steadier mover, we trail the last third under the 21-day, not the 10-day.",
+   "subject": "SET.42#q72"
   },
   "reveal_json": {
    "depth": {
@@ -137570,32 +137282,99 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: 4B- (Stan Weinstein) criteria card (docs/study/setups/criteria/10-weinstein-4b.json, as of 2026-11-09)",
-      "quote": "A real stop order with the broker. It only moves up.",
+      "quote": "Trail the rest under the 10-day (fast movers) or the 21-day (steadier) on a close below it.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/10-weinstein-4b.json"
      },
      {
       "accessed": "2026-11-10",
       "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+      "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Card: a real stop order with the broker; it only moves up. D41: every position has a real stop order with the broker, not a stop kept in your head."
+    "summary": "Card: trail the rest under the 10-day (fast) or 21-day (steadier) on a close below it. E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
    },
    "facts": {
-    "given": "Our stop is a real order with the broker, and it only moves up."
+    "given": "On a steadier mover, we trail the last third under the 21-day, not the 10-day."
    },
-   "lesson_line": "Real order, with the broker. It only moves up.",
+   "lesson_line": "Fast mover, 10-day. Steadier mover, 21-day. Sell on the close below.",
    "unit": "SET.42",
-   "why": "True. A real stop order with the broker, and it only moves up."
+   "why": "True. A steadier mover trails the 21-day, and a fast mover trails the 10-day. We sell on a close below it."
   },
   "review_status": "draft",
   "skill_id": "setup.weinstein_4b",
   "source_kind": "course",
-  "source_ref": "docs/study/courses/SET/SET.42.json#q71",
+  "source_ref": "docs/study/courses/SET/SET.42.json#q72",
   "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Sell a big part of it into the move"
+  },
+  "difficulty": 3,
+  "id": "si_ecc5d9394c65",
+  "lesson_origin": "session",
+  "lesson_text": "Sell a big part into the burst. A climax run on your own long is sold into; how much is a judgment call. A parabolic burst is for selling into. How much is your call.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Hold it all; the burst proves it works",
+    "Add to it while it keeps running",
+    "Hold it all until a 10-day close",
+    "Sell a big part of it into the move"
+   ],
+   "kind": "mcq",
+   "q": "What do you do?",
+   "story": "You hold two thirds after the 3R trim. In three days the stock goes parabolic, 4.5R up and far over its 10-day.",
+   "subject": "SET.42#q73"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: 4B- (Stan Weinstein) criteria card (docs/study/setups/criteria/10-weinstein-4b.json, as of 2026-11-09)",
+      "quote": "A climax run (Bracco's parabolic burst): sell a big part into it.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/10-weinstein-4b.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "A climax run on your own long (Bracco's parabolic burst): sell a big part into it, a judgment call.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: 4B- (Stan Weinstein) criteria card (docs/study/setups/criteria/10-weinstein-4b.json, as of 2026-11-09)",
+      "quote": "Size from the stop (A5); B- or lower grades sized down (D38, E49); one price, one stop, no adding along the way.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/10-weinstein-4b.json"
+     }
+    ],
+    "summary": "Card: a climax run: sell a big part into it. C34: a climax run on your own long: sell a big part into it. Card: size from the stop; one price, one stop, no adding along the way."
+   },
+   "facts": {
+    "given": "What do you do? You hold two thirds after the 3R trim. In three days the stock goes parabolic, 4.5R up and far over its 10-day. Sell a big part of it into the move Hold it all until a 10-day close Add to it while it keeps running Hold it all; the burst proves it works"
+   },
+   "lesson_line": "A parabolic burst is for selling into. How much is your call.",
+   "unit": "SET.42",
+   "why": "Sell a big part into the burst. A climax run on your own long is sold into; how much is a judgment call.",
+   "wrong": {
+    "Add to it while it keeps running": "No adding along the way: one price, one stop. A burst is for selling into.",
+    "Hold it all until a 10-day close": "The trail catches the turn late. A parabolic burst is the moment to sell a big part.",
+    "Hold it all; the burst proves it works": "A burst is for selling into, not for holding all of it."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.weinstein_4b",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.42.json#q73",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -140676,7 +140455,7 @@
  },
  {
   "answer_json": {
-   "answer": "Within 25% of the 52-week high"
+   "answer": "Near the 52-week high"
   },
   "difficulty": 3,
   "id": "si_dbefba664303",
@@ -140685,8 +140464,8 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Within 25% of the 52-week high",
-    "The line is rising",
+    "Near the 52-week high",
+    "The 10-day line is rising",
     "The length of the dip"
    ],
    "kind": "mcq",
@@ -140729,14 +140508,14 @@
     "summary": "AMD near-miss: 32.7% under the 52-week high 34.14. AMD: a recovering stock's 10-day, not a leader's pullback. Near-misses were kept only when exactly one gate criterion of the card fails. Card: price within 25% of its 52-week high on the hold day."
    },
    "facts": {
-    "given": "Which check fails? AMD, 2019. A dip touches its 10-day on the hold day. The 52-week high is 34.14 and the close is 32.7% under it. Within 25% of the 52-week high The length of the dip The line is rising"
+    "given": "Which check fails? AMD, 2019. A dip touches its 10-day on the hold day. The 52-week high is 34.14 and the close is 32.7% under it. Near the 52-week high The length of the dip The 10-day line is rising"
    },
    "lesson_line": "A stock far under its high is recovering, not leading.",
    "unit": "SET.43",
    "why": "Within 25% of the 52-week high. At 32.7% under it, this is a recovering stock's 10-day, not a leader's pullback.",
    "wrong": {
-    "The length of the dip": "That check passes here. Exactly one check fails, and it is the distance from the high.",
-    "The line is rising": "That check passes here. The distance from the 52-week high is what fails."
+    "The 10-day line is rising": "That check passes here. The distance from the 52-week high is what fails.",
+    "The length of the dip": "That check passes here. Exactly one check fails, and it is the distance from the high."
    }
   },
   "review_status": "draft",
@@ -141483,7 +141262,7 @@
  },
  {
   "answer_json": {
-   "answer": "Sell it on the close under the 10-day"
+   "answer": "Sell on a close below the 10-day"
   },
   "difficulty": 3,
   "id": "si_6b1b75f4bceb",
@@ -141492,9 +141271,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Add back what you sold",
-    "Hold until the 50-day breaks",
-    "Sell it on the close under the 10-day"
+    "Add back the third sold at 5R",
+    "Hold until the 50-day breaks down",
+    "Sell on a close below the 10-day"
    ],
    "kind": "mcq",
    "q": "What does the plan do with the last third?",
@@ -141529,14 +141308,14 @@
     "summary": "E51: after the first third at 3R, another third at 5R, then trail the last third. E52: trail under the 10-day for fast movers, the 21-day for steadier ones. Card: trail the last third under the 10-day or the 21-day, sold on a close below it."
    },
    "facts": {
-    "given": "What does the plan do with the last third? A fast mover you bought has reached 5R. You sold a third at 3R and a third at 5R. Price then closes under the 10-day. Hold until the 50-day breaks Sell it on the close under the 10-day Add back what you sold"
+    "given": "What does the plan do with the last third? A fast mover you bought has reached 5R. You sold a third at 3R and a third at 5R. Price then closes under the 10-day. Hold until the 50-day breaks down Sell on a close below the 10-day Add back the third sold at 5R"
    },
    "lesson_line": "The last third rides the trail and leaves on a close below it.",
    "unit": "SET.43",
    "why": "Sell it. The last third is trailed under the 10-day for a fast mover and sold on a close below it.",
    "wrong": {
-    "Add back what you sold": "No adds. The plan sells the last third.",
-    "Hold until the 50-day breaks": "For a fast mover the trail is the 10-day, sold on a close below it."
+    "Add back the third sold at 5R": "No adds. The plan sells the last third.",
+    "Hold until the 50-day breaks down": "For a fast mover the trail is the 10-day, sold on a close below it."
    }
   },
   "review_status": "draft",
@@ -142467,8 +142246,8 @@
     "pivot"
    ],
    "kind": "fill",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "A trim level the stock gaps over is taken at the ___.",
+   "q": "Complete the trim rule.",
+   "sentence": "Price jumps past your 5R level overnight. You take that trim at the ___.",
    "subject": "SET.43#q84"
   },
   "reveal_json": {
@@ -142492,7 +142271,7 @@
     "summary": "F63: if a stock opens above a trim level, take that trim at the open. Card: sell a third at 3R."
    },
    "facts": {
-    "given": "Tap the word that fits the blank. A trim level the stock gaps over is taken at the ___."
+    "given": "Complete the trim rule. Price jumps past your 5R level overnight. You take that trim at the ___."
    },
    "lesson_line": "If it gaps over your trim level, take the trim at the open.",
    "unit": "SET.43",
@@ -143571,22 +143350,22 @@
  },
  {
   "answer_json": {
-   "answer": "Skip it, too stretched"
+   "answer": "Only the one 13% above"
   },
   "difficulty": 1,
   "id": "si_7f4b7afd86e0",
   "lesson_origin": "session",
-  "lesson_text": "Skip it. A long more than 10% above its 10-day average is too stretched to buy. All ten of our examples filled within 2.5% of the 10-day. A stock at its line is rarely stretched. When it is, pass.",
+  "lesson_text": "Only the one 13% above. A long more than 10% above its 10-day average is too stretched to buy, and 7% is inside that line. All ten of our examples filled within 2.5% of the 10-day. A stock at its line is rarely stretched. When it is, pass.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Skip it, too stretched",
-    "Wait for the close",
-    "Buy, the trigger is what matters",
-    "Buy half size"
+    "Only the one 13% above",
+    "Neither of the two stocks",
+    "Both of the two stocks",
+    "Only the one 7% above"
    ],
    "kind": "mcq",
-   "q": "At the trigger the stock is 12% above its 10-day average. Our rule?",
+   "q": "At the trigger, one stock sits 7% above its 10-day average and another sits 13% above. Which do we skip?",
    "subject": "SET.44#q11"
   },
   "reveal_json": {
@@ -143610,15 +143389,15 @@
     "summary": "C29: skip a long more than 10% above its 10-day average. All ten fills were within 2.5% of the 10-day and every stop was under 3.3%."
    },
    "facts": {
-    "given": "At the trigger the stock is 12% above its 10-day average. Our rule? Skip it, too stretched Buy, the trigger is what matters Buy half size Wait for the close"
+    "given": "At the trigger, one stock sits 7% above its 10-day average and another sits 13% above. Which do we skip? Only the one 13% above Both of the two stocks Only the one 7% above Neither of the two stocks"
    },
    "lesson_line": "A stock at its line is rarely stretched. When it is, pass.",
    "unit": "SET.44",
-   "why": "Skip it. A long more than 10% above its 10-day average is too stretched to buy. All ten of our examples filled within 2.5% of the 10-day.",
+   "why": "Only the one 13% above. A long more than 10% above its 10-day average is too stretched to buy, and 7% is inside that line. All ten of our examples filled within 2.5% of the 10-day.",
    "wrong": {
-    "Buy half size": "Size does not fix a stretched entry. The rule is skip.",
-    "Buy, the trigger is what matters": "The trigger is the trigger. The stretch rule still applies at the fill.",
-    "Wait for the close": "The close does not matter here. Distance from the 10-day does."
+    "Both of the two stocks": "7% is under the 10% line, so that one still passes the stretch rule.",
+    "Neither of the two stocks": "13% is past the 10% line, so that one is skipped.",
+    "Only the one 7% above": "Backwards. The further above the 10-day, the more stretched the entry."
    }
   },
   "review_status": "draft",
@@ -143994,22 +143773,22 @@
  },
  {
   "answer_json": {
-   "answer": "A third at 3R"
+   "answer": "A third, at 3R"
   },
   "difficulty": 1,
   "id": "si_adcfaf4f51c3",
   "lesson_origin": "session",
-  "lesson_text": "A third at 3R. That is the hard rule; in practice we mostly wait for 5R. The next third comes at 5R. A third at 3R, a third at 5R, trail the rest.",
+  "lesson_text": "A third, at 3R. That is the hard rule; the plan sells in thirds. The next third comes at 5R and the last third rides the trail. A third at 3R, a third at 5R, trail the rest.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "All of it at 5R",
-    "Half at 2R",
-    "A third at 3R",
-    "A third at 1R"
+    "A quarter, at 3R",
+    "Half, at 3R",
+    "A third, at 3R",
+    "All of it, at 3R"
    ],
    "kind": "mcq",
-   "q": "Where does the first trim come on a Holy Grail winner, by our hard rule?",
+   "q": "How much of the position do we sell at the first trim on a Holy Grail winner?",
    "subject": "SET.44#q18"
   },
   "reveal_json": {
@@ -144033,15 +143812,15 @@
     "summary": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R. E51: another third at 5R, then trail the last third."
    },
    "facts": {
-    "given": "Where does the first trim come on a Holy Grail winner, by our hard rule? A third at 3R Half at 2R All of it at 5R A third at 1R"
+    "given": "How much of the position do we sell at the first trim on a Holy Grail winner? A third, at 3R Half, at 3R A quarter, at 3R All of it, at 3R"
    },
    "lesson_line": "A third at 3R, a third at 5R, trail the rest.",
    "unit": "SET.44",
-   "why": "A third at 3R. That is the hard rule; in practice we mostly wait for 5R. The next third comes at 5R.",
+   "why": "A third, at 3R. That is the hard rule; the plan sells in thirds. The next third comes at 5R and the last third rides the trail.",
    "wrong": {
-    "A third at 1R": "Too early. The first trim waits for 3R.",
-    "All of it at 5R": "5R is the second third, not the exit. The last third rides the trail.",
-    "Half at 2R": "Too early and too much. Breakeven can move at 2R; the trim waits for 3R."
+    "A quarter, at 3R": "The plan sells in thirds, not quarters.",
+    "All of it, at 3R": "That sells the whole position. The last third rides the trail.",
+    "Half, at 3R": "Too much. The plan sells in thirds, so the first trim is a third."
    }
   },
   "review_status": "draft",
@@ -145774,7 +145553,7 @@
  },
  {
   "answer_json": {
-   "answer": "A or B; 6 to 10 sessions is not A+"
+   "answer": "A or B; 10 sessions, not A+"
   },
   "difficulty": 3,
   "id": "si_10e003cc171c",
@@ -145783,9 +145562,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "A or B; 6 to 10 sessions is not A+",
-    "A+; every box ticked",
-    "Not a setup; too long"
+    "A or B; 10 sessions, not A+",
+    "A+; all the boxes are ticked",
+    "Not a setup; it ran too long"
    ],
    "kind": "mcq",
    "q": "What was the grade going in?",
@@ -145827,14 +145606,14 @@
     "summary": "Length: 2 to 10 sessions from the momentum high to the touch. A shallow, orderly 2 to 5 session pullback is the A+; 6 to 10 sessions is an A or B. CELH: a 10-day pullback, the longest allowed, a 3.4% stop at 81.37 against an 84.24 buy; ten days is a flag that has lost its urgency. All four failures had stops inside 3% and lost 1R each; nothing argues for a wider stop."
    },
    "facts": {
-    "given": "What was the grade going in? A strong ADX push, then a 10-day pullback to the 20 EMA, the longest the rule allows. You bought at 84.24, stop 81.37. It stopped out with no excursion past 0.5R. A or B; 6 to 10 sessions is not A+ A+; every box ticked Not a setup; too long"
+    "given": "What was the grade going in? A strong ADX push, then a 10-day pullback to the 20 EMA, the longest the rule allows. You bought at 84.24, stop 81.37. It stopped out with no excursion past 0.5R. A or B; 10 sessions, not A+ A+; all the boxes are ticked Not a setup; it ran too long"
    },
    "lesson_line": "Ten days is a flag that has already lost its urgency.",
    "unit": "SET.44",
    "why": "An A or B. Our A+ is 2 to 5 sessions; 6 to 10 is an A or B. Ten days is a flag that has already lost its urgency, and the loss was a planned 1R.",
    "wrong": {
-    "A+; every box ticked": "A+ is 2 to 5 sessions, shallow and orderly. Ten days is the far end of the range.",
-    "Not a setup; too long": "Ten sessions is still inside the 2 to 10 the card allows. It trades, graded down."
+    "A+; all the boxes are ticked": "A+ is 2 to 5 sessions, shallow and orderly. Ten days is the far end of the range.",
+    "Not a setup; it ran too long": "Ten sessions is still inside the 2 to 10 the card allows. It trades, graded down."
    }
   },
   "review_status": "draft",
@@ -150324,7 +150103,7 @@
  },
  {
   "answer_json": {
-   "answer": "No new buy 3 sessions before a report"
+   "answer": "No buy 3 sessions before a report"
   },
   "difficulty": 3,
   "id": "si_9564c539d67a",
@@ -150333,9 +150112,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Stop no wider than the ADR",
-    "No buy 4% over the trigger",
-    "No new buy 3 sessions before a report"
+    "Stop no wider than the stock's ADR",
+    "No buy over 4% above the trigger",
+    "No buy 3 sessions before a report"
    ],
    "kind": "mcq",
    "q": "Which rule would have kept you out?",
@@ -150377,14 +150156,14 @@
     "summary": "AMZN, 2020-04-30: buy 123.06, stop 119.75 (2.7%), stopped day 1, best 0.0R. AMZN: the report came that evening and the next day gapped down through the stop. Card: no new buy in the 3 sessions before earnings. B22: no new buys in the 3 days before earnings; hold through only if up 5R."
    },
    "facts": {
-    "given": "Which rule would have kept you out? AMZN, 2020 (prices split-adjusted). A 14-session flag breaks out. You buy at 123.06. The report comes that evening and the next day gaps below your 119.75 stop. No buy 4% over the trigger Stop no wider than the ADR No new buy 3 sessions before a report"
+    "given": "Which rule would have kept you out? AMZN, 2020 (prices split-adjusted). A 14-session flag breaks out. You buy at 123.06. The report comes that evening and the next day gaps below your 119.75 stop. No buy over 4% above the trigger Stop no wider than the stock's ADR No buy 3 sessions before a report"
    },
    "lesson_line": "Check the report date first, then the chart.",
    "unit": "SET.45",
    "why": "No new buy in the 3 sessions before a report. Check the report date before you buy.",
    "wrong": {
-    "No buy 4% over the trigger": "The buy was at the trigger. The report date was the issue.",
-    "Stop no wider than the ADR": "The stop fit. The report gapped through it."
+    "No buy over 4% above the trigger": "The buy was at the trigger. The report date was the issue.",
+    "Stop no wider than the stock's ADR": "The stop fit. The report gapped through it."
    }
   },
   "review_status": "draft",
@@ -167489,7 +167268,7 @@
  },
  {
   "answer_json": {
-   "answer": "Higher daily lows, then the 10-day"
+   "answer": "Higher lows, then the 10-day"
   },
   "difficulty": 2,
   "id": "si_bd4292d6a62e",
@@ -167498,10 +167277,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "A fixed 10% stop",
-    "Higher daily lows, then the 10-day",
-    "We never trail",
-    "The 200-day"
+    "A fixed 10% stop under the buy",
+    "Higher lows, then the 10-day",
+    "We never trail the last third",
+    "A trailing stop on the 200-day"
    ],
    "kind": "mcq",
    "q": "How do we trail the last third?",
@@ -167528,15 +167307,15 @@
     "summary": "Trail under each higher daily low until a close back above the 10-day, then sell on a close below it. E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
    },
    "facts": {
-    "given": "How do we trail the last third? Higher daily lows, then the 10-day The 200-day A fixed 10% stop We never trail"
+    "given": "How do we trail the last third? Higher lows, then the 10-day A trailing stop on the 200-day A fixed 10% stop under the buy We never trail the last third"
    },
    "lesson_line": "Trail the lows, then the 10-day.",
    "unit": "SET.49",
    "why": "Under each higher daily low until price closes back above the 10-day. After that we sell on a close below the 10-day.",
    "wrong": {
-    "A fixed 10% stop": "A fixed stop does not follow the bounce.",
-    "The 200-day": "The 200-day is far too slow for a bounce trade.",
-    "We never trail": "We trail the last third."
+    "A fixed 10% stop under the buy": "A fixed stop does not follow the bounce.",
+    "A trailing stop on the 200-day": "The 200-day is far too slow for a bounce trade.",
+    "We never trail the last third": "We trail the last third."
    }
   },
   "review_status": "draft",
@@ -167600,7 +167379,7 @@
  },
  {
   "answer_json": {
-   "answer": "A VIX near 30 and washed-out breadth"
+   "answer": "VIX near 30, washed-out breadth"
   },
   "difficulty": 2,
   "id": "si_580229a96812",
@@ -167609,10 +167388,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "A slow drift lower",
-    "A VIX near 10 and calm",
-    "Breadth near its highs",
-    "A VIX near 30 and washed-out breadth"
+    "A slow drift lower, VIX calm",
+    "VIX near 10, calm and quiet tape",
+    "Breadth near highs, VIX very low",
+    "VIX near 30, washed-out breadth"
    ],
    "kind": "mcq",
    "q": "Which backdrop helps a market-wide flush?",
@@ -167653,15 +167432,15 @@
     "summary": "Fear is high and rising fast: a VIX spike toward 30 or more. Breadth washed out: T2108 near or under 15% to 20%. Bracco: a fast move up in the VIX into 30 is a time to pay attention. Bracco: T2108 broke under its 15% floor once in three years, in the April 2025 crash."
    },
    "facts": {
-    "given": "Which backdrop helps a market-wide flush? A VIX near 30 and washed-out breadth A VIX near 10 and calm Breadth near its highs A slow drift lower"
+    "given": "Which backdrop helps a market-wide flush? VIX near 30, washed-out breadth VIX near 10, calm and quiet tape Breadth near highs, VIX very low A slow drift lower, VIX calm"
    },
    "lesson_line": "A real flush has fear and washed-out breadth behind it.",
    "unit": "SET.49",
    "why": "A VIX near 30 and washed-out breadth. Fear is high and rising fast, and T2108 sits near or under 15% to 20%.",
    "wrong": {
-    "A VIX near 10 and calm": "A calm market has no fear behind it.",
-    "A slow drift lower": "A slow, controlled mark down is not a capitulation.",
-    "Breadth near its highs": "Strong breadth is the opposite of a washout."
+    "A slow drift lower, VIX calm": "A slow, controlled mark down is not a capitulation.",
+    "Breadth near highs, VIX very low": "Strong breadth is the opposite of a washout.",
+    "VIX near 10, calm and quiet tape": "A calm market has no fear behind it."
    }
   },
   "review_status": "draft",
@@ -168226,7 +168005,7 @@
  },
  {
   "answer_json": {
-   "answer": "Log it; a new buy needs a new trigger"
+   "answer": "Log it; wait for a new trigger"
   },
   "difficulty": 3,
   "id": "si_9458459946eb",
@@ -168235,10 +168014,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Log it; a new buy needs a new trigger",
-    "Buy back at once, bigger",
-    "Blame the setup and quit",
-    "Move the old stop lower"
+    "Log it; wait for a new trigger",
+    "Buy back at once, a bigger size",
+    "Blame the setup and drop it",
+    "Move the old stop lower and wait"
    ],
    "kind": "mcq",
    "q": "What do you do?",
@@ -168280,15 +168059,15 @@
     "summary": "VOYA: buy 64.66, stop 63.75 (1.41%); stopped on day 1, low 63.52. VOYA: day 1 traded 23 cents under the stop and closed near its high; the stop was right by the rule and the trade still lost. B21: after a stop-out, buy again only on a new trigger, as a new trade. A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception."
    },
    "facts": {
-    "given": "What do you do? You bought the reclaim at 64.66 with a stop at 63.75. Next day trades 23 cents under the stop, stops you out, then closes near its high. Log it; a new buy needs a new trigger Buy back at once, bigger Move the old stop lower Blame the setup and quit"
+    "given": "What do you do? You bought the reclaim at 64.66 with a stop at 63.75. Next day trades 23 cents under the stop, stops you out, then closes near its high. Log it; wait for a new trigger Buy back at once, a bigger size Move the old stop lower and wait Blame the setup and drop it"
    },
    "lesson_line": "A right stop can still lose. Take it and wait for a new trigger.",
    "unit": "SET.49",
    "why": "Log it. The stop was right by the rule and the trade still lost. After a stop-out a new buy needs the setup to trigger again, as a new trade.",
    "wrong": {
-    "Blame the setup and quit": "A planned loss is the cost of the trade, not proof the setup is broken.",
-    "Buy back at once, bigger": "A new buy needs a new trigger, not a bigger size.",
-    "Move the old stop lower": "The stop was the exit. It is already used."
+    "Blame the setup and drop it": "A planned loss is the cost of the trade, not proof the setup is broken.",
+    "Buy back at once, a bigger size": "A new buy needs a new trigger, not a bigger size.",
+    "Move the old stop lower and wait": "The stop was the exit. It is already used."
    }
   },
   "review_status": "draft",
@@ -168359,7 +168138,7 @@
  },
  {
   "answer_json": {
-   "answer": "The fixed stop never moves; fades return"
+   "answer": "Fixed stop, so fades come back"
   },
   "difficulty": 3,
   "id": "si_11800d940c9b",
@@ -168368,10 +168147,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "The scan used a wide stop",
-    "3R is a bad target",
+    "The scan's stop was far too wide",
+    "3R is just a bad target here",
     "The scan only kept the winners",
-    "The fixed stop never moves; fades return"
+    "Fixed stop, so fades come back"
    ],
    "kind": "mcq",
    "q": "81% were stopped at some point, yet 52.3% reached 3R. Why?",
@@ -168412,15 +168191,15 @@
     "summary": "Our scan: 2,220 reclaims, 52.3% reached 3R, 43.1% reached 5R before the stop, 81% were stopped at some point in 60 sessions. The stop never moves in the scan, so the fade after the bounce usually comes back to it. Breakeven at 2R, because these bounces fade. The median stop is 1.7%, so 3R is about a 5% bounce and 5R about 9%."
    },
    "facts": {
-    "given": "81% were stopped at some point, yet 52.3% reached 3R. Why? The fixed stop never moves; fades return The scan used a wide stop 3R is a bad target The scan only kept the winners"
+    "given": "81% were stopped at some point, yet 52.3% reached 3R. Why? Fixed stop, so fades come back The scan's stop was far too wide 3R is just a bad target here The scan only kept the winners"
    },
    "lesson_line": "Bounces fade. Trim, then protect the rest.",
    "unit": "SET.49",
    "why": "The stop never moves in the scan, so the fade after the bounce usually comes back to it. That is why we trim at 3R and move to breakeven.",
    "wrong": {
-    "3R is a bad target": "52.3% reached it. The point is what happens after.",
+    "3R is just a bad target here": "52.3% reached it. The point is what happens after.",
     "The scan only kept the winners": "The scan counted all 2,220 reclaims that passed its rules.",
-    "The scan used a wide stop": "The median stop was tight, about 1.7%."
+    "The scan's stop was far too wide": "The median stop was tight, about 1.7%."
    }
   },
   "review_status": "draft",
@@ -168511,7 +168290,7 @@
  },
  {
   "answer_json": {
-   "answer": "Buy the Monday reclaim of the flush low"
+   "answer": "Buy the Monday reclaim of the low"
   },
   "difficulty": 3,
   "id": "si_9860ccde81c4",
@@ -168520,10 +168299,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Buy the Friday close",
-    "Wait two weeks",
-    "Buy the Monday reclaim of the flush low",
-    "Short the Monday gap"
+    "Buy the Friday close of the flush",
+    "Wait two weeks and recheck",
+    "Buy the Monday reclaim of the low",
+    "Short the Monday gap down"
    ],
    "kind": "mcq",
    "q": "What is the trade?",
@@ -168565,15 +168344,15 @@
     "summary": "OKTA: flush day 2025-04-04, 23.4% down, 2.67 ATR under the prior close, 2.28x volume. OKTA: Monday 2025-04-07 opened 88.34 under the flush low, undercut 87.93, closed 91.24; buy 89.37, stop 87.88 (1.7%). OKTA: Thursday and Friday flush 23%; Monday gaps under the flush low and closes above it. Bracco: notable capitulations and turns have occurred on a Monday."
    },
    "facts": {
-    "given": "What is the trade? Thursday and Friday flush a leader 23% on 2.28x volume. Monday it opens under the flush low, undercuts it and closes above it. Buy the Monday reclaim of the flush low Buy the Friday close Short the Monday gap Wait two weeks"
+    "given": "What is the trade? Thursday and Friday flush a leader 23% on 2.28x volume. Monday it opens under the flush low, undercuts it and closes above it. Buy the Monday reclaim of the low Buy the Friday close of the flush Short the Monday gap down Wait two weeks and recheck"
    },
    "lesson_line": "Several down days, then a Monday gap and reclaim.",
    "unit": "SET.49",
    "why": "Buy the Monday reclaim of the flush low. OKTA opened 88.34 under the flush low, undercut 87.93 and closed 91.24.",
    "wrong": {
-    "Buy the Friday close": "That is the knife. Nearly half of flush closes are undercut.",
-    "Short the Monday gap": "The Monday closed above the flush low. That is the turn, not a short.",
-    "Wait two weeks": "The reclaim is the trigger, and it came on Monday."
+    "Buy the Friday close of the flush": "That is the knife. Nearly half of flush closes are undercut.",
+    "Short the Monday gap down": "The Monday closed above the flush low. That is the turn, not a short.",
+    "Wait two weeks and recheck": "The reclaim is the trigger, and it came on Monday."
    }
   },
   "review_status": "draft",
@@ -169034,58 +168813,6 @@
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.49.json#q70",
   "type": "scenario",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "True"
-  },
-  "difficulty": 1,
-  "id": "si_72afb2086724",
-  "lesson_origin": "session",
-  "lesson_text": "True. A new try needs a new trigger, and the limit is 3 in a week and 6 in a month. Three a week, six a month, each on a new trigger.",
-  "module": "SET",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "On one stock we allow at most 3 tries in a week and 6 in a month.",
-   "subject": "SET.49#q71"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "The same stock: at most 3 tries in a week and 6 in a month.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT setup criteria card: Capitulation criteria card (docs/study/setups/criteria/34-capitulation.json, as of 2026-11-09)",
-      "quote": "A new try only on a new trigger; at most 3 tries in a week and 6 in a month on one name.",
-      "tier": 3,
-      "url": "repo:docs/study/setups/criteria/34-capitulation.json"
-     }
-    ],
-    "summary": "E56: at most 3 tries in a week and 6 in a month on one stock. A new try only on a new trigger; at most 3 tries in a week and 6 in a month on one name."
-   },
-   "facts": {
-    "given": "On one stock we allow at most 3 tries in a week and 6 in a month."
-   },
-   "lesson_line": "Three a week, six a month, each on a new trigger.",
-   "unit": "SET.49",
-   "why": "True. A new try needs a new trigger, and the limit is 3 in a week and 6 in a month."
-  },
-  "review_status": "draft",
-  "skill_id": "setup.capitulation",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/SET/SET.49.json#q71",
-  "type": "recall",
   "version": 1
  },
  {
@@ -171239,7 +170966,7 @@
  },
  {
   "answer_json": {
-   "answer": "Sell a third at 148; stop to 142"
+   "answer": "Sell a third at 148; stop 142"
   },
   "difficulty": 2,
   "id": "si_e44c4f836721",
@@ -171248,10 +170975,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Add at 148",
-    "Hold everything for 160",
-    "Sell a third at 148; stop to 142",
-    "Sell it all at 148"
+    "Add to the winner at 148",
+    "Hold everything and aim for 160",
+    "Sell a third at 148; stop 142",
+    "Sell half at 148; stop stays put"
    ],
    "kind": "mcq",
    "q": "What do you do at 3R?",
@@ -171309,15 +171036,15 @@
      "fn": "arith",
      "result": 148.0
     },
-    "given": "What do you do at 3R? You bought at 142.00 with a stop at 140.00. Price reaches 148.00. Sell a third at 148; stop to 142 Sell it all at 148 Hold everything for 160 Add at 148"
+    "given": "What do you do at 3R? You bought at 142.00 with a stop at 140.00. Price reaches 148.00. Sell a third at 148; stop 142 Sell half at 148; stop stays put Hold everything and aim for 160 Add to the winner at 148"
    },
    "lesson_line": "A third at 3R, then the stop to breakeven.",
    "unit": "SET.50",
    "why": "Sell a third at 3R, 148, and move the stop to breakeven at the first trim. Our plan expected a 3-1 gain by the breakout.",
    "wrong": {
-    "Add at 148": "We never add. It is one price with one stop.",
-    "Hold everything for 160": "A trim at 3R is the rule. Hoping for 160 skips it.",
-    "Sell it all at 148": "We sell a third at 3R and keep the rest working."
+    "Add to the winner at 148": "We never add. It is one price with one stop.",
+    "Hold everything and aim for 160": "A trim at 3R is the rule. Hoping for 160 skips it.",
+    "Sell half at 148; stop stays put": "The hard rule is a third at 3R, not half."
    }
   },
   "review_status": "draft",
@@ -171388,7 +171115,7 @@
  },
  {
   "answer_json": {
-   "answer": "About 4.8R, so 3R comes first"
+   "answer": "About 4.8R, past the 3R trim"
   },
   "difficulty": 2,
   "id": "si_e52214bcf9f7",
@@ -171397,10 +171124,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "About 1R",
-    "About 4.8R, so 3R comes first",
-    "About 20R",
-    "Right at the entry"
+    "About 1R, before the 3R trim",
+    "About 4.8R, past the 3R trim",
+    "About 20R, well past the trim",
+    "Right at the entry price"
    ],
    "kind": "mcq",
    "q": "From a reclaim entry, about how far is the range top?",
@@ -171420,15 +171147,15 @@
     "summary": "The top of the range is the first resistance, a median 4.8R away from the reclaim entry."
    },
    "facts": {
-    "given": "From a reclaim entry, about how far is the range top? About 4.8R, so 3R comes first About 1R About 20R Right at the entry"
+    "given": "From a reclaim entry, about how far is the range top? About 4.8R, past the 3R trim About 1R, before the 3R trim About 20R, well past the trim Right at the entry price"
    },
    "lesson_line": "The range top is the first resistance. The 3R trim comes first.",
    "unit": "SET.50",
    "why": "About 4.8R in the median case, and 3R or more 72% of the time. So the 3R trim usually comes at or before the range top.",
    "wrong": {
-    "About 1R": "The median is 4.8R, and 72% of the time it is 3R or more.",
-    "About 20R": "The median is 4.8R.",
-    "Right at the entry": "The entry is at the floor. The top is the far side of the range."
+    "About 1R, before the 3R trim": "The median is 4.8R, and 72% of the time it is 3R or more.",
+    "About 20R, well past the trim": "The median is 4.8R.",
+    "Right at the entry price": "The entry is at the floor. The top is the far side of the range."
    }
   },
   "review_status": "draft",
@@ -171440,7 +171167,7 @@
  },
  {
   "answer_json": {
-   "answer": "Out; the loss is 2.5R, past 2R"
+   "answer": "Out; 2.5R is past the 2R cap"
   },
   "difficulty": 2,
   "id": "si_b6dbd9960d60",
@@ -171449,10 +171176,10 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Hold; it will bounce",
-    "Buy more at 95.00",
-    "Out; the loss is 2.5R, past 2R",
-    "Move the stop to 94.00"
+    "Hold; it should bounce back",
+    "Buy more at 95.00 to average",
+    "Out; 2.5R is past the 2R cap",
+    "Move the stop down to 94.00"
    ],
    "kind": "mcq",
    "q": "What now?",
@@ -171504,15 +171231,15 @@
      "fn": "arith",
      "result": 2.5
     },
-    "given": "What now? You bought at 100.00 with a stop at 98.00. The stock gaps down and the first 30-minute low is 95.00. Out; the loss is 2.5R, past 2R Hold; it will bounce Move the stop to 94.00 Buy more at 95.00"
+    "given": "What now? You bought at 100.00 with a stop at 98.00. The stock gaps down and the first 30-minute low is 95.00. Out; 2.5R is past the 2R cap Hold; it should bounce back Move the stop down to 94.00 Buy more at 95.00 to average"
    },
    "lesson_line": "A gap through the stop is capped at 2R. Past that, leave.",
    "unit": "SET.50",
    "why": "Out. On a gap through the stop, the first 30-minute low is the new stop, and a loss past 2R means get out.",
    "wrong": {
-    "Buy more at 95.00": "We never add when down.",
-    "Hold; it will bounce": "The stop is the exit. Hope is not a plan.",
-    "Move the stop to 94.00": "The stop only moves up, never wider."
+    "Buy more at 95.00 to average": "We never add when down.",
+    "Hold; it should bounce back": "The stop is the exit. Hope is not a plan.",
+    "Move the stop down to 94.00": "The stop only moves up, never wider."
    }
   },
   "review_status": "draft",
@@ -175759,51 +175486,6 @@
  },
  {
   "answer_json": {
-   "answer": "True"
-  },
-  "difficulty": 2,
-  "id": "si_106a72c64ac0",
-  "lesson_origin": "session",
-  "lesson_text": "True. A trade still under 1R after 10 trading days is sold, freeing the money. Dead money gets freed.",
-  "module": "SET",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "A trade still under 1R after 10 trading days is sold.",
-   "subject": "SET.51#q39"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     }
-    ],
-    "summary": "C33: a trade still under 1R after 10 trading days is sold."
-   },
-   "facts": {
-    "given": "A trade still under 1R after 10 trading days is sold."
-   },
-   "lesson_line": "Dead money gets freed.",
-   "unit": "SET.51",
-   "why": "True. A trade still under 1R after 10 trading days is sold, freeing the money."
-  },
-  "review_status": "draft",
-  "skill_id": "setup.mean_reversion",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/SET/SET.51.json#q39",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "No stop; sell at the 5-day average"
   },
   "difficulty": 2,
@@ -178316,7 +177998,7 @@
   "difficulty": 1,
   "id": "si_8a8296b45810",
   "lesson_origin": "session",
-  "lesson_text": "False. We trade only stocks at $10 or more that trade at least $20 million a day. This one has the price but not the volume. Price and dollar volume both have to clear.",
+  "lesson_text": "False. We trade only stocks at $10 or more that trade at least $20 million a day. This one has the volume but not the price. Price and dollar volume both have to clear.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -178324,7 +178006,7 @@
     "False"
    ],
    "kind": "tf",
-   "q": "A $12 stock that trades $15 million a day passes the liquidity rule.",
+   "q": "An $8 stock that trades $40 million a day passes the liquidity rule.",
    "subject": "SET.52#q09"
   },
   "reveal_json": {
@@ -178341,11 +178023,11 @@
     "summary": "B23: only stocks at $10 or more trading at least $20 million a day."
    },
    "facts": {
-    "given": "A $12 stock that trades $15 million a day passes the liquidity rule."
+    "given": "An $8 stock that trades $40 million a day passes the liquidity rule."
    },
    "lesson_line": "Price and dollar volume both have to clear.",
    "unit": "SET.52",
-   "why": "False. We trade only stocks at $10 or more that trade at least $20 million a day. This one has the price but not the volume."
+   "why": "False. We trade only stocks at $10 or more that trade at least $20 million a day. This one has the volume but not the price."
   },
   "review_status": "draft",
   "skill_id": "setup.wick_play",
@@ -179563,7 +179245,7 @@
   "difficulty": 2,
   "id": "si_2783ceff9e5b",
   "lesson_origin": "session",
-  "lesson_text": "True. A trade still under 1R after 10 trading days is sold, freeing the money. Dead money gets freed.",
+  "lesson_text": "True. A trade still under 1R after 10 trading days is sold, freeing the money. A gain of 0.5R is under 1R. Dead money gets freed.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -179571,7 +179253,7 @@
     "False"
    ],
    "kind": "tf",
-   "q": "A trade still under 1R after 10 trading days is sold.",
+   "q": "After 10 trading days a trade is still only up 0.5R. We sell it.",
    "subject": "SET.52#q31"
   },
   "reveal_json": {
@@ -179588,11 +179270,11 @@
     "summary": "C33: a trade still under 1R after 10 trading days is sold."
    },
    "facts": {
-    "given": "A trade still under 1R after 10 trading days is sold."
+    "given": "After 10 trading days a trade is still only up 0.5R. We sell it."
    },
    "lesson_line": "Dead money gets freed.",
    "unit": "SET.52",
-   "why": "True. A trade still under 1R after 10 trading days is sold, freeing the money."
+   "why": "True. A trade still under 1R after 10 trading days is sold, freeing the money. A gain of 0.5R is under 1R."
   },
   "review_status": "draft",
   "skill_id": "setup.wick_play",
@@ -180101,9 +179783,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "An inside day",
+    "An inside day in a quiet range",
     "A Go Signal, not a wick play",
-    "A wick play"
+    "A wick play above the body"
    ],
    "kind": "mcq",
    "q": "Wick play or something else?",
@@ -180131,14 +179813,14 @@
     "summary": "A Go Signal sweeps support and leaves a lower wick; a wick play holds in the upper wick. TaPlot: holding in the wick without trading in the body is a sign of strength."
    },
    "facts": {
-    "given": "Wick play or something else? Today opened under yesterday's close, swept below support and left a long lower wick as buyers stepped in. A Go Signal, not a wick play A wick play An inside day"
+    "given": "Wick play or something else? Today opened under yesterday's close, swept below support and left a long lower wick as buyers stepped in. A Go Signal, not a wick play A wick play above the body An inside day in a quiet range"
    },
    "lesson_line": "Lower wick after a sweep is not a wick play.",
    "unit": "SET.52",
    "why": "A Go Signal, not a wick play. A Go Signal sweeps support and leaves a lower wick. A wick play holds in the upper wick and stays above the body.",
    "wrong": {
-    "A wick play": "The wick play is the hold in the prior day's upper wick. This is a lower wick after a sweep.",
-    "An inside day": "An inside day stays inside the prior range. This swept below support."
+    "A wick play above the body": "The wick play is the hold in the prior day's upper wick. This is a lower wick after a sweep.",
+    "An inside day in a quiet range": "An inside day stays inside the prior range. This swept below support."
    }
   },
   "review_status": "draft",
@@ -181006,7 +180688,7 @@
  },
  {
   "answer_json": {
-   "answer": "No, no new buys outside regular hours"
+   "answer": "No, not outside regular hours"
   },
   "difficulty": 1,
   "id": "si_ebaa40c4cbd4",
@@ -181015,9 +180697,9 @@
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Yes, with a limit order",
-    "Yes, the trigger printed",
-    "No, no new buys outside regular hours"
+    "Yes, if you use a limit order",
+    "Yes, the trigger printed early",
+    "No, not outside regular hours"
    ],
    "kind": "mcq",
    "q": "Do you buy?",
@@ -181045,14 +180727,14 @@
     "summary": "E58: no new buys outside regular hours. E57: entries are market orders."
    },
    "facts": {
-    "given": "Do you buy? On day 3, price trades over day 2's high at 8:15 in the morning, in premarket. No, no new buys outside regular hours Yes, the trigger printed Yes, with a limit order"
+    "given": "Do you buy? On day 3, price trades over day 2's high at 8:15 in the morning, in premarket. No, not outside regular hours Yes, the trigger printed early Yes, if you use a limit order"
    },
    "lesson_line": "Wait for regular hours.",
    "unit": "SET.52",
    "why": "No. No new buys outside regular trading hours. Entries are market orders, placed in the regular session.",
    "wrong": {
-    "Yes, the trigger printed": "The trigger has to print in the regular session. No new buys outside regular hours.",
-    "Yes, with a limit order": "A limit order is still a new buy outside regular hours, and our entries are market orders."
+    "Yes, if you use a limit order": "A limit order is still a new buy outside regular hours, and our entries are market orders.",
+    "Yes, the trigger printed early": "The trigger has to print in the regular session. No new buys outside regular hours."
    }
   },
   "review_status": "draft",
@@ -181484,51 +181166,6 @@
   "answer_json": {
    "answer": "True"
   },
-  "difficulty": 2,
-  "id": "si_c4edee697480",
-  "lesson_origin": "session",
-  "lesson_text": "True. The cap is 1% of the stock's average daily volume. Illiquid stocks are not even watched. One percent of the daily volume is the ceiling. Thin names are not on the list.",
-  "module": "SET",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "We never own more than 1% of a stock's average daily volume.",
-   "subject": "SET.52#q62"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     }
-    ],
-    "summary": "D42: never own more than 1% of a stock's average daily volume."
-   },
-   "facts": {
-    "given": "We never own more than 1% of a stock's average daily volume."
-   },
-   "lesson_line": "One percent of the daily volume is the ceiling. Thin names are not on the list.",
-   "unit": "SET.52",
-   "why": "True. The cap is 1% of the stock's average daily volume. Illiquid stocks are not even watched."
-  },
-  "review_status": "draft",
-  "skill_id": "setup.wick_play",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/SET/SET.52.json#q62",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "True"
-  },
   "difficulty": 1,
   "id": "si_b1c32918a9b6",
   "lesson_origin": "session",
@@ -181699,6 +181336,74 @@
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.52.json#q65",
   "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "12,000 shares, 1% of the average"
+  },
+  "difficulty": 3,
+  "id": "si_b19bb9f899d7",
+  "lesson_origin": "session",
+  "lesson_text": "12,000. We never own more than 1% of a stock's average daily volume. One quiet day does not change the cap. Cap the size at 1% of the average day, not the day you see.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "No ceiling, since the setup is clean",
+    "3,000 shares, 1% of day 2's volume",
+    "12,000 shares, 1% of the average",
+    "20,000 shares, the risk math allows"
+   ],
+   "kind": "mcq",
+   "q": "How many shares may you own?",
+   "story": "A clean wick play. Day 2 was quiet, with 300,000 shares traded. The stock averages 1,200,000 shares a day. Your risk math says 20,000 shares.",
+   "subject": "SET.52#q66"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Shares = account × risk % ÷ (entry − stop), rounded down, then capped",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "D42: never own more than 1% of a stock's average daily volume. A5: shares are account times risk percent, divided by entry minus stop, rounded down, then capped."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "adv": 1200000,
+      "expr": "adv * 0.01"
+     },
+     "fn": "arith",
+     "result": 12000.0
+    },
+    "given": "How many shares may you own? A clean wick play. Day 2 was quiet, with 300,000 shares traded. The stock averages 1,200,000 shares a day. Your risk math says 20,000 shares. 12,000 shares, 1% of the average 3,000 shares, 1% of day 2's volume 20,000 shares, the risk math allows No ceiling, since the setup is clean"
+   },
+   "lesson_line": "Cap the size at 1% of the average day, not the day you see.",
+   "unit": "SET.52",
+   "why": "12,000. We never own more than 1% of a stock's average daily volume. One quiet day does not change the cap.",
+   "wrong": {
+    "20,000 shares, the risk math allows": "The risk-based size is then capped. 20,000 is over 1% of the average daily volume.",
+    "3,000 shares, 1% of day 2's volume": "The cap uses the average daily volume, not one quiet day.",
+    "No ceiling, since the setup is clean": "A clean setup does not lift the ceiling. It is 1% of the average daily volume."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.wick_play",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.52.json#q66",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -183936,51 +183641,6 @@
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.53.json#q35",
   "type": "scenario",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "True"
-  },
-  "difficulty": 2,
-  "id": "si_cec4e09eb550",
-  "lesson_origin": "session",
-  "lesson_text": "True. A trade still under 1R after 10 trading days is sold, freeing the money. Dead money gets freed.",
-  "module": "SET",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "A trade still under 1R after 10 trading days is sold.",
-   "subject": "SET.53#q37"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     }
-    ],
-    "summary": "C33: a trade still under 1R after 10 trading days is sold."
-   },
-   "facts": {
-    "given": "A trade still under 1R after 10 trading days is sold."
-   },
-   "lesson_line": "Dead money gets freed.",
-   "unit": "SET.53",
-   "why": "True. A trade still under 1R after 10 trading days is sold, freeing the money."
-  },
-  "review_status": "draft",
-  "skill_id": "setup.red_to_green",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/SET/SET.53.json#q37",
-  "type": "recall",
   "version": 1
  },
  {
@@ -186251,6 +185911,66 @@
  },
  {
   "answer_json": {
+   "answer": "Sell; under 1R after 10 days"
+  },
+  "difficulty": 3,
+  "id": "si_cf52061df0e3",
+  "lesson_origin": "session",
+  "lesson_text": "Sell. A trade still under 1R after 10 trading days is sold. The green close on day one does not change that. Ten days under 1R and the trade is done. The money moves on.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Hold; the stop has not traded yet",
+    "Add a little to lower the average",
+    "Hold; the green close proved it",
+    "Sell; under 1R after 10 days"
+   ],
+   "kind": "mcq",
+   "q": "What do you do?",
+   "story": "You bought a red to green ten trading days ago and it closed green that day. Since then it has drifted and sits at 0.5R. The stop has not traded.",
+   "subject": "SET.53#q76"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Red to Green criteria card (docs/study/setups/criteria/43-red-to-green.json, as of 2026-11-09)",
+      "quote": "Full size at one price. No starter, no add.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/43-red-to-green.json"
+     }
+    ],
+    "summary": "C33: a trade still under 1R after 10 trading days is sold. Full size at one price; no starter, no add."
+   },
+   "facts": {
+    "given": "What do you do? You bought a red to green ten trading days ago and it closed green that day. Since then it has drifted and sits at 0.5R. The stop has not traded. Sell; under 1R after 10 days Hold; the green close proved it Hold; the stop has not traded yet Add a little to lower the average"
+   },
+   "lesson_line": "Ten days under 1R and the trade is done. The money moves on.",
+   "unit": "SET.53",
+   "why": "Sell. A trade still under 1R after 10 trading days is sold. The green close on day one does not change that.",
+   "wrong": {
+    "Add a little to lower the average": "No adding: full size at one price. The time stop sells a trade that has not worked.",
+    "Hold; the green close proved it": "The green close was on day one. After 10 trading days under 1R, the time stop sells it.",
+    "Hold; the stop has not traded yet": "The time stop is its own exit. Under 1R after 10 days, it is sold before the stop trades."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.red_to_green",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.53.json#q76",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "unscored": true
   },
   "difficulty": 1,
@@ -186909,7 +186629,7 @@
   "difficulty": 1,
   "id": "si_cfd531581577",
   "lesson_origin": "session",
-  "lesson_text": "True. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. Drives belong to leaders. RS 80 or more, in a strong group.",
+  "lesson_text": "True. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. An 84 clears it. Drives belong to leaders. RS 80 or more, in a strong group.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -186917,7 +186637,7 @@
     "False"
    ],
    "kind": "tf",
-   "q": "We take drives in leaders: an RS rating of 80 or more, in a strong group.",
+   "q": "An RS rating of 84, in one of the strongest groups, meets our leader test for a drive.",
    "subject": "SET.54#q07"
   },
   "reveal_json": {
@@ -186941,11 +186661,11 @@
     "summary": "C31: buy leaders, an RS rating of 80 or more in a strong group. RS rating 80 or more, in a strong group."
    },
    "facts": {
-    "given": "We take drives in leaders: an RS rating of 80 or more, in a strong group."
+    "given": "An RS rating of 84, in one of the strongest groups, meets our leader test for a drive."
    },
    "lesson_line": "Drives belong to leaders. RS 80 or more, in a strong group.",
    "unit": "SET.54",
-   "why": "True. We buy leaders: an RS rating of 80 or more, in one of the strongest groups."
+   "why": "True. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. An 84 clears it."
   },
   "review_status": "draft",
   "skill_id": "setup.opening_drive",
@@ -188690,18 +188410,18 @@
  },
  {
   "answer_json": {
-   "answer": "A third banked at 3R, the rest near even"
+   "answer": "A third banked, rest near even"
   },
   "difficulty": 2,
   "id": "si_97edd325517c",
   "lesson_origin": "session",
-  "lesson_text": "A third banked at 3R. The rule is a third off at 3R, with the stop to breakeven by default. Trim a third at 3R or keep nothing. The first trim turns a round trip into a win. Take the third at 3R.",
+  "lesson_text": "A third banked, the rest near even. The rule is a third off at 3R, with the stop to breakeven by default. Trim a third at 3R or keep nothing. The first trim turns a round trip into a win. Take the third at 3R.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "A full-size loss",
-    "A third banked at 3R, the rest near even",
-    "Two thirds, sold at 5R",
+    "A full-size loss at the old stop",
+    "A third banked, rest near even",
+    "Two thirds banked at 5R",
     "Nothing; it round-tripped"
    ],
    "kind": "mcq",
@@ -188737,15 +188457,15 @@
     "summary": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R. CNC: buy 72.00 at 9:35, stop 70.16 (2.6%); 3R, 77.52, at 9:35 the next day; stopped on 11-06. CNC: the heaviest first-bar volume in the set; it topped at 3R, round-tripped two days later: trim a third at 3R or keep nothing."
    },
    "facts": {
-    "given": "What did our rules keep? You bought CNC's drive at 72.00, stop 70.16. At 9:35 the next day it prints 3R, 77.52. Two days later it falls back to the old stop. A full-size loss A third banked at 3R, the rest near even Nothing; it round-tripped Two thirds, sold at 5R"
+    "given": "What did our rules keep? You bought CNC's drive at 72.00, stop 70.16. At 9:35 the next day it prints 3R, 77.52. Two days later it falls back to the old stop. A full-size loss at the old stop A third banked, rest near even Nothing; it round-tripped Two thirds banked at 5R"
    },
    "lesson_line": "The first trim turns a round trip into a win. Take the third at 3R.",
    "unit": "SET.54",
-   "why": "A third banked at 3R. The rule is a third off at 3R, with the stop to breakeven by default. Trim a third at 3R or keep nothing.",
+   "why": "A third banked, the rest near even. The rule is a third off at 3R, with the stop to breakeven by default. Trim a third at 3R or keep nothing.",
    "wrong": {
-    "A full-size loss": "The stop moved to breakeven at the first trim, so the rest left near even.",
+    "A full-size loss at the old stop": "The stop moved to breakeven at the first trim, so the rest left near even.",
     "Nothing; it round-tripped": "The third sold at 3R was already banked. That is why we trim.",
-    "Two thirds, sold at 5R": "The stock never reached 5R. Only the first third came off."
+    "Two thirds banked at 5R": "The stock never reached 5R. Only the first third came off."
    }
   },
   "review_status": "draft",
@@ -188757,18 +188477,18 @@
  },
  {
   "answer_json": {
-   "answer": "A warning; the stop is the only exit"
+   "answer": "A warning; the stop is the exit"
   },
   "difficulty": 2,
   "id": "si_35a4ad27b162",
   "lesson_origin": "session",
-  "lesson_text": "A warning; the stop is the only exit. A drive day that closes in the bottom third has failed, but we do not add an exit the rulebook lacks. A weak close is a warning, not an order. The stop is the exit.",
+  "lesson_text": "A warning; the stop is the exit. A drive day that closes in the bottom third has failed, but we do not add an exit the rulebook lacks. A weak close is a warning, not an order. The stop is the exit.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Sell at the close to be safe",
+    "Sell it at the close to be safe",
     "Hold and add on the next dip",
-    "A warning; the stop is the only exit",
+    "A warning; the stop is the exit",
     "Sell at tomorrow's open"
    ],
    "kind": "mcq",
@@ -188804,15 +188524,15 @@
     "summary": "A drive day closing below its open or in its bottom third has failed; a warning, the stop is the only exit. A4: the stop is the exit; it only moves up; the gap rule is the one exception. EAT: the high printed at 9:45, a lower high followed, the first close under VWAP came at 9:55, the stop hit at 14:20, and the day closed at 24% of its range."
    },
    "facts": {
-    "given": "What does the rulebook say? You bought a drive at 9:35. It closes at 24% of its range, still above your stop. A warning; the stop is the only exit Sell at the close to be safe Sell at tomorrow's open Hold and add on the next dip"
+    "given": "What does the rulebook say? You bought a drive at 9:35. It closes at 24% of its range, still above your stop. A warning; the stop is the exit Sell it at the close to be safe Sell at tomorrow's open Hold and add on the next dip"
    },
    "lesson_line": "A weak close is a warning, not an order. The stop is the exit.",
    "unit": "SET.54",
-   "why": "A warning; the stop is the only exit. A drive day that closes in the bottom third has failed, but we do not add an exit the rulebook lacks.",
+   "why": "A warning; the stop is the exit. A drive day that closes in the bottom third has failed, but we do not add an exit the rulebook lacks.",
    "wrong": {
     "Hold and add on the next dip": "Full size at one price with one stop, no adding.",
-    "Sell at the close to be safe": "That adds an exit we do not have. The stop is the only exit.",
-    "Sell at tomorrow's open": "Same mistake, a day later. The stop is the only exit."
+    "Sell at tomorrow's open": "Same mistake, a day later. The stop is the only exit.",
+    "Sell it at the close to be safe": "That adds an exit we do not have. The stop is the only exit."
    }
   },
   "review_status": "draft",

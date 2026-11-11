@@ -1960,11 +1960,11 @@
    "criterion": "id.not_setup_alone",
    "q": "Take the break?",
    "choices": [
-    "No; no setup behind the bar",
-    "Yes; tight is tight",
-    "Yes, small"
+    "No; no setup behind it",
+    "Yes; this bar is tight",
+    "Yes, but small size"
    ],
-   "answer": "No; no setup behind the bar",
+   "answer": "No; no setup behind it",
    "why": "No. The inside day is an entry tool inside a bigger setup. A choppy range under a falling 50-day has nothing to enter. It is the B- end of the spots.",
    "lesson_line": "A quiet day in chop is just a quiet day in chop.",
    "facts": [
@@ -1973,8 +1973,8 @@
    ],
    "house": true,
    "wrong": {
-    "Yes; tight is tight": "Tight inside nothing is nothing. The location carries the edge.",
-    "Yes, small": "Small size does not create a setup. There is no structure here to buy."
+    "Yes; this bar is tight": "Tight inside nothing is nothing. The location carries the edge.",
+    "Yes, but small size": "Small size does not create a setup. There is no structure here to buy."
    },
    "story": "A stock in the middle of a choppy range, under a falling 50-day, prints a tight inside day."
   },
@@ -2108,19 +2108,19 @@
    "story": "A clean inside day sits three sessions after an earnings gap. It closes 14% over its 10-day average.",
    "q": "Take the break?",
    "choices": [
-    "No; too stretched over the 10-day",
-    "Yes; the bar is clean",
-    "Yes, on half size"
+    "No; it is too stretched",
+    "Yes; the bar is very clean",
+    "Yes, but on half size"
    ],
-   "answer": "No; too stretched over the 10-day",
+   "answer": "No; it is too stretched",
    "why": "No. Skip a long that is more than 10% above its 10-day average. This one closes 14% over it, so the pause came too high.",
    "lesson_line": "A clean bar, too far above its average, is still a pass.",
    "facts": [
     "h13"
    ],
    "wrong": {
-    "Yes; the bar is clean": "The bar was clean. The stock was stretched, and the stretch rule comes before the bar.",
-    "Yes, on half size": "Half size does not cure a stretch. Skip the long over the line."
+    "Yes; the bar is very clean": "The bar was clean. The stock was stretched, and the stretch rule comes before the bar.",
+    "Yes, but on half size": "Half size does not cure a stretch. Skip the long over the line."
    },
    "house": true
   },
@@ -2132,11 +2132,11 @@
    "criterion": "id.not_setup_alone",
    "q": "What is the inside day here?",
    "choices": [
-    "The flag's entry, not a second setup",
-    "A second setup; two trades",
-    "A warning; the flag failed"
+    "The flag's entry, not a setup",
+    "A second setup; two buys",
+    "A warning; the flag has failed"
    ],
-   "answer": "The flag's entry, not a second setup",
+   "answer": "The flag's entry, not a setup",
    "why": "The flag's entry. An inside day inside a flag is the flag's entry, not a second setup. One structure, one trade, one stop.",
    "lesson_line": "The structure is the setup. The quiet day is how you get in.",
    "facts": [
@@ -2145,8 +2145,8 @@
    ],
    "house": true,
    "wrong": {
-    "A second setup; two trades": "Full size at one price with one stop. The inside day times the flag's entry; it does not double it.",
-    "A warning; the flag failed": "A quiet day inside a flag is the drift the flag wants, not a failure."
+    "A second setup; two buys": "Full size at one price with one stop. The inside day times the flag's entry; it does not double it.",
+    "A warning; the flag has failed": "A quiet day inside a flag is the drift the flag wants, not a failure."
    },
    "story": "A 20% pole, then eight sessions of quiet drift. The sixth drift day is an inside day."
   },
@@ -2479,11 +2479,11 @@
    "criterion": "id.not_setup_alone",
    "q": "Your call?",
    "choices": [
-    "Take it; location, stock, market agree",
-    "Pass; the bar alone is random",
-    "Wait for the close"
+    "Take it; stock, spot, market agree",
+    "Pass; the bar alone is near random",
+    "Wait for the close to confirm"
    ],
-   "answer": "Take it; location, stock, market agree",
+   "answer": "Take it; stock, spot, market agree",
    "why": "Take it, at market. The bar alone is near random; the stock, the location and the market carry the edge, and all three agree here. Our Sunday Scans point to this picture: an inside day and a higher low at a rising 20 EMA.",
    "lesson_line": "When the stock, the spot and the market all say yes, the quiet day is the door.",
    "facts": [
@@ -2494,8 +2494,8 @@
    ],
    "house": true,
    "wrong": {
-    "Pass; the bar alone is random": "Alone, yes. Here it sits inside a leader's pullback in a Green market. That is the setup.",
-    "Wait for the close": "The trigger is the trade over the high, bought at market. Our default does not wait for the close."
+    "Pass; the bar alone is near random": "Alone, yes. Here it sits inside a leader's pullback in a Green market. That is the setup.",
+    "Wait for the close to confirm": "The trigger is the trade over the high, bought at market. Our default does not wait for the close."
    },
    "story": "A clean inside day at a rising 20-day in a leader. Green market, no earnings for weeks, the stop 1.5% under the trigger. At 10:20 the high trades."
   },
@@ -2817,7 +2817,7 @@
   },
   "q44": {
    "status": "pass",
-   "notes": "The old why called the spot 'the B- end' and then said no trade; the card puts it in the B- row, not the no-trade list. Now the no rests on c06 (nothing to enter) and the B- mention is only a description.",
+   "notes": "The old why called the spot 'the B- end' and then said no trade; the card puts it in the B- row, not the no-trade list. Now the no rests on c06 (nothing to enter) and the B- mention is only a description. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },
@@ -2853,13 +2853,13 @@
   },
   "q50": {
    "status": "pass",
-   "notes": "The original used QCOM 2020-08-04: 13.0% over the 10-day SIMPLE average (bars: 110.95 vs 98.17, confirmed) but only about 9.7% over a 10-day EMA. The conflicts line claimed 'past the line either way'; that is wrong. Which 10-day average C29 means is pending (D-017), so the QCOM key would flip with the owner's choice. Replaced with a hypothetical 14% (past 10% on either average); QCOM facts d21/d22 no longer cited.",
+   "notes": "The original used QCOM 2020-08-04: 13.0% over the 10-day SIMPLE average (bars: 110.95 vs 98.17, confirmed) but only about 9.7% over a 10-day EMA. The conflicts line claimed 'past the line either way'; that is wrong. Which 10-day average C29 means is pending (D-017), so the QCOM key would flip with the owner's choice. Replaced with a hypothetical 14% (past 10% on either average); QCOM facts d21/d22 no longer cited. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },
   "q51": {
    "status": "pass",
-   "notes": "c34 verbatim on the card's lookalike; the story matches the flag's 3 to 15 sessions after a 20% pole. Key right.",
+   "notes": "c34 verbatim on the card's lookalike; the story matches the flag's 3 to 15 sessions after a 20% pole. Key right. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -2937,7 +2937,7 @@
   },
   "q64": {
    "status": "pass",
-   "notes": "u02 is a question in the owner's Sunday Scan ('...at a rising 20EMA?'); the claim and the why stated it as a settled spot. Reworded to 'point to this picture'. 'Wait for the close' wrong note no longer rules the close out beyond our default (D-003 pending).",
+   "notes": "u02 is a question in the owner's Sunday Scan ('...at a rising 20EMA?'); the claim and the why stated it as a settled spot. Reworded to 'point to this picture'. 'Wait for the close' wrong note no longer rules the close out beyond our default (D-003 pending). flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },

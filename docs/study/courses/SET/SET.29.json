@@ -1840,11 +1840,11 @@
    "criterion": "fh.volume_cue",
    "q": "The trigger day prints 1.0x its average volume. Does the trade still count?",
    "choices": [
-    "Yes; volume is a grade cue, not a gate",
-    "No; it needs 2x volume",
-    "No; wait for a heavier day"
+    "Yes; volume is a cue, no gate",
+    "No; it needs 2x the average",
+    "No; wait for more volume first"
    ],
-   "answer": "Yes; volume is a grade cue, not a gate",
+   "answer": "Yes; volume is a cue, no gate",
    "why": "Yes. No hard volume rule; 1.25x or more of the 50-day average is a grading plus. ICLR triggered on 1.0x and still ran 25%. Bulkowski: heavy breakout volume suggests better performance, so it grades the day up.",
    "lesson_line": "Volume grades the trigger. It does not decide it.",
    "facts": [
@@ -1853,8 +1853,8 @@
     "b10"
    ],
    "wrong": {
-    "No; it needs 2x volume": "There is no volume gate on this card. Heavy volume grades the day up; light volume does not cancel it.",
-    "No; wait for a heavier day": "The trigger is the trade over the level, not the volume. Waiting is a missed entry."
+    "No; it needs 2x the average": "There is no volume gate on this card. Heavy volume grades the day up; light volume does not cancel it.",
+    "No; wait for more volume first": "The trigger is the trade over the level, not the volume. Waiting is a missed entry."
    },
    "house": true
   },
@@ -3107,7 +3107,7 @@
   },
   "q30": {
    "status": "pass",
-   "notes": "c08, d12, b10 verbatim (ICLR 1.0x, 3R in 21 days, +25%). Volume is a cue; settled by the card as proposed.",
+   "notes": "c08, d12, b10 verbatim (ICLR 1.0x, 3R in 21 days, +25%). Volume is a cue; settled by the card as proposed. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },

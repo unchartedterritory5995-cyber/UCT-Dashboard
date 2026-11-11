@@ -2449,7 +2449,7 @@
   "The chart questions (KRYS asof 2023-08-07, the flush day itself; LLY asof 2025-03-10, taken as the trading day before the 2025-03-11 turn day, the flush day) show the member's own chart with their averages; the ticker is not in the question. The keys rest on dossier reads (dKR1, dKR2, dLL1, dLL2). If the importer's bars start the forward window one day off, the reveal text still holds.",
   "The stock questions apply B26 (no longs below the 200-day, unless a parabolic long) as written; the card's index exception is D-009 and is not taught here.",
   "The Kell question teaches Kell's retest of the 20 EMA as Kell's own target; the dossier recommends a similar first trim for this setup (Option 2, pending D-013). If the owner adopts Option 2, the 3R fill, 3R price, trim-at-open and breakeven questions need a second look.",
-  "The time-stop question keys C33's 10 trading days as the general time stop. The card's own time stop for this setup (3 sessions without a close above the flush day's high) is pending D-019 and may replace it.",
+  "The time-stop question keys C33's 10 trading days as the general time stop. The card's own time stop for this setup (3 sessions without a close above the flush day's high) is pending D-019 and may replace it. Cold look 2026-11-11: that question (q39) is cut as a duplicate of SET.08 q22, so the unit now asks no time-stop question and keys neither the 10 days nor the 3 sessions.",
   "Cold check 2026-11-10: 65 pass (62 questions and 3 walk-throughs; 22 fixed, 3 of them walk-throughs), 0 fix, 1 cut (q29 as a duplicate of q07). Look first at: (1) the trims: the unit teaches our thirds at 3R and 5R (B19, E51) and says so (\"in our plan\"), but the card recommends Option 2, a first trim at the 20-day (D-013, pending); if you adopt it, q15, q25, q33, q34, q35, q41, w1 and w2 need a second look; (2) the card's mr.location is a gate in its pattern line (\"not in the middle of a range\") and a B-minus row in its grading; q31 keys Pass on the pattern line, so say which it is; (3) the card's mr.prior_trend_a says \"the day before the flush\" but the scan and every winner use \"before the slide began\" (q02 keys the looser reading), and the ten examples (EQT, KRYS, ACMR and the failures) are still unreviewed by you. Also fixed: q55 told the member a second red day grades B-minus when the unit keys it as a skip (rewritten); the grade-row labels (A+, B-minus) in q12, q16, q19, q28, q55, q56, q62 were reworded to stronger or weaker case (E50); q61 gave one stretch mark while keying \"all gates pass\"; q26 now cites the 40% cap (328 shares is 17.6% of the account); w3 states that the 3.5% stop shrinks the size; q43 and q47 no longer say \"the card\"."
  ],
  "verify": {
@@ -2682,10 +2682,9 @@
    "by": "checker"
   },
   "q39": {
-   "status": "pass",
-   "notes": "h15 verbatim. Keys C33's 10 trading days. The card's 3-session time stop (D-019 pending) is not keyed.",
-   "fixed": false,
-   "by": "checker"
+   "status": "cut",
+   "notes": "cut 2026-11-11: duplicate of SET.08 q22; cut confirmed: SET.08 q22 (stays) asks the same 10-day rule; mr.time_stop's own number (3 sessions, D-019) is held, so no replacement is keyed on it; cut confirmed, flagged-question fix checked 2026-11-11",
+   "by": "writer"
   },
   "q40": {
    "status": "pass",

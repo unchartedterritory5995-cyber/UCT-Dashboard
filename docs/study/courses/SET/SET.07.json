@@ -1889,11 +1889,11 @@
    "criterion": "fb.stop_width",
    "q": "Which is the one thing you never do?",
    "choices": [
-    "Pull the stop up to 3% to fit the size",
-    "Skip the trade",
-    "Wait for a tighter entry"
+    "Pull the stop in to 3% to fit size",
+    "Skip it when the stop will not fit",
+    "Wait a day for a tighter entry"
    ],
-   "answer": "Pull the stop up to 3% to fit the size",
+   "answer": "Pull the stop in to 3% to fit size",
    "why": "Never pull the stop in to fit. Stop first; the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
    "lesson_line": "You never pick a size and back-fit a stop inside the noise.",
    "facts": [
@@ -1902,8 +1902,8 @@
     "c20"
    ],
    "wrong": {
-    "Skip the trade": "Skipping is allowed. A3 says so when the honest stop does not fit.",
-    "Wait for a tighter entry": "Waiting is fine. The mistake is moving the stop, not the entry."
+    "Skip it when the stop will not fit": "Skipping is allowed. A3 says so when the honest stop does not fit.",
+    "Wait a day for a tighter entry": "Waiting is fine. The mistake is moving the stop, not the entry."
    },
    "house": true,
    "story": "The breakout fills at 48.60. The day's low sits at 46.40, about 4.5% under your fill."
@@ -2093,19 +2093,19 @@
    "criterion": "fb.liquidity",
    "q": "Take the breakout?",
    "choices": [
-    "No; under $10 and $20 million a day",
-    "Yes; the base is the base",
-    "Yes, half size"
+    "No; it fails our liquidity floor",
+    "Yes; the base is clean enough",
+    "Yes, but at half our normal size"
    ],
-   "answer": "No; under $10 and $20 million a day",
+   "answer": "No; it fails our liquidity floor",
    "why": "No. We trade only stocks at $10 or more that trade at least $20 million a day.",
    "lesson_line": "A clean box in a thin stock is still a thin stock.",
    "facts": [
     "h09"
    ],
    "wrong": {
-    "Yes; the base is the base": "The base is fine and the stock is not ours. The liquidity rule comes before the chart.",
-    "Yes, half size": "Size does not make a thin stock liquid."
+    "Yes; the base is clean enough": "The base is fine and the stock is not ours. The liquidity rule comes before the chart.",
+    "Yes, but at half our normal size": "Size does not make a thin stock liquid."
    },
    "house": true,
    "story": "A clean flat base on a $7 stock that trades about $4 million a day."
@@ -2524,11 +2524,11 @@
    "criterion": "fb.leaders_basing",
    "q": "How many do you take on day one?",
    "choices": [
-    "A few; add more as the first ones work",
+    "A few; add more as they work",
     "All eight; Green is full risk",
-    "None; wait a week"
+    "None; wait a week to be sure"
    ],
-   "answer": "A few; add more as the first ones work",
+   "answer": "A few; add more as they work",
    "why": "A few. After a correction, when the reading turns Green again, start with a few positions. Add more only as the first ones work. Many leaders basing sideways is the best setting for the setup.",
    "lesson_line": "Green after a correction: a few positions first. Let the winners earn the next ones.",
    "facts": [
@@ -2537,7 +2537,7 @@
    ],
    "wrong": {
     "All eight; Green is full risk": "Full risk per grade is the ceiling, not the first day's order. Earn it.",
-    "None; wait a week": "Waiting a week after the turn is how you miss the first leg. A few is the rule."
+    "None; wait a week to be sure": "Waiting a week after the turn is how you miss the first leg. A few is the rule."
    },
    "house": true,
    "story": "After a correction the reading just turned Green. Your list shows eight flat bases sitting at their pivots."
@@ -2579,19 +2579,19 @@
    "criterion": "fb.earnings_window",
    "q": "Hold through the report?",
    "choices": [
-    "No; hold through only if up 5R",
-    "Yes; the trend is up",
-    "Yes; sell half first"
+    "No; only a 5R winner holds",
+    "Yes; the trend is still up",
+    "Yes, after trimming half"
    ],
-   "answer": "No; hold through only if up 5R",
+   "answer": "No; only a 5R winner holds",
    "why": "No. We hold through a report only if the trade is up 5R. At 2R the gap risk is bigger than the cushion.",
    "lesson_line": "Earnings is a gap you cannot stop. Five R buys the ticket; 2R does not.",
    "facts": [
     "h08"
    ],
    "wrong": {
-    "Yes; the trend is up": "The trend does not report earnings. The gap does.",
-    "Yes; sell half first": "Half of a 2R cushion is still under the 5R line."
+    "Yes; the trend is still up": "The trend does not report earnings. The gap does.",
+    "Yes, after trimming half": "Half of a 2R cushion is still under the 5R line."
    },
    "house": true,
    "story": "Your flat base long is up 2R and earnings are tomorrow after the close."
@@ -3169,7 +3169,7 @@
   },
   "q39": {
    "status": "pass",
-   "notes": "Key (never pull the stop in to fit the size) is settled: A3, A4 and c20 verbatim; h04 for the 3%. The choice 'Size smaller from the honest stop' with the note 'sizing from the real stop is the rule' took a side on D-005 (the card's recommended option is skip or wait when the stop is past 3% or the ADR), so that choice is removed; 'skip' and 'wait for a tighter entry' are allowed under every D-005 option. Story re-derived: (48.60 - 46.40) / 48.60 = 4.5%.",
+   "notes": "Key (never pull the stop in to fit the size) is settled: A3, A4 and c20 verbatim; h04 for the 3%. The choice 'Size smaller from the honest stop' with the note 'sizing from the real stop is the rule' took a side on D-005 (the card's recommended option is skip or wait when the stop is past 3% or the ADR), so that choice is removed; 'skip' and 'wait for a tighter entry' are allowed under every D-005 option. Story re-derived: (48.60 - 46.40) / 48.60 = 4.5%. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },
@@ -3217,7 +3217,7 @@
   },
   "q47": {
    "status": "pass",
-   "notes": "h09 (B23) verbatim. A $7 stock trading $4 million a day fails both halves; key and wrong notes true.",
+   "notes": "h09 (B23) verbatim. A $7 stock trading $4 million a day fails both halves; key and wrong notes true. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -3313,7 +3313,7 @@
   },
   "q63": {
    "status": "pass",
-   "notes": "h27 (F68) and c26 verbatim. Key is F68 (settled); the criterion tag fb.leaders_basing is the card's cue. A 23-word why sentence split.",
+   "notes": "h27 (F68) and c26 verbatim. Key is F68 (settled); the criterion tag fb.leaders_basing is the card's cue. A 23-word why sentence split. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },
@@ -3325,7 +3325,7 @@
   },
   "q65": {
    "status": "pass",
-   "notes": "h08 (B22: hold through a report only if up 5R) verbatim. At 2R the trade is sold before the report; wrong notes true.",
+   "notes": "h08 (B22: hold through a report only if up 5R) verbatim. At 2R the trade is sold before the report; wrong notes true. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },

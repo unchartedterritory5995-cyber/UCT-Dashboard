@@ -314,15 +314,32 @@
    "wrong": {"Sizing by how sure you feel": "How sure you feel is exactly what a streak inflates. That's the overconfidence you're guarding against.",
              "Watching your P&L more closely": "Watching the score sets no limit. A fat P&L can make the urge to size up stronger.",
              "Raising size until a loss stops you": "Then the first loss lands at your biggest size. That's how a run gets handed back."}},
-  {"key": "q07", "skill": "psych.euphoria", "rung": 3, "format": "mcq",
+  {
+   "key": "q07",
+   "skill": "psych.euphoria",
+   "rung": 3,
+   "format": "mcq",
    "q": "In Barber and Odean's study of 66,465 households, how did the ones that traded most do?",
-   "choices": ["Earned less than the market", "Beat the market", "Matched the market"],
-   "answer": "Earned less than the market",
-   "why": "Earned less than the market. From 1991 to 1996 they earned 11.4% a year after costs, while the market returned 17.9%. The authors say overconfidence can explain the heavy trading.",
+   "choices": [
+    "Fell short of the market",
+    "Beat the market by a bit",
+    "Kept pace with the market"
+   ],
+   "answer": "Fell short of the market",
+   "why": "Fell short of the market. From 1991 to 1996 they earned 11.4% a year after costs, while the market returned 17.9%. The authors say overconfidence can explain the heavy trading.",
    "lesson_line": "More trades is not more profit. Every trade has to earn its place.",
-   "facts": ["f32", "f33", "f43", "f34", "f49"],
-   "wrong": {"Beat the market": "The opposite. The busiest traders trailed: 11.4% a year against the market's 17.9%.",
-             "Matched the market": "They fell well short. In the full paper, the least active households netted 18.5% a year and the most active 11.4%."}},
+   "facts": [
+    "f32",
+    "f33",
+    "f43",
+    "f34",
+    "f49"
+   ],
+   "wrong": {
+    "Beat the market by a bit": "The opposite. The busiest traders trailed: 11.4% a year against the market's 17.9%.",
+    "Kept pace with the market": "They fell well short. In the full paper, the least active households netted 18.5% a year and the most active 11.4%."
+   }
+  },
   {"key": "q08", "skill": "psych.euphoria", "rung": 4, "format": "scenario",
    "story": "Your plan risks 1% on every trade. You've just closed three winners in a row. The next setup looks great, and you want to risk 3%.",
    "q": "What do you do?",
@@ -477,8 +494,12 @@
           "notes": "False is right: f35, f50 (wins indicate probable ability but breed overconfidence), f15, f06, f03 confirmed live; the why's 'may hint at some skill' matches f50's hedge. Added f53 (Hoffmann and Post: the better recent returns, the more investors credit their skill)."},
   "q06": {"status": "pass", "fixed": false, "by": "checker",
           "notes": "f26, f18 (Schwab) and f25 (Investopedia 2% rule, James Chen, updated 2026-05-13) confirmed live; '2%' in the why is in f24 and f25. Distractors are real habits: sizing by conviction, watching P&L, pressing until a loss. Plan-set risk is sound trading."},
-  "q07": {"status": "pass", "fixed": true, "by": "checker",
-          "notes": "f32, f33 confirmed on the IDEAS abstract, f34 on the authors' copy (Journal of Finance vol. LV no. 2 header), f43 on the SEC-hosted report. 11.4%, 17.9% and 18.5% match. Added 'after costs' (f34: 'net'), since the paper says gross returns of frequent and infrequent traders differed little."},
+  "q07": {
+   "status": "pass",
+   "fixed": true,
+   "by": "checker",
+   "notes": "f32, f33 confirmed on the IDEAS abstract, f34 on the authors' copy (Journal of Finance vol. LV no. 2 header), f43 on the SEC-hosted report. 11.4%, 17.9% and 18.5% match. Added 'after costs' (f34: 'net'), since the paper says gross returns of frequent and infrequent traders differed little. flagged-question fix checked 2026-11-11"
+  },
   "q08": {"status": "pass", "fixed": false, "by": "checker",
           "notes": "f04, f05, f25 (Investopedia) and f26 (Schwab) confirmed live. Recomputed: 3% / 1% = three normal losses; 2% / 1% doubles. A plan that says 1% on every trade stays at 1% on a feeling; the conflicts note covers rule-based scaling."},
   "q09": {"status": "pass", "fixed": false, "by": "checker",

@@ -4094,18 +4094,18 @@
  },
  {
   "answer_json": {
-   "answer": "Big jumps in quarterly EPS"
+   "answer": "Big quarterly EPS jumps"
   },
   "difficulty": 1,
   "id": "si_0efd1c4fd986",
   "lesson_origin": "session",
-  "lesson_text": "Big jumps in quarterly EPS. Of the 500 top performers from 1953 to 1993, three-quarters showed quarterly earnings gains of at least 70% before the big move. The biggest winners usually showed the earnings first. That's why a growth screen starts there.",
+  "lesson_text": "Big quarterly EPS jumps. Of the 500 top performers from 1953 to 1993, three-quarters showed quarterly earnings gains of at least 70% before the big move. The biggest winners usually showed the earnings first. That's why a growth screen starts there.",
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Big jumps in quarterly EPS",
-    "Rising dividends",
-    "Low P/E ratios"
+    "Big quarterly EPS jumps",
+    "Rising dividend payouts",
+    "Unusually low P/E ratios"
    ],
    "kind": "mcq",
    "q": "What did O'Neil's study of big stock market winners find before their big price runs?",
@@ -4146,14 +4146,14 @@
     "summary": "In O'Neil's study of 500 big winners, three-quarters showed quarterly earnings gains of at least 70% before the big move. O'Neil's winners generally showed strong quarterly EPS before their big runs. O'Neil's view: stocks that seem cheap often go lower still. Growth stocks usually pay no dividend."
    },
    "facts": {
-    "given": "What did O'Neil's study of big stock market winners find before their big price runs? Big jumps in quarterly EPS Low P/E ratios Rising dividends"
+    "given": "What did O'Neil's study of big stock market winners find before their big price runs? Big quarterly EPS jumps Unusually low P/E ratios Rising dividend payouts"
    },
    "lesson_line": "The biggest winners usually showed the earnings first. That's why a growth screen starts there.",
    "unit": "F5.03",
-   "why": "Big jumps in quarterly EPS. Of the 500 top performers from 1953 to 1993, three-quarters showed quarterly earnings gains of at least 70% before the big move.",
+   "why": "Big quarterly EPS jumps. Of the 500 top performers from 1953 to 1993, three-quarters showed quarterly earnings gains of at least 70% before the big move.",
    "wrong": {
-    "Low P/E ratios": "That's not what O'Neil looks for. In his view, stocks that seem cheap often go even lower.",
-    "Rising dividends": "Growth stocks generally don't pay dividends. They put the money back into growing."
+    "Rising dividend payouts": "Growth stocks generally don't pay dividends. They put the money back into growing.",
+    "Unusually low P/E ratios": "That's not what O'Neil looks for. In his view, stocks that seem cheap often go even lower."
    }
   },
   "review_status": "draft",
@@ -7373,7 +7373,7 @@
  },
  {
   "answer_json": {
-   "answer": "At-the-money straddle, nearest expiry"
+   "answer": "Nearest at-the-money straddle"
   },
   "difficulty": 1,
   "id": "si_333a8816d955",
@@ -7382,10 +7382,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "The longest-dated puts",
+    "The longest-dated puts listed",
     "Far out-of-the-money calls",
     "The call with the most volume",
-    "At-the-money straddle, nearest expiry"
+    "Nearest at-the-money straddle"
    ],
    "kind": "mcq",
    "q": "Which options give the quickest read of the implied move?",
@@ -7426,7 +7426,7 @@
     "summary": "The quickest read of the expected move is the nearest-expiry, at-the-money straddle. A straddle is a call and a put bought together at the same strike and expiry. Option traders often use the straddle price as the expected move after earnings. Right before a report, short-dated option prices show the reaction the market expects."
    },
    "facts": {
-    "given": "Which options give the quickest read of the implied move? At-the-money straddle, nearest expiry Far out-of-the-money calls The longest-dated puts The call with the most volume"
+    "given": "Which options give the quickest read of the implied move? Nearest at-the-money straddle Far out-of-the-money calls The longest-dated puts listed The call with the most volume"
    },
    "lesson_line": "Nearest expiry, strike nearest the price, call plus put. That's your quick read.",
    "unit": "F5.05",
@@ -7434,7 +7434,7 @@
    "wrong": {
     "Far out-of-the-money calls": "Those only pay on a big move up. The at-the-money straddle prices a move either way.",
     "The call with the most volume": "Volume shows activity, not the priced move. Read the at-the-money straddle.",
-    "The longest-dated puts": "Long-dated options mix in months of other risk. You want the nearest expiry that covers the report."
+    "The longest-dated puts listed": "Long-dated options mix in months of other risk. You want the nearest expiry that covers the report."
    }
   },
   "review_status": "draft",
@@ -10173,7 +10173,7 @@
  },
  {
   "answer_json": {
-   "answer": "It doesn't fill. You still own it"
+   "answer": "It sells nothing; you keep it"
   },
   "difficulty": 3,
   "id": "si_336f170dc296",
@@ -10183,8 +10183,8 @@
   "prompt_json": {
    "choices": [
     "It sells at about $49.50",
-    "It doesn't fill. You still own it",
-    "It sells at exactly $50"
+    "It sells nothing; you keep it",
+    "It sells at exactly $50 a share"
    ],
    "kind": "mcq",
    "q": "What happens to your order?",
@@ -10212,14 +10212,14 @@
     "summary": "If the price jumps past your limit, a stop-limit order may not fill at all. A stop order has no guaranteed fill price."
    },
    "facts": {
-    "given": "What happens to your order? You hold a stock with a stop-limit to sell: stop $50, limit $49.50. It reports after the close and opens at $44 the next morning. It doesn't fill. You still own it It sells at about $49.50 It sells at exactly $50"
+    "given": "What happens to your order? You hold a stock with a stop-limit to sell: stop $50, limit $49.50. It reports after the close and opens at $44 the next morning. It sells nothing; you keep it It sells at about $49.50 It sells at exactly $50 a share"
    },
    "lesson_line": "A stop-limit can't catch a gap either. It can leave you holding the bag.",
    "unit": "F5.06",
    "why": "It doesn't fill. A stop-limit becomes a limit order, and with the stock at $44 no buyer pays $49.50. Unless it climbs back to $49.50, you still hold a stock that just gapped down.",
    "wrong": {
     "It sells at about $49.50": "The limit is the worst price you'll take. The market is far below it, so nothing fills.",
-    "It sells at exactly $50": "The stop price only triggers the order. It's never a promised fill."
+    "It sells at exactly $50 a share": "The stop price only triggers the order. It's never a promised fill."
    }
   },
   "review_status": "draft",
@@ -14085,19 +14085,19 @@
  },
  {
   "answer_json": {
-   "answer": "Sales held up; costs ate the profit"
+   "answer": "Sales held; costs hit profit"
   },
   "difficulty": 3,
   "id": "si_cb7e65b24d1d",
   "lesson_origin": "session",
-  "lesson_text": "Sales held up; costs ate the profit. The CEO said food and fuel inflation put more pressure on margins and costs than expected. The stock closed down 11.38% that day. A sales beat with a profit miss points at costs and margins. Find out which, and whether they'll last.",
+  "lesson_text": "Sales held; costs hit profit. The CEO said food and fuel inflation put more pressure on margins and costs than expected. The stock closed down 11.38% that day. A sales beat with a profit miss points at costs and margins. Find out which, and whether they'll last.",
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "A strong quarter overall",
+    "A strong quarter all around",
     "A one-time charge hit EPS",
-    "Sales held up; costs ate the profit",
-    "Shoppers pulled back hard"
+    "Sales held; costs hit profit",
+    "Shoppers pulled back sharply"
    ],
    "kind": "mcq",
    "q": "What does that mix tell you about the quarter?",
@@ -14167,15 +14167,15 @@
     "summary": "Walmart's revenue was $141.57 billion against $138.94 billion expected. Walmart earned $1.30 adjusted against $1.48 expected. Walmart's revenue was $141.6 billion, up 2.4%. Walmart's CEO: food and fuel inflation squeezed margins and costs more than expected. Walmart's adjusted EPS for the quarter leaves out one item: gains and losses on its equity investments. Walmart missed earnings expectations by a wide margin. Walmart closed down 11.38% on report day. AP: labor, fuel and inventory costs dragged down Walmart's profit."
    },
    "facts": {
-    "given": "What does that mix tell you about the quarter? Walmart, first quarter of fiscal 2023. Revenue: $141.57 billion vs $138.94 billion expected. Adjusted EPS: $1.30 vs $1.48 expected. Sales held up; costs ate the profit Shoppers pulled back hard A one-time charge hit EPS A strong quarter overall"
+    "given": "What does that mix tell you about the quarter? Walmart, first quarter of fiscal 2023. Revenue: $141.57 billion vs $138.94 billion expected. Adjusted EPS: $1.30 vs $1.48 expected. Sales held; costs hit profit Shoppers pulled back sharply A one-time charge hit EPS A strong quarter all around"
    },
    "lesson_line": "A sales beat with a profit miss points at costs and margins. Find out which, and whether they'll last.",
    "unit": "F5.08",
-   "why": "Sales held up; costs ate the profit. The CEO said food and fuel inflation put more pressure on margins and costs than expected. The stock closed down 11.38% that day.",
+   "why": "Sales held; costs hit profit. The CEO said food and fuel inflation put more pressure on margins and costs than expected. The stock closed down 11.38% that day.",
    "wrong": {
     "A one-time charge hit EPS": "Adjusted EPS already leaves out the investment gains and losses. The miss came from running costs: labor, fuel and inventory.",
-    "A strong quarter overall": "Profit missed by a wide margin. A sales beat doesn't make up for that.",
-    "Shoppers pulled back hard": "Revenue beat the estimate, so shoppers kept buying. The squeeze came below the sales line."
+    "A strong quarter all around": "Profit missed by a wide margin. A sales beat doesn't make up for that.",
+    "Shoppers pulled back sharply": "Revenue beat the estimate, so shoppers kept buying. The squeeze came below the sales line."
    }
   },
   "review_status": "draft",

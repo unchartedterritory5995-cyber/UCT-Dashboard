@@ -965,10 +965,10 @@
    "rung": 1,
    "format": "tf",
    "criterion": "tl.stop_broker",
-   "q": "The stop sits with the broker as a real order, and it only moves up.",
+   "q": "Raising the stop as the break works is fine, if the new stop is still a real order with the broker.",
    "answer": "True",
-   "why": "True. A real stop order with the broker, not a stop kept in your head. It only moves up, never down or wider.",
-   "lesson_line": "A real order with the broker, moved up only.",
+   "why": "True. The stop only moves up, never down or wider, and it stays a real stop order with the broker.",
+   "lesson_line": "Raise it if the trade works. Keep it a real order.",
    "facts": [
     "c17",
     "h18",
@@ -1449,11 +1449,11 @@
    "q": "Trendline break or flat top?",
    "story": "Three highs sit at exactly 50.00 over six weeks. You are weighing a buy through 50.00.",
    "choices": [
-    "A flat-top break, not this setup",
-    "A trendline break",
-    "A wedge pop"
+    "A flat-top break, no slope",
+    "A descending trendline break",
+    "A wedge pop off the lows"
    ],
-   "answer": "A flat-top break, not this setup",
+   "answer": "A flat-top break, no slope",
    "why": "A flat top. A trendline falls, at least a little, from lower swing highs. A line with no slope is a horizontal resistance break.",
    "lesson_line": "No slope, no trendline. Three equal highs are a flat top.",
    "facts": [
@@ -1461,8 +1461,8 @@
     "c38"
    ],
    "wrong": {
-    "A trendline break": "The highs are level, so there is no falling line to break.",
-    "A wedge pop": "A wedge pop follows a decline and reclaims the fast averages. Level highs do not."
+    "A descending trendline break": "The highs are level, so there is no falling line to break.",
+    "A wedge pop off the lows": "A wedge pop follows a decline and reclaims the fast averages. Level highs do not."
    },
    "house": true
   },
@@ -1866,10 +1866,10 @@
    "rung": 6,
    "format": "tf",
    "criterion": "tl.retry_limit",
-   "q": "On one stock we take at most 3 tries a week and 6 a month.",
-   "answer": "True",
-   "why": "True. After a stop-out, only a new trigger buys it again. The cap is 3 tries a week and 6 a month on one stock.",
-   "lesson_line": "Three tries a week, six a month. Then leave it alone.",
+   "q": "On one stock we allow up to 10 tries a month.",
+   "answer": "False",
+   "why": "False. The cap is 3 tries a week and 6 a month on one stock. After a stop-out, only a new trigger buys it again.",
+   "lesson_line": "Cap the tries at 3 a week and 6 a month.",
    "facts": [
     "c30",
     "h29"
@@ -2524,7 +2524,7 @@
   },
   "q07": {
    "status": "pass",
-   "notes": "D41 (h18), A4 (h02) and c17 verbatim; settled. Key right.",
+   "notes": "D41 (h18), A4 (h02) and c17 verbatim; settled. Key right. | flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -2650,7 +2650,7 @@
   },
   "q28": {
    "status": "pass",
-   "notes": "c37/c38 verbatim (the card's lookalike for the flat base). Keys only 'no slope is a horizontal break', never the 0.15 ATR slope (D-069 pending). Key right.",
+   "notes": "c37/c38 verbatim (the card's lookalike for the flat base). Keys only 'no slope is a horizontal break', never the 0.15 ATR slope (D-069 pending). Key right. | flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -2746,7 +2746,7 @@
   },
   "q44": {
    "status": "pass",
-   "notes": "E56 (h29) and c30 verbatim; settled. why split to sentences of 22 words or fewer.",
+   "notes": "E56 (h29) and c30 verbatim; settled. why split to sentences of 22 words or fewer. | writer's flip (re-buy with no new trigger) was plainly false but duplicated q51 (same fact, same unit); replaced by a False cap statement (10 a month against the cap of 6) so the unit keeps one True/False on tl.retry_limit that tests the cap. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },

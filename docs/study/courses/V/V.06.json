@@ -1640,22 +1640,22 @@
    "rung": 3,
    "format": "mcq",
    "term": "R-multiple",
-   "q": "Our plan sells in thirds. Where do the two trims sit?",
+   "q": "Our plan sells in thirds. What happens to the last third?",
    "choices": [
-    "At 3R and 5R",
-    "At 1R and 2R",
-    "At 10% and 20% gains"
+    "It trails after the second trim",
+    "It sells with the second trim",
+    "It sells at a flat percent gain"
    ],
-   "answer": "At 3R and 5R",
-   "why": "At 3R and 5R. R is the entry-to-stop distance. A third comes off at three times it, another third at five, and the last third trails.",
-   "lesson_line": "Our trims are counted in R from the stop: a third at 3R, a third at 5R.",
+   "answer": "It trails after the second trim",
+   "why": "It trails after the second trim. A third comes off at 3R, another third at 5R, and the last third trails.",
+   "lesson_line": "A third at 3R, a third at 5R, then trail the last third.",
    "facts": [
     "h01",
     "h09"
    ],
    "wrong": {
-    "At 1R and 2R": "Our first trim is a third at 3R, three times the risk to the stop.",
-    "At 10% and 20% gains": "Our trims come from the stop distance, not a flat percent."
+    "It sells with the second trim": "The second third comes off at 5R. The last third stays on and trails.",
+    "It sells at a flat percent gain": "Our plan does not sell the last third at a flat percent. It trails."
    },
    "house": true
   },
@@ -3299,7 +3299,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checker 2026-11-09: h01 (B19) and h09 (E51) verbatim in section 9. Key 'At 3R and 5R' follows; the stem says 'in thirds' so it does not lead to the levels. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. Was 'At 2R and 3R' (two profit targets); now the thirds at 3R and 5R. Old house fact was TRADE_PLANS.md make_levels 'puts the targets at 2R and 3R'"
+   "notes": "Checker 2026-11-09: h01 (B19) and h09 (E51) verbatim in section 9. Key 'At 3R and 5R' follows; the stem says 'in thirds' so it does not lead to the levels. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. Was 'At 2R and 3R' (two profit targets); now the thirds at 3R and 5R. Old house fact was TRADE_PLANS.md make_levels 'puts the targets at 2R and 3R' | flagged-question fix checked 2026-11-11"
   },
   "q11": {
    "status": "pass",

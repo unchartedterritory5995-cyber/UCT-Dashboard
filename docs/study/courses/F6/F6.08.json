@@ -1153,11 +1153,11 @@
    "story": "A $60 stock has an implied volatility of 32%. Today it's up $1.10. A friend calls it a big day.",
    "q": "Measured against what its options price, was it a big day?",
    "choices": [
-    "No, one day's expected move is $1.20",
-    "Yes, nearly 2% is a big day",
+    "No, the expected move is $1.20",
+    "Yes, a move near 2% is a big day",
     "Can't tell without the chart"
    ],
-   "answer": "No, one day's expected move is $1.20",
+   "answer": "No, the expected move is $1.20",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1175,7 +1175,7 @@
     "f49"
    ],
    "wrong": {
-    "Yes, nearly 2% is a big day": "A fixed percent ignores the stock. At 32% IV the options price about 2% a day, and this move is inside that.",
+    "Yes, a move near 2% is a big day": "A fixed percent ignores the stock. At 32% IV the options price about 2% a day, and this move is inside that.",
     "Can't tell without the chart": "The options already give you the yardstick: price times IV, divided by 16."
    }
   },
@@ -1468,7 +1468,7 @@
   },
   "q19": {
    "status": "pass",
-   "notes": "60 x 0.32 / 16 = 1.20, recomputed; 1.10/60 = 1.83%, so 'nearly 2%' is fair. f3 (OIC), f50 (Fidelity: a day inside 98.75-101.25 'is to be expected'), f10 (OIC: judge realized against implied).",
+   "notes": "60 x 0.32 / 16 = 1.20, recomputed; 1.10/60 = 1.83%, so 'nearly 2%' is fair. f3 (OIC), f50 (Fidelity: a day inside 98.75-101.25 'is to be expected'), f10 (OIC: judge realized against implied). | flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },

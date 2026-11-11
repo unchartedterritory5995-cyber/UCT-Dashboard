@@ -1153,14 +1153,14 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "tb.liquidity",
-   "q": "What floor must a 2B stock clear?",
+   "q": "Your 2B screen needs a liquidity floor. Which pair is ours?",
    "choices": [
-    "$10 a share and $20 million a day",
-    "$5 a share and $5 million a day",
-    "$2 a share and $10,000 a day traded",
-    "No floor for leaders"
+    "At least $10 and $20 million a day",
+    "At least $10 and $5 million a day",
+    "At least $20 and $10 million a day",
+    "Any price, if the volume is high"
    ],
-   "answer": "$10 a share and $20 million a day",
+   "answer": "At least $10 and $20 million a day",
    "why": "$10 a share and $20 million a day. Thin stocks are not even watched.",
    "lesson_line": "Ten dollars a share, twenty million a day. Below that, no 2B.",
    "facts": [
@@ -1169,9 +1169,9 @@
     "t_liq"
    ],
    "wrong": {
-    "$5 a share and $5 million a day": "Too low. Our floor is $10 a share and $20 million a day.",
-    "$2 a share and $10,000 a day traded": "Far under our floor of $10 and $20 million.",
-    "No floor for leaders": "Every setup has the floor."
+    "At least $10 and $5 million a day": "Too thin on volume. Our floor is $10 a share and $20 million a day.",
+    "At least $20 and $10 million a day": "Swapped. Our floor is $10 a share and $20 million a day.",
+    "Any price, if the volume is high": "Every setup has the floor, price included. Thin stocks are not even watched."
    },
    "house": true
   },
@@ -2156,13 +2156,13 @@
    "criterion": "tb.market_washout",
    "q": "What did the daily chart miss?",
    "choices": [
-    "The market had not stopped falling",
-    "The undercut was too deep",
-    "The 200-day was falling",
+    "The market had not bottomed",
+    "The undercut was far too deep",
+    "The 200-day was still falling",
     "The reclaim took too long"
    ],
    "story": "A leader undercuts a low by 0.75% and closes under it. The next morning it opens over the low and you buy at 77.98. The next day it falls through your stop.",
-   "answer": "The market had not stopped falling",
+   "answer": "The market had not bottomed",
    "why": "The market had not stopped falling. PYPL reclaimed on 2018-03-26 and fell through its stop the next day. SPY made a lower low days later.",
    "lesson_line": "The chart looks clean. The index is the tell.",
    "facts": [
@@ -2171,8 +2171,8 @@
     "t_wash"
    ],
    "wrong": {
-    "The undercut was too deep": "The undercut was shallow.",
-    "The 200-day was falling": "The index, not the 200-day, was the problem.",
+    "The undercut was far too deep": "The undercut was shallow.",
+    "The 200-day was still falling": "The index, not the 200-day, was the problem.",
     "The reclaim took too long": "It reclaimed in a day."
    },
    "house": true
@@ -2705,10 +2705,9 @@
    "by": "checker"
   },
   "q17": {
-   "status": "pass",
-   "notes": "B19/E51 settled.",
-   "fixed": false,
-   "by": "checker"
+   "status": "cut",
+   "notes": "cut 2026-11-11: duplicate of SET.23 q18. flagged-question fix checked 2026-11-11: the cut is right, kept twin SET.23 q18 asks the same thing.",
+   "by": "writer"
   },
   "q18": {
    "status": "pass",
@@ -2718,7 +2717,7 @@
   },
   "q19": {
    "status": "pass",
-   "notes": "B23 settled. variety rewrite checked 2026-11-10",
+   "notes": "B23 settled. variety rewrite checked 2026-11-10. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -2946,7 +2945,7 @@
   },
   "q57": {
    "status": "pass",
-   "notes": "Story said it 'closes through your stop'; bars: 2018-03-27 low 75.65 (through 76.30) but close 76.31, a cent ABOVE the stop. Answer said the market 'was still making lower lows'; bars: SPY's lower low (254.67) came on 2018-04-02, after the stop, so at the time it had not yet made one. Reworded to 'had not stopped falling' and 'a lower low days later'.",
+   "notes": "Story said it 'closes through your stop'; bars: 2018-03-27 low 75.65 (through 76.30) but close 76.31, a cent ABOVE the stop. Answer said the market 'was still making lower lows'; bars: SPY's lower low (254.67) came on 2018-04-02, after the stop, so at the time it had not yet made one. Reworded to 'had not stopped falling' and 'a lower low days later'. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },

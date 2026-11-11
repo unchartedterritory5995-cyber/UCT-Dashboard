@@ -6323,7 +6323,7 @@
  },
  {
   "answer_json": {
-   "answer": "Paper trade his setup on the side"
+   "answer": "Paper trade his on the side"
   },
   "difficulty": 3,
   "id": "si_ea443fffa50d",
@@ -6332,10 +6332,10 @@
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "Run both at full size",
-    "Paper trade his setup on the side",
+    "Run both at full size now",
+    "Paper trade his on the side",
     "Never look at a new setup",
-    "Switch to his setup now"
+    "Switch to his setup this week"
    ],
    "kind": "mcq",
    "q": "What do you do?",
@@ -6391,15 +6391,15 @@
     "summary": "Learn from others, then build your own trading identity on your skills and risk tolerance. Small samples give jumpy, unreliable results. Bellafiore: try setups with edge on a demo, find your niche, then build your playbook. Start a new strategy very small so learning it costs little. Put most of your energy into your playbook trades, and leave some time to add new ones. When markets turn choppy, reworking old processes and adding new ones keeps traders profitable."
    },
    "facts": {
-    "given": "What do you do? Your pullback setup is solidly positive over 150 logged trades. A friend's new setup made him 30% last month. You're tempted to switch. Paper trade his setup on the side Switch to his setup now Run both at full size Never look at a new setup"
+    "given": "What do you do? Your pullback setup is solidly positive over 150 logged trades. A friend's new setup made him 30% last month. You're tempted to switch. Paper trade his on the side Switch to his setup this week Run both at full size now Never look at a new setup"
    },
    "lesson_line": "Keep your lane. Test new ideas on the side, small, until they earn a place.",
    "unit": "F11.04",
    "why": "Paper trade his setup on the side. One month of someone else's results is a tiny sample. Investopedia's rules say learn from others, then build your own identity. Your lane has the record.",
    "wrong": {
     "Never look at a new setup": "Too rigid. Bellafiore leaves some time to add new trades, and Steenbarger says adding new processes keeps traders profitable as markets change.",
-    "Run both at full size": "Tharp says start a new strategy very small, so learning it costs little.",
-    "Switch to his setup now": "You'd swap 150 trades of your own proof for one month of his. Small samples give unreliable results."
+    "Run both at full size now": "Tharp says start a new strategy very small, so learning it costs little.",
+    "Switch to his setup this week": "You'd swap 150 trades of your own proof for one month of his. Small samples give unreliable results."
    }
   },
   "review_status": "draft",

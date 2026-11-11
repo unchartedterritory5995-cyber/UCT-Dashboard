@@ -2093,11 +2093,11 @@
    "criterion": "qk.breakout_earnings_window",
    "q": "Which rule would have kept you out?",
    "choices": [
-    "No buy 4% over the trigger",
-    "Stop no wider than the ADR",
-    "No new buy 3 sessions before a report"
+    "No buy over 4% above the trigger",
+    "Stop no wider than the stock's ADR",
+    "No buy 3 sessions before a report"
    ],
-   "answer": "No new buy 3 sessions before a report",
+   "answer": "No buy 3 sessions before a report",
    "why": "No new buy in the 3 sessions before a report. Check the report date before you buy.",
    "lesson_line": "Check the report date first, then the chart.",
    "facts": [
@@ -2107,8 +2107,8 @@
     "hB22"
    ],
    "wrong": {
-    "No buy 4% over the trigger": "The buy was at the trigger. The report date was the issue.",
-    "Stop no wider than the ADR": "The stop fit. The report gapped through it."
+    "No buy over 4% above the trigger": "The buy was at the trigger. The report date was the issue.",
+    "Stop no wider than the stock's ADR": "The stop fit. The report gapped through it."
    },
    "house": true,
    "story": "AMZN, 2020 (prices split-adjusted). A 14-session flag breaks out. You buy at 123.06. The report comes that evening and the next day gaps below your 119.75 stop."
@@ -4059,7 +4059,7 @@
   },
   "q50": {
    "status": "pass",
-   "notes": "AMZN 2020-04-30 row: 14 sessions, 41% run, 1.47x, buy 123.06, stop 119.75, report that evening, next-day low 112.91, best 0.0R. a21/B22 verbatim. Prices are split-adjusted (20-for-1, 2022); the story now says so.",
+   "notes": "AMZN 2020-04-30 row: 14 sessions, 41% run, 1.47x, buy 123.06, stop 119.75, report that evening, next-day low 112.91, best 0.0R. a21/B22 verbatim. Prices are split-adjusted (20-for-1, 2022); the story now says so. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },

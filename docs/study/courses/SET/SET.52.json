@@ -833,9 +833,9 @@
    "rung": 2,
    "format": "tf",
    "criterion": "wk.liquidity",
-   "q": "A $12 stock that trades $15 million a day passes the liquidity rule.",
+   "q": "An $8 stock that trades $40 million a day passes the liquidity rule.",
    "answer": "False",
-   "why": "False. We trade only stocks at $10 or more that trade at least $20 million a day. This one has the price but not the volume.",
+   "why": "False. We trade only stocks at $10 or more that trade at least $20 million a day. This one has the volume but not the price.",
    "lesson_line": "Price and dollar volume both have to clear.",
    "facts": [
     "h09"
@@ -1349,9 +1349,9 @@
    "rung": 5,
    "format": "tf",
    "criterion": "wk.time_stop",
-   "q": "A trade still under 1R after 10 trading days is sold.",
+   "q": "After 10 trading days a trade is still only up 0.5R. We sell it.",
    "answer": "True",
-   "why": "True. A trade still under 1R after 10 trading days is sold, freeing the money.",
+   "why": "True. A trade still under 1R after 10 trading days is sold, freeing the money. A gain of 0.5R is under 1R.",
    "lesson_line": "Dead money gets freed.",
    "facts": [
     "h15"
@@ -1578,8 +1578,8 @@
    "q": "Wick play or something else?",
    "choices": [
     "A Go Signal, not a wick play",
-    "A wick play",
-    "An inside day"
+    "A wick play above the body",
+    "An inside day in a quiet range"
    ],
    "answer": "A Go Signal, not a wick play",
    "why": "A Go Signal, not a wick play. A Go Signal sweeps support and leaves a lower wick. A wick play holds in the upper wick and stays above the body.",
@@ -1589,8 +1589,8 @@
     "tp3"
    ],
    "wrong": {
-    "A wick play": "The wick play is the hold in the prior day's upper wick. This is a lower wick after a sweep.",
-    "An inside day": "An inside day stays inside the prior range. This swept below support."
+    "A wick play above the body": "The wick play is the hold in the prior day's upper wick. This is a lower wick after a sweep.",
+    "An inside day in a quiet range": "An inside day stays inside the prior range. This swept below support."
    },
    "story": "Today opened under yesterday's close, swept below support and left a long lower wick as buyers stepped in.",
    "house": true
@@ -1962,11 +1962,11 @@
    "criterion": "wk.order",
    "q": "Do you buy?",
    "choices": [
-    "No, no new buys outside regular hours",
-    "Yes, the trigger printed",
-    "Yes, with a limit order"
+    "No, not outside regular hours",
+    "Yes, the trigger printed early",
+    "Yes, if you use a limit order"
    ],
-   "answer": "No, no new buys outside regular hours",
+   "answer": "No, not outside regular hours",
    "why": "No. No new buys outside regular trading hours. Entries are market orders, placed in the regular session.",
    "lesson_line": "Wait for regular hours.",
    "facts": [
@@ -1974,8 +1974,8 @@
     "h22"
    ],
    "wrong": {
-    "Yes, the trigger printed": "The trigger has to print in the regular session. No new buys outside regular hours.",
-    "Yes, with a limit order": "A limit order is still a new buy outside regular hours, and our entries are market orders."
+    "Yes, the trigger printed early": "The trigger has to print in the regular session. No new buys outside regular hours.",
+    "Yes, if you use a limit order": "A limit order is still a new buy outside regular hours, and our entries are market orders."
    },
    "story": "On day 3, price trades over day 2's high at 8:15 in the morning, in premarket.",
    "house": true
@@ -2226,6 +2226,42 @@
     "tp4"
    ],
    "house": true
+  },
+  {
+   "key": "q66",
+   "skill": "setup.wick_play",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "wk.position_adv",
+   "q": "How many shares may you own?",
+   "story": "A clean wick play. Day 2 was quiet, with 300,000 shares traded. The stock averages 1,200,000 shares a day. Your risk math says 20,000 shares.",
+   "choices": [
+    "12,000 shares, 1% of the average",
+    "3,000 shares, 1% of day 2's volume",
+    "20,000 shares, the risk math allows",
+    "No ceiling, since the setup is clean"
+   ],
+   "answer": "12,000 shares, 1% of the average",
+   "why": "12,000. We never own more than 1% of a stock's average daily volume. One quiet day does not change the cap.",
+   "lesson_line": "Cap the size at 1% of the average day, not the day you see.",
+   "facts": [
+    "h19",
+    "h31"
+   ],
+   "wrong": {
+    "3,000 shares, 1% of day 2's volume": "The cap uses the average daily volume, not one quiet day.",
+    "20,000 shares, the risk math allows": "The risk-based size is then capped. 20,000 is over 1% of the average daily volume.",
+    "No ceiling, since the setup is clean": "A clean setup does not lift the ceiling. It is 1% of the average daily volume."
+   },
+   "house": true,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "adv * 0.01",
+     "adv": 1200000
+    },
+    "round": 0
+   }
   }
  ],
  "conflicts": [
@@ -2295,7 +2331,7 @@
   },
   "q09": {
    "status": "pass",
-   "notes": "h09 verbatim in the rulebook (sizing_rule.md section 9). Key right; wrong notes true.",
+   "notes": "h09 verbatim in the rulebook (sizing_rule.md section 9). Key right; wrong notes true. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -2427,7 +2463,7 @@
   },
   "q31": {
    "status": "pass",
-   "notes": "h15 verbatim (C33). Key right.",
+   "notes": "h15 verbatim (C33). Key right. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -2481,7 +2517,7 @@
   },
   "q40": {
    "status": "pass",
-   "notes": "tGo, tp3 verbatim. 'Must never look below the body' reworded to 'stays above the body' (D-116 pending).",
+   "notes": "tGo, tp3 verbatim. 'Must never look below the body' reworded to 'stays above the body' (D-116 pending). flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },
@@ -2565,7 +2601,7 @@
   },
   "q54": {
    "status": "pass",
-   "notes": "h23, h22 verbatim. Key right.",
+   "notes": "h23, h22 verbatim. Key right. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -2630,8 +2666,8 @@
    "by": "checker"
   },
   "q62": {
-   "status": "pass",
-   "notes": "new 2026-11-10 variety question, awaiting second reader variety rewrite checked 2026-11-10.",
+   "status": "cut",
+   "notes": "cut 2026-11-11: duplicate of SET.20 q71 Cut confirmed: SET.20 q71 is word for word the same and is kept. flagged-question fix checked 2026-11-11",
    "by": "writer"
   },
   "q63": {
@@ -2650,6 +2686,11 @@
    "notes": "coverage question checked 2026-11-10; fixed: reads as the card's stance, not a ruling",
    "by": "checker",
    "fixed": true
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-11: added the calc for 1% of 1,200,000 = 12,000; key and rule checked",
+   "by": "writer"
   }
  }
 }

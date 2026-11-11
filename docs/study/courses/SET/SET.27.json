@@ -2497,11 +2497,11 @@
    "criterion": "ss.drive",
    "q": "Slingshot?",
    "choices": [
-    "No; there is no drive to sling from",
+    "No; no drive to sling from",
     "Yes; the shape is the setup",
     "Yes; the close is decisive"
    ],
-   "answer": "No; there is no drive to sling from",
+   "answer": "No; no drive to sling from",
    "why": "No. By our current default, the drive is a gap or a strong rally, and this climb has neither. The drive comes first; Scot1and takes a powerful stock that recently made a strong move. This one reached 4.1R anyway, which the test cannot credit to the setup.",
    "lesson_line": "The shape without the drive is a pullback, not a Slingshot. The engine comes first.",
    "facts": [
@@ -2514,7 +2514,7 @@
    ],
    "wrong": {
     "Yes; the shape is the setup": "The shape is half the setup. The drive is the other half, and it is missing.",
-    "Yes; the close is decisive": "A decisive close ends a Slingshot; it does not start one. The drive has to come first."
+    "Yes; the close is decisive": "A decisive close is only the trigger. The drive has to come first."
    },
    "house": true,
    "story": "A steady climber: no gap, no 4% volume day, no 20% in five sessions in the 25 sessions before. Four closes under the 4-day line, then a decisive close over it."
@@ -3042,7 +3042,7 @@
   },
   "q64": {
    "status": "pass",
-   "notes": "Rewrote onto the adopted D-106 default (b): the story now states the three no-drive facts from the dossier's own ASO line (d22) so the key is reachable without elimination; the why says 'By our current default' and no longer asserts the climb has nothing to sling from as a rule. Numbers (4%, 20%, five sessions, 25 sessions, 4.1R) all appear in d22/d23.",
+   "notes": "Rewrote onto the adopted D-106 default (b): the story now states the three no-drive facts from the dossier's own ASO line (d22) so the key is reachable without elimination; the why says 'By our current default' and no longer asserts the climb has nothing to sling from as a rule. Numbers (4%, 20%, five sessions, 25 sessions, 4.1R) all appear in d22/d23. | wrong note for the close choice reworded: 'ends a Slingshot' read as if the close ended the setup. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "resolver"
   },

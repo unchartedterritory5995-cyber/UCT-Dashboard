@@ -7738,7 +7738,7 @@
  },
  {
   "answer_json": {
-   "answer": "More shares able to hit the market"
+   "answer": "More shares free to sell"
   },
   "difficulty": 3,
   "id": "si_090aa98e1b46",
@@ -7747,9 +7747,9 @@
   "module": "F1",
   "prompt_json": {
    "choices": [
-    "A guaranteed price drop",
-    "The float shrinking",
-    "More shares able to hit the market"
+    "A guaranteed drop in price",
+    "Fewer shares in the float",
+    "More shares free to sell"
    ],
    "kind": "mcq",
    "q": "What should you watch for as that date gets close?",
@@ -7791,14 +7791,14 @@
     "summary": "A lockup stops insiders from selling their shares for a set time after an IPO. A stock can drop ahead of a lockup ending, because locked-up shares may then be sold. In Russell's indexes, locked-up IPO shares join the free float only once the lockup expires. When restricted or closely held shares become free to sell, the float grows."
    },
    "facts": {
-    "given": "What should you watch for as that date gets close? A stock went public about six months ago. Its insiders signed a 180-day lockup, and it ends next week. More shares able to hit the market The float shrinking A guaranteed price drop"
+    "given": "What should you watch for as that date gets close? A stock went public about six months ago. Its insiders signed a 180-day lockup, and it ends next week. More shares free to sell Fewer shares in the float A guaranteed drop in price"
    },
    "lesson_line": "Mark lockup dates on new issues. Fresh supply can weigh on the stock.",
    "unit": "F1.06",
    "why": "More shares able to hit the market. When the lockup ends, insiders can start selling, and those shares join the float. The SEC notes the price may drop ahead of it.",
    "wrong": {
-    "A guaranteed price drop": "Nothing guarantees it. The SEC says the price may drop, not that it will.",
-    "The float shrinking": "It's the other way. Locked-up shares join the float once they're free to sell."
+    "A guaranteed drop in price": "Nothing guarantees it. The SEC says the price may drop, not that it will.",
+    "Fewer shares in the float": "It's the other way. Locked-up shares join the float once they're free to sell."
    }
   },
   "review_status": "draft",

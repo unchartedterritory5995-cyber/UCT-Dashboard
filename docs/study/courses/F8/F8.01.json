@@ -806,12 +806,12 @@
    "story": "Your journal note on a losing trade reads: 'Down $400. Bad day.'",
    "q": "What would make this note useful for finding your pattern?",
    "choices": [
-    "What you thought and felt before buying",
-    "Who or what to blame for it",
-    "The exact loss, to the cent",
+    "Your thoughts and feelings then",
+    "Who or what is to blame for it",
+    "The exact loss, down to the cent",
     "A promise to do better tomorrow"
    ],
-   "answer": "What you thought and felt before buying",
+   "answer": "Your thoughts and feelings then",
    "why": "What you thought and felt before buying. Tendler maps the thoughts, emotions and decisions around a mistake, because that's the part that repeats. The dollar figure tells you what happened, not why.",
    "lesson_line": "The P&L says what happened. Your thoughts and feelings say why.",
    "facts": [
@@ -824,8 +824,8 @@
     "f53"
    ],
    "wrong": {
-    "Who or what to blame for it": "Blaming someone or something else skips your own part in it. Investopedia lists that as projection, an unhealthy way to cope.",
-    "The exact loss, to the cent": "You already have the number. What's missing is the why.",
+    "Who or what is to blame for it": "Blaming someone or something else skips your own part in it. Investopedia lists that as projection, an unhealthy way to cope.",
+    "The exact loss, down to the cent": "You already have the number. What's missing is the why.",
     "A promise to do better tomorrow": "Steenbarger says a vague goal isn't enough. Spell out how you'll do it."
    }
   },
@@ -1234,7 +1234,7 @@
   },
   "q08": {
    "status": "pass",
-   "notes": "f11, f12, f10 (Tendler), f51, f53 (Steenbarger), f79 and f93 (Investopedia lists blame as 'projection' among 'dysfunctional coping methods', live) confirmed. Key and every wrong note hold. No change.",
+   "notes": "f11, f12, f10 (Tendler), f51, f53 (Steenbarger), f79 and f93 (Investopedia lists blame as 'projection' among 'dysfunctional coping methods', live) confirmed. Key and every wrong note hold. No change. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },

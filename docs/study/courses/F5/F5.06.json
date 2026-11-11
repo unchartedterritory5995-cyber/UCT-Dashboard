@@ -1114,11 +1114,11 @@
    "story": "You hold a stock with a stop-limit to sell: stop $50, limit $49.50. It reports after the close and opens at $44 the next morning.",
    "q": "What happens to your order?",
    "choices": [
-    "It doesn't fill. You still own it",
+    "It sells nothing; you keep it",
     "It sells at about $49.50",
-    "It sells at exactly $50"
+    "It sells at exactly $50 a share"
    ],
-   "answer": "It doesn't fill. You still own it",
+   "answer": "It sells nothing; you keep it",
    "why": "It doesn't fill. A stop-limit becomes a limit order, and with the stock at $44 no buyer pays $49.50. Unless it climbs back to $49.50, you still hold a stock that just gapped down.",
    "lesson_line": "A stop-limit can't catch a gap either. It can leave you holding the bag.",
    "facts": [
@@ -1127,7 +1127,7 @@
    ],
    "wrong": {
     "It sells at about $49.50": "The limit is the worst price you'll take. The market is far below it, so nothing fills.",
-    "It sells at exactly $50": "The stop price only triggers the order. It's never a promised fill."
+    "It sells at exactly $50 a share": "The stop price only triggers the order. It's never a promised fill."
    }
   },
   {
@@ -1418,7 +1418,7 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "f8/f9 (SEC 'Understanding Order Types') confirmed live: a stop-limit may not execute if price moves away from the limit. Why said flatly it doesn't fill; now notes it could still fill if the stock climbs back to $49.50. Lesson 'just leaves' now 'can leave'.",
+   "notes": "f8/f9 (SEC 'Understanding Order Types') confirmed live: a stop-limit may not execute if price moves away from the limit. Why said flatly it doesn't fill; now notes it could still fill if the stock climbs back to $49.50. Lesson 'just leaves' now 'can leave'. | right choice reworded to open like the others ('It sells ...'). flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },

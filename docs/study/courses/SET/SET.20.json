@@ -1929,12 +1929,12 @@
    "q": "Where does the stop go?",
    "story": "A friend quotes Morales and Kacher and says to allow a little room: put the stop 2% under the pullback low.",
    "choices": [
-    "A few cents under the pullback low",
+    "Just under the pullback low",
     "2% under the pullback low",
-    "Under the gap-day low",
-    "At the prior close"
+    "Under the gap day's own low",
+    "At the prior day's close"
    ],
-   "answer": "A few cents under the pullback low",
+   "answer": "Just under the pullback low",
    "why": "A few cents under the pullback low. No porosity: Morales and Kacher allow a 1 to 2% undercut. Here the stop is the exit and it only moves up.",
    "lesson_line": "No porosity. The stop is the exit.",
    "facts": [
@@ -1944,8 +1944,8 @@
    ],
    "wrong": {
     "2% under the pullback low": "That is porosity. Our stop is a few cents under a real low.",
-    "Under the gap-day low": "The gap-day low is the line to hold, not our stop.",
-    "At the prior close": "The prior close is far too wide for a stop."
+    "Under the gap day's own low": "The gap-day low is the line to hold, not our stop.",
+    "At the prior day's close": "The prior close is far too wide for a stop."
    },
    "house": true
   },
@@ -3092,7 +3092,7 @@
   },
   "q43": {
    "status": "pass",
-   "notes": "c16, m01 (Virtue of Selfish Investing page found), c15 verbatim. Why had a 23-word sentence, split.",
+   "notes": "c16, m01 (Virtue of Selfish Investing page found), c15 verbatim. Why had a 23-word sentence, split. flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },

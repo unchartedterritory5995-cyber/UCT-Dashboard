@@ -1624,12 +1624,12 @@
    "story": "You bought Gap Support at $82 as the gap held. Since the gap, the stock's best price was $90. It's heading back up there now.",
    "q": "What does our plan say about $90?",
    "choices": [
-    "The first place to take some off",
-    "Where to move the stop",
-    "Where to add more shares",
-    "Sell everything there"
+    "Where we first take some off",
+    "Where to move the stop up",
+    "Where to add a few more shares",
+    "Sell the whole position there"
    ],
-   "answer": "The first place to take some off",
+   "answer": "Where we first take some off",
    "why": "The first place to take some off. In our Gap Support plan, the post-gap high is the first trim.",
    "lesson_line": "Gap Support: trim first at the post-gap high.",
    "facts": [
@@ -1638,9 +1638,9 @@
     "h19"
    ],
    "wrong": {
-    "Where to move the stop": "The stop stays down at the gap. The post-gap high is a trim spot.",
-    "Where to add more shares": "Adding there isn't in the plan. It's where we take some off.",
-    "Sell everything there": "Trim means some, not all. Keep the rest working."
+    "Where to move the stop up": "The stop stays down at the gap. The post-gap high is a trim spot.",
+    "Where to add a few more shares": "Adding there isn't in the plan. It's where we take some off.",
+    "Sell the whole position there": "Trim means some, not all. Keep the rest working."
    }
   },
   {
@@ -2161,11 +2161,11 @@
    "story": "A stock gaps down hard off its highs. Eight days later it closes above the gap day's high.",
    "q": "In our Bear gap lesson, what does that close mean?",
    "choices": [
-    "It broke the line it had to stay under",
+    "It broke the gap day's high",
     "The Bear gap is still on track",
-    "It's a new Bear gap"
+    "It's a fresh Bear gap setup"
    ],
-   "answer": "It broke the line it had to stay under",
+   "answer": "It broke the gap day's high",
    "why": "It broke the line. Our lesson's line is the gap day's high, and a close must stay under it.",
    "lesson_line": "Bear gap: a close over the gap day's high breaks it.",
    "facts": [
@@ -2173,7 +2173,7 @@
    ],
    "wrong": {
     "The Bear gap is still on track": "Not after a close over the gap day's high. That's the one line it had to stay under.",
-    "It's a new Bear gap": "A Bear gap is a gap down. This is a close back up through the line."
+    "It's a fresh Bear gap setup": "A Bear gap is a gap down. This is a close back up through the line."
    }
   },
   {
@@ -2482,7 +2482,7 @@
   },
   "q39": {
    "status": "pass",
-   "notes": "h20 confirmed: the post-gap high is the first place to take some off.",
+   "notes": "h20 confirmed: the post-gap high is the first place to take some off. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -2602,7 +2602,7 @@
   },
   "q59": {
    "status": "pass",
-   "notes": "h22 confirmed: the line a close must stay under is the gap day's high.",
+   "notes": "h22 confirmed: the line a close must stay under is the gap day's high. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },

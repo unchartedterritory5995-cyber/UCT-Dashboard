@@ -1053,17 +1053,17 @@
    "rung": 3,
    "format": "fill",
    "criterion": "go.time_stop",
-   "q": "Tap the word that fits the blank.",
-   "sentence": "A trade still under 1R after ___ trading days is sold.",
+   "q": "Tap the level that fits the blank.",
+   "sentence": "A trade still under ___ after 10 trading days is sold.",
    "bank": [
-    "10",
-    "5",
-    "3",
-    "15",
-    "20"
+    "1R",
+    "2R",
+    "3R",
+    "5R",
+    "breakeven"
    ],
-   "answer": "10",
-   "why": "10. A trade still under 1R after 10 trading days is sold, freeing the money.",
+   "answer": "1R",
+   "why": "1R. A trade still under 1R after 10 trading days is sold, freeing the money.",
    "lesson_line": "Ten days under 1R: out.",
    "facts": [
     "h15"
@@ -1572,27 +1572,27 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "go.market_reading",
-   "q": "What do you do?",
+   "q": "Can you take it?",
    "choices": [
-    "Pass; Orange allows only A plus",
-    "Take it at full size",
-    "Take it; Orange is Green with a tint",
-    "Take it and skip the stop"
+    "Yes; Orange takes A plus setups",
+    "Yes, and size above Green risk",
+    "No; only a Green reading trades",
+    "No; Orange means mostly cash"
    ],
-   "answer": "Pass; Orange allows only A plus",
-   "why": "Pass. Orange allows only A+ setups. Green is full risk, Yellow is smaller and fewer, and Red is mostly cash.",
-   "lesson_line": "Orange means A plus only. A B waits.",
+   "answer": "Yes; Orange takes A plus setups",
+   "why": "Yes. Orange allows only A+ setups, and this one grades A plus. Green is full risk, Yellow is smaller and fewer, and Red is mostly cash.",
+   "lesson_line": "Orange means A plus only. An A plus still goes.",
    "facts": [
     "g14",
     "h26"
    ],
    "wrong": {
-    "Take it at full size": "Full risk is the Green reading. Orange allows only A+ setups.",
-    "Take it; Orange is Green with a tint": "Orange is two steps down from Green. It allows only A+ setups.",
-    "Take it and skip the stop": "The stop is never optional."
+    "Yes, and size above Green risk": "Green is already full risk. Orange is two steps down from it.",
+    "No; only a Green reading trades": "Orange still allows A+ setups. Only Red is mostly cash.",
+    "No; Orange means mostly cash": "Mostly cash is the Red reading. Orange allows only A+ setups."
    },
    "house": true,
-   "story": "The market reading is Orange. A Go Signal sets up cleanly, but you grade it a B."
+   "story": "The market reading is Orange. A Go Signal sets up cleanly, and you grade it A plus."
   },
   {
    "key": "q39",
@@ -1676,12 +1676,12 @@
    "criterion": "go.entry",
    "q": "What is wrong with that?",
    "choices": [
-    "The blind open buy; wait for the turn",
+    "It buys before the turn",
     "Nothing; early is better",
     "It is fine at half size",
     "The stop should be wider"
    ],
-   "answer": "The blind open buy; wait for the turn",
+   "answer": "It buys before the turn",
    "why": "It is the blind open buy. Buying the open before the turn gets stopped at the low. Wait for the stock to get back above the prior close.",
    "lesson_line": "Do not buy the red. Wait for the green.",
    "facts": [
@@ -2102,12 +2102,12 @@
    "criterion": "go.context_break",
    "q": "How do you read it?",
    "choices": [
-    "Thesis over; the stop is still the exit",
-    "Nothing; ignore the 50-day",
-    "Add on the dip",
+    "Thesis over; the stop decides",
+    "Nothing yet; ignore the 50-day",
+    "Add a little on the dip",
     "Move the stop to the 50-day"
    ],
-   "answer": "Thesis over; the stop is still the exit",
+   "answer": "Thesis over; the stop decides",
    "why": "The pullback thesis is over, but the stop is still the exit. A close under the 20-day EMA is a warning; a close under the 50-day ends the thesis.",
    "lesson_line": "A close under the 50-day ends the thesis. The stop still decides.",
    "facts": [
@@ -2116,8 +2116,8 @@
     "h02"
    ],
    "wrong": {
-    "Nothing; ignore the 50-day": "A close under the 50-day ends the pullback thesis.",
-    "Add on the dip": "We do not add, least of all when the thesis is ending.",
+    "Nothing yet; ignore the 50-day": "A close under the 50-day ends the pullback thesis.",
+    "Add a little on the dip": "We do not add, least of all when the thesis is ending.",
     "Move the stop to the 50-day": "The stop only moves up, and the card keeps the session low as the stop."
    },
    "house": true,
@@ -2712,7 +2712,7 @@
   },
   "q18": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. C33.",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. C33. | flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -2795,10 +2795,9 @@
    "by": "checker"
   },
   "q32": {
-   "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. C33: 0.4R after 10 sessions -> sell. | variety rewrite checked 2026-11-10",
-   "fixed": false,
-   "by": "checker"
+   "status": "cut",
+   "notes": "cut 2026-11-11: duplicate of SET.26 q32; cut confirmed, flagged-question fix checked 2026-11-11",
+   "by": "writer"
   },
   "q33": {
    "status": "pass",
@@ -2832,7 +2831,7 @@
   },
   "q38": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. F65, g37. Requoted 2026-11-10: g37 now says Yellow (smaller and fewer), not 'Yellow or Orange', so it no longer supports an Orange item and was dropped from the facts. Key (Orange: A+ only, a B waits) rests on g14 and h26.",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. F65, g37. Requoted 2026-11-10: g37 now says Yellow (smaller and fewer), not 'Yellow or Orange', so it no longer supports an Orange item and was dropped from the facts. Key (Orange: A+ only, a B waits) rests on g14 and h26. | flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "requoter"
   },
@@ -2856,7 +2855,7 @@
   },
   "q42": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g27 (card mistake: the blind open buy). Story is a 9:35 red candle bought before any turn.",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g27 (card mistake: the blind open buy). Story is a 9:35 red candle bought before any turn. | flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -2946,7 +2945,7 @@
   },
   "q57": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g24 proposed (go.context_break). The key is 'thesis over, the stop still decides' (A4), which holds if the owner rejects the proposal.",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g24 proposed (go.context_break). The key is 'thesis over, the stop still decides' (A4), which holds if the owner rejects the proposal. | flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },

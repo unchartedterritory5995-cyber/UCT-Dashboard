@@ -2585,6 +2585,34 @@
     "cTrail"
    ],
    "house": true
+  },
+  {
+   "key": "q76",
+   "skill": "setup.red_to_green",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "rg.time_stop",
+   "q": "What do you do?",
+   "story": "You bought a red to green ten trading days ago and it closed green that day. Since then it has drifted and sits at 0.5R. The stop has not traded.",
+   "choices": [
+    "Sell; under 1R after 10 days",
+    "Hold; the green close proved it",
+    "Hold; the stop has not traded yet",
+    "Add a little to lower the average"
+   ],
+   "answer": "Sell; under 1R after 10 days",
+   "why": "Sell. A trade still under 1R after 10 trading days is sold. The green close on day one does not change that.",
+   "lesson_line": "Ten days under 1R and the trade is done. The money moves on.",
+   "facts": [
+    "h15",
+    "cFull"
+   ],
+   "wrong": {
+    "Hold; the green close proved it": "The green close was on day one. After 10 trading days under 1R, the time stop sells it.",
+    "Hold; the stop has not traded yet": "The time stop is its own exit. Under 1R after 10 days, it is sold before the stop trades.",
+    "Add a little to lower the average": "No adding: full size at one price. The time stop sells a trade that has not worked."
+   },
+   "house": true
   }
  ],
  "conflicts": [
@@ -2822,10 +2850,9 @@
    "by": "checker"
   },
   "q37": {
-   "status": "pass",
-   "notes": "h15 verbatim. Key right.",
-   "fixed": false,
-   "by": "checker"
+   "status": "cut",
+   "notes": "cut 2026-11-11: duplicate of SET.51 q39. flagged-question fix checked 2026-11-11: the cut is right, same fact survives in SET.08 q22 (SET.51 q39, the first twin, was cut too).",
+   "by": "writer"
   },
   "q38": {
    "status": "cut",
@@ -3072,6 +3099,11 @@
    "notes": "coverage question checked 2026-11-10",
    "fixed": false,
    "by": "checker"
+  },
+  "q76": {
+   "status": "pass",
+   "notes": "coverage question checked 2026-11-11",
+   "by": "writer"
   }
  }
 }

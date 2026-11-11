@@ -272,7 +272,7 @@
   {
    "id": "f13",
    "source": "s3",
-   "quote": "Friday, December 4, 2026 08:30 AM Employment Situation for November 2026",
+   "quote": "Friday, December 04, 2026 08:30 AM Employment Situation for November 2026",
    "claim": "The November 2026 jobs report is scheduled for Friday, Dec. 4, 2026, at 8:30 a.m."
   },
   {
@@ -1011,8 +1011,8 @@
    "q": "Which report lands Friday, Dec. 4, at 8:30 a.m.?",
    "choices": [
     "November's jobs report",
-    "November's CPI",
-    "November's PPI"
+    "November's CPI release",
+    "November's PPI report"
    ],
    "answer": "November's jobs report",
    "why": "November's jobs report. It typically comes the first Friday of the next month, and Dec. 4 is December's first Friday. Typically, not always: in 2026 it also came on a Wednesday, Feb. 11, and a Thursday, July 2.",
@@ -1026,8 +1026,8 @@
     "f16"
    ],
    "wrong": {
-    "November's CPI": "CPI has no set weekday. BLS set November's for Thursday, Dec. 10.",
-    "November's PPI": "BLS set November's PPI for Tuesday, Dec. 15."
+    "November's CPI release": "CPI has no set weekday. BLS set November's for Thursday, Dec. 10.",
+    "November's PPI report": "BLS set November's PPI for Tuesday, Dec. 15."
    }
   },
   {
@@ -1433,7 +1433,7 @@
   },
   "q13": {
    "status": "pass",
-   "notes": "f13 (jobs Fri. Dec. 4), f10 (CPI Thu. Dec. 10), f16 (PPI Tue. Dec. 15) match the live schedule. Nov. 30, 2026 is a Monday and Dec. 4 is December's first Friday. f14, f15 support 'not always'. No change.",
+   "notes": "f13 (jobs Fri. Dec. 4), f10 (CPI Thu. Dec. 10), f16 (PPI Tue. Dec. 15) match the live schedule. Nov. 30, 2026 is a Monday and Dec. 4 is December's first Friday. f14, f15 support 'not always'. No change. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },

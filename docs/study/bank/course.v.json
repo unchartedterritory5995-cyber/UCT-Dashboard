@@ -8295,9 +8295,9 @@
   "prompt_json": {
    "choices": [
     "Outside reversal day",
-    "Morning star",
-    "Inside day",
-    "Harami cross"
+    "Morning star pattern",
+    "Inside day pattern",
+    "Bearish harami cross"
    ],
    "kind": "mcq",
    "q": "Today is best described as what?",
@@ -8332,15 +8332,15 @@
     "summary": "An outside reversal day is an outside day that closes against the prior trend. An outside reversal's high and low both move beyond the prior session's range. Outside reversals are used with volume or support levels for more reliability."
    },
    "facts": {
-    "given": "Today is best described as what? A stock has rallied for three weeks. Today it trades above yesterday's high, then falls below yesterday's low. It closes down near the low. Outside reversal day Inside day Harami cross Morning star"
+    "given": "Today is best described as what? A stock has rallied for three weeks. Today it trades above yesterday's high, then falls below yesterday's low. It closes down near the low. Outside reversal day Inside day pattern Bearish harami cross Morning star pattern"
    },
    "lesson_line": "An outside day that closes against the trend is an outside reversal. Volume and the level it hits add weight.",
    "unit": "V.03",
    "why": "Outside reversal day. It's an outside day, a higher high and a lower low, that closes against the prior trend. In an uptrend, that means a down close.",
    "wrong": {
-    "Harami cross": "A harami cross needs a doji tucked inside the prior body. Today's range swallowed yesterday's.",
-    "Inside day": "An inside day stays within yesterday's range. Today broke out of both ends.",
-    "Morning star": "A morning star is a three-candle turn after a decline. This is one day, after a rally."
+    "Bearish harami cross": "A harami cross needs a doji tucked inside the prior body. Today's range swallowed yesterday's.",
+    "Inside day pattern": "An inside day stays within yesterday's range. Today broke out of both ends.",
+    "Morning star pattern": "A morning star is a three-candle turn after a decline. This is one day, after a rally."
    }
   },
   "review_status": "draft",
@@ -17763,7 +17763,7 @@
  },
  {
   "answer_json": {
-   "answer": "The first place to take some off"
+   "answer": "Where we first take some off"
   },
   "difficulty": 2,
   "id": "si_a8b224ea5624",
@@ -17772,10 +17772,10 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Where to add more shares",
-    "Where to move the stop",
-    "Sell everything there",
-    "The first place to take some off"
+    "Where to add a few more shares",
+    "Where to move the stop up",
+    "Sell the whole position there",
+    "Where we first take some off"
    ],
    "kind": "mcq",
    "q": "What does our plan say about $90?",
@@ -17810,15 +17810,15 @@
     "summary": "In Gap Support, the high made after the gap is the first place to take some off. After the first third at 3R, we sell another third at 5R and trail the last third. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower."
    },
    "facts": {
-    "given": "What does our plan say about $90? You bought Gap Support at $82 as the gap held. Since the gap, the stock's best price was $90. It's heading back up there now. The first place to take some off Where to move the stop Where to add more shares Sell everything there"
+    "given": "What does our plan say about $90? You bought Gap Support at $82 as the gap held. Since the gap, the stock's best price was $90. It's heading back up there now. Where we first take some off Where to move the stop up Where to add a few more shares Sell the whole position there"
    },
    "lesson_line": "Gap Support: trim first at the post-gap high.",
    "unit": "V.05",
    "why": "The first place to take some off. In our Gap Support plan, the post-gap high is the first trim.",
    "wrong": {
-    "Sell everything there": "Trim means some, not all. Keep the rest working.",
-    "Where to add more shares": "Adding there isn't in the plan. It's where we take some off.",
-    "Where to move the stop": "The stop stays down at the gap. The post-gap high is a trim spot."
+    "Sell the whole position there": "Trim means some, not all. Keep the rest working.",
+    "Where to add a few more shares": "Adding there isn't in the plan. It's where we take some off.",
+    "Where to move the stop up": "The stop stays down at the gap. The post-gap high is a trim spot."
    }
   },
   "review_status": "draft",
@@ -19001,7 +19001,7 @@
  },
  {
   "answer_json": {
-   "answer": "It broke the line it had to stay under"
+   "answer": "It broke the gap day's high"
   },
   "difficulty": 3,
   "id": "si_5bd67342176b",
@@ -19011,8 +19011,8 @@
   "prompt_json": {
    "choices": [
     "The Bear gap is still on track",
-    "It broke the line it had to stay under",
-    "It's a new Bear gap"
+    "It broke the gap day's high",
+    "It's a fresh Bear gap setup"
    ],
    "kind": "mcq",
    "q": "In our Bear gap lesson, what does that close mean?",
@@ -19033,13 +19033,13 @@
     "summary": "The Bear gap is a short-side lesson with no trade defined: a close must stay under the gap day's high, and the fall is measured, not traded."
    },
    "facts": {
-    "given": "In our Bear gap lesson, what does that close mean? A stock gaps down hard off its highs. Eight days later it closes above the gap day's high. It broke the line it had to stay under The Bear gap is still on track It's a new Bear gap"
+    "given": "In our Bear gap lesson, what does that close mean? A stock gaps down hard off its highs. Eight days later it closes above the gap day's high. It broke the gap day's high The Bear gap is still on track It's a fresh Bear gap setup"
    },
    "lesson_line": "Bear gap: a close over the gap day's high breaks it.",
    "unit": "V.05",
    "why": "It broke the line. Our lesson's line is the gap day's high, and a close must stay under it.",
    "wrong": {
-    "It's a new Bear gap": "A Bear gap is a gap down. This is a close back up through the line.",
+    "It's a fresh Bear gap setup": "A Bear gap is a gap down. This is a close back up through the line.",
     "The Bear gap is still on track": "Not after a close over the gap day's high. That's the one line it had to stay under."
    }
   },
@@ -19979,21 +19979,21 @@
  },
  {
   "answer_json": {
-   "answer": "At 3R and 5R"
+   "answer": "It trails after the second trim"
   },
   "difficulty": 1,
   "id": "si_67b288c342b7",
   "lesson_origin": "session",
-  "lesson_text": "At 3R and 5R. R is the entry-to-stop distance. A third comes off at three times it, another third at five, and the last third trails. Our trims are counted in R from the stop: a third at 3R, a third at 5R.",
+  "lesson_text": "It trails after the second trim. A third comes off at 3R, another third at 5R, and the last third trails. A third at 3R, a third at 5R, then trail the last third.",
   "module": "V",
   "prompt_json": {
    "choices": [
-    "At 10% and 20% gains",
-    "At 1R and 2R",
-    "At 3R and 5R"
+    "It sells at a flat percent gain",
+    "It sells with the second trim",
+    "It trails after the second trim"
    ],
    "kind": "mcq",
-   "q": "Our plan sells in thirds. Where do the two trims sit?",
+   "q": "Our plan sells in thirds. What happens to the last third?",
    "subject": "R-multiple"
   },
   "reveal_json": {
@@ -20017,14 +20017,14 @@
     "summary": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. After the first third at 3R, we sell another third at 5R and trail the last third."
    },
    "facts": {
-    "given": "Our plan sells in thirds. Where do the two trims sit? At 3R and 5R At 1R and 2R At 10% and 20% gains"
+    "given": "Our plan sells in thirds. What happens to the last third? It trails after the second trim It sells with the second trim It sells at a flat percent gain"
    },
-   "lesson_line": "Our trims are counted in R from the stop: a third at 3R, a third at 5R.",
+   "lesson_line": "A third at 3R, a third at 5R, then trail the last third.",
    "unit": "V.06",
-   "why": "At 3R and 5R. R is the entry-to-stop distance. A third comes off at three times it, another third at five, and the last third trails.",
+   "why": "It trails after the second trim. A third comes off at 3R, another third at 5R, and the last third trails.",
    "wrong": {
-    "At 10% and 20% gains": "Our trims come from the stop distance, not a flat percent.",
-    "At 1R and 2R": "Our first trim is a third at 3R, three times the risk to the stop."
+    "It sells at a flat percent gain": "Our plan does not sell the last third at a flat percent. It trails.",
+    "It sells with the second trim": "The second third comes off at 5R. The last third stays on and trails."
    }
   },
   "review_status": "draft",
@@ -40912,7 +40912,7 @@
  },
  {
   "answer_json": {
-   "answer": "A broad measure of the money supply"
+   "answer": "A broad money supply measure"
   },
   "difficulty": 1,
   "id": "si_cbfc79cee3fd",
@@ -40923,8 +40923,8 @@
    "choices": [
     "Total Fed holdings of bonds",
     "New cash printed this year",
-    "A broad measure of the money supply",
-    "Bank loans to businesses"
+    "A broad money supply measure",
+    "Bank loans to small businesses"
    ],
    "kind": "mcq",
    "q": "What does M2 measure?",
@@ -40979,13 +40979,13 @@
     "summary": "M2 is M1 plus small time deposits and retail money market fund shares. The Fed reports the money supply in its H.6 release. The money supply is safe assets people can spend or hold short term. Cash and checking and savings balances count in many money supply measures. QE grows the Fed's balance sheet; QT shrinks it. In May 2022 the FOMC agreed plans to significantly reduce the Fed's securities holdings."
    },
    "facts": {
-    "given": "What does M2 measure? A broad measure of the money supply Total Fed holdings of bonds New cash printed this year Bank loans to businesses"
+    "given": "What does M2 measure? A broad money supply measure Total Fed holdings of bonds New cash printed this year Bank loans to small businesses"
    },
    "lesson_line": "M2 is cash, bank deposits and retail money funds: money people can spend or park short term.",
    "unit": "V.10",
    "why": "A broad measure of the money supply. M2 is M1 plus small time deposits and retail money market fund shares. The Fed reports it in its H.6 release.",
    "wrong": {
-    "Bank loans to businesses": "Loans are credit. M2 counts money: cash, deposits and money fund balances.",
+    "Bank loans to small businesses": "Loans are credit. M2 counts money: cash, deposits and money fund balances.",
     "New cash printed this year": "Currency is only one piece. M2 also counts bank deposits and retail money funds.",
     "Total Fed holdings of bonds": "That's the Fed's securities holdings, which grow with QE and shrink with QT."
    }
@@ -42309,9 +42309,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Employed",
+    "Employed, between jobs",
     "Not in the labor force",
-    "Unemployed"
+    "Unemployed; wants work"
    ],
    "kind": "mcq",
    "q": "How does BLS classify Dana?",
@@ -42353,14 +42353,14 @@
     "summary": "Unemployed means no job, looked for work in the past 4 weeks, and available. People who want a job but didn't look in the past 4 weeks aren't counted as unemployed. People with no job who aren't looking are not in the labor force. People on temporary layoff expecting recall count as unemployed even without a job search."
    },
    "facts": {
-    "given": "How does BLS classify Dana? Dana's job ended for good in the spring. She'd like work but hasn't looked in two months. BLS surveys her household. Not in the labor force Unemployed Employed"
+    "given": "How does BLS classify Dana? Dana's job ended for good in the spring. She'd like work but hasn't looked in two months. BLS surveys her household. Not in the labor force Unemployed; wants work Employed, between jobs"
    },
    "lesson_line": "People who stop looking usually drop out of the unemployment rate. A falling rate isn't always good news.",
    "unit": "V.10",
    "why": "Not in the labor force. To count as unemployed you must have looked for work in the prior 4 weeks. Wanting a job isn't enough.",
    "wrong": {
-    "Employed": "She has no job, so she isn't employed.",
-    "Unemployed": "She hasn't actively looked in the prior 4 weeks, so she doesn't meet the test."
+    "Employed, between jobs": "She has no job, so she isn't employed.",
+    "Unemployed; wants work": "She hasn't actively looked in the prior 4 weeks, so she doesn't meet the test."
    }
   },
   "review_status": "draft",
@@ -42467,9 +42467,9 @@
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Inverted",
+    "Inverted, short yields on top",
     "Sloping up, the usual shape",
-    "Flat"
+    "Flat, short close to long"
    ],
    "kind": "mcq",
    "q": "What shape is the curve?",
@@ -42525,14 +42525,14 @@
     "summary": "October 30, 2026: 3-month 4.16%, 2-year 4.56%, 10-year 4.94%, 30-year 5.31%. The table's yield columns run from 1 month to 30 years, in that order. A steep curve is positively sloped: long rates well above short rates. Treasury calls long yields below short yields inverted yield curve rates. Inverted means short-term rates above long-term rates; it has often come before recessions. A flattening curve is a narrowing gap between short and long rates."
    },
    "facts": {
-    "given": "What shape is the curve? Treasury yields on Oct. 30, 2026: 3-month 4.16%, 2-year 4.56%, 10-year 4.94%, 30-year 5.31%. Sloping up, the usual shape Inverted Flat"
+    "given": "What shape is the curve? Treasury yields on Oct. 30, 2026: 3-month 4.16%, 2-year 4.56%, 10-year 4.94%, 30-year 5.31%. Sloping up, the usual shape Inverted, short yields on top Flat, short close to long"
    },
    "lesson_line": "Read the curve left to right. Yields rising with maturity is the usual shape.",
    "unit": "V.10",
    "why": "Sloping up, the usual shape. Yields climb from 4.16% at 3 months to 5.31% at 30 years. Longer maturities pay more, as they usually do.",
    "wrong": {
-    "Flat": "Flat means a narrow gap between short and long yields. Here the 30-year, at 5.31%, sits well above the 3-month at 4.16%.",
-    "Inverted": "Inverted would need short yields above long ones. Here the 3-month is the lowest of the four."
+    "Flat, short close to long": "Flat means a narrow gap between short and long yields. Here the 30-year, at 5.31%, sits well above the 3-month at 4.16%.",
+    "Inverted, short yields on top": "Inverted would need short yields above long ones. Here the 3-month is the lowest of the four."
    }
   },
   "review_status": "draft",
@@ -43613,18 +43613,18 @@
  },
  {
   "answer_json": {
-   "answer": "Up 100 basis points"
+   "answer": "Up by 100 basis points"
   },
   "difficulty": 3,
   "id": "si_65abfe0fa517",
   "lesson_origin": "session",
-  "lesson_text": "Up 100 basis points. A 10% rise could mean 11% or 20%. Basis points measure the rate's own move, so there's no mix-up. Say rate moves in basis points or percentage points, never in percent.",
+  "lesson_text": "Up by 100 basis points. A 10% rise could mean 11% or 20%. Basis points measure the rate's own move, so there's no mix-up. Say rate moves in basis points or percentage points, never in percent.",
   "module": "V",
   "prompt_json": {
    "choices": [
-    "Up 1%",
-    "Up 10%",
-    "Up 100 basis points"
+    "Up 1% in the headline",
+    "Up 10% in the headline",
+    "Up by 100 basis points"
    ],
    "kind": "mcq",
    "q": "Which way of saying it can't be misread?",
@@ -43666,14 +43666,14 @@
     "summary": "A 10% rate that 'rises 10%' could be read as 11% or 20%. A 100 bp rise takes a 10% rate to 11%, with no ambiguity. A basis point is a hundredth of a percentage point. A basis point is 0.01 of a percentage point; 8% is 800 basis points."
    },
    "facts": {
-    "given": "Which way of saying it can't be misread? A loan rate goes from 10% to 11%. One headline says the rate rose 10%. Another says it rose 1%. Up 100 basis points Up 10% Up 1%"
+    "given": "Which way of saying it can't be misread? A loan rate goes from 10% to 11%. One headline says the rate rose 10%. Another says it rose 1%. Up by 100 basis points Up 10% in the headline Up 1% in the headline"
    },
    "lesson_line": "Say rate moves in basis points or percentage points, never in percent.",
    "unit": "V.10",
-   "why": "Up 100 basis points. A 10% rise could mean 11% or 20%. Basis points measure the rate's own move, so there's no mix-up.",
+   "why": "Up by 100 basis points. A 10% rise could mean 11% or 20%. Basis points measure the rate's own move, so there's no mix-up.",
    "wrong": {
-    "Up 1%": "One percent of what? Read as a share of the old rate, it would barely be a change.",
-    "Up 10%": "That's a percent of the old rate. Some readers will think the rate is now 20%."
+    "Up 1% in the headline": "One percent of what? Read as a share of the old rate, it would barely be a change.",
+    "Up 10% in the headline": "That's a percent of the old rate. Some readers will think the rate is now 20%."
    }
   },
   "review_status": "draft",

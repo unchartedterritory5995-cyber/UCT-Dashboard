@@ -1641,12 +1641,12 @@
    "criterion": "pl.market_index",
    "q": "When is the parabolic long at its best?",
    "choices": [
-    "When the index is capitulating too",
-    "In a calm, rising market",
-    "On day one of a breakdown",
-    "When one stock falls alone"
+    "When the index capitulates too",
+    "In a calm market, drifting up",
+    "On day one of a market breakdown",
+    "When one stock falls on its own"
    ],
-   "answer": "When the index is capitulating too",
+   "answer": "When the index capitulates too",
    "why": "When the index is capitulating too: a stretched index, a gap down, a Monday, a VIX spike. Kell says the same: get aggressive when the index prints the reversal.",
    "lesson_line": "One stock crashing is a story. The whole market crashing is a setup.",
    "facts": [
@@ -1656,9 +1656,9 @@
    ],
    "house": true,
    "wrong": {
-    "In a calm, rising market": "A calm market has no panic to reverse. This is a fear trade.",
-    "On day one of a breakdown": "Day one is the start of the fall. The burst comes later.",
-    "When one stock falls alone": "A lone crash is often the company's own news. The best turns are market-wide."
+    "In a calm market, drifting up": "A calm market has no panic to reverse. This is a fear trade.",
+    "On day one of a market breakdown": "Day one is the start of the fall. The burst comes later.",
+    "When one stock falls on its own": "A lone crash is often the company's own news. The best turns are market-wide."
    }
   },
   {
@@ -1695,12 +1695,12 @@
    "q": "Buy the close, or wait?",
    "story": "It is Friday. The index is four down days deep and stretched under its 50-day. The VIX is 28. A liquid ETF has three boxes and a green close.",
    "choices": [
-    "Wait; Monday may bring the real flush",
+    "Wait; Monday may bring a flush",
     "Buy the close; the turn is in",
-    "Buy half now, add Monday",
-    "Short it into Monday"
+    "Buy half now, add more on Monday",
+    "Short it into the Monday open"
    ],
-   "answer": "Wait; Monday may bring the real flush",
+   "answer": "Wait; Monday may bring a flush",
    "why": "Wait. Do not buy the Friday before a possible Monday flush; Bracco's best turns come on Mondays. Three of the four stopped-out examples we studied (BAC, WDC, KRE) were Friday buys.",
    "lesson_line": "Friday's turn is often Monday's gap. Let the weekend decide.",
    "facts": [
@@ -1710,9 +1710,9 @@
    ],
    "house": true,
    "wrong": {
-    "Buy the close; the turn is in": "A Friday close is the worst place to find out. The Monday gap goes through every stop.",
-    "Buy half now, add Monday": "Half of a Friday buy still eats the gap. One entry, on the turn.",
-    "Short it into Monday": "Four days down and stretched is not where we short. Cash, then watch Monday."
+    "Buy the close; the turn is in": "A Friday close is the worst place to find out. A Monday gap can go through the stop.",
+    "Buy half now, add more on Monday": "Half of a Friday buy still eats the gap. One entry, on the turn.",
+    "Short it into the Monday open": "Four days down and stretched is not where we short. Cash, then watch Monday."
    }
   },
   {
@@ -2203,11 +2203,11 @@
    "q": "Is it a parabolic long candidate?",
    "story": "Over three weeks a stock drifts from 60 to 48 in small, overlapping bars: a down day or two, then a bounce. Volume stays flat. Today it closes at the low.",
    "choices": [
-    "No; an orderly, overlapping decline",
-    "Yes; it is 20% down",
-    "Yes, if tomorrow gaps down"
+    "No; it is an orderly decline",
+    "Yes; it is already 20% down",
+    "Yes, if tomorrow gaps down hard"
    ],
-   "answer": "No; an orderly, overlapping decline",
+   "answer": "No; it is an orderly decline",
    "why": "No. An orderly, overlapping decline is not this setup; the fall has to accelerate with little bar overlap. Bracco passed on a market that was not parabolic.",
    "lesson_line": "Twenty percent down slowly is a grind. The setup needs a burst.",
    "facts": [
@@ -2217,8 +2217,8 @@
    ],
    "house": true,
    "wrong": {
-    "Yes; it is 20% down": "Percent alone is Bracco's named mistake. The structure is a stair-step.",
-    "Yes, if tomorrow gaps down": "A gap into a grind is one box out of five. The burst is still missing."
+    "Yes; it is already 20% down": "Percent alone is Bracco's named mistake. The structure is a stair-step.",
+    "Yes, if tomorrow gaps down hard": "A gap into a grind is one box out of five. The burst is still missing."
    }
   },
   {
@@ -3072,7 +3072,7 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "c22 verbatim, e04 verbatim (Kell, archive capture). pl.market_index is proposed. Wrong notes true.",
+   "notes": "c22 verbatim, e04 verbatim (Kell, archive capture). pl.market_index is proposed. Wrong notes true. flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -3084,7 +3084,7 @@
   },
   "q23": {
    "status": "pass",
-   "notes": "c15 verbatim; s04 verbatim; d26 verbatim ('three of the four were bought on a Friday': BAC 2020-02-28, WDC 2022-09-23, KRE 2025-04-04, all Fridays). The why said 'our four failures' with no antecedent; now names the three.",
+   "notes": "c15 verbatim; s04 verbatim; d26 verbatim ('three of the four were bought on a Friday': BAC 2020-02-28, WDC 2022-09-23, KRE 2025-04-04, all Fridays). The why said 'our four failures' with no antecedent; now names the three. flagged-question fix checked 2026-11-11 Wrong note softened from \"goes through every stop\" to \"can go through the stop\".",
    "fixed": true,
    "by": "checker"
   },
@@ -3204,7 +3204,7 @@
   },
   "q43": {
    "status": "pass",
-   "notes": "c05 and b02 verbatim; the drift story has no acceleration or gaps. Percent alone is Bracco's named mistake (p17).",
+   "notes": "c05 and b02 verbatim; the drift story has no acceleration or gaps. Percent alone is Bracco's named mistake (p17). flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },

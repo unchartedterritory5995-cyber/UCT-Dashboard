@@ -2590,9 +2590,9 @@
    "q": "Today is best described as what?",
    "choices": [
     "Outside reversal day",
-    "Inside day",
-    "Harami cross",
-    "Morning star"
+    "Inside day pattern",
+    "Bearish harami cross",
+    "Morning star pattern"
    ],
    "answer": "Outside reversal day",
    "why": "Outside reversal day. It's an outside day, a higher high and a lower low, that closes against the prior trend. In an uptrend, that means a down close.",
@@ -2603,9 +2603,9 @@
     "f146"
    ],
    "wrong": {
-    "Inside day": "An inside day stays within yesterday's range. Today broke out of both ends.",
-    "Harami cross": "A harami cross needs a doji tucked inside the prior body. Today's range swallowed yesterday's.",
-    "Morning star": "A morning star is a three-candle turn after a decline. This is one day, after a rally."
+    "Inside day pattern": "An inside day stays within yesterday's range. Today broke out of both ends.",
+    "Bearish harami cross": "A harami cross needs a doji tucked inside the prior body. Today's range swallowed yesterday's.",
+    "Morning star pattern": "A morning star is a three-candle turn after a decline. This is one day, after a rally."
    }
   },
   {
@@ -3364,7 +3364,7 @@
   },
   "q41": {
    "status": "pass",
-   "notes": "f94: outside day that closes against the prior trend ('in an uptrend, the second day must close down'). Story fits. No change. variety rewrite checked 2026-11-10",
+   "notes": "f94: outside day that closes against the prior trend ('in an uptrend, the second day must close down'). Story fits. No change. variety rewrite checked 2026-11-10 flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },

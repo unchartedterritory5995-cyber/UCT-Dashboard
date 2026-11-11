@@ -87,6 +87,12 @@ def main():
                 if prev is None or j > prev[0]:
                     dup[later["id"]] = (j, earlier["unit"] + "#" + earlier["key"])
 
+    # questions the first pass already acted on: docs/study/library/resolved_looks.json {"UNIT#qNN": "what was changed"}
+    resolved = {}
+    try:
+        resolved = json.load(open(os.path.join(REPO, "docs", "study", "library", "resolved_looks.json"), encoding="utf-8"))
+    except (OSError, ValueError):
+        pass
     calls, stats = {}, {"keep": 0, "confirm": 0, "look": 0}
     for u, d in units.items():
         status = card_status(d.get("card") or "")
@@ -121,7 +127,10 @@ def main():
             if q["key"] in held:
                 ids = ", ".join(sorted(held[q["key"]])) or "a held decision"
                 confirm.append(f"the unit's notes say this touches {ids}")
-            if look:
+            done = resolved.get(u + "#" + q["key"])
+            if done:
+                c, p, r = "look", "keep", "I changed this one: " + done + " Please check the new version."
+            elif look:
                 c, p, r = "look", proposed, "; ".join(look)
             elif confirm:
                 c, p, r = "confirm", "keep", "; ".join(confirm)

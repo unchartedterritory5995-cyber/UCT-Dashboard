@@ -568,12 +568,12 @@
    "format": "mcq",
    "q": "Your stock is up, so you raise the stop to your entry price. What is that stop there to prevent?",
    "choices": [
-    "The winner turning into a loss",
-    "Any pullback at all",
-    "A gap down at the open",
-    "Selling too early"
+    "A winner turning into a loss",
+    "Any pullback after the rally",
+    "A gap down at tomorrow's open",
+    "Selling too early on a dip"
    ],
-   "answer": "The winner turning into a loss",
+   "answer": "A winner turning into a loss",
    "why": "The winner turning into a loss. A sell stop can protect a profit as well as limit a loss. Filled at your entry, the shares you hold come out even.",
    "lesson_line": "O'Neil's rule: don't let a good gain fall back below your purchase price.",
    "facts": [
@@ -585,9 +585,9 @@
     "f13"
    ],
    "wrong": {
-    "Any pullback at all": "A stop only acts at its price. The stock can still pull back to just above your entry.",
-    "A gap down at the open": "A stop can't stop a gap. It turns into a market order and fills at the next price, which can be below your entry.",
-    "Selling too early": "If anything, it raises that risk. A stop close to the price can sell you on a normal dip."
+    "Any pullback after the rally": "A stop only acts at its price. The stock can still pull back to just above your entry.",
+    "A gap down at tomorrow's open": "A stop can't stop a gap. It turns into a market order and fills at the next price, which can be below your entry.",
+    "Selling too early on a dip": "If anything, it raises that risk. A stop close to the price can sell you on a normal dip."
    }
   },
   {
@@ -1156,7 +1156,7 @@
   },
   "q05": {
    "status": "pass",
-   "notes": "f01/f08 (SEC, FINRA) and O'Neil f38 support the key; each wrong note checked (gap: Fidelity f35, FINRA f09). Changed lesson line to name it as O'Neil's rule, since Mabe (f39) never moves to breakeven and the file says it never keys that you always should.",
+   "notes": "f01/f08 (SEC, FINRA) and O'Neil f38 support the key; each wrong note checked (gap: Fidelity f35, FINRA f09). Changed lesson line to name it as O'Neil's rule, since Mabe (f39) never moves to breakeven and the file says it never keys that you always should. | flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },

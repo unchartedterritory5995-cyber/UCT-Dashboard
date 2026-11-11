@@ -1974,11 +1974,11 @@
    "criterion": "xbk.inv_late_cycle",
    "q": "What warning did it carry?",
    "choices": [
-    "It was late in the stock's own advance",
+    "It came late in its own run",
     "The 9 had crossed under the 20",
-    "The hold day had no volume"
+    "The hold day had thin volume"
    ],
-   "answer": "It was late in the stock's own advance",
+   "answer": "It came late in its own run",
    "why": "It was late in the stock's own advance, sixteen sessions after the pop. Late crossbacks fail most. LLY was stopped the next day.",
    "lesson_line": "A long wait after the pop is a warning, not a gate. The stop still decides.",
    "facts": [
@@ -1987,7 +1987,7 @@
     "x22"
    ],
    "wrong": {
-    "The hold day had no volume": "Nothing in the story says so.",
+    "The hold day had thin volume": "Nothing in the story says so.",
     "The 9 had crossed under the 20": "Nothing in the story says so."
    },
    "house": true,
@@ -2082,11 +2082,11 @@
    "criterion": "xbk.intraday_option",
    "q": "Where does the stop go?",
    "choices": [
-    "The same: under the hold day's low",
-    "At breakeven right away",
-    "Under the 200-day average"
+    "Same stop: the hold day's low",
+    "At breakeven the moment you buy",
+    "Just under the 200-day average"
    ],
-   "answer": "The same: under the hold day's low",
+   "answer": "Same stop: the hold day's low",
    "why": "The same. The advanced version buys an intraday trigger on the hold day itself, with the same stop, the day's low.",
    "lesson_line": "An earlier entry keeps the same stop. It does not widen it.",
    "facts": [
@@ -2094,8 +2094,8 @@
     "x14"
    ],
    "wrong": {
-    "Under the 200-day average": "That ignores the hold day's low.",
-    "At breakeven right away": "Breakeven comes at the first trim."
+    "Just under the 200-day average": "That ignores the hold day's low.",
+    "At breakeven the moment you buy": "Breakeven comes at the first trim."
    },
    "house": true,
    "story": "On the hold day itself, the stock breaks its 65-minute high and you buy the advanced version."
@@ -2186,11 +2186,11 @@
    "criterion": "xbk.leadership",
    "q": "What do you do?",
    "choices": [
-    "Pass; it is not a leader by our rule",
-    "Take it; 72 is close enough",
-    "Take it at half size"
+    "Pass; not a leader by our rule",
+    "Take it; 72 is close enough to 80",
+    "Take it at half size for now"
    ],
-   "answer": "Pass; it is not a leader by our rule",
+   "answer": "Pass; not a leader by our rule",
    "why": "Pass. We buy leaders, with an RS rating of 80 or more in a strong group. An RS of 72 is not that.",
    "lesson_line": "Buy leaders. A neat chart on a laggard waits.",
    "facts": [
@@ -2198,8 +2198,8 @@
     "h14"
    ],
    "wrong": {
-    "Take it; 72 is close enough": "The rule is 80 or more.",
-    "Take it at half size": "Size does not fix a leadership gap."
+    "Take it; 72 is close enough to 80": "The rule is 80 or more.",
+    "Take it at half size for now": "Size does not fix a leadership gap."
    },
    "house": true,
    "story": "A clean crossback sets up in a stock with an RS rating of 72."
@@ -2369,11 +2369,11 @@
    "criterion": "xbk.trigger",
    "q": "What do you do?",
    "choices": [
-    "Buy half and decide later",
-    "Buy now before it runs",
-    "Check the hold day, stop and size first"
+    "Buy half and set a stop later",
+    "Buy now before it runs away",
+    "Check the hold day and stop"
    ],
-   "answer": "Check the hold day, stop and size first",
+   "answer": "Check the hold day and stop",
    "why": "Check it yourself. Never take a trade from an alert, a post or a video without your own entry, stop and size.",
    "lesson_line": "Someone else's alert is not a plan. Build your own entry, stop and size.",
    "facts": [
@@ -2381,8 +2381,8 @@
     "h39"
    ],
    "wrong": {
-    "Buy now before it runs": "A buy with no stop and no size is a gamble.",
-    "Buy half and decide later": "Half a gamble is still a gamble."
+    "Buy now before it runs away": "A buy with no stop and no size is a gamble.",
+    "Buy half and set a stop later": "Half a gamble is still a gamble."
    },
    "house": true,
    "story": "A post says a stock is on its EMA Crossback right now. You have not looked at its hold day, stop or size."
@@ -3135,7 +3135,7 @@
   },
   "q49": {
    "status": "pass",
-   "notes": "LLY row matches the dossier (16 sessions after the pop, stopped the next day). The 16 sessions sit inside the card's 3 to 20, so 'a warning, not a gate' is right. Note: our own scan found 11 to 20 session waits did slightly better (30.0% to 3R) than 3 to 10 (28.5%), so 'late fails most' is Kell's and the card's, not our data's.",
+   "notes": "LLY row matches the dossier (16 sessions after the pop, stopped the next day). The 16 sessions sit inside the card's 3 to 20, so 'a warning, not a gate' is right. Note: our own scan found 11 to 20 session waits did slightly better (30.0% to 3R) than 3 to 10 (28.5%), so 'late fails most' is Kell's and the card's, not our data's. | flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -3159,7 +3159,7 @@
   },
   "q53": {
    "status": "pass",
-   "notes": "Card x21 (proposed advanced version). Right.",
+   "notes": "Card x21 (proposed advanced version). Right. | flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -3183,7 +3183,7 @@
   },
   "q57": {
    "status": "pass",
-   "notes": "C31 settled. Right.",
+   "notes": "C31 settled. Right. | flagged-question fix checked 2026-11-11",
    "fixed": false,
    "by": "checker"
   },
@@ -3225,7 +3225,7 @@
   },
   "q64": {
    "status": "pass",
-   "notes": "F66 and D39 settled. The choice said 'Check the base' on a crossback, which has no base: now 'the hold day'.",
+   "notes": "F66 and D39 settled. The choice said 'Check the base' on a crossback, which has no base: now 'the hold day'. | flagged-question fix checked 2026-11-11",
    "fixed": true,
    "by": "checker"
   },

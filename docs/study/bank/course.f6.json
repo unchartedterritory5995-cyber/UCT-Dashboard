@@ -4710,7 +4710,7 @@
  },
  {
   "answer_json": {
-   "answer": "$1.10, all of it"
+   "answer": "$1.10"
   },
   "difficulty": 2,
   "id": "si_c3d98f54966f",
@@ -4719,10 +4719,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "$2",
-    "$3.10",
-    "$0",
-    "$1.10, all of it"
+    "$0.00",
+    "$1.10",
+    "$2.00",
+    "$3.10"
    ],
    "kind": "mcq",
    "q": "How much of the 1.10 is time value?",
@@ -4767,14 +4767,14 @@
      "fn": "extrinsic",
      "result": 1.1
     },
-    "given": "How much of the 1.10 is time value? A stock trades at 38. You look at the 40 call, priced at 1.10. Expiry is three weeks out. $1.10, all of it $3.10 $0 $2"
+    "given": "How much of the 1.10 is time value? A stock trades at 38. You look at the 40 call, priced at 1.10. Expiry is three weeks out. $1.10 $3.10 $0.00 $2.00"
    },
    "lesson_line": "Out of the money, every cent of the premium is time value.",
    "unit": "F6.03",
    "why": "All of it, $1.10. The call is out of the money, so intrinsic is zero and the whole price is time.",
    "wrong": {
-    "$0": "Out of the money means no intrinsic value, not no value. The 1.10 is real, and all of it is time.",
-    "$2": "That's how far the stock is from the strike. It isn't a part of the price.",
+    "$0.00": "Out of the money means no intrinsic value, not no value. The 1.10 is real, and all of it is time.",
+    "$2.00": "That's how far the stock is from the strike. It isn't a part of the price.",
     "$3.10": "That counts the 2 points below the strike as negative intrinsic value. Intrinsic stops at zero."
    }
   },
@@ -5037,10 +5037,10 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Lost $1 a share",
     "Broke even",
     "Lost the whole $5",
-    "Made $4 a share"
+    "Made $4 a share",
+    "Lost $1 a share"
    ],
    "kind": "mcq",
    "q": "Your call finished in the money. What did the trade make or lose, per share?",
@@ -5269,8 +5269,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "Nothing, deals kill options",
     "$10, intrinsic only",
+    "Nothing, deals kill options",
     "Whatever it last traded at",
     "$10 plus its old time value"
    ],
@@ -5521,8 +5521,8 @@
   "prompt_json": {
    "choices": [
     "Nothing, same result",
-    "$10, the intrinsic value",
     "$1.50, the time value",
+    "$10, the intrinsic value",
     "$11.50, the whole premium"
    ],
    "kind": "mcq",
@@ -10333,7 +10333,7 @@
  },
  {
   "answer_json": {
-   "answer": "A is expected to swing more than B"
+   "answer": "A is expected to swing more"
   },
   "difficulty": 3,
   "id": "si_dd253b8581b5",
@@ -10343,9 +10343,9 @@
   "prompt_json": {
    "choices": [
     "A's options are overpriced",
-    "A is more likely to go up",
-    "B's options are a bargain",
-    "A is expected to swing more than B"
+    "A is more likely to go up soon",
+    "B's options are a real bargain",
+    "A is expected to swing more"
    ],
    "kind": "mcq",
    "q": "Stock A's options show an IV of 60%. Stock B's show 30%. What can you fairly conclude?",
@@ -10393,15 +10393,15 @@
     "summary": "IV can be compared across stocks to see which are expected to move more or less. Implied volatility is how much the market expects the stock to move, read from the option's price. An upcoming earnings or product announcement can keep a stock's options at elevated IV. Comparing a stock's IV with its own historical volatility can show whether its options are priced above or below normal. IV sizes the expected swing; it does not say which way."
    },
    "facts": {
-    "given": "Stock A's options show an IV of 60%. Stock B's show 30%. What can you fairly conclude? A is expected to swing more than B A's options are overpriced A is more likely to go up B's options are a bargain"
+    "given": "Stock A's options show an IV of 60%. Stock B's show 30%. What can you fairly conclude? A is expected to swing more A's options are overpriced A is more likely to go up soon B's options are a real bargain"
    },
    "lesson_line": "Comparing IV across stocks shows who the market expects to move more, not who's mispriced. Check each against its own history.",
    "unit": "F6.06",
    "why": "A is expected to swing more than B. Comparing IV across stocks tells you who the market expects to move more. It doesn't say either one is mispriced.",
    "wrong": {
-    "A is more likely to go up": "IV has no direction. It sizes the swing, up or down.",
+    "A is more likely to go up soon": "IV has no direction. It sizes the swing, up or down.",
     "A's options are overpriced": "Not from this alone. IV can run high because the stock really does move a lot. Check A's IV against its own past.",
-    "B's options are a bargain": "Low IV can be right for a quiet stock. Cheap or not depends on B's own history."
+    "B's options are a real bargain": "Low IV can be right for a quiet stock. Cheap or not depends on B's own history."
    }
   },
   "review_status": "draft",
@@ -10682,7 +10682,7 @@
  },
  {
   "answer_json": {
-   "answer": "A crush can sink it even if you're right"
+   "answer": "A crush, even if you're right"
   },
   "difficulty": 3,
   "id": "si_ccc0177ff213",
@@ -10691,9 +10691,9 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "A crush can sink it even if you're right",
-    "High IV makes calls cheap",
-    "IV tends to keep rising after",
+    "A crush, even if you're right",
+    "High IV makes the calls cheap",
+    "IV will likely keep rising after",
     "None, high IV signals a rally"
    ],
    "kind": "mcq",
@@ -10743,14 +10743,14 @@
     "summary": "A high IV percentile means the options are relatively expensive. IV has a big effect on option prices and tends to run high before earnings. Right after a report, IV can collapse and take value out of the options. High IV makes options more expensive to buy, and the big move it prices may never come. An option can lose value through a report even when the stock moves your way."
    },
    "facts": {
-    "given": "What's the main risk in buying those calls? You're bullish into a report. The front-week calls show IV near the top of its one-year range. A crush can sink it even if you're right None, high IV signals a rally IV tends to keep rising after High IV makes calls cheap"
+    "given": "What's the main risk in buying those calls? You're bullish into a report. The front-week calls show IV near the top of its one-year range. A crush, even if you're right None, high IV signals a rally IV will likely keep rising after High IV makes the calls cheap"
    },
    "lesson_line": "Into a report with IV at the top of its range, I want a move bigger than the crush, or I pass.",
    "unit": "F6.06",
    "why": "A crush can sink it even if you're right. You're paying top-of-range IV, and IV can collapse once the news is out.",
    "wrong": {
-    "High IV makes calls cheap": "It's the reverse. High IV makes options more expensive to buy.",
-    "IV tends to keep rising after": "After a report, IV tends to fall. That's the crush.",
+    "High IV makes the calls cheap": "It's the reverse. High IV makes options more expensive to buy.",
+    "IV will likely keep rising after": "After a report, IV tends to fall. That's the crush.",
     "None, high IV signals a rally": "High IV prices a big move either way. It says nothing about direction."
    }
   },
@@ -14271,7 +14271,7 @@
  },
  {
   "answer_json": {
-   "answer": "No, one day's expected move is $1.20"
+   "answer": "No, the expected move is $1.20"
   },
   "difficulty": 3,
   "id": "si_95f7a5017772",
@@ -14280,8 +14280,8 @@
   "module": "F6",
   "prompt_json": {
    "choices": [
-    "No, one day's expected move is $1.20",
-    "Yes, nearly 2% is a big day",
+    "No, the expected move is $1.20",
+    "Yes, a move near 2% is a big day",
     "Can't tell without the chart"
    ],
    "kind": "mcq",
@@ -14333,14 +14333,14 @@
      "fn": "arith",
      "result": 1.2
     },
-    "given": "Measured against what its options price, was it a big day? A $60 stock has an implied volatility of 32%. Today it's up $1.10. A friend calls it a big day. No, one day's expected move is $1.20 Yes, nearly 2% is a big day Can't tell without the chart"
+    "given": "Measured against what its options price, was it a big day? A $60 stock has an implied volatility of 32%. Today it's up $1.10. A friend calls it a big day. No, the expected move is $1.20 Yes, a move near 2% is a big day Can't tell without the chart"
    },
    "lesson_line": "Judge a day's move against the stock's own expected move, not a fixed percent.",
    "unit": "F6.08",
    "why": "No. One day's expected move here is about $1.20, and $1.10 sits inside it. That's an ordinary day for this stock.",
    "wrong": {
     "Can't tell without the chart": "The options already give you the yardstick: price times IV, divided by 16.",
-    "Yes, nearly 2% is a big day": "A fixed percent ignores the stock. At 32% IV the options price about 2% a day, and this move is inside that."
+    "Yes, a move near 2% is a big day": "A fixed percent ignores the stock. At 32% IV the options price about 2% a day, and this move is inside that."
    }
   },
   "review_status": "draft",
