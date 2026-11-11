@@ -2,8 +2,9 @@
 import { describe, it, expect } from 'vitest'
 import {
   seriesCacheTf, logicTfOf, barsSessionQuery, barsGridQuery, barsSessionFor,
-  liveStreamSession, isOnSixtyMinGrid, computeBarTime, toChartTime,
+  isOnSixtyMinGrid, computeBarTime, toChartTime,
 } from './barTime'
+import { liveStreamSession, bucketEndUnix } from './liveBuckets'
 import { classifyLiveBar } from './liveBarClassify'
 
 const et = (d, h, m) => Date.UTC(2026, 10, d, h + 5, m) / 1000   // November: EST
@@ -55,5 +56,13 @@ describe('classifyLiveBar buckets 60m on the view grid', () => {
     const last = { time: toChartTime(et(10, 9, 30)), close: 1 }
     expect(classifyLiveBar({ tf: '60', last, tickSec: et(10, 10, 45), session: 'rth' }))
       .toEqual({ kind: 'new', time: toChartTime(et(10, 10, 30)) })
+  })
+})
+
+describe('liveBuckets defaults to the SERVED grid, not the policy extended view', () => {
+  it('bucketEndUnix with no grid ends the 09:30 bar at 10:30 (session grid)', () => {
+    expect(bucketEndUnix(et(10, 9, 30), 60)).toBe(et(10, 10, 30))
+    expect(bucketEndUnix(et(10, 9, 0), 60)).toBe(et(10, 9, 30))
+    expect(bucketEndUnix(et(10, 9, 0), 60, { grid: 'clock' })).toBe(et(10, 10, 0))
   })
 })
