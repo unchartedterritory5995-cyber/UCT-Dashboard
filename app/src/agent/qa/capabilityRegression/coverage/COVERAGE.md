@@ -22,7 +22,7 @@ Catalog: **176** capabilities (every server-gated kind on; 167 with production's
 
 | id | level | intent | phrasing | owner | reason |
 |---|---|---|---|---|---|
-| GAP-WIDGET-READ-ROUTE | a | widget.readOptions | "how is that one set right now" | agent-lead | a BUDGET CUT under routing v2 (production): the message wants boardEdit, but charts 21 + workspace 13 + lists 17 + agent 1 = 52 leave no room for boardEdit (5) under the 55-action budget (routeReachability.test.js). Under v1 (the kill-switch fallback, which this level runs) boardEdit has no words of its own; the model can still ask for the group (need_groups) |
+| GAP-WIDGET-READ-ROUTE | a | widget.readOptions | "how is that one set right now" | agent-lead | v1 ONLY (the kill-switch fallback): boardEdit has no v1 words in this message (workspace + agent only); the model can still ask for the group (need_groups). Routing v2 (production) reaches it since the budget-cut tie rule (routingV2.js TIE) |
 | CG-13 | collision | routing data | "how does NVDA stack up against AMD" | nlfix builder (routing.js) | the charts compare words select 'against' |
 | CG-4 | collision | routing indicators | "add the relative strength index" | nlfix builder (routing.js) | 'relative strength' is a screener strength word (SUBTRACTIVE: indicators not named) |
 

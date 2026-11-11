@@ -35,7 +35,6 @@ const NL_DIR = path.resolve(HERE, '..', '..', '__fixtures__', 'nlIntent')
 //    fix the routing (or record an owner decision in the PR that adds it).
 export const UNREACHABLE = {
   v2: {
-    'widget.readOptions': 'BUDGET CUT: "how is that one set right now" wants boardEdit, but charts 21 + workspace 13 + lists 17 + agent 1 = 52 leave no room for boardEdit (5) under 55 (corpus GAP-WIDGET-READ-ROUTE)',
     'guide.explain': 'FAST PATH: "what is rsi" is answered locally by the fast path (guide.explain runs without the model); the routed request never carries the guide group',
   },
   v1: {
