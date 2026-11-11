@@ -1,7 +1,7 @@
 // app/src/components/StockChart.jsx — TradingView Lightweight Charts v5 wrapper
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
-import { computeBarTime, toChartTime, fromChartTime, isOnSixtyMinGrid, seriesCacheTf, barsSessionQuery, barsGridQuery, sixtyMinGridFor, etMinuteOfDay, rthCloseMinuteOf, RTH_OPEN_MIN } from './chart/barTime'
+import { computeBarTime, toChartTime, fromChartTime, isOnSixtyMinGrid, seriesCacheTf, barsSessionQuery, barsGridQuery, sixtyMinGridFor, isRthBar } from './chart/barTime'
 import { composeDevelopingTail } from './chart/developingTail'
 import { liveStreamSession } from './chart/liveBuckets'
 import { foldOffGridBars } from './chart/offGridBars'
@@ -70,7 +70,7 @@ import ChartCalloutOverlay from './chart/ChartCalloutOverlay'
 import ChartVLineOverlay from './chart/ChartVLineOverlay'
 import SetupMoveOverlay from './chart/SetupMoveOverlay'
 import { classifyLiveBar } from './chart/liveBarClassify'
-import { applySessionCandle, computeSessionTagLines, etMinutes } from './chart/sessionPreview'
+import { applySessionCandle, computeSessionTagLines } from './chart/sessionPreview'
 import { etDayOf, snapSyncedBar } from './chart/crosshairSync'
 import useMarketOpen from '../hooks/useMarketOpen'
 import { useIsPhone } from '../hooks/useBreakpoint'
@@ -1371,11 +1371,6 @@ function rangeDescribesOldExtent(oldRange, oldCount, newCount) {
 // loading skeleton is shown over it. UX only — the hold itself ends when the server answers.
 const TF_SWITCH_HOLD_SKELETON_MS = 1200
 
-// RTH window test for a unix-`t` intraday bar (half-day aware) — the view filter for a mem source.
-function _inRthWindow(t) {
-  const m = etMinuteOfDay(t)
-  return m >= RTH_OPEN_MIN && m < rthCloseMinuteOf(t)
-}
 
 function computeDefaultLogicalRange(barsLen, tf, { dailyDefaultBars = null, leftBarPad = 0, rightPadBars = 3, visibleBarsOverride = null, plotWidthPx = null, rightReserve = 0 } = {}) {
   // visibleBarsOverride wins on ANY timeframe (the Sunday Scan hourly export
@@ -1559,7 +1554,7 @@ import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarBy
 import { memPeek, memPut, memPeekSavedAt } from '../utils/barsMemCache'
 import { timingStart, timingMark, timingMarkPaint, timingMarkEmpty } from '../utils/intradayTiming'
 import { makeLiveSane } from './chart/liveTickBaseline'
-import { etMinutesOfUnix, classifyIntradayTail, isCurrentEnoughForPaint, isCacheCurrentForView, expectedFormingBar, isDailyTodayBarStaleForPaint, dailyMissingSessionsForPaint, dailyCachePaintVerdict, DAILY_PAINT_MAX_GAP, isTradingSessionTodayET, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
+import { classifyIntradayTail, isCurrentEnoughForPaint, isCacheCurrentForView, expectedFormingBar, isDailyTodayBarStaleForPaint, dailyMissingSessionsForPaint, dailyCachePaintVerdict, DAILY_PAINT_MAX_GAP, isTradingSessionTodayET, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
 import { createTailPollState, nextTailPollMs, tailRetriesExhausted, watchdogGapMs, intradayDedupMs, liveBadgeState } from '../utils/intradayTailPoll'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
@@ -5870,8 +5865,7 @@ export default function StockChart({
     // frozen at the RTH close, so keep the LEGEND on it too — don't fold the live
     // pre/post-market price into close/high/low (else the legend disagrees with the
     // frozen candle). D/W/M keys off sessionView; intraday off the EXT/RTH toggle.
-    const _nowMin = etMinutes(Math.floor(Date.now() / 1000))
-    const _nowExt = _nowMin < 570 || _nowMin >= 960
+    const _nowExt = !isRthBar(Math.floor(Date.now() / 1000))
     const _isDWMtf = ['D', 'W', 'M'].includes(resolvedTfRef.current)
     const _rthLock = _nowExt && (
       (_isDWMtf && sessionViewRef.current === 'regular')
@@ -9590,7 +9584,7 @@ export default function StockChart({
     const session = showExtended ? 'extended' : 'rth'
     const nowMs = Date.now()
     if (expectedFormingBar(resolvedTf, nowMs, { session }) == null) return null   // nothing forming → nothing to complete
-    const rth = (b) => !showExtended ? _inRthWindow(b.t) : true
+    const rth = (b) => !showExtended ? isRthBar(b.t) : true
     const sources = []
     if (_switchSrc) sources.push(_switchSrc)
     for (const [f, m] of [['1', _memSrc1], ['5', _memSrc5], ['15', _memSrc15], ['30', _memSrc30]]) {
@@ -10089,12 +10083,8 @@ export default function StockChart({
     const gridBars = isIntraday ? foldOffGridBars(bars, resolvedTf, { showExtended }) : bars
     if (showExtended) return gridBars
 
-    return gridBars.filter(b => {
-      if (typeof b.t !== 'number') return true
-      const mins = etMinutesOfUnix(b.t)
-      // All intraday RTH: 9:30 AM (570 min) to 4:00 PM (960 min) ET
-      return mins >= 570 && mins < 960
-    })
+    // Regular session = 09:30 to the day's close (13:00 on an NYSE half-day): barTime.isRthBar.
+    return gridBars.filter(b => typeof b.t !== 'number' || isRthBar(b.t))
   }, [bars, _intradayLike, isIntraday, showExtended, resolvedTf])
 
   // ── Replay / Time Machine state ──
@@ -12273,8 +12263,7 @@ export default function StockChart({
     // Without this the CURRENT extended session leaks onto an RTH-only chart via
     // the live push feed (past ext sessions are already filtered out of history).
     if (!showExtendedRef.current && !['D', 'W', 'M'].includes(resolvedTf)) {
-      const mins = etMinutes(Math.floor(data.bar.t / 1000))
-      if (mins < 570 || mins >= 960) return
+      if (!isRthBar(Math.floor(data.bar.t / 1000))) return
     }
 
     // Defensive: skip bars with invalid OHLC. WS sources can occasionally
@@ -16495,10 +16484,7 @@ export default function StockChart({
     if (px == null) return
     // In Regular Hours, don't fold a pre/post print into the frozen RTH close.
     if (!showExtended) {
-      const et = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit' })
-      const [h, m] = et.split(':').map(Number)
-      const nowMin = h * 60 + m
-      if (nowMin < 570 || nowMin >= 960) return
+      if (!isRthBar(Math.floor(Date.now() / 1000))) return
     }
     const time = adjustTime(last.t)
     try {
@@ -17803,8 +17789,7 @@ export default function StockChart({
         // accurate, lag-independent session check. (Writer E was the path still
         // seaming post-market onto the daily candle after Writers A/D were gated.)
         if (sessionViewRef.current === 'regular') {
-          const _m = etMinutes(Math.floor(Date.now() / 1000))
-          if (_m < 570 || _m >= 960) return
+          if (!isRthBar(Math.floor(Date.now() / 1000))) return
         }
         const series = candleSeriesRef.current
         const last = lastBarRef.current
@@ -20403,8 +20388,7 @@ export default function StockChart({
       // RTH-only intraday (EXT/RTH toggle off): don't paint a pre/post-market
       // developing bar, matching sessionBars' 9:30–16:00 ET fetch filter.
       if (!showExtendedRef.current) {
-        const _m = etMinutes(candle.t)
-        if (_m < 570 || _m >= 960) return
+        if (!isRthBar(candle.t)) return
       }
       // Sanity bound vs THIS symbol's closes — the shared chokepoint (it was an inline copy
       // that read whatever close the previous symbol left behind).

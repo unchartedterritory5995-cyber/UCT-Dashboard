@@ -103,20 +103,55 @@ export function etDateOf(unixSec) {
 export const RTH_OPEN_MIN = 570    // 09:30 ET
 export const RTH_CLOSE_MIN = 960   // 16:00 ET
 
-const _closeByDay = new Map()
+// Keyed by ET DAY NUMBER (floor(chartTime / 86400)) so the per-bar hot paths (RTH view
+// filters, session shading) pay a Map hit, not a Date allocation; the ISO date is built
+// only on a miss.
+const _closeByEtDay = new Map()
+function _rthCloseOfEtDay(etDay) {
+  let m = _closeByEtDay.get(etDay)
+  if (m === undefined) {
+    let ec = null
+    try { ec = earlyCloseOn(new Date(etDay * 86400000).toISOString().slice(0, 10)) } catch { ec = null }
+    m = ec ? ec.closeHour * 60 + ec.closeMinute : RTH_CLOSE_MIN
+    if (_closeByEtDay.size >= 4000) _closeByEtDay.clear()
+    _closeByEtDay.set(etDay, m)
+  }
+  return m
+}
+
 /** Regular-session close (ET minute-of-day) for the ET date containing
  *  `unixSec`: 960, or the NYSE early close (13:00 -> 780) on a half-day. */
 export function rthCloseMinuteOf(unixSec) {
-  const iso = etDateOf(unixSec)
-  let m = _closeByDay.get(iso)
-  if (m === undefined) {
-    let ec = null
-    try { ec = earlyCloseOn(iso) } catch { ec = null }
-    m = ec ? ec.closeHour * 60 + ec.closeMinute : RTH_CLOSE_MIN
-    if (_closeByDay.size >= 4000) _closeByDay.clear()
-    _closeByDay.set(iso, m)
-  }
-  return m
+  return _rthCloseOfEtDay(Math.floor(Math.floor(toChartTime(unixSec)) / 86400))
+}
+
+/** The regular-session close (ET minute-of-day) of the ET day of CHART time `chartSec`. */
+export function rthCloseMinuteOfChartTime(chartSec) {
+  return _rthCloseOfEtDay(Math.floor(Math.floor(chartSec) / 86400))
+}
+
+// ─── THE RTH VIEW TEST — ONE OWNER ──────────────────────────────────────────
+// "Is this bar part of the regular session?" for every RTH filter/classifier on the
+// client (StockChart's regular-hours view + its live writers, the engine's RTH frame,
+// marketSession.viewTailT, session shading, the BarStore adapter): 09:30 ≤ ET minute <
+// the day's close — 16:00, or the NYSE early close (13:00) on a half-day, from the same
+// calendar the server's session grid uses (tests/fixtures/bar_bucket_grid_2026.json is
+// the parity rail, barTime.rthHalfDay.test.js). ⛔ Never re-inline `m >= 570 && m < 960`:
+// on a half-day that shows the 13:00-16:00 post-market bars as regular session.
+
+/** True when intraday CHART time `chartSec` (ET wall clock as UTC seconds) is regular
+ *  session. */
+export function isRthChartTime(chartSec) {
+  if (typeof chartSec !== 'number' || !Number.isFinite(chartSec)) return false
+  const c = Math.floor(chartSec)
+  const m = Math.floor((((c % 86400) + 86400) % 86400) / 60)
+  return m >= RTH_OPEN_MIN && m < _rthCloseOfEtDay(Math.floor(c / 86400))
+}
+
+/** True when unix second `unixSec` is regular session (half-day aware). */
+export function isRthBar(unixSec) {
+  if (typeof unixSec !== 'number' || !Number.isFinite(unixSec)) return false
+  return isRthChartTime(toChartTime(unixSec))
 }
 
 /**
