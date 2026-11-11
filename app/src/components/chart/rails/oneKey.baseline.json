@@ -1,0 +1,331 @@
+{
+  "//": [
+    "P0 one-key / one-url / one-freshness allowlist. A new site FAILS; a removed one warns. Delete an entry",
+    "(or lower n) when a site moves onto its owner; never add one. `at` is informational. See rails/README.md."
+  ],
+  "owners": {
+    "keyBuilders": "utils/barsMemCache.js + utils/barsIDB.js (cacheKey) -> P1: server-issued key",
+    "barsUrls": "utils/prefetchBars.js (_url) -> P2: BarStore",
+    "freshness": "utils/marketSession.js"
+  },
+  "keyBuilders": {
+    "components/StockChart.jsx": {
+      "${sym}_${_barsTf}": {
+        "n": 23,
+        "at": "components/StockChart.jsx:8008"
+      },
+      "${sym}_${resolvedTf}": {
+        "n": 11,
+        "at": "components/StockChart.jsx:10169"
+      },
+      "${sym || 'chart'}_${resolvedTf || ''}": {
+        "n": 1,
+        "at": "components/StockChart.jsx:10677"
+      }
+    },
+    "components/chart/engine/liveTail.js": {
+      "${String(sym).toUpperCase()}:${String(tf == null ? 'D' : tf)}": {
+        "n": 1,
+        "at": "components/chart/engine/liveTail.js:301"
+      }
+    },
+    "floor2/ChartCard.jsx": {
+      "${ticker}:${tf}": {
+        "n": 1,
+        "at": "floor2/ChartCard.jsx:37"
+      }
+    },
+    "lib/barsStreamManager.js": {
+      "${String(sym).toUpperCase()}:${String(tf)}": {
+        "n": 1,
+        "at": "lib/barsStreamManager.js:103"
+      }
+    },
+    "utils/barsIDB.js": {
+      "${sym.toUpperCase()}_${tf}": {
+        "n": 1,
+        "at": "utils/barsIDB.js:133"
+      }
+    },
+    "utils/barsMemCache.js": {
+      "${String(sym || '').toUpperCase()}_${tf}": {
+        "n": 1,
+        "at": "utils/barsMemCache.js:15"
+      }
+    },
+    "utils/intradayTiming.js": {
+      "${sym}_${tf}": {
+        "n": 1,
+        "at": "utils/intradayTiming.js:43"
+      }
+    },
+    "utils/prefetchBars.js": {
+      "${meta.sym}_${meta.tf}": {
+        "n": 1,
+        "at": "utils/prefetchBars.js:242"
+      },
+      "${sym}_${_ck(tf)}": {
+        "n": 1,
+        "at": "utils/prefetchBars.js:366"
+      },
+      "${sym}_${tf}": {
+        "n": 3,
+        "at": "utils/prefetchBars.js:236"
+      },
+      "${String(sym).toUpperCase()}_${tf}": {
+        "n": 1,
+        "at": "utils/prefetchBars.js:1129"
+      }
+    }
+  },
+  "barsUrls": {
+    "components/StockChart.jsx": {
+      "/api/bars-history/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars": {
+        "n": 1,
+        "at": "components/StockChart.jsx:8754"
+      },
+      "/api/bars/${encodeURIComponent(sym || ": {
+        "n": 1,
+        "at": "components/StockChart.jsx:8772"
+      },
+      "/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars": {
+        "n": 3,
+        "at": "components/StockChart.jsx:8846"
+      },
+      "/api/bars/${encodeURIComponent(sym)}?tf=${_customBaseTf}&b": {
+        "n": 1,
+        "at": "components/StockChart.jsx:8954"
+      },
+      "/api/bars/${encodeURIComponent(compareSymbol.toUpperCase()": {
+        "n": 1,
+        "at": "components/StockChart.jsx:8976"
+      },
+      "/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bc}${": {
+        "n": 1,
+        "at": "components/StockChart.jsx:9285"
+      },
+      "/api/bars/${encodeURIComponent(_sym)}?tf=${_tf}&bars=${bar": {
+        "n": 1,
+        "at": "components/StockChart.jsx:9864"
+      },
+      "/api/bars/${encodeURIComponent(s)}?tf=${resolvedTf}&bars=$": {
+        "n": 2,
+        "at": "components/StockChart.jsx:11638"
+      },
+      "/api/bars/${encodeURIComponent(sym)}?tf=${encodeURICompone": {
+        "n": 1,
+        "at": "components/StockChart.jsx:12439"
+      }
+    },
+    "components/chart/engine/liveTail.js": {
+      "/api/bars/${encodeURIComponent(s)}?tf=${encodeURIComponent": {
+        "n": 1,
+        "at": "components/chart/engine/liveTail.js:309"
+      }
+    },
+    "components/chart/engine/lowerTf.js": {
+      "/api/bars/<ticker>?tf=15": {
+        "n": 1,
+        "at": "components/chart/engine/lowerTf.js:255"
+      }
+    },
+    "components/chart/engine/secondaryBars.js": {
+      "/api/bars/": {
+        "n": 1,
+        "at": "components/chart/engine/secondaryBars.js:29"
+      }
+    },
+    "hooks/useSessionExtBars.js": {
+      "/api/bars/${encodeURIComponent(sym)}?tf=5&bars=300": {
+        "n": 1,
+        "at": "hooks/useSessionExtBars.js:61"
+      }
+    },
+    "pages/ChartRender.jsx": {
+      "/api/bars/${encodeURIComponent(sym)}?tf=${encodeURICompone": {
+        "n": 1,
+        "at": "pages/ChartRender.jsx:668"
+      }
+    },
+    "pages/CotData.jsx": {
+      "/api/bars/${proxy.ticker}?tf=W&bars=${PRICE_BARS}": {
+        "n": 1,
+        "at": "pages/CotData.jsx:363"
+      }
+    },
+    "pages/ModelBook.jsx": {
+      "/api/bars/%5EIXIC?tf=D&bars=8000": {
+        "n": 1,
+        "at": "pages/ModelBook.jsx:2100"
+      }
+    },
+    "pages/charts/widgets/AiSearchWidget.jsx": {
+      "/api/bars/${encodeURIComponent(sym)}?tf=D&bars=30": {
+        "n": 1,
+        "at": "pages/charts/widgets/AiSearchWidget.jsx:127"
+      }
+    },
+    "pages/journal-2-0/components/notebook/BarReplay.jsx": {
+      "/api/bars/${encodeURIComponent(symbol)}?tf=${tf}&bars=5000": {
+        "n": 1,
+        "at": "pages/journal-2-0/components/notebook/BarReplay.jsx:114"
+      }
+    },
+    "pages/journal-2-0/components/position/PositionDetailPage.jsx": {
+      "/api/bars/${encodeURIComponent(sym)}?tf=D&bars=30": {
+        "n": 1,
+        "at": "pages/journal-2-0/components/position/PositionDetailPage.jsx:113"
+      }
+    },
+    "pages/journal-2-0/hooks/useHoldingsSparklines.js": {
+      "/api/bars/${encodeURIComponent(sym)}?tf=D&bars=30": {
+        "n": 1,
+        "at": "pages/journal-2-0/hooks/useHoldingsSparklines.js:36"
+      }
+    },
+    "pages/journal-2-0/hooks/useIntradayEquityCurve.js": {
+      "/api/bars/${encodeURIComponent(sym)}?tf=5&bars=160": {
+        "n": 1,
+        "at": "pages/journal-2-0/hooks/useIntradayEquityCurve.js:61"
+      }
+    },
+    "pages/journal-2-0/hooks/useSpyBenchmark.js": {
+      "/api/bars/SPY?tf=D&bars=1500": {
+        "n": 1,
+        "at": "pages/journal-2-0/hooks/useSpyBenchmark.js:22"
+      }
+    },
+    "pages/journal-2-0/lib/embedArchive.js": {
+      "/api/bars/warm": {
+        "n": 1,
+        "at": "pages/journal-2-0/lib/embedArchive.js:103"
+      }
+    },
+    "pages/screener/ScreensManager.jsx": {
+      "/api/bars/SPY?tf=D&bars=${SPY_WINDOW_BARS}": {
+        "n": 1,
+        "at": "pages/screener/ScreensManager.jsx:71"
+      }
+    },
+    "pages/terminal/panels/SizePanel.jsx": {
+      "/api/bars/${encodeURIComponent(sym)}?tf=D&bars=30": {
+        "n": 1,
+        "at": "pages/terminal/panels/SizePanel.jsx:52"
+      }
+    },
+    "pages/terminal/panels/useCloses.js": {
+      "/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${BARS_": {
+        "n": 1,
+        "at": "pages/terminal/panels/useCloses.js:44"
+      }
+    },
+    "utils/prefetchBars.js": {
+      "/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${_bars": {
+        "n": 2,
+        "at": "utils/prefetchBars.js:339"
+      },
+      "/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bars}": {
+        "n": 1,
+        "at": "utils/prefetchBars.js:723"
+      },
+      "/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${fullB": {
+        "n": 1,
+        "at": "utils/prefetchBars.js:1033"
+      }
+    }
+  },
+  "freshness": {
+    "components/StockChart.jsx": {
+      "_memTailStaleDaily": {
+        "n": 1,
+        "at": "components/StockChart.jsx:8658"
+      }
+    },
+    "components/chart/volumePaneDrag.js": {
+      "latchIsStale": {
+        "n": 1,
+        "at": "components/chart/volumePaneDrag.js:149"
+      }
+    },
+    "hooks/useRealtimeBarPrices.js": {
+      "pickFreshPrice": {
+        "n": 1,
+        "at": "hooks/useRealtimeBarPrices.js:16"
+      }
+    },
+    "lib/chartReadoutStore.js": {
+      "hasFreshReadouts": {
+        "n": 1,
+        "at": "lib/chartReadoutStore.js:42"
+      }
+    },
+    "lib/presentation/presentationPrimitives.js": {
+      "formatFreshnessAsOf": {
+        "n": 1,
+        "at": "lib/presentation/presentationPrimitives.js:519"
+      }
+    },
+    "lib/todayPackClient.js": {
+      "_isFresh": {
+        "n": 1,
+        "at": "lib/todayPackClient.js:86"
+      }
+    },
+    "utils/barsBackfill.js": {
+      "spliceDeepLeftOfFresh": {
+        "n": 1,
+        "at": "utils/barsBackfill.js:158"
+      }
+    },
+    "utils/intradayTiming.js": {
+      "freshnessLag": {
+        "n": 1,
+        "at": "utils/intradayTiming.js:66"
+      }
+    },
+    "utils/marketSession.js": {
+      "isDailyTailStale": {
+        "n": 1,
+        "at": "utils/marketSession.js:110"
+      },
+      "isDailyTailStaleForPaint": {
+        "n": 1,
+        "at": "utils/marketSession.js:164"
+      },
+      "isDailyTodayBarStaleForPaint": {
+        "n": 1,
+        "at": "utils/marketSession.js:314"
+      },
+      "isCurrentEnoughForPaint": {
+        "n": 1,
+        "at": "utils/marketSession.js:513"
+      },
+      "classifyIntradayTail": {
+        "n": 1,
+        "at": "utils/marketSession.js:502"
+      },
+      "intradayBarCurrentness": {
+        "n": 1,
+        "at": "utils/marketSession.js:655"
+      },
+      "isCurrentnessSettled": {
+        "n": 1,
+        "at": "utils/marketSession.js:749"
+      },
+      "isIntradayTailStale": {
+        "n": 1,
+        "at": "utils/marketSession.js:357"
+      }
+    },
+    "utils/prefetchBars.js": {
+      "_dailyNeedsRefresh": {
+        "n": 1,
+        "at": "utils/prefetchBars.js:769"
+      },
+      "_memPromoteFresh": {
+        "n": 1,
+        "at": "utils/prefetchBars.js:256"
+      }
+    }
+  }
+}
