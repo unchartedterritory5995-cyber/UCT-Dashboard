@@ -105,6 +105,8 @@ import {
 import { legacyInstanceId } from './engine/instances'
 // ⭐ UCT RS PHASE 3 (unit 3-01) — the ONE reader of an enum option's gate marker.
 import { enumOptionRequiresServer, validateInputValue } from './engine/defSchema'
+// ⭐ RS split U1 — the definition-level gate (`meta.requiresServer`).
+import { isDefinitionOffered } from './engine/serverCompute'
 import { inputsAsRead } from './engine/legacyInputs'
 // ⚠️ IMPORTED, NEVER REDEFINED. The B4 plan sketched `unwiredKeys` and a second
 // carved-out field table inside THIS file; both live in `indicatorCatalog.js`,
@@ -938,6 +940,11 @@ export function listEngineIndicators(settings, registry) {
     // fresh chart shows — the "turn it on" control — is the one every earlier
     // regression in this function landed on (B5 Task 9's blank Period box).
     const live = liveInstancesFor(def.id, settings)
+    // ⭐ RS split U1 — a `meta.requiresServer` definition the live server has
+    // not listed gets no "turn it on" row: that row is an OFFER, and the server
+    // cannot compute it yet. An instance already on the chart keeps its rows —
+    // the gate hides offers, never what a member already placed.
+    if (!live.length && !isDefinitionOffered(def)) continue
     // Read through the ONE reader every other control door uses, so a
     // tombstone cannot leave this toggle ticked over a chart with no line. It is
     // per DEFINITION and therefore shared by every row of one definition.

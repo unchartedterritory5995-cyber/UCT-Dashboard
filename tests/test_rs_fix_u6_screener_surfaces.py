@@ -154,7 +154,7 @@ def _served(m):
 
 
 def test_the_two_families_are_the_writers_and_the_category_split_matches():
-    assert len(BARS) == 10 and len(RATINGS) == 7 and len(PHASE3) == 3
+    assert len(BARS) == 10 and len(RATINGS) == 8 and len(PHASE3) == 3
     assert not (BARS & RATINGS) and not (PHASE3 & (BARS | RATINGS))
     family = {k for k, f in filters.FILTERS.items() if f["category"] == "relative_strength"}
     assert family == BARS | RATINGS | PHASE3
@@ -189,7 +189,7 @@ def test_history_off_hides_the_rating_columns_and_their_presets(monkeypatch):
     assert "rs_rating_ibd" not in views["momentum"]
     assert {"rs_new_high", "rs_nh_before_price"} <= set(views["momentum"])
     assert not (set(views["relative_strength"]) & RATINGS), views["relative_strength"]
-    assert BARS <= set(views["relative_strength"])
+    assert BARS - filters.picker_hidden_keys() <= set(views["relative_strength"])  # S1: agree is picker-hidden
     assert not (comparable & RATINGS)
 
 
@@ -206,7 +206,10 @@ def test_both_flags_on_serves_the_whole_family_exactly_as_registered(monkeypatch
     m = _meta(monkeypatch, v2=True, history=True, v3=True)
     keys, views, cats, _comparable = _served(m)
     assert (BARS | RATINGS | PHASE3) <= keys
-    assert views == {k: v["columns"] for k, v in filters.VIEWS.items()}
+    # S1: the RS view drops only the picker-hidden keys; every other view is as registered.
+    hid = filters.picker_hidden_keys()
+    assert views == {k: [c for c in v["columns"] if not (k == "relative_strength" and c in hid)]
+                     for k, v in filters.VIEWS.items()}
     assert "relative_strength" in cats
     ibd = next(f for f in m["filters"] if f["key"] == "rs_rating_ibd")
     assert [p["label"] for p in ibd["presets"]] == ["Any", "Over 80", "Over 90"]

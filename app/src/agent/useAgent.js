@@ -42,10 +42,7 @@ import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expand
 import { traceStart, mark, traceEnd, turnStart, turnPath, turnVisible, turnOutput, turnOutputMs, turnMarkMs, turnEnd } from './trace'
 import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION, MANIFEST_CONTRACT, normalizeArgs } from './capabilities'
 import { UNDO_ACTION } from './capabilities/about'
-import { FLOW_FIELDS } from './capabilities/scanHidden'
-import { namedBoardWidgets } from './routing'
 // the widget's own filter chips are not set from the Agent here (open owner decision); the member is pointed at the control itself
-export const FLOW_WIDGET_REFUSAL = "I can't set the Options Flow widget's filters for you yet. Use the filter chips on the widget itself (Calls / Puts, Sweeps / Blocks, Bull / Bear, the premium floor). Nothing was changed."
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
 import { routingEnabled, routingNames, GROUPS as ROUTE_GROUPS, wordsSelect } from './routing'
 import { pickRouter, routingV2Active } from './nlm1/flag'   // NLM-1 D1 (dark, two keys): routing v2, else v1's routeManifest
@@ -1403,7 +1400,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   }, [host, push, patchItem, record, capCtx, withdrawPending])
 
   // Every execution is traced (agent/trace.js): phase timestamps, memory only.
-  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null, binding = null, subset = false, noDuplicates = null, more = false }) => {
+  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null, binding = null, subset = false, noDuplicates = null, more = false, words = null }) => {
     // ⭐ Multi Chart: one gate for the instant, model and approved paths — what cannot run on the grid is said, and nothing runs
     const onGrid = gridMode ? screenGridOps(opsIn, host) : null
     if (onGrid?.refuse) {
@@ -1444,7 +1441,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const cap = getCapability(opsIn[i]?.action)
         if (typeof cap?.resolveArgs !== 'function') continue
         let r = null
-        try { r = cap.resolveArgs(opsIn[i].args || {}, host) } catch { r = null }
+        try { r = cap.resolveArgs(opsIn[i].args || {}, host, words ?? member, { approved: suggested === 'approved' }) } catch { r = null }   // `words`: the turn's own message on the model path
         if (r?.ask) {
           pendingRef.current = { kind: 'target', ops: opsIn, path, mode: suggested, member, voice, epoch: epochOf(host), pickArg: { action: opsIn[i].action, arg: r.ask.arg } }
           push({ role: 'question', text: r.ask.text, choices: r.ask.choices, local: true })
@@ -2293,16 +2290,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       }
       let fast = fast0
       if (fast?.kind === 'ops' && !(await typedSymbolsKnown(fast.ops, text))) { mark('fast:symbol-to-model'); fast = null }
-      // round 3 (pl-auto unseen3): "only show puts in the options flow" with an Options Flow WIDGET on the board is a request for that
-      // widget's own filter chips, not a screen. Which chips UCT Agent may set is an open owner decision (F-16), so nothing is widened:
-      // it is still not done here, but the refusal says so about the widget's control, never "use the Screener page".
-      if (fast?.kind === 'ops' && fast.ops.some(o => o?.action === 'screener.run' && (o.args?.filters || []).some(f => FLOW_FIELDS.has(f?.field)))
-        && namedBoardWidgets(text, host?.widgets?.types?.() || []).includes('optionsflow')) {
-        const t = FLOW_WIDGET_REFUSAL
-        push({ role: 'refusal', text: t })
-        record({ member: text, outcome: t, outcomeData: { kind: 'refused', actions: ['widget.setOption'] }, telemetry: { path: 'fast', refused: true, voice } })
-        return
-      }
+      // F-16 widened (owner 2026-11-10): the Options Flow widget's own chips are never claimed as a screen (screener.js), so they
+      // reach the planner and widget.setOption; a flow SCREEN with no chip word keeps the F-16 refusal. (The round-3 refusal block
+      // that stood here is gone.)
       // round 3: clauses naming different charts are planned per clause by the model, never one instant target for all
       // (only several CHART changes read as one: a swap or a list add naming two charts is one op, read as before)
       if (fast?.kind === 'ops' && fast.ops.length > 1 && fast.ops.every(o => getCapability(o?.action)?.target === 'chart')
@@ -2990,7 +2980,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const reversed = cp?.ok ? await doUndo(cp.undoId, { member: null, voice }) : false
         if (!reversed) {
           push({ role: 'agent', text: `I didn't reverse my earlier change${cp && !cp.ok ? ` (${cp.reason})` : ''}, so here is the corrected change on its own — apply it only if you still want it.` })
-          await execute(ops, { path: 'model', mode: 'propose', member: null, voice })
+          await execute(ops, { path: 'model', mode: 'propose', member: null, voice, words: text })
           return
         }
       }
@@ -2998,7 +2988,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const outer = tapRef.current
         const kinds = []
         tapRef.current = kinds
-        try { await execute(ops, { path: 'model', mode: disposition, member: null, voice }) } finally { tapRef.current = outer; if (outer) outer.push(...kinds) }
+        try { await execute(ops, { path: 'model', mode: disposition, member: null, voice, words: text }) } finally { tapRef.current = outer; if (outer) outer.push(...kinds) }
         // ⭐ NLM-1 STEP PLANS (dark): each step's postcondition read back from the board (and the touched charts' saved copy)
         // — one plain line: what is in place, what is not, what is not saved. A plan waiting on an approval card is read
         // back when the card is decided (approve) — nothing of it has run yet

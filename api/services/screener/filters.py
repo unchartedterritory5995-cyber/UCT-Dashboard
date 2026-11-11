@@ -737,6 +737,16 @@ FILTERS = dict([
     # ⚠️ Mansfield is on 200 DAILY bars (`rs_columns.MANSFIELD_LENGTH`), the
     # curriculum's daily reading of Weinstein's 52-WEEK average — the label
     # must never say "weekly". It is a PERCENT above or below that average.
+    # S1 (2026-11-10): the rail reads in the order the owner asked for -- the
+    # window ranks, the rating change, then the new-high family, the 21 EMA
+    # pair and Mansfield. Hidden-from-the-picker keys sit last (`PICKER_HIDDEN`).
+    _open_range("rs_rating_1m", "1M Return Rank", "relative_strength", "rs_rating_1m"),
+    _open_range("rs_rating_3m", "3M Return Rank", "relative_strength", "rs_rating_3m"),
+    _open_range("rs_rating_6m", "6M Return Rank", "relative_strength", "rs_rating_6m"),
+    _open_range("rs_rating_9m", "9M Return Rank", "relative_strength", "rs_rating_9m"),
+    _open_range("rs_rating_12m", "12M Return Rank", "relative_strength", "rs_rating_12m"),
+    _open_range("rs_rating_chg_20", "RS Rating Change (20 sessions)", "relative_strength",
+                "rs_rating_chg_20"),
     _bool("rs_new_high", "RS New High (52-week)", "relative_strength", "rs_new_high"),
     _bool("rs_nh_before_price", "RS New High Before Price", "relative_strength",
           "rs_nh_before_price"),
@@ -753,20 +763,14 @@ FILTERS = dict([
     _open_range("mansfield", "Mansfield RS", "relative_strength", "mansfield", unit="%"),
     _open_range("mansfield_cross_bars_ago", "Mansfield Cross Age (bars)",
                 "relative_strength", "mansfield_cross_bars_ago"),
-    _bool("rs_benchmark_agree", "RS Agrees vs SPY and RSP", "relative_strength",
-          "rs_benchmark_agree"),
     _range("rs_rating_ibd", "RS Rating (IBD-style)", "relative_strength", "rs_rating_ibd",
            [{"label": "Any"},
             {"label": "Over 80", "op": "gte", "min": 80},
             {"label": "Over 90", "op": "gte", "min": 90}]),
     _open_range("rs_rating_chg_5", "RS Rating Change (5 sessions)", "relative_strength",
                 "rs_rating_chg_5"),
-    _open_range("rs_rating_chg_20", "RS Rating Change (20 sessions)", "relative_strength",
-                "rs_rating_chg_20"),
-    _open_range("rs_rating_1m", "1M Return Rank", "relative_strength", "rs_rating_1m"),
-    _open_range("rs_rating_3m", "3M Return Rank", "relative_strength", "rs_rating_3m"),
-    _open_range("rs_rating_6m", "6M Return Rank", "relative_strength", "rs_rating_6m"),
-    _open_range("rs_rating_12m", "12M Return Rank", "relative_strength", "rs_rating_12m"),
+    _bool("rs_benchmark_agree", "RS Agrees vs SPY and RSP", "relative_strength",
+          "rs_benchmark_agree"),
     # ── relative strength, Phase 3 (unit 3-11; engineering map D1 / D7) ──
     # ⭐ THE THIRD FAMILY, ONE WRITER AGAIN: `rs_columns.PHASE3_COLUMNS`, written by
     # the same `bars_rs` step only while `snapshot_builder.rs_v3_enabled()` is
@@ -1194,12 +1198,15 @@ VIEWS = {
     # sit in Momentum. `rs_rank` leads so the fast UCT rating and the
     # IBD-style one read side by side, as the chart chip shows them.
     "relative_strength": {"label": "Relative Strength", "columns": [
-        "ticker", "company", "price", "chg_pct_1d", "rs_rank", "rs_rating_ibd",
-        "rs_rating_chg_5", "rs_rating_chg_20", "rs_new_high", "rs_nh_before_price",
-        "rs_nh_red_day", "rs_nh_bars_ago", "green_on_red_20", "rs_line_above_ma",
+        "ticker", "company", "price", "chg_pct_1d", "rs_rank",
+        "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_9m", "rs_rating_12m",
+        "rs_rating_chg_20", "rs_new_high", "rs_nh_before_price", "rs_nh_red_day",
+        "rs_nh_bars_ago", "green_on_red_20", "rs_line_above_ma",
         "rs_cross_up_bars_ago", "mansfield", "mansfield_cross_bars_ago",
-        "rs_benchmark_agree", "rs_rating_1m", "rs_rating_3m", "rs_rating_6m",
-        "rs_rating_12m", "rrg_quadrant", "clenow_score", "vars_state"]},
+        # S1: kept computed and valid for every saved screen, hidden from the
+        # picker by `picker_hidden_keys()` (see its docstring).
+        "rs_rating_ibd", "rs_rating_chg_5", "rs_benchmark_agree",
+        "rrg_quadrant", "clenow_score", "vars_state"]},
 }
 
 # ── The Type filter (instrument class) ──────────────────────────────────────
@@ -1783,6 +1790,29 @@ def _rs_v3_on() -> bool:
         return False
 
 
+#: S1 (2026-11-10): RS columns that stay COMPUTED, FILTERABLE and valid inside
+#: every saved screen but are no longer OFFERED in the column picker or the
+#: Relative Strength rail. `rs_rating_chg_5` and `rs_benchmark_agree` always;
+#: `rs_rating_ibd` only while RS_RANK_IBD_ENABLED is on, because then it is the
+#: same number as the `rs_rank` column ("RS") and a second copy only confuses.
+_PICKER_HIDDEN_ALWAYS = frozenset({"rs_rating_chg_5", "rs_benchmark_agree"})
+
+
+def picker_hidden_keys() -> frozenset:
+    """Keys `meta()` marks `picker_hidden` and leaves out of the member views.
+    The flag is read PER CALL the way `rs_ranking.rs_rank_ibd_enabled()` reads it
+    (a flip needs no restart); an unreadable flag shows the column (fail open for
+    the member's data, the filter itself is never removed from `FILTERS`)."""
+    hidden = set(_PICKER_HIDDEN_ALWAYS)
+    try:
+        from api.services import rs_ranking  # noqa: PLC0415 - lazy
+        if rs_ranking.rs_rank_ibd_enabled():
+            hidden.add("rs_rating_ibd")
+    except Exception:  # noqa: BLE001
+        pass
+    return frozenset(hidden)
+
+
 def rs_dark_keys(v2_on=None, history_on=None, v3_on=None) -> frozenset:
     """The RS filter keys (each equal to its column) a member is not shown now.
 
@@ -1811,12 +1841,13 @@ def rs_dark_keys(v2_on=None, history_on=None, v3_on=None) -> frozenset:
 RS_VIEW = "relative_strength"
 
 
-def _member_views(dark, v2_on) -> list:
+def _member_views(dark, v2_on, hidden=frozenset()) -> list:
     out = []
     for k, v in VIEWS.items():
         if k == RS_VIEW and not v2_on:
             continue
-        cols = [c for c in v["columns"] if c not in dark]
+        cols = [c for c in v["columns"] if c not in dark
+                and not (k == RS_VIEW and c in hidden)]
         out.append({"key": k, **v, "columns": cols})
     return out
 
@@ -1874,6 +1905,11 @@ def meta(user_id=None) -> dict:
     rs_dark = rs_dark_keys(v2_on=rs_v2_on)
     if rs_dark:
         out_filters = [f for f in out_filters if f["key"] not in rs_dark]
+    # S1: hidden-but-valid. The control stays in the payload (a saved screen's
+    # chip still resolves its label) but the rail and the column picker skip it.
+    picker_hidden = picker_hidden_keys()
+    out_filters = [{**f, "picker_hidden": True} if f["key"] in picker_hidden else f
+                   for f in out_filters]
     categories = CATEGORIES
     if not any(f.get("category") == "relative_strength" for f in out_filters):
         categories = [c for c in CATEGORIES if c["key"] != "relative_strength"]
@@ -1892,7 +1928,8 @@ def meta(user_id=None) -> dict:
             categories = categories + [{"key": "my_lists", "label": "My Lists"}]
     _log_if_slow("screener-meta", _time.perf_counter() - _t0, _parts)
     return {"filters": out_filters,
-            "views": _member_views(rs_dark, rs_v2_on),
+            "views": _member_views(rs_dark, rs_v2_on, picker_hidden),
+            "picker_hidden": sorted(picker_hidden),
             "categories": categories,
             # The floors, the wording and the vintage the bands were measured
             # on — stated ONCE, beside them, so no surface has to guess at any
@@ -1907,5 +1944,6 @@ def meta(user_id=None) -> dict:
             "comparable_fields": [
                 {"key": k, "label": FILTERS[k]["label"],
                  "category": FILTERS[k]["category"]}
-                for k in comparable_keys() if k not in rs_dark],
+                for k in comparable_keys()
+                if k not in rs_dark and k not in picker_hidden],
             "column_ops": dict(COL_OPS)}

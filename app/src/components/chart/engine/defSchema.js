@@ -151,9 +151,18 @@ import { isValidTf } from '../timeframes'
 // validator live beside its reader, `paneTable.js`, which imports nothing of
 // this module — so there is no cycle.
 import { validatePaneTable } from './paneTable'
+// ⭐ The line-end label (`plots[].endLabel`, UCT RS split U2): grammar beside its
+// reader, `endLabel.js`, which imports nothing of this module.
+import { validateEndLabel } from './endLabel'
 // ⭐ The client-derived column (`plots[].derive`, same round): grammar beside its
 // one reader, `derivedColumns.js`, which imports nothing of this module.
 import { DERIVE_FIELDS } from './derivedColumns'
+// ⭐ The live forming-bar tail (`plots[].liveTail`, RS split U2b): its grammar is
+// a leaf of its own, `liveTailSchema.js`, NOT the reader `liveTail.js` — the
+// reader is also the benchmark tail store (the door's request, wall clocks), and
+// this module is in the runtime lane's compute closure, which may hold neither
+// (`tools/pine_runtime_closure.mjs`; fix lane F2, 2026-11-10).
+import { LIVE_TAIL_KINDS, LIVE_TAIL_FIELDS, LIVE_TAIL_MA_TYPES } from './liveTailSchema'
 
 /** Schema major. A definition MUST declare exactly this to register. */
 export const SCHEMA_VERSION = 1
@@ -431,8 +440,14 @@ export const PLOT_ROLES = Object.freeze(['primary', 'secondary', 'context', 'sig
 /** ⭐ `compact` JOINED THEM 2026-09-16. It says "this output is a MAGNITUDE" —
  *  print it the way an axis does (`4.61B`) rather than with `decimals`. The
  *  definition is the only thing that can know that: 4,609,414,802 and 4609.41 are
- *  the same shape to a formatter. `readout.chipValueText` is the one reader. */
-export const LEGEND_FIELDS = Object.freeze(['label', 'decimals', 'hide', 'compact'])
+ *  the same shape to a formatter. `readout.chipValueText` is the one reader.
+ *  ⭐ `showValue` JOINED THEM 2026-11-10 (UCT RS split, F3). `false` says "this
+ *  plot's chip NAMES the line and prints no number": the chip, its pane suffix
+ *  (` · SPY · 82`), its line-end tag and its readout rows all stay; only the
+ *  value is withheld, on every surface that reads `chipValueText`. The slim RS
+ *  line is the case: its ratio (`0.4378`) means nothing to a member, while the
+ *  rating beside it does. Unlike `hide`, the chip is still emitted. */
+export const LEGEND_FIELDS = Object.freeze(['label', 'decimals', 'hide', 'compact', 'showValue'])
 
 /**
  * Line styles an AUTHOR may declare on a plot.
@@ -1723,6 +1738,23 @@ function validateMeta(meta, def, errors) {
       errors.push(`meta.groupsCollapsed: expected an array of group names, got ${fmt(meta.groupsCollapsed)}`)
     }
   }
+  // ⭐ UCT RS split, unit U1 — `meta.requiresServer: true` gates the WHOLE
+  // definition: every surface that offers indicators to add hides it until the
+  // live server lists its id (`serverCompute.isDefinitionOffered`). BEHAVIOURAL,
+  // so checked like the input-level flag it extends: `true` or absent (`false`,
+  // `'yes'`, `1` would gate nothing and read as a typo), and only on a `server`
+  // definition — no row will ever declare a native or ast definition, so the
+  // flag there could only hide an indicator forever.
+  if (meta.requiresServer !== undefined) {
+    if (meta.requiresServer !== true) {
+      errors.push(`meta.requiresServer: expected true or absent, got ${fmt(meta.requiresServer)}`)
+    } else if (!(isPlainObject(def.compute) && def.compute.kind === 'server')) {
+      errors.push(
+        `meta.requiresServer: compute.kind is ${fmt(isPlainObject(def.compute) ? def.compute.kind : undefined)}, ` +
+        'and only a "server" definition has a live row to declare it, so the definition could never be offered',
+      )
+    }
+  }
   // NOTE: unknown meta.* KEYS are intentionally NOT checked. They are preserved
   // verbatim on the returned def — that is the forward-compatibility half of the
   // asymmetric policy, and the round-trip promise depends on this silence.
@@ -2093,13 +2125,28 @@ function validatePlacement(placement, errors) {
   if (placement.pane !== undefined && placement.pane !== null) {
     if (!isPlainObject(placement.pane)) {
       errors.push(`placement.pane: expected an object, got ${fmt(placement.pane)}`)
-    } else if (placement.pane.height !== undefined
-               && !(isFiniteNumber(placement.pane.height)
-                    && placement.pane.height > 0 && placement.pane.height < 1)) {
-      errors.push(
-        `placement.pane.height: expected a finite fraction of the chart in (0, 1) — ` +
-        `the pane's default height — got ${fmt(placement.pane.height)}`,
-      )
+    } else {
+      if (placement.pane.height !== undefined
+          && !(isFiniteNumber(placement.pane.height)
+               && placement.pane.height > 0 && placement.pane.height < 1)) {
+        errors.push(
+          `placement.pane.height: expected a finite fraction of the chart in (0, 1) — ` +
+          `the pane's default height — got ${fmt(placement.pane.height)}`,
+        )
+      }
+      // ⭐ RS split U3 — `minPx`: the pane's MINIMUM height in pixels, applied
+      // after the member's own sizes (`paneStretchPlan`). Optional; absent means
+      // no floor beyond the stack's 4 % share, which is every definition before
+      // U3. PIXELS, not a fraction, because readability is a property of the
+      // screen — so the bound is simply a positive finite number, and a string
+      // is refused like every other behavioural value.
+      if (placement.pane.minPx !== undefined
+          && !(isFiniteNumber(placement.pane.minPx) && placement.pane.minPx > 0)) {
+        errors.push(
+          `placement.pane.minPx: expected a positive finite number of pixels — ` +
+          `the pane's minimum height — got ${fmt(placement.pane.minPx)}`,
+        )
+      }
     }
   }
 
@@ -2732,7 +2779,7 @@ function validateActiveWhen(input, index, inputsByKey, errors) {
   }
 }
 
-function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
+function validatePlot(plot, index, seenKeys, inputsByKey, errors, presentationKey) {
   const path = `plots[${index}]`
   if (!isPlainObject(plot)) {
     errors.push(`${path}: expected an object, got ${fmt(plot)}`)
@@ -3001,6 +3048,9 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
       if (plot.legend.hide !== undefined && typeof plot.legend.hide !== 'boolean') {
         errors.push(`${path}.legend.hide: expected true or false, got ${fmt(plot.legend.hide)}`)
       }
+      if (plot.legend.showValue !== undefined && typeof plot.legend.showValue !== 'boolean') {
+        errors.push(`${path}.legend.showValue: expected true or false, got ${fmt(plot.legend.showValue)}`)
+      }
 
     }
   }
@@ -3140,7 +3190,11 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
       `got ${fmt(plot.restyle)}`,
     )
   }
-  validatePlotActiveWhen(plot, path, inputsByKey, errors)
+  // ⭐ UCT RS split, U2 — `plots[].endLabel`: a small tag at the plot's last finite
+  // point (`RS 96`, MarketSurge's line-end rating). Declared per plot, drawn by
+  // the surface from the host series' own coordinates; fail-closed in `endLabel.js`.
+  if (plot.endLabel !== undefined) validateEndLabel(plot.endLabel, `${path}.endLabel`, inputsByKey.keys(), errors)
+  validatePlotActiveWhen(plot, path, inputsByKey, errors, presentationKey)
 }
 
 /**
@@ -3153,16 +3207,32 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
  * column), and a second switch over the same pixels would be a second authority.
  * The key must name a declared input, for the reason `validateActiveWhen` gives.
  */
-function validatePlotActiveWhen(plot, path, inputsByKey, errors) {
+/**
+ * ⭐ UCT RS split, U7 (2026-11-09) — THE ONE EXCEPTION, AND WHY IT IS SOUND. A
+ * data plot of a SERVER definition may carry a condition keyed on a PRESENTATION
+ * input: one the definition never sends (`meta.serverInputs` does not list it),
+ * so the server cannot blank the column for it and the member's own switch is
+ * the only authority over those pixels — exactly the `fill.activeWhen` rule
+ * (design round, 2026-11-08). The slim RS Line's `rsMa` draws only while
+ * `showAverage` holds. A condition keyed on a SERVER input is still refused: the
+ * server already blanks that column, and a second switch over it would be a
+ * second authority. `presentationKey` is `(key) => boolean`, computed by the
+ * caller from the definition; absent, nothing is excepted (the pre-U7 answer).
+ */
+function validatePlotActiveWhen(plot, path, inputsByKey, errors, presentationKey) {
   const aw = plot.activeWhen
   if (aw === undefined || aw === null) return
   const where = `${path}.activeWhen`
   if (plot.style !== 'hlines') {
-    errors.push(
-      `${where}: only an "hlines" guide carries a condition — a data plot draws what its column holds, ` +
-      `and the compute blanks that column when the plot is off (got style ${fmt(plot.style)})`,
-    )
-    return
+    const key = isPlainObject(aw) && typeof aw.key === 'string' ? aw.key : null
+    const excepted = !!(key && typeof presentationKey === 'function' && presentationKey(key))
+    if (!excepted) {
+      errors.push(
+        `${where}: only an "hlines" guide carries a condition — a data plot draws what its column holds, ` +
+        `and the compute blanks that column when the plot is off (got style ${fmt(plot.style)})`,
+      )
+      return
+    }
   }
   if (!isPlainObject(aw) || typeof aw.key !== 'string') {
     errors.push(`${where}: expected {key, equals} naming a declared input, got ${fmt(aw)}`)
@@ -3516,6 +3586,97 @@ function validateDerives(def, plots, errors, inputsByKey) {
       errors.push(`${path}.where: expected the name of a 0/1 event column, got ${fmt(d.where)}`)
     }
     if (d.activeWhen !== undefined) validateInputCondition(d.activeWhen, `${path}.activeWhen`, inputsByKey, errors)
+  })
+}
+
+/**
+ * ⭐ `plots[].liveTail` (RS split, unit U2b, 2026-11-09) — the FORMING bar's cell
+ * of a server column recomputed on the client while the cached envelope's history
+ * is served as it is (`liveTail.js`):
+ *
+ *   {kind: 'ratio', benchmark: 'scalar:<path>', scale?}   last = close / benchClose × scale
+ *   {kind: 'ma', of: <ratio plot>, length, type?}         the average's exact one-step continuation
+ *
+ * Fail closed: only on the SERVER lane (the one lane whose last cell is a cached
+ * value); only on a plot that draws a VALUE (never a guide, which has no column,
+ * nor a marker, whose column is an event); the benchmark is a payload `scalar:`
+ * path (an `input:` would be the REQUESTED benchmark — `SECTOR` — not the ticker
+ * the server resolved it to); `of` names a declared `ratio` tail that is not this
+ * plot; `length` is a whole number ≥ 1 or an `input:` key of a declared `int` /
+ * `float` input; `type` is EMA / SMA or an `input:` key of a declared enum whose
+ * every option is one of them (both averages are linear in their newest term, so
+ * the step is exact — a third kind would be a guess); unknown fields are refused.
+ */
+function validateLiveTails(def, plots, errors, inputsByKey) {
+  const serverLane = isPlainObject(def && def.compute) && def.compute.kind === 'server'
+  const byKey = new Map()
+  for (const p of plots) if (isPlainObject(p) && isNonEmptyString(p.key) && !byKey.has(p.key)) byKey.set(p.key, p)
+  const inputSource = (v) => {
+    const parsed = parseReadoutSource(v)
+    return parsed && parsed.kind === 'input' && parsed.path.length === 1 ? parsed.path[0] : null
+  }
+  plots.forEach((plot, index) => {
+    if (!isPlainObject(plot) || plot.liveTail === undefined) return
+    const path = `plots[${index}].liveTail`
+    const lt = plot.liveTail
+    if (!isPlainObject(lt)) { errors.push(`${path}: expected {kind, …}, got ${fmt(lt)}`); return }
+    if (!LIVE_TAIL_KINDS.includes(lt.kind)) {
+      errors.push(`${path}.kind: ${fmt(lt.kind)} is not a live-tail kind — expected one of: ${list(LIVE_TAIL_KINDS)}`)
+      return
+    }
+    const fields = LIVE_TAIL_FIELDS[lt.kind]
+    for (const k of Object.keys(lt)) {
+      if (!fields.includes(k)) errors.push(`${path}.${k}: unknown field for kind ${fmt(lt.kind)} — expected one of: ${list(fields)}`)
+    }
+    if (!serverLane) {
+      errors.push(`${path}: a live tail moves the last cell of a CACHED server column (\`serverColumnsFor\`), so only a compute.kind "server" definition may declare one`)
+    }
+    if (plot.style === 'hlines' || plot.style === 'markers') {
+      errors.push(`${path}: a live tail moves a VALUE — a ${fmt(plot.style)} plot has no value to move (a guide returns no column; a marker's column is an event)`)
+    }
+    if (lt.kind === 'ratio') {
+      const parsed = parseReadoutSource(lt.benchmark)
+      if (!parsed || parsed.kind !== 'scalar') {
+        errors.push(`${path}.benchmark: expected a payload \`scalar:<path>\` naming the RESOLVED benchmark ticker, got ${fmt(lt.benchmark)}`)
+      }
+      if (lt.scale !== undefined && !(Number.isFinite(lt.scale) && lt.scale > 0)) {
+        errors.push(`${path}.scale: expected a finite number > 0, got ${fmt(lt.scale)}`)
+      }
+      return
+    }
+    // kind: 'ma'
+    const of = byKey.get(lt.of)
+    if (!isNonEmptyString(lt.of) || !of) {
+      errors.push(`${path}.of: ${fmt(lt.of)} names no declared plot`)
+    } else if (lt.of === plot.key) {
+      errors.push(`${path}.of: a plot cannot continue from itself`)
+    } else if (!isPlainObject(of.liveTail) || of.liveTail.kind !== 'ratio') {
+      errors.push(`${path}.of: ${fmt(lt.of)} declares no \`liveTail: {kind: 'ratio'}\` — an average is continued from a LIVE ratio, never a cached one`)
+    }
+    if (Number.isInteger(lt.length) && lt.length >= 1) {
+      // a literal length
+    } else {
+      const key = inputSource(lt.length)
+      const spec = key ? inputsByKey.get(key) : null
+      if (!spec || !['int', 'float'].includes(spec.type)) {
+        errors.push(`${path}.length: expected a whole number ≥ 1 or \`input:<key>\` of a declared "int" / "float" input, got ${fmt(lt.length)}`)
+      }
+    }
+    if (lt.type !== undefined) {
+      const literal = typeof lt.type === 'string' && LIVE_TAIL_MA_TYPES.includes(lt.type.toUpperCase())
+      if (!literal) {
+        const key = inputSource(lt.type)
+        const spec = key ? inputsByKey.get(key) : null
+        const options = spec && spec.type === 'enum' && Array.isArray(spec.options)
+          ? spec.options.map((o) => (Array.isArray(o) ? o[0] : (isPlainObject(o) && 'value' in o ? o.value : o)))
+          : null
+        const allKnown = !!options && options.length > 0
+          && options.every((v) => typeof v === 'string' && LIVE_TAIL_MA_TYPES.includes(v.toUpperCase()))
+        if (!allKnown) {
+          errors.push(`${path}.type: expected ${list(LIVE_TAIL_MA_TYPES)} or \`input:<key>\` of a declared enum whose every option is one of them, got ${fmt(lt.type)}`)
+        }
+      }
+    }
   })
 }
 
@@ -4007,7 +4168,15 @@ export function validateDefinition(def) {
       errors.push(`plots: expected an array, got ${fmt(out.plots)}`)
     }
     const plots = Array.isArray(out.plots) ? out.plots : []
-    plots.forEach((plot, i) => validatePlot(plot, i, plotKeyIndex, inputsByKey, errors))
+    // ⭐ U7 — a presentation input of a server definition: declared, and NOT in
+    // `meta.serverInputs` (the list the fetch is keyed by), so the server never
+    // hears of it. `validatePlotActiveWhen` says what it excepts and why.
+    const sentKeys = isPlainObject(out.compute) && out.compute.kind === 'server'
+      && isPlainObject(out.meta) && Array.isArray(out.meta.serverInputs) ? out.meta.serverInputs : null
+    const presentationKey = sentKeys
+      ? (key) => inputsByKey.has(key) && !sentKeys.includes(key)
+      : null
+    plots.forEach((plot, i) => validatePlot(plot, i, plotKeyIndex, inputsByKey, errors, presentationKey))
 
     // ─ events ─
     const eventKeyIndex = new Map()
@@ -4023,6 +4192,7 @@ export function validateDefinition(def) {
     validateOhlc(plots, new Set([...plotKeyIndex.keys(), ...eventKeyIndex.keys()]), errors)
     validateFills(plots, errors, inputsByKey)
     validateDerives(out, plots, errors, inputsByKey)
+    validateLiveTails(out, plots, errors, inputsByKey)
     validateTreesAgainstPlots(out.compute, plots, errors)
     validateObjectProgramField(out, errors)
     // ⭐ DIV-4 — a paint may also read a colour column the per-bar run computes

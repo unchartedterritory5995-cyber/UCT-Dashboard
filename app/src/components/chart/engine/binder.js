@@ -1943,8 +1943,16 @@ export function createBinder({ chart, LWC, scope = '' }) {
         runCols.set(inst.instanceId, null)
         continue
       }
+      // ⭐ U2b — what the compute reads BEYOND bars and inputs that can change under
+      // an unchanged key (a server definition's live benchmark tail, `plots[].
+      // liveTail`): the registry says so through one optional hook
+      // (`nativeRegistry.computeSignature`), so a landed benchmark quote is a memo
+      // miss and not another paint of the stale forming bar. `''` for every native.
+      const liveSig = typeof registry.computeSignature === 'function'
+        ? (registry.computeSignature(def, inst.inputs, { sym: ctx.sym, tf: frame || ctx.tf }) || '') : ''
       const sig = inputsSignature(inst.inputs) + sourceSig + (otherSig ? `|os:${otherSig}` : '')
         + (lowerSig ? `|ltf:${lowerSig}` : '')
+        + (liveSig ? `|live:${liveSig}` : '')
         + (strategyWindow !== null ? `|hw${strategyWindow}` : '')
         + (!frame && ctx.historyFromListing === true ? '|listing' : '')
         + (!frame && ctx.barIndexFromFirstBar === true ? '|bar0' : '')
