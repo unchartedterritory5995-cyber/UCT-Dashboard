@@ -238,7 +238,7 @@
    "gate": true,
    "grade_cue": true,
    "dossier_ref": "8.1 Group and market; 8.5",
-   "evidence": "B18 is the filter. Deepvue: the setup suits a market after most stocks have been downtrending (S6). TGT 2008-09-03 and 2009-04-30, two 4B- triggers in the bear, each stopped at 0.0R: the market reading, which the scan could not test, is the missing filter."
+   "evidence": "B18 is the filter. Deepvue: the setup suits a market after most stocks have been downtrending (S6). TGT 2008-09-03 (in the bear) and 2009-04-30 (in the rally that began in March 2009), two 4B- triggers that each closed above a falling 200-day and were stopped the next session at 0.0R: the market reading, which the scan could not test, is the missing filter for the first; the second came in a rally, where it may not have kept it out. (corrected 2026-11-10 against the bars)."
   },
   {
    "id": "w4b.market_turn",
@@ -554,7 +554,7 @@
    "gate": true,
    "grade_cue": true,
    "dossier_ref": "8.1 Room to run",
-   "evidence": "Weinstein's room to run (S3); the levels and the 3R (matching the first trim, B19) are the dossier's. AMD 2018 had 4.4R of room to the old closes, URI 3.8R. MSFT 2001 passed on paper under a 200-day that was still falling and was stopped twice."
+   "evidence": "Weinstein's room to run (S3); the levels and the 3R (matching the first trim, B19) are the dossier's. AMD 2018 had 4.4R of room to the old closes, URI 3.8R. MSFT 2001 passed on paper (the 200-day sat 16.1% under the price, so nothing was overhead) and was stopped twice (corrected 2026-11-10 against the bars): the earlier text put the stock under a falling 200-day."
   },
   {
    "id": "w4b.long_averages_flat",
@@ -578,7 +578,7 @@
    "gate": false,
    "grade_cue": true,
    "dossier_ref": "12 Notable failures; 9",
-   "evidence": "MSFT 2001-05-07 and 2001-06-05: a 66% Stage 4 decline, a long base, 18- and 38-day pauses above the 50-day, both breaks stopped (0.3R, 0.6R) under a 200-day that was still falling. TraderLion: if the moving average is still sharply sloping downward, the stock has likely not yet entered a true Stage 1 (S5)."
+   "evidence": "MSFT 2001-05-07 and 2001-06-05: a 66% Stage 4 decline, a long base, 18- and 38-day pauses above the 50-day, both breaks stopped (0.3R, 0.6R) with the 200-day 16.1% and 18.2% under the price (not overhead supply) and flat through the first trade (30.74 to 30.75) after falls of 2.0% and 0.1% in the 20 sessions before the two triggers (corrected 2026-11-10 against the bars). TraderLion: if the moving average is still sharply sloping downward, the stock has likely not yet entered a true Stage 1 (S5)."
   },
   {
    "id": "w4b.trigger",
@@ -911,7 +911,7 @@
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4",
-   "evidence": "All ten examples reached 5R; DY ran to 5R in 8 sessions."
+   "evidence": "All ten examples reached 5R; DY ran to 5R in 9 sessions (corrected 2026-11-10 against the bars) (the 5R price, 205.36, first traded on the ninth session after the entry day, 2025-05-21)."
   },
   {
    "id": "w4b.trim_gap_open",
@@ -1172,7 +1172,7 @@
    "w4b.room_to_run: the falling 200-day or an old breakdown level just overhead",
    "w4b.long_averages_flat: a 200-day still falling steeply over the trade",
    "w4b.rs_line: RS still making new lows",
-   "w4b.group: a weak group, or a Red or Orange market",
+   "w4b.group: a weak group; w4b.market_reading: Yellow (smaller and fewer)",
    "w4b.earnings_window: a trigger right before earnings",
    "w4b.stop_width: a stop wider than 3%, up to the owner's maximum"
   ],
@@ -1186,7 +1186,7 @@
    "w4b.stop_width: the honest stop past the owner's maximum; never pull it in",
    "w4b.earnings_window: a report within 3 sessions",
    "w4b.liquidity: under $10 or under $20 million a day",
-   "w4b.inv_market_red: Red"
+   "w4b.inv_market_red: Red; w4b.market_reading: Orange below A+"
   ]
  },
  "lookalikes": [
@@ -1327,14 +1327,14 @@
     "ticker": "MSFT",
     "date": "2001-05-07",
     "criterion": "w4b.long_averages_flat",
-    "why": "a 66% Stage 4 decline from the 2000 top, a long base, 18- and 38-day pauses above the 50-day (a second trigger on 2001-06-05), both breaks stopped (0.3R, 0.6R) under a 200-day that was still falling. Room to run passed on paper, but a falling long average over the trade is a different picture from PENN's or NUS's flat ones: a grading cue.",
+    "why": "a 66% Stage 4 decline from the 2000 top, a long base, 18- and 38-day pauses above the 50-day (a second trigger on 2001-06-05), both breaks stopped (0.3R, 0.6R). The 200-day sat 16.1% and 18.2% under the price (not overhead supply) and was flat through the first trade (30.74 to 30.75) after falls of 2.0% and 0.1% in the 20 sessions before the two triggers. Room to run passed because nothing was overhead; with the line this flat under the trade, MSFT is a weak example of the falling-line cue that separates it from PENN's or NUS's flat ones (corrected 2026-11-10 against the bars).",
     "stopped": "stopped 7 sessions after the buy, 2001-05-16, low 33.66"
    },
    {
     "ticker": "TGT",
     "date": "2008-09-03",
     "criterion": "w4b.market_reading",
-    "why": "two 4B- triggers in the 2008-2009 bear (the second on 2009-04-30), each under a falling 200-day, each stopped without ever trading above the entry (0.0R). The market reading, which the scan could not test, is the missing filter (B18, F65, forest to the trees).",
+    "why": "two 4B- triggers, the first in the 2008 bear and the second (2009-04-30) in the rally that began in March 2009; both closed above a still-falling 200-day (6.4% and 6.5% over it) and were stopped the next session, 0.0R by the scan's convention (the first day's high, 55.83, was over the 55.50 entry on the bar that also took the stop; the second day's high, 41.30, stayed under the 41.37 entry). The market reading, which the scan could not test, is the missing filter for the first (B18, F65, forest to the trees); the second came in a rally, where it may not have kept it out (corrected 2026-11-10 against the bars).",
     "stopped": "stopped 1 session after the buy, 2008-09-04, low 53.71"
    },
    {
@@ -1369,7 +1369,7 @@
     "ticker": "AAPL",
     "date": "2019-03-22",
     "criterion": "w4b.higher_low",
-    "why": "no 5% rally before the higher low (the high off the low was 4.1% above it). A V off the January 2019 low: the higher low sits 6.8% above the cycle low but no 5% rally came before it, so it is one leg, not a base."
+    "why": "the scan found the pullback into the higher low too shallow: the 39.47 high before it was only 4.1% over the 37.92 higher low, where the scan needed 5%. But the rally before the higher low was 11.2% (35.50 on 2019-01-03 to 39.47 on 01-18), so as the criterion is written (a rally of 5% or more before it) this AAPL passes the gate. A V off the January 2019 low: the higher low (2019-01-23, 13 sessions after the low) sits 6.8% above the cycle low and followed an 11.2% rally, then a pullback of only 4.1%; the scan read that shallow pullback as one leg, not a base (corrected 2026-11-10 against the bars)."
    }
   ],
   "sheets": {
@@ -1457,7 +1457,7 @@
   {
    "kind": "grade",
    "criterion": "w4b.long_averages_flat",
-   "seed": "Same structure, two charts: PENN's flat 150 and 200-day, MSFT 2001's still-falling 200-day. Grade each."
+   "seed": "Same structure, two charts: PENN's flat 150 and 200-day, MSFT 2001's 200-day (16% under the price, flat through the trade). Grade each."
   },
   {
    "kind": "grade",

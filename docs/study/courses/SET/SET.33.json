@@ -619,8 +619,8 @@
   {
    "id": "c34",
    "source": "c1",
-   "quote": "Green: full use. Yellow: fewer, A and B grades. Orange: A+ only. Red: none.",
-   "claim": "Market reading: Green full use; Yellow fewer, A and B; Orange A+ only; Red none."
+   "quote": "Green: full use. Yellow: fewer, A and B grades. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
+   "claim": "Market reading: Green full use; Yellow fewer, A and B; Orange A+ only; Red mostly cash, plus shorts below the 200-day."
   },
   {
    "id": "c35",
@@ -998,7 +998,8 @@
   "No chart-carrying question: the contract's chart item draws daily bars from our own history (build_items sets tf D), and the pivot lives on 30-minute bars; a daily chart cannot show the red string, the pivot candle or the trigger. The unit carries none.",
   "The unit id SET.33 is the plan's (UNITS-method.md: '30-Minute Pivot', M11.L1). q25 rounds 167.43 shares to 167, the same as A5's 'rounded down'.",
   "Walk-through fills: the scan bought a cent over the pivot candle's high (or the candle's open if it gapped over) and stopped 3 cents under the pivot candle's low; a live market order fills a little differently. w3's 'both stop choices agree' holds because PSX's pivot candle made the day's low (d03).",
-  "Cold check 2026-11-10: 66 pass (63 questions and 3 walk-throughs; 17 fixed, 1 of them a walk-through), 0 fix, 1 cut (q42, the same stop-distance arithmetic as q16). Look first at: (1) the whole unit stands on D-002 option (a), the turn candle at support as the originator and the owner's published trades use it; if the owner rules b or c, q01, q45, q50 and the walk-throughs change, and q47 changes if D-125 drops the level; (2) the originator's X posts (o01 to o09) are social media, which the contract bars as a source; they are used only beside a house line and each quote was found on its page, but the owner should say whether to keep them; (3) q63 and the card's 3% skip are marked settled, yet A13 only says the stop 'usually' sits within about 3% and SET.32 holds the same line as pending D-005. Also fixed: q34 (Yellow is 'smaller and fewer' in F65; 'A and B grades' was the card's own addition), q35 (the story did not say the stock was still 12% over the 10-day at the buy), q58 (a buy price the story never gave), and 'A+ row' and 'B- row' wording (E50, grading is discretionary)."
+  "Cold check 2026-11-10: 66 pass (63 questions and 3 walk-throughs; 17 fixed, 1 of them a walk-through), 0 fix, 1 cut (q42, the same stop-distance arithmetic as q16). Look first at: (1) the whole unit stands on D-002 option (a), the turn candle at support as the originator and the owner's published trades use it; if the owner rules b or c, q01, q45, q50 and the walk-throughs change, and q47 changes if D-125 drops the level; (2) the originator's X posts (o01 to o09) are social media, which the contract bars as a source; they are used only beside a house line and each quote was found on its page, but the owner should say whether to keep them; (3) q63 and the card's 3% skip are marked settled, yet A13 only says the stop 'usually' sits within about 3% and SET.32 holds the same line as pending D-005. Also fixed: q34 (Yellow is 'smaller and fewer' in F65; 'A and B grades' was the card's own addition), q35 (the story did not say the stock was still 12% over the 10-day at the buy), q58 (a buy price the story never gave), and 'A+ row' and 'B- row' wording (E50, grading is discretionary).",
+  "Requoted 2026-11-10: c34 after the cards' market-reading rows were corrected."
  ],
  "verify": {
   "q01": {
@@ -1201,9 +1202,9 @@
   },
   "q34": {
    "status": "pass",
-   "notes": "F65 verbatim (h26): Yellow smaller and fewer. The key said 'Fewer, A and B grades'; 'A and B grades' is the card's addition (c34) and not in F65, and grades are E50's discretion, so the correct choice now says 'Fewer, and smaller than full size'.",
+   "notes": "F65 verbatim (h26): Yellow smaller and fewer. The key said 'Fewer, A and B grades'; 'A and B grades' is the card's addition (c34) and not in F65, and grades are E50's discretion, so the correct choice now says 'Fewer, and smaller than full size'. Requoted 2026-11-10: Yellow row unchanged on the card; key (fewer, smaller) holds. No text change.",
    "fixed": true,
-   "by": "checker"
+   "by": "requoter"
   },
   "q35": {
    "status": "pass",
@@ -1315,9 +1316,9 @@
   },
   "q53": {
    "status": "pass",
-   "notes": "D46 and F65 verbatim; the card says Red takes no pivots and the rulebook says mostly cash and shorts; both point to no long. Right.",
-   "fixed": false,
-   "by": "checker"
+   "notes": "D46 and F65 verbatim; the card says Red takes no pivots and the rulebook says mostly cash and shorts; both point to no long. Right. Requoted 2026-11-10: the card no longer says 'Red: none' (now mostly cash, plus shorts below the 200-day); choice, why and a wrong note reworded to 'mostly cash'. Key (no long) holds.",
+   "fixed": true,
+   "by": "requoter"
   },
   "q54": {
    "status": "pass",
@@ -2665,13 +2666,13 @@
    "story": "The market reading is Red. A leader forms a textbook pivot at its rising 21-day EMA.",
    "q": "What do you do?",
    "choices": [
-    "No long; Red means none",
+    "No long; Red is mostly cash",
     "Buy it; it is A+",
     "Buy half size",
     "Buy and sell at the close"
    ],
-   "answer": "No long; Red means none",
-   "why": "No long. Our card takes no pivots in a Red market, and in Red we are mostly cash plus shorts. The best candle in a Red market is still in a Red market.",
+   "answer": "No long; Red is mostly cash",
+   "why": "No long. Our card says mostly cash in a Red market, plus shorts below the 200-day. The best candle in a Red market is still in a Red market.",
    "lesson_line": "The market reading comes before the candles.",
    "facts": [
     "c34",
@@ -2679,7 +2680,7 @@
     "h26"
    ],
    "wrong": {
-    "Buy it; it is A+": "Orange allows A+. Red allows none.",
+    "Buy it; it is A+": "Orange allows A+. Red is mostly cash.",
     "Buy half size": "Half size in a Red market is half a mistake.",
     "Buy and sell at the close": "A day trade is still a long in a Red market."
    },

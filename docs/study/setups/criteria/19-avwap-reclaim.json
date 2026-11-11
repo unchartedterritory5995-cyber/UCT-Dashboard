@@ -997,7 +997,7 @@
    "av.confluence: the AVWAP sits at the 50-day, a prior breakout level or another AVWAP",
    "av.overhead: clear air to the next AVWAP or gap",
    "av.stop_width: 3% or less",
-   "av.market_reading: Green; av.index_above_avwap: the index above its AVWAP from the last low",
+   "av.market_reading: Green; av.index_above_avwap: the index above its AVWAP from the last low; in Orange only if everything else grades A+ (F65)",
    "av.group_reclaims: several group members reclaiming"
   ],
   "b_minus": [
@@ -1010,7 +1010,7 @@
    "av.confluence: the line alone",
    "av.overhead: another AVWAP or a bear gap within a few percent",
    "av.stop_width: wider than 3%",
-   "av.market_reading: Yellow or Orange",
+   "av.market_reading: Yellow (smaller and fewer)",
    "av.group_reclaims: alone in a weak group"
   ],
   "no_trade": [
@@ -1022,7 +1022,7 @@
    "av.inv_close_back_before_trigger: a close back under the line before the trigger",
    "av.earnings_window: a report within 3 sessions",
    "av.liquidity: under $10 or under $20 million a day",
-   "av.market_reading: Red"
+   "av.market_reading: Red; Orange below A+"
   ]
  },
  "lookalikes": [

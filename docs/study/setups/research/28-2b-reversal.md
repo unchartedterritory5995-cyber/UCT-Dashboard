@@ -1057,32 +1057,51 @@ swing low (no lower low in the 5 sessions on each side) made 6 to 60 sessions be
 1 ATR(14) off it; the break day is the FIRST session to trade under that low since it formed; the undercut's lowest low
 is 3% or less under the level; the trigger day is the first close back above the level, on the break day or within the
 next 3 sessions, and that day closes in the upper half of its range (8.5); close above the 200-day SMA (B26); close $10
-or more and 50-day average dollar volume $20 million or more (B23); the market-order fill is the level plus a cent when
-the day opened at or under the level (price traded back up through it), or the open when the trigger day opened above
-it, and no fill more than 4% over the level (C28) or more than 10% over the 10-day SMA (C29); stop 5 cents under the
+or more and 50-day average dollar volume $20 million or more (B23); the market-order fill is the level plus a cent as price trades back up through it, EXCEPT when a LATER session
+(not the break day) opens above the level: a gap over it fills at the open. (Rescanned 2026-11-10: the first scan also
+filled at the day's open when the break day itself opened above the level, which no trader could have done, because the
+undercut and the reclaim come later that day.) No fill more than 4% over the level (C28) or more than 10% over the 10-day SMA (C29); stop 5 cents under the
 lowest low of the undercut (8.3). The 2B top (short) is the mirror with the close BELOW the 200-day (B26, D47). Break
 volume, reclaim volume, the close position, the age of the level and the rally size are recorded as grade cues, not
 gates. Not coded: the RS rating and group (C31), the market reading (8.7), earnings dates (B22; checked by hand for the
 10 examples), the "clean lead-in" and the trims. Outcome: from the day after the trigger, 60 sessions forward, the first
 of stop / 3R / 5R; a day that touches both counts as stopped.
 
-**Base rate.** 71,881 hits (44,919 longs, 26,962 shorts), 1988-07-12 to 2026-11-06. Longs: **42.7% reached 3R and
-30.2% reached 5R before the stop**; 81% were eventually stopped at the original stop inside the 60 sessions (that
-includes winners, since the stop never moves here) and 33.6% never reached 1R. Shorts (below the 200-day): 39.0% to
-3R, 26.5% to 5R. Among the long winners the median time to 3R was 3 sessions. **Caveats.** (1) Fixed stop, no trims,
+**Base rate (rescanned 2026-11-10 with fills at the reclaim; the earlier figures used the open).** 74,068 hits (46,377
+longs, 27,691 shorts), 1988-07-12 to 2026-11-09 (the bars database was refreshed after the first scan; the
+same rule at the open gave 71,881 hits to 2026-11-06), all 2,630 names. Longs: **56.7% reached 3R and 45.1% reached 5R before
+the stop**; 80.5% were eventually stopped at the original stop inside the 60 sessions (that includes winners, since the
+stop never moves here) and 25.5% never reached 1R; the median stop was 1.08% of price. Shorts (below the 200-day): 52.6%
+to 3R, 40.8% to 5R, median stop 1.11%. Among the long winners the median time to 3R was 1 session. *Was (fills at the
+open on a same-day reclaim): 71,881 hits (44,919 longs, 26,962 shorts); longs 42.7% to 3R and 30.2% to 5R, 81% stopped,
+33.6% never reached 1R, median stop 1.69%, median 3 sessions to 3R; shorts 39.0% / 26.5%.* The rate went UP, not down:
+the buy is now the level plus a cent instead of the open, so R (buy to stop) is smaller and 3R is a smaller move; the
+change is in the same-day reclaims (28,067 long hits), which now fill at the level (median stop 0.70%, was 1.63%).
+**Caveats.** (1) Fixed stop, no trims,
 no breakeven move, no trail, no time stop: it measures how often the structure delivers 3R and 5R, not what the house
-trade earns. (2) The fill at the level plus a cent is the best case for a market order sent as price trades back
-through; with the stop a few cents under a shallow undercut, R is often under 1% of price, so 3R is close and slippage
-of a few cents matters more here than in any other setup. Section 4.4, which entered at the CLOSE of the reclaim day,
-found 27% to 3R; the gap between 27% and 43% is mostly that difference in fill (a later, higher fill with the same stop
-makes R larger and 3R farther away). (3) Survivorship: the universe is today's tickers. Cuts worth teaching (longs):
-a next-day reclaim (12,143 hits) did best, 47.9% / 33.6%, against 41.0% / 29.6% for a same-day reclaim and 39.5% / 26.0%
-for 2-3 days; a quiet break (volume at or under the 50-day average, 18,084 hits) 43.0% / 30.8% against 42.3% / 29.3% for
-a loud one (over 1.5x), so Sperandeo's preference holds, weakly; an undercut of 1% or less (25,434 hits) 44.4% / 32.6%,
-1-2% 41.4% / 28.7%, 2-3% 38.4% / 23.9%, so the shallower the undercut the better, as 8.1 proposes; stop distance under
-1% of price (9,932 hits) 55.5% / 43.5% against 34.7% / 22.0% for stops over 2%, but a sub-1% stop is also the one most
-exposed to slippage and noise, so teach it as "tight stops pay, when they are real". The age of the level (6-15 sessions
-against over 30) made no difference (42.3% against 44.1% to 3R).
+trade earns. (2) A daily bar cannot order the day. The stop is 5 cents under the undercut's lowest low, and for a
+same-day reclaim that low is the day's low, which may have formed AFTER the fill; a live trader's stop would be under the
+low so far when the reclaim happened. Each fill therefore uses a stop that is known only at the close, so the same-day
+figures are an upper bound. A check on the 406 same-day hits in the sandbox's 5-minute window (2026-08-17 to 2026-11-06,
+1,000 names; 5-minute bars cannot order events inside one bar) found 60.3% to 3R with the daily convention and 31.0% when
+the stop is the low so far at the fill and a later lower low the same day counts as a stop-out (195 of the 406 made one);
+the median stop was 0.64% and 0.37%. Read the same-day number as "between about a third and about two thirds". (3) With a
+stop a few cents under a shallow undercut, R is often under 1% of price (23% of long hits have a stop of 0.5% or less), so
+3R is a very small move and slippage of a few cents matters more here than in any other setup. Section 4.4, which
+entered at the CLOSE of the reclaim day, found 27% to 3R; the gap between 27% and 57% is mostly that difference in fill (a
+later, higher fill with the same stop makes R larger and 3R farther away). (4) Survivorship: the universe is today's
+tickers. Cuts worth teaching (longs; 3R / 5R; the earlier figures in brackets): a next-day reclaim (12,149 hits) 47.9% /
+33.6% [12,143: 47.9% / 33.6%, unchanged: the fill there was already the level or a real gap open], against 64.3% / 54.2%
+for a same-day reclaim (28,067 hits) [41.0% / 29.6%] and 39.4% / 26.0% for 2-3 days [39.5% / 26.0%], and the same-day figure is the
+one most affected by caveat 2 (the live-stop check there gives 31.0%, under the next-day 47.9%); a quiet break
+(volume at or under the 50-day average, 18,364 hits) 57.7% / 46.9% [43.0% / 30.8%] against 56.6% / 43.8% for a loud one
+(over 1.5x) [42.3% / 29.3%], so Sperandeo's preference holds, only weakly; an undercut of 1% or less (26,267 hits) 64.7% /
+55.0% [44.4% / 32.6%], 1-2% 48.6% / 34.8% [41.4% / 28.7%], 2-3% 41.8% / 26.8% [38.4% / 23.9%], so the shallower the
+undercut the better, as 8.1 proposes; stop distance of 1% of price or less (21,826 hits) 67.3% / 58.5% [9,932 hits: 55.5%
+/ 43.5%] against 42.3% / 27.6% for stops over 2% [34.7% / 22.0%], but a sub-1% stop is also the one most exposed to
+slippage and noise, so teach it as "tight stops pay, when they are real". The age of the level (6-15 sessions against
+over 30) made little difference (55.5% against 59.9% to 3R [42.3% against 44.1%]). A gap fill at the open on a later
+session (longs and shorts together, 11,430 hits, median stop 1.86%) reached 3R 43.4% and 5R 29.0%.
 
 **The 10 examples** (8 longs above the 200-day, 2 shorts below it; one per name, ten different years; none within 3
 sessions of an earnings report before or after the entry, checked against the earnings table; every one reached 5R and
@@ -1104,7 +1123,7 @@ break went; "back in" is sessions from the break to the reclaim close; "break vo
 | 6 | U | 2022-04-05 | short | 108.53 (2022-03-01, 24) | 1.35% / 1 / 0.85x | 108.00 | 110.04 (1.89%) | 38.7R (1) | The 2B top in the 2022 bear: a bounce to the falling 50-day pushed 1.4% over the March high, reversed the next day with a close in the bottom 2% of the range, and the stock fell 31% in 20 sessions. Below the 200-day (18.8% under it) as D46/B26 require. |
 | 7 | JBL | 2023-08-18 | long | 101.22 (2023-06-27, 37) | 1.03% / 0 / 0.64x | 101.23 | 100.13 (1.09%) | 36.5R (2) | The August 2023 pullback (the appendix's GOOGL is the same day): a seven-week-old low undercut by 1% on the quietest volume of the ten (0.64x), reclaimed the same day under the 50-day. Slower to pay (3R on day 2, +4% after 20 sessions) before the gap to 130: the case for the trims. |
 | 8 | MU | 2024-02-20 | long | 80.58 (2024-01-03, 31) | 1.77% / 1 / 1.07x | 80.59 | 79.10 (1.85%) | 33.5R (2) | A six-week shelf on a rising 50-day: the undercut of the January low ran 1.8% deep, the next day closed back above in the top 4% of its range, and the low of the next 30 sessions (79.94) sat 84 cents above the stop. A deeper-than-average undercut that still fit A13. |
-| 9 | MKSI | 2025-11-21 | long | 136.95 (2025-11-04, 13) | 1.61% / 0 / 0.67x | 138.24 | 134.69 (2.57%) | 37.1R (1) | A gap-reclaim: the break day undercut by 1.6% on light volume and closed back above; the next session opened 0.9% above the level, so the market order filled at the open (138.24), inside the 4% chase limit, with the stop still under the undercut low. Teaches C28 and the open fill. |
+| 9 | MKSI | 2025-11-21 | long | 136.95 (2025-11-04, 13) | 1.61% / 0 / 0.67x | 136.96 | 134.69 (1.66%) | 58.6R (1) | A same-day undercut and reclaim: the day opened at 138.24, above the level, fell to 134.74 (1.6% under), and closed back above at 144.00, so the market order fills as price comes back up through the level (136.96), not at the open, with the stop 5 cents under the undercut low. (Rescanned 2026-11-10: the first scan filled at the 138.24 open, 2.57% stop, 37.1R, which no trader could have got. A buy at the level means watching the reclaim intraday.) Still a textbook trigger: 3R the next day. |
 | 10 | INTC | 2026-03-31 | long | 41.64 (2026-03-09, 15) | 2.43% / 1 / 0.81x | 41.95 | 40.58 (3.27%) | 72.6R (1) | The deepest undercut (2.4%) and the widest stop (3.3%, just over the A13 line, so half size or the hourly higher-low entry of 8.2): a quiet break of the March low, a next-day reclaim closing in the top 4% of the range, 3R the next day. Verify these stored prices before use. |
 
 Reviewed and dropped in the visual check (none failed the scan): AIG 2010-11-29 (a clean 0.49% undercut and 41.9R, but
@@ -1116,8 +1135,8 @@ price (BBY 2020-06-15, 137R on a 0.42% stop; MTN 2020-10-02, 128R on a 0.34% sto
 learner should not be shown a 0.4% stop as normal. BB 2007-06-27 fit the picture but had an earnings report within 3
 sessions after the entry (B22), so it was excluded.
 
-**Notable failures (in words).** NVDA 2024-04-18: the April 9 low (83.02) was undercut by 0.75% on April 17 and reclaimed
-on the 18th (close 84.67, upper half, stop 82.35); the next day, April 19, the stock opened 83.15 and fell to 75.61, a
+**Notable failures (in words).** NVDA 2024-04-18: the April 9 low (83.02) was undercut by 0.75% and reclaimed the same
+day, the 18th (open 84.97, low 82.40, close 84.67, upper half, stop 82.35); the next day, April 19, the stock opened 83.15 and fell to 75.61, a
 9% day through the stop with no warning on the daily chart. The market (and the chip group) was still making lower lows,
 the 8.7 condition the scan cannot read. AMD 2024-04-16: the same week, the same group; the February 21 low (161.81) was
 undercut 1.9% on April 15, reclaimed on the 16th (close 163.46), and the next day it fell 6% to 154.02, through the
@@ -1125,8 +1144,8 @@ stop at 158.71. TSLA 2023-08-11: the June 26 low (240.70) was undercut 1.1% and 
 the next session gapped under the level and the stock fell for four more days to 219, a second, deeper break in which
 the "failure had failed" (8.5). All three were liquid leaders above the 200-day with quiet breaks; the common thread is
 a market still in its decline, which is why 8.7 ("the indexes are washing out ... and reclaiming them") is a gate, not a
-footnote, and why the stop is honoured at once (8.3). The scan's own numbers say the same: a third of all long hits
-never reached 1R.
+footnote, and why the stop is honoured at once (8.3). The scan's own numbers say the same: a quarter of all long hits
+never reached 1R (a third in the first scan, which filled at the open).
 
 ## 13. Failures and near-misses (from our data)
 
@@ -1147,8 +1166,8 @@ more a day), and all four were stopped on the first session after the entry with
 |---|---|---|---|---|---|---|---|---|---|
 | 1 | PYPL | 2018-03-26 | 76.93 (03-02) | 0.75% / 1 / next day | 77.98 (the open, 1.4% over the level) | 76.30 (2.15%) | 03-27, low 75.65 | The day after the entry opened 79.59 and closed 76.31, through the stop. SPY went on to a lower low on 04-02 (254.67, under its 257.83 March low): the market was still washing out, not reclaiming. | tb.market_washout |
 | 2 | MGM | 2017-07-05 | 30.82 (06-12) | 1.65% / 1 / next day | 30.83 | 30.26 (1.85%) | 07-06, low 30.26 (the stop to the cent) | The next day's low touched the stop exactly, the low of the move came the day after (30.20), and the stock was 31.98 twenty sessions later. The stop did its job; a new try needs a new trigger. | tb.after_entry_stop |
-| 3 | TSLA | 2023-08-11 | 240.70 (06-26) | 1.11% / 0 / same day | 241.77 | 237.97 (1.57%) | 08-14, low 233.75 | The next session opened 235.70, under the level, and the stock fell to 212.36 by 08-18: the failure failed. It was 273.58 twenty sessions after the entry, from a later, lower base. | tb.reclaim_fails |
-| 4 | NVDA | 2024-04-18 | 83.02 (04-09) | 0.75% / 0 / same day | 84.97 | 82.35 (3.08%) | 04-19, low 75.61 | The next day opened 83.15 and fell to 75.61, a 10% day straight through the stop; SPY made a lower low the same day (493.86 under its 499.12 20-session low). The stop was already 3.08% from the entry, over the A13 line. | tb.market_washout |
+| 3 | TSLA | 2023-08-11 | 240.70 (06-26) | 1.11% / 0 / same day | 240.71 (the level plus a cent; was 241.77) | 237.97 (1.14%) | 08-14, low 233.75 | The next session opened 235.70, under the level, and the stock fell to 212.36 by 08-18: the failure failed. It was 273.58 twenty sessions after the entry, from a later, lower base. | tb.reclaim_fails |
+| 4 | NVDA | 2024-04-18 | 83.02 (04-09) | 0.75% / 0 / same day | 83.03 (the level plus a cent; was 84.97) | 82.35 (0.82%) | 04-19, low 75.61 | The next day opened 83.15 and fell to 75.61, a 10% day straight through the stop; SPY made a lower low the same day (493.86 under its 499.12 20-session low). (Rescanned 2026-11-10: the undercut and the reclaim were both on 04-18, which opened at 84.97, so the buy is the level plus a cent as price came back up, 83.03, with the stop 0.82% under it; the first scan filled at the 84.97 open, before the undercut, with a 3.08% stop.) | tb.market_washout |
 
 **Near-misses: charts that look like a 2B and fail exactly one gate.** Each was found by relaxing that one gate in the
 scan and keeping only the hits the strict rule rejects for it; every other gate passed.
@@ -1158,7 +1177,7 @@ scan and keeping only the hits the strict rule rejects for it; every other gate 
 | 1 | DELL | 2024-07-22 | tb.depth | The undercut went 4.36% under the 127.59 low (to 122.03); the rule is 3% or less. The stop that follows is 4.83% from the entry. | 127.59 (06-07) / 3 / day 3 | A deeper break that happened to close back above: not a 2B at full size. By the card, a smaller size or the hourly higher-low entry, or no trade. It never traded above the entry and fell to 88 within three weeks. |
 | 2 | GS | 2017-01-25 | tb.reclaim_window | 6 closes under the 236.64 low before the first close back above (reclaim on day 6); the rule is within 3 sessions. | 236.64 (12-29) / 6 / day 6 | A Remount of a level (setup 32), bought on the retake of the line with the stop under the remount day's low, not on the reclaim of a low. Made 0.67R and was stopped. |
 | 3 | GOOG | 2026-07-20 | tb.reclaim_close | The reclaim day closed at 0.14 of its range (a gap over the level that sold off all day); the rule is a close in the upper half (0.5 or more). | 348.66 (07-09) / 1 / next day | A failed reclaim, not a trigger: the close is back near the low, so the buyers who lifted it at the open were gone by the bell. Best 0.06R, stopped. |
-| 4 | META | 2026-01-08 | tb.above_200 | The reclaim-day close was 4.2% under the 200-day SMA; the rule is a close above it. | 638.61 (12-12) / 0 / same day | A 2B shape in a stock below its 200-day: watch only under B26 (the dossier's rule; D-009 is still pending). Best 0.89R, stopped. |
+| 4 | META | 2026-01-08 | tb.above_200 | The reclaim-day close was 4.2% under the 200-day SMA; the rule is a close above it. | 638.61 (12-12) / 0 / same day | A 2B shape in a stock below its 200-day: watch only under B26 (the dossier's rule; D-009 is still pending). Rescanned 2026-11-10 with the buy at the level plus a cent (638.62, stop 635.67, 0.46%; was 645.88 and 1.58% from the open): best 5.5R, 3R on day 1, then stopped. It paid here, so the lesson is about odds under B26, not about this chart. |
 
 **What the failures have in common.** None gave a warning on its own chart: each reclaim day closed in the upper half
 on quiet volume, three of the four had an undercut under 1.2%, and all four were stopped on the very next session with

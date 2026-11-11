@@ -1045,7 +1045,7 @@
    "ng.gap_holds: a close in the top quarter of the range",
    "ng.base_before: opens above a base of 4 weeks or more, or out of a 3 to 6 month quiet range; above a rising 200-day",
    "ng.not_late: quiet before the gap, not up more than about 15% in 3 months",
-   "ng.rs: first of a strong group; Green market",
+   "ng.rs: first of a strong group; Green market; in Orange only if everything else grades A+ (F65)",
    "ng.stop_day1: a day-one stop within about 1 ATR and near 3%",
    "ng.entry_pullback: the first pullback holds the upper half of the gap day"
   ],
@@ -1056,7 +1056,7 @@
    "ng.gap_holds: a close in the lower half",
    "ng.above_200: just over the 200-day, into old overhead supply",
    "ng.not_late: up 30% or more already; a second or third gap",
-   "ng.market_reading: a weak group; Orange market",
+   "ng.market_reading: a weak group; a Yellow market (smaller and fewer)",
    "ng.stop_day1: more than 1.5 ATR away",
    "ng.entry_pullback: the pullback dips under the gap-day midpoint"
   ],
@@ -1070,7 +1070,7 @@
    "ng.regular_hours: a pre-market buy",
    "ng.liquidity: under $10 or under $20 million a day",
    "ng.stop_day1: the honest day-one stop past 1.5 ATR",
-   "ng.market_reading: Red"
+   "ng.market_reading: Red; Orange below A+"
   ]
  },
  "lookalikes": [

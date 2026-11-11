@@ -743,8 +743,8 @@
   {
    "id": "d28",
    "source": "d1",
-   "quote": "A spring 2025 washout to 131, a higher low at 150, an 11-day pause that walks up through the 50-, 150- and 200-day lines, a 2% stop and a run to 5R in 8 sessions.",
-   "claim": "DY: a spring 2025 washout, a higher low, an 11-day pause, a 2% stop and a run to 5R in 8 sessions."
+   "quote": "A spring 2025 washout to 131, a higher low at 150, an 11-day pause that walks up through the 50-, 150- and 200-day lines, a 2% stop and a run to 5R in 9 sessions",
+   "claim": "DY: a spring 2025 washout, a higher low, an 11-day pause, a 2% stop and a run to 5R in 9 sessions."
   },
   {
    "id": "d29",
@@ -2367,7 +2367,8 @@
   "Hypothetical stories (q21 to q24, q29 to q38, q40 to q44, q46, q47, q57) use round numbers on purpose. Where a numeric question borrows a real name's prices (q14 and q39 PENN, q25 AMD) the key is arithmetic only.",
   "The short mirror does not exist for this setup (dossier 8.6): the stage short that is ours lives in the Stage 4A breakdown and the bear gap. Weinstein's own version, the under-200-day 4B-, is a reading skill, not a trade here (D-009).",
   "Sources that may read unreachable to the quote checker: the Internet Archive copy of the TraderLion guide (its capture date is the dossier's 2025-11-13; the URL uses the nearest-capture form) and Deepvue's page sometimes refuse scripts; the checker should confirm those quotes in a browser.",
-  "Cold check 2026-11-10: 56 pass (24 fixed), 0 fix, 8 cut. Look first at: (1) the dossier's example claims that the bars do not support: AAPL 2019 rallied 11.2% (not 4.1%) before its higher low, MSFT 2001's 200-day was flat and 16% under price, the TGT triggers closed above their 200-days, and DY took 9 sessions to 5R (q53 made hypothetical, q50 and q51 cut); (2) the proposed numbers keyed as 'our working rule' (3% higher low, 10 sessions, 5% rally, 15 sessions, 252-session low, 3R of room) and the pending D-003 trigger and D-005 stop width behind q12, q48 and the walk-throughs; (3) the dossier's finding that Weinstein's own under-200-day version did better on the fixed-stop test (30.1% against 22.2% to 3R), which B26 and D-009 keep out of the course."
+  "Cold check 2026-11-10: 56 pass (24 fixed), 0 fix, 8 cut. Look first at: (1) the dossier's example claims that the bars do not support: AAPL 2019 rallied 11.2% (not 4.1%) before its higher low, MSFT 2001's 200-day was flat and 16% under price, the TGT triggers closed above their 200-days, and DY took 9 sessions to 5R (q53 made hypothetical, q50 and q51 cut); (2) the proposed numbers keyed as 'our working rule' (3% higher low, 10 sessions, 5% rally, 15 sessions, 252-session low, 3R of room) and the pending D-003 trigger and D-005 stop width behind q12, q48 and the walk-throughs; (3) the dossier's finding that Weinstein's own under-200-day version did better on the fixed-stop test (30.1% against 22.2% to 3R), which B26 and D-009 keep out of the course.",
+  "Requoted 2026-11-10: d28 after the cards' market-reading rows were corrected."
  ],
  "verify": {
   "w1": {
@@ -2738,9 +2739,9 @@
   },
   "q59": {
    "status": "pass",
-   "notes": "Chart: DY 2025-05-07 has 7,622 daily bars up to the date and 380 after; close 183.33, 50-day 157.14, 200-day 177.27 (above both). Bars: buy 186.41 on 2025-05-08, stop 182.62, 5R = 205.36 first traded on 2025-05-21, the 9th session after the buy day; the dossier says 'in 8 sessions' (3R came on the 8th). Reworded to 'within two weeks'.",
+   "notes": "Chart: DY 2025-05-07 has 7,622 daily bars up to the date and 380 after; close 183.33, 50-day 157.14, 200-day 177.27 (above both). Bars: buy 186.41 on 2025-05-08, stop 182.62, 5R = 205.36 first traded on 2025-05-21, the 9th session after the buy day; the dossier says 'in 8 sessions' (3R came on the 8th). Reworded to 'within two weeks'. Requoted 2026-11-10: dossier now says 5R in 9 sessions (was 8); the why already says 'within two weeks'. No text change.",
    "fixed": true,
-   "by": "checker"
+   "by": "requoter"
   },
   "q60": {
    "status": "pass",

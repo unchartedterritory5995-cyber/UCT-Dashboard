@@ -3157,6 +3157,94 @@
  },
  {
   "answer_json": {
+   "answer": "No; a planned loss on a weak day"
+  },
+  "difficulty": 3,
+  "id": "si_3275d9130e98",
+  "lesson_origin": "session",
+  "lesson_text": "No. The stop is the exit, and a loss taken at the stop is the system working. By our current default, light volume lowers the grade. It does not cancel a buy made before the day's volume is known. Light volume lowers the grade, not the rule. A loss at the stop is the plan working.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "No; a planned loss on a weak day",
+    "Yes; you should have sold at 1.63R",
+    "Yes; the stop was too tight",
+    "Yes; light volume meant skip it"
+   ],
+   "kind": "mcq",
+   "q": "Was that loss a mistake?",
+   "story": "A clean six-week shelf, four taps, volume drying up. You buy at market as price trades through the pivot at 206.85, stop 203.95. By the close, volume is only 0.5x and it sits low in its range. It reaches 1.63R, then the stop is hit on day six.",
+   "subject": "SET.07#q57"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Entries are market orders.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "BHC | 2015-04-09 | 206.85 | 203.95 (1.4%) | day 6 (2015-04-17, low 203.46), best 1.63R",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "The breakout came on 0.5x volume and closed low in its range at 205.72; it reached 1.63R and was stopped on day 6 (low 203.46).",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "Volume on the trigger day: on pace for at least 1.4 times the 50-day average volume. Required for an A or A+ grade, not to take the trade.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception. E57: entries are market orders. BHC, trigger 2015-04-09: buy 206.85, stop 203.95; best 1.63R, stopped on day 6. BHC: the breakout came on 0.5x volume and closed low in its range; it reached 1.63R and was stopped on day 6. The card: breakout volume is needed for an A or A+ grade, not to take the trade. B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   },
+   "facts": {
+    "given": "Was that loss a mistake? A clean six-week shelf, four taps, volume drying up. You buy at market as price trades through the pivot at 206.85, stop 203.95. By the close, volume is only 0.5x and it sits low in its range. It reaches 1.63R, then the stop is hit on day six. No; a planned loss on a weak day Yes; you should have sold at 1.63R Yes; the stop was too tight Yes; light volume meant skip it"
+   },
+   "lesson_line": "Light volume lowers the grade, not the rule. A loss at the stop is the plan working.",
+   "unit": "SET.07",
+   "why": "No. The stop is the exit, and a loss taken at the stop is the system working. By our current default, light volume lowers the grade. It does not cancel a buy made before the day's volume is known.",
+   "wrong": {
+    "Yes; light volume meant skip it": "By our current default, volume is a grading cue, not a gate. And you buy at market before the day's volume is known.",
+    "Yes; the stop was too tight": "A few cents under the day's low is the rule. It held for six days.",
+    "Yes; you should have sold at 1.63R": "The first trim is a third at 3R. Selling at 1.63R is fear, not a rule."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q57",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "answer": "A third at 3R and a third at 5R"
   },
   "difficulty": 3,
@@ -5631,6 +5719,64 @@
  },
  {
   "answer_json": {
+   "answer": "No; the close was not reclaimed"
+  },
+  "difficulty": 2,
+  "id": "si_b8dd02d64343",
+  "lesson_origin": "session",
+  "lesson_text": "No. By our current default, a close under the 21-day EMA that is not reclaimed the next session ends the flag. Day seven closed under it again. A close under the line that is not reclaimed the next session ends the flag.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "No; the close was not reclaimed",
+    "Yes; the flag low still holds",
+    "Yes; wait one more session"
+   ],
+   "kind": "mcq",
+   "q": "Is the flag still on?",
+   "story": "Day six of a flag closes under the rising 21-day EMA. Day seven closes under it again, on average volume.",
+   "subject": "SET.08#q27"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Bull Flag criteria card (docs/study/setups/criteria/02-bull-flag.json, as of 2026-11-09)",
+      "quote": "Every flag session closes at or above the rising 21-day EMA. An intraday undercut that closes back above is allowed and is often the buy.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/02-bull-flag.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Bull Flag criteria card (docs/study/setups/criteria/02-bull-flag.json, as of 2026-11-09)",
+      "quote": "Before entry: a close under the 21-day EMA that is not reclaimed the next session.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/02-bull-flag.json"
+     }
+    ],
+    "summary": "Every flag close holds the rising 21-day EMA; an intraday undercut that closes back above is allowed. Before entry, a close under the 21-day EMA that is not reclaimed the next session ends the flag."
+   },
+   "facts": {
+    "given": "Is the flag still on? Day six of a flag closes under the rising 21-day EMA. Day seven closes under it again, on average volume. No; the close was not reclaimed Yes; the flag low still holds Yes; wait one more session"
+   },
+   "lesson_line": "A close under the line that is not reclaimed the next session ends the flag.",
+   "unit": "SET.08",
+   "why": "No. By our current default, a close under the 21-day EMA that is not reclaimed the next session ends the flag. Day seven closed under it again.",
+   "wrong": {
+    "Yes; the flag low still holds": "The flag low is not the test before entry. The rising 21-day EMA is.",
+    "Yes; wait one more session": "You waited one session already. Day seven closed under it again."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.bull_flag",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.08.json#q27",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "answer": "No; the report is inside 3 sessions"
   },
   "difficulty": 2,
@@ -6977,6 +7123,71 @@
  },
  {
   "answer_json": {
+   "answer": "A base, not a flag any more"
+  },
+  "difficulty": 3,
+  "id": "si_dd4a4e7fa468",
+  "lesson_origin": "session",
+  "lesson_text": "A base. By our current default a flag rests 15 sessions at most. This pause is 21 sessions old, and Bulkowski says flags run under 3 weeks. A flag that keeps resting becomes a base. Past 15 sessions, stop calling it a flag.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "A base, not a flag any more",
+    "A bull flag, A grade",
+    "A failed flag"
+   ],
+   "kind": "mcq",
+   "q": "What is it now?",
+   "story": "A 30% pole, then a pause only 6.6% deep on 0.81x the pole's volume. The pause is now 21 sessions old.",
+   "subject": "SET.08#q50"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Bull Flag criteria card (docs/study/setups/criteria/02-bull-flag.json, as of 2026-11-09)",
+      "quote": "A short rest of 3 to 15 sessions that drifts sideways or down, gives back at most half the pole and at most 15% from the pole top",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/02-bull-flag.json"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Thomas Bulkowski, thepatternsite.com: Flags (statistics updated 2020-08-27)",
+      "quote": "Flags are short, less than 3 weeks long. Patterns longer than that are rectangles or channels.",
+      "tier": 2,
+      "url": "https://thepatternsite.com/flags.html"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Bull Flag dossier, sections 13 and 14: examples, failures and near-misses from our data",
+      "quote": "A 30% pole and a 6.6%-deep pause on 0.81x volume that ran 21 sessions. Past 20 sessions it is a base, judged as a flat base (setup 01) or a Qullamaggie consolidation (setup 18).",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/02-bull-flag.md#13-examples-from-our-data"
+     }
+    ],
+    "summary": "The card: a flag is a rest of 3 to 15 sessions. Bulkowski: flags are under 3 weeks; longer patterns are rectangles or channels. AXON 2024-04-04 near-miss: the pause ran 21 sessions; past 20 it is a base."
+   },
+   "facts": {
+    "given": "What is it now? A 30% pole, then a pause only 6.6% deep on 0.81x the pole's volume. The pause is now 21 sessions old. A base, not a flag any more A bull flag, A grade A failed flag"
+   },
+   "lesson_line": "A flag that keeps resting becomes a base. Past 15 sessions, stop calling it a flag.",
+   "unit": "SET.08",
+   "why": "A base. By our current default a flag rests 15 sessions at most. This pause is 21 sessions old, and Bulkowski says flags run under 3 weeks.",
+   "wrong": {
+    "A bull flag, A grade": "Twenty-one sessions is past our 15-session ceiling and past Bulkowski's 3 weeks.",
+    "A failed flag": "Nothing failed. It held 6.6% deep on light volume. It just stopped being a flag and became a base."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.bull_flag",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.08.json#q50",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "answer": "A third at 3R and a third at 5R"
   },
   "difficulty": 3,
@@ -7343,6 +7554,71 @@
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.08.json#q59",
   "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "An early entry on the same setup"
+  },
+  "difficulty": 3,
+  "id": "si_4aa1a4ac800e",
+  "lesson_origin": "session",
+  "lesson_text": "An early entry on the same setup. By our current default the flag-top break defines the flag. An earlier trigger keeps the same stop rule. BB bought at 80.41, before its 82.12 high broke. The flag-top break defines the flag. An earlier trigger is the same setup with the same stop rule.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "An early entry on the same setup",
+    "A separate setup of its own",
+    "A buy that breaks the rules"
+   ],
+   "kind": "mcq",
+   "q": "What kind of buy was that?",
+   "story": "Four quiet days on a quarter of the pole's volume. You buy the prior-day-high break at 80.41, stop 78.66. The flag's high of 82.12 is still above you.",
+   "subject": "SET.08#q60"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Bull Flag dossier, sections 13 and 14: examples, failures and near-misses from our data",
+      "quote": "BB | 2007-08-29 | +37% in 4 d to 84.10 (2007-08-22) | 4 d, 77.04 to 82.12 | 8.4% (31%) | 0.28x | 80.41 | 78.66 (2.2%) | 32.3",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/02-bull-flag.md#13-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Bull Flag dossier, sections 13 and 14: examples, failures and near-misses from our data",
+      "quote": "A near-vertical four-day pole, then four days on a quarter of the volume; the prior-day-high buy came before the flag's high broke (T2 ahead of T3).",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/02-bull-flag.md#13-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Bull Flag criteria card (docs/study/setups/criteria/02-bull-flag.json, as of 2026-11-09)",
+      "quote": "A market order when the trigger level trades, regular hours only. Set the alert at the level the night before.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/02-bull-flag.json"
+     }
+    ],
+    "summary": "BB, trigger 2007-08-29: a 37% pole in 4 days, a 4-day flag on 0.28x the pole's volume; buy 80.41, stop 78.66 (2.2%); 32.3R. BB: the prior-day-high buy came before the flag's high broke. A market order when the trigger level trades, regular hours only; alert set the night before."
+   },
+   "facts": {
+    "given": "What kind of buy was that? Four quiet days on a quarter of the pole's volume. You buy the prior-day-high break at 80.41, stop 78.66. The flag's high of 82.12 is still above you. An early entry on the same setup A separate setup of its own A buy that breaks the rules"
+   },
+   "lesson_line": "The flag-top break defines the flag. An earlier trigger is the same setup with the same stop rule.",
+   "unit": "SET.08",
+   "why": "An early entry on the same setup. By our current default the flag-top break defines the flag. An earlier trigger keeps the same stop rule. BB bought at 80.41, before its 82.12 high broke.",
+   "wrong": {
+    "A buy that breaks the rules": "A market order when a trigger level trades is the rule. The prior day's high is a trigger level.",
+    "A separate setup of its own": "By our current default it is the same flag with an earlier trigger, not a new setup."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.bull_flag",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.08.json#q60",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -19605,6 +19881,106 @@
   "version": 1
  },
  {
+  "answer_json": {
+   "answer": "Late market buy; day-low stop; 3R"
+  },
+  "difficulty": 3,
+  "id": "si_6cca27bf47c4",
+  "lesson_origin": "session",
+  "lesson_text": "Buy at market in the last minutes, stop a few cents under the launch day's low, a third off at 3R. By our current default the close is the entry only for setups defined by their close, and the Launchpad is one. BABA filled at 89.14, with the stop at 86.43, and reached 3R in three sessions. Entry, stop, trim, trail. Know them before you buy and execute without a debate.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Late market buy; day-low stop; 3R",
+    "Limit below market; base-low stop",
+    "Next open; 200-day stop; out at 2R"
+   ],
+   "kind": "mcq",
+   "q": "Write the plan: entry, stop, first trim.",
+   "story": "BABA, January 2025: 26 of 40 closes under the bundle, the 200-day 1% away. In the last minutes of 2025-01-24 it sits at its high, up 3.5%, above all four.",
+   "subject": "SET.11#q65"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Launchpad dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "BABA | 2025-01-24 | -31.6% | 1.86% | 1.0% | 26 / 0 | +3.5%, 0.98, 1.33x | 89.14 | 86.43 (3.0%) | 21.9 (3R in 3)",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/07-launchpad.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Launchpad dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "26 of 40 closes under the bundle and none above it, the 200-day 1% from the bundle, the launch closes at its high; not stacked on the day (the 50 was still on top), stacked within 3 sessions",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/07-launchpad.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Launchpad criteria card (docs/study/setups/criteria/07-launchpad.json, as of 2026-11-09)",
+      "quote": "The buy: a market order in the last minutes of the launch day, once the day already meets the launch tests",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/07-launchpad.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Launchpad criteria card (docs/study/setups/criteria/07-launchpad.json, as of 2026-11-09)",
+      "quote": "A few cents under the launch day's low for the close entry",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/07-launchpad.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Entries are market orders.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Launchpad criteria card (docs/study/setups/criteria/07-launchpad.json, as of 2026-11-09)",
+      "quote": "Not the scanner's stop under the bundle, and not the base low. Both sit far outside the 3% habit.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/07-launchpad.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Launchpad criteria card (docs/study/setups/criteria/07-launchpad.json, as of 2026-11-09)",
+      "quote": "Stop to the entry once 2R has traded (B19 says 2R to 5R; 2R is the low end).",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/07-launchpad.json"
+     }
+    ],
+    "summary": "BABA, launch 2025-01-24: a 31.6% correction, a 1.86% bundle, the 200-day 1.0% away; +3.5% closing at 0.98 on 1.33x; buy 89.14, stop 86.43; 21.9R, 3R in 3. BABA: 26 of 40 closes under the bundle and none above, the 200-day 1% away, the launch closes at its high; stacked within 3 sessions. The Launchpad buy is a market order in the last minutes of the launch day. The stop: a few cents under the launch day's low. E57: entries are market orders. B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R. Never the stop under the bundle or at the base low; both sit far outside the 3% habit. Breakeven once 2R has traded, the low end of B19's 2R to 5R."
+   },
+   "facts": {
+    "given": "Write the plan: entry, stop, first trim. BABA, January 2025: 26 of 40 closes under the bundle, the 200-day 1% away. In the last minutes of 2025-01-24 it sits at its high, up 3.5%, above all four. Late market buy; day-low stop; 3R Limit below market; base-low stop Next open; 200-day stop; out at 2R"
+   },
+   "lesson_line": "Entry, stop, trim, trail. Know them before you buy and execute without a debate.",
+   "unit": "SET.11",
+   "why": "Buy at market in the last minutes, stop a few cents under the launch day's low, a third off at 3R. By our current default the close is the entry only for setups defined by their close, and the Launchpad is one. BABA filled at 89.14, with the stop at 86.43, and reached 3R in three sessions.",
+   "wrong": {
+    "Limit below market; base-low stop": "A limit below the market can miss the launch, and the base low is not the stop.",
+    "Next open; 200-day stop; out at 2R": "The 200-day is context, not a stop. At 2R the stop moves up; it is not the exit."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.launchpad",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.11.json#q65",
+  "type": "scenario",
+  "version": 1
+ },
+ {
   "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Take it; weeks under the bundle"
@@ -30968,6 +31344,71 @@
  },
  {
   "answer_json": {
+   "answer": "The MAU&R costume of the U&R"
+  },
+  "difficulty": 3,
+  "id": "si_e0adb9bbe7d1",
+  "lesson_origin": "session",
+  "lesson_text": "The undercut and rally in its moving-average costume. Ask what the buy is. By our current default, a low that undercut the 20 EMA, bought as the move back above the line, is the U&R. Same line, different buy. Buying the move back through the line is the U&R, not the pullback.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "The MAU&R costume of the U&R",
+    "The 20 EMA pullback",
+    "A Remount"
+   ],
+   "kind": "mcq",
+   "q": "Which name fits?",
+   "story": "At 10 am the low breaks 1% under the 20 EMA. By noon price is back above the line and you buy the move back through it.",
+   "subject": "SET.14#q51"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: 20 EMA Pullback criteria card (docs/study/setups/criteria/11-ema20-pullback.json, as of 2026-11-09)",
+      "quote": "If the session's low undercut the 20 EMA and the trade is the move back above the line, it is the MAU&R costume of the Undercut and Rally;",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/11-ema20-pullback.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: 20 EMA Pullback criteria card (docs/study/setups/criteria/11-ema20-pullback.json, as of 2026-11-09)",
+      "quote": "buy at market when price trades one cent above the high of the session that held the line, on a later session.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/11-ema20-pullback.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: 20 EMA Pullback criteria card (docs/study/setups/criteria/11-ema20-pullback.json, as of 2026-11-09)",
+      "quote": "RED TO GREEN or PREV LOW RECLAIM on the hold session: buy at market as the intraday turn trades",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/11-ema20-pullback.json"
+     }
+    ],
+    "summary": "The U&R tell: a low that undercut the 20 EMA, bought as the move back above the line, is the MAU&R costume of the Undercut and Rally. The fallback trigger: buy at market when price trades a cent above the hold session's high, on a later session. The 20 EMA Pullback buy is the intraday turn on the hold session, such as red to green."
+   },
+   "facts": {
+    "given": "Which name fits? At 10 am the low breaks 1% under the 20 EMA. By noon price is back above the line and you buy the move back through it. The MAU&R costume of the U&R The 20 EMA pullback A Remount"
+   },
+   "lesson_line": "Same line, different buy. Buying the move back through the line is the U&R, not the pullback.",
+   "unit": "SET.14",
+   "why": "The undercut and rally in its moving-average costume. Ask what the buy is. By our current default, a low that undercut the 20 EMA, bought as the move back above the line, is the U&R.",
+   "wrong": {
+    "A Remount": "The line was under water for two hours, not a week or more. That is an undercut, not a lost line.",
+    "The 20 EMA pullback": "Its buy is the turn off a held line, such as red to green. Buying the move back above the line is the U&R."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.ema20_pullback",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.14.json#q51",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "answer": "No; not longs under the 200-day"
   },
   "difficulty": 3,
@@ -38617,6 +39058,78 @@
  },
  {
   "answer_json": {
+   "answer": "A planned loss at a smaller size"
+  },
+  "difficulty": 3,
+  "id": "si_fa7fc72ae358",
+  "lesson_origin": "session",
+  "lesson_text": "A planned loss. By our current default, volume only grades a pop, and this one was above the base days. A stop wider than about 3% means a smaller position or a pass. You took the smaller size and the stop did its job. In our scan stops within 3% did better. A wide stop is a reason for a small size. The loss stays small too.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "A planned loss at a smaller size",
+    "A mistake: never buy a wide stop",
+    "A reason to widen stops next time"
+   ],
+   "kind": "mcq",
+   "q": "What was it?",
+   "story": "A 13-day base after a 41% decline. The pop closes at the high, on 1.24x the base days' volume. The honest stop is 4.7% below your fill. You took it smaller. Day 2 takes the stop.",
+   "subject": "SET.16#q45"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Wedge Pop criteria card (docs/study/setups/criteria/15-wedge-pop.json, as of 2026-11-10)",
+      "quote": "If the honest stop is wider than about 3%, take a smaller position or skip; never tighten the stop to fit. A stop that has to be 8% or more away is B- at best.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/15-wedge-pop.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Wedge Pop dossier, sections 13 and 14: examples, failures and near-misses from our data",
+      "quote": "COIN | 2024-08-23 | 209.81 | 199.95 (4.7%) | day 2 (2024-08-27, low 194.10), best 0.11R",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/15-wedge-pop.md#13-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Wedge Pop dossier, sections 13 and 14: examples, failures and near-misses from our data",
+      "quote": "a pop that closed at the high (211.40) but on 1.24x the base days' volume (1.04x the 50-day) and with a 4.7% stop. The low of 194.10 took the stop on day 2.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/15-wedge-pop.md#13-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Wedge Pop dossier, sections 13 and 14: examples, failures and near-misses from our data",
+      "quote": "a stop within 3% (5,170 hits) 45.5% / 31.5% against 29.8% / 18.2% for wider stops (A13 earns its place)",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/15-wedge-pop.md#13-examples-from-our-data"
+     }
+    ],
+    "summary": "A stop wider than about 3%: smaller or skip, never tighter; 8% or more away is B- at best. COIN, pop 2024-08-23: buy 209.81, stop 199.95 (4.7%); stopped on day 2. COIN: closed at the high on 1.24x the base days' volume with a 4.7% stop; stopped on day 2. Scan: stops within 3% reached 3R 45.5% of the time against 29.8% for wider ones."
+   },
+   "facts": {
+    "given": "What was it? A 13-day base after a 41% decline. The pop closes at the high, on 1.24x the base days' volume. The honest stop is 4.7% below your fill. You took it smaller. Day 2 takes the stop. A planned loss at a smaller size A mistake: never buy a wide stop A reason to widen stops next time"
+   },
+   "lesson_line": "A wide stop is a reason for a small size. The loss stays small too.",
+   "unit": "SET.16",
+   "why": "A planned loss. By our current default, volume only grades a pop, and this one was above the base days. A stop wider than about 3% means a smaller position or a pass. You took the smaller size and the stop did its job. In our scan stops within 3% did better.",
+   "wrong": {
+    "A mistake: never buy a wide stop": "The rule is a smaller position or a pass. A smaller position is allowed.",
+    "A reason to widen stops next time": "The card says never tighten the stop to fit, and a wider stop only adds risk. The answer is a smaller size."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.wedge_pop",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.16.json#q45",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "answer": "Take the loss; wait for a trigger"
   },
   "difficulty": 3,
@@ -45472,6 +45985,73 @@
  },
  {
   "answer_json": {
+   "answer": "Not our EP; it fails the first-EP test"
+  },
+  "difficulty": 1,
+  "id": "si_983fe2f4e9d2",
+  "lesson_origin": "session",
+  "lesson_text": "Not our EP. Our card wants no qualifying EP in the prior 126 sessions, and March's gap sits inside that window. Kullamagi says these can work, but the failure rate is higher and the move smaller. First time is the charm. A second gap inside 126 sessions is not our EP.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Not our EP; it fails the first-EP test",
+    "A fresh EP; buy the opening range",
+    "An A+; two surprises in a row",
+    "An EP, but only on a delayed entry"
+   ],
+   "kind": "mcq",
+   "q": "Does this one count as our Episodic Pivot?",
+   "story": "A stock gapped 14% on 4x volume after earnings in March. About 100 trading days later it gaps 12% on 4x volume after the next report.",
+   "subject": "SET.18#q11"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Episodic Pivot criteria card (docs/study/setups/criteria/20-episodic-pivot.json, as of 2026-11-09)",
+      "quote": "The first EP: no qualifying EP in the prior 126 sessions.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/20-episodic-pivot.json"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Kristjan Kullamagi (qullamaggie.com): How to master a setup: Episodic Pivots (2021-11-02)",
+      "quote": "these can work but the failure rate is higher and the move probably won’t be as big.",
+      "tier": 2,
+      "url": "https://qullamaggie.com/how-to-master-a-setup-episodic-pivots/"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Stockbee (Pradeep Bonde): Night time is the right time to find big Episodic Pivots (2021-12-09)",
+      "quote": "Third and fourth earnings surprise most of the time are priced in or are tricky as they often lead to big gap and then reversal.",
+      "tier": 2,
+      "url": "https://stockbee.blogspot.com/2021/12/night-time-is-right-time-to-find-big.html"
+     }
+    ],
+    "summary": "The first EP: no qualifying EP in the prior 126 sessions. Kullamagi: a second EP can work, but fails more and moves less. Bonde: a third or fourth surprise is often priced in and reverses after the gap."
+   },
+   "facts": {
+    "given": "Does this one count as our Episodic Pivot? A stock gapped 14% on 4x volume after earnings in March. About 100 trading days later it gaps 12% on 4x volume after the next report. Not our EP; it fails the first-EP test A fresh EP; buy the opening range An A+; two surprises in a row An EP, but only on a delayed entry"
+   },
+   "lesson_line": "First time is the charm. A second gap inside 126 sessions is not our EP.",
+   "unit": "SET.18",
+   "why": "Not our EP. Our card wants no qualifying EP in the prior 126 sessions, and March's gap sits inside that window. Kullamagi says these can work, but the failure rate is higher and the move smaller.",
+   "wrong": {
+    "A fresh EP; buy the opening range": "March's gap was inside the prior 126 sessions. This is the second, not the first.",
+    "An A+; two surprises in a row": "Bonde: the third and fourth surprises are priced in and often reverse. The count works against you.",
+    "An EP, but only on a delayed entry": "A delayed entry is a later way to buy a first EP. It does not fix a failed first-EP test."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.episodic_pivot",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.18.json#q11",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "answer": "Upper half, gap never filled"
   },
   "difficulty": 1,
@@ -52267,12 +52847,12 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Power Earnings Gap criteria card (docs/study/setups/criteria/21-power-earnings-gap.json, as of 2026-11-09)",
-      "quote": "peg.market_reading: Yellow or Orange",
+      "quote": "peg.market_reading: Yellow (smaller and fewer)",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/21-power-earnings-gap.json"
      }
     ],
-    "summary": "D38: A and B at normal size; A+ sized up; B- or lower sized down. B- cue: a late gap after a 30% run, or a second or third gap in a row. A+ cue: a tight pause on lighter volume that holds the PEG-day close. B- cue: a loose, deep pause that undercuts the PEG-day low. B- cue: a Yellow or Orange market."
+    "summary": "D38: A and B at normal size; A+ sized up; B- or lower sized down. B- cue: a late gap after a 30% run, or a second or third gap in a row. A+ cue: a tight pause on lighter volume that holds the PEG-day close. B- cue: a loose, deep pause that undercuts the PEG-day low. B- cue: a Yellow market, which means smaller and fewer."
    },
    "facts": {
     "given": "Which one gets the bigger size? Yellow market. Gap A: 12%, 5x volume, a high close, out of a six-month base, tight pause. Gap B: up 35% in three months, mid-range close, loose pause that undercuts the low. A; B is a B- and gets smaller size B; late gaps run the most Both full size; both are PEGs Neither; Yellow is all cash"
@@ -54139,6 +54719,87 @@
  },
  {
   "answer_json": {
+   "answer": "Buy at market; stop under the day's low"
+  },
+  "difficulty": 2,
+  "id": "si_ce3abda68c76",
+  "lesson_origin": "session",
+  "lesson_text": "Buy at market. By our current default, day one over the opening-range high is the A+ form, and the pullback is the other way in. The stop goes a few cents under the day's low, 2% away. Day one over the opening-range high is the A+ form.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Buy at market; stop under the day's low",
+    "Wait; the pullback is the only entry",
+    "Buy half now, half at the close",
+    "Buy at tomorrow's open"
+   ],
+   "kind": "mcq",
+   "q": "Buy, or wait for the pullback?",
+   "story": "The stock gapped 9% on a report. At 9:50 it trades over the 5-minute high, still above its open, with the day's average volume already traded. The day's low is 2% under the price.",
+   "subject": "SET.20#q31"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: News/Earnings Gapper criteria card (docs/study/setups/criteria/22-news-gapper.json, as of 2026-11-09)",
+      "quote": "after a pullback of two down days or an inside day whose closes all hold the gap-day low, a market buy as price trades over the prior day's high. Day one over the opening-range high is the A+ form.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/22-news-gapper.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: News/Earnings Gapper criteria card (docs/study/setups/criteria/22-news-gapper.json, as of 2026-11-09)",
+      "quote": "Buy 1, day one: a market order when price trades above the opening-range high (the first 5 or 30-minute high) with volume running hot",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/22-news-gapper.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: News/Earnings Gapper criteria card (docs/study/setups/criteria/22-news-gapper.json, as of 2026-11-09)",
+      "quote": "A few cents under the pullback low; on day one, under the day's low at the buy, usually the opening-range low.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/22-news-gapper.json"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT (the owner's published Sunday Scans): Sunday Scans, 2025-11-09 (the owner's section)",
+      "quote": "I love trading earnings gappers on day one.",
+      "tier": 3,
+      "url": "https://unchartedterritoryy.substack.com/p/sunday-scans-720"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT (the owner's published Market Update): Market Update and Watchlist, 2025-06-20 (GRRR)",
+      "quote": "Can enter there and place a stop at LOD and see how far it goes.",
+      "tier": 3,
+      "url": "https://unchartedterritoryy.substack.com/p/market-update-and-watchlist"
+     }
+    ],
+    "summary": "Trigger: after two down days or an inside day that hold the gap-day low, a market buy over the prior day's high; day one over the opening-range high is the A+ form. Day one: a market order when price trades above the opening-range high with volume running hot. Stop: a few cents under the pullback low; on day one, under the day's low at the buy. UCT's Sunday Scans: I love trading earnings gappers on day one. UCT's Sunday Scans on the GRRR gap: enter there, stop at the low of the day."
+   },
+   "facts": {
+    "given": "Buy, or wait for the pullback? The stock gapped 9% on a report. At 9:50 it trades over the 5-minute high, still above its open, with the day's average volume already traded. The day's low is 2% under the price. Buy at market; stop under the day's low Wait; the pullback is the only entry Buy half now, half at the close Buy at tomorrow's open"
+   },
+   "lesson_line": "Day one over the opening-range high is the A+ form.",
+   "unit": "SET.20",
+   "why": "Buy at market. By our current default, day one over the opening-range high is the A+ form, and the pullback is the other way in. The stop goes a few cents under the day's low, 2% away.",
+   "wrong": {
+    "Buy at tomorrow's open": "Waiting for tomorrow's open gives up the trigger.",
+    "Buy half now, half at the close": "Half now and half later is two prices, not one buy.",
+    "Wait; the pullback is the only entry": "By our current default we teach both. Day one over the opening-range high is the A+ form; the pullback is the other way in."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.news_gapper",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.20.json#q31",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "answer": "PEG owns the day; we teach the pullback"
   },
   "difficulty": 2,
@@ -55224,6 +55885,66 @@
   "skill_id": "setup.news_gapper",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.20.json#q50",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Not earnings; find the headline first"
+  },
+  "difficulty": 3,
+  "id": "si_4119757c6021",
+  "lesson_origin": "session",
+  "lesson_text": "Not earnings. The calendar shows no report that day, so this is a news gap and you need the headline. Calling every big gap earnings without checking is a mistake: a quarter are not. Check the calendar. A quarter of big gaps are not earnings.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Not earnings; find the headline first",
+    "An earnings gapper; volume says so",
+    "An earnings gapper; the close says so",
+    "No setup; it was not earnings"
+   ],
+   "kind": "mcq",
+   "q": "Is it an earnings gapper?",
+   "story": "GE, 2015. A 5.4% gap on 10.0x volume closes at 90% of its range. The earnings calendar shows no report that day.",
+   "subject": "SET.20#q51"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: News/Earnings Gapper criteria card (docs/study/setups/criteria/22-news-gapper.json, as of 2026-11-09)",
+      "quote": "Calling every big gap earnings without checking: a quarter are not.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/22-news-gapper.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): News/Earnings Gapper dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "gap 2015-04-10, +5.4% on 10.0x volume (a 1-year high), a news gap (not a report day), closing at 90% of its range",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/22-news-gapper.md#12-examples-from-our-data"
+     }
+    ],
+    "summary": "A mistake: calling every big gap earnings without checking; a quarter are not. GE: a 5.4% gap on 10.0x volume, a news gap (not a report day), closing at 90% of its range."
+   },
+   "facts": {
+    "given": "Is it an earnings gapper? GE, 2015. A 5.4% gap on 10.0x volume closes at 90% of its range. The earnings calendar shows no report that day. Not earnings; find the headline first An earnings gapper; volume says so An earnings gapper; the close says so No setup; it was not earnings"
+   },
+   "lesson_line": "Check the calendar. A quarter of big gaps are not earnings.",
+   "unit": "SET.20",
+   "why": "Not earnings. The calendar shows no report that day, so this is a news gap and you need the headline. Calling every big gap earnings without checking is a mistake: a quarter are not.",
+   "wrong": {
+    "An earnings gapper; the close says so": "A strong close shows strength, not the catalyst. The calendar does.",
+    "An earnings gapper; volume says so": "Volume does not tell you the catalyst. The calendar does.",
+    "No setup; it was not earnings": "A gap with no report is not thrown out. It needs a named headline."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.news_gapper",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.20.json#q51",
   "type": "scenario",
   "version": 1
  },
@@ -61529,6 +62250,65 @@
  },
  {
   "answer_json": {
+   "answer": "A cue to sell it early; 3R is the rule"
+  },
+  "difficulty": 1,
+  "id": "si_eb01340816fa",
+  "lesson_origin": "session",
+  "lesson_text": "A cue to sell early. By our current default, the first third is a third at 3R. The post-gap high can tell you to take that third early. A third at 3R is the rule. The post-gap high is a cue to take it early.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "A cue to sell it early; 3R is the rule",
+    "It replaces 3R as the first-third spot",
+    "It moves the first third out to 5R",
+    "Nothing; it is not part of the plan"
+   ],
+   "kind": "mcq",
+   "q": "What does the post-gap high do to the first third?",
+   "subject": "SET.22#q18"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R. E51: another third at 5R, then trail the last third."
+   },
+   "facts": {
+    "given": "What does the post-gap high do to the first third? A cue to sell it early; 3R is the rule It replaces 3R as the first-third spot It moves the first third out to 5R Nothing; it is not part of the plan"
+   },
+   "lesson_line": "A third at 3R is the rule. The post-gap high is a cue to take it early.",
+   "unit": "SET.22",
+   "why": "A cue to sell early. By our current default, the first third is a third at 3R. The post-gap high can tell you to take that third early.",
+   "wrong": {
+    "It moves the first third out to 5R": "The second third is at 5R. The post-gap high does not push the first one out.",
+    "It replaces 3R as the first-third spot": "By our current default the plan stays a third at 3R. The post-gap high does not replace it.",
+    "Nothing; it is not part of the plan": "It is a cue. When it comes before 3R, you may take the first third early."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.gap_support",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.22.json#q18",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "answer": "A few cents under the test day's low"
   },
   "difficulty": 1,
@@ -61822,6 +62602,75 @@
   "skill_id": "setup.gap_support",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.22.json#q24",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A third at 3R, 55.88; 55.63 is a cue"
+  },
+  "difficulty": 2,
+  "id": "si_88d21f11b743",
+  "lesson_origin": "session",
+  "lesson_text": "A third at 3R, 55.88. By our current default, 3R is the rule and the post-gap high at 55.63 is a cue to take that third early. A third at 3R. The post-gap high is a cue to take it early.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "A third at 3R, 55.88; 55.63 is a cue",
+    "A third at the post-gap high, always",
+    "At 5R; skip the first third",
+    "Hold everything for the trail"
+   ],
+   "kind": "mcq",
+   "q": "What is the plan for the first third?",
+   "story": "You bought a test at 53.27 with the stop at 52.40. The post-gap high is 55.63, just under 3R.",
+   "subject": "SET.22#q26"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Gap Support dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "ILMN | earnings gap 2010-10-27 → test 2010-11-02 | +5.6% open on 3.6x volume; test 4 sessions later, 1.9 ATR off the 55.63 high;",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/25-gap-support.md#12-examples-from-our-data"
+     }
+    ],
+    "summary": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R. ILMN: earnings gap 2010-10-27, test 2010-11-02, a 5.6% open on 3.6x volume, test 4 sessions later, 1.9 ATR off the 55.63 high."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "a": 53.27,
+      "b": 52.4,
+      "expr": "a + 3 * (a - b)"
+     },
+     "fn": "arith",
+     "result": 55.88
+    },
+    "given": "What is the plan for the first third? You bought a test at 53.27 with the stop at 52.40. The post-gap high is 55.63, just under 3R. A third at 3R, 55.88; 55.63 is a cue A third at the post-gap high, always At 5R; skip the first third Hold everything for the trail"
+   },
+   "lesson_line": "A third at 3R. The post-gap high is a cue to take it early.",
+   "unit": "SET.22",
+   "why": "A third at 3R, 55.88. By our current default, 3R is the rule and the post-gap high at 55.63 is a cue to take that third early.",
+   "wrong": {
+    "A third at the post-gap high, always": "By our current default the rule stays a third at 3R. The post-gap high is a cue, not a new rule.",
+    "At 5R; skip the first third": "The first third comes off at 3R. The 5R third is the second one.",
+    "Hold everything for the trail": "The first third is sold at 3R. Only the last third rides the trail."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.gap_support",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.22.json#q26",
   "type": "scenario",
   "version": 1
  },
@@ -63324,6 +64173,82 @@
  },
  {
   "answer_json": {
+   "answer": "At 3R, 239.23"
+  },
+  "difficulty": 3,
+  "id": "si_af4aa0ceb875",
+  "lesson_origin": "session",
+  "lesson_text": "At 3R, 239.23. One R is the fill minus the stop. Three of those above 231.13 is 239.23, a hair under the post-gap high of 239.37. The post-gap high is no earlier cue here. A third at 3R. The post-gap high only helps when it comes first.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "At 3R, 239.23",
+    "At the post-gap high, 239.37",
+    "At 5R",
+    "Only after the close above 240"
+   ],
+   "kind": "mcq",
+   "q": "By our plan, where does the first third go?",
+   "story": "LLY, 2021. A news gap. The test is bought at 231.13 with the stop at 228.43. The post-gap high is 239.37.",
+   "subject": "SET.22#q55"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Gap Support dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "LLY | news gap 2021-06-24 (not an earnings date in our data) → test 2021-07-01 | +8.2% open on 3.6x volume; test 5 sessions later, 2.1 ATR off the 239.37 high;",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/25-gap-support.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Gap Support dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "low 0.8% under the gap-up low 230.42; close at 87% of the range | 231.13 | 228.43 (1.2%) | 16.6R",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/25-gap-support.md#12-examples-from-our-data"
+     }
+    ],
+    "summary": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R. LLY: a news gap 2021-06-24, test 2021-07-01, an 8.2% open on 3.6x volume, test 5 sessions later, 2.1 ATR off the 239.37 high. LLY: test low 0.8% under the gap-up low 230.42, close at 87% of the range, buy 231.13, stop 228.43 (1.2%), best 16.6R."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "a": 231.13,
+      "b": 228.43,
+      "expr": "a + 3 * (a - b)"
+     },
+     "fn": "arith",
+     "result": 239.23
+    },
+    "given": "By our plan, where does the first third go? LLY, 2021. A news gap. The test is bought at 231.13 with the stop at 228.43. The post-gap high is 239.37. At 3R, 239.23 At the post-gap high, 239.37 At 5R Only after the close above 240"
+   },
+   "lesson_line": "A third at 3R. The post-gap high only helps when it comes first.",
+   "unit": "SET.22",
+   "why": "At 3R, 239.23. One R is the fill minus the stop. Three of those above 231.13 is 239.23, a hair under the post-gap high of 239.37. The post-gap high is no earlier cue here.",
+   "wrong": {
+    "At 5R": "The first third comes off before 5R.",
+    "At the post-gap high, 239.37": "The post-gap high sits above 3R. It is a cue only when it comes before 3R.",
+    "Only after the close above 240": "There is no rule to wait for 240."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.gap_support",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.22.json#q55",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "answer": "No; three tries this week are used"
   },
   "difficulty": 3,
@@ -64488,7 +65413,7 @@
   "difficulty": 1,
   "id": "si_d4c36379e5b6",
   "lesson_origin": "session",
-  "lesson_text": "True. The reading must be Green or Yellow, with Orange only for an A+. Red means none. Check the market first. In a Red market the Kicker waits.",
+  "lesson_text": "True. The reading must be Green or Yellow, with Orange only for an A+. In Red it is mostly cash, plus shorts below the 200-day. Check the market first. In a Red market the Kicker waits.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -64505,7 +65430,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Kicker Candle criteria card (docs/study/setups/criteria/26-kicker.json, as of 2026-11-09)",
-      "quote": "Green or Yellow reading; Orange only for an A+. Red: none.",
+      "quote": "Green or Yellow reading; Orange only for an A+. Red: mostly cash, plus shorts below the 200-day.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/26-kicker.json"
      },
@@ -64517,14 +65442,14 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Green or Yellow reading; Orange only for an A+. Red: none. F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
+    "summary": "Green or Yellow reading; Orange only for an A+; Red is mostly cash, plus shorts below the 200-day. F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
    },
    "facts": {
     "given": "A Red market is no place for a Kicker."
    },
    "lesson_line": "Check the market first. In a Red market the Kicker waits.",
    "unit": "SET.23",
-   "why": "True. The reading must be Green or Yellow, with Orange only for an A+. Red means none."
+   "why": "True. The reading must be Green or Yellow, with Orange only for an A+. In Red it is mostly cash, plus shorts below the 200-day."
   },
   "review_status": "draft",
   "skill_id": "setup.kicker",
@@ -66760,7 +67685,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Kicker Candle criteria card (docs/study/setups/criteria/26-kicker.json, as of 2026-11-09)",
-      "quote": "Green or Yellow reading; Orange only for an A+. Red: none.",
+      "quote": "Green or Yellow reading; Orange only for an A+. Red: mostly cash, plus shorts below the 200-day.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/26-kicker.json"
      },
@@ -66772,7 +67697,7 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Green or Yellow reading; Orange only for an A+. Red: none. F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
+    "summary": "Green or Yellow reading; Orange only for an A+; Red is mostly cash, plus shorts below the 200-day. F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
    },
    "facts": {
     "given": "What do you do? A clean Kicker triggers, but the market reading is Orange. Take it only if it is an A+ Take it at full size Pass, only Green allows it Short the market instead"
@@ -66781,7 +67706,7 @@
    "unit": "SET.23",
    "why": "Take it only as an A+. In an Orange market only A+ setups. Green is full risk, Yellow smaller and fewer.",
    "wrong": {
-    "Pass, only Green allows it": "Orange allows an A+. Red allows none.",
+    "Pass, only Green allows it": "Orange allows an A+. Red is mostly cash.",
     "Short the market instead": "Red is mostly cash and shorts. Orange still allows an A+ long.",
     "Take it at full size": "Full risk is for Green."
    }
@@ -67504,7 +68429,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Kicker Candle criteria card (docs/study/setups/criteria/26-kicker.json, as of 2026-11-09)",
-      "quote": "Green or Yellow reading; Orange only for an A+. Red: none.",
+      "quote": "Green or Yellow reading; Orange only for an A+. Red: mostly cash, plus shorts below the 200-day.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/26-kicker.json"
      },
@@ -67516,7 +68441,7 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "LLY, 2020-03-13: buy 136.51, stop 131.73 (3.5%); stopped the next session at 0.0R. LLY: a -10.0% red day, a 5.5% gap, +10.6% on the day; Monday opened under the stop. LLY was a bounce in the March 2020 crash: no trade in a Red market. Green or Yellow reading; Orange only for an A+. Red: none. D46: in a Red market, mostly cash plus shorts below the 200-day."
+    "summary": "LLY, 2020-03-13: buy 136.51, stop 131.73 (3.5%); stopped the next session at 0.0R. LLY: a -10.0% red day, a 5.5% gap, +10.6% on the day; Monday opened under the stop. LLY was a bounce in the March 2020 crash: no trade in a Red market. Green or Yellow reading; Orange only for an A+; Red is mostly cash, plus shorts below the 200-day. D46: in a Red market, mostly cash plus shorts below the 200-day."
    },
    "facts": {
     "given": "Do you take it? A leader fell 10.0% on a red day, then gaps up 5.5% and closes up 10.6%. The whole market is in a crash and the reading is Red. No, a Red market has no Kicker Yes, the chart is textbook Yes, at half size Yes, with a tight stop"
@@ -67526,7 +68451,7 @@
    "why": "No. A bounce in a Red market looks like a Kicker and is not. That was LLY on 2020-03-13, stopped at 0R.",
    "wrong": {
     "Yes, at half size": "Half size does not change a Red market.",
-    "Yes, the chart is textbook": "The shape was textbook and still failed. In Red the answer is none.",
+    "Yes, the chart is textbook": "The shape was textbook and still failed. In Red we are mostly cash.",
     "Yes, with a tight stop": "A tight stop does not fix the market."
    }
   },
@@ -70388,7 +71313,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup research (examples read from our own daily bars): 2B dossier, sections 12 and 13: examples, failures and near-misses from our data",
-      "quote": "TSLA | 2023-08-11 | 240.70 (06-26) | 1.11% / 0 / same day | 241.77 | 237.97 (1.57%)",
+      "quote": "TSLA | 2023-08-11 | 240.70 (06-26) | 1.11% / 0 / same day | 240.71 (the level plus a cent; was 241.77) | 237.97 (1.14%)",
       "tier": 3,
       "url": "repo:docs/study/setups/research/28-2b-reversal.md#12-examples-from-our-data"
      },
@@ -70400,7 +71325,7 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "After the reclaim, a close back under the broken low within 2 sessions means the failure has failed: hold to the stop, do not add. TSLA, 2023-08-11: level 240.70, undercut 1.11%, reclaimed the same day; buy 241.77, stop 237.97 (1.57%). A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception."
+    "summary": "After the reclaim, a close back under the broken low within 2 sessions means the failure has failed: hold to the stop, do not add. TSLA, 2023-08-11: level 240.70, undercut 1.11%, reclaimed the same day; buy 240.71, the level plus a cent; stop 237.97 (1.14%). A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception."
    },
    "facts": {
     "given": "What do you do? You bought the reclaim at 100.05, with the stop at 98.70. The next day it closes at 99.40, back under the 100.00 low, above your stop. Hold to the stop; do not add Sell at the close Add on the dip Move the stop under 99.40"
@@ -71647,7 +72572,7 @@
   "difficulty": 3,
   "id": "si_83470a318c50",
   "lesson_origin": "session",
-  "lesson_text": "The close is under the 200-day. It closed 4.2% below it. No longs below the 200-day. That was META on 2026-01-08. A 2B shape under the 200-day is watch only.",
+  "lesson_text": "The close is under the 200-day. It closed 4.2% below it. No longs below the 200-day. This one paid, so the rule is about odds, not META on 2026-01-08. A 2B shape under the 200-day is watch only.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -71680,20 +72605,27 @@
      },
      {
       "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): 2B dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "It paid here, so the lesson is about odds under B26, not about this chart.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/28-2b-reversal.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
       "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
       "quote": "The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only below the 200-day, never above it unless it is a parabolic short.",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "META, 2026-01-08: the reclaim-day close was 4.2% under the 200-day SMA. META was a 2B shape under its 200-day: watch only under B26. B26: no longs below the 200-day simple moving average, except a parabolic long."
+    "summary": "META, 2026-01-08: the reclaim-day close was 4.2% under the 200-day SMA. META was a 2B shape under its 200-day: watch only under B26. META: this one paid, so the 200-day rule is about odds, not about this chart. B26: no longs below the 200-day simple moving average, except a parabolic long."
    },
    "facts": {
     "given": "Why do the rules skip it? A same-day undercut and reclaim of a 638.61 low. The close is 4.2% under the 200-day average. The close is under the 200-day The undercut was too deep The reclaim took too long The low was too young"
    },
    "lesson_line": "A 2B shape under the 200-day is watch only.",
    "unit": "SET.24",
-   "why": "The close is under the 200-day. It closed 4.2% below it. No longs below the 200-day. That was META on 2026-01-08.",
+   "why": "The close is under the 200-day. It closed 4.2% below it. No longs below the 200-day. This one paid, so the rule is about odds, not META on 2026-01-08.",
    "wrong": {
     "The low was too young": "Age is not the issue.",
     "The reclaim took too long": "It reclaimed the same day.",
@@ -71792,7 +72724,7 @@
    ],
    "kind": "mcq",
    "q": "What told you the trade had failed?",
-   "story": "You bought the same-day reclaim of the 240.70 low. Your stop is 237.97, a few cents under the undercut low. The next session opens at 235.70.",
+   "story": "You bought the same-day reclaim of the 240.70 low at 240.71. Your stop is 237.97, a few cents under the undercut low. The next session opens at 235.70.",
    "subject": "SET.24#q58"
   },
   "reveal_json": {
@@ -71801,7 +72733,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup research (examples read from our own daily bars): 2B dossier, sections 12 and 13: examples, failures and near-misses from our data",
-      "quote": "TSLA | 2023-08-11 | 240.70 (06-26) | 1.11% / 0 / same day | 241.77 | 237.97 (1.57%)",
+      "quote": "TSLA | 2023-08-11 | 240.70 (06-26) | 1.11% / 0 / same day | 240.71 (the level plus a cent; was 241.77) | 237.97 (1.14%)",
       "tier": 3,
       "url": "repo:docs/study/setups/research/28-2b-reversal.md#12-examples-from-our-data"
      },
@@ -71820,10 +72752,10 @@
       "url": "repo:docs/study/setups/criteria/28-2b-reversal.json"
      }
     ],
-    "summary": "TSLA, 2023-08-11: level 240.70, undercut 1.11%, reclaimed the same day; buy 241.77, stop 237.97 (1.57%). TSLA: the next session opened 235.70, under the level, and the stock fell to 212.36 by 08-18: the failure failed. After the entry, a trade under the new low is the exit, at once."
+    "summary": "TSLA, 2023-08-11: level 240.70, undercut 1.11%, reclaimed the same day; buy 240.71, the level plus a cent; stop 237.97 (1.14%). TSLA: the next session opened 235.70, under the level, and the stock fell to 212.36 by 08-18: the failure failed. After the entry, a trade under the new low is the exit, at once."
    },
    "facts": {
-    "given": "What told you the trade had failed? You bought the same-day reclaim of the 240.70 low. Your stop is 237.97, a few cents under the undercut low. The next session opens at 235.70. The open traded under the new low The reclaim day closed high The undercut was shallow The volume was light"
+    "given": "What told you the trade had failed? You bought the same-day reclaim of the 240.70 low at 240.71. Your stop is 237.97, a few cents under the undercut low. The next session opens at 235.70. The open traded under the new low The reclaim day closed high The undercut was shallow The volume was light"
    },
    "lesson_line": "A trade under the new low is the exit, at once.",
    "unit": "SET.24",
@@ -71924,7 +72856,7 @@
   "difficulty": 3,
   "id": "si_1a9791c0ce03",
   "lesson_origin": "session",
-  "lesson_text": "Take it. The stock undercut a nine-session-old low and reclaimed it the same session, closing in the top 6% of its range. 3R came the next day. A same-day reclaim with a strong close is the cleanest version.",
+  "lesson_text": "Take it. The stock undercut a nine-session-old low and reclaimed it the same session, closing in the top 6% of its range. 3R came the next day. A strong close on the reclaim day is the sign to look for.",
   "module": "SET",
   "prompt_json": {
    "chart": {
@@ -71984,7 +72916,7 @@
    "facts": {
     "given": "Hidden ticker, today. It undercut a swing low and closed back above it. Take it or pass? Take it; same-day reclaim, strong close Pass; the undercut was too deep Pass; the close is in the bottom half"
    },
-   "lesson_line": "A same-day reclaim with a strong close is the cleanest version.",
+   "lesson_line": "A strong close on the reclaim day is the sign to look for.",
    "unit": "SET.24",
    "why": "Take it. The stock undercut a nine-session-old low and reclaimed it the same session, closing in the top 6% of its range. 3R came the next day.",
    "wrong": {
@@ -74626,7 +75558,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Oops Reversal criteria card (docs/study/setups/criteria/30-oops-reversal.json, as of 2026-11-10)",
-      "quote": "Green or Yellow market; in Orange only an A+ Oops. The best days are market-wide gap downs that reverse, when leaders print Oops together.",
+      "quote": "Green or Yellow market; in Orange only an A+ Oops; Red: mostly cash, plus shorts below the 200-day. The best days are market-wide gap downs that reverse, when leaders print Oops together.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/30-oops-reversal.json"
      },
@@ -74638,7 +75570,7 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Green or Yellow market; in Orange only an A+ Oops. F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
+    "summary": "Green or Yellow market; in Orange only an A+ Oops; Red is mostly cash, plus shorts below the 200-day. Best days: market-wide gap downs that reverse. F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
    },
    "facts": {
     "given": "What do you do? A clean Oops reclaims the prior close, but the market reading is Orange. Take it only if it is an A+ Take it at full size Pass, only Green allows it Short the market instead"
@@ -74647,7 +75579,7 @@
    "unit": "SET.25",
    "why": "Take it only as an A+. In an Orange market only A+ setups. Green is full risk, Yellow smaller and fewer.",
    "wrong": {
-    "Pass, only Green allows it": "Orange allows an A+. Red allows none.",
+    "Pass, only Green allows it": "Orange allows an A+. Red is mostly cash.",
     "Short the market instead": "Red is mostly cash and shorts. Orange still allows an A+ long.",
     "Take it at full size": "Full risk is for Green."
    }
@@ -74783,7 +75715,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Oops Reversal criteria card (docs/study/setups/criteria/30-oops-reversal.json, as of 2026-11-10)",
-      "quote": "Green or Yellow market; in Orange only an A+ Oops. The best days are market-wide gap downs that reverse, when leaders print Oops together.",
+      "quote": "Green or Yellow market; in Orange only an A+ Oops; Red: mostly cash, plus shorts below the 200-day. The best days are market-wide gap downs that reverse, when leaders print Oops together.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/30-oops-reversal.json"
      },
@@ -74795,7 +75727,7 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Green or Yellow market; in Orange only an A+ Oops. D46: in a Red market, mostly cash plus shorts below the 200-day."
+    "summary": "Green or Yellow market; in Orange only an A+ Oops; Red is mostly cash, plus shorts below the 200-day. Best days: market-wide gap downs that reverse. D46: in a Red market, mostly cash plus shorts below the 200-day."
    },
    "facts": {
     "given": "What do you do? A clean Oops reclaims the prior close, but the market reading is Red. Mostly cash; no Oops longs Take it at full size Take it at half size Take it with a tighter stop"
@@ -75696,7 +76628,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Oops Reversal criteria card (docs/study/setups/criteria/30-oops-reversal.json, as of 2026-11-10)",
-      "quote": "Green or Yellow market; in Orange only an A+ Oops. The best days are market-wide gap downs that reverse, when leaders print Oops together.",
+      "quote": "Green or Yellow market; in Orange only an A+ Oops; Red: mostly cash, plus shorts below the 200-day. The best days are market-wide gap downs that reverse, when leaders print Oops together.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/30-oops-reversal.json"
      },
@@ -75708,7 +76640,7 @@
       "url": "repo:docs/study/setups/criteria/30-oops-reversal.json"
      }
     ],
-    "summary": "UBER, 2025-03-07: buy 74.97, stop 73.73 (1.65%). UBER: stopped the next day; SPY made a lower low; an Oops in a market that was not Green. Green or Yellow market; in Orange only an A+ Oops. A real pullback first: the prior close is 3% to 12% below the highest high of the 20 sessions before."
+    "summary": "UBER, 2025-03-07: buy 74.97, stop 73.73 (1.65%). UBER: stopped the next day; SPY made a lower low; an Oops in a market that was not Green. Green or Yellow market; in Orange only an A+ Oops; Red is mostly cash, plus shorts below the 200-day. Best days: market-wide gap downs that reverse. A real pullback first: the prior close is 3% to 12% below the highest high of the 20 sessions before."
    },
    "facts": {
     "given": "What did the daily chart miss? A Williams open after a red day, an 8.7% pullback to the 21-day. You bought at 74.97 with the stop at 73.73. The next day it is stopped as the index makes a lower low. The market was not Green The pullback was too shallow The close was too weak The stop was too wide"
@@ -75983,12 +76915,12 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Oops Reversal criteria card (docs/study/setups/criteria/30-oops-reversal.json, as of 2026-11-10)",
-      "quote": "Green or Yellow market; in Orange only an A+ Oops. The best days are market-wide gap downs that reverse, when leaders print Oops together.",
+      "quote": "Green or Yellow market; in Orange only an A+ Oops; Red: mostly cash, plus shorts below the 200-day. The best days are market-wide gap downs that reverse, when leaders print Oops together.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/30-oops-reversal.json"
      }
     ],
-    "summary": "The best Oops days are market-wide gap downs that reverse, when leaders print Oops together. Green or Yellow market; in Orange only an A+ Oops."
+    "summary": "The best Oops days are market-wide gap downs that reverse, when leaders print Oops together. Green or Yellow market; in Orange only an A+ Oops; Red is mostly cash, plus shorts below the 200-day. Best days: market-wide gap downs that reverse."
    },
    "facts": {
     "given": "The best Oops days are market-wide gap downs that reverse, when leaders print Oops together."
@@ -77046,7 +77978,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup research (examples read from our own daily bars): Undercut and Rally dossier: examples, failures and near-misses from our data",
-      "quote": "STLD 2022-02-24 | 59.95 (02-11) | 59.04, 1.52%, 0 | 60.18 | 58.99 (1.98%) | 33.8R (1 day)",
+      "quote": "STLD 2022-02-24 | 59.95 (02-11) | 59.04, 1.52%, 0 | 59.96 | 58.99 (1.62%) | 41.7R (1 day)",
       "tier": 3,
       "url": "repo:docs/study/setups/research/29-undercut-rally.md#13-examples-from-our-data"
      },
@@ -77058,7 +77990,7 @@
       "url": "repo:docs/study/setups/criteria/29-undercut-rally.json"
      }
     ],
-    "summary": "STLD, 2022-02-24: level 59.95, undercut low 59.04 (1.52%, same day), buy 60.18, stop 58.99 (1.98%); 33.8R, 3R in 1 day. Card: the session before the undercut closed above the level L; the low then trades under L."
+    "summary": "STLD, 2022-02-24: level 59.95, undercut low 59.04 (1.52%, same day), buy 59.96, stop 58.99 (1.62%); 41.7R, 3R in 1 day. Card: the session before the undercut closed above the level L; the low then trades under L."
    },
    "facts": {
     "calc": {
@@ -77323,19 +78255,19 @@
  {
   "answer_json": {
    "accept": [
-    "1.98",
-    "1.980"
+    "1.62",
+    "1.620"
    ],
-   "answer": 1.98
+   "answer": 1.62
   },
   "difficulty": 2,
   "id": "si_6dd3c1e2474a",
   "lesson_origin": "session",
-  "lesson_text": "1.98%. The stop is a few cents under the undercut low, and well inside the 3% the stop usually sits within. That was STLD. Stop first, then the distance. Under 3% fits.",
+  "lesson_text": "1.62%. The stop is a few cents under the undercut low, and well inside the 3% the stop usually sits within. That was STLD. Stop first, then the distance. Under 3% fits.",
   "module": "SET",
   "prompt_json": {
    "kind": "fill_numeric",
-   "q": "Fill 60.18. The undercut low is 59.04 and the stop sits five cents under it. How far below the fill, in percent?",
+   "q": "Fill 59.96. The undercut low is 59.04 and the stop sits five cents under it. How far below the fill, in percent?",
    "subject": "SET.26#q22",
    "suffix": "%"
   },
@@ -77345,7 +78277,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup research (examples read from our own daily bars): Undercut and Rally dossier: examples, failures and near-misses from our data",
-      "quote": "STLD 2022-02-24 | 59.95 (02-11) | 59.04, 1.52%, 0 | 60.18 | 58.99 (1.98%) | 33.8R (1 day)",
+      "quote": "STLD 2022-02-24 | 59.95 (02-11) | 59.04, 1.52%, 0 | 59.96 | 58.99 (1.62%) | 41.7R (1 day)",
       "tier": 3,
       "url": "repo:docs/study/setups/research/29-undercut-rally.md#13-examples-from-our-data"
      },
@@ -77364,23 +78296,23 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "STLD, 2022-02-24: level 59.95, undercut low 59.04 (1.52%, same day), buy 60.18, stop 58.99 (1.98%); 33.8R, 3R in 1 day. A13: the stop usually sits within about 3% of the buy. F62: the stop sits a few cents under the day's low."
+    "summary": "STLD, 2022-02-24: level 59.95, undercut low 59.04 (1.52%, same day), buy 59.96, stop 58.99 (1.62%); 41.7R, 3R in 1 day. A13: the stop usually sits within about 3% of the buy. F62: the stop sits a few cents under the day's low."
    },
    "facts": {
     "calc": {
      "args": {
-      "a": 60.18,
+      "a": 59.96,
       "b": 59.04,
       "expr": "(a - (b - 0.05)) / a * 100"
      },
      "fn": "arith",
-     "result": 1.98
+     "result": 1.62
     },
-    "given": "Fill 60.18. The undercut low is 59.04 and the stop sits five cents under it. How far below the fill, in percent?"
+    "given": "Fill 59.96. The undercut low is 59.04 and the stop sits five cents under it. How far below the fill, in percent?"
    },
    "lesson_line": "Stop first, then the distance. Under 3% fits.",
    "unit": "SET.26",
-   "why": "1.98%. The stop is a few cents under the undercut low, and well inside the 3% the stop usually sits within. That was STLD."
+   "why": "1.62%. The stop is a few cents under the undercut low, and well inside the 3% the stop usually sits within. That was STLD."
   },
   "review_status": "draft",
   "skill_id": "setup.undercut_rally",
@@ -77764,11 +78696,11 @@
   "difficulty": 2,
   "id": "si_1fd89d8ceae7",
   "lesson_origin": "session",
-  "lesson_text": "5R. Each R is the fill minus the stop. That is where the second third comes off. VEEV reached 3R in a day. Count in R, not dollars. 5R is the second trim.",
+  "lesson_text": "5R. Each R is the fill minus the stop. That is where the second third comes off. ZS reached 3R in 2 days. Count in R, not dollars. 5R is the second trim.",
   "module": "SET",
   "prompt_json": {
    "kind": "fill_numeric",
-   "q": "Bought at 111.65, stop 110.18. The stock trades to 119.00. How many R is that?",
+   "q": "Bought at 61.40, stop 59.97. The stock trades to 68.55. How many R is that?",
    "subject": "SET.26#q29",
    "suffix": "R"
   },
@@ -77785,28 +78717,28 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup research (examples read from our own daily bars): Undercut and Rally dossier: examples, failures and near-misses from our data",
-      "quote": "VEEV 2019-03-08 | 111.64 (03-04) | 110.23, 1.26%, 0 | 111.65 | 110.18 (1.32%) | 30.8R (1 day)",
+      "quote": "ZS 2019-04-18 | 61.39 (04-04) | 60.02, 2.23%, 0 | 61.40 | 59.97 (2.33%) | 16.9R (2 days)",
       "tier": 3,
       "url": "repo:docs/study/setups/research/29-undercut-rally.md#13-examples-from-our-data"
      }
     ],
-    "summary": "E51: another third at 5R, then trail the last third. VEEV, 2019-03-08: level 111.64, undercut low 110.23 (1.26%, same day), buy 111.65, stop 110.18 (1.32%); 30.8R, 3R in 1 day."
+    "summary": "E51: another third at 5R, then trail the last third. ZS, 2019-04-18: level 61.39, undercut low 60.02 (2.23%, same day), buy 61.40, stop 59.97 (2.33%); 16.9R, 3R in 2 days."
    },
    "facts": {
     "calc": {
      "args": {
-      "entry": 111.65,
-      "exit": 119.0,
-      "stop": 110.18
+      "entry": 61.4,
+      "exit": 68.55,
+      "stop": 59.97
      },
      "fn": "r_multiple",
      "result": 5.0
     },
-    "given": "Bought at 111.65, stop 110.18. The stock trades to 119.00. How many R is that?"
+    "given": "Bought at 61.40, stop 59.97. The stock trades to 68.55. How many R is that?"
    },
    "lesson_line": "Count in R, not dollars. 5R is the second trim.",
    "unit": "SET.26",
-   "why": "5R. Each R is the fill minus the stop. That is where the second third comes off. VEEV reached 3R in a day."
+   "why": "5R. Each R is the fill minus the stop. That is where the second third comes off. ZS reached 3R in 2 days."
   },
   "review_status": "draft",
   "skill_id": "setup.undercut_rally",
@@ -78344,12 +79276,12 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Undercut and Rally criteria card (docs/study/setups/criteria/29-undercut-rally.json, as of 2026-11-10)",
-      "quote": "A Green or Yellow market reading; Orange only for A+; Red mostly cash.",
+      "quote": "A Green or Yellow market reading; Orange only for A+; Red: mostly cash, plus shorts below the 200-day.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/29-undercut-rally.json"
      }
     ],
-    "summary": "F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts. Card: a Green or Yellow market reading; Orange only for A+; Red mostly cash."
+    "summary": "F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts. Card: a Green or Yellow market reading; Orange only for A+; Red is mostly cash, plus shorts below the 200-day."
    },
    "facts": {
     "given": "On an Orange market reading, a U&R can still be taken if it grades A+."
@@ -79056,7 +79988,7 @@
   "difficulty": 3,
   "id": "si_5393bbece48c",
   "lesson_origin": "session",
-  "lesson_text": "False. Most hits are stopped. In our scan, only 35.6% of hits reached 3R before the stop; the edge is the R of the winners. The edge is the size of the winners, not the hit rate.",
+  "lesson_text": "False. In our scan, 84.6% of hits touched the stop within 60 sessions, though 50.2% reached 3R first. The edge is the R of the winners. The edge is the size of the winners, not the hit rate.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -79064,7 +79996,7 @@
     "False"
    ],
    "kind": "tf",
-   "q": "A U&R is a good trade because most of them work.",
+   "q": "A U&R is a good trade because it rarely gets stopped out.",
    "subject": "SET.26#q51"
   },
   "reveal_json": {
@@ -79080,19 +80012,26 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup research (examples read from our own daily bars): Undercut and Rally dossier: examples, failures and near-misses from our data",
-      "quote": "Before the stop was touched, 35.6% reached 3R and 24.7% reached 5R inside a 60-session window.",
+      "quote": "Before the stop was touched, 50.2% reached 3R and 39.2% reached 5R inside a 60-session window.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/29-undercut-rally.md#13-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Undercut and Rally dossier: examples, failures and near-misses from our data",
+      "quote": "84.6% of the hits touched the stop at some point in the 60 sessions, most of them after already making 1R or more.",
       "tier": 3,
       "url": "repo:docs/study/setups/research/29-undercut-rally.md#13-examples-from-our-data"
      }
     ],
-    "summary": "Card: the failure is a reclaim that does not hold; most hits are stopped and the edge is the R of the few that run. Scan: before the stop was touched, 35.6% of hits reached 3R and 24.7% reached 5R inside 60 sessions (fixed stop, no trims)."
+    "summary": "Card: the failure is a reclaim that does not hold; most hits are stopped and the edge is the R of the few that run. Scan: before the stop was touched, 50.2% of hits reached 3R and 39.2% reached 5R inside 60 sessions (fixed stop, no trims, fills at the reclaim). Scan: 84.6% of hits touched the stop at some point in the 60 sessions, most of them after already making 1R or more."
    },
    "facts": {
-    "given": "A U&R is a good trade because most of them work."
+    "given": "A U&R is a good trade because it rarely gets stopped out."
    },
    "lesson_line": "The edge is the size of the winners, not the hit rate.",
    "unit": "SET.26",
-   "why": "False. Most hits are stopped. In our scan, only 35.6% of hits reached 3R before the stop; the edge is the R of the winners."
+   "why": "False. In our scan, 84.6% of hits touched the stop within 60 sessions, though 50.2% reached 3R first. The edge is the R of the winners."
   },
   "review_status": "draft",
   "skill_id": "setup.undercut_rally",
@@ -79586,9 +80525,16 @@
       "quote": "Two-week shelf above a rising 50-day; one red day pokes under it on average volume (0.97x), the next day opens under L and closes near the high",
       "tier": 3,
       "url": "repo:docs/study/setups/research/29-undercut-rally.md#13-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Undercut and Rally dossier: examples, failures and near-misses from our data",
+      "quote": "an undercut within 3% of L beat a deeper one (51.1% to 3R and 40.5% to 5R against 37.8% and 22.3%",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/29-undercut-rally.md#13-examples-from-our-data"
      }
     ],
-    "summary": "Card (proposed): the 50-day must not be falling, and the buy-day close is above it; a MAU&R of the 50-day reclaims it by definition. NTAP, 2004-10-27: level 23.04, undercut low 22.72 (1.39%, 1 close under), buy 23.05, stop 22.67 (1.65%); 31.4R, 3R in 2 days. NTAP: a two-week shelf above a rising 50-day; one red day pokes under the level, the next opens under it and closes near the high."
+    "summary": "Card (proposed): the 50-day must not be falling, and the buy-day close is above it; a MAU&R of the 50-day reclaims it by definition. NTAP, 2004-10-27: level 23.04, undercut low 22.72 (1.39%, 1 close under), buy 23.05, stop 22.67 (1.65%); 31.4R, 3R in 2 days. NTAP: a two-week shelf above a rising 50-day; one red day pokes under the level, the next opens under it and closes near the high. Scan: an undercut within 3% of the level reached 3R 51.1% and 5R 40.5% of the time, against 37.8% and 22.3% for a deeper one (to 6%)."
    },
    "facts": {
     "given": "Hidden ticker, the reclaim day. A low just undercut a level and closed back above it. Is the 50-day rising? Take it or pass? Take it; the 50-day is rising Pass; the 50-day is falling Pass; the undercut is too small"
@@ -79598,7 +80544,7 @@
    "why": "Take it. A two-week shelf above a rising 50-day, one poke under the level, then a reclaim that closes near the high. It ran 31.4R.",
    "wrong": {
     "Pass; the 50-day is falling": "Look again: the 50-day runs up under the shelf.",
-    "Pass; the undercut is too small": "A shallow undercut is the point. The 1.39% dip was a clean one."
+    "Pass; the undercut is too small": "A shallow undercut is the point. In our scan an undercut within 3% beat a deeper one to 3R, 51.1% against 37.8%."
    }
   },
   "review_status": "draft",
@@ -79664,9 +80610,16 @@
       "quote": "The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only below the 200-day, never above it unless it is a parabolic short.",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Undercut and Rally dossier: examples, failures and near-misses from our data",
+      "quote": "This is a best case and it is biased upward: daily bars cannot show whether the low came before the reclaim",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/29-undercut-rally.md#13-examples-from-our-data"
      }
     ],
-    "summary": "MSFT, 2026-06-08: the buy-day close was 9.7% under a falling 200-day SMA. MSFT, 2026-06-08: a U&R shape under the 200-day, to watch only under B26. B26: no longs below the 200-day simple moving average, except a parabolic long."
+    "summary": "MSFT, 2026-06-08: the buy-day close was 9.7% under a falling 200-day SMA. MSFT, 2026-06-08: a U&R shape under the 200-day, to watch only under B26. B26: no longs below the 200-day simple moving average, except a parabolic long. Scan: the same-day entry at the level is a best case, biased upward, because daily bars cannot show whether the day's low came before the reclaim."
    },
    "facts": {
     "given": "Hidden ticker, the reclaim day. A level was undercut and taken back the same day. Where is the close against the 200-day? Take it or pass? Pass; under a falling 200-day Take it; the reclaim was the same day Take it; the undercut was shallow"
@@ -79675,7 +80628,7 @@
    "unit": "SET.26",
    "why": "Pass. The close was 9.7% under a falling 200-day SMA. No longs below the 200-day is a hard rule.",
    "wrong": {
-    "Take it; the reclaim was the same day": "A same-day reclaim is the best shape, but the context fails first.",
+    "Take it; the reclaim was the same day": "A same-day reclaim is no cure. Our scan's same-day figure is an upper bound, because the day's low may form after the buy. The 200-day says no.",
     "Take it; the undercut was shallow": "The undercut was shallow, and the 200-day still says no."
    }
   },
@@ -79750,21 +80703,21 @@
  {
   "answer_json": {
    "accept": [
-    "25",
-    "25.0",
-    "25.00",
-    "25.000"
+    "38",
+    "38.0",
+    "38.00",
+    "38.000"
    ],
-   "answer": 25.0
+   "answer": 38.0
   },
   "difficulty": 3,
   "id": "si_58ceb77ee8d2",
   "lesson_origin": "session",
-  "lesson_text": "25 shares. The size comes from the stop: risk divided by the distance, rounded down. The 40% position cap is not close. That stop was 3.97% from the buy, so LULU sized small. The size comes from the stop. A wide stop means few shares.",
+  "lesson_text": "38 shares. The size comes from the stop: risk divided by the distance, rounded down. The 40% position cap is not close. That stop was 2.70% from the buy. The size comes from the stop. A wide stop means few shares.",
   "module": "SET",
   "prompt_json": {
    "kind": "fill_numeric",
-   "q": "Account 100,000, risk 0.25%. Buy 245.39, stop 235.64. How many shares does the stop allow?",
+   "q": "Account 100,000, risk 0.25%. Buy 242.18, stop 235.64. How many shares does the stop allow?",
    "subject": "SET.26#q62"
   },
   "reveal_json": {
@@ -79780,7 +80733,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup research (examples read from our own daily bars): Undercut and Rally dossier: examples, failures and near-misses from our data",
-      "quote": "buy at the open 245.39 (1.3% over L), stop 235.64, which is 3.97% from the buy: already over the A13 line, so the house answer was size down or skip.",
+      "quote": "The buy is L plus a cent, 242.18, with the stop at 235.64, which is 2.70% from the buy",
       "tier": 3,
       "url": "repo:docs/study/setups/research/29-undercut-rally.md#13-examples-from-our-data"
      },
@@ -79799,24 +80752,24 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "A5: shares are account times risk percent, divided by entry minus stop, rounded down, then capped. LULU, 2020-02-24: buy 245.39, stop 235.64, 3.97% from the buy, over the A13 line, so size down or skip. Card: a stop more than about 3% from the entry means size down or skip, and never move the stop in to make it fit. A7: the maximum position is 40% of the account."
+    "summary": "A5: shares are account times risk percent, divided by entry minus stop, rounded down, then capped. LULU, 2020-02-24: the buy is the level plus a cent, 242.18, with the stop at 235.64, which is 2.70% from the buy. Card: a stop more than about 3% from the entry means size down or skip, and never move the stop in to make it fit. A7: the maximum position is 40% of the account."
    },
    "facts": {
     "calc": {
      "args": {
       "account": 100000,
-      "entry": 245.39,
+      "entry": 242.18,
       "risk_pct": 0.25,
       "stop": 235.64
      },
      "fn": "shares_from_risk",
-     "result": 25.0
+     "result": 38.0
     },
-    "given": "Account 100,000, risk 0.25%. Buy 245.39, stop 235.64. How many shares does the stop allow?"
+    "given": "Account 100,000, risk 0.25%. Buy 242.18, stop 235.64. How many shares does the stop allow?"
    },
    "lesson_line": "The size comes from the stop. A wide stop means few shares.",
    "unit": "SET.26",
-   "why": "25 shares. The size comes from the stop: risk divided by the distance, rounded down. The 40% position cap is not close. That stop was 3.97% from the buy, so LULU sized small."
+   "why": "38 shares. The size comes from the stop: risk divided by the distance, rounded down. The 40% position cap is not close. That stop was 2.70% from the buy."
   },
   "review_status": "draft",
   "skill_id": "setup.undercut_rally",
@@ -80009,7 +80962,7 @@
   "difficulty": 1,
   "id": "si_4474390e8ed6",
   "lesson_origin": "session",
-  "lesson_text": "A planned loss. In our scan, 35.6% of hits reach 3R before the stop. A new try needs a new trigger.",
+  "lesson_text": "A planned loss. In our scan, 50.2% of hits reach 3R before the stop. A new try needs a new trigger.",
   "module": "SET",
   "prompt_json": {
    "order": 3,
@@ -80020,7 +80973,7 @@
     "NVDA, 2024. The level is 87.62, set on 04-02. One close under it, a 1.99% undercut. It reclaims the next day.",
     "2024-04-05: buy at market as it clears the level, 87.63. Stop a few cents under the undercut low: 85.83, 2.05% away.",
     "Failure mode, and it happened: 0.67R, then a low of 83.02 on 04-09. The stop was the exit.",
-    "A planned loss. In our scan, 35.6% of hits reach 3R before the stop. A new try needs a new trigger."
+    "A planned loss. In our scan, 50.2% of hits reach 3R before the stop. A new try needs a new trigger."
    ],
    "subject": "SET.26#w3"
   },
@@ -80044,7 +80997,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup research (examples read from our own daily bars): Undercut and Rally dossier: examples, failures and near-misses from our data",
-      "quote": "Before the stop was touched, 35.6% reached 3R and 24.7% reached 5R inside a 60-session window.",
+      "quote": "Before the stop was touched, 50.2% reached 3R and 39.2% reached 5R inside a 60-session window.",
       "tier": 3,
       "url": "repo:docs/study/setups/research/29-undercut-rally.md#13-examples-from-our-data"
      },
@@ -83836,6 +84789,92 @@
   "skill_id": "setup.slingshot",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.27.json#q63",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "No; there is no drive to sling from"
+  },
+  "difficulty": 3,
+  "id": "si_4055c5c3e3d9",
+  "lesson_origin": "session",
+  "lesson_text": "No. By our current default, the drive is a gap or a strong rally, and this climb has neither. The drive comes first; Scot1and takes a powerful stock that recently made a strong move. This one reached 4.1R anyway, which the test cannot credit to the setup. The shape without the drive is a pullback, not a Slingshot. The engine comes first.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "No; there is no drive to sling from",
+    "Yes; the shape is the setup",
+    "Yes; the close is decisive"
+   ],
+   "kind": "mcq",
+   "q": "Slingshot?",
+   "story": "A steady climber: no gap, no 4% volume day, no 20% in five sessions in the 25 sessions before. Four closes under the 4-day line, then a decisive close over it.",
+   "subject": "SET.27#q64"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Slingshot criteria card (docs/study/setups/criteria/31-slingshot.json, as of 2026-11-09)",
+      "quote": "The drive comes first",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/31-slingshot.json"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Scot1and, Education of A Speculator (educsos.blogspot.com): Slingshot Refresher. (2016-10-11)",
+      "quote": "The theory behind this setup is that we take a powerful stock and stretch it with pull back.  Then when momentum resumes we enter.",
+      "tier": 2,
+      "url": "https://educsos.blogspot.com/2016/10/slingshot-refresher.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "TaPlot (TradingView), quoting Scot1and's write-up: TAPLOT SlingShot (2021-11-29)",
+      "quote": "Ideally, we want to find a stock that has recently made a strong move.",
+      "tier": 2,
+      "url": "https://www.tradingview.com/script/JJtDhJFF-TAPLOT-SlingShot/"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Slingshot dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "A pullback in a steady climb with nothing to sling from: no gap, no 4% volume day, no 20% in five sessions in the 25 before.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/31-slingshot.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Slingshot dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "It reached 4.1R; the test cannot say whether that was the setup or the climb.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/31-slingshot.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Deepvue Knowledge Base: Technical Patterns, the Slingshot Pattern entry (2024-09-03, updated 2026-06-19)",
+      "quote": "The Slingshot setup, developed by Scot1and, is a strategy designed to capitalize on entering powerful stocks immediately after a pullback.",
+      "tier": 2,
+      "url": "https://deepvue.com/knowledge-base/deepvue-custom-indicators-technical-patterns/"
+     }
+    ],
+    "summary": "The drive comes first. Scot1and: take a powerful stock, let a pullback stretch it, and enter when momentum resumes. Scot1and: find a stock that has recently made a strong move. ASO: a pullback in a steady climb with nothing to sling from. ASO reached 4.1R; the test cannot say whether that was the setup or the climb. Deepvue: Scot1and's Slingshot enters powerful stocks right after a pullback."
+   },
+   "facts": {
+    "given": "Slingshot? A steady climber: no gap, no 4% volume day, no 20% in five sessions in the 25 sessions before. Four closes under the 4-day line, then a decisive close over it. No; there is no drive to sling from Yes; the shape is the setup Yes; the close is decisive"
+   },
+   "lesson_line": "The shape without the drive is a pullback, not a Slingshot. The engine comes first.",
+   "unit": "SET.27",
+   "why": "No. By our current default, the drive is a gap or a strong rally, and this climb has neither. The drive comes first; Scot1and takes a powerful stock that recently made a strong move. This one reached 4.1R anyway, which the test cannot credit to the setup.",
+   "wrong": {
+    "Yes; the close is decisive": "A decisive close ends a Slingshot; it does not start one. The drive has to come first.",
+    "Yes; the shape is the setup": "The shape is half the setup. The drive is the other half, and it is missing."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.slingshot",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.27.json#q64",
   "type": "scenario",
   "version": 1
  },
@@ -89143,6 +90182,71 @@
  },
  {
   "answer_json": {
+   "answer": "Version A, the break never came"
+  },
+  "difficulty": 1,
+  "id": "si_6ff7ea7e1d98",
+  "lesson_origin": "session",
+  "lesson_text": "Version A. No close under the neckline; price turns up from the right shoulder. Edwards and Magee: perhaps 20% of tops are saved before the neckline is broken. By our current default, version A is allowed but graded lower than B, a real break bought back. No break, then a turn up: version A. A break bought back: version B, the one we want.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Version A, the break never came",
+    "Version B, a failed breakdown",
+    "Not a failed top at all"
+   ],
+   "kind": "mcq",
+   "q": "Which version is this?",
+   "story": "A leader draws a three-peak top and the right shoulder sits in place. The neckline never breaks. Price turns up from the right shoulder and trades over its high.",
+   "subject": "SET.29#q13"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Failed H&S / Rounded Top criteria card (docs/study/setups/criteria/33-failed-hs-rounded-top.json, as of 2026-11-09)",
+      "quote": "Version A (allowed, graded lower): no close under the neckline; price turns up from the right shoulder.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/33-failed-hs-rounded-top.json"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Edwards and Magee, Technical Analysis of Stock Trends, 11th edition (Internet Archive text): Chapters 6 and 7: the Head-and-Shoulders Top, Rounding Tops (CRC Press, 2018; OCR text)",
+      "quote": "Until the neckline is broken, a certain percentage of Head-and-Shoulders developments, perhaps 20%, are \"saved\"",
+      "tier": 2,
+      "url": "https://archive.org/download/robert-d.-edwards-john-magee-w.-h.-c.-bassetti-technical-analysis-of-stock-trend/Robert%20D.%20Edwards_%20John%20Magee_%20W.H.C.%20Bassetti%20-%20Technical%20Analysis%20of%20Stock%20Trends%2C%20Eleventh%20Edition-CRC%20Press%20%282018%29_djvu.txt"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Failed H&S / Rounded Top criteria card (docs/study/setups/criteria/33-failed-hs-rounded-top.json, as of 2026-11-09)",
+      "quote": "The breakdown either never comes (A) or comes, falls under 10%, and is bought back (B).",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/33-failed-hs-rounded-top.json"
+     }
+    ],
+    "summary": "Version A: no close under the neckline; price turns up from the right shoulder; the lesser form. Edwards and Magee: perhaps 20% of tops are saved before the neckline breaks. Version A: the break never comes. Version B: it comes, falls under 10%, and is bought back."
+   },
+   "facts": {
+    "given": "Which version is this? A leader draws a three-peak top and the right shoulder sits in place. The neckline never breaks. Price turns up from the right shoulder and trades over its high. Version A, the break never came Version B, a failed breakdown Not a failed top at all"
+   },
+   "lesson_line": "No break, then a turn up: version A. A break bought back: version B, the one we want.",
+   "unit": "SET.29",
+   "why": "Version A. No close under the neckline; price turns up from the right shoulder. Edwards and Magee: perhaps 20% of tops are saved before the neckline is broken. By our current default, version A is allowed but graded lower than B, a real break bought back.",
+   "wrong": {
+    "Not a failed top at all": "The pattern was saved before the break. That counts, as the lesser version.",
+    "Version B, a failed breakdown": "B needs a real close under the neckline that is then bought back. Here there was no break."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.failed_hs",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.29.json#q13",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "answer": "The lower rim, the arc's lowest low"
   },
   "difficulty": 1,
@@ -90908,6 +92012,71 @@
  },
  {
   "answer_json": {
+   "answer": "A failed rounded top; the dome high"
+  },
+  "difficulty": 2,
+  "id": "si_4e026110e84e",
+  "lesson_origin": "session",
+  "lesson_text": "A failed rounded top. It is a dome that broke its lower rim, then recovered. By our current default, the buy comes as price trades over the dome high. A flat base holds one range with a flat top and breaks out of a box. A box that breaks up is a flat base. A dome that lost its rim and came back is ours.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "A failed rounded top; the dome high",
+    "A flat base; the box top",
+    "A cup with handle; the handle high"
+   ],
+   "kind": "mcq",
+   "q": "Which is it, and where was the trigger?",
+   "story": "A stock drifted in a slow dome for eight weeks, dipped under the dome's lowest low, and recovered. Now it trades over the dome high.",
+   "subject": "SET.29#q42"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Failed H&S / Rounded Top criteria card (docs/study/setups/criteria/33-failed-hs-rounded-top.json, as of 2026-11-09)",
+      "quote": "A flat base holds one range 15% deep or less with a flat top tapped twice and breaks out over it; a rounded top is a dome that first broke its lower rim (or sagged toward it) and then recovered",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/33-failed-hs-rounded-top.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Failed H&S / Rounded Top criteria card (docs/study/setups/criteria/33-failed-hs-rounded-top.json, as of 2026-11-09)",
+      "quote": "its neckline is the lower rim (the lowest low of the arc); the trigger is the dome high.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/33-failed-hs-rounded-top.json"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Thomas Bulkowski, thepatternsite.com: Rounding Tops (statistics updated 2020-08-26)",
+      "quote": "A close above the highest high signals an upward breakout. Downward breakouts are a close below the lower of the two rims (the lowest low in the pattern).",
+      "tier": 2,
+      "url": "https://thepatternsite.com/roundingtop.html"
+     }
+    ],
+    "summary": "A flat base is a box broken upward; a rounded top failure is a dome that lost its rim and recovered. A rounded top's neckline is the lower rim; its trigger is the dome high. Bulkowski: a rounding top breaks up over its highest high and down under the lower rim."
+   },
+   "facts": {
+    "given": "Which is it, and where was the trigger? A stock drifted in a slow dome for eight weeks, dipped under the dome's lowest low, and recovered. Now it trades over the dome high. A failed rounded top; the dome high A flat base; the box top A cup with handle; the handle high"
+   },
+   "lesson_line": "A box that breaks up is a flat base. A dome that lost its rim and came back is ours.",
+   "unit": "SET.29",
+   "why": "A failed rounded top. It is a dome that broke its lower rim, then recovered. By our current default, the buy comes as price trades over the dome high. A flat base holds one range with a flat top and breaks out of a box.",
+   "wrong": {
+    "A cup with handle; the handle high": "No rounded bottom and no handle. This is a dome up top whose lower rim broke and then recovered.",
+    "A flat base; the box top": "A flat base holds one range with a flat top tapped twice. A dome that lost its rim is not a box."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.failed_hs",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.29.json#q42",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "accept": [
     "5",
     "5.0",
@@ -91959,6 +93128,85 @@
   "skill_id": "setup.failed_hs",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.29.json#q61",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Market 22.71; stop 22.30; third at 3R"
+  },
+  "difficulty": 3,
+  "id": "si_5c83be18abf2",
+  "lesson_origin": "session",
+  "lesson_text": "Market at 22.71, stop 22.30, a few cents under the day's low of 22.35, a third at 3R. By our current default, the entry is a market order as price trades over the right-shoulder high. MGM reached 3R in 5 days and ran to 23.7R. Entry, stop, trim, trail. Write it before the open; execute it without a debate.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Market 22.71; stop 22.30; third at 3R",
+    "Limit 21.22; stop 19.80; out at 2R",
+    "Market at close; stop 19.80; hold"
+   ],
+   "kind": "mcq",
+   "q": "Write the plan: entry, stop (a few cents under the day's low), first trim.",
+   "story": "MGM, September 2004: shoulders within 0.3% of each other, a flat neckline at 21.22, a four-week failed breakdown bought back. The right-shoulder high is 22.70. Today it trades over 22.70 on 1.9x volume; the day's low is 22.35.",
+   "subject": "SET.29#q62"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Entries are market orders.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Failed H&S dossier, sections 4.5, 4.6, 12 and 14: the run, the examples, the failures and near-misses from our data",
+      "quote": "MGM | 2004-09-14 | 87 bars, head 16.9% over the neckline | 22.77 / 24.89 / 22.70, neckline 21.22 | 6.1% under, low 19.80 | 22.71 | 22.30 (1.8%) | 23.7R, 3R in 5 days",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/33-failed-hs-rounded-top.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Failed H&S dossier, sections 4.5, 4.6, 12 and 14: the run, the examples, the failures and near-misses from our data",
+      "quote": "Shoulders within 0.3% of each other, a flat neckline, a four-week failed breakdown, then a trigger over the right shoulder with 1.9x volume. The most symmetrical pattern of the ten.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/33-failed-hs-rounded-top.md#12-examples-from-our-data"
+     }
+    ],
+    "summary": "E57: entries are market orders. F62: the stop sits a few cents under the day's low. B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R. MGM, trigger 2004-09-14: shoulders 22.77 and 22.70, head 24.89, neckline 21.22; 6.1% under; buy 22.71, stop 22.30; 23.7R, 3R in 5 days. MGM: shoulders within 0.3%, a flat neckline, a four-week failed breakdown, a trigger on 1.9x volume."
+   },
+   "facts": {
+    "given": "Write the plan: entry, stop (a few cents under the day's low), first trim. MGM, September 2004: shoulders within 0.3% of each other, a flat neckline at 21.22, a four-week failed breakdown bought back. The right-shoulder high is 22.70. Today it trades over 22.70 on 1.9x volume; the day's low is 22.35. Market 22.71; stop 22.30; third at 3R Limit 21.22; stop 19.80; out at 2R Market at close; stop 19.80; hold"
+   },
+   "lesson_line": "Entry, stop, trim, trail. Write it before the open; execute it without a debate.",
+   "unit": "SET.29",
+   "why": "Market at 22.71, stop 22.30, a few cents under the day's low of 22.35, a third at 3R. By our current default, the entry is a market order as price trades over the right-shoulder high. MGM reached 3R in 5 days and ran to 23.7R.",
+   "wrong": {
+    "Limit 21.22; stop 19.80; out at 2R": "A limit at the neckline never fills on the trigger, and 19.80 is the undercut low, the invalidation line, not the stop.",
+    "Market at close; stop 19.80; hold": "By our current default, the trigger is the trade through, not the close, and the undercut low is not the stop."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.failed_hs",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.29.json#q62",
   "type": "scenario",
   "version": 1
  },
@@ -102307,12 +103555,12 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Opening Range Breakout criteria card (docs/study/setups/criteria/40-opening-range-breakout.json, as of 2026-11-09)",
-      "quote": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: shorts only.",
+      "quote": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/40-opening-range-breakout.json"
      }
     ],
-    "summary": "F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts. Market reading: Green full risk; Yellow smaller and fewer; Orange A+ only; Red shorts only."
+    "summary": "F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts. Market reading: Green full risk; Yellow smaller and fewer; Orange A+ only; Red mostly cash, plus shorts below the 200-day."
    },
    "facts": {
     "given": "Which do you take? The reading this morning is Orange. An A+ setup and a B setup on your list both break their 30-minute highs at 10:00. The A+ only Both; a break is a break Both at half size Neither; Orange is cash"
@@ -104723,12 +105971,12 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Opening Range Breakout criteria card (docs/study/setups/criteria/40-opening-range-breakout.json, as of 2026-11-09)",
-      "quote": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: shorts only.",
+      "quote": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/40-opening-range-breakout.json"
      }
     ],
-    "summary": "F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts. D46: in a Red market, mostly cash plus shorts below the 200-day. Market reading: Green full risk; Yellow smaller and fewer; Orange A+ only; Red shorts only."
+    "summary": "F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts. D46: in a Red market, mostly cash plus shorts below the 200-day. Market reading: Green full risk; Yellow smaller and fewer; Orange A+ only; Red mostly cash, plus shorts below the 200-day."
    },
    "facts": {
     "given": "What do you do? The reading is Red. A leader on your list breaks its 30-minute high at 10:00 on three times normal volume. No long; Red is cash and shorts Buy it; A+ setups trade anywhere Buy half size Buy and sell at the close"
@@ -107654,7 +108902,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: 30-Minute Pivot criteria card (docs/study/setups/criteria/41-30-minute-pivot.json, as of 2026-11-09)",
-      "quote": "Green: full use. Yellow: fewer, A and B grades. Orange: A+ only. Red: none.",
+      "quote": "Green: full use. Yellow: fewer, A and B grades. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/41-30-minute-pivot.json"
      },
@@ -107666,7 +108914,7 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Market reading: Green full use; Yellow fewer, A and B; Orange A+ only; Red none. F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
+    "summary": "Market reading: Green full use; Yellow fewer, A and B; Orange A+ only; Red mostly cash, plus shorts below the 200-day. F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
    },
    "facts": {
     "given": "The market reading is Yellow. Which pivots does our card take? Fewer, and smaller than full size All of them, full size A+ only None at all"
@@ -108817,16 +110065,16 @@
  },
  {
   "answer_json": {
-   "answer": "No long; Red means none"
+   "answer": "No long; Red is mostly cash"
   },
   "difficulty": 3,
   "id": "si_0cdf80dd8883",
   "lesson_origin": "session",
-  "lesson_text": "No long. Our card takes no pivots in a Red market, and in Red we are mostly cash plus shorts. The best candle in a Red market is still in a Red market. The market reading comes before the candles.",
+  "lesson_text": "No long. Our card says mostly cash in a Red market, plus shorts below the 200-day. The best candle in a Red market is still in a Red market. The market reading comes before the candles.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "No long; Red means none",
+    "No long; Red is mostly cash",
     "Buy it; it is A+",
     "Buy half size",
     "Buy and sell at the close"
@@ -108842,7 +110090,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: 30-Minute Pivot criteria card (docs/study/setups/criteria/41-30-minute-pivot.json, as of 2026-11-09)",
-      "quote": "Green: full use. Yellow: fewer, A and B grades. Orange: A+ only. Red: none.",
+      "quote": "Green: full use. Yellow: fewer, A and B grades. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/41-30-minute-pivot.json"
      },
@@ -108861,18 +110109,18 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Market reading: Green full use; Yellow fewer, A and B; Orange A+ only; Red none. D46: in a Red market, mostly cash plus shorts. F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
+    "summary": "Market reading: Green full use; Yellow fewer, A and B; Orange A+ only; Red mostly cash, plus shorts below the 200-day. D46: in a Red market, mostly cash plus shorts. F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
    },
    "facts": {
-    "given": "What do you do? The market reading is Red. A leader forms a textbook pivot at its rising 21-day EMA. No long; Red means none Buy it; it is A+ Buy half size Buy and sell at the close"
+    "given": "What do you do? The market reading is Red. A leader forms a textbook pivot at its rising 21-day EMA. No long; Red is mostly cash Buy it; it is A+ Buy half size Buy and sell at the close"
    },
    "lesson_line": "The market reading comes before the candles.",
    "unit": "SET.33",
-   "why": "No long. Our card takes no pivots in a Red market, and in Red we are mostly cash plus shorts. The best candle in a Red market is still in a Red market.",
+   "why": "No long. Our card says mostly cash in a Red market, plus shorts below the 200-day. The best candle in a Red market is still in a Red market.",
    "wrong": {
     "Buy and sell at the close": "A day trade is still a long in a Red market.",
     "Buy half size": "Half size in a Red market is half a mistake.",
-    "Buy it; it is A+": "Orange allows A+. Red allows none."
+    "Buy it; it is A+": "Orange allows A+. Red is mostly cash."
    }
   },
   "review_status": "draft",
@@ -110182,7 +111430,7 @@
   "difficulty": 1,
   "id": "si_51bb089e34f9",
   "lesson_origin": "session",
-  "lesson_text": "Zero. The card asks for a Green market reading, allows Orange only for A+, and takes none on Red. Green, yes. Orange, A plus. Red, none.",
+  "lesson_text": "Zero. The card asks for a Green market reading, allows Orange only for A+, and takes none in Red. Red is mostly cash. Green, yes. Orange, A plus. Red, none.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -110201,7 +111449,14 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Go Signal criteria card (docs/study/setups/criteria/42-go-signal.json, as of 2026-11-10)",
-      "quote": "A Green market reading. Orange: A+ only. Red: none.",
+      "quote": "A Green market reading. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/42-go-signal.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Go Signal criteria card (docs/study/setups/criteria/42-go-signal.json, as of 2026-11-10)",
+      "quote": "In Orange, A+ only; in Red, mostly cash, plus shorts below the 200-day.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/42-go-signal.json"
      },
@@ -110213,14 +111468,14 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Card: a Green market reading; Orange only A+; Red none. F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
+    "summary": "Card: a Green market reading; Orange only A+; Red is mostly cash, plus shorts below the 200-day. Card best conditions: Orange takes only A+ Go Signals; Red is mostly cash, plus shorts below the 200-day. F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
    },
    "facts": {
     "given": "On a Red market reading, how many Go Signals do we take? Zero Only the A plus ones Half size on each As many as show up"
    },
    "lesson_line": "Green, yes. Orange, A plus. Red, none.",
    "unit": "SET.34",
-   "why": "Zero. The card asks for a Green market reading, allows Orange only for A+, and takes none on Red.",
+   "why": "Zero. The card asks for a Green market reading, allows Orange only for A+, and takes none in Red. Red is mostly cash.",
    "wrong": {
     "As many as show up": "The market reading limits the book. Red means mostly cash.",
     "Half size on each": "Smaller size is the Yellow reading. Red is none.",
@@ -111722,7 +112977,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Go Signal criteria card (docs/study/setups/criteria/42-go-signal.json, as of 2026-11-10)",
-      "quote": "A Green market reading. Orange: A+ only. Red: none.",
+      "quote": "A Green market reading. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/42-go-signal.json"
      },
@@ -111732,16 +112987,9 @@
       "quote": "The market reading as a guide (A10): Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-10",
-      "name": "UCT setup criteria card: Go Signal criteria card (docs/study/setups/criteria/42-go-signal.json, as of 2026-11-10)",
-      "quote": "go.market_reading: a Yellow or Orange market",
-      "tier": 3,
-      "url": "repo:docs/study/setups/criteria/42-go-signal.json"
      }
     ],
-    "summary": "Card: a Green market reading; Orange only A+; Red none. F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts. Card grading: a Yellow or Orange market is a B minus cue."
+    "summary": "Card: a Green market reading; Orange only A+; Red is mostly cash, plus shorts below the 200-day. F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
    },
    "facts": {
     "given": "What do you do? The market reading is Orange. A Go Signal sets up cleanly, but you grade it a B. Pass; Orange allows only A plus Take it at full size Take it; Orange is Green with a tint Take it and skip the stop"
@@ -112903,7 +114151,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Go Signal criteria card (docs/study/setups/criteria/42-go-signal.json, as of 2026-11-10)",
-      "quote": "A Green market reading. Orange: A+ only. Red: none.",
+      "quote": "A Green market reading. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/42-go-signal.json"
      },
@@ -112915,7 +114163,7 @@
       "url": "repo:docs/study/setups/criteria/42-go-signal.json"
      }
     ],
-    "summary": "Card: the first hourly candle trades below the prior day's close. Card: the reclaim comes by the end of the second hourly candle; a turn after that is a pivot, not a Go Signal. Card: price is above the 200-day SMA. Card (proposed): price is above the 50-day SMA. Card (proposed): the 20-day EMA is higher than it was 5 sessions ago. Card: a Green market reading; Orange only A+; Red none. Card: a gap up that never trades under the prior close is not a Go Signal."
+    "summary": "Card: the first hourly candle trades below the prior day's close. Card: the reclaim comes by the end of the second hourly candle; a turn after that is a pivot, not a Go Signal. Card: price is above the 200-day SMA. Card (proposed): price is above the 50-day SMA. Card (proposed): the 20-day EMA is higher than it was 5 sessions ago. Card: a Green market reading; Orange only A+; Red is mostly cash, plus shorts below the 200-day. Card: a gap up that never trades under the prior close is not a Go Signal."
    },
    "facts": {
     "given": "Which one is the Go Signal? Three charts. A: a leader above its 50-day and 200-day, 20-day EMA rising, dips under the prior close and closes back above it in the second candle, Green market. B: the same, but the turn comes at 13:30. C: a gap up all morning. A; in time, trend intact, Green B; the candle is cleaner C; it is the strongest None of the three"
@@ -114438,7 +115686,7 @@
   "difficulty": 1,
   "id": "si_10fc530fe4ab",
   "lesson_origin": "session",
-  "lesson_text": "Not this setup. A close under the 21-day EMA before the entry invalidates it. An inside day inside a stall under the fast average is a pause in a range, not a continuation. Under the fast average, a quiet day is a stall, not a spring.",
+  "lesson_text": "Not this setup. A close under the 21-day EMA before the entry invalidates it. An inside day under the fast average is a pause in a range, not a continuation. Under the fast average, a quiet day is a stall, not a spring.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -114463,19 +115711,19 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Inside Day criteria card (docs/study/setups/criteria/08-inside-day.json, as of 2026-11-09)",
-      "quote": "An inside day inside a stall under the fast average is a pause in a range, not a continuation.",
+      "quote": "An inside day under the fast average is a pause in a range, not a continuation.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/08-inside-day.json"
      }
     ],
-    "summary": "Before the entry, a close under the 21-day EMA invalidates it. An inside day in a stall under the fast average is a pause in a range, not a continuation."
+    "summary": "Before the entry, a close under the 21-day EMA invalidates it. An inside day under the fast average is a pause in a range, not a continuation."
    },
    "facts": {
     "given": "The stock closed under its 21-day EMA this week and now prints an inside day. Our read? A pause in a range; not this setup A buy; any inside day works A buy if volume is light"
    },
    "lesson_line": "Under the fast average, a quiet day is a stall, not a spring.",
    "unit": "SET.40",
-   "why": "Not this setup. A close under the 21-day EMA before the entry invalidates it. An inside day inside a stall under the fast average is a pause in a range, not a continuation.",
+   "why": "Not this setup. A close under the 21-day EMA before the entry invalidates it. An inside day under the fast average is a pause in a range, not a continuation.",
    "wrong": {
     "A buy if volume is light": "Light volume grades a valid inside day up. It does not fix the location.",
     "A buy; any inside day works": "Buying every inside day is the named mistake. The location decides."
@@ -120545,7 +121793,7 @@
   "difficulty": 3,
   "id": "si_b132658848d9",
   "lesson_origin": "session",
-  "lesson_text": "A. Tight under the line on drying volume, room to the first anchor high and a Green market is the A+ end. A Yellow market, a 4% stop and a key level just above grade it lower. Same line, different grade. The spot and the market set the size.",
+  "lesson_text": "A. Tight under the line on drying volume, room to the first anchor high and a Green market is the A+ end. A Yellow market (smaller and fewer), a 4% stop and a key level just above grade it lower. Same line, different grade. The spot and the market set the size.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -120592,7 +121840,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Trendline Break criteria card (docs/study/setups/criteria/09-trendline-break.json, as of 2026-11-09)",
-      "quote": "tl.market_reading: Yellow is a B; Orange is a B- (F65 says A+ only there, so a pass)",
+      "quote": "Green market: full. Yellow: smaller and fewer. Orange: A+ only, so a B- is a pass. Red: mostly cash.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/09-trendline-break.json"
      },
@@ -120604,14 +121852,14 @@
       "url": "repo:docs/study/setups/criteria/09-trendline-break.json"
      }
     ],
-    "summary": "Grading A+: price tight under the line on drying volume. Grading A+: room to the first anchor high. Grading B-: a key level just above. Grading: a stop of 3% to 5% is a B; wider is a B-. Grading: Yellow is a B; Orange is a B- and a pass. Card: Green full; Yellow smaller and fewer; Orange A+ only; Red mostly cash."
+    "summary": "Grading A+: price tight under the line on drying volume. Grading A+: room to the first anchor high. Grading B-: a key level just above. Grading: a stop of 3% to 5% is a B; wider is a B-. Market reading: Green full; Yellow smaller and fewer; Orange A+ only, so a B- is a pass; Red mostly cash. Card: Green full; Yellow smaller and fewer; Orange A+ only; Red mostly cash."
    },
    "facts": {
     "given": "Which gets the bigger size? Two valid breaks. A: a leader tight under the line, room overhead, Green market. B: Yellow market, the stop 4% away, a key level just above. A; every cue lines up B; it has the wider stop Equal; the line is the same"
    },
    "lesson_line": "Same line, different grade. The spot and the market set the size.",
    "unit": "SET.41",
-   "why": "A. Tight under the line on drying volume, room to the first anchor high and a Green market is the A+ end. A Yellow market, a 4% stop and a key level just above grade it lower.",
+   "why": "A. Tight under the line on drying volume, room to the first anchor high and a Green market is the A+ end. A Yellow market (smaller and fewer), a 4% stop and a key level just above grade it lower.",
    "wrong": {
     "B; it has the wider stop": "A wider stop grades it down, and so does the key level just above.",
     "Equal; the line is the same": "The line is the same, but the market, the stop and the room are not."
@@ -124374,7 +125622,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup research (examples read from our own daily bars): 4B- dossier, sections 12 and 13: examples, failures and near-misses from our data",
-      "quote": "A spring 2025 washout to 131, a higher low at 150, an 11-day pause that walks up through the 50-, 150- and 200-day lines, a 2% stop and a run to 5R in 8 sessions.",
+      "quote": "A spring 2025 washout to 131, a higher low at 150, an 11-day pause that walks up through the 50-, 150- and 200-day lines, a 2% stop and a run to 5R in 9 sessions",
       "tier": 3,
       "url": "repo:docs/study/setups/research/10-weinstein-4b.md#12-examples-from-our-data"
      },
@@ -124386,7 +125634,7 @@
       "url": "repo:docs/study/setups/research/10-weinstein-4b.md#12-examples-from-our-data"
      }
     ],
-    "summary": "B26: no longs below the 200-day simple moving average, except a parabolic long. DY, trigger 2025-05-08: cycle low 131.37, 37% under the 52-week high; buy 186.41, stop 182.62 (2.0%). DY: a spring 2025 washout, a higher low, an 11-day pause, a 2% stop and a run to 5R in 8 sessions. The dossier's ten examples all have a prior close above the 200-day."
+    "summary": "B26: no longs below the 200-day simple moving average, except a parabolic long. DY, trigger 2025-05-08: cycle low 131.37, 37% under the 52-week high; buy 186.41, stop 182.62 (2.0%). DY: a spring 2025 washout, a higher low, an 11-day pause, a 2% stop and a run to 5R in 9 sessions. The dossier's ten examples all have a prior close above the 200-day."
    },
    "facts": {
     "given": "Hidden ticker. A washout, a higher low, a pause over the 50-day. Above its 200-day? Take it or pass. Take it; above the 200-day, higher low Pass; the 200-day is overhead Pass; there is no higher low"
@@ -132292,6 +133540,84 @@
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.44.json#q61",
   "sym": "CI",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Pass; the touch is under the 200-day"
+  },
+  "asof": "2012-03-06",
+  "bars": {
+   "asof": "2012-03-06",
+   "forward": 20,
+   "sym": "RIG",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_599152949fbd",
+  "lesson_origin": "session",
+  "lesson_text": "Pass. The touch closed at 51.44 under the 200-day at 52.79, and the whole day's range sat under that line. The trade that followed ran to 5.4R and the rule still says no; location is a rule, not a prediction. A setup that works is not always our setup. The 200-day decides before the line does.",
+  "module": "SET",
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Pass; the touch is under the 200-day",
+    "Take it; the 20 EMA held",
+    "Take it; the ADX is strong"
+   ],
+   "kind": "mcq",
+   "q": "Hidden ticker, the day it touches the 20 EMA and holds. Is the touch above the 200-day? Take it or pass.",
+   "subject": "SET.44#q62"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only below the 200-day, never above it unless it is a parabolic short.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Holy Grail dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "RIG | 2012-03-07 | hg.above_200 | touch close 51.44 under the 200-day SMA 52.79",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/17-holy-grail.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Holy Grail dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "A pullback in a stock still under a falling 200-day (a bear-market rally). It ran to 5.4R, and the rule still says no: the 200-day gate is a location rule, not a prediction.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/17-holy-grail.md#12-examples-from-our-data"
+     }
+    ],
+    "summary": "B26: no longs below the 200-day simple moving average, except a parabolic long. RIG 2012-03-07 near-miss: the touch closed at 51.44, under the 200-day SMA at 52.79. RIG: a bear-market rally under a falling 200-day; it ran to 5.4R and the rule still says no."
+   },
+   "facts": {
+    "given": "Hidden ticker, the day it touches the 20 EMA and holds. Is the touch above the 200-day? Take it or pass. Pass; the touch is under the 200-day Take it; the 20 EMA held Take it; the ADX is strong"
+   },
+   "lesson_line": "A setup that works is not always our setup. The 200-day decides before the line does.",
+   "unit": "SET.44",
+   "why": "Pass. The touch closed at 51.44 under the 200-day at 52.79, and the whole day's range sat under that line. The trade that followed ran to 5.4R and the rule still says no; location is a rule, not a prediction.",
+   "wrong": {
+    "Take it; the 20 EMA held": "The line held and the location failed. No longs under the 200-day.",
+    "Take it; the ADX is strong": "A sharp rally can push the ADX up under the 200-day. The location rule still says no."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.holy_grail",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.44.json#q62",
+  "sym": "RIG",
   "type": "recall",
   "version": 1
  },
@@ -145407,6 +146733,65 @@
  },
  {
   "answer_json": {
+   "answer": "One band: gap high to prior day's low"
+  },
+  "difficulty": 1,
+  "id": "si_23dc1a0becab",
+  "lesson_origin": "session",
+  "lesson_text": "One band. By our current default, the zone runs from the gap day's high up to the prior day's low, drawn as one zone. A close above its top edge fills the gap. The gap zone is a band, not a line. A close over its top edge fills the gap.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "One band: gap high to prior day's low",
+    "A single line at the gap day's high",
+    "A single line at the prior day's low",
+    "A single line at the 200-day"
+   ],
+   "kind": "mcq",
+   "q": "A bear gap leaves a full window. How does our lesson draw the zone?",
+   "subject": "SET.48#q18"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Bear Gap off the Highs criteria card (docs/study/setups/criteria/27-bear-gap.json, as of 2026-11-09)",
+      "quote": "The gap zone: for a full window, from the gap day's high up to the prior day's low; for an overnight gap, up to the prior close. The chart draws both edges as one zone.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/27-bear-gap.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Bear Gap off the Highs criteria card (docs/study/setups/criteria/27-bear-gap.json, as of 2026-11-09)",
+      "quote": "A close above the zone's top edge fills the gap; a quick fill is strength. The level and any short are off.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/27-bear-gap.json"
+     }
+    ],
+    "summary": "The gap zone runs from the gap day's high up to the prior day's low for a full window, or up to the prior close for an overnight gap, drawn as one zone. A close above the zone's top edge fills the gap, a quick fill is strength, and the level and any short are off."
+   },
+   "facts": {
+    "given": "A bear gap leaves a full window. How does our lesson draw the zone? One band: gap high to prior day's low A single line at the gap day's high A single line at the prior day's low A single line at the 200-day"
+   },
+   "lesson_line": "The gap zone is a band, not a line. A close over its top edge fills the gap.",
+   "unit": "SET.48",
+   "why": "One band. By our current default, the zone runs from the gap day's high up to the prior day's low, drawn as one zone. A close above its top edge fills the gap.",
+   "wrong": {
+    "A single line at the 200-day": "The 200-day matters for any short, but it is not the gap zone.",
+    "A single line at the gap day's high": "That is the bottom edge of the zone, not the whole zone.",
+    "A single line at the prior day's low": "That is the top edge of a full window, not the whole zone."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.bear_gap",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.48.json#q18",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "answer": "Wait; never short the close by reflex"
   },
   "difficulty": 2,
@@ -146881,6 +148266,73 @@
   "skill_id": "setup.bear_gap",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.48.json#q50",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Pass; an ordinary down day"
+  },
+  "difficulty": 3,
+  "id": "si_845218d8a218",
+  "lesson_origin": "session",
+  "lesson_text": "Pass. By our current default, a bear gap needs an open of at least 1 ATR. This open was 2.1%, or 0.89 ATR: an ordinary down day with no gap zone to defend. Under 1 ATR is an ordinary down day. No real gap means no zone to defend.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Pass; an ordinary down day",
+    "Read it; any open under the close counts",
+    "Read it; it closed red",
+    "Pass; it must gap up"
+   ],
+   "kind": "mcq",
+   "q": "By our current default, a bear gap is an open at least 1 ATR under the prior close, not filled that day. Read it or pass?",
+   "story": "A stock opens 2.1% under the prior close, 0.89 ATR, and never trades back up to that close. It closes red.",
+   "subject": "SET.48#q51"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Bear Gap off the Highs criteria card (docs/study/setups/criteria/27-bear-gap.json, as of 2026-11-09)",
+      "quote": "The open is under the prior close by at least 1 ATR(14) or 4%, whichever is smaller, and the gap is not filled that day",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/27-bear-gap.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Bear Gap dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "the open was 2.1% (0.89 ATR) under the prior close",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/27-bear-gap.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Bear Gap dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "an ordinary down day with no gap zone to defend",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/27-bear-gap.md#12-examples-from-our-data"
+     }
+    ],
+    "summary": "A bear gap needs an open at least 1 ATR (or 4%, whichever is smaller) under the prior close, not filled that day. VZ: the open was 2.1% (0.89 ATR) under the prior close. VZ: an ordinary down day with no gap zone to defend."
+   },
+   "facts": {
+    "given": "By our current default, a bear gap is an open at least 1 ATR under the prior close, not filled that day. Read it or pass? A stock opens 2.1% under the prior close, 0.89 ATR, and never trades back up to that close. It closes red. Pass; an ordinary down day Read it; any open under the close counts Read it; it closed red Pass; it must gap up"
+   },
+   "lesson_line": "Under 1 ATR is an ordinary down day. No real gap means no zone to defend.",
+   "unit": "SET.48",
+   "why": "Pass. By our current default, a bear gap needs an open of at least 1 ATR. This open was 2.1%, or 0.89 ATR: an ordinary down day with no gap zone to defend.",
+   "wrong": {
+    "Pass; it must gap up": "A bear gap is a gap down. The problem is the size.",
+    "Read it; any open under the close counts": "By our current default, an open under 1 ATR leaves no zone worth watching.",
+    "Read it; it closed red": "A red close alone is not a gap day. The open must be at least 1 ATR under the prior close."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.bear_gap",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.48.json#q51",
   "type": "scenario",
   "version": 1
  },
@@ -154711,7 +156163,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup research (examples read from our own daily bars): Wyckoff Spring dossier, sections 13 and 14: examples, failures and near-misses from our data",
-      "quote": "A cents-deep probe on light volume, three touches, a 1% stop: everything the rules ask for, and it was stopped on the entry day without ever showing a profit",
+      "quote": "A cents-deep probe on light volume, three touches, a 1% stop: everything the rules ask for, and it was stopped on the entry day",
       "tier": 3,
       "url": "repo:docs/study/setups/research/35-wyckoff-spring-upthrust.md#13-examples-from-our-data"
      },
@@ -167308,7 +168760,7 @@
   "difficulty": 1,
   "id": "si_f0a7af8aee35",
   "lesson_origin": "session",
-  "lesson_text": "Green. Green is full risk, Yellow is smaller and fewer, Orange is A+ only, and Red is none. Read the market before the stock. Green is full risk; Red is no drives.",
+  "lesson_text": "Green. Green is full risk, Yellow is smaller and fewer, Orange is A+ only, and Red is mostly cash. Read the market before the stock. Green is full risk; Red is mostly cash.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -167327,7 +168779,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Opening Drive criteria card (docs/study/setups/criteria/44-opening-drive.json, as of 2026-11-09)",
-      "quote": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: none.",
+      "quote": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/44-opening-drive.json"
      },
@@ -167339,17 +168791,17 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Green full risk; Yellow smaller and fewer; Orange A+ only; Red none. F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
+    "summary": "Green full risk; Yellow smaller and fewer; Orange A+ only; Red mostly cash, plus shorts below the 200-day. F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
    },
    "facts": {
     "given": "Which market reading gives full risk on a drive? Orange Red Green Yellow"
    },
-   "lesson_line": "Read the market before the stock. Green is full risk; Red is no drives.",
+   "lesson_line": "Read the market before the stock. Green is full risk; Red is mostly cash.",
    "unit": "SET.54",
-   "why": "Green. Green is full risk, Yellow is smaller and fewer, Orange is A+ only, and Red is none.",
+   "why": "Green. Green is full risk, Yellow is smaller and fewer, Orange is A+ only, and Red is mostly cash.",
    "wrong": {
     "Orange": "Orange means A+ setups only.",
-    "Red": "Red means no drives at all.",
+    "Red": "Red is mostly cash, plus shorts below the 200-day.",
     "Yellow": "Yellow means smaller and fewer, not full risk."
    }
   },
@@ -169544,16 +170996,16 @@
  },
  {
   "answer_json": {
-   "answer": "Zero; Red means no drives"
+   "answer": "Zero; Red is mostly cash"
   },
   "difficulty": 3,
   "id": "si_d60c451c78fd",
   "lesson_origin": "session",
-  "lesson_text": "Zero. Red means no drives, however clean. On 2026-10-06 four strict drives fired and all were stopped: the drives were real for five minutes and the market was not. Read the market first. A clean drive in a Red market is a loss waiting to happen.",
+  "lesson_text": "Zero. In Red it is mostly cash, however clean the drive. On 2026-10-06 four strict drives fired and all were stopped: the drives were real for five minutes and the market was not. Read the market first. A clean drive in a Red market is a loss waiting to happen.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Zero; Red means no drives",
+    "Zero; Red is mostly cash",
     "The best one, at half size",
     "All four; the setups are clean"
    ],
@@ -169568,7 +171020,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Opening Drive criteria card (docs/study/setups/criteria/44-opening-drive.json, as of 2026-11-09)",
-      "quote": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: none.",
+      "quote": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/44-opening-drive.json"
      },
@@ -169594,17 +171046,17 @@
       "url": "repo:docs/study/setups/research/44-opening-drive.md#12-examples-from-our-data"
      }
     ],
-    "summary": "Green full risk; Yellow smaller and fewer; Orange A+ only; Red none. RVTY, 2026-10-06: bought 165.00 at 9:35, stop 161.45, stopped at 9:50 the same day. RVTY was one of four strict drives that fired that morning; all four were stopped. The four drives of 2026-10-06 were real for five minutes and the market was not."
+    "summary": "Green full risk; Yellow smaller and fewer; Orange A+ only; Red mostly cash, plus shorts below the 200-day. RVTY, 2026-10-06: bought 165.00 at 9:35, stop 161.45, stopped at 9:50 the same day. RVTY was one of four strict drives that fired that morning; all four were stopped. The four drives of 2026-10-06 were real for five minutes and the market was not."
    },
    "facts": {
-    "given": "What do you take? The market reads Red. At 9:35 four drives fire at once, each with a clean first bar and heavy volume. Zero; Red means no drives The best one, at half size All four; the setups are clean"
+    "given": "What do you take? The market reads Red. At 9:35 four drives fire at once, each with a clean first bar and heavy volume. Zero; Red is mostly cash The best one, at half size All four; the setups are clean"
    },
    "lesson_line": "Read the market first. A clean drive in a Red market is a loss waiting to happen.",
    "unit": "SET.54",
-   "why": "Zero. Red means no drives, however clean. On 2026-10-06 four strict drives fired and all were stopped: the drives were real for five minutes and the market was not.",
+   "why": "Zero. In Red it is mostly cash, however clean the drive. On 2026-10-06 four strict drives fired and all were stopped: the drives were real for five minutes and the market was not.",
    "wrong": {
     "All four; the setups are clean": "Clean setups do not beat a Red market. On 2026-10-06 all four were stopped.",
-    "The best one, at half size": "Red means none. Half size of a no-trade is still a trade we do not take."
+    "The best one, at half size": "Red is mostly cash. Half size is still a long in a Red market."
    }
   },
   "review_status": "draft",
@@ -170212,7 +171664,7 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Opening Drive criteria card (docs/study/setups/criteria/44-opening-drive.json, as of 2026-11-09)",
-      "quote": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: none.",
+      "quote": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/44-opening-drive.json"
      },
@@ -170224,7 +171676,7 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Green full risk; Yellow smaller and fewer; Orange A+ only; Red none. F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
+    "summary": "Green full risk; Yellow smaller and fewer; Orange A+ only; Red mostly cash, plus shorts below the 200-day. F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
    },
    "facts": {
     "given": "What do you take? Your list shows six drive candidates, and the market reads Orange. Only the A+ drives All six; each has a clean setup None; Orange is Red"
@@ -170234,7 +171686,7 @@
    "why": "Only the A+ drives. Orange is A+ setups only. A clean first bar is not the same as an A+ drive.",
    "wrong": {
     "All six; each has a clean setup": "Orange allows A+ setups only. Clean is not the same as A+.",
-    "None; Orange is Red": "Red is none. Orange still allows the A+ drives."
+    "None; Orange is Red": "Red is mostly cash. Orange still allows the A+ drives."
    }
   },
   "review_status": "draft",

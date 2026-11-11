@@ -957,9 +957,11 @@ in units of the fixed risk. All 10 reclaim closes are above the 200-day SMA.
 **Notable failures (all above the 200-day, all stopped on the first session after entry).**
 
 - **COP 2022-06-22.** The energy washout of June 2022: a 24% flush on 2022-06-17 (2.0 ATR, 3.3x volume, burst 3/5),
-  reclaimed only on the third session at 92.82 with the stop at 91.41. The next session traded through the stop; the
-  stock fell to 78.30 inside 30 sessions, 16% under the buy. The late reclaim (session 3) and a sector still breaking
-  are the warning signs; the stop did its job.
+  reclaimed on the second session (2022-06-22: the market was closed on 2022-06-20 for Juneteenth) at 92.82 with the
+  stop at 91.41. The next session traded through the stop; the stock fell to 78.30 inside 30 sessions, 16% under the
+  buy. The warning signs were a sector still breaking and a first bounce day that opened 93.75 and closed 87.89 in its
+  lower tenth, not a late reclaim; the stop did its job (corrected 2026-11-10 against the bars): the earlier text counted the reclaim as the third
+  session.
 - **WDC 2024-07-29.** A 16% flush on 2024-07-25 (burst 4/5), reclaimed on the second session at 50.20 with a 0.65% stop
   at 49.87. Stopped the next day, then 39.89 inside 30 sessions (-20%). The first bounce never got going: the reclaim
   session opened 4% up and closed at 50.21, two cents over the flush low, the stall-and-weak-close warning of 8.5.
@@ -1015,7 +1017,7 @@ Buy, stop, 3R and 5R are drawn exactly as on the winners. All numbers are read o
 | # | Ticker | Flush, reclaim | Buy | Stop (risk) | Where it stopped | What happened | Criterion |
 |---|---|---|---|---|---|---|---|
 | 1 | BN | 2020-03-09, 2020-03-10 | 19.57 | 19.40 (0.89%) | day 1, 2020-03-11, low 18.98 | -16.5% off the 10-day high, 3.29 ATR, 3.03x volume, burst 5/5; the index made a new low the same week and the stock traded 11.55 inside 30 sessions, 41% under the buy. The crash had one more leg. | cap.inv_index_new_low |
-| 2 | COP | 2022-06-17, 2022-06-22 | 92.82 | 91.41 (1.52%) | day 1, 2022-06-23, low 87.26 | the reclaim came only on the third session; day 1 opened 93.75 and closed 87.89 in its lower tenth, through the stop; 78.30 inside 30 sessions. | cap.inv_stall |
+| 2 | COP | 2022-06-17, 2022-06-22 | 92.82 | 91.41 (1.52%) | day 1, 2022-06-23, low 87.26 | the reclaim came on the second session (the market was closed on 2022-06-20, Juneteenth) (corrected 2026-11-10 against the bars); day 1 opened 93.75 and closed 87.89 in its lower tenth, through the stop; 78.30 inside 30 sessions. | cap.inv_stall |
 | 3 | VOYA | 2023-03-13, 2023-03-15 | 64.66 | 63.75 (1.41%) | day 1, 2023-03-16, low 63.52 | the bank-panic flush, burst 5/5; day 1 traded 23 cents under the stop and closed 66.15 near its high; 70.12 ten sessions later, 8.4% above the buy. A whipsaw: the stop was right by the rule and the trade still lost. | cap.stop |
 | 4 | MP | 2025-04-04, 2025-04-07 | 22.13 | 21.72 (1.85%) | day 1, 2025-04-08, low 21.57 | day 1 opened 26.00, above the 5R line (24.18), then closed 21.94 in its lower tenth through the stop. With the house rule the two trims are taken at the open and only the last third is stopped; the fixed-stop scan counts the whole trade as a loss. | cap.trim_gap_open |
 

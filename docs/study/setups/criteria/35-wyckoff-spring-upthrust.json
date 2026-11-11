@@ -268,7 +268,7 @@
    "gate": true,
    "grade_cue": true,
    "dossier_ref": "8.1 Range height; 9 Range row",
-   "evidence": "Measured: 6% to 10% best (+0.09R, 77% of stops within 3%), 20% to 35% worst (-0.04R, 40% within 3%). TSLA 2025-02-06 (17.9%, near the top of the band, after a 73% run) never traded above its entry. A grade: 6% to 12%."
+   "evidence": "Measured: 6% to 10% best (+0.09R, 77% of stops within 3%), 20% to 35% worst (-0.04R, 40% within 3%). TSLA 2025-02-06 (17.9%, near the top of the band, after a 73% run) was stopped on the entry day; its high that day (380.55) was 0.76R over the 373.04 fill, but the same bar took the stop (corrected 2026-11-10 against the bars). A grade: 6% to 12%."
   },
   {
    "id": "spr.flat",
@@ -898,7 +898,7 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.5",
-   "evidence": "MSFT 2023-08-08: everything the rules ask for, stopped on the third day without a profit. The stop is the trade, not a formality. The register's D-136: no setup adds an exit before the stop."
+   "evidence": "MSFT 2023-08-08: everything the rules ask for, stopped on the entry day (2023-08-09); the day's high (327.11) was 0.18R over the 326.47 fill, but the same bar took the stop (corrected 2026-11-10 against the bars). The stop is the trade, not a formality. The register's D-136: no setup adds an exit before the stop."
   }
  ],
  "grading": {
@@ -1094,13 +1094,13 @@
     "ticker": "TSLA",
     "date": "2025-02-06",
     "criterion": "spr.range_height",
-    "why": "a 25-day range 373.04 to 439.74, 17.9% tall, three touches, probe 0.52 ATR on 0.97x volume, stop 2.65%; bought 373.04 at the open, never traded above the entry, broke the spring low the next day and gapped on. A tall range after a 73% run in the prior 60 sessions, in a market turning down."
+    "why": "a 25-day range 373.04 to 439.74, 17.9% tall, three touches, probe 0.52 ATR on 0.97x volume, stop 2.65%; bought 373.04 (the floor; the entry-day open, 370.19, was under it); the entry day's high (380.55) was 0.76R over the fill, but the same bar's low (360.34) took the 363.15 stop first, so the best is 0.0R (corrected 2026-11-10 against the bars): the earlier text said it never traded above the entry. It broke the spring low on the entry day and gapped on. A tall range after a 73% run in the prior 60 sessions, in a market turning down."
    },
    {
     "ticker": "MSFT",
     "date": "2023-08-08",
     "criterion": "spr.after_entry_stop",
-    "why": "a 40-day range, 13.1% tall, three touches, a cents-deep 0.16 ATR probe on 0.76x volume, stop 1.07%: everything the rules ask for, stopped on the third day without ever showing a profit. A spring that fails usually fails at once."
+    "why": "a 40-day range, 13.1% tall, three touches, a cents-deep 0.16 ATR probe on 0.76x volume, stop 1.07%: everything the rules ask for, stopped on the entry day (2023-08-09); the day's high (327.11) was 0.64, or 0.18R, over the 326.47 fill, but the same bar's low (321.05) took the 322.97 stop first (corrected 2026-11-10 against the bars): the earlier text said it never showed a profit and was stopped on the third day. A spring that fails usually fails at once."
    },
    {
     "ticker": "AAPL",

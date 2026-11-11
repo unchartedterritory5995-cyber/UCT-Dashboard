@@ -480,8 +480,8 @@
   {
    "id": "c23",
    "source": "c1",
-   "quote": "An inside day inside a stall under the fast average is a pause in a range, not a continuation.",
-   "claim": "An inside day in a stall under the fast average is a pause in a range, not a continuation."
+   "quote": "An inside day under the fast average is a pause in a range, not a continuation.",
+   "claim": "An inside day under the fast average is a pause in a range, not a continuation."
   },
   {
    "id": "c24",
@@ -1292,7 +1292,7 @@
     "A buy if volume is light"
    ],
    "answer": "A pause in a range; not this setup",
-   "why": "Not this setup. A close under the 21-day EMA before the entry invalidates it. An inside day inside a stall under the fast average is a pause in a range, not a continuation.",
+   "why": "Not this setup. A close under the 21-day EMA before the entry invalidates it. An inside day under the fast average is a pause in a range, not a continuation.",
    "lesson_line": "Under the fast average, a quiet day is a stall, not a spring.",
    "facts": [
     "c22",
@@ -2535,7 +2535,8 @@
   "Mish's 2009 AAPL example (q27): the dossier's own check puts it about 17% under the 200-day, so it breaks B26. The item asks whether we would take it, not whether it worked.",
   "The short mirror (dossier 8.6) is not taught here (D-001).",
   "Sources that may read unreachable to the quote checker: the Thread Reader copy (s4) and MarketGauge (s6) sometimes refuse scripts; the checker should confirm those quotes in a browser.",
-  "Cold check 2026-11-10: 62 pass (27 fixed), 0 fix, 6 cut. Look first at: (1) the dossier's 'NVDA closed under its 10-day for a week' (wrong on the bars; q34 cut) and the QCOM stretch case that flips with the SMA or EMA choice (D-017); (2) q40's sizing, which breached the 40% cap at 0.5% risk and now uses 0.25%; (3) the entry timing (D-003) behind q15, q57 and q64, phrased as our default, and the Oops reclaim in q30 (D-002)."
+  "Cold check 2026-11-10: 62 pass (27 fixed), 0 fix, 6 cut. Look first at: (1) the dossier's 'NVDA closed under its 10-day for a week' (wrong on the bars; q34 cut) and the QCOM stretch case that flips with the SMA or EMA choice (D-017); (2) q40's sizing, which breached the 40% cap at 0.5% risk and now uses 0.25%; (3) the entry timing (D-003) behind q15, q57 and q64, phrased as our default, and the Oops reclaim in q30 (D-002).",
+  "Requoted 2026-11-10: c23 after the cards' market-reading rows were corrected."
  ],
  "verify": {
   "w1": {
@@ -2654,9 +2655,9 @@
   },
   "q17": {
    "status": "pass",
-   "notes": "c22/c23 verbatim on the card (proposed id.inv_close_under_21). why split to sentences of 22 words or fewer.",
+   "notes": "c22/c23 verbatim on the card (proposed id.inv_close_under_21). why split to sentences of 22 words or fewer. Requoted 2026-11-10: card text now reads 'An inside day under the fast average is a pause...'; why reworded to match. Key holds.",
    "fixed": true,
-   "by": "checker"
+   "by": "requoter"
   },
   "q18": {
    "status": "pass",

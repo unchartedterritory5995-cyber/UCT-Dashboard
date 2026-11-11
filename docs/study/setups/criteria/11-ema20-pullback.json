@@ -1220,7 +1220,7 @@
    "e20.touch: confluence at the line, a bull gap, the prior breakout level, an anchored VWAP or a high-volume close",
    "e20.trigger: a clear turn, a gap down that goes red to green, a hammer, an undercut of the prior day's low and reclaim, or an oops",
    "e20.stop_width: a tight stop, well inside 3%",
-   "e20.market_reading: Green, with the index above its rising 20 EMA (e20.index_20ema)"
+   "e20.market_reading: Green, with the index above its rising 20 EMA (e20.index_20ema); in Orange only if everything else grades A+ (F65)"
   ],
   "b_minus": [
    "e20.which_tap: a third or later tap",
@@ -1231,7 +1231,7 @@
    "e20.stop_width: a wide stop near the 3% limit",
    "e20.index_20ema: an index under its 20 EMA",
    "e20.leadership: RS near 80 or a lagging group",
-   "e20.market_reading: Yellow (A or B), Orange (A+ only)"
+   "e20.market_reading: Yellow (A or B) (smaller and fewer)"
   ],
   "no_trade": [
    "e20.above_200: under the 200-day",
@@ -1241,7 +1241,7 @@
    "e20.inv_50_break: the 50-day already broken",
    "e20.inv_close_under: a close more than 0.5 ATR under the line or two closes in a row under it",
    "e20.no_chase: more than 4% past the trigger",
-   "e20.market_reading: Red"
+   "e20.market_reading: Red; Orange below A+"
   ]
  },
  "lookalikes": [

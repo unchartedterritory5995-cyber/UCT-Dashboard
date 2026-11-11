@@ -1068,7 +1068,7 @@
  ],
  "grading": {
   "a_plus": [
-   "tl.leadership: a leader (RS 90 or more) in a leading group, above a rising 50 and 200-day (tl.ma200_rising), in a Green market",
+   "tl.leadership: a leader (RS 90 or more) in a leading group, above a rising 50 and 200-day (tl.ma200_rising), in a Green market; in Orange only if everything else grades A+ (F65)",
    "tl.line_age: a long line (40 or more sessions); tl.slope: shallow, 0.10 ATR a session or less; tl.touches: 3 or more clean touches spaced out (tl.spacing)",
    "tl.tight_under: price tight under the line for several days on drying volume, the 10 and 21-day EMAs converging under it",
    "tl.volume: the break on 1.5x volume or more, closing in the top of its range",
@@ -1082,7 +1082,7 @@
    "tl.stop_width: a wide stop (3% to 5% is a B; wider is a B-)",
    "tl.overhead_supply: a key level just above (ALAB's below a key level)",
    "tl.line_age: a short line (15 to 25 sessions) or tl.slope: steeper (0.10 to 0.15 ATR) is a B; tl.volume about average is a B",
-   "tl.market_reading: Yellow is a B; Orange is a B- (F65 says A+ only there, so a pass)",
+   "tl.market_reading: Yellow is a B (smaller and fewer)",
    "a short-side mirror (short_mirror) is graded no higher than B"
   ],
   "no_trade": [
@@ -1092,7 +1092,7 @@
    "tl.earnings_window: a report within 3 sessions",
    "tl.not_wedging_up: wedging up into the line on fading volume",
    "tl.inv_falling_mas: under falling averages acting as resistance",
-   "tl.market_reading: Red"
+   "tl.market_reading: Red; Orange below A+ is a pass"
   ]
  },
  "lookalikes": [

@@ -252,7 +252,7 @@
    "gate": true,
    "grade_cue": true,
    "dossier_ref": "8.1 item 6; 10 question 8",
-   "evidence": "HOOD 2026-09-04 was 11.0% over its 10-day SMA and was stopped the day it triggered. CRCL is on the line: 9.7% over the 10-day SMA (passes) but 10.2% over a 10-day EMA (fails). The drawing's 6% gate hides COIN (+14% over the 50), POET (+17%) and TraderLion's NVDA (+13%). D-017's default: the 10-day SMA, the entry day not in it, the 6% gate dropped. Scan failure TSLA 2021-01-13 passed by a hair (9.1%) and was 17% over the 21 EMA."
+   "evidence": "HOOD 2026-09-04 was 11.0% over its 10-day SMA and was stopped the day it triggered. CRCL is on the line: 9.7% over the 10-day SMA (passes) but 10.2% over a 10-day EMA (fails). QCOM 2020-08-04 goes the other way: 13.0% over its 10-day SMA (fails) but about 9.7% over its 10-day EMA (passes), so its answer also flips on D-017 (corrected 2026-11-10 against the bars). The drawing's 6% gate hides COIN (+14% over the 50), POET (+17%) and TraderLion's NVDA (+13%). D-017's default: the 10-day SMA, the entry day not in it, the 6% gate dropped. Scan failure TSLA 2021-01-13 passed by a hair (9.1%) and was 17% over the 21 EMA."
   },
   {
    "id": "id.stop_size",
@@ -866,7 +866,7 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.5 item 23",
-   "evidence": "Scan failure NVDA 2024-03-28: the stock had closed under its 10-day for a week; the break lasted one day. An inside day inside a stall under the fast average is a pause in a range, not a continuation."
+   "evidence": "Scan failure NVDA 2024-03-28: the stock closed above its 10-day from 19 to 26 March, then under it on 27 and 28 March (90.36 against 91.00) and stayed under it through 10 April; it was still over its 21-day EMA (90.36 against 87.72), so this example shows the stall under the fast average, not a close under the 21-day. An inside day under the fast average is a pause in a range, not a continuation. (corrected 2026-11-10 against the bars): the earlier text said it had been under the 10-day for a week and the break lasted one day."
   },
   {
    "id": "id.after_entry_stop",
@@ -994,7 +994,7 @@
  "grading": {
   "a_plus": [
    "id.leadership: RS 90 or more, a leader in a leading group",
-   "id.market_reading: Green, indexes trending",
+   "id.market_reading: Green, indexes trending; in Orange only if everything else grades A+ (F65)",
    "id.location: 1 to 5 days after a breakout or earnings gap on big volume, or the first tag of the rising 10/20-day",
    "id.close_upper_half: upper half, near the high",
    "id.stop_size: a normal-sized pause for the stock (about 0.5 to 1 ATR), stop within 1% to 3%",
@@ -1005,7 +1005,7 @@
   ],
   "b_minus": [
    "id.leadership: RS under 80, a laggard group",
-   "id.market_reading: indexes printing their own inside days (id.index_inside_days), Yellow or worse",
+   "id.market_reading: indexes printing their own inside days (id.index_inside_days), or a Yellow reading (smaller and fewer)",
    "id.location: the middle of a choppy range, under a falling 50-day",
    "id.close_upper_half: lower half, near the low",
    "id.stop_size: the stop over 1 ATR or over 4%; or a sliver under 0.4 ATR whose low sits inside the noise (id.not_tighter_better)",
@@ -1022,7 +1022,7 @@
    "id.earnings_window: a report within 3 sessions",
    "id.liquidity: under $10 or under $20 million a day",
    "id.nr_day_not_inside: not an inside day at all (an NR7, a harami, an inside open)",
-   "id.market_reading: Red"
+   "id.market_reading: Red; Orange below A+"
   ]
  },
  "lookalikes": [
@@ -1139,7 +1139,7 @@
     "ticker": "NVDA",
     "date": "2024-04-01",
     "criterion": "id.inv_close_under_21",
-    "why": "inside day 2024-03-28, bought at 91.31 with the stop at 89.14; the stock had already closed under its 10-day for a week after the March run (close 90.36 against a 10-day of 91.00); the break lasted one day and the stop went on 2024-04-02. An inside day inside a stall under the fast average is a pause in a range, not a continuation."
+    "why": "inside day 2024-03-28, bought at 91.31 with the stop at 89.14; the stock closed above its 10-day from 19 to 26 March, then under it on 27 and 28 March (close 90.36 against a 10-day of 91.00) and stayed under it through 10 April; it was still over its 21-day EMA (90.36 against 87.72). The stop went on 2024-04-02. An inside day under the fast average is a pause in a range, not a continuation. (corrected 2026-11-10 against the bars)."
    },
    {
     "ticker": "TSLA",
@@ -1189,7 +1189,7 @@
     "ticker": "QCOM",
     "date": "2020-08-05",
     "criterion": "id.not_stretched",
-    "why": "bar 2020-08-04, three sessions after the 2020-07-30 earnings gap: the close is 13.0% over the 10-day SMA; the rule is 10% or less."
+    "why": "bar 2020-08-04, three sessions after the 2020-07-30 earnings gap: the close is 13.0% over the 10-day SMA; the rule is 10% or less. Over the 10-day EMA it is about 9.7%, which would pass: the answer flips on D-017 (corrected 2026-11-10 against the bars)."
    },
    {
     "ticker": "AAPL",

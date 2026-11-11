@@ -1099,7 +1099,7 @@
    "map.volume: pullback days at or under about 0.7x the 50-day average over 3 to 8 orderly sessions",
    "map.touch: confluence, the line sits on another level (an HVE or HVC level, a gap top, a prior breakout pivot; NBIS off the 50SMA, HVE level at $95.72)",
    "map.stop_width: a tight reversal at the line (hammer, inside day, undercut and reclaim) so the stop is 3% or less",
-   "map.market_reading: Green, the index above its rising 20-day (map.index_20)"
+   "map.market_reading: Green, the index above its rising 20-day (map.index_20); in Orange only if everything else grades A+ (F65)"
   ],
   "b_minus": [
    "map.which_touch: a third or later touch of the line; or a 50-day touch in a name that has lost RS 80 (map.rs_timing)",
@@ -1107,7 +1107,7 @@
    "map.orderly: a sharp 1 to 2 day drop into the line, or one outsized red day (the owner's WSM and ULTA notes)",
    "map.volume: volume rising on the pullback",
    "map.stop_width: a wide stop (over 3%) that forces a much smaller size",
-   "map.market_reading: Yellow or Orange; a laggard group; earnings within about 2 weeks"
+   "map.market_reading: Yellow (smaller and fewer); a laggard group; earnings within about 2 weeks"
   ],
   "no_trade": [
    "map.above_200: under the 200-day, or the 20 EMA under the 50, or the 50 under the 200",
@@ -1118,7 +1118,7 @@
    "map.liquidity: under $10 or under $20 million a day",
    "map.earnings_window: a report within 3 sessions",
    "map.no_chase: more than 4% past the trigger",
-   "map.market_reading: Red"
+   "map.market_reading: Red; Orange below A+"
   ]
  },
  "lookalikes": [

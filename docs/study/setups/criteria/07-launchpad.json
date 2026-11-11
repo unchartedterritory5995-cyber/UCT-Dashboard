@@ -1206,7 +1206,7 @@
    "lp.first_pad: the first launchpad after the bottom",
    "lp.confluence: another UCT setup on the launch day (TEAM's Oops)",
    "lp.stop_cap: the honest stop within about 3% to 4%",
-   "lp.market_reading: Green, leaders basing as the market turns (lp.leaders_basing)"
+   "lp.market_reading: Green, leaders basing as the market turns (lp.leaders_basing); in Orange only if everything else grades A+ (F65)"
   ],
   "b_minus": [
    "lp.correction: a shallow fall, about -15% (okay median -21%)",
@@ -1217,7 +1217,7 @@
    "lp.weekly_cue: daily only",
    "lp.first_pad: a late, repeated pad after the stock has already run",
    "lp.stop_cap: the stop near 6%, size cut to fit",
-   "lp.market_reading: Orange or Red"
+   "lp.market_reading: Yellow (smaller and fewer)"
   ],
   "no_trade": [
    "lp.launch_above_all: the pop closes inside the bundle or under the 200-day (ADSK, WSM; B26)",
@@ -1229,7 +1229,7 @@
    "lp.no_chase: more than 4% past the launch close; lp.not_stretched: more than 10% over the 10-day",
    "lp.stop_cap: the honest stop over 6%, or any stop under the bundle or the base low",
    "lp.liquidity: under $10 or under $20 million a day",
-   "lp.market_reading: Red"
+   "lp.market_reading: Red; Orange below A+"
   ]
  },
  "lookalikes": [

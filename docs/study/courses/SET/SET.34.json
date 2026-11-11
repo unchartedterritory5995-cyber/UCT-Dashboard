@@ -329,8 +329,14 @@
   {
    "id": "g14",
    "source": "c1",
-   "quote": "A Green market reading. Orange: A+ only. Red: none.",
-   "claim": "Card: a Green market reading; Orange only A+; Red none."
+   "quote": "A Green market reading. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
+   "claim": "Card: a Green market reading; Orange only A+; Red is mostly cash, plus shorts below the 200-day."
+  },
+  {
+   "id": "g14b",
+   "source": "c1",
+   "quote": "In Orange, A+ only; in Red, mostly cash, plus shorts below the 200-day.",
+   "claim": "Card best conditions: Orange takes only A+ Go Signals; Red is mostly cash, plus shorts below the 200-day."
   },
   {
    "id": "g15",
@@ -467,8 +473,8 @@
   {
    "id": "g37",
    "source": "c1",
-   "quote": "go.market_reading: a Yellow or Orange market",
-   "claim": "Card grading: a Yellow or Orange market is a B minus cue."
+   "quote": "go.market_reading: a Yellow market (smaller and fewer)",
+   "claim": "Card grading: a Yellow market is a B minus cue, smaller and fewer."
   },
   {
    "id": "g38",
@@ -861,10 +867,11 @@
     "As many as show up"
    ],
    "answer": "Zero",
-   "why": "Zero. The card asks for a Green market reading, allows Orange only for A+, and takes none on Red.",
+   "why": "Zero. The card asks for a Green market reading, allows Orange only for A+, and takes none in Red. Red is mostly cash.",
    "lesson_line": "Green, yes. Orange, A plus. Red, none.",
    "facts": [
     "g14",
+    "g14b",
     "h26"
    ],
    "wrong": {
@@ -1571,8 +1578,7 @@
    "lesson_line": "Orange means A plus only. A B waits.",
    "facts": [
     "g14",
-    "h26",
-    "g37"
+    "h26"
    ],
    "wrong": {
     "Take it at full size": "Full risk is the Green reading. Orange allows only A+ setups.",
@@ -2315,7 +2321,8 @@
   "Oops contrast: Williams' Oops (via Unger Academy) and Deepvue define it at the prior day's low on the daily bar. The card's Oops tell is the line (low against close) and the bar (daily against hourly). q20 and q48 key the card's tell and quote the two outside pages only to show the Oops is a daily low pattern. Unger Academy's DAX backtest is not used. The U&R contrast (q27) is keyed on the U&R card's own 3-session daily rule from this card's tell.",
   "q60 uses invented numbers around a real fill: buy 24.48, stop 24.01 are BE's real numbers (dossier), and the gap and 30-minute low are made up for the rule (a loss of 0.63 on a 0.47 R unit is 1.34R, under 2R); the rule shown is B20 only. q29 likewise sets a gap on NVDA's real buy and stop.",
   "Cold-check notes carried from the pilot: no 'the owner' in member text, no untaught house words, the stop stays the rule's stop (B20 for a gap through it), the breakeven move at the first trim (B19).",
-  "Cold check 2026-11-10: 54 pass (10 fixed), 0 fix, 11 cut; 3 walk-throughs pass (1 fixed). Cut as duplicates: q04, q07, q08, q19, q20, q21, q35, q52, q58, q62 (each kept twin is named in the note); q54 cut (the 'reclaim by a cent proves little' key is the dossier author's read of one failure, no card rule behind it). Fixed: 'a week or more' removed from member text (q06, q44), the invented '23%' (q53), the unsupported 'rarely trips it' (q64), the TSLA prior-day-low label (w3), the Oops and U&R contrasts reworded to match their own cards (q27, q48), the B20 wrong note (q60), the 40% cap now named (q34). Data note: the dossier's NVDA 2024-06-28 failure says the stop was hit 'the next morning' and its table says the same session; the sandbox bars show a low of 122.75 under the 123.39 stop that day, so same session (d12 is wrong; only cut q52 leaned on it). For the owner, first: the flag and the level in q45 and q46 are gates only if he rules D-131 and D-130 that way; the keyed E50 grade cues (q55); and the entry moment (D-003: the walk-throughs buy the close of the reclaiming candle, the scan's fill, not a ruling)."
+  "Cold check 2026-11-10: 54 pass (10 fixed), 0 fix, 11 cut; 3 walk-throughs pass (1 fixed). Cut as duplicates: q04, q07, q08, q19, q20, q21, q35, q52, q58, q62 (each kept twin is named in the note); q54 cut (the 'reclaim by a cent proves little' key is the dossier author's read of one failure, no card rule behind it). Fixed: 'a week or more' removed from member text (q06, q44), the invented '23%' (q53), the unsupported 'rarely trips it' (q64), the TSLA prior-day-low label (w3), the Oops and U&R contrasts reworded to match their own cards (q27, q48), the B20 wrong note (q60), the 40% cap now named (q34). Data note: the dossier's NVDA 2024-06-28 failure says the stop was hit 'the next morning' and its table says the same session; the sandbox bars show a low of 122.75 under the 123.39 stop that day, so same session (d12 is wrong; only cut q52 leaned on it). For the owner, first: the flag and the level in q45 and q46 are gates only if he rules D-131 and D-130 that way; the keyed E50 grade cues (q55); and the entry moment (D-003: the walk-throughs buy the close of the reclaiming candle, the scan's fill, not a ruling).",
+  "Requoted 2026-11-10: g14, g37, g14b (added) after the cards' market-reading rows were corrected."
  ],
  "verify": {
   "w1": {
@@ -2386,9 +2393,9 @@
   },
   "q09": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g14, F65.",
-   "fixed": false,
-   "by": "checker"
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g14, F65. Requoted 2026-11-10: the g14 quote now says mostly cash in Red; added g14b (the card's best-conditions line: 'in Red, none') so 'Zero' stays sourced; why mentions mostly cash.",
+   "fixed": true,
+   "by": "requoter"
   },
   "q10": {
    "status": "pass",
@@ -2560,9 +2567,9 @@
   },
   "q38": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. F65, g37.",
-   "fixed": false,
-   "by": "checker"
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. F65, g37. Requoted 2026-11-10: g37 now says Yellow (smaller and fewer), not 'Yellow or Orange', so it no longer supports an Orange item and was dropped from the facts. Key (Orange: A+ only, a B waits) rests on g14 and h26.",
+   "fixed": true,
+   "by": "requoter"
   },
   "q39": {
    "status": "pass",
@@ -2686,9 +2693,9 @@
   },
   "q59": {
    "status": "pass",
-   "notes": "g02, g03, g04, g11, g12, g13, g14 verbatim; A passes every gate, B turns at 13:30, C never dips. Key right. The same gates as q40/q41/q49, as a synthesis.",
-   "fixed": false,
-   "by": "checker"
+   "notes": "g02, g03, g04, g11, g12, g13, g14 verbatim; A passes every gate, B turns at 13:30, C never dips. Key right. The same gates as q40/q41/q49, as a synthesis. Requoted 2026-11-10: g14 now ends with the full Red rule; A is Green and passes. No text change.",
+   "fixed": true,
+   "by": "requoter"
   },
   "q60": {
    "status": "pass",

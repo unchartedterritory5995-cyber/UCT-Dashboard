@@ -18,7 +18,16 @@
   {
    "id": "kk.market_reading",
    "field": "context",
-   "statement": "Green or Yellow reading; Orange only for an A+. Red: none.",
+   "statement": "Green or Yellow reading; Orange only for an A+. Red: mostly cash, plus shorts below the 200-day.",
+   "measure": {
+    "what": "the app's market reading on the trigger day",
+    "op": "in",
+    "value": [
+     "Green",
+     "Yellow",
+     "Orange (A+ only)"
+    ]
+   },
    "glossary": "market_reading",
    "basis": "house rule",
    "sources": [
@@ -1124,7 +1133,7 @@
    "kk.volume: 1.54x to 6.94x the 50-day average (4 of 8 greats at 2x or more)",
    "kk.stop_cap: the natural stop under 3% on 7 of 8 greats (0.41% to 2.67%); JBI 2.08% and AMD 2.67%",
    "kk.not_earnings: not an earnings day; a stock he would trade (kk.liquidity, kk.leadership)",
-   "kk.market_reading: Green, after a few days of weakness that made people bearish"
+   "kk.market_reading: Green, after a few days of weakness that made people bearish; in Orange only if everything else grades A+ (F65)"
   ],
   "b_minus": [
    "kk.not_earnings: an earnings day that also looks like a Kicker (IMAX)",
@@ -1132,7 +1141,7 @@
    "kk.ma50_not_falling: a gap against an intermediate downtrend (SMH, C-); kk.above_200: a red day under the 200-day (VOD, B-)",
    "kk.gap_open: a modest gap with the weakest Kicker close of the set (ENS 1.71%, close at 81% of its range)",
    "kk.volume and gap size did not separate his greats from his okays (okays: gaps 1.71% to 6.63%, volume 1.51x to 3.8x)",
-   "kk.market_reading: Yellow or Orange"
+   "kk.market_reading: Yellow (smaller and fewer)"
   ],
   "no_trade": [
    "kk.not_earnings: an earnings-day gap (GRMN, TSN and eight more cut)",
@@ -1145,7 +1154,7 @@
    "kk.inv_gap_fills: the gap filled before the trigger",
    "kk.earnings_window: a report within 3 sessions",
    "kk.liquidity: under $10 or under $20 million a day",
-   "kk.market_reading: Red (the shock-month hits reached 3R 15% of the time)"
+   "kk.market_reading: Red (the shock-month hits reached 3R 15% of the time); Orange below A+ (F65)"
   ]
  },
  "lookalikes": [

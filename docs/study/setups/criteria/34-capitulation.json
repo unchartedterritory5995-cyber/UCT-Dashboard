@@ -923,7 +923,7 @@
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.5",
-   "evidence": "COP 2022-06-22: a late reclaim (session 3) with the energy sector still breaking; the next session took the stop and the stock fell 16% under the buy within 30 sessions."
+   "evidence": "COP 2022-06-22: a reclaim on the second session (the market was closed on 2022-06-20, Juneteenth) with the energy sector still breaking; the next session took the stop and the stock fell 16% under the buy within 30 sessions (corrected 2026-11-10 against the bars): the earlier text called the reclaim late (session 3)."
   },
   {
    "id": "cap.inv_no_burst",
@@ -1240,7 +1240,7 @@
     "ticker": "COP",
     "date": "2022-06-22",
     "criterion": "cap.inv_index_new_low",
-    "why": "a 24% flush on 2022-06-17 (2.0 ATR, 3.3x volume, burst 3/5), reclaimed only on the third session at 92.82 with the stop at 91.41; the next session traded through the stop and the stock fell to 78.30 inside 30 sessions. A late reclaim with the sector still breaking; the stop did its job."
+    "why": "a 24% flush on 2022-06-17 (2.0 ATR, 3.3x volume, burst 3/5), reclaimed on the second session (2022-06-22; the market was closed on 2022-06-20) at 92.82 with the stop at 91.41; the next session traded through the stop and the stock fell to 78.30 inside 30 sessions. The sector was still breaking and the first bounce day closed in its lower tenth; the stop did its job (corrected 2026-11-10 against the bars): the earlier text counted the reclaim as the third session."
    },
    {
     "ticker": "WDC",

@@ -173,7 +173,16 @@
   {
    "id": "ur.market_reading",
    "field": "context",
-   "statement": "A Green or Yellow market reading; Orange only for A+; Red mostly cash.",
+   "statement": "A Green or Yellow market reading; Orange only for A+; Red: mostly cash, plus shorts below the 200-day.",
+   "measure": {
+    "what": "the app's market reading on the trigger day",
+    "op": "in",
+    "value": [
+     "Green",
+     "Yellow",
+     "Orange (A+ only)"
+    ]
+   },
    "glossary": "market_reading",
    "basis": "house rule",
    "sources": [],
@@ -325,7 +334,7 @@
    "gate": true,
    "grade_cue": true,
    "dossier_ref": "8.1 item 7; 10 question 5",
-   "evidence": "Measured (E1): undercuts 6% or deeper had the worst results (-0.09R, 16% to 3R) and 10.6% stops; 3% to 6% +0.01R; 0% to 1% +0.08R with 1.6% stops. Scan: depth within 6% made no difference to the 3R rate (35.5% at 3% or less against 36.9% deeper) but the deeper ones reached 5R less often (21.4% against 24.9%). Median undercut in the scan 0.67%."
+   "evidence": "Measured (E1): undercuts 6% or deeper had the worst results (-0.09R, 16% to 3R) and 10.6% stops; 3% to 6% +0.01R; 0% to 1% +0.08R with 1.6% stops. Scan (rescanned 2026-11-10 with fills at the reclaim; the earlier figures used the open): an undercut of 3% or less reached 3R 51.1% of the time and 5R 40.5%, against 37.8% and 22.3% for one deeper than 3% (up to 6%); was 35.5% against 36.9% to 3R and 24.9% against 21.4% to 5R, so the earlier 'no difference' is gone. Median undercut in the scan 0.67%."
   },
   {
    "id": "ur.reclaim_window",
@@ -351,7 +360,7 @@
    "gate": true,
    "grade_cue": true,
    "dossier_ref": "8.1 item 8; 10 question 5",
-   "evidence": "Wyckoff quickly reverses; Turtle Soup same day, Plus One the next day; Deepvue's bars same day; the journal template a day or two. The 3 is the dossier's. Scan: a reclaim that took 1 to 3 sessions did better than a same-day reclaim (43.2% against 31.3% to 3R); measured: one session later did no worse, so same day is a preference, not an edge. 71% of first undercuts of a bounced swing low closed back above within 3 sessions. The glossary closes the gap: the U&R family runs to 4 closes, the Remount starts at 5."
+   "evidence": "Wyckoff quickly reverses; Turtle Soup same day, Plus One the next day; Deepvue's bars same day; the journal template a day or two. The 3 is the dossier's. Scan (rescanned 2026-11-10 with fills at the reclaim; the earlier figures used the open): a same-day reclaim reached 3R 53.8% of the time against 43.2% for one that took 1 to 3 sessions (was 31.3% against 43.2%); the same-day median stop is 0.58% against 1.87%, so most of the gap is the tight stop; measured: one session later did no worse, so same day is a preference, not an edge. 71% of first undercuts of a bounced swing low closed back above within 3 sessions. The glossary closes the gap: the U&R family runs to 4 closes, the Remount starts at 5."
   },
   {
    "id": "ur.volume_not_required",
@@ -426,7 +435,7 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.2 Option A; 10 question 6",
-   "evidence": "Measured, Table C (a buy a cent over the level, an upper bound): every R number rose (+0.30R against +0.07R at the close; stop within 3% +0.60R). None of the 13 owner-named examples had a stop within 3% when bought at the close; FIGR was 1.6% from Bracco's fill. Scan: the same-day fill at L plus a cent gave 35.6% to 3R."
+   "evidence": "Measured, Table C (a buy a cent over the level, an upper bound): every R number rose (+0.30R against +0.07R at the close; stop within 3% +0.60R). None of the 13 owner-named examples had a stop within 3% when bought at the close; FIGR was 1.6% from Bracco's fill. Scan (rescanned 2026-11-10 with fills at the reclaim; the earlier figures used the open): the fill at L plus a cent gave 50.2% to 3R and 39.2% to 5R on 66,020 hits (was 35.6% and 24.7%); with a stop of 0.5% or more, 47.1% and 33.8%."
   },
   {
    "id": "ur.trigger_close",
@@ -449,7 +458,7 @@
    "gate": false,
    "grade_cue": true,
    "dossier_ref": "8.2 Option B",
-   "evidence": "Measured: top-half closes followed through 68% of the time against 43% for bottom-half closes. Scan: a reclaim day closing in its top half reached 3R 42.4% against 17.7%. The knowledge-base template's strong close on reclaim day."
+   "evidence": "Measured: top-half closes followed through 68% of the time against 43% for bottom-half closes. Scan (rescanned 2026-11-10 with fills at the reclaim; the earlier figures used the open): a reclaim day closing in its top half reached 3R 54.7% against 39.5% (was 42.4% against 17.7%). The knowledge-base template's strong close on reclaim day."
   },
   {
    "id": "ur.trigger_confirmation",
@@ -500,7 +509,7 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.1 item 10",
-   "evidence": "The buy point is the level. After a big reclaim day the close can be well over 4% from L (DELL 2026-08-07, HOOD 2025-04-07). WYNN 2013-11-21 and STLD 2022-02-24 gapped back above L and filled at the open 0.4% over it."
+   "evidence": "The buy point is the level. After a big reclaim day the close can be well over 4% from L (DELL 2026-08-07, HOOD 2025-04-07). WYNN 2013-11-21 gapped back above L and filled at the open 0.4% over it; STLD 2022-02-24 opened 0.4% over L, dipped under and came back the same day, so its fill is L plus a cent, not the open (rescanned 2026-11-10)."
   },
   {
    "id": "ur.not_stretched",
@@ -596,7 +605,7 @@
    "gate": true,
    "grade_cue": true,
    "dossier_ref": "8.3; 7 A13 row",
-   "evidence": "On a close entry the median stop was 2.6% (E1) and 1.7% (E2), but none of the 13 owner-named examples was within 3% from the close; they fit A13 only with the intraday entry near the level. Scan: a stop within 3% beat a wider one (37.6% against 27.1% to 3R); median stop 1.73%. LULU 2020-02-24: a 3.97% stop at the open, already over the line."
+   "evidence": "On a close entry the median stop was 2.6% (E1) and 1.7% (E2), but none of the 13 owner-named examples was within 3% from the close; they fit A13 only with the intraday entry near the level. Scan (rescanned 2026-11-10 with fills at the reclaim; the earlier figures used the open): a stop within 3% beat a wider one (51.5% against 37.3% to 3R; was 37.6% against 27.1%); median stop 0.88% (was 1.73%). LULU 2020-02-24: a 2.70% stop from a buy at L plus a cent (3.97% from the open in the earlier scan, over the line)."
   },
   {
    "id": "ur.stop_broker",
@@ -808,7 +817,7 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.5",
-   "evidence": "NVDA 2024-04-05: a 2.05% stop, reached 0.67R and was stopped two sessions later at 83.02 as the April 2024 correction began; even the best-looking reclaim loses about 58% of the time by the scan's count."
+   "evidence": "NVDA 2024-04-05: a 2.05% stop, reached 0.67R and was stopped two sessions later at 83.02 as the April 2024 correction began; a top-half-close reclaim like this one fails to reach 3R about 45% of the time (54.7% reach it, rescanned 2026-11-10)."
   },
   {
    "id": "ur.close_back_under",
@@ -856,7 +865,7 @@
    "ur.depth: visible but shallow, 3% or less, back above within 1 to 2 sessions (ur.reclaim_window)",
    "ur.trigger_close: the reclaim day closes in the top half or better, clearly back over L",
    "ur.volume_not_required: light volume on the undercut",
-   "ur.market_turn: turning up after a correction, or the index doing its own U&R; Green (ur.market_reading)",
+   "ur.market_turn: turning up after a correction, or the index doing its own U&R; Green (ur.market_reading); in Orange only if everything else grades A+ (F65)",
    "ur.stop_width: 3% or less from the entry",
    "ur.earnings_window: no report for weeks"
   ],
@@ -867,11 +876,12 @@
    "ur.depth: 3% to 6% deep, or a full 3 sessions under (ur.reclaim_window)",
    "ur.trigger_close: the reclaim day closes in its bottom half (follow-through 43%)",
    "ur.volume_not_required: heavy selling that keeps coming",
-   "ur.market_reading: Orange or Red, or the index breaking down",
+   "ur.market_reading: Yellow (smaller and fewer), or the index breaking down",
    "ur.stop_width: over 3% (size down)",
    "ur.earnings_window: a report within a week"
   ],
   "no_trade": [
+   "ur.market_reading: Red (mostly cash, plus shorts below the 200-day); Orange below A+",
    "ur.above_200: under the 200-day",
    "ur.inv_no_reclaim: no close back above L within 3 sessions",
    "ur.never_buy_undercut: the undercut itself, before the level is back",
@@ -963,38 +973,67 @@
   "winners": 10,
   "sheet_dir": "_study-resume/scratchpad/setups/29-undercut-rally/final",
   "base_rate": {
-   "hits": 62966,
-   "r3_pct": 35.6,
-   "r5_pct": 24.7,
-   "stopped_pct": 84.4,
+   "hits": 66020,
+   "r3_pct": 50.2,
+   "r5_pct": 39.2,
+   "stopped_pct": 84.6,
    "median_undercut_pct": 0.67,
-   "median_stop_pct": 1.73,
-   "window": "60 sessions forward, fixed stop 5 cents under the undercut low, no trims, no breakeven, no trail; 1984 to 2026; the level is the lowest low of the prior 10 sessions; the fill at L plus a cent on the reclaim day, or the open on a gap back above; one hit per level with a 5-session gap"
+   "median_stop_pct": 0.88,
+   "window": "60 sessions forward, fixed stop 5 cents under the undercut low, no trims, no breakeven, no trail; 1984 to 2026; the level is the lowest low of the prior 10 sessions; the fill at L plus a cent on the reclaim day (also when the day opened over L before the undercut), or the open on a gap back above after a day under; one hit per level with a 5-session gap",
+   "rescanned": "2026-11-10 with fills at the reclaim; the earlier figures used the open",
+   "was": {
+    "hits": 62966,
+    "r3_pct": 35.6,
+    "r5_pct": 24.7,
+    "stopped_pct": 84.4,
+    "median_stop_pct": 1.73
+   }
   },
   "cuts": {
    "reclaim_1_to_3_sessions": {
     "r3_pct": 43.2,
-    "same_day_r3_pct": 31.3
+    "same_day_r3_pct": 53.8,
+    "was": {
+     "r3_pct": 43.2,
+     "same_day_r3_pct": 31.3
+    }
    },
    "reclaim_day_closed_in_top_half": {
-    "r3_pct": 42.4,
-    "bottom_half_r3_pct": 17.7
+    "r3_pct": 54.7,
+    "bottom_half_r3_pct": 39.5,
+    "was": {
+     "r3_pct": 42.4,
+     "bottom_half_r3_pct": 17.7
+    }
    },
    "stop_within_3_pct": {
-    "r3_pct": 37.6,
-    "wider_r3_pct": 27.1
+    "r3_pct": 51.5,
+    "wider_r3_pct": 37.3,
+    "was": {
+     "r3_pct": 37.6,
+     "wider_r3_pct": 27.1
+    }
    },
    "undercut_3_pct_or_less": {
-    "r3_pct": 35.5,
-    "r5_pct": 24.9,
+    "r3_pct": 51.1,
+    "r5_pct": 40.5,
     "deeper_to_6_pct": {
-     "r3_pct": 36.9,
-     "r5_pct": 21.4
+     "r3_pct": 37.8,
+     "r5_pct": 22.3
     },
-    "note": "no difference to 3R; the deeper ones reached 5R less often"
+    "note": "a deeper undercut did worse at both 3R and 5R",
+    "was": {
+     "r3_pct": 35.5,
+     "r5_pct": 24.9,
+     "deeper_to_6_pct": {
+      "r3_pct": 36.9,
+      "r5_pct": 21.4
+     },
+     "note": "no difference to 3R; the deeper ones reached 5R less often"
+    }
    },
    "bounce_size_off_L": {
-    "note": "no difference"
+    "note": "no difference (49.7% to 3R under a 5% bounce, 50.8% at 5% or more)"
    },
    "dossier_check_section_4_3": {
     "e1_events": 57225,
@@ -1013,7 +1052,7 @@
    "SWKS 2010-11-17",
    "WYNN 2013-11-21",
    "INCY 2016-11-04",
-   "VEEV 2019-03-08",
+   "ZS 2019-04-18",
    "QCOM 2020-09-21",
    "STLD 2022-02-24",
    "AMD 2024-01-04"
@@ -1038,7 +1077,7 @@
     "ticker": "LULU",
     "date": "2020-02-24",
     "criterion": "ur.market_turn",
-    "why": "L 242.17, undercut 2.68% the same day, buy at the open 245.39, stop 235.64 (3.97% from the buy, already over the A13 line); made 0.52R and was stopped three sessions later as the market broke down; 20 sessions later the stock was 172. A correct-looking U&R means nothing when the index is breaking."
+    "why": "L 242.17, undercut 2.68% the same day (the day opened at 245.39, before the dip), buy L plus a cent 242.18, stop 235.64 (2.70% from the buy; rescanned 2026-11-10 with fills at the reclaim, the earlier figures used the open: 3.97%, over the A13 line, and 0.52R); made 1.26R and was stopped three sessions later as the market broke down; 20 sessions later the stock was 172. A correct-looking U&R means nothing when the index is breaking."
    },
    {
     "ticker": "AMD",
@@ -1050,7 +1089,7 @@
     "ticker": "NVDA",
     "date": "2024-04-05",
     "criterion": "ur.after_entry_stop",
-    "why": "L 87.62, undercut 1.99%, one close under, buy 87.63, stop 85.83 (2.05%); reached 0.67R and was stopped two sessions later at 83.02 as the April 2024 correction began. The reclaim day closed in its top half; the best-looking reclaim still loses about 58% of the time."
+    "why": "L 87.62, undercut 1.99%, one close under, buy 87.63, stop 85.83 (2.05%); reached 0.67R and was stopped two sessions later at 83.02 as the April 2024 correction began. The reclaim day closed in its top half; a top-half-close reclaim still fails to reach 3R about 45% of the time (rescanned 2026-11-10)."
    },
    {
     "ticker": "TRIP",
@@ -1213,6 +1252,6 @@
   "The public scanner u_and_r.py credits Brian Shannon (the name is Morales and Kacher's), tells members U&Rs deliver 2:1+ RR in 70%+ of cases with no source, quotes Shannon and DeMark without a source, buys over the consolidation high (not the reclaim), stops 1.5% under the low, has no liquidity floor or 200-day rule, and gives sizing advice; the internal scanner uses $2 and $10,000, no 200-day rule, the stop exactly at the low, and fires on a third of eligible sessions. None of that reaches a member through this card (D-004, D-010).",
   "The Study plan's counter-trend size smallest and tightest stop in the book are not the owner's practice (he trades U&Rs in leaders above their averages, once planned 30%+ of his account on one); size comes from E49 by grade.",
   "Liquidity window: the dossier measures the $20 million on a 20-day average; the glossary's shared window is 50 sessions. The card says so on ur.liquidity.",
-  "The scan against the dossier's check: 35.6% to 3R with the fill at L plus a cent (same day, assumes you were watching) against 26% with a close entry. The scan also found the 1 to 3 session reclaim better than the same-day one, while the check found them equal; the card quotes both."
+  "The scan against the dossier's check: 50.2% to 3R with the fill at L plus a cent (same day, assumes you were watching) against 26% with a close entry (rescanned 2026-11-10 with fills at the reclaim; the earlier figures used the open); the earlier figure was 35.6%. The earlier scan also found the 1 to 3 session reclaim better than the same-day one; with fills at the reclaim the same-day reclaim is better (53.8% against 43.2%), mostly because its stop is tight (median 0.58%), while the check found them equal; the card quotes both."
  ]
 }

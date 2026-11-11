@@ -4,6 +4,8 @@ Deliverable 2 of `CRITERIA_PROGRAMME.md`. The 44 dossiers in `research/` end wit
 596 in all. Most are one decision asked once per setup. This register collapses them so they can be settled in one
 sitting. Nothing here is a ruling: every "our default" is the writers' recommendation and waits for his word.
 
+**Adoption (2026-11-10).** The owner told the session to do all of the remaining work himself ("you do it all fully and completely"). Every open decision therefore takes its **Our default** line as a PROVISIONAL pick, so the course units and the held questions can be finished. These picks are not his words and are not in `owner_verdicts.jsonl`. A decision he answers replaces its default, and every unit item keyed on that default is then re-keyed. Items that rest on a default say so in their unit's `conflicts` line ("keyed on the adopted default of D-nnn").
+
 **How to use it.** Answer by id ("D-003: b", or a sentence). Your words go verbatim into
 `docs/study/audits/2026-10-24/owner_verdicts.jsonl` and from there into the criteria cards (`criteria/NN-slug.json`),
 where each pending criterion carries the `owner_question` id it waits on. Answering a Part A decision settles it for every

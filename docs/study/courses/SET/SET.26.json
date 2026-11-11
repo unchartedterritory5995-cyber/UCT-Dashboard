@@ -494,8 +494,8 @@
   {
    "id": "c34",
    "source": "c1",
-   "quote": "A Green or Yellow market reading; Orange only for A+; Red mostly cash.",
-   "claim": "Card: a Green or Yellow market reading; Orange only for A+; Red mostly cash."
+   "quote": "A Green or Yellow market reading; Orange only for A+; Red: mostly cash, plus shorts below the 200-day.",
+   "claim": "Card: a Green or Yellow market reading; Orange only for A+; Red is mostly cash, plus shorts below the 200-day."
   },
   {
    "id": "d01",
@@ -536,8 +536,8 @@
   {
    "id": "d07",
    "source": "d1",
-   "quote": "STLD 2022-02-24 | 59.95 (02-11) | 59.04, 1.52%, 0 | 60.18 | 58.99 (1.98%) | 33.8R (1 day)",
-   "claim": "STLD, 2022-02-24: level 59.95, undercut low 59.04 (1.52%, same day), buy 60.18, stop 58.99 (1.98%); 33.8R, 3R in 1 day."
+   "quote": "STLD 2022-02-24 | 59.95 (02-11) | 59.04, 1.52%, 0 | 59.96 | 58.99 (1.62%) | 41.7R (1 day)",
+   "claim": "STLD, 2022-02-24: level 59.95, undercut low 59.04 (1.52%, same day), buy 59.96, stop 58.99 (1.62%); 41.7R, 3R in 1 day."
   },
   {
    "id": "d08",
@@ -548,8 +548,8 @@
   {
    "id": "d09",
    "source": "d1",
-   "quote": "VEEV 2019-03-08 | 111.64 (03-04) | 110.23, 1.26%, 0 | 111.65 | 110.18 (1.32%) | 30.8R (1 day)",
-   "claim": "VEEV, 2019-03-08: level 111.64, undercut low 110.23 (1.26%, same day), buy 111.65, stop 110.18 (1.32%); 30.8R, 3R in 1 day."
+   "quote": "ZS 2019-04-18 | 61.39 (04-04) | 60.02, 2.23%, 0 | 61.40 | 59.97 (2.33%) | 16.9R (2 days)",
+   "claim": "ZS, 2019-04-18: level 61.39, undercut low 60.02 (2.23%, same day), buy 61.40, stop 59.97 (2.33%); 16.9R, 3R in 2 days."
   },
   {
    "id": "d10",
@@ -596,8 +596,8 @@
   {
    "id": "d17",
    "source": "d1",
-   "quote": "the best-looking reclaim loses about 58% of the time by this scan's count; the edge is in the R multiple of the winners, not the hit rate.",
-   "claim": "Scan: even the best-looking reclaim loses about 58% of the time; the edge is in the R of the winners, not the hit rate."
+   "quote": "a reclaim day that closed in its top half did far better than one that did not (54.7% against 39.5%",
+   "claim": "Scan: a reclaim day that closed in its top half reached 3R 54.7% of the time, against 39.5% for one that did not."
   },
   {
    "id": "d18",
@@ -644,8 +644,8 @@
   {
    "id": "d26",
    "source": "d1",
-   "quote": "buy at the open 245.39 (1.3% over L), stop 235.64, which is 3.97% from the buy: already over the A13 line, so the house answer was size down or skip.",
-   "claim": "LULU, 2020-02-24: buy 245.39, stop 235.64, 3.97% from the buy, over the A13 line, so size down or skip."
+   "quote": "The buy is L plus a cent, 242.18, with the stop at 235.64, which is 2.70% from the buy",
+   "claim": "LULU, 2020-02-24: the buy is the level plus a cent, 242.18, with the stop at 235.64, which is 2.70% from the buy."
   },
   {
    "id": "h10",
@@ -656,14 +656,38 @@
   {
    "id": "d27",
    "source": "d1",
-   "quote": "Before the stop was touched, 35.6% reached 3R and 24.7% reached 5R inside a 60-session window.",
-   "claim": "Scan: before the stop was touched, 35.6% of hits reached 3R and 24.7% reached 5R inside 60 sessions (fixed stop, no trims)."
+   "quote": "Before the stop was touched, 50.2% reached 3R and 39.2% reached 5R inside a 60-session window.",
+   "claim": "Scan: before the stop was touched, 50.2% of hits reached 3R and 39.2% reached 5R inside 60 sessions (fixed stop, no trims, fills at the reclaim)."
   },
   {
    "id": "h30",
    "source": "h1",
    "quote": "Max position 40% of the account",
    "claim": "A7: the maximum position is 40% of the account."
+  },
+  {
+   "id": "d28",
+   "source": "d1",
+   "quote": "This is a best case and it is biased upward: daily bars cannot show whether the low came before the reclaim",
+   "claim": "Scan: the same-day entry at the level is a best case, biased upward, because daily bars cannot show whether the day's low came before the reclaim."
+  },
+  {
+   "id": "d29",
+   "source": "d1",
+   "quote": "It made 1.26R and was stopped three sessions later (02-27, low 220.21) as the market broke down",
+   "claim": "LULU, 2020-02-24: it made 1.26R, then was stopped three sessions later as the market broke down."
+  },
+  {
+   "id": "d30",
+   "source": "d1",
+   "quote": "84.6% of the hits touched the stop at some point in the 60 sessions, most of them after already making 1R or more.",
+   "claim": "Scan: 84.6% of hits touched the stop at some point in the 60 sessions, most of them after already making 1R or more."
+  },
+  {
+   "id": "d31",
+   "source": "d1",
+   "quote": "an undercut within 3% of L beat a deeper one (51.1% to 3R and 40.5% to 5R against 37.8% and 22.3%",
+   "claim": "Scan: an undercut within 3% of the level reached 3R 51.1% and 5R 40.5% of the time, against 37.8% and 22.3% for a deeper one (to 6%)."
   }
  ],
  "walkthroughs": [
@@ -713,7 +737,7 @@
     "NVDA, 2024. The level is 87.62, set on 04-02. One close under it, a 1.99% undercut. It reclaims the next day.",
     "2024-04-05: buy at market as it clears the level, 87.63. Stop a few cents under the undercut low: 85.83, 2.05% away.",
     "Failure mode, and it happened: 0.67R, then a low of 83.02 on 04-09. The stop was the exit.",
-    "A planned loss. In our scan, 35.6% of hits reach 3R before the stop. A new try needs a new trigger."
+    "A planned loss. In our scan, 50.2% of hits reach 3R before the stop. A new try needs a new trigger."
    ],
    "facts": [
     "d15",
@@ -1219,9 +1243,9 @@
    "rung": 4,
    "format": "numeric",
    "criterion": "ur.stop_width",
-   "q": "Fill 60.18. The undercut low is 59.04 and the stop sits five cents under it. How far below the fill, in percent?",
-   "answer": 1.98,
-   "why": "1.98%. The stop is a few cents under the undercut low, and well inside the 3% the stop usually sits within. That was STLD.",
+   "q": "Fill 59.96. The undercut low is 59.04 and the stop sits five cents under it. How far below the fill, in percent?",
+   "answer": 1.62,
+   "why": "1.62%. The stop is a few cents under the undercut low, and well inside the 3% the stop usually sits within. That was STLD.",
    "lesson_line": "Stop first, then the distance. Under 3% fits.",
    "facts": [
     "d07",
@@ -1233,7 +1257,7 @@
     "fn": "arith",
     "args": {
      "expr": "(a - (b - 0.05)) / a * 100",
-     "a": 60.18,
+     "a": 59.96,
      "b": 59.04
     },
     "round": 2
@@ -1391,9 +1415,9 @@
    "rung": 5,
    "format": "numeric",
    "criterion": "ur.trim_2",
-   "q": "Bought at 111.65, stop 110.18. The stock trades to 119.00. How many R is that?",
+   "q": "Bought at 61.40, stop 59.97. The stock trades to 68.55. How many R is that?",
    "answer": 5.0,
-   "why": "5R. Each R is the fill minus the stop. That is where the second third comes off. VEEV reached 3R in a day.",
+   "why": "5R. Each R is the fill minus the stop. That is where the second third comes off. ZS reached 3R in 2 days.",
    "lesson_line": "Count in R, not dollars. 5R is the second trim.",
    "facts": [
     "h20",
@@ -1403,9 +1427,9 @@
    "calc": {
     "fn": "r_multiple",
     "args": {
-     "entry": 111.65,
-     "stop": 110.18,
-     "exit": 119.0
+     "entry": 61.4,
+     "stop": 59.97,
+     "exit": 68.55
     },
     "round": 1
    },
@@ -1954,13 +1978,14 @@
    "rung": 7,
    "format": "tf",
    "criterion": "ur.after_entry_stop",
-   "q": "A U&R is a good trade because most of them work.",
+   "q": "A U&R is a good trade because it rarely gets stopped out.",
    "answer": "False",
-   "why": "False. Most hits are stopped. In our scan, only 35.6% of hits reached 3R before the stop; the edge is the R of the winners.",
+   "why": "False. In our scan, 84.6% of hits touched the stop within 60 sessions, though 50.2% reached 3R first. The edge is the R of the winners.",
    "lesson_line": "The edge is the size of the winners, not the hit rate.",
    "facts": [
     "c18",
-    "d27"
+    "d27",
+    "d30"
    ],
    "house": true
   },
@@ -2067,7 +2092,7 @@
     "A sign to drop the setup"
    ],
    "answer": "A planned loss; the system worked",
-   "why": "A planned loss. NVDA reached 0.67R, then was stopped on day 2. The best-looking reclaim still loses most of the time.",
+   "why": "A planned loss. NVDA reached 0.67R, then was stopped on day 2. A reclaim that closes in its top half still gets stopped sometimes.",
    "lesson_line": "Rules followed, stop hit: a planned loss. Next trade.",
    "facts": [
     "d15",
@@ -2190,11 +2215,12 @@
    "facts": [
     "c09",
     "d05",
-    "d06"
+    "d06",
+    "d31"
    ],
    "wrong": {
     "Pass; the 50-day is falling": "Look again: the 50-day runs up under the shelf.",
-    "Pass; the undercut is too small": "A shallow undercut is the point. The 1.39% dip was a clean one."
+    "Pass; the undercut is too small": "A shallow undercut is the point. In our scan an undercut within 3% beat a deeper one to 3R, 51.1% against 37.8%."
    },
    "house": true,
    "chart": {
@@ -2222,10 +2248,11 @@
    "facts": [
     "d24",
     "d25",
-    "h10"
+    "h10",
+    "d28"
    ],
    "wrong": {
-    "Take it; the reclaim was the same day": "A same-day reclaim is the best shape, but the context fails first.",
+    "Take it; the reclaim was the same day": "A same-day reclaim is no cure. Our scan's same-day figure is an upper bound, because the day's low may form after the buy. The 200-day says no.",
     "Take it; the undercut was shallow": "The undercut was shallow, and the 200-day still says no."
    },
    "house": true,
@@ -2270,9 +2297,9 @@
    "rung": 9,
    "format": "numeric",
    "criterion": "ur.stop_width",
-   "q": "Account 100,000, risk 0.25%. Buy 245.39, stop 235.64. How many shares does the stop allow?",
-   "answer": 25,
-   "why": "25 shares. The size comes from the stop: risk divided by the distance, rounded down. The 40% position cap is not close. That stop was 3.97% from the buy, so LULU sized small.",
+   "q": "Account 100,000, risk 0.25%. Buy 242.18, stop 235.64. How many shares does the stop allow?",
+   "answer": 38,
+   "why": "38 shares. The size comes from the stop: risk divided by the distance, rounded down. The 40% position cap is not close. That stop was 2.70% from the buy.",
    "lesson_line": "The size comes from the stop. A wide stop means few shares.",
    "facts": [
     "h03",
@@ -2286,7 +2313,7 @@
     "args": {
      "account": 100000,
      "risk_pct": 0.25,
-     "entry": 245.39,
+     "entry": 242.18,
      "stop": 235.64
     },
     "round": 0
@@ -2305,8 +2332,10 @@
   "MAU&R stop: Morales and Kacher let the stop sit 1-2% below the average (v4). The card's stop is the undercut low for every U&R, including the moving-average form (the card names VoSI's 1 to 2% as not ours). q40 keys the card and quotes VoSI only to contrast.",
   "Turtle Soup (t1, t2) is quoted from a StockCharts summary, not the book (Street Smarts was not read). It is used only as a second voice for 'buy as it comes back through the broken low' and 'the stop just below the low'; no key rests on it alone.",
   "IBD's shakeout-plus-three (i1, i2) is a later, higher entry. The card lists it as option C and 'not the default' (proposed); q41 keys only that it is not ours.",
-  "The scanners' 70% of U&Rs deliver 2:1 claim, Brian Shannon's credit and the 1.5% stop are the card's D-004 and D-010 items. None of it reaches a member here. The 58% loss rate in q51 and q55 is the dossier's own scan, not a published statistic.",
-  "Cold check 2026-11-10: 57 pass (13 fixed), 0 fix, 5 cut; 3 walk-throughs pass (1 fixed). Cut: q03 and q16 (duplicates of q05/q21 and q27), q55 (duplicate of q44), q14 and q46 (they key the Remount tell '5 or more closes under', the owner's pending D-074; q10 now asks the settled half). Fixed: the ADBE date error (stopped 03-27, SPY's low 04-02: q39, q56), the '58% loses' claim (the scan's share that missed 3R before a fixed stop; now the 35.6% base rate: w3, q51), 'VoSI' (q40), the categorical tells in q45 to q49 stripped of the 10-session, 4% / 2x, 15-session and 5-session numbers. For the owner, first: D-103 (which levels count for a U&R; q45, q47, q48, q49, q19 follow the card's lookalike tells and flip if he rules otherwise), D-074 (the Remount length; nothing here keys it now), and D-036 (the 3-session limit still keyed in q09 and q10 through the card's proposed ur.inv_no_reclaim)."
+  "The scanners' 70% of U&Rs deliver 2:1 claim, Brian Shannon's credit and the 1.5% stop are the card's D-004 and D-010 items. None of it reaches a member here. The dossier's 'the best-looking reclaim loses about 58% of the time' (section 13 and the section 14 NVDA row, and the card's NVDA failure) is retired here: it read the old top-half-close share that missed 3R (42.4% reached 3R), and no live item teaches it.",
+  "Cold check 2026-11-10: 57 pass (13 fixed), 0 fix, 5 cut; 3 walk-throughs pass (1 fixed). Cut: q03 and q16 (duplicates of q05/q21 and q27), q55 (duplicate of q44), q14 and q46 (they key the Remount tell '5 or more closes under', the owner's pending D-074; q10 now asks the settled half). Fixed: the ADBE date error (stopped 03-27, SPY's low 04-02: q39, q56), the '58% loses' claim (the scan's share that missed 3R before a fixed stop; now the 35.6% base rate: w3, q51), 'VoSI' (q40), the categorical tells in q45 to q49 stripped of the 10-session, 4% / 2x, 15-session and 5-session numbers. For the owner, first: D-103 (which levels count for a U&R; q45, q47, q48, q49, q19 follow the card's lookalike tells and flip if he rules otherwise), D-074 (the Remount length; nothing here keys it now), and D-036 (the 3-session limit still keyed in q09 and q10 through the card's proposed ur.inv_no_reclaim). (The 35.6% base rate and the 58% remark in this note are history: superseded by the rescan note below.)",
+  "Rescan 2026-11-10 (refresher): the scan used to fill a same-day undercut and reclaim at the day's open, before the undercut happened; it now fills at the reclaimed level plus a cent. Base rate: 66,020 hits, 50.2% to 3R and 39.2% to 5R, 84.6% touched the stop, median stop 0.88% (was 62,966 hits, 35.6%, 24.7%, median stop 1.73%). The jump is mostly a tight-stop effect: with a stop of 1% or more, 43.7% reached 3R and 29.8% 5R. Cuts now: same-day reclaim 53.8% to 3R against 43.2% for 1 to 3 sessions (was 31.3% against 43.2%), NOT taught as an edge because the same-day figure is an upper bound (daily bars cannot order the day: the stop is under the day's final undercut low, which may form after the buy; the sibling 2B scan re-scored its same-day hits on 5-minute bars and the rate fell from 60.3% to 31.0% to 3R on 406 hits; this scan uses the same daily convention and has not been re-scored); top-half reclaim close 54.7% against 39.5% (was 42.4% and 17.7%); an undercut within 3% of the level 51.1% against 37.8% for a deeper one (the earlier 'depth made no difference' is gone). Items changed: d07 STLD (buy 59.96, stop 1.62%, 41.7R), d09 ZS replaces VEEV (VEEV 2019-03-08 is no longer a hit), d17 (the old 58% claim replaced by the top-half-close cut), d26 LULU (buy 242.18, stop 235.64, 2.70%, no longer over the A13 line; 1.26R then stopped: d29), d27 (50.2% and 39.2%), q17 (note), q22, q29, q51 (restated on the 84.6% stopped), q55 (cut item, phrase removed), q59, q60 (wrong note says only that the same-day figure is an upper bound), q62, w3. New facts d28 to d31. The dossier's own lines 'the best-looking reclaim loses about 58% of the time' (section 13) and 'still loses most of the time' (section 14 NVDA row) were not updated by the rescan and are not quoted. Reminder: the same-day fill at L plus a cent is an idealised fill, and with a median same-day stop near 0.5% a few cents of slippage is a large share of R.",
+  "Requoted 2026-11-10: c34 after the cards' market-reading rows were corrected."
  ],
  "verify": {
   "w1": {
@@ -2323,9 +2352,9 @@
   },
   "w3": {
    "status": "pass",
-   "notes": "d15/d16 verbatim (NVDA 2024-04-05: L 87.62, 1.99% under, buy 87.63, stop 85.83 = 2.05%, 0.67R, stopped 83.02). Step 4 said 'the best-looking reclaim loses about 58% of the time'; the scan's 58% is the share of top-half-close reclaims that did NOT reach 3R before a fixed stop with no trims, not a loss rate. Now cites the dossier's own base rate (d27: 35.6% reach 3R before the stop).",
+   "notes": "Rescan 2026-11-10: step 4 now cites the new base rate (d27 verbatim: 50.2% reach 3R before the stop; was 35.6%). NVDA numbers unchanged (d15/d16).",
    "fixed": true,
-   "by": "checker"
+   "by": "refresher"
   },
   "q01": {
    "status": "pass",
@@ -2425,9 +2454,9 @@
   },
   "q17": {
    "status": "pass",
-   "notes": "Re-derived (59.95-59.04)/59.95 = 1.52% -> 1.5. Computes depth only; the card's 3% / 6% depth lines (pending D-036) are not taught. STLD 1.52% = d07.",
-   "fixed": false,
-   "by": "checker"
+   "notes": "Source fact d07 changed (STLD buy 59.96, stop 1.62%, 41.7R); the question's numbers are the level 59.95 and low 59.04, unchanged. Re-derived (59.95-59.04)/59.95 = 1.52% -> 1.5, and d07 still says 1.52%. Depth only; the card's 3% / 6% depth lines (pending D-036) are not taught.",
+   "fixed": true,
+   "by": "refresher"
   },
   "q18": {
    "status": "pass",
@@ -2455,9 +2484,9 @@
   },
   "q22": {
    "status": "pass",
-   "notes": "Re-derived (60.18-(59.04-0.05))/60.18 = 1.98%. d07 verbatim (stop 58.99 = 1.98%); 3% is A13.",
-   "fixed": false,
-   "by": "checker"
+   "notes": "Rescan 2026-11-10: STLD now buys at L plus a cent, 59.96 (was 60.18, the open). Re-derived (59.96-(59.04-0.05))/59.96 = 1.62%. d07 verbatim (stop 58.99 = 1.62%); 3% is A13.",
+   "fixed": true,
+   "by": "refresher"
   },
   "q23": {
    "status": "pass",
@@ -2497,9 +2526,9 @@
   },
   "q29": {
    "status": "pass",
-   "notes": "Re-derived (119.00-111.65)/(111.65-110.18) = 7.35/1.47 = 5.0R. VEEV d09 verbatim.",
-   "fixed": false,
-   "by": "checker"
+   "notes": "Rescan 2026-11-10: VEEV 2019-03-08 is no longer a hit; re-based on ZS 2019-04-18 (d09 verbatim: buy 61.40, stop 59.97, 3R in 2 days, 16.9R). Re-derived (68.55-61.40)/(61.40-59.97) = 7.15/1.43 = 5.0R.",
+   "fixed": true,
+   "by": "refresher"
   },
   "q30": {
    "status": "pass",
@@ -2551,9 +2580,9 @@
   },
   "q38": {
    "status": "pass",
-   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. F65.",
-   "fixed": false,
-   "by": "checker"
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. F65. Requoted 2026-11-10: quote now carries the full Red rule; why already said mostly cash and shorts. No text change.",
+   "fixed": true,
+   "by": "requoter"
   },
   "q39": {
    "status": "pass",
@@ -2629,9 +2658,9 @@
   },
   "q51": {
    "status": "pass",
-   "notes": "The why said 'the best-looking reclaim loses about 58% of the time' (d17). The scan's 58% is the share of top-half-close reclaims that did not reach 3R before a fixed stop with no trims; it is not a loss rate. Now c18 ('most hits are stopped') plus d27: 35.6% of hits reached 3R before the stop, 24.7% 5R, verbatim.",
+   "notes": "Rescan 2026-11-10: the base rate is now 50.2% to 3R and 39.2% to 5R (was 35.6% and 24.7%), so the old statement 'most of them work' is no longer clearly false by the 3R count. Restated on what is settled: 84.6% of hits touched the stop within 60 sessions (d30 verbatim) and 50.2% reached 3R first (d27 verbatim); c18 keeps 'most hits are stopped'. The jump is mostly a tight-stop effect (median stop 0.88%; stops of 1% or more: 43.7% to 3R), so no number here is sold as the whole edge.",
    "fixed": true,
-   "by": "checker"
+   "by": "refresher"
   },
   "q52": {
    "status": "pass",
@@ -2653,7 +2682,7 @@
   },
   "q55": {
    "status": "cut",
-   "notes": "Near-duplicate of q44 (a stop-out by the rules is a planned loss; the next try needs a new trigger). Also leaned on d17's '58% loses', which is a mis-stated scan figure. q44 kept.",
+   "notes": "Near-duplicate of q44 (a stop-out by the rules is a planned loss; the next try needs a new trigger). Also leaned on d17's '58% loses', which is a mis-stated scan figure. q44 kept. Refresher 2026-11-10: the 58% phrase is gone from the why (the rescan puts a top-half-close reclaim at 54.7% to 3R, d17); still cut.",
    "fixed": false,
    "by": "checker"
   },
@@ -2677,15 +2706,15 @@
   },
   "q59": {
    "status": "pass",
-   "notes": "Chart NTAP asof 2004-10-27: sandbox bars.db has 2,249 daily bars to that date (120-bar window starts 2004-05-07), 5,544 after it. Re-read: 10-26 low 22.72 close 22.98 under L 23.04; 10-27 open 22.84 low 22.75 close 23.86; 50-day 22.39 against 21.10 ten sessions earlier (rising); 200-day 20.93. d05/d06 hold. The question never names the ticker.",
-   "fixed": false,
-   "by": "checker"
+   "notes": "Chart and key unchanged (NTAP 2004-10-27, d05/d06). The wrong note for 'too small' now rests on the rescan's depth cut (d31 verbatim: within 3% 51.1% to 3R, deeper 37.8%); the earlier scan showed no difference, which is retired.",
+   "fixed": true,
+   "by": "refresher"
   },
   "q60": {
    "status": "pass",
-   "notes": "Chart MSFT asof 2026-06-08: 7,898 daily bars to that date (window starts 2025-12-15), 108 after it. Re-read: close 411.74, 200-day 455.91 (9.7% under, and 465.66 twenty sessions earlier, falling); low 408.56 against L 409.58; B26 hard rule.",
-   "fixed": false,
-   "by": "checker"
+   "by": "refresher",
+   "fixed": true,
+   "notes": "Chart and key unchanged (MSFT 2026-06-08, d24/d25, B26). The old wrong note called a same-day reclaim 'the best shape'; the rescan's same-day edge (53.8% to 3R against 43.2%) is NOT taught, because it is an upper bound (the 2B rescan's 5-minute check cut its same-day figure from 60.3% to 31.0%; the U&R scan uses the same daily convention). The note now says only that the same-day figure is an upper bound (d28 verbatim from the dossier's Table C caveat)."
   },
   "q61": {
    "status": "pass",
@@ -2695,9 +2724,9 @@
   },
   "q62": {
    "status": "pass",
-   "notes": "Re-derived: risk 250 / (245.39-235.64) = 25.64 -> 25 shares; stop 3.97% from the buy (d26). A7 check: 25 shares = $6,135, about 6% of the account, far under the 40% cap, so the risk-based size is the smaller; the why now says so (new fact h30, A7 verbatim).",
+   "notes": "Rescan 2026-11-10: LULU now buys at L plus a cent, 242.18 (was 245.39, the open), stop 235.64 = 2.70% from the buy (d26 verbatim), no longer over the 3% line. Re-derived: risk 250 / (242.18-235.64) = 250/6.54 = 38.2 -> 38 shares. A7 check: 38 x 242.18 = $9,203, about 9% of the account, far under the 40% cap (h30), so the risk-based size is the smaller.",
    "fixed": true,
-   "by": "checker"
+   "by": "refresher"
   }
  }
 }

@@ -821,7 +821,16 @@
   {
    "id": "pvt.market_reading",
    "field": "context",
-   "statement": "Green: full use. Yellow: fewer, A and B grades. Orange: A+ only. Red: none.",
+   "statement": "Green: full use. Yellow: fewer, A and B grades. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
+   "measure": {
+    "what": "the app's market reading on the trigger day",
+    "op": "in",
+    "value": [
+     "Green",
+     "Yellow",
+     "Orange (A+ only)"
+    ]
+   },
    "glossary": "market_reading",
    "basis": "house rule",
    "sources": [],
@@ -890,7 +899,7 @@
    "pvt.red_string_three: a clean red string of 3 or more into the level, then a green candle that is the low of the pullback and closes near its high",
    "pvt.stop_width: risk 1% to 2%",
    "pvt.trigger: the trigger comes within one or two candles",
-   "pvt.market_reading: Green"
+   "pvt.market_reading: Green; in Orange only if everything else grades A+ (F65)"
   ],
   "b_minus": [
    "pvt.level: the pivot floats in mid-range with no daily level under it",
@@ -901,7 +910,7 @@
    "pvt.trigger: the trigger comes late in the day",
    "pvt.earnings_window: earnings are close",
    "pvt.pullback_length: the fourth or later pullback to the same average",
-   "pvt.market_reading: Yellow or Orange"
+   "pvt.market_reading: Yellow (smaller and fewer)"
   ],
   "no_trade": [
    "pvt.role: no daily setup and no level under the pivot (a random green candle)",
@@ -913,7 +922,7 @@
    "pvt.earnings_window: a report within 3 sessions",
    "pvt.liquidity: under $10 or under $20 million a day",
    "pvt.tries: the fourth try in a week",
-   "pvt.market_reading: Red"
+   "pvt.market_reading: Red; Orange below A+"
   ]
  },
  "lookalikes": [

@@ -609,8 +609,8 @@
   {
    "id": "g5",
    "source": "c1",
-   "quote": "tl.market_reading: Yellow is a B; Orange is a B- (F65 says A+ only there, so a pass)",
-   "claim": "Grading: Yellow is a B; Orange is a B- and a pass."
+   "quote": "Green market: full. Yellow: smaller and fewer. Orange: A+ only, so a B- is a pass. Red: mostly cash.",
+   "claim": "Market reading: Green full; Yellow smaller and fewer; Orange A+ only, so a B- is a pass; Red mostly cash."
   },
   {
    "id": "d01",
@@ -2212,7 +2212,7 @@
     "Equal; the line is the same"
    ],
    "answer": "A; every cue lines up",
-   "why": "A. Tight under the line on drying volume, room to the first anchor high and a Green market is the A+ end. A Yellow market, a 4% stop and a key level just above grade it lower.",
+   "why": "A. Tight under the line on drying volume, room to the first anchor high and a Green market is the A+ end. A Yellow market (smaller and fewer), a 4% stop and a key level just above grade it lower.",
    "lesson_line": "Same line, different grade. The spot and the market set the size.",
    "facts": [
     "g2",
@@ -2412,7 +2412,8 @@
   "Climax (q21, q46): rulebook C34 is 'a judgment call'; the items key selling a big part, which the card states as its settled tl.climax line.",
   "The short mirror (dossier 8.6, graded no higher than B) is not taught here (D-001).",
   "Sources that may read unreachable to the quote checker: the Internet Archive capture of the TraderLion page, Bulkowski's two pages (406 to plain requests) and the CMT page sometimes refuse scripts; the checker should confirm those quotes in a browser.",
-  "Cold check 2026-11-10: 56 pass (16 fixed), 0 fix, 10 cut. Look first at: (1) the entry timing (D-003) behind q08, q56 and the walk-throughs, now phrased as our default, and the card's unsourced 3% close filter and 1.5 ATR chase cap (q09 cut, q17 re-keyed on the 4% alone); (2) q41's sizing, which breached the 40% cap at 1% risk and now uses 0.5%; (3) the dossier's 54.2% to 3R headline, which counts only days that also closed above the line (q55 no longer quotes it), and the first-break rule in q58 that the scanner would loosen."
+  "Cold check 2026-11-10: 56 pass (16 fixed), 0 fix, 10 cut. Look first at: (1) the entry timing (D-003) behind q08, q56 and the walk-throughs, now phrased as our default, and the card's unsourced 3% close filter and 1.5 ATR chase cap (q09 cut, q17 re-keyed on the 4% alone); (2) q41's sizing, which breached the 40% cap at 1% risk and now uses 0.5%; (3) the dossier's 54.2% to 3R headline, which counts only days that also closed above the line (q55 no longer quotes it), and the first-break rule in q58 that the scanner would loosen.",
+  "Requoted 2026-11-10: g5 after the cards' market-reading rows were corrected."
  ],
  "verify": {
   "w1": {
@@ -2771,9 +2772,9 @@
   },
   "q57": {
    "status": "pass",
-   "notes": "Grade cues g1 to g5 verbatim on the card. E50: grading is discretionary, so the why no longer says a stop of 3% to 5% 'grades B'. Key right.",
+   "notes": "Grade cues g1 to g5 verbatim on the card. E50: grading is discretionary, so the why no longer says a stop of 3% to 5% 'grades B'. Key right. Requoted 2026-11-10: g5 now says Yellow is smaller and fewer, not 'a B'; why says so. Key (A gets the bigger size) holds.",
    "fixed": true,
-   "by": "checker"
+   "by": "requoter"
   },
   "q58": {
    "status": "pass",

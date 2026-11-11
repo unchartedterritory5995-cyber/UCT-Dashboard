@@ -1034,7 +1034,7 @@
    "peg.not_extended: not extended into the report, flat or quiet for 3 to 6 months, or a first gap after a base",
    "peg.rs: first of its group to move, a leading or emerging theme",
    "peg.entry_pause: a tight pause on lighter volume that holds the PEG-day close, with a stop within about 3%",
-   "peg.market_reading: Green"
+   "peg.market_reading: Green; in Orange only if everything else grades A+ (F65)"
   ],
   "b_minus": [
    "peg.gap_floor: a gap of 4% to 6% on 1.5x to 2x volume",
@@ -1044,7 +1044,7 @@
    "peg.inv_drift: a loose, deep pause that undercuts the PEG-day low",
    "peg.stop_width: a wide stop and a small size",
    "peg.above_50: under a falling 50-day or near the 200-day",
-   "peg.market_reading: Yellow or Orange"
+   "peg.market_reading: Yellow (smaller and fewer)"
   ],
   "no_trade": [
    "peg.faded_day: a faded or red PEG day",
@@ -1056,7 +1056,7 @@
    "peg.regular_hours: a pre-market buy",
    "peg.liquidity: under $10 or under $20 million a day",
    "peg.next_earnings: the next report within 3 sessions, or holding through it under 5R",
-   "peg.market_reading: Red"
+   "peg.market_reading: Red; Orange below A+"
   ]
  },
  "lookalikes": [

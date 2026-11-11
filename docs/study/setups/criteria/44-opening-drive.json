@@ -831,7 +831,16 @@
   {
    "id": "od.market_reading",
    "field": "context",
-   "statement": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: none.",
+   "statement": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
+   "measure": {
+    "what": "the app's market reading on the trigger day",
+    "op": "in",
+    "value": [
+     "Green",
+     "Yellow",
+     "Orange (A+ only)"
+    ]
+   },
    "glossary": "market_reading",
    "basis": "house rule",
    "sources": [
@@ -962,7 +971,7 @@
    "od.low_in_first_bar: the open is the low of the day and is never revisited; a steady slope with candles that shrink, not grow",
    "od.inv_vwap: holds above VWAP all morning",
    "od.stop_width: stop within 3% and not stretched over the 10-day",
-   "od.market_reading: Green, a broad gap with strong breadth, the group moving together (od.nasdaq_trend, od.group_move)"
+   "od.market_reading: Green, a broad gap with strong breadth, the group moving together (od.nasdaq_trend, od.group_move); in Orange only if everything else grades A+ (F65)"
   ],
   "b_minus": [
    "od.role: no daily setup, no news",
@@ -971,7 +980,7 @@
    "od.not_parabolic: day 3 to 5 of a parabolic burst; growing candles outside the upper Bollinger Band",
    "od.not_stretched: stretched more than 10% over the 10-day",
    "od.stop_width: a stop that must be wider than 5%",
-   "od.market_reading: Yellow or Orange"
+   "od.market_reading: Yellow (smaller and fewer)"
   ],
   "no_trade": [
    "od.above_200: below the 200-day (unless it is the parabolic long)",
@@ -981,7 +990,7 @@
    "od.no_chase: more than 4% past the 5-minute ORH",
    "od.earnings_window: a report within 3 sessions",
    "od.liquidity: under $10 or under $20 million a day",
-   "od.market_reading: Red"
+   "od.market_reading: Red; Orange below A+"
   ]
  },
  "lookalikes": [

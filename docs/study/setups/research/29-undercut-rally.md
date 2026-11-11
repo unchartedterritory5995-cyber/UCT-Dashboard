@@ -1210,17 +1210,33 @@ no earnings reaction day from the undercut through 3 sessions after the buy (8.1
 Not scanned: the RS 80 floor (C31), because the sandbox has no RS ratings; the 50-day and 200-day tests stand in for
 it. One hit per level (a 5-session gap after each reclaim).
 
-**Base rate.** 62,966 hits (61,379 since 2000, with the same rates). Before the stop was touched, **35.6% reached 3R
-and 24.7% reached 5R** inside a 60-session window. The stop is fixed at the undercut low with no trims, no breakeven
-move and no trail, so "reached 3R" is a touch of that price, not a booked result; 84.4% of the hits touched the stop at
-some point in the 60 sessions, most of them after already making 1R or more. Median undercut 0.67%, median stop
-1.73% from the entry. Splits worth teaching: a reclaim that took 1 to 3 sessions did better than a same-day reclaim
-(43.2% to 3R against 31.3%); a reclaim day that closed in its top half did far better than one that did not (42.4%
-against 17.7%, which backs 8.2 option B's DCR line); a stop within 3% beat a wider one (37.6% against 27.1%, which
-backs A13); the undercut's depth within 6% made no difference to the 3R rate (35.5% at 3% or less against 36.9%
-deeper, though the deeper ones reached 5R less often, 21.4% against 24.9%); the size of the earlier bounce off L made
-no difference. The same-day entry at L plus one cent is an idealised fill: it assumes you were watching and bought the
-first trade back through the level, which is exactly option A.
+**Base rate (rescanned 2026-11-10 with fills at the reclaim; the earlier figures used the open).** 66,020 hits (64,329
+since 2000, with about the same rates: 50.2% and 39.3%). Before the stop was touched, **50.2% reached 3R and 39.2%
+reached 5R** inside a 60-session window. Was: 62,966 hits, 35.6% to 3R, 24.7% to 5R, 84.4% stopped, median stop 1.73%.
+The stop is fixed at the undercut low with no trims, no breakeven move and no trail, so "reached 3R" is a touch of that
+price, not a booked result; 84.6% of the hits touched the stop at some point in the 60 sessions, most of them after
+already making 1R or more. Median undercut 0.67% (unchanged), median stop 0.88% from the entry (was 1.73%).
+**What changed.** The first scan filled a same-day undercut and reclaim at the day's open whenever that open was above
+L, but on those days the open came before the undercut, so nobody could have bought there. The fill is now L plus one
+cent, the first trade back through the level after the dip. That moved 35,063 of the 62,966 earlier hits (56%): the
+fill came down by a median 1.1% and their median stop shrank from 1.73% to 0.51%; as a group they went from 27.9% to
+3R to 54.0%. A gap back over L on a later day (a reclaim after one or more days under) is still filled at the open, and
+the same-day reclaims that already opened under L were already filled at L plus a cent, so those hits did not move. 400
+of the earlier hits dropped out and 3,454 came in (a lower fill passes the caps of 4% over L, 10% over the 10-day
+average and a 6% stop more often, and the 5-session gap after each hit shifts). Splits worth teaching (was in
+brackets): a reclaim that took 1 to 3 sessions reached 3R 43.2% of the time against 53.8% for a same-day reclaim (was
+43.2% against 31.3%), so the earlier "later reclaims do better" result was the open fill and is gone; the median stop
+is 0.58% for a same-day reclaim against 1.87% for a later one, so a 3R target on a same-day buy is a small move above
+the level; a reclaim day that closed in its top half did far better than one that did not (54.7% against 39.5%; was
+42.4% against 17.7%, which still backs 8.2 option B's DCR line); a stop within 3% beat a wider one (51.5% against
+37.3%; was 37.6% against 27.1%, which backs A13); an undercut within 3% of L beat a deeper one (51.1% to 3R and 40.5%
+to 5R against 37.8% and 22.3%; was 35.5% against 36.9% to 3R and 24.9% against 21.4% to 5R, so the earlier "depth made
+no difference to 3R" is gone and a deeper undercut is now a worse sign); the size of the earlier bounce off L still made
+no difference (49.7% to 3R under a 5% bounce against 50.8% at 5% or more). The same-day entry at L plus one cent is an
+idealised fill: it assumes you were watching and bought the first trade back through the level, which is exactly
+option A, and with a median stop of 0.5% on the same-day hits a few cents of slippage is a large share of R. A harder
+read of the same scan: of the hits with a stop of 0.5% or more (46,615) 47.1% reached 3R and 33.8% 5R; with a stop of
+1% or more (30,040), 43.7% and 29.8%.
 
 **The 10 examples (one per ticker, ten different years, all reached 5R).** "Under" is the undercut low as a percent
 below L; "days under" counts sessions from the undercut day to the reclaim day; the stop percent is from the buy.
@@ -1233,12 +1249,12 @@ below L; "days under" counts sessions from the undercut day to the reclaim day; 
 | 4 | SWKS 2010-11-17 | 22.51 (11-03) | 22.07, 1.95%, 1 | 22.52 | 22.02 (2.22%) | 30.6R (2 days) | The level is the pre-earnings low; eight sessions after the report the stock undercuts it and reclaims the next day, riding the 21-day EMA |
 | 5 | WYNN 2013-11-21 | 159.37 (11-07) | 157.48, 1.19%, 2 | 159.97 | 157.43 (1.59%) | 26.0R (8 days) | Two closes under L, then a gap back above it: the buy is the open, 0.4% over L, still well inside C28; the slowest of the ten to 3R |
 | 6 | INCY 2016-11-04 | 84.42 (10-28) | 83.01, 1.67%, 1 | 84.43 | 82.96 (1.74%) | 27.5R (1 day) | A post-earnings pullback (report 11-01) undercuts the pre-report low three sessions later and reclaims it the next day on a strong close; the 11-09 gap that followed was not an earnings reaction |
-| 7 | VEEV 2019-03-08 | 111.64 (03-04) | 110.23, 1.26%, 0 | 111.65 | 110.18 (1.32%) | 30.8R (1 day) | Same-day U&R: opens under L, trades to 110.23 and closes at 114.54 (DCR 0.96) on 1.4x volume; the level is the low set the week after earnings |
+| 7 | ZS 2019-04-18 | 61.39 (04-04) | 60.02, 2.23%, 0 | 61.40 | 59.97 (2.33%) | 16.9R (2 days) | Same-day U&R: the level is the 04-04 flush low (3.6x volume); the stock opens at 62.27, sells off to 60.02 and closes at 62.73 (DCR 0.97) on 0.93x volume, with the 50-day rising; the buy is L plus a cent as price came back up through the level, not the open; the next report was 05-30 |
 | 8 | QCOM 2020-09-21 | 109.62 (09-08) | 108.30, 1.20%, 0 | 109.63 | 108.25 (1.26%) | 37.3R (1 day) | A two-week flat shelf on the 50-day; same-day undercut and reclaim on 0.85x volume, close 2% above L; the cleanest "quick shakeout below the base" of the set |
-| 9 | STLD 2022-02-24 | 59.95 (02-11) | 59.04, 1.52%, 0 | 60.18 | 58.99 (1.98%) | 33.8R (1 day) | Undercuts the February low intraday and closes 5.5% higher (DCR 0.95); the buy is the open because the stock had already recovered L by the bell, 0.4% over it |
+| 9 | STLD 2022-02-24 | 59.95 (02-11) | 59.04, 1.52%, 0 | 59.96 | 58.99 (1.62%) | 41.7R (1 day) | Undercuts the February low intraday and closes 5.5% higher (DCR 0.95); the day opened at 60.18, 0.4% over L, before the dip, so the buy is L plus a cent as price came back up (the earlier scan filled at that open: 60.18, a 1.98% stop, 33.8R) |
 | 10 | AMD 2024-01-04 | 135.37 (12-20) | 133.74, 1.20%, 1 | 135.38 | 133.69 (1.25%) | 54.4R (1 day) | A two-week pause on the 21-day EMA after a run; one-day poke under the pause low, reclaim the next day, then the 2024 leg up; a 1.25% stop |
 
-Every chart was looked at before it was kept. Charts replaced on sight: MYGN 2008-06-30 (the "undercut" day was a
+Every chart was looked at before it was kept. Rescan of 2026-11-10: STLD was re-derived and re-charted at the new fill, and VEEV 2019-03-08 left the hit list (the rescan's own hit on the same stock on 03-04, an undercut that day to the level the 03-08 buy used, sits inside the 5-session gap after a hit), so ZS 2019-04-18 replaces it as example 7; the other eight are unchanged. Charts replaced on sight: MYGN 2008-06-30 (the "undercut" day was a
 news-driven gap and reversal that closed 13% higher; the L-plus-a-cent fill is not believable there), AVAV 2018-07-30
 (a 0.59% undercut, too subtle to teach, the owner's "a little subtle and hidden"), CAR 2021-09-13, APPN 2020-09-21,
 VKTX 2024-01-04 and MSTR 2020-10-30 (valid, but the moves that followed dwarf the structure so the undercut is
@@ -1247,17 +1263,19 @@ QID, LABD, TECL). A chart note: the long titles are cut at the right edge in the
 table above.
 
 **Notable failures (in words, from the same scan).**
-- **LULU 2020-02-24.** L 242.17, undercut 2.68% the same day, buy at the open 245.39 (1.3% over L), stop 235.64, which
-  is 3.97% from the buy: already over the A13 line, so the house answer was size down or skip. It made 0.52R and was
-  stopped three sessions later (02-27, low 220.21) as the market broke down; 20 sessions later the stock was 172. A
-  correct-looking U&R in a stock means nothing when the index is breaking (8.7, B18).
+- **LULU 2020-02-24.** L 242.17, undercut 2.68% the same day: the day opened at 245.39 (1.3% over L), traded down to
+  235.69 and closed at 246.21. The buy is L plus a cent, 242.18, with the stop at 235.64, which is 2.70% from the buy
+  (rescanned 2026-11-10 with fills at the reclaim; the earlier figures used the open: a buy at 245.39, a 3.97% stop
+  called over the A13 line, and 0.52R). It made 1.26R and was stopped three sessions later (02-27, low 220.21) as the
+  market broke down; 20 sessions later the stock was 172. A correct-looking U&R in a stock means nothing when the index
+  is breaking (8.7, B18).
 - **AMD 2021-09-14.** L 105.52, undercut 2.74%, two closes under, reclaim, buy 105.52, stop 102.58 (2.79%). Reached
   0.42R, stopped four sessions later at 99.51 in the September 2021 pullback, and was back at 105 twenty sessions
   after that. The stop did its job; the lesson is 8.5: a new try needs a new trigger, not a hold through the loss.
 - **NVDA 2024-04-05.** L 87.62, undercut 1.99%, one close under, reclaim, buy 87.63, stop 85.83 (2.05%). Reached
   0.67R and was stopped two sessions later at 83.02 as the April 2024 correction began; the shakeout turned into a
-  three-week pullback. The reclaim day closed in its top half, so even the best-looking reclaim loses about 58% of the
-  time by this scan's count; the edge is in the R multiple of the winners, not the hit rate.
+  three-week pullback. The reclaim day closed in its top half, so even a reclaim like this one fails to reach 3R about 45% of the
+  time by this scan's count (top-half-close reclaims reached 3R 54.7% of the time, rescanned 2026-11-10); the edge is in the R multiple of the winners.
 
 ## 14. Failures and near-misses (from our data)
 
@@ -1268,8 +1286,9 @@ failures, one column), `final/near_1-4.png` (the four near-misses) and `final/pa
 over a textbook 2B), in `_study-resume/scratchpad/setups/29-undercut-rally/` (scratch, not in the repo). Every chart
 carries L, the stop, 3R and 5R and the box from the prior low to the reclaim, so a learner can compare a failure or a
 near-miss with the winners of section 13 at a glance. SPY numbers are the sandbox's own bars. LULU 2020-02-24 from
-section 13 is not re-charted here: its stop was 3.97% from the buy, so it fails ur.stop_width and is not a by-the-rules
-trade; the three failures named there that pass every gate are kept and one more year is added.
+section 13 is not re-charted here: its stop is 2.70% from a buy at L plus a cent (it was 3.97% from the open in the
+earlier scan, which is why it was once set aside), so it now passes ur.stop_width; the three failures named there that
+pass every gate are kept and one more year is added.
 
 **Failures: valid U&Rs, traded by the rules, stopped before 3R.** All four passed every gate the scan can read (above
 the 200-day and the 50-day with the 50-day not falling, a fresh undercut of 1.1% to 2.7% of the 10-session low, a close
@@ -1280,7 +1299,7 @@ back above L within 2 sessions, a stop of 1.6% to 2.8%, $100 million or more a d
 | 1 | TRIP | 2014-07-09 | 102.17 (06-23) | 1.53% / 1 / next day | 102.18 | 100.56 (1.59%) | 07-10, low 100.44, closed 103.35 | The day after the buy dipped 12 cents through the stop and closed back above the entry; the stock then fell anyway, to 91.78 by 08-01 (94.03 twenty sessions after the buy). SPY made no lower low. The stop is the exit, not a hold: the one that shakes you out and then runs is the price of the ones that keep falling. | ur.after_entry_stop |
 | 2 | ADBE | 2018-03-26 | 217.19 (03-09) | 1.11% / 1 / next day | 218.83 (the open, 0.8% over L) | 214.73 (1.87%) | 03-27, open 229.90, low 212.25, close 213.80 | A 5% gap up the next morning sold off all day through the stop; the low of the move came on 04-02 (207.22), the day SPY made a lower low (254.67 under its 257.83 March low). The stock was back at 217.89 twenty sessions on. The index had not turned. | ur.market_turn |
 | 3 | AMD | 2021-09-14 | 105.52 (09-08) | 2.74% / 2 / day 2 | 105.52 | 102.58 (2.79%) | 09-20, low 99.51 | Reached 0.42R, then was stopped on day 4 as SPY made a lower low (428.86 under its 436.12 20-session low); back at 105.04 twenty sessions after the buy. The stop did its job; a new try needs a new trigger, at most 3 a week. | ur.retry |
-| 4 | NVDA | 2024-04-05 | 87.62 (04-02) | 1.99% / 1 / next day | 87.63 | 85.83 (2.05%) | 04-09, low 83.02 | Reached 0.67R, then was stopped on day 2; the shakeout became a three-week pullback to 75.61 (04-19), the day SPY made its lower low (493.86). 88.79 twenty sessions after the buy, from a lower base. The reclaim day had closed in its top half; the best-looking reclaim still loses most of the time. | ur.after_entry_stop |
+| 4 | NVDA | 2024-04-05 | 87.62 (04-02) | 1.99% / 1 / next day | 87.63 | 85.83 (2.05%) | 04-09, low 83.02 | Reached 0.67R, then was stopped on day 2; the shakeout became a three-week pullback to 75.61 (04-19), the day SPY made its lower low (493.86). 88.79 twenty sessions after the buy, from a lower base. The reclaim day had closed in its top half; a top-half-close reclaim still fails to reach 3R about 45% of the time (54.7% reach it, rescanned 2026-11-10). | ur.after_entry_stop |
 
 **Near-misses: charts that look like a U&R and fail exactly one gate.** Each was found by relaxing that one gate in
 the scan and keeping only the hits the strict rule rejects for it; every other gate passed.

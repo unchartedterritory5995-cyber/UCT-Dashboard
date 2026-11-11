@@ -269,7 +269,7 @@
    "gate": true,
    "grade_cue": true,
    "dossier_ref": "8.1 The level; 8.9 Which level",
-   "evidence": "Scan: the age of the level (6 to 15 sessions against over 30) made no difference, 42.3% against 44.1% to 3R. The dossier's check: 5 to 20 sessions old 27.1% against 21 to 60 sessions 26.9%. Sperandeo gives no lookback; nothing in the house sets one (the starterScans note is right)."
+   "evidence": "Scan (rescanned 2026-11-10 with fills at the reclaim): the age of the level (6 to 15 sessions against over 30) made little difference, 55.5% against 59.9% to 3R (was 42.3% against 44.1% with fills at the open). The dossier's check: 5 to 20 sessions old 27.1% against 21 to 60 sessions 26.9%. Sperandeo gives no lookback; nothing in the house sets one (the starterScans note is right)."
   },
   {
    "id": "tb.not_oops",
@@ -350,7 +350,7 @@
    "gate": true,
    "grade_cue": true,
    "dossier_ref": "8.1 Depth; 8.9 How deep",
-   "evidence": "Scan: an undercut of 1% or less (25,434 hits) reached 3R 44.4% and 5R 32.6%; 1% to 2% 41.4% / 28.7%; 2% to 3% 38.4% / 23.9%. The dossier's check: over 5% reached 5R only 7.2% of the time with a median 8.96% stop. Six of UCT's seven named 2Bs undercut by 1.8% to 15.8% (HOOD 15.8%, PLTR 11.3%, RKLB 12.4%); only SPOT and NFLX stayed under 4%."
+   "evidence": "Scan (rescanned 2026-11-10 with fills at the reclaim): an undercut of 1% or less (26,267 hits) reached 3R 64.7% and 5R 55.0%; 1% to 2% 48.6% / 34.8%; 2% to 3% 41.8% / 26.8% (was 44.4% / 32.6%, 41.4% / 28.7%, 38.4% / 23.9% with fills at the open). The dossier's check: over 5% reached 5R only 7.2% of the time with a median 8.96% stop. Six of UCT's seven named 2Bs undercut by 1.8% to 15.8% (HOOD 15.8%, PLTR 11.3%, RKLB 12.4%); only SPOT and NFLX stayed under 4%."
   },
   {
    "id": "tb.reclaim_window",
@@ -391,7 +391,7 @@
    "gate": true,
    "grade_cue": true,
    "dossier_ref": "8.1 Time; 8.9 How soon",
-   "evidence": "Sperandeo 1993: a minor 2B fails within one day or less, an intermediate one within three to five days, a major one within seven to ten days; 1994 adds immediately. Scan: a next-day reclaim (12,143 hits) did best, 47.9% / 33.6%, against 41.0% / 29.6% same day and 39.5% / 26.0% for 2 to 3 days. The dossier's close-entry check: same-day reclaims had tighter stops (1.66% against 3.07%) and more 5R wins (18.6% against 14.8%)."
+   "evidence": "Sperandeo 1993: a minor 2B fails within one day or less, an intermediate one within three to five days, a major one within seven to ten days; 1994 adds immediately. Scan (rescanned 2026-11-10 with fills at the reclaim): a same-day reclaim (28,067 hits) 64.3% / 54.2% with the stop under the day's low, which is known only at the close (a 5-minute check with the stop under the low so far gave 31.0% to 3R), a next-day reclaim (12,149 hits) 47.9% / 33.6% and 39.4% / 26.0% for 2 to 3 days (was 41.0% / 29.6% same day and 39.5% / 26.0% for 2 to 3 days, with the same-day fill at the open). The dossier's close-entry check: same-day reclaims had tighter stops (1.66% against 3.07%) and more 5R wins (18.6% against 14.8%)."
   },
   {
    "id": "tb.reclaim_close",
@@ -447,7 +447,7 @@
    "gate": false,
    "grade_cue": true,
    "dossier_ref": "8.1 Volume; 8.9 Volume; 10 question 8",
-   "evidence": "Sperandeo: the failure usually occurs on low to normal volume. Scan: a quiet break (18,084 hits) 43.0% / 30.8% against 42.3% / 29.3% for a loud one (over 1.5x). The dossier's check: break-day volume under 1.0x reached 5R 19.0%, 1.5x or more 13.9%. The ten examples broke on 0.64x to 1.10x."
+   "evidence": "Sperandeo: the failure usually occurs on low to normal volume. Scan (rescanned 2026-11-10 with fills at the reclaim): a quiet break (18,364 hits) 57.7% / 46.9% against 56.6% / 43.8% for a loud one (over 1.5x) (was 43.0% / 30.8% against 42.3% / 29.3% with fills at the open). The dossier's check: break-day volume under 1.0x reached 5R 19.0%, 1.5x or more 13.9%. The ten examples broke on 0.64x to 1.10x."
   },
   {
    "id": "tb.trigger",
@@ -489,7 +489,7 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.2 Trigger; 8.2 Order; 10 question 4",
-   "evidence": "Scan (the fill at the level plus a cent, or the open when it gapped above): 42.7% to 3R and 30.2% to 5R. The dossier's check with an entry at the reclaim day's close: 27.0%, the same as a random day. The gap between 27% and 43% is mostly the fill: a later, higher fill with the same stop makes R larger and 3R farther away. With a stop a few cents under a shallow undercut, R is often under 1% of price, so slippage matters more here than in any other setup."
+   "evidence": "Scan (rescanned 2026-11-10: the fill at the level plus a cent, or the open when a later session gapped above it): 56.7% to 3R and 45.1% to 5R (was 42.7% and 30.2%, when a same-day reclaim was filled at the day's open). The dossier's check with an entry at the reclaim day's close: 27.0%, the same as a random day. The gap between 27% and 57% is mostly the fill: a later, higher fill with the same stop makes R larger and 3R farther away. With a stop a few cents under a shallow undercut, R is often under 1% of price, so slippage matters more here than in any other setup."
   },
   {
    "id": "tb.tighter_entry",
@@ -532,7 +532,7 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.2 No chasing",
-   "evidence": "The buy point is the broken low. A gap back more than 4% above it is skipped. MKSI 2025-11-21 opened 0.9% above the level, so the market order filled at the open, inside the limit."
+   "evidence": "The buy point is the broken low. A gap back more than 4% above it is skipped. A later session that opens above the level fills at the open (U 2022-04-05 and INTC 2026-03-31 in the examples). A same-day reclaim fills at the level plus a cent, because the undercut comes after the open: MKSI 2025-11-21 opened 138.24, above the 136.95 level, fell to 134.74 and closed 144.00, so the buy is 136.96 (rescanned 2026-11-10; the first scan filled at the open)."
   },
   {
    "id": "tb.never_before_reclaim",
@@ -641,7 +641,7 @@
    "gate": true,
    "grade_cue": true,
    "dossier_ref": "8.3; 10 question 6",
-   "evidence": "The dossier's check: median stop 2.12%, two thirds within 3%; under half within 3% when the reclaim took 1 to 3 days; none when the undercut was over 3%. Scan: a stop under 1% of price (9,932 hits) reached 3R 55.5% against 34.7% for stops over 2%, but a sub-1% stop is the one most exposed to slippage and noise. INTC 2026-03-31: a 3.27% stop, just over the line, so half size or the hourly entry. The register's default for all setups is up to one ADR at a lower grade."
+   "evidence": "The dossier's check: median stop 2.12%, two thirds within 3%; under half within 3% when the reclaim took 1 to 3 days; none when the undercut was over 3%. Scan (rescanned 2026-11-10 with fills at the reclaim): a stop of 1% of price or less (21,826 hits) reached 3R 67.3% against 42.3% for stops over 2% (was 9,932 hits, 55.5% against 34.7%, with fills at the open), but a sub-1% stop is the one most exposed to slippage and noise. INTC 2026-03-31: a 3.27% stop, just over the line, so half size or the hourly entry. The register's default for all setups is up to one ADR at a lower grade."
   },
   {
    "id": "tb.stop_broker",
@@ -674,7 +674,7 @@
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "7 B20 row",
-   "evidence": "NVDA 2024-04-19 opened 83.15 and fell to 75.61, a 9% day through the stop with no warning on the daily chart."
+   "evidence": "NVDA 2024-04-19 opened 83.15 and fell to 75.61, a 9% day through the stop with no warning on the daily chart. Bought at the level plus a cent on 04-18 (83.03), the stop was 82.35, 0.82% away."
   },
   {
    "id": "tb.breakeven",
@@ -992,68 +992,128 @@
   "winners": 10,
   "sheet_dir": "_study-resume/scratchpad/setups/28-2b-reversal/final",
   "base_rate": {
-   "hits": 71881,
-   "long_hits": 44919,
-   "short_hits": 26962,
-   "r3_pct": 42.7,
-   "r5_pct": 30.2,
-   "stopped_pct": 81,
-   "never_1r_pct": 33.6,
-   "median_sessions_to_3r": 3,
-   "short_r3_pct": 39.0,
-   "short_r5_pct": 26.5,
-   "window": "60 sessions forward, fixed stop 5 cents under the undercut low, no trims, no breakeven, no trail, no time stop; 1988-07-12 to 2026-11-06; one hit per name per 20 sessions; the fill at the level plus a cent, or the open on a gap above it; longs above the 200-day, shorts below it"
+   "hits": 74068,
+   "long_hits": 46377,
+   "short_hits": 27691,
+   "r3_pct": 56.7,
+   "r5_pct": 45.1,
+   "stopped_pct": 80.5,
+   "never_1r_pct": 25.5,
+   "median_sessions_to_3r": 1,
+   "median_stop_pct": 1.08,
+   "short_r3_pct": 52.6,
+   "short_r5_pct": 40.8,
+   "short_median_stop_pct": 1.11,
+   "window": "60 sessions forward, fixed stop 5 cents under the undercut low (the day's low for a same-day reclaim, known only at the close), no trims, no breakeven, no trail, no time stop; 1988-07-12 to 2026-11-09 (bars refreshed after the first scan); the fill at the level plus a cent, or the open when a later session gapped above the level (never the open of the break day); longs above the 200-day, shorts below it",
+   "rescanned": "2026-11-10 with fills at the reclaim; the earlier figures used the open",
+   "was": {
+    "hits": 71881,
+    "long_hits": 44919,
+    "short_hits": 26962,
+    "r3_pct": 42.7,
+    "r5_pct": 30.2,
+    "stopped_pct": 81,
+    "never_1r_pct": 33.6,
+    "median_sessions_to_3r": 3,
+    "median_stop_pct": 1.69,
+    "short_r3_pct": 39.0,
+    "short_r5_pct": 26.5,
+    "note": "a same-day reclaim was filled at the day's open when it was above the level"
+   },
+   "same_day_live_stop_check": {
+    "hits": 406,
+    "window": "2026-08-17 to 2026-11-06, 5-minute bars, 1,000 names",
+    "r3_pct_day_low_stop": 60.3,
+    "r3_pct_live_stop": 31.0,
+    "stopped_same_day": 195,
+    "note": "5-minute bars cannot order events inside one bar"
+   }
   },
   "cuts": {
    "next_day_reclaim": {
-    "hits": 12143,
+    "hits": 12149,
     "r3_pct": 47.9,
     "r5_pct": 33.6,
     "same_day": {
-     "r3_pct": 41.0,
-     "r5_pct": 29.6
+     "hits": 28067,
+     "r3_pct": 64.3,
+     "r5_pct": 54.2,
+     "was_r3_pct": 41.0,
+     "was_r5_pct": 29.6
     },
     "two_to_three_days": {
-     "r3_pct": 39.5,
+     "r3_pct": 39.4,
      "r5_pct": 26.0
-    }
+    },
+    "was_hits": 12143
    },
    "quiet_break_at_or_under_50_day_volume": {
-    "hits": 18084,
-    "r3_pct": 43.0,
-    "r5_pct": 30.8,
+    "hits": 18364,
+    "r3_pct": 57.7,
+    "r5_pct": 46.9,
     "loud_over_1_5x": {
-     "r3_pct": 42.3,
-     "r5_pct": 29.3
+     "r3_pct": 56.6,
+     "r5_pct": 43.8
+    },
+    "was": {
+     "hits": 18084,
+     "r3_pct": 43.0,
+     "r5_pct": 30.8,
+     "loud_r3_pct": 42.3,
+     "loud_r5_pct": 29.3
     }
    },
    "undercut_1_pct_or_less": {
-    "hits": 25434,
-    "r3_pct": 44.4,
-    "r5_pct": 32.6,
+    "hits": 26267,
+    "r3_pct": 64.7,
+    "r5_pct": 55.0,
     "one_to_two_pct": {
-     "r3_pct": 41.4,
-     "r5_pct": 28.7
+     "r3_pct": 48.6,
+     "r5_pct": 34.8
     },
     "two_to_three_pct": {
-     "r3_pct": 38.4,
-     "r5_pct": 23.9
+     "r3_pct": 41.8,
+     "r5_pct": 26.8
+    },
+    "was": {
+     "hits": 25434,
+     "r3_pct": 44.4,
+     "r5_pct": 32.6,
+     "one_to_two": [
+      41.4,
+      28.7
+     ],
+     "two_to_three": [
+      38.4,
+      23.9
+     ]
     }
    },
    "stop_under_1_pct_of_price": {
-    "hits": 9932,
-    "r3_pct": 55.5,
-    "r5_pct": 43.5,
+    "hits": 21826,
+    "r3_pct": 67.3,
+    "r5_pct": 58.5,
     "stop_over_2_pct": {
-     "r3_pct": 34.7,
-     "r5_pct": 22.0
+     "r3_pct": 42.3,
+     "r5_pct": 27.6
     },
-    "note": "tight stops pay, when they are real; a sub-1% stop is the most exposed to slippage"
+    "note": "tight stops pay, when they are real; a sub-1% stop is the most exposed to slippage",
+    "was": {
+     "hits": 9932,
+     "r3_pct": 55.5,
+     "r5_pct": 43.5,
+     "over_2_r3_pct": 34.7,
+     "over_2_r5_pct": 22.0
+    }
    },
    "level_age_6_to_15_vs_over_30": {
-    "r3_pct": 42.3,
-    "over_30_r3_pct": 44.1,
-    "note": "no difference"
+    "r3_pct": 55.5,
+    "over_30_r3_pct": 59.9,
+    "note": "little difference",
+    "was": {
+     "r3_pct": 42.3,
+     "over_30_r3_pct": 44.1
+    }
    },
    "close_entry_check_section_4_4": {
     "hits": 72944,
@@ -1090,7 +1150,7 @@
     "ticker": "NVDA",
     "date": "2024-04-18",
     "criterion": "tb.market_washout",
-    "why": "the April 9 low (83.02) undercut by 0.75% on April 17 and reclaimed on the 18th (close 84.67, upper half, stop 82.35); the next day opened 83.15 and fell to 75.61, a 9% day through the stop with no warning on the daily chart; the market and the chip group were still making lower lows."
+    "why": "the April 9 low (83.02) undercut by 0.75% and reclaimed the same day, the 18th (open 84.97, low 82.40, close 84.67, upper half; buy 83.03, stop 82.35, 0.82% away); the next day opened 83.15 and fell to 75.61, a 9% day through the stop with no warning on the daily chart; the market and the chip group were still making lower lows."
    },
    {
     "ticker": "AMD",
@@ -1102,7 +1162,7 @@
     "ticker": "TSLA",
     "date": "2023-08-11",
     "criterion": "tb.reclaim_fails",
-    "why": "the June 26 low (240.70) undercut 1.1% and reclaimed the same day (close 242.65); the next session gapped under the level and the stock fell four more days to 219: a second, deeper break in which the failure had failed."
+    "why": "the June 26 low (240.70) undercut 1.1% and reclaimed the same day (close 242.65; buy 240.71, stop 237.97, 1.14% away); the next session gapped under the level and the stock fell four more days to 219: a second, deeper break in which the failure had failed."
    },
    {
     "ticker": "PYPL",
@@ -1117,7 +1177,7 @@
     "why": "the 30.82 low (06-12) undercut 1.65% and reclaimed the next day; buy 30.83, stop 30.26; the next day's low touched the stop to the cent and the stock was 31.98 twenty sessions later. Out at once; a retry needs a new trigger."
    }
   ],
-  "limits": "No RS rating or group (a leader proxy only in the dossier's check, nothing in the scan), no market reading, no earnings filter beyond the ten examples, no clean lead-in test, no trims. Fill at the level plus a cent is the best case for a market order; R is often under 1% of price, so slippage matters most here. Survivor universe. Nothing here is a published statistic.",
+  "limits": "No RS rating or group (a leader proxy only in the dossier's check, nothing in the scan), no market reading, no earnings filter beyond the ten examples, no clean lead-in test, no trims. Fill at the level plus a cent is the best case for a market order; R is often under 1% of price (23% of long hits have a stop of 0.5% or less), so slippage matters most here. The stop is scored under the undercut's lowest low, which for a same-day reclaim is known only at the close: a 5-minute check of 406 same-day hits gave 60.3% to 3R with that stop and 31.0% with the stop under the low so far at the fill. Survivor universe. Nothing here is a published statistic.",
   "near_misses": [
    {
     "ticker": "DELL",
@@ -1141,7 +1201,7 @@
     "ticker": "META",
     "date": "2026-01-08",
     "criterion": "tb.above_200",
-    "why": "a same-day undercut (0.45%) and reclaim of the 638.61 low with the close 4.2% under the 200-day SMA; the rule is a close above it. Watch only under B26."
+    "why": "a same-day undercut (0.45%) and reclaim of the 638.61 low with the close 4.2% under the 200-day SMA; the rule is a close above it. Watch only under B26. Rescanned 2026-11-10 with the buy at the level plus a cent (638.62, stop 635.67, 0.46%; was 645.88 at the open): it reached 5.5R before the stop, so the gate is about odds, not about this chart."
    }
   ],
   "sheets": {
@@ -1252,17 +1312,17 @@
  ],
  "conflicts": [
   "Which level: any swing low (Sperandeo); the 20-day low (Turtle Soup); the range low (Wyckoff); any known level (UCT). The card takes a 5-session swing low 5 to 60 sessions old with a 1 ATR rally between, plus the owner's named levels (D-101). The glossary's swing low is 5 sessions each side (28, 33) against 3 in 29 and the app.",
-  "How soon: one day for a minor extreme, three to five for an intermediate one, seven to ten for a major one (Sperandeo 1993, 2008); immediately (1994); same day or Plus One (Turtle Soup). The card takes 3 sessions with same or next day graded higher (D-102); the scan found the next-day reclaim best, the close-entry check found the same day best.",
+  "How soon: one day for a minor extreme, three to five for an intermediate one, seven to ten for a major one (Sperandeo 1993, 2008); immediately (1994); same day or Plus One (Turtle Soup). The card takes 3 sessions with same or next day graded higher (D-102); the rescan scores the same-day reclaim best (64.3% to 3R, but with a stop known only at the close; 31.0% in the 5-minute live-stop check) against 47.9% next day, and the close-entry check found the same day best.",
   "How deep: Sperandeo gives no number; Bulkowski within 5%; the card takes 3% from A13. Six of UCT's seven named 2Bs went 1.8% to 15.8% under, so UCT's own examples mostly fail the card's depth and teach the deep-undercut problem (D-005).",
   "Volume: Sperandeo's quiet failure against the draft curriculum's heavy volume as the trapped crowd. Both checks lean Sperandeo's way, weakly (D-006).",
-  "Entry: a stop order at the level (Sperandeo, Turtle Soup); a market order (E57); the next hourly higher low (the owner's AMD note). The scan's fill at the level gives 42.7% to 3R; the close entry 27%, the same as a random day; the edge is the fill and the context, not the shape (D-003).",
+  "Entry: a stop order at the level (Sperandeo, Turtle Soup); a market order (E57); the next hourly higher low (the owner's AMD note). The scan's fill at the level gives 56.7% to 3R (was 42.7% when a same-day reclaim was filled at the open; rescanned 2026-11-10); the close entry 27%, the same as a random day; the edge is the fill and the context, not the shape (D-003).",
   "The stop on a slow reclaim: under the lowest low of the undercut (Sperandeo, F62) or under the day you buy (the owner's Stop at LOD). The same price on a same-day reclaim; the dossier's question 6 (D-005).",
   "RS: Bracco's RS names against C31's mean-reversion exemption. The dossier leans to C31; the register's default puts the washout U&R, not the 2B, in the exempt class (D-011).",
   "The short side: every outside source teaches the 2B top as the mirror; UCT buys a leader's failed breakout (the squat) and only reads failed breakouts on the indexes as warnings. The card allows the short only below the 200-day (B26), and whether to teach it is D-001.",
   "The 200-day: about half of liquid 2B bottoms sit below it and did no worse in the check; B26 is a hard rule and wins. GEV (Bracco's name) and the curriculum's SPY 2011 example were below it (D-009).",
   "Chart IQ's two_b_reversal label (computed, as far as traced not shown) fires on bounces under an already-broken low (only 2.5% first breaks, 57.8% never closed back above); it needs the close back above and a first break before anyone surfaces it, and it has no 2B top though the Model Book card says both (D-004).",
   "The Model Book glyph lacks the prior swing low; the coach prompt calls the 2B high-quality with no source; the draft curriculum's partials at 2R and 3R and size-smallest doctrine are not house rules (D-004, D-010).",
-  "Scan against the dossier's check: 42.7% to 3R with the fill at the level against 27.0% with a close entry on a similar rule. The card quotes both and says why they differ.",
+  "Scan against the dossier's check: 56.7% to 3R with the fill at the level (was 42.7%, with a same-day fill at the open) against 27.0% with a close entry on a similar rule. The card quotes both and says why they differ.",
   "Near the averages and the clean lead-in are the owner's and Bracco's words without numbers; the card borrows the glossary's touch band and the Oops card's bar-size test and says so."
  ]
 }

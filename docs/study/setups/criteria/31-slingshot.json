@@ -963,7 +963,7 @@
    "ss.orderly: range 1.0 to 1.6 ATR, small red bodies, quiet volume, tight ranges before the trigger",
    "ss.trigger_decisive: +3% to +6%, closes at 78% to 99% of its range, no gap, ordinary volume",
    "ss.stop: the trigger low about 3.5% to 6% away, sized down by A5",
-   "ss.market_reading: Green"
+   "ss.market_reading: Green; in Orange only if everything else grades A+ (F65)"
   ],
   "b_minus": [
    "ss.drive: a rally only (COIN, cut), or no earnings drive and no follow-through (BBWI, CBZ)",
@@ -973,9 +973,10 @@
    "ss.pullback_length: a long base (RTX, 10 closes, cut)",
    "ss.trigger_decisive: a gap of 2% or more (TCOM, COIN), a weak close (COIN and INTA at 0.72), a tiny day (PANW +1.5%, B-)",
    "ss.trigger_size: a bigger, news-like day (APP +13% on 2.4x volume, good) is an A or B, not an A+",
-   "ss.market_reading: Orange takes only A+ setups; Red is mostly cash and shorts"
+   "ss.market_reading: Yellow (smaller and fewer)"
   ],
   "no_trade": [
+   "ss.market_reading: Red (mostly cash, plus shorts below the 200-day); Orange below A+",
    "ss.drive_not_trigger: the earnings gap day or the rally day as the trigger",
    "ss.inv_long_or_deep: past 7 closes or deeper than 12%",
    "ss.above_50_200: the trigger close under the 200-day",

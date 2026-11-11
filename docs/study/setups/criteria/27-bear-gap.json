@@ -1350,7 +1350,11 @@
    "r5_pct": 14.2,
    "stopped_pct": 86.6,
    "ran_out_of_window_under_3r": 6,
-   "window": "60 sessions forward, fixed stop two cents over the rejection day's high (up to 5%), no trims, no breakeven, no trail; Version R's rule on all 2,630 liquid names, 1984 to 2026 (first trigger 1997-02-27); the market reading, the RS mirror, the borrow rule and the earnings mirror not applied"
+   "stopped_before_3r": 262,
+   "stopped_after_3r": 49,
+   "stopped_after_5r": 14,
+   "reached_3r_unstopped_at_window_end": 42,
+   "window": "60 sessions forward, fixed stop two cents over the rejection day's high (up to 5%), no trims, no breakeven, no trail; Version R's rule on all 2,630 liquid names, 1984 to 2026 (first trigger 1997-02-27); the market reading, the RS mirror, the borrow rule and the earnings mirror not applied. Of the 359 hits, 311 were stopped at some point in the window (262 before reaching 3R, 49 after reaching 3R, 14 of those after 5R), 42 had reached 3R and were unstopped at the window's end, and 6 ended under 3R unstopped; the groups overlap with the 51 that reached 5R (14 stopped later, 37 not) (corrected 2026-11-10 against the bars)."
   },
   "cuts": {
    "top_15_plus_sessions_before_the_gap": {

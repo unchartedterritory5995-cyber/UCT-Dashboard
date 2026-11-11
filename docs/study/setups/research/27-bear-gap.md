@@ -1278,7 +1278,11 @@ all 2,630 names that ever met the liquidity rule, 1984-2026, in 159 seconds; scr
 `_study-resume/scratchpad/setups/27-bear-gap/` (scratch, not in the repo).
 
 **Base rate.** 359 hits (first trigger 1997-02-27, last 2026-10-19): **25.3% reached 3R** and **14.2% reached 5R**
-before the stop; 311 were stopped, 6 ran out of the 60-session window under 3R. Caveats: a fixed stop with no trims, no
+before the stop. Over the 60 sessions 311 were stopped at some point (262 before ever reaching 3R, 49 after reaching 3R,
+14 of those after reaching 5R), 42 had reached 3R and were still unstopped when the window ended (37 of them past 5R),
+and 6 ended the window under 3R without being stopped (311 + 42 + 6 = 359) (corrected 2026-11-10 against the bars) from the scan's hits.json: the
+earlier text set the 311 stopped and the 51 that reached 5R beside each other as if they were separate groups, but 14 hits
+are in both. Caveats: a fixed stop with no trims, no
 breakeven move and no trail; a survivorship-tilted universe (delisted names are thin in the sandbox); the earnings rule
 (B22 mirror, no new short within 3 days of a report), the RS filter (C31 mirror), the borrow rule (D48) and the market
 reading (8.9) were not applied by the scan. Slices worth his eye (small samples, not conclusions): the top set 15+

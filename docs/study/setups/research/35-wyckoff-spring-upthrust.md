@@ -1060,12 +1060,16 @@ be checked for any of them.
 
 **Notable failures** (all house-legal by the scan's rules; from `final/hits.json`).
 - **TSLA 2025-02-06** (spring, 25-day range 373.04-439.74, 17.9% high, three touches, probe 0.52 ATR, 0.97x volume,
-  stop 2.65%): bought 373.04 at the open, never traded above the entry (best 0.0R), broke the spring low the next day
-  and gapped on. A tall range (near the top of the 6-20% band) after a 73% run in the prior 60 sessions, in a market
+  stop 2.65%): bought 373.04 (the floor: the entry-day open, 370.19, was under it). The entry day's high, 380.55, was
+  7.51 (0.76R) over the fill, but the same bar's low, 360.34, went through the 363.15 stop and the scan counts the stop
+  first, so the best is recorded as 0.0R (corrected 2026-11-10 against the bars): the earlier text said it never traded above the entry. It broke the
+  spring low on the entry day and gapped on. A tall range (near the top of the 6-20% band) after a 73% run in the prior 60 sessions, in a market
   that was turning down; the dossier's own candidate failure, confirmed.
 - **MSFT 2023-08-08** (spring, 40-day range, 13.1% high, three touches, a cents-deep 0.16 ATR probe on 0.76x volume,
-  stop 1.07%): everything the rules ask for, and it was stopped on the third day without ever showing a profit. The
-  lesson is section 8.5's number: a spring that fails usually fails at once, so the stop under the spring low is the
+  stop 1.07%): everything the rules ask for, and it was stopped on the entry day (2023-08-09). The day's high, 327.11,
+  was 0.64 (0.18R) over the 326.47 fill, but the same bar's low, 321.05, went through the 322.97 stop and the scan
+  counts the stop first (best 0.0R) (corrected 2026-11-10 against the bars): the earlier text said it never showed a profit and was stopped on the
+  third day. The lesson is section 8.5's number: a spring that fails usually fails at once, so the stop under the spring low is the
   trade, not a formality.
 - **AAPL 2021-10-01 and QQQ 2021-10-01** (both springs on the same day, both 0.0R): a market-wide shakeout that did
   not finish; the index's own spring failed, and so did the leader's. Wyckoff's step 5 (time the stock with a turn in
@@ -1099,8 +1103,8 @@ best excursion of 0.0R.
 |---|---|---|---|---|---|---|---|---|---|
 | 1 | GOOGL | 2019-05-09 | 40 d, 57.92-64.85, 12.0%, 2 | 0.14 ATR to 57.73, on 0.91x volume / 0 / same day | 58.44 (05-10) | 57.70 (1.27%) | 05-10, low 57.32, closed 58.38 | The entry day dipped through the stop and closed back above the entry; the stock then fell to 51.35 by 06-03 (53.42 twenty sessions on) as SPY made lower lows (279.93 on 05-13, under its 285.81 20-session low). Not a Green market. | spr.market_reading |
 | 2 | AAPL | 2021-10-01 | 60 d, 140.67-157.26, 11.8%, 2 | 0.54 ATR to 139.11, on 1.24x / 0 / same day | 141.76 (10-04) | 139.08 (1.89%) | 10-04, low 138.27, close 139.14 | Stopped on the entry day as SPY made a lower low (426.36 under its 428.78 20-session low); QQQ sprang the same day and failed too (0.0R in the same scan). The index's own spring had not held. It was 149.80 twenty sessions later, from a later base. | spr.index_sprung |
-| 3 | MSFT | 2023-08-08 | 40 d, 324.41-366.78, 13.1%, 3 | 0.16 ATR to 323.00, on 0.76x / 0 / same day | 326.47 (08-09) | 322.97 (1.07%) | 08-09, low 321.05, close 322.23 | A cents-deep probe on light volume, three touches, a 1% stop: everything the rules ask for, and it was stopped on the entry day without ever showing a profit; 311.55 on 08-18, the day SPY made its lower low (433.01). 332.88 twenty sessions on. A spring that fails usually fails at once. | spr.after_entry_stop |
-| 4 | TSLA | 2025-02-06 | 25 d, 373.04-439.74, 17.9%, 3 | 0.52 ATR to 363.18, on 0.97x / 0 / same day | 373.04 (02-07, the open was under the floor; filled at the floor) | 363.15 (2.65%) | 02-07, low 360.34, close 361.62 | Never traded above the entry; broke the spring low on the entry day and gapped on, 250.73 by 03-07 (262.67 twenty sessions on). SPY made no lower low in the next 10 sessions: this one was the stock's own, a 17.9% tall range (near the 20% limit) after a 73% run in the prior 60 sessions. | spr.range_height |
+| 3 | MSFT | 2023-08-08 | 40 d, 324.41-366.78, 13.1%, 3 | 0.16 ATR to 323.00, on 0.76x / 0 / same day | 326.47 (08-09) | 322.97 (1.07%) | 08-09, low 321.05, close 322.23 | A cents-deep probe on light volume, three touches, a 1% stop: everything the rules ask for, and it was stopped on the entry day (the day's high, 327.11, was 0.64 or 0.18R over the fill, but the same bar took the stop and the scan counts the stop first) (corrected 2026-11-10 against the bars); 311.55 on 08-18, the day SPY made its lower low (433.01). 332.88 twenty sessions on. A spring that fails usually fails at once. | spr.after_entry_stop |
+| 4 | TSLA | 2025-02-06 | 25 d, 373.04-439.74, 17.9%, 3 | 0.52 ATR to 363.18, on 0.97x / 0 / same day | 373.04 (02-07, the open was under the floor; filled at the floor) | 363.15 (2.65%) | 02-07, low 360.34, close 361.62 | The entry day's high (380.55) was 0.76R over the 373.04 fill, but the same bar's low (360.34) took the stop, which the scan counts first (best 0.0R) (corrected 2026-11-10 against the bars): the earlier text said it never traded above the entry. It broke the spring low on the entry day and gapped on, 250.73 by 03-07 (262.67 twenty sessions on). SPY made no lower low in the next 10 sessions: this one was the stock's own, a 17.9% tall range (near the 20% limit) after a 73% run in the prior 60 sessions. | spr.range_height |
 
 **Near-misses: charts that look like a spring and fail exactly one gate.** Each was found by relaxing that one gate in
 the scan and keeping only the hits the strict rule rejects for it; every other gate passed. The four are the four tells
@@ -1115,7 +1119,8 @@ length of the range.
 | 4 | NFLX | 2025-09-15 | spr.range_length | The range behind the probe is 19 sessions long (118.24-126.71 from 08-18); the rule is 20 or more. | 118.24 (19 d, 7.2%, 2 touches) / 117.32 (0.33 ATR) / 0 / same day | A U&R of a three-week shelf low (setup 29), not a spring. Buy 120.56 at the 09-16 open, stop 117.29 (2.71%); made 0.87R, stopped; 121.90 twenty sessions on. |
 
 **What the failures have in common.** All four were quiet, shallow probes of a flat range in a leader above its
-200-day, exactly what the card asks for, and all four were stopped on the entry day with a best excursion of 0.0R,
+200-day, exactly what the card asks for, and all four were stopped on the entry day with a best excursion of 0.0R
+(the scan's convention when the bar that took the stop also traded over the fill, as TSLA's and MSFT's did),
 which is section 8.5's number in one picture (41% of springs broke their low before any test came). Three of the four
 (GOOGL, AAPL, MSFT) came while SPY was making, or about to make, a lower low: the index had not sprung, so the stock's
 spring was a shakeout that kept going. TSLA was the stock's own: a tall range near the 20% limit after a 73% run, in

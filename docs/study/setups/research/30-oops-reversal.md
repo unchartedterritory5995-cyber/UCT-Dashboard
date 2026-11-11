@@ -1140,7 +1140,14 @@ gives 132,675 attempts, **31.4% to 3R and 22.3% to 5R**; 53.7% of those attempts
 5-minute check: most failed reclaims are real fills). (2) 3R on a 1.3% stop is about 4% of price, so "reached 3R" here
 is a small move; it says nothing about the house plan's trail or a full position's result. (3) Survivor universe, no
 costs, no slippage, no market filter (B18), an RS proxy rather than RS. (4) The order of prices inside the day is unknown
-on daily bars: some "reclaims" touched c1 before the undercut. Marks inside the scanned set, for the owner's questions
+on daily bars: some "reclaims" touched c1 before the undercut. **Fill rechecked 2026-11-10 (no change to the figures
+above):** the Oops buy is c1 plus a cent and the Oops day always opens UNDER c1, so, unlike the 2B scan, no fill here is
+the day's open (the re-run gave the same entry and stop for all 61,476 hits, and the same 48.2% / 34.9%; the bars
+database had since grown by a few days, 58 more hits). On the 527 Oops hits of the last 60 sessions that the 5-minute bars
+cover (2026-08-17 to 2026-11-06), 62 (12%) first traded over c1 BEFORE the bar that undercut the prior low, and with the
+stop under the low so far at the fill (and a later lower low the same day counting as a stop-out, 69 of the 527) the rate
+to 3R was 40.6% and to 5R 28.8%, against 45.9% and 31.9% with the day's low as the stop; the median stop was 1.32% against
+1.40%. So the daily convention overstates it by about 5 points to 3R. Marks inside the scanned set, for the owner's questions
 in section 10: a Williams open 50.1% to 3R against 46.3% without; a Super close 62.5% against 48.2% overall; a red prior
 day 49.4% against 44.4% for a green one; stops of 1.5% or less 52.0% against 41.5% for stops of 1.5% to 3%; an
 earnings-day Oops (443 cases) 52.1%. These are differences inside a look-ahead sample: direction, not size.

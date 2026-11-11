@@ -1035,9 +1035,12 @@ inside 60 trading days with the fixed stop, not a trade result: the house plan t
 rest (B19, E51, E52), so the realised R would be far lower.
 
 **Notable failures (from the same scan, checked on the bars).**
-- **NVDA, inside day 2024-03-28, bought 2024-04-01 at 91.31, stop 89.14.** It qualified on every rule, but the stock
-  had already closed under its 10-day for a week after the March run (close 90.36 vs 10-day 91.00); the break lasted
-  one day and the stop went on 2024-04-02 (low 87.62). Lesson: an inside day inside a stall under the 10-day is a pause
+- **NVDA, inside day 2024-03-28, bought 2024-04-01 at 91.31, stop 89.14.** It qualified on every rule, but the signal day
+  sat under its 10-day: the stock closed above the 10-day SMA from 2024-03-19 to 2024-03-26, then under it on 03-27 and
+  03-28 (close 90.36 vs 10-day 91.00), and every close from 03-27 to 04-10 (ten sessions) stayed under it. The stop
+  went on 2024-04-02 (low 87.62). It was still over its 21-day EMA (90.36 vs 87.72), so the card's 21-EMA rule
+  (id.inv_close_under_21) did not stop it. (corrected 2026-11-10 against the bars): the earlier text said it had been under the 10-day for a week
+  and that the break lasted one day. Lesson: an inside day inside a stall under the 10-day is a pause
   in a range, not a continuation; prefer the ones that sit at or over a rising 10-day.
 - **TSLA, inside day 2021-01-13, bought 2021-01-14 at 286.83, stop 277.28.** Passed C29 by a hair (9.1% over the
   10-day) but was 17% over the 21 EMA after a vertical January; stopped the next session (low 273.03 on 2021-01-15).
@@ -1078,7 +1081,7 @@ relaxed to a band just outside the rule, keeping the bars that fail one gate onl
 |---|---|---|---|---|
 | MSFT | 2024-02-08, bought 2024-02-09 | id.shape | the high is 0.30% above the prior day's high; the low is 1.26% inside | a narrow-range day after a breakout, not an inside day (id.nr_day_not_inside). Bought over its high it went 1.7R, which says nothing about the rule |
 | AMZN | 2025-10-15, bought 2025-10-16 | id.trend_21 | the close is 2.9% under the 21-day EMA and the EMA fell 0.9% over 5 sessions | an inside day inside a pullback under the fast averages, 0.6% over the 200-day; closer to a reclaim setup (13) than a continuation. Stopped |
-| QCOM | 2020-08-04, bought 2020-08-05 | id.not_stretched | the close is 13.0% over the 10-day SMA; the rule is 10% or less | an inside day three sessions after the 2020-07-30 earnings gap (92.08 to 102.42 at the open); the pause came too high. Stopped |
+| QCOM | 2020-08-04, bought 2020-08-05 | id.not_stretched | the close is 13.0% over the 10-day SMA (but about 9.7% over the 10-day EMA, which would pass: the answer flips on D-017); the rule is 10% or less (corrected 2026-11-10 against the bars) | an inside day three sessions after the 2020-07-30 earnings gap (92.08 to 102.42 at the open); the pause came too high. Stopped |
 | AAPL | 2017-08-01, bought 2017-08-02 | id.gap_over | the next open was 6.0% over the inside day's high; the rule is 4% or less | an earnings gap (report 2017-08-01 after the close): a gap trade (setup 21), not an inside-day buy. The stop under the inside day's low would be 6.95% away |
 
 **What the failures have in common.** Every one was stopped on the first session after the entry, and in all four the

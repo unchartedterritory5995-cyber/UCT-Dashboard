@@ -347,8 +347,8 @@
   {
    "id": "o_mktr",
    "source": "c1",
-   "quote": "Green or Yellow market; in Orange only an A+ Oops. The best days are market-wide gap downs that reverse, when leaders print Oops together.",
-   "claim": "Green or Yellow market; in Orange only an A+ Oops."
+   "quote": "Green or Yellow market; in Orange only an A+ Oops; Red: mostly cash, plus shorts below the 200-day. The best days are market-wide gap downs that reverse, when leaders print Oops together.",
+   "claim": "Green or Yellow market; in Orange only an A+ Oops; Red is mostly cash, plus shorts below the 200-day. Best days: market-wide gap downs that reverse."
   },
   {
    "id": "o_ord2",
@@ -1597,7 +1597,7 @@
    ],
    "wrong": {
     "Take it at full size": "Full risk is for Green.",
-    "Pass, only Green allows it": "Orange allows an A+. Red allows none.",
+    "Pass, only Green allows it": "Orange allows an A+. Red is mostly cash.",
     "Short the market instead": "Red is mostly cash and shorts. Orange still allows an A+ long."
    },
    "house": true
@@ -2260,7 +2260,8 @@
   "UNITS-method SET.25 reads 'the gap-open 2B: gap below the prior low, close back above it; same entry and stop logic' and teaches 'place the stop under the gap low'. This unit follows the criteria card (D-004: the main Oops need not gap below the low); the unit id SET.25 comes from the brief.",
   "The chart questions (q60 ADBE asof 2018-05-02, q61 HD asof 2025-09-12) show the member's own chart up to the day before the Oops day (the decision is made during the next session). The keys rest on the dossier's reads (dADBE, dADBEn, dHD, dHDn), not on the picture. HD is a near-miss that fails exactly one gate, the pullback.",
   "Radge's two posts refused the research's first pass and loaded in its cold check; the quote checker may report them unreachable.",
-  "Cold check 2026-11-10: 60 pass (9 fixed), 0 fix, 6 cut (counting the 3 walk-throughs). The three things the owner should look at first: (1) the Oops entry (oops.trigger, D-003 pending): the walk-throughs, q08, q27 and q31 now say 'our scans buy as it trades back over the prior close' and no question marks the close or the next open as wrong because of when you buy; if he picks the close they need a second look. (2) the card's grading contradicts its own market gate: Orange or Red is listed as B- (and an A+ needs Green) while the gate says 'Green or Yellow, Orange only for an A+'; q38 and q41 follow the gate and F65. (3) the dossier says V 2019-08-13 'never traded above the entry'; the bars show 178.92 on the entry day, so that line is wrong (q59 cut). The card also puts a swing low bounced 5% under U&R while the 2B card calls it a 2B; q47 now uses a rising 50-day average, which both cards call a U&R. Cuts: q07 (same as q41), q11 (same as q10), q52 (same as q61), q58 (same as q55), q59 (same as q42 and wrong), q62 (same as q49). Stays consistent with SET.44 q64 (same three tests) and SET.24 q46 to q48. Chart bars: ADBE 2018-05-02 has 5,859 daily bars up to it and HD 2025-09-12 has 7,710, well over 120. Pending-owner criteria stay out of every key (williams_open, timeframe_daily, above_200 beyond B26, leader, liquidity beyond B23, trigger, stop_width, breakeven, low_never_breaks)."
+  "Cold check 2026-11-10: 60 pass (9 fixed), 0 fix, 6 cut (counting the 3 walk-throughs). The three things the owner should look at first: (1) the Oops entry (oops.trigger, D-003 pending): the walk-throughs, q08, q27 and q31 now say 'our scans buy as it trades back over the prior close' and no question marks the close or the next open as wrong because of when you buy; if he picks the close they need a second look. (2) the card's grading contradicts its own market gate: Orange or Red is listed as B- (and an A+ needs Green) while the gate says 'Green or Yellow, Orange only for an A+'; q38 and q41 follow the gate and F65. (3) the dossier says V 2019-08-13 'never traded above the entry'; the bars show 178.92 on the entry day, so that line is wrong (q59 cut). The card also puts a swing low bounced 5% under U&R while the 2B card calls it a 2B; q47 now uses a rising 50-day average, which both cards call a U&R. Cuts: q07 (same as q41), q11 (same as q10), q52 (same as q61), q58 (same as q55), q59 (same as q42 and wrong), q62 (same as q49). Stays consistent with SET.44 q64 (same three tests) and SET.24 q46 to q48. Chart bars: ADBE 2018-05-02 has 5,859 daily bars up to it and HD 2025-09-12 has 7,710, well over 120. Pending-owner criteria stay out of every key (williams_open, timeframe_daily, above_200 beyond B26, leader, liquidity beyond B23, trigger, stop_width, breakeven, low_never_breaks).",
+  "Requoted 2026-11-10: o_mktr after the cards' market-reading rows were corrected."
  ],
  "verify": {
   "w1": {
@@ -2505,9 +2506,9 @@
   },
   "q38": {
    "status": "pass",
-   "notes": "oops.market_reading settled (F65). OWNER: the card's grading lists Orange or Red as B- while an A+ needs Green, so an Orange Oops can never be an A+.",
-   "fixed": false,
-   "by": "checker"
+   "notes": "oops.market_reading settled (F65). OWNER: the card's grading lists Orange or Red as B- while an A+ needs Green, so an Orange Oops can never be an A+. Requoted 2026-11-10: wrong note said 'Red allows none'; now 'Red is mostly cash'. Key holds (Orange: A+ only).",
+   "fixed": true,
+   "by": "requoter"
   },
   "q39": {
    "status": "pass",
@@ -2523,9 +2524,9 @@
   },
   "q41": {
    "status": "pass",
-   "notes": "F65 / D46 settled. OWNER: the card's grading puts a Red market at B-, not no-trade, which conflicts with the gate 'Green or Yellow'.",
-   "fixed": false,
-   "by": "checker"
+   "notes": "F65 / D46 settled. OWNER: the card's grading puts a Red market at B-, not no-trade, which conflicts with the gate 'Green or Yellow'. Requoted 2026-11-10: quote now carries the Red rule verbatim; key and why already said mostly cash, plus shorts below the 200-day. No text change.",
+   "fixed": true,
+   "by": "requoter"
   },
   "q42": {
    "status": "pass",
@@ -2613,9 +2614,9 @@
   },
   "q56": {
    "status": "pass",
-   "notes": "Why ended 'Orange allows an A+ only', which implies the reading was Orange; the scan has no market reading (card limits) and the dossier says only 'not Green'. Removed. Bars: SPY 2025-03-10 low 555.59 is under the 570.12 20-session low, so the index was making a lower low on the day UBER was stopped. Voice: 'the band' (a house word) replaced by 'the 3% to 12% range'. Unger quote w2 (used by q05, q26, q54) confirmed on the live page (curly apostrophe only).",
+   "notes": "Why ended 'Orange allows an A+ only', which implies the reading was Orange; the scan has no market reading (card limits) and the dossier says only 'not Green'. Removed. Bars: SPY 2025-03-10 low 555.59 is under the 570.12 20-session low, so the index was making a lower low on the day UBER was stopped. Voice: 'the band' (a house word) replaced by 'the 3% to 12% range'. Unger quote w2 (used by q05, q26, q54) confirmed on the live page (curly apostrophe only). Requoted 2026-11-10: quote now carries the Red rule; the item only needs 'not Green'. No text change.",
    "fixed": true,
-   "by": "checker"
+   "by": "requoter"
   },
   "q57": {
    "status": "pass",
@@ -2655,9 +2656,9 @@
   },
   "q63": {
    "status": "pass",
-   "notes": "o_mktr / best_conditions, part of the settled oops.market_reading line.",
-   "fixed": false,
-   "by": "checker"
+   "notes": "o_mktr / best_conditions, part of the settled oops.market_reading line. Requoted 2026-11-10: quote now ends the Red rule before the best-days sentence; key (True) holds. No text change.",
+   "fixed": true,
+   "by": "requoter"
   }
  }
 }

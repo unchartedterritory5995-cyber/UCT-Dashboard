@@ -831,7 +831,16 @@
   {
    "id": "oops.market_reading",
    "field": "context",
-   "statement": "Green or Yellow market; in Orange only an A+ Oops. The best days are market-wide gap downs that reverse, when leaders print Oops together.",
+   "statement": "Green or Yellow market; in Orange only an A+ Oops; Red: mostly cash, plus shorts below the 200-day. The best days are market-wide gap downs that reverse, when leaders print Oops together.",
+   "measure": {
+    "what": "the app's market reading on the trigger day",
+    "op": "in",
+    "value": [
+     "Green",
+     "Yellow",
+     "Orange (A+ only)"
+    ]
+   },
    "glossary": "market_reading",
    "basis": "house rule",
    "sources": [
@@ -855,7 +864,7 @@
    "oops.williams_open: opens below the prior low, closes in the top tenth of the range, ideally over the prior high (oops.super_oops)",
    "oops.day_size: range 1 to 2.5 ATR, a clear but technical candle",
    "oops.earnings_window: not near a report",
-   "oops.market_reading: Green, or a market-wide shakeout that reverses the same day",
+   "oops.market_reading: Green, or a market-wide shakeout that reverses the same day; in Orange only if everything else grades A+ (F65)",
    "oops.stop_width: within 3% on the reclaim entry (9 of his 10 graded models)",
    "oops.after_entry_stop: follows through within 1 to 5 sessions and never returns to the Oops low (SHOP 2026-09-28)"
   ],
@@ -868,10 +877,11 @@
    "oops.scanner_oops: opens just under the prior close, a tiny undercut, closes barely over c1 (TVTX, a little subtle and hidden)",
    "oops.day_size: over 3 ATR or news-sized (FIP, a pass)",
    "oops.earnings_day_lower: on an earnings day (MATX, meh)",
-   "oops.market_reading: Orange or Red",
+   "oops.market_reading: Yellow (smaller and fewer)",
    "oops.time_stop: slow (ANET); sideways for 10 days"
   ],
   "no_trade": [
+   "oops.market_reading: Red (mostly cash, plus shorts below the 200-day); Orange below A+",
    "oops.above_200: under the 200-day",
    "oops.inv_no_reclaim: the day never trades back above the prior close after the undercut",
    "oops.trigger: the touch of the prior close before the undercut happened",
@@ -961,6 +971,23 @@
     "closed_back_under_c1_pct": 53.7,
     "of_those_reached_3r_pct": 16.8,
     "note": "the same rule with the close condition replaced by the high reaching the prior close: every fill a reclaim buyer would have taken; the truth sits between the two, nearer this one"
+   },
+   "fill_check": {
+    "checked": "2026-11-10",
+    "result": "no change: the fill is the prior close plus a cent and the Oops day always opens under it, so no fill is the day's open; the re-run gave the same entry and stop for all 61,476 hits and the same 48.2% / 34.9% (58 more hits from newer bars)",
+    "intraday_check": {
+     "hits": 527,
+     "window": "2026-08-17 to 2026-11-06, 5-minute bars",
+     "first_cross_before_undercut_bar": 62,
+     "stopped_same_day_live_stop": 69,
+     "r3_pct_day_low_stop": 45.9,
+     "r5_pct_day_low_stop": 31.9,
+     "r3_pct_live_stop": 40.6,
+     "r5_pct_live_stop": 28.8,
+     "median_stop_pct_day_low": 1.4,
+     "median_stop_pct_live": 1.32,
+     "note": "5-minute bars cannot order events inside one bar"
+    }
    }
   },
   "cuts": {
@@ -1063,7 +1090,7 @@
     "why": "a Super Oops (close 216.97 over the 213.65 prior high) with a 1.52% stop; the next day opened 216.52 and sold through the stop to 208.07. The Super close is a grade mark, not a guarantee."
    }
   ],
-  "limits": "Daily bars only (the order of prices inside the day is unknown; some reclaims touched the prior close before the undercut); the scanned base rate is the look-ahead version; 3R on a 1.3% stop is about 4% of price; earnings dates thin before 2005; an RS proxy, not RS; no market reading; survivor universe; no costs. Nothing here is a published statistic.",
+  "limits": "Daily bars only (the order of prices inside the day is unknown; some reclaims touched the prior close before the undercut; a 5-minute check of 527 recent hits found 12% did, and scoring with the stop under the low so far gave 40.6% to 3R against 45.9%); the scanned base rate is the look-ahead version; 3R on a 1.3% stop is about 4% of price; earnings dates thin before 2005; an RS proxy, not RS; no market reading; survivor universe; no costs. Nothing here is a published statistic.",
   "near_misses": [
    {
     "ticker": "GOOGL",

@@ -734,7 +734,7 @@
   {
    "id": "rg.market_reading",
    "field": "context",
-   "statement": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: shorts only, below the 200-day.",
+   "statement": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
    "glossary": "market_reading",
    "basis": "house rule",
    "sources": [],
@@ -752,7 +752,7 @@
      "Yellow",
      "Orange"
     ],
-    "note": "Red: shorts only, below the 200-day"
+    "note": "Red: mostly cash, plus shorts below the 200-day"
    }
   },
   {
@@ -889,7 +889,7 @@
    "rg.index_gap_down: the market gapped down too and got bought",
    "rg.inv_close_back_under: the day closes above the prior close in the top third of its range and the next day holds the red-to-green day's low (known after the buy; use it to grade examples and judge the hold)",
    "rg.stop_width: stop 1% to 2.5% under the entry",
-   "rg.market_reading: Green"
+   "rg.market_reading: Green; in Orange only if everything else grades A+ (F65)"
   ],
   "b_minus": [
    "rg.support_tag: not at a level, in the middle of nowhere",
@@ -901,7 +901,7 @@
    "rg.earnings_window: earnings within 3 sessions",
    "rg.stop_width: a stop over 3%",
    "rg.gap_ceiling: a big news gap down",
-   "rg.market_reading: Yellow or Orange"
+   "rg.market_reading: Yellow (smaller and fewer)"
   ],
   "no_trade": [
    "rg.above_200: below the 200-day",
@@ -910,7 +910,7 @@
    "rg.trigger: buying under the line in anticipation",
    "rg.tries: the third failed attempt in a week",
    "rg.liquidity: under $10 or under $20 million a day",
-   "rg.market_reading: Red"
+   "rg.market_reading: Red; Orange below A+"
   ]
  },
  "lookalikes": [

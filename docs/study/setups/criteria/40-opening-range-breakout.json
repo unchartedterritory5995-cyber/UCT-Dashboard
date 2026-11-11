@@ -778,7 +778,16 @@
   {
    "id": "orb.market_reading",
    "field": "context",
-   "statement": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: shorts only.",
+   "statement": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
+   "measure": {
+    "what": "the app's market reading on the trigger day",
+    "op": "in",
+    "value": [
+     "Green",
+     "Yellow",
+     "Orange (A+ only)"
+    ]
+   },
    "glossary": "market_reading",
    "basis": "house rule",
    "sources": [],
@@ -1023,7 +1032,7 @@
    "orb.orh_vs_pdh: the ORH at or above the prior day's high and a key daily level",
    "orb.stop_width: stop 2% or less",
    "orb.reversal_warning: a quick, clean break that holds above the ORH for about 15 minutes (Bysshe's half-the-range-time rule)",
-   "orb.market_reading: Green, with the indexes also taking out their opening ranges (orb.index_orb)",
+   "orb.market_reading: Green, with the indexes also taking out their opening ranges (orb.index_orb); in Orange only if everything else grades A+ (F65)",
    "orb.contraction_before: an inside day, NR7 or tight base the day before",
    "orb.valid_all_session: an early trigger, by about 10:30 (the scan's one window said the opposite; see conflicts)"
   ],
@@ -1037,7 +1046,7 @@
    "orb.reversal_warning: a big-volume reversal at the ORH already printed",
    "orb.orh_vs_pdh: the ORH below the prior day's high or into nearby resistance",
    "orb.valid_all_session: a trigger late in the day",
-   "orb.market_reading: Yellow or Orange"
+   "orb.market_reading: Yellow (smaller and fewer)"
   ],
   "no_trade": [
    "orb.parent_setup: no daily setup behind it",
@@ -1049,7 +1058,7 @@
    "orb.earnings_window: a report within 3 sessions",
    "orb.liquidity: under $10 or under $20 million a day",
    "orb.inv_range_low_first: the 30-minute low traded first",
-   "orb.market_reading: Red"
+   "orb.market_reading: Red; Orange below A+"
   ]
  },
  "lookalikes": [

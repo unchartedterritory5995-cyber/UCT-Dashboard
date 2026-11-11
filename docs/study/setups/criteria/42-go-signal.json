@@ -163,7 +163,15 @@
   {
    "id": "go.market_reading",
    "field": "context",
-   "statement": "A Green market reading. Orange: A+ only. Red: none.",
+   "statement": "A Green market reading. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
+   "measure": {
+    "what": "the app's market reading on the trigger day",
+    "op": "in",
+    "value": [
+     "Green",
+     "Orange (A+ only)"
+    ]
+   },
    "glossary": "market_reading",
    "basis": "house rule",
    "sources": [
@@ -1037,7 +1045,7 @@
  ],
  "grading": {
   "a_plus": [
-   "go.leadership: a true leader (RS 90+ on his rating) in a hot group, after a catalyst or a big move (go.already_moved); the market Green (go.market_reading)",
+   "go.leadership: a true leader (RS 90+ on his rating) in a hot group, after a catalyst or a big move (go.already_moved); the market Green (go.market_reading); in Orange only if everything else grades A+ (F65)",
    "go.at_support: a quiet, tight pullback into the rising 20-day EMA (or the 9 EMA in a fast leader); go.hourly_flag: a tight hourly flag with a higher low",
    "go.open_shape: a gap down or a quick flush under the prior day's low or the flag low into the 20-day line, and a strong green hourly candle back above the prior close in the first candle (go.reclaim_window), on rising volume (go.volume)",
    "go.stop_width: a stop of 2% or less under the day's low; the day closes in the top of its range; it moves within days (his minimum 3-7 day burst)"
@@ -1047,7 +1055,7 @@
    "go.hourly_flag: a choppy flag",
    "go.reclaim_window: the turn only in the second candle, and weak",
    "go.stop_width: a stop near or over 3%",
-   "go.market_reading: a Yellow or Orange market",
+   "go.market_reading: a Yellow market (smaller and fewer)",
    "go.liquidity: a thin or cheap stock; the day closes weak (go.close_under_pc_warning)"
   ],
   "no_trade": [
@@ -1057,7 +1065,7 @@
    "go.no_chase: more than 4% over the prior close; go.not_stretched: more than 10% over the 10-day",
    "go.earnings_window: a report within 3 sessions",
    "go.liquidity: under $10 or under $20 million a day (GIC, VGZ)",
-   "go.market_reading: Red"
+   "go.market_reading: Red; Orange below A+"
   ]
  },
  "lookalikes": [
@@ -1106,7 +1114,7 @@
   "setup": "43-red-to-green",
   "note": "A downside go signal (green to red), D47 mirrored: below the 200-day SMA only (B26), RS 20 or less (C31 mirror), a stock that has fallen and bounced into resistance (a falling 20-day EMA, the 50-day, a bearish gap); the first hourly candle trades above the prior close and an hourly candle closes back under it by the second candle; short at market; stop a few cents over the session high. The journal already has a Green to Red tag. He was not interested ('Maybe a downside go signal but who cares'); the dossier recommends teaching it only as the mirror in one lesson or leaving it out, as he decides (D-001; question 13). Leveraged inverse ETFs (E54) are another way UCT expresses it (Bracco's SOXS). Never short a green to red in a leader above the 200-day: in his Go Signal that move is the shakeout before the long."
  },
- "best_conditions": "A Green market reading (B18, F65). The best Go Signals come when the index itself is pulling back to its 20-day line and gets bought: his 22 Jun 2025 plan makes the index gap down bought the signal to execute on the focus list. After a correction, start with a few (F68). In Orange, A+ only; in Red, none.",
+ "best_conditions": "A Green market reading (B18, F65). The best Go Signals come when the index itself is pulling back to its 20-day line and gets bought: his 22 Jun 2025 plan makes the index gap down bought the signal to execute on the focus list. After a correction, start with a few (F68). In Orange, A+ only; in Red, mostly cash, plus shorts below the 200-day.",
  "management": {
   "trim_1": "a third at 3R (B19)",
   "trim_2": "a third at 5R (E51)",

@@ -520,14 +520,14 @@
   {
    "id": "dMKSI",
    "source": "d1",
-   "quote": "MKSI | 2025-11-21 | long | 136.95 (2025-11-04, 13) | 1.61% / 0 / 0.67x | 138.24 | 134.69 (2.57%) | 37.1R (1)",
-   "claim": "MKSI, trigger 2025-11-21: level 136.95 (2025-11-04, 13 sessions old); undercut 1.61%; buy 138.24 at the open, stop 134.69 (2.57%); 3R on day 1."
+   "quote": "MKSI | 2025-11-21 | long | 136.95 (2025-11-04, 13) | 1.61% / 0 / 0.67x | 136.96 | 134.69 (1.66%) | 58.6R (1)",
+   "claim": "MKSI, trigger 2025-11-21: level 136.95 (2025-11-04, 13 sessions old); undercut 1.61%; buy 136.96, the level plus a cent; stop 134.69 (1.66%); 3R on day 1."
   },
   {
    "id": "dMKSIn",
    "source": "d1",
-   "quote": "the next session opened 0.9% above the level, so the market order filled at the open (138.24), inside the 4% chase limit",
-   "claim": "MKSI: the next session opened 0.9% above the level, so the market order filled at the open, inside the 4% chase limit."
+   "quote": "the day opened at 138.24, above the level, fell to 134.74 (1.6% under), and closed back above at 144.00, so the market order fills as price comes back up through the level (136.96), not at the open",
+   "claim": "MKSI: the day opened at 138.24, fell to 134.74 and closed at 144.00 in one session, so the buy is the level plus a cent, 136.96, not the open."
   },
   {
    "id": "dPYPL",
@@ -562,8 +562,8 @@
   {
    "id": "dTSLA",
    "source": "d1",
-   "quote": "TSLA | 2023-08-11 | 240.70 (06-26) | 1.11% / 0 / same day | 241.77 | 237.97 (1.57%)",
-   "claim": "TSLA, 2023-08-11: level 240.70, undercut 1.11%, reclaimed the same day; buy 241.77, stop 237.97 (1.57%)."
+   "quote": "TSLA | 2023-08-11 | 240.70 (06-26) | 1.11% / 0 / same day | 240.71 (the level plus a cent; was 241.77) | 237.97 (1.14%)",
+   "claim": "TSLA, 2023-08-11: level 240.70, undercut 1.11%, reclaimed the same day; buy 240.71, the level plus a cent; stop 237.97 (1.14%)."
   },
   {
    "id": "dTSLAn",
@@ -574,8 +574,8 @@
   {
    "id": "dNVDA",
    "source": "d1",
-   "quote": "NVDA | 2024-04-18 | 83.02 (04-09) | 0.75% / 0 / same day | 84.97 | 82.35 (3.08%)",
-   "claim": "NVDA, 2024-04-18: level 83.02, undercut 0.75%, reclaimed the same day; buy 84.97, stop 82.35 (3.08%)."
+   "quote": "NVDA | 2024-04-18 | 83.02 (04-09) | 0.75% / 0 / same day | 83.03 (the level plus a cent; was 84.97) | 82.35 (0.82%)",
+   "claim": "NVDA, 2024-04-18: level 83.02, undercut 0.75%, reclaimed the same day; buy 83.03, the level plus a cent; stop 82.35 (0.82%)."
   },
   {
    "id": "dNVDAn",
@@ -586,8 +586,8 @@
   {
    "id": "dNVDAw",
    "source": "d1",
-   "quote": "The stop was already 3.08% from the entry, over the A13 line.",
-   "claim": "NVDA: the stop was already 3.08% from the entry, over the 3% line."
+   "quote": "the undercut and the reclaim were both on 04-18, which opened at 84.97, so the buy is the level plus a cent as price came back up, 83.03, with the stop 0.82% under it",
+   "claim": "NVDA: the undercut and the reclaim were both on 04-18, so the buy is 83.03, the level plus a cent, with the stop 0.82% under it."
   },
   {
    "id": "dDELL",
@@ -636,6 +636,12 @@
    "source": "d1",
    "quote": "A 2B shape in a stock below its 200-day: watch only under B26",
    "claim": "META was a 2B shape under its 200-day: watch only under B26."
+  },
+  {
+   "id": "dMETAr",
+   "source": "d1",
+   "quote": "It paid here, so the lesson is about odds under B26, not about this chart.",
+   "claim": "META: this one paid, so the 200-day rule is about odds, not about this chart."
   },
   {
    "id": "dPLTR",
@@ -2097,11 +2103,12 @@
    ],
    "story": "A same-day undercut and reclaim of a 638.61 low. The close is 4.2% under the 200-day average.",
    "answer": "The close is under the 200-day",
-   "why": "The close is under the 200-day. It closed 4.2% below it. No longs below the 200-day. That was META on 2026-01-08.",
+   "why": "The close is under the 200-day. It closed 4.2% below it. No longs below the 200-day. This one paid, so the rule is about odds, not META on 2026-01-08.",
    "lesson_line": "A 2B shape under the 200-day is watch only.",
    "facts": [
     "dMETA",
     "dMETAn",
+    "dMETAr",
     "h10"
    ],
    "wrong": {
@@ -2153,7 +2160,7 @@
     "The undercut was shallow",
     "The volume was light"
    ],
-   "story": "You bought the same-day reclaim of the 240.70 low. Your stop is 237.97, a few cents under the undercut low. The next session opens at 235.70.",
+   "story": "You bought the same-day reclaim of the 240.70 low at 240.71. Your stop is 237.97, a few cents under the undercut low. The next session opens at 235.70.",
    "answer": "The open traded under the new low",
    "why": "The open traded under the new low. After the 2023-08-11 reclaim, TSLA opened at 235.70, under the stop. The failure failed.",
    "lesson_line": "A trade under the new low is the exit, at once.",
@@ -2182,10 +2189,10 @@
     "The reclaim day closed low",
     "The low was too young"
    ],
-   "story": "NVDA reclaimed the same day at 84.97 with the stop at 82.35. The next day it fell to 75.61 as the index made a lower low.",
+   "story": "NVDA reclaimed the same day at 83.03 with the stop at 82.35. The next day it fell to 75.61 as the index made a lower low.",
    "answer": "Stop over 3% in a falling market",
-   "why": "The stop was already 3.08% away and the market was falling. NVDA fell 10% the day after its 2024-04-18 reclaim. Pass in that market.",
-   "lesson_line": "A wide stop in a falling market is two warnings at once.",
+   "why": "Cut, kept for the record. The stop was only 0.82% away, so it was never a wide-stop trade. NVDA fell 10% the day after its 2024-04-18 reclaim in a falling market.",
+   "lesson_line": "Cut: the stop-width premise did not survive the rescan.",
    "facts": [
     "dNVDA",
     "dNVDAn",
@@ -2271,7 +2278,7 @@
    ],
    "answer": "Take it; same-day reclaim, strong close",
    "why": "Take it. The stock undercut a nine-session-old low and reclaimed it the same session, closing in the top 6% of its range. 3R came the next day.",
-   "lesson_line": "A same-day reclaim with a strong close is the cleanest version.",
+   "lesson_line": "A strong close on the reclaim day is the sign to look for.",
    "facts": [
     "dQCOM",
     "dQCOMn",
@@ -2374,13 +2381,14 @@
   "Sperandeo's time rule (one day or less for a minor extreme, three to five days for an intermediate one) is the originator's, not ours; q44 asks what he says, and the unit's own limit is the card's 3 sessions (tb.inv_no_reclaim, proposed).",
   "Reversal or exit signal: Sperandeo calls the 2B a trend reversal; Bulkowski presents the 2B top as a way of exiting a long. UCT trades the 2B bottom as a leader's dip that resumes the uptrend. The unit teaches ours.",
   "Overlap with the Oops (SET.25) and the U&R: every discriminate item (q46 to q53) separates them by the cards' measurable tells: the age of the broken low (yesterday's low against a swing low at least 5 sessions old), how many closes under (a 2B reclaims within 3 sessions, five or more closes under is a Remount) and the level (a swing low against a rising average or a range floor). The draft curriculum calls the Oops the gap-open variant of the identical mechanics; that is not used here.",
-  "The dossier's example numbers (d1, d2) are read off our own daily bars by the research scan, not a public page; buy = the broken low plus a cent (or the open when it gapped over the level), stop = 5 cents under the lowest low of the undercut. The 2B has no live scanner; the examples are the dossier's own replay. Check the stored INTC prices before use (the dossier says so); INTC is not used here.",
+  "The dossier's example numbers (d1, d2) are read off our own daily bars by the research scan, not a public page; buy = the broken low plus a cent (or the open when a LATER session gapped over the level, never the open of the break day, which the first scan wrongly used until the 2026-11-10 rescan), stop = 5 cents under the lowest low of the undercut. The 2B has no live scanner; the examples are the dossier's own replay. Check the stored INTC prices before use (the dossier says so); INTC is not used here.",
   "The shorts: the 2B top (below the 200-day only, B26 and D47) is not taught here (D-001's default: recognition only).",
   "UNITS-method SET.24 reads 'M10.L2 2B Reversal and Oops, its gap-open variant' and teaches 'the stop just beyond the trap'; this unit follows the criteria card (D-002, D-004: the Model Book glyph shows a one-day dip under the previous low, which the card calls an Oops or Turtle Soup Plus One, not a 2B). The unit id SET.24 comes from the brief.",
   "The chart questions (q61 QCOM asof 2020-09-21, the reclaim day; q62 GOOG asof 2026-07-20, the weak reclaim day) show the member's own chart up to the trigger day. The keys rest on the dossier's reads (dQCOM, dQCOMn, dGOOG, dGOOGn), not on the picture.",
   "The Wiley and Bulkowski web quotes are read through the Internet Archive and a page that carries a notice against AI training (ThePatternSite); they are cited with short quotes and links only.",
   "The 2B card names its examples as a 'fixed stop, no trims' replay; the house plan's thirds and the breakeven at the first trim would change every R in the tables. No key quotes a base rate.",
-  "Cold check 2026-11-10: 64 pass (13 fixed), 0 fix, 4 cut (counting the 3 walk-throughs). The three things the owner should look at first: (1) the dossier's fills for 2Bs where the trigger day OPENED above the level and then dipped under it (MKSI 2025-11-21, NVDA 2024-04-18, TSLA 2023-08-11) are the day's open, before the undercut, not a reclaim buy: MKSI's 'closed back above, next morning gapped' story was wrong (w2 and q27 rewritten) and NVDA's '3.08% stop, over A13' is an artefact (q59 cut); the dossier rows and the scan's fill rule need correcting. (2) tb.trigger is pending (D-003): the close-entry distractor in q25 was removed, so the unit says nothing about buying near the close. (3) the card's mistake line credits Bulkowski with 'buying the break before the reclaim is a much greater risk'; his page says that about the 2B versus the double bottom's confirmation, so q04 now rests on Sperandeo's return-through-the-level trigger and the card instead. Cuts: q35 (same as q24), q41 (same as q64), q55 (same as q62), q59 (wrong number). Chart bars: QCOM 2020-09-21 has 6,460 daily bars up to it and GOOG 2026-07-20 has 5,513, well over 120. Pending-owner criteria stay out of every key (tb.above_200 beyond B26, tb.leader, tb.level, tb.reclaim_window, tb.volume, tb.trigger, tb.stop beyond a same-day reclaim, tb.stop_width, tb.tighter_entry, tb.below_50_grade)."
+  "Cold check 2026-11-10: 64 pass (13 fixed), 0 fix, 4 cut (counting the 3 walk-throughs). The three things the owner should look at first: (1) the dossier's fills for 2Bs where the trigger day OPENED above the level and then dipped under it (MKSI 2025-11-21, NVDA 2024-04-18, TSLA 2023-08-11) are the day's open, before the undercut, not a reclaim buy: MKSI's 'closed back above, next morning gapped' story was wrong (w2 and q27 rewritten) and NVDA's '3.08% stop, over A13' is an artefact (q59 cut); the dossier rows and the scan's fill rule need correcting. (2) tb.trigger is pending (D-003): the close-entry distractor in q25 was removed, so the unit says nothing about buying near the close. (3) the card's mistake line credits Bulkowski with 'buying the break before the reclaim is a much greater risk'; his page says that about the 2B versus the double bottom's confirmation, so q04 now rests on Sperandeo's return-through-the-level trigger and the card instead. Cuts: q35 (same as q24), q41 (same as q64), q55 (same as q62), q59 (wrong number). Chart bars: QCOM 2020-09-21 has 6,460 daily bars up to it and GOOG 2026-07-20 has 5,513, well over 120. Pending-owner criteria stay out of every key (tb.above_200 beyond B26, tb.leader, tb.level, tb.reclaim_window, tb.volume, tb.trigger, tb.stop beyond a same-day reclaim, tb.stop_width, tb.tighter_entry, tb.below_50_grade). Resolved by the rescan the same day (refresher): the dossier and card now fill at the reclaim. MKSI 2025-11-21 is a same-day undercut (open 138.24, low 134.74, close 144.00): buy 136.96, stop 134.69 (1.66%, was 2.57%), best 58.6R. TSLA 2023-08-11: buy 240.71, stop 237.97 (1.14%). NVDA 2024-04-18: buy 83.03, stop 82.35 (0.82%, not 3.08%), so q59 was cut for a number that no longer exists. META 2026-01-08: buy 638.62, stop 635.67 (0.46%), best 5.5R.",
+  "Base rate, corrected 2026-11-10 (no question keys it): longs 56.7% reached 3R and 45.1% 5R (was 42.7% / 30.2% when a same-day reclaim was filled at the open). This is an UPPER BOUND for same-day reclaims: the dossier's 64.3% to 3R uses a stop under the day's final low. Scored on 5-minute bars with the stop under the low so far at the fill, the same-day rate falls to about 31.0% (from 60.3% on the daily convention; 406 hits, 2026-08-17 to 2026-11-06). Never teach a same-day reclaim as an edge, and never present 56.7% or 64.3% as what a live trader gets."
  ],
  "verify": {
   "w1": {
@@ -2391,9 +2399,9 @@
   },
   "w2": {
    "status": "pass",
-   "notes": "MKSI walk-through was wrong. Bars: MKSI 2025-11-20 low 137.95 (no undercut); 2025-11-21 opens 138.24, then dips to 134.74 (the 1.61% undercut) and closes 144.00. So the undercut and the open are the SAME day: there was no 'closes back above the same day, the next session opens 0.9% over'. The dossier's 138.24 fill is the open BEFORE the undercut; a live buy at the reclaim is about 136.96. Replaced with PYPL, a real next-day open fill (bars: 03-23 low 76.35, close 76.44 under 76.93; 03-26 open 77.98; 03-27 low 75.65 through the 76.30 stop, close 76.31). Dossier PYPL row: 77.98, stop 76.30 (2.15%).",
-   "fixed": true,
-   "by": "checker"
+   "notes": "Re-checked after the 2026-11-10 rescan: PYPL is a next-day reclaim filled at the open (77.98, stop 76.30, 2.15%), unchanged in the dossier's failures table. No MKSI text is left in it; MKSI's corrected row (buy 136.96, stop 134.69, 58.6R) is in facts dMKSI and dMKSIn for later use. Earlier note: MKSI walk-through was wrong. Bars: MKSI 2025-11-20 low 137.95 (no undercut); 2025-11-21 opens 138.24, then dips to 134.74 (the 1.61% undercut) and closes 144.00. So the undercut and the open are the SAME day: there was no 'closes back above the same day, the next session opens 0.9% over'. The dossier's 138.24 fill is the open BEFORE the undercut; a live buy at the reclaim is about 136.96. Replaced with PYPL, a real next-day open fill (bars: 03-23 low 76.35, close 76.44 under 76.93; 03-26 open 77.98; 03-27 low 75.65 through the 76.30 stop, close 76.31). Dossier PYPL row: 77.98, stop 76.30 (2.15%).",
+   "fixed": false,
+   "by": "refresher"
   },
   "w3": {
    "status": "pass",
@@ -2559,9 +2567,9 @@
   },
   "q27": {
    "status": "pass",
-   "notes": "Story and why used MKSI as a day-after fill (undercut on one day, open 138.24 the next). Bars show MKSI undercut and opened on the SAME day (2025-11-21: open 138.24, low 134.74, close 144.00), so the 138.24 'open fill' was before the undercut. Rewritten with plain numbers: 65.30 is 2.0% over 64.00, inside C28's 4%.",
-   "fixed": true,
-   "by": "checker"
+   "notes": "Re-checked after the 2026-11-10 rescan: the story and numbers are invented plain numbers (64.00 low, open 65.30), a NEXT-session gap open, which the dossier still fills at the open. It never teaches a same-day open fill. No change. Earlier note: Story and why used MKSI as a day-after fill (undercut on one day, open 138.24 the next). Bars show MKSI undercut and opened on the SAME day (2025-11-21: open 138.24, low 134.74, close 144.00), so the 138.24 'open fill' was before the undercut. Rewritten with plain numbers: 65.30 is 2.0% over 64.00, inside C28's 4%.",
+   "fixed": false,
+   "by": "refresher"
   },
   "q28": {
    "status": "pass",
@@ -2589,9 +2597,9 @@
   },
   "q32": {
    "status": "pass",
-   "notes": "tb.reclaim_fails settled: hold to the stop, do not add.",
+   "notes": "Re-checked after the 2026-11-10 rescan: the story uses invented numbers; the TSLA mention only names the 2023-08-11 failed reclaim. Fact dTSLA now has the corrected buy 240.71 and stop 237.97 (1.14%); no figure from the old row is in the item. No change. Earlier note: tb.reclaim_fails settled: hold to the stop, do not add.",
    "fixed": false,
-   "by": "checker"
+   "by": "refresher"
   },
   "q33": {
    "status": "pass",
@@ -2733,9 +2741,9 @@
   },
   "q56": {
    "status": "pass",
-   "notes": "B26 settled (the question keys the hard rule, not the pending reclaim-close wording). META 2026-01-08: low 635.72 under 638.61, close 646.06 over it; the 4.2% is the dossier's.",
-   "fixed": false,
-   "by": "checker"
+   "notes": "Checked against the corrected dossier (rescanned 2026-11-10, fills at the reclaim). META row: the near-miss now reads buy 638.62, stop 635.67 (0.46%), best 5.5R, 3R on day 1, then stopped: it no longer 'lost'. The why now says it paid and the rule is about odds (new fact dMETAr, a verbatim dossier line). The 4.2% under the 200-day and the B26 key are unchanged. Earlier note: B26 settled (the question keys the hard rule, not the pending reclaim-close wording). META 2026-01-08: low 635.72 under 638.61, close 646.06 over it; the 4.2% is the dossier's.",
+   "fixed": true,
+   "by": "refresher"
   },
   "q57": {
    "status": "pass",
@@ -2745,13 +2753,13 @@
   },
   "q58": {
    "status": "pass",
-   "notes": "Asked 'what was the warning' and keyed an open gap under the level; the card's warning (tb.reclaim_fails) is a CLOSE back under within 2 sessions, and a gap through the stop is the exit, not a warning. Also the story's 241.77 is TSLA's OPEN (bars: 2023-08-11 open 241.77, low 238.02, close 242.65), which is before the undercut, so it was not a reclaim buy. Story no longer states the buy; asks what told you it had failed; keyed to tb.after_entry_stop (settled).",
+   "notes": "Facts dTSLA re-read from the corrected dossier: buy 240.71 (was 241.77, the open), stop 237.97 (1.14%, was 1.57%). The stop 237.97 and the 235.70 open were already right, so the answer stands (235.70 is under the stop). Story now states the real buy, 240.71, which the checker had removed when it was wrong. Earlier note: Asked 'what was the warning' and keyed an open gap under the level; the card's warning (tb.reclaim_fails) is a CLOSE back under within 2 sessions, and a gap through the stop is the exit, not a warning. Also the story's 241.77 is TSLA's OPEN (bars: 2023-08-11 open 241.77, low 238.02, close 242.65), which is before the undercut, so it was not a reclaim buy. Story no longer states the buy; asks what told you it had failed; keyed to tb.after_entry_stop (settled).",
    "fixed": true,
-   "by": "checker"
+   "by": "refresher"
   },
   "q59": {
    "status": "cut",
-   "notes": "Key rests on a wrong number. Dossier NVDA 2024-04-18: 'buy 84.97, stop 82.35 (3.08%)'. Bars: 84.97 is the day's OPEN, before the day dipped to 82.40; a live buy at the reclaim (83.03) has a stop under 82.35, 0.8% away. So 'the stop was already 3.08% away, over A13' is not true of the trade a rule-follower makes. The real NVDA lesson (market still falling) is q57's and q31's.",
+   "notes": "Key rests on a wrong number. Dossier NVDA 2024-04-18: 'buy 84.97, stop 82.35 (3.08%)'. Bars: 84.97 is the day's OPEN, before the day dipped to 82.40; a live buy at the reclaim (83.03) has a stop under 82.35, 0.8% away. So 'the stop was already 3.08% away, over A13' is not true of the trade a rule-follower makes. The real NVDA lesson (market still falling) is q57's and q31's. Refresher 2026-11-10: the dossier now reads NVDA buy 83.03, stop 82.35 (0.82%); the old 3.08% figure is gone and facts dNVDA and dNVDAw were corrected. The item stays cut (its story and why were rewritten to the corrected 83.03 / 82.35 / 0.82% so no old figure is left, but its key 'stop over 3%' is false now and it must not be revived); no live item uses dNVDA, dNVDAn or dNVDAw.",
    "fixed": false,
    "by": "checker"
   },
@@ -2769,9 +2777,9 @@
   },
   "q61": {
    "status": "pass",
-   "notes": "Chart QCOM asof 2020-09-21 (the reclaim day): 6,460 bars before it, 1,542 after. Close at 94% of the range (112.14 high, 108.30 low, 111.92 close).",
-   "fixed": false,
-   "by": "checker"
+   "notes": "Lesson line said a same-day reclaim 'is the cleanest version'. The corrected dossier says the same-day figures are an upper bound (64.3% to 3R on the daily convention, about 31.0% with the stop at the low so far, 5-minute check), so a same-day reclaim is never taught as an edge. The lesson line now teaches only the strong close. QCOM numbers unchanged in the rescan. Earlier note: Chart QCOM asof 2020-09-21 (the reclaim day): 6,460 bars before it, 1,542 after. Close at 94% of the range (112.14 high, 108.30 low, 111.92 close).",
+   "fixed": true,
+   "by": "refresher"
   },
   "q62": {
    "status": "pass",

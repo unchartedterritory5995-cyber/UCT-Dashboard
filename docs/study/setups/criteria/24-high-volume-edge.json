@@ -1275,7 +1275,7 @@
    "hve.not_climax: early in a new story (on WVE he preferred the second, larger surge)",
    "hve.stop_width: the day-2 stop within about 3%",
    "hve.inv_level_fails: holds near the HVC afterward and builds a flag",
-   "hve.market_reading: Green"
+   "hve.market_reading: Green; in Orange only if everything else grades A+ (F65)"
   ],
   "b_minus": [
    "hve.record_volume: a one-year record at 3x to 6x; under the old record",
@@ -1285,7 +1285,7 @@
    "hve.lesser_known: a mega-cap or a well-owned large cap (AAPL, ASML, ORCL were cut)",
    "hve.not_climax: after a long run",
    "hve.inv_level_fails: slices back under the HVE low quickly",
-   "hve.market_reading: Yellow or Orange"
+   "hve.market_reading: Yellow (smaller and fewer)"
   ],
   "no_trade": [
    "hve.up_close: a down close",
@@ -1298,7 +1298,7 @@
    "hve.stop_width: the honest day-2 stop does not fit; never pull it in",
    "hve.earnings_window: a report within 3 sessions",
    "hve.liquidity: under $10 or under $20 million a day after the event",
-   "hve.market_reading: Red"
+   "hve.market_reading: Red; Orange below A+"
   ]
  },
  "lookalikes": [

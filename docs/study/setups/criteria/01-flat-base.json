@@ -1078,7 +1078,7 @@
    "fb.above_mas: rides the rising 10 and 21-day above a rising 50 and 200",
    "fb.breakout_volume: 1.4x the 50-day volume or more, closes near the high",
    "fb.stop_width: day's low within about 3%",
-   "fb.market_reading: Green"
+   "fb.market_reading: Green; in Orange only if everything else grades A+ (F65)"
   ],
   "b_minus": [
    "fb.leadership: RS near 80, a lagging group",
@@ -1092,7 +1092,7 @@
    "fb.holds_50: under the 50-day for much of the base, 200-day flat",
    "fb.breakout_volume: light volume, closes mid-range",
    "fb.stop_width: 3% or more, near the ADR",
-   "fb.market_reading: Yellow or Orange"
+   "fb.market_reading: Yellow (smaller and fewer)"
   ],
   "no_trade": [
    "fb.inv_depth: deeper than 15%",
@@ -1103,7 +1103,7 @@
    "fb.stop_width: the honest stop does not fit; never pull it in",
    "fb.earnings_window: a report within 3 sessions",
    "fb.liquidity: under $10 or under $20 million a day",
-   "fb.market_reading: Red"
+   "fb.market_reading: Red; Orange below A+"
   ]
  },
  "lookalikes": [

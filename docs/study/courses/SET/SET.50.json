@@ -618,8 +618,8 @@
   {
    "id": "d08",
    "source": "d1",
-   "quote": "A cents-deep probe on light volume, three touches, a 1% stop: everything the rules ask for, and it was stopped on the entry day without ever showing a profit",
-   "claim": "MSFT: a cents-deep probe on light volume, three touches, a 1% stop, everything the rules ask for, and stopped on the entry day without a profit."
+   "quote": "A cents-deep probe on light volume, three touches, a 1% stop: everything the rules ask for, and it was stopped on the entry day",
+   "claim": "MSFT: a cents-deep probe on light volume, three touches, a 1% stop, everything the rules ask for, and stopped on the entry day."
   },
   {
    "id": "d09",
@@ -2448,7 +2448,8 @@
   "The dossier's example numbers (d1) are a Tier 3 repo source: read off our own daily bars by the research scan (dossier sections 13 and 14), survivors only, fixed stop three cents beyond the probe's extreme, no RS rating or group applied; the owner has not reviewed the examples. The walk-throughs (GIS, HWM, MSFT) and the chart questions (q54 ODFL asof 2021-10-01, the spring day; q55 AMZN asof 2021-08-12, the day of the probe) depend on it. The chart ends on the spring day, so 'take it' means 'this is a spring worth the plan', not an order at that bar. The buy in the scan is the next open, usually worse than the intraday reclaim.",
   "KMX 2020-12-29 (a two-bar spring) is not used because the one-bar and two-bar windows are D-005; the AAPL 2014, ULTA, PH, AVGO and GS/TGT upthrust examples are not used either (AVGO and PH have 2 floor touches, which D-112 may raise; the upthrusts are D-001). The four failures kept are GOOGL (market), AAPL 2021 (the index's own spring), MSFT (fails at once) and TSLA (a 17.9% tall range after a 73% run); MSFT and TSLA are asked as 'what do you do' items, GOOGL and AAPL as market and index lessons.",
   "q35, q38 and q39 use the house trim, gap and breakeven rules (B19, B20, F63) with stated prices; q35's calc proves 148 = 142 + 3 x 2 and q38's calc proves the 2.5R loss. The base rate in q52 (27.1% to 3R, 17.7% to 5R, 83.8% stopped) is a fixed-stop, no-trim measurement of the scan's springs, not the house trade.",
-  "Cold check 2026-11-10: 52 pass (15 fixed), 0 fix, 15 cut; the three things the owner should look at first: (1) the name and home (D-002): UCT says shakeout, failed breakdown and UnR in public, never 'Wyckoff spring', and the register leans to a named variant inside U&R; (2) D-003: q47 and the walk-throughs key buying the reclaim at the floor as the card's tell (the entry we teach is pending); (3) the dossier's example notes disagree with the bars in two places (MSFT 'never showed a profit', TSLA 'never traded above the entry'), so the dossier's failure table needs a recheck before it is used elsewhere. Publisher decision: StockCharts ChartSchool (Bogomazov and Lipsett) and Fraser's two articles are all on stockcharts.com, so they count as one publisher; q04 and q17 rested on that miscount and now add Pruden (w06, w07) as the independent second source; Pruden and Taylor (CMT) stay separate publishers. Upthrust and short material: none in the unit. No sizing question; A7's 40% cap does not arise."
+  "Cold check 2026-11-10: 52 pass (15 fixed), 0 fix, 15 cut; the three things the owner should look at first: (1) the name and home (D-002): UCT says shakeout, failed breakdown and UnR in public, never 'Wyckoff spring', and the register leans to a named variant inside U&R; (2) D-003: q47 and the walk-throughs key buying the reclaim at the floor as the card's tell (the entry we teach is pending); (3) the dossier's example notes disagree with the bars in two places (MSFT 'never showed a profit', TSLA 'never traded above the entry'), so the dossier's failure table needs a recheck before it is used elsewhere. Publisher decision: StockCharts ChartSchool (Bogomazov and Lipsett) and Fraser's two articles are all on stockcharts.com, so they count as one publisher; q04 and q17 rested on that miscount and now add Pruden (w06, w07) as the independent second source; Pruden and Taylor (CMT) stay separate publishers. Upthrust and short material: none in the unit. No sizing question; A7's 40% cap does not arise.",
+  "Requoted 2026-11-10: d08 after the cards' market-reading rows were corrected."
  ],
  "verify": {
   "w1": {
@@ -2465,9 +2466,9 @@
   },
   "w3": {
    "status": "pass",
-   "notes": "d07/d08/d09 verbatim; bars: MSFT 2023-08-08 low 323.00, next open 326.47, stop 322.97, 2023-08-09 low 321.05, close 322.23. The dossier says it was stopped 'without ever showing a profit', but that day's high was 327.11, 0.64 over the buy; step 4 said 'with no profit shown'; now 'The stop hits on the entry day'.",
+   "notes": "d07/d08/d09 verbatim; bars: MSFT 2023-08-08 low 323.00, next open 326.47, stop 322.97, 2023-08-09 low 321.05, close 322.23. The dossier says it was stopped 'without ever showing a profit', but that day's high was 327.11, 0.64 over the buy; step 4 said 'with no profit shown'; now 'The stop hits on the entry day'. Requoted 2026-11-10: dossier dropped 'without ever showing a profit' (the day's high was over the fill); the quote ends at 'stopped on the entry day', which step 4 already says. No text change.",
    "fixed": true,
-   "by": "checker"
+   "by": "requoter"
   },
   "q01": {
    "status": "pass",

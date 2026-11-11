@@ -1060,7 +1060,7 @@
    "mar.reclaim_candle: confluence, the line sits on a horizontal level (a prior high, an IPO high, a gap; DOCN's the MAs and the $133 spot)",
    "mar.entry_b: then a tight pause above the line (an inside day, a higher low) that gives a stop of 3% or less",
    "mar.leadership: the stock or its group remounts before the index; RS rising",
-   "mar.market_reading: Green, the index above or remounting its own 50-day"
+   "mar.market_reading: Green, the index above or remounting its own 50-day; in Orange only if everything else grades A+ (F65)"
   ],
   "b_minus": [
    "mar.slope: the line still falling (still curling lower); the 200-day under its value 20 sessions ago (by this cue most of the owner's own named 200-day remounts, XBI and PLTR included, would grade B- or lower)",
@@ -1068,7 +1068,7 @@
    "mar.reclaim_candle: a small reclaim (under 0.5 ATR over the line), a red or upper-wick candle, or below-average volume (mar.volume)",
    "mar.all_mas: a reclaim that leaves the 50-day (or other averages) still overhead and falling",
    "mar.stop_width: a stop wider than 3% that forces a much smaller size",
-   "mar.leadership: a laggard group (TAN); RS under 70; Yellow or Orange market; earnings within about 2 weeks",
+   "mar.leadership: a laggard group (TAN); RS under 70; mar.market_reading: a Yellow market (smaller and fewer); earnings within about 2 weeks",
    "mar.tries: a first attempt after a long decline with no base (First failed attempt at remounting short term levels)"
   ],
   "no_trade": [
@@ -1080,7 +1080,7 @@
    "mar.liquidity: under $10 or under $20 million a day",
    "mar.earnings_window: a report within 3 sessions",
    "mar.no_chase: more than 4% over the buy point, or a reclaim day that closed 2 ATR or more above the line",
-   "mar.market_reading: Red"
+   "mar.market_reading: Red; Orange below A+"
   ]
  },
  "lookalikes": [

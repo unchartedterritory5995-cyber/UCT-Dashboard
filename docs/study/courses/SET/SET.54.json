@@ -649,8 +649,8 @@
   {
    "id": "c20",
    "source": "c1",
-   "quote": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: none.",
-   "claim": "Green full risk; Yellow smaller and fewer; Orange A+ only; Red none."
+   "quote": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
+   "claim": "Green full risk; Yellow smaller and fewer; Orange A+ only; Red mostly cash, plus shorts below the 200-day."
   },
   {
    "id": "c21",
@@ -1328,8 +1328,8 @@
     "Yellow"
    ],
    "answer": "Green",
-   "why": "Green. Green is full risk, Yellow is smaller and fewer, Orange is A+ only, and Red is none.",
-   "lesson_line": "Read the market before the stock. Green is full risk; Red is no drives.",
+   "why": "Green. Green is full risk, Yellow is smaller and fewer, Orange is A+ only, and Red is mostly cash.",
+   "lesson_line": "Read the market before the stock. Green is full risk; Red is mostly cash.",
    "facts": [
     "c20",
     "h26"
@@ -1337,7 +1337,7 @@
    "wrong": {
     "Yellow": "Yellow means smaller and fewer, not full risk.",
     "Orange": "Orange means A+ setups only.",
-    "Red": "Red means no drives at all."
+    "Red": "Red is mostly cash, plus shorts below the 200-day."
    },
    "house": true
   },
@@ -2326,12 +2326,12 @@
    "q": "What do you take?",
    "story": "The market reads Red. At 9:35 four drives fire at once, each with a clean first bar and heavy volume.",
    "choices": [
-    "Zero; Red means no drives",
+    "Zero; Red is mostly cash",
     "The best one, at half size",
     "All four; the setups are clean"
    ],
-   "answer": "Zero; Red means no drives",
-   "why": "Zero. Red means no drives, however clean. On 2026-10-06 four strict drives fired and all were stopped: the drives were real for five minutes and the market was not.",
+   "answer": "Zero; Red is mostly cash",
+   "why": "Zero. In Red it is mostly cash, however clean the drive. On 2026-10-06 four strict drives fired and all were stopped: the drives were real for five minutes and the market was not.",
    "lesson_line": "Read the market first. A clean drive in a Red market is a loss waiting to happen.",
    "facts": [
     "c20",
@@ -2340,7 +2340,7 @@
     "d26"
    ],
    "wrong": {
-    "The best one, at half size": "Red means none. Half size of a no-trade is still a trade we do not take.",
+    "The best one, at half size": "Red is mostly cash. Half size is still a long in a Red market.",
     "All four; the setups are clean": "Clean setups do not beat a Red market. On 2026-10-06 all four were stopped."
    },
    "house": true
@@ -2646,7 +2646,7 @@
    ],
    "wrong": {
     "All six; each has a clean setup": "Orange allows A+ setups only. Clean is not the same as A+.",
-    "None; Orange is Red": "Red is none. Orange still allows the A+ drives."
+    "None; Orange is Red": "Red is mostly cash. Orange still allows the A+ drives."
    },
    "house": true
   }
@@ -2668,7 +2668,8 @@
   "The criteria card (c1) is cited as a Tier 3 repo source for its proposed criteria (first bar green, the day's low in the first bar, back-to-open, VWAP, volume under its average, the A+ volume mark, the second entry, not on day 3 to 5, the Nasdaq and group cues, the lookalike tells). Those lines are the dossier's proposals built on the sources it names, not owner rulings; every question keyed on them carries house: true and the owner's review is the gate. The EP's '10% or more on a named catalyst' (q45) is the card's lookalike tell, not a ruling made in this unit.",
   "Stories and numerics that use made-up prices: q23 (75.00 over a 71.99 high), q32 (a 12% stretch), q60 (the 2R price from SANM's fill and stop), q64 (an 88.31 ten-day average that reproduces MXL's 9.8%), q65 (a made-up average volume). q15, q21 and q37 reuse real fills. No made-up number is a rule.",
   "Rulebook ids (A3, B20 and so on) appear in claims and notes, never in a question a member reads; the member-facing words are 'the gap rule', 'the 2R ceiling' and so on.",
-  "Cold check 2026-11-10: 59 pass (7 fixed), 0 fix, 7 cut of 66 questions; 3 walk-throughs pass (w2 fixed). q08, q31, q44, q47, q50, q59, q64 cut as duplicates (q05, q06, q25, q33, q36, q26, q32 kept). Numbers corrected: q37 (1% risk on a 2.34 stop is 427 shares = 89% of a 100,000 account, over the 40% cap, A7; risk now 0.4%, 170 shares, 35%). Story corrected: q53 (PAYC 'back above your fill at 10:40' contradicts 'the fill was the high of the day'), w2 and q59's cut story (a 3R trim moves the stop to breakeven, B19). Kept consistent with SET.32: the drive-or-ORB tell (day's low in the first 5-minute bar, bought by about 9:40; an ORB waits for 10:00) reads the same in q16 here and q45 there. z01 (SSRN) is verbatim in dossier section 3.5 but the page was unreachable for the quote checker. Owner should look first at: (1) D-031, the trigger bar: the whole unit is the 5-minute drive (the card's recommendation) while the register's default teaches the 30-minute window; (2) q55 and the 'four in ten stopped on the drive day' figure: 41 trades on 21 days in one autumn, built on the strict rule that includes the pending gap (D-134) and first-bar volume (D-006) numbers, so decide whether to teach it at all; (3) the 40% cap: a drive's stop under the first bar is often 1% to 2% away, so at 1% risk the cap always binds (it needs a stop of 2.5% or more); the sizing lessons should say the smaller of the two wins."
+  "Cold check 2026-11-10: 59 pass (7 fixed), 0 fix, 7 cut of 66 questions; 3 walk-throughs pass (w2 fixed). q08, q31, q44, q47, q50, q59, q64 cut as duplicates (q05, q06, q25, q33, q36, q26, q32 kept). Numbers corrected: q37 (1% risk on a 2.34 stop is 427 shares = 89% of a 100,000 account, over the 40% cap, A7; risk now 0.4%, 170 shares, 35%). Story corrected: q53 (PAYC 'back above your fill at 10:40' contradicts 'the fill was the high of the day'), w2 and q59's cut story (a 3R trim moves the stop to breakeven, B19). Kept consistent with SET.32: the drive-or-ORB tell (day's low in the first 5-minute bar, bought by about 9:40; an ORB waits for 10:00) reads the same in q16 here and q45 there. z01 (SSRN) is verbatim in dossier section 3.5 but the page was unreachable for the quote checker. Owner should look first at: (1) D-031, the trigger bar: the whole unit is the 5-minute drive (the card's recommendation) while the register's default teaches the 30-minute window; (2) q55 and the 'four in ten stopped on the drive day' figure: 41 trades on 21 days in one autumn, built on the strict rule that includes the pending gap (D-134) and first-bar volume (D-006) numbers, so decide whether to teach it at all; (3) the 40% cap: a drive's stop under the first bar is often 1% to 2% away, so at 1% risk the cap always binds (it needs a stop of 2.5% or more); the sizing lessons should say the smaller of the two wins.",
+  "Requoted 2026-11-10: c20 after the cards' market-reading rows were corrected."
  ],
  "verify": {
   "q01": {
@@ -2835,9 +2836,9 @@
   },
   "q54": {
    "status": "pass",
-   "notes": "c20, d24, d25, d26 verbatim; F65 Red is none on the card (the rulebook says mostly cash). The why does not call 2026-10-06 a Red day.",
-   "fixed": false,
-   "by": "checker"
+   "notes": "c20, d24, d25, d26 verbatim; F65 Red is none on the card (the rulebook says mostly cash). The why does not call 2026-10-06 a Red day. Requoted 2026-11-10: the card no longer says 'Red: none'; choice, why and a wrong note reworded to 'mostly cash'. Key (no long drives) holds; 2026-10-06 facts unchanged.",
+   "fixed": true,
+   "by": "requoter"
   },
   "q55": {
    "status": "pass",
@@ -2943,9 +2944,9 @@
   },
   "q14": {
    "status": "pass",
-   "notes": "c20, h26 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
-   "fixed": false,
-   "by": "checker"
+   "notes": "c20, h26 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. Requoted 2026-11-10: card Red row is now mostly cash, plus shorts below the 200-day; why, lesson line and the Red wrong note reworded from 'none / no drives'. Key holds.",
+   "fixed": true,
+   "by": "requoter"
   },
   "q16": {
    "status": "pass",
@@ -3063,9 +3064,9 @@
   },
   "q66": {
    "status": "pass",
-   "notes": "c20, h26 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
-   "fixed": false,
-   "by": "checker"
+   "notes": "c20, h26 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc. Requoted 2026-11-10: wrong note said 'Red is none'; now 'Red is mostly cash'. Key holds.",
+   "fixed": true,
+   "by": "requoter"
   },
   "w1": {
    "status": "pass",

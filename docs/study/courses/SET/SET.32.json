@@ -690,8 +690,8 @@
   {
    "id": "c33",
    "source": "c1",
-   "quote": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: shorts only.",
-   "claim": "Market reading: Green full risk; Yellow smaller and fewer; Orange A+ only; Red shorts only."
+   "quote": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
+   "claim": "Market reading: Green full risk; Yellow smaller and fewer; Orange A+ only; Red mostly cash, plus shorts below the 200-day."
   },
   {
    "id": "d01",
@@ -883,7 +883,8 @@
   "The exit on a reversal: Bysshe calls a big-volume reversal at the top of the range a failed breakout; A4 keeps the stop as the only exit. q40 keys the card's settled line (a warning, not a second exit rule) with the APA loss as the planned loss.",
   "Walk-through fills: the scan filled at the range high plus a cent (FFIV 418.46, SNX 274.04) or at the bar's open when it gapped over, and stopped 5 cents under the day's low at the fill; a live market order fills a little differently. JBI's numbers (w3) are the card's own evidence row from the owner's 2026-11-02 ruling and the repo's 30-minute bars.",
   "The unit id SET.32 is the plan's (UNITS-method.md: 'ORB (Opening Range Break)', M11.L1); its row describes 'the aggressive range-break timer on the open' and names the 30-Minute Pivot as a sibling; the dossier's D-002 note separates the two (ORB = the first trade through the first half-hour's high; the pivot = the turn candle at support), which this unit follows.",
-  "Cold check 2026-11-10: 64 pass (61 questions and 3 walk-throughs; 17 fixed, 1 of them a walk-through), 0 fix, 3 cut (q54 duplicate of q12, q55 duplicate of q03, q61 duplicate of q36). Look first at: (1) the card's orb.above_50 is both a gate (proposed) and a 'counter-trend break' in its B- row; q32 keys it as a gate and its wrong note no longer claims the B- row, so the owner should say which it is; (2) q31 used to key 'later triggers grade lower', which E50 (grading is discretionary) does not teach and the dossier's own scan contradicts (34.5% to 3R after 10:30 against 22.5% by 10:30); it now keys only that a 10:50 break is valid, but the card's settled sentence still says later triggers grade lower; (3) every example number (FFIV, SNX, ANF, EXEL, OVV, DHR, GKOS) is one 12-week window on a proxy parent setup and a proxy RS rank, never hand-checked for a Kicker, EP or base, so w1, w2, q23, q50 and q57 stay unreviewed until the owner checks the names. Also fixed: q64 used two short losses (CMCSA, LII) as 'stops under the low'; q26 kept the original stop after a 3R trim against B19's breakeven default."
+  "Cold check 2026-11-10: 64 pass (61 questions and 3 walk-throughs; 17 fixed, 1 of them a walk-through), 0 fix, 3 cut (q54 duplicate of q12, q55 duplicate of q03, q61 duplicate of q36). Look first at: (1) the card's orb.above_50 is both a gate (proposed) and a 'counter-trend break' in its B- row; q32 keys it as a gate and its wrong note no longer claims the B- row, so the owner should say which it is; (2) q31 used to key 'later triggers grade lower', which E50 (grading is discretionary) does not teach and the dossier's own scan contradicts (34.5% to 3R after 10:30 against 22.5% by 10:30); it now keys only that a 10:50 break is valid, but the card's settled sentence still says later triggers grade lower; (3) every example number (FFIV, SNX, ANF, EXEL, OVV, DHR, GKOS) is one 12-week window on a proxy parent setup and a proxy RS rank, never hand-checked for a Kicker, EP or base, so w1, w2, q23, q50 and q57 stay unreviewed until the owner checks the names. Also fixed: q64 used two short losses (CMCSA, LII) as 'stops under the low'; q26 kept the original stop after a 3R trim against B19's breakeven default.",
+  "Requoted 2026-11-10: c33 after the cards' market-reading rows were corrected."
  ],
  "verify": {
   "q01": {
@@ -966,9 +967,9 @@
   },
   "q14": {
    "status": "pass",
-   "notes": "F65 verbatim (h26): Orange, only A+ setups. The A+ and B grades are given in the story, not taught as a checklist (E50). Wrong notes true.",
-   "fixed": false,
-   "by": "checker"
+   "notes": "F65 verbatim (h26): Orange, only A+ setups. The A+ and B grades are given in the story, not taught as a checklist (E50). Wrong notes true. Requoted 2026-11-10: card Red row is now mostly cash, plus shorts below the 200-day; the item (Orange, A+ only) holds. No text change.",
+   "fixed": true,
+   "by": "requoter"
   },
   "q15": {
    "status": "pass",
@@ -1188,9 +1189,9 @@
   },
   "q51": {
    "status": "pass",
-   "notes": "D46 and F65 (h34, h26) verbatim; the card says Red is 'shorts only'; the rulebook says 'mostly cash and shorts' and the question follows the rulebook. Right.",
-   "fixed": false,
-   "by": "checker"
+   "notes": "D46 and F65 (h34, h26) verbatim; the card says Red is 'shorts only'; the rulebook says 'mostly cash and shorts' and the question follows the rulebook. Right. Requoted 2026-11-10: card Red row now matches the rulebook (mostly cash, plus shorts below the 200-day), as the item already says. No text change.",
+   "fixed": true,
+   "by": "requoter"
   },
   "q52": {
    "status": "pass",

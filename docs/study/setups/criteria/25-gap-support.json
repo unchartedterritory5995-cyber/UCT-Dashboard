@@ -914,12 +914,12 @@
     "S34",
     "S40"
    ],
-   "status": "settled",
+   "status": "pending-owner",
    "owner_question": "D-013",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4 First trim; 6.5; 10 question 5",
-   "evidence": "Owner, 2026-11-09 (owner_verdicts.jsonl line 534): 'yes add those stops too, keep going', on Trade Story stopping at the post-gap high; TRADE_PLANS.md: 'the post-gap high is the first place to take some off'. The dossier notes the trim wording is the detector's and reads the verdict as approving the game stop only; D-013's default reads a named spot as a cue to take the 3R third early. The post-gap high sits under 3R in about 41% of trades (median 3.7R). The dossier's own recommendation was a third at the higher of the two."
+   "evidence": "Owner, 2026-11-09 (owner_verdicts.jsonl line 534): 'yes add those stops too, keep going', on Trade Story stopping at the post-gap high; TRADE_PLANS.md: 'the post-gap high is the first place to take some off'. The dossier notes the trim wording is the detector's and reads the verdict as approving the game stop only; D-013's default reads a named spot as a cue to take the 3R third early. The post-gap high sits under 3R in about 41% of trades (median 3.7R). The dossier's own recommendation was a third at the higher of the two. Status corrected 2026-11-10: the card's 'settled' rested on the owner's 2026-11-09 'yes add those stops too', which the dossier reads as a Trade Story stop only; the adopted provisional default (D-013) is B19's third at 3R with the post-gap high a cue to take that third early."
   },
   {
    "id": "gs.trim_2",
@@ -1142,7 +1142,7 @@
    "gs.not_downtrend: above a rising 50-day and 200-day",
    "gs.test_low: the gap-up low holds to the tick or a small undercut, and the day closes back above it near its high with a lower wick or hammer (gs.test_close, gs.test_close_position)",
    "the 20-day EMA or 50-day arriving at the same line: a tiebreak, not a requirement (DOCS, JAZZ, HOOD, CAVA)",
-   "gs.stop_width: tight risk under 3% in a Green market (gs.market_reading)"
+   "gs.stop_width: tight risk under 3% in a Green market (gs.market_reading); in Orange only if everything else grades A+ (F65)"
   ],
   "b_minus": [
    "gs.not_downtrend: the gap came out of a downtrend or under the 50-day (QBTS 'Eh B-', FTAI 'okay')",
@@ -1150,7 +1150,7 @@
    "weeks of chop sitting on the line before the test (TTD 2023, cut); a long drift back to the line is not a minus by itself (DOCS, great, 37 sessions)",
    "gs.gap_not_huge: a very large gap (over 30%), or gs.test_count: a later test of an already-tested line, or heavy selling volume into the line",
    "gs.test_close_position: a close in the lower part of the test day's range",
-   "gs.market_reading: Yellow or Orange"
+   "gs.market_reading: Yellow (smaller and fewer)"
   ],
   "no_trade": [
    "gs.not_gap_day: the gap day itself (a PEG), or a gap never tested",
@@ -1161,7 +1161,7 @@
    "gs.stop_width: the honest stop does not fit; never pull it in",
    "gs.earnings_window: a report within 3 sessions",
    "gs.liquidity: under $10 or under $20 million a day",
-   "gs.market_reading: Red"
+   "gs.market_reading: Red; Orange below A+"
   ]
  },
  "lookalikes": [
