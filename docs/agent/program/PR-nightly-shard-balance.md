@@ -66,25 +66,57 @@ The `dir-*` shards don't change (largest is `dir-fundamentals_pit` at 228 s).
 Before: 4 root shards were over the 720 s rail, with a worst case of 1,259 s. After: none
 are over, and the worst is 571 s. Total jobs go from 22 to 25 (`max-parallel` stays 6).
 
-## Finding, not fixed here
+## Collection errors no longer abort a shard (AUDIT condition)
 
 `tests/test_notebook_fin_walk_followup_group.py`, `test_notebook_fin_walk_page_layouts_group.py`
-and `test_notebook_p5_walk.py` fail to collect on CI (`No module named 'playwright'`). pytest
-then stops the whole shard ("Interrupted: 3 errors during collection"). In every recorded
-run, old `tests-07` ran 3 testcases in about 90 s, so its other ~220 files never ran. In the
-new plan these three files land in `tests-08` (83 files). About 140 files that have not run
-in weeks will start running in `tests-07` and `tests-09`, and the gate may report their
-failures as NEW. That result is accurate, not a regression from this change. Their time is
-estimated, not measured; the next completed nightly gives a real figure and should be used
-to refresh the timing file.
+and `test_notebook_p5_walk.py` fail to collect on CI (`No module named 'playwright'`). Until
+now pytest then stopped the whole shard ("Interrupted: 3 errors during collection"). In every
+recorded run, old `tests-07` ran 3 testcases in about 90 s, so its other ~220 files never ran.
+
+The shard's pytest command now passes `--continue-on-collection-errors`. Each collection
+error is still reported as an ERROR for its file: in the junit as an `<error>` testcase, in
+the totals line (`N errors`), and through a non-zero exit. The other files in the shard
+still run. The rail is a real pytest subprocess over a temp tree with one file that fails
+to import and one passing test:
+- With the flag, the passing test runs, the error is reported by file in both the junit
+  and the totals line, and the exit is non-zero.
+- Without the flag (the control), the passing test never runs.
+- A third test pins the flag on the workflow's Run step.
+
+**Expected on the first run: many NEW failures.** The ~220 files that haven't run in weeks
+(old `tests-07` minus the three broken ones) will show their real failures for the first
+time. The gate will report those as NEW. That is accurate and expected, not a regression
+from this PR. Their run time is also estimated rather than measured (they never ran). After
+the first completed nightly, refresh the timing file from it.
+
+### Does the gate count a collection error as a finding? Yes (read from the code)
+
+- `ci_extract.failures_from_junit` reads every `<testcase>` with a `<failure>` **or
+  `<error>`** child. A collection error's testcase has an empty classname, so it becomes
+  `? | tests.test_notebook_p5_walk | collection failure` in `pytest_failures.txt`. That line
+  is in run 42846929317's published record today.
+- `ci_inventory.failing_keys` makes each such line a key, `("pytest", "?",
+  "tests.test_notebook_p5_walk")`. `diff()` places it in NEW or UNCHANGED like any other
+  failure. It is never treated as absent. The three keys already sit in the baseline and
+  read UNCHANGED, and `--continue-on-collection-errors` produces the same keys.
+- `ci_summarize` counts `N errors` on the totals line as `errored`. No INVALID rule fires on
+  errors > 0. The totals line is still printed, so `shards_without_totals` stays empty.
+- Small gap, not this PR's scope: when a collection error is later **fixed**, its `?` key
+  can never appear in `ran_keys`, because the file's real testcases carry a real classname.
+  `diff()` will then call it MISSING rather than FIXED. This is the pytest version of
+  F-CI-41. Minimal fix: in `diff()`, also resolve a gone key `("pytest", "?", <module>)` to
+  FIXED when `<module>` (or `<module>.<Class>`) is among `ran_classnames`.
 
 ## Tests
 
-- `tests/test_pytest_shards_balance.py`: 16 tests (partition, rail, rail can fire, old plan
+- `tests/test_pytest_shards_balance.py`: 19 tests (partition, rail, rail can fire, old plan
   refused, contiguity, determinism, canonical timing bytes, synthetic heavy-file cut,
   untimed fallback, missing or corrupt timing file, junit recording, 30-min cap, timing path
-  passed everywhere).
-- `tests/test_ci_cost_rails.py`: 6 passed. Together: 22 passed.
+  passed everywhere, collection-error continue with its no-flag control, flag on the Run
+  step).
+- `tests/test_ci_cost_rails.py`: 6 passed. Together: 25 passed.
+- Removing `--continue-on-collection-errors` from the workflow turned the flag rail red.
+  Restored from a saved copy.
 - `tests/test_ci_inventory_vitest_shards.py`: 12 passed.
 - `python tools/pytest_shards.py --self-check`: PASS.
 - Proved able to fail: forcing the old 12-bucket count cut and dropping `--timings` from the
