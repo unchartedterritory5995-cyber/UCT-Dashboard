@@ -400,11 +400,17 @@ export async function idbPut(sym, tf, bars) {
 
 /** Compare-and-write in ONE readwrite transaction (no read/await/write gap). Returns the
  *  series now stored (capped as idbPut caps it), or null when nothing was written. */
-export async function idbPutMonotonic(sym, tf, bars, { delta = false, startedAt = null, segment = 'tail' } = {}) {
+// `meta`: the BarStore's provenance envelope (data/barStore/persist.js — seals, history_rev,
+// cache_key). Stored only by the writer that passes it; every other write (idbPut, a
+// monotonic write without it, a pack import, a pack delta) puts a record WITHOUT it, so a
+// series another writer changed never carries a stale seal claim. NEVER on the `@hist`
+// segment: the envelope describes the tail record's rows only.
+export async function idbPutMonotonic(sym, tf, bars, { delta = false, startedAt = null, segment = 'tail', meta: metaIn = null } = {}) {
   if (!bars?.length) return null
   // `segment: 'history'` writes the deep-history record (`<key>@hist`, see below) by the
   // SAME rule; only its key and its cap differ.
   const history = segment === 'history'
+  const meta = history ? null : metaIn
   if (history && !['1','5','15','30','60'].includes(logicTfOf(String(tf)))) return null
   try {
     const db = await _open()
@@ -424,10 +430,11 @@ export async function idbPutMonotonic(sym, tf, bars, { delta = false, startedAt 
         const cur = _entryReadable(e, tf, Date.now(), { history }) ? e.bars : null
         const curIsNewer = !!cur && Number.isFinite(startedAt) && Number.isFinite(e.savedAt) && e.savedAt > startedAt
         const next = mergeMonotonic(cur, bars, { delta, curIsNewer })
+        if (next && next === cur && meta) store.put({ ...e, meta })   // same rows, newer provenance
         if (!next?.length || next === cur) { out = cur; return }
         const capped = history ? _capHistoryForWrite(next) : _capForWrite(tf, next)
         const born = history ? { createdAt: (cur && Number.isFinite(e.createdAt)) ? e.createdAt : (cur ? (e.savedAt || Date.now()) : Date.now()) } : {}
-        store.put({ key, bars: capped, lastT: capped[capped.length - 1]?.t, savedAt: Date.now(), v: CACHE_LOGIC_VERSION, ...born })
+        store.put({ key, bars: capped, lastT: capped[capped.length - 1]?.t, savedAt: Date.now(), v: CACHE_LOGIC_VERSION, ...born, ...(meta ? { meta } : {}) })
         out = capped
       }
       tx.oncomplete = () => resolve(out)

@@ -135,6 +135,12 @@
         "at": "components/chart/engine/secondaryBars.js:29"
       }
     },
+    "data/barStore/network.js": {
+      "/api/bars/${encodeURIComponent(p.sym)}?tf=${p.tf}&bars=${b": {
+        "n": 1,
+        "at": "data/barStore/network.js:98"
+      }
+    },
     "hooks/useSessionExtBars.js": {
       "/api/bars/${encodeURIComponent(sym)}?tf=5&bars=300": {
         "n": 1,
