@@ -77,6 +77,40 @@ Why it behaves the same:
 3. All the writes happen in one event handler, so React batches them exactly as before. There is no new await or effect.
 4. `handleDockPeriodSort`: the id expression `` `w-periodsort-${Date.now()}` `` moved out of the `setLayout` updater to just before it, and the function now `return id`. The updater always appends the widget (there is no early return), so the returned id is the widget's id. The one difference is that `Date.now()` is read a few microseconds earlier, and under StrictMode's double-invoked updater both invocations now use the same id.
 
+#### Named difference in the move: dock id computed before setLayout
+
+What moved, in `handleDockPeriodSort` (ChartsWorkspace.jsx):
+
+```
+// master 1208aa0085 — inside the setLayout updater
+setLayout(prev => {
+  …
+  const newWidget = {
+    id: `w-periodsort-${Date.now()}`,
+    type: 'periodsort', color,
+    …
+
+// this branch — one line before setLayout; the updater uses it
+const id = `w-periodsort-${Date.now()}`
+setLayout(prev => {
+  …
+  const newWidget = {
+    id,
+    type: 'periodsort', color,
+    …
+})
+return id
+```
+
+A correction to the framing first: the id does not come from layout state in either version. It comes from the clock, `Date.now()`, and the expression is the same in both. Everything else about the widget comes from `prev` inside the updater, and none of it moved: placement (`findPlacement` / `splitToSide` / `splitToFit`), `color` (`pickWidgetColor`), `w` / `h` and `opts: { start, end, group }`. So the docked widget lands identically: same cell, same size, same split of a neighbour, same colour and same opts. `scheduleSave(next)` saves the same layout.
+
+It is not byte-identical in one respect, the id's millisecond value:
+
+- In master, `Date.now()` is read when React runs the updater. React may run it eagerly during the `setLayout` call, or later during render, so it can read a later millisecond than this branch, which reads it just before the call.
+- Under React StrictMode (dev only), the updater runs twice. Master could mint two different ids across the two runs (React keeps one). This branch uses the one id for both.
+
+Nothing reads the number. No code parses or sorts `w-periodsort-*` ids (the only other occurrence is the test harness's own counter). Two docks within the same millisecond would collide in either version, the same as before. The visible behaviour is the same; only the timestamp inside the id may differ by the gap between the call and the updater.
+
 The ChartsWorkspace diff against master is exactly the first build's 6 hunks (dock id, runPeriodSort, the Agent ref, the host `periodSort` object, the popover call). Master's changes since then did not touch these lines. The source rail in agentPeriodSort.test.jsx pins the popover → runPeriodSort call and the Agent's call without a timeframe.
 
 ## What a member can now ask
