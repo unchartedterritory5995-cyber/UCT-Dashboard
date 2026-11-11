@@ -125,6 +125,14 @@ details.more li { margin: 4px 0; }
 .empty { color: var(--mute); padding: 30px 0; text-align: center; }
 .copyrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .linkbtn { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; cursor: pointer; font: 600 12px var(--mono); color: var(--mute); min-height: 36px; }
+.call { margin: 0; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); font-size: 15px; display: flex; gap: 8px 12px; flex-wrap: wrap; align-items: center; max-width: 80ch; }
+.call b { font: 700 12px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
+.call.look { border-color: var(--warn); } .call.confirm { border-color: var(--info); } .call.keep { border-color: var(--good); }
+.call .why2 { flex: 1 1 260px; min-width: 0; color: var(--fg); }
+.call button { min-height: 36px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; font: 700 13px var(--mono); padding: 0 12px; }
+.call button:hover { border-color: var(--gold); }
+.bulk { min-height: 40px; border-radius: 10px; border: 1px solid var(--good); background: var(--panel2); cursor: pointer; font: 700 13px var(--mono); padding: 0 14px; justify-self: start; }
+.bulk[data-armed=true] { background: var(--good); color: #04140b; }
 @media (max-width: 899px) {
   .app { grid-template-columns: minmax(0, 1fr); }
   #unitsBtn { display: inline-flex; }
@@ -206,7 +214,7 @@ details.more li { margin: 4px 0; }
 
   // ── saving: every pick goes to the local server, which writes it to a file on this computer ───────────────────
   var QKEY = 'libreview.queue';
-  S.queue = lsGet(QKEY, []); S.flushing = false; S.fails = 0;
+  S.calls = {}; S.queue = lsGet(QKEY, []); S.flushing = false; S.fails = 0;
   function renderSaveBanner() {
     var el = $('saveBanner'); if (!el) return;
     if (S.queue.length && S.fails > 0) {
@@ -270,6 +278,9 @@ details.more li { margin: 4px 0; }
       if (f === 'cut') return r && r.v === 'cut';
       if (f === 'tell') return !!q.tell;
       if (f === 'revised') return !!(q.check && q.check.revised);
+      if (f === 'look') return !!(S.calls[q.id] && S.calls[q.id].c === 'look');
+      if (f === 'confirm') return !!(S.calls[q.id] && S.calls[q.id].c === 'confirm');
+      if (f === 'clean') return !!(S.calls[q.id] && S.calls[q.id].c === 'keep');
       return true;
     });
   }
@@ -341,13 +352,15 @@ details.more li { margin: 4px 0; }
     });
   }
 
-  function renderUnitHead() {
+  function renderUnitHead() { setTimeout(wireBulk, 0);
     var u = S.cur; if (!u) return;
     var d = u.data, c = counts(u.slug, u.ids), n = u.n;
     var fm = {}; d.questions.forEach(function (q) { fm[q.format] = (fm[q.format] || 0) + 1; });
     var chips = Object.keys(fm).map(function (k) { return '<span class="chip">' + esc(k) + ' ' + fm[k] + '</span>'; }).join('');
     var flags = d.flags && d.flags.length ? '<p class="flagline">' + d.flags.map(esc).join(' · ') + '</p>' : '';
     var revised = u.revised ? '<span class="chip info">' + u.revised + ' revised, awaiting a second reader</span>' : '';
+    var cleanLeft = d.questions.filter(function (q) { var c = S.calls[q.id], r = rec(u.slug, q.id); return c && c.c === 'keep' && (!r || !r.v); }).length;
+    var bulk = cleanLeft ? '<button class="bulk" id="bulkBtn" type="button">Accept Claude\'s ' + cleanLeft + ' clean keeps in this unit</button>' : '';
     var conf = d.conflicts && d.conflicts.length ? '<details class="more"><summary>Notes for you (' + d.conflicts.length + ')</summary><ul>' + d.conflicts.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></details>' : '';
     var walks = d.walkthroughs && d.walkthroughs.length ? '<details class="more"><summary>Walk-throughs (' + d.walkthroughs.length + ')</summary><ul>' + d.walkthroughs.map(function (w) { return '<li><b>' + esc(w.title) + '</b> ' + w.steps.map(esc).join(' ') + '</li>'; }).join('') + '</ul></details>' : '';
     $('unitHead').innerHTML = '<div class="eyebrow">' + esc(u.unit) + ' · ' + esc(S.index.tracks[u.track] || u.track) + (d.as_of ? ' · written ' + esc(d.as_of) : '') + '</div>' +
@@ -355,12 +368,13 @@ details.more li { margin: 4px 0; }
       '<div class="chips">' + chips + revised + '</div>' + flags +
       '<div class="bar" role="img" aria-label="' + c.keep + ' keep, ' + c.fix + ' fix, ' + c.cut + ' cut of ' + n + '">' +
       '<i class="k" style="width:' + (100 * c.keep / n) + '%"></i><i class="f" style="width:' + (100 * c.fix / n) + '%"></i><i class="c" style="width:' + (100 * c.cut / n) + '%"></i></div>' +
-      '<div class="eyebrow">' + (c.keep + c.fix + c.cut) + ' of ' + n + ' reviewed · ' + c.keep + ' keep · ' + c.fix + ' fix · ' + c.cut + ' cut</div>' + conf + walks;
+      '<div class="eyebrow">' + (c.keep + c.fix + c.cut) + ' of ' + n + ' reviewed · ' + c.keep + ' keep · ' + c.fix + ' fix · ' + c.cut + ' cut</div>' + bulk + conf + walks;
   }
 
+  function wireBulk() { var b = $('bulkBtn'); if (b) b.onclick = acceptClean; }
   function renderFilters() {
     var u = S.cur; if (!u) return;
-    var fl = [['all', 'All'], ['todo', 'To review'], ['fix', 'Fix'], ['cut', 'Cut'], ['tell', 'Length tell'], ['revised', 'Revised']];
+    var fl = [['all', 'All'], ['todo', 'To review'], ['fix', 'Fix'], ['cut', 'Cut'], ['look', 'Claude: look'], ['confirm', 'Claude: confirm rule'], ['clean', 'Claude: clean keep'], ['tell', 'Length tell'], ['revised', 'Revised']];
     $('filters').innerHTML = fl.map(function (x) { return '<button type="button" data-f="' + x[0] + '" aria-pressed="' + (S.filter === x[0]) + '">' + x[1] + '</button>'; }).join('') +
       '<span class="sp"></span><label class="toggle"><input type="checkbox" id="showAns"' + (S.showAnswer ? ' checked' : '') + '> Show answer</label>';
     $('filters').querySelectorAll('button').forEach(function (b) {
@@ -412,6 +426,13 @@ details.more li { margin: 4px 0; }
     if (q.check && q.check.status && q.check.status !== 'pass') badges += '<span class="chip bad">checker: ' + esc(q.check.status) + '</span>';
     var html = '<div class="qmeta"><span class="id">' + esc(u.unit) + ' · ' + esc(q.key) + '</span><span>rung ' + q.rung + ' · ' + level(q.rung) + '</span><span>' + esc(q.format) + '</span>' +
       (q.criterion ? '<span>' + esc(q.criterion) + '</span>' : '') + badges + '</div>';
+    var cl = S.calls[q.id];
+    if (cl) {
+      var label = cl.c === 'look' ? 'Look: I propose ' + cl.p.toUpperCase() : cl.c === 'confirm' ? 'Keep, but confirm the rule' : 'Keep';
+      var cur = rec(u.slug, q.id), done = cur && cur.v === cl.p;
+      html += '<p class="call ' + cl.c + '"><b>Claude\'s call</b><span><strong>' + esc(label) + '.</strong></span><span class="why2">' + esc(cl.r) + '</span>' +
+        (done ? '<span class="chip good">accepted</span>' : '<button type="button" id="acceptCall">Accept (Enter)</button>') + '</p>';
+    }
     html += questionBody(q);
     if (S.showAnswer) {
       if (q.why) html += '<p class="why"><b>Why.</b> ' + esc(q.why) + '</p>';
@@ -427,6 +448,7 @@ details.more li { margin: 4px 0; }
     }
     host.innerHTML = html;
     renderVerdictState();
+    var ac = $('acceptCall'); if (ac) ac.onclick = acceptCall;
     $('pos').textContent = (S.qi + 1) + ' / ' + list.length;
     $('prev').disabled = S.qi === 0; $('next').disabled = S.qi >= list.length - 1;
     lsSet('libreview.at', { slug: u.slug, key: q.key }); postState(u.slug, q.key);
@@ -439,6 +461,30 @@ details.more li { margin: 4px 0; }
     var r = rec(u.slug, q.id) || { v: '', note: '' };
     document.querySelectorAll('.vb').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-v') === r.v)); });
     var ta = $('vnote'); if (document.activeElement !== ta) ta.value = r.note || '';
+  }
+
+  function acceptCall() {
+    var u = S.cur, q = u && visible()[S.qi], cl = q && S.calls[q.id]; if (!cl) return;
+    var cur = rec(u.slug, q.id);
+    if (cur && cur.v === cl.p) { step(1); return; }
+    if (cl.p !== 'keep' && !$('vnote').value) $('vnote').value = "Accepted Claude's call: " + cl.r;
+    setVerdict(cl.p);
+    var ac = $('acceptCall'); if (ac) renderQuestion();
+  }
+  var bulkArmed = false;
+  function acceptClean() {
+    var u = S.cur; if (!u) return;
+    var todo = u.data.questions.filter(function (q) { var c = S.calls[q.id], r = rec(u.slug, q.id); return c && c.c === 'keep' && (!r || !r.v); });
+    if (!todo.length) return;
+    var btn = $('bulkBtn');
+    if (!bulkArmed) { bulkArmed = true; btn.setAttribute('data-armed', 'true'); btn.textContent = 'Click again to record ' + todo.length + ' keeps as yours'; setTimeout(function () { bulkArmed = false; renderUnitHead(); }, 6000); return; }
+    bulkArmed = false;
+    if (!S.reviews[u.slug]) S.reviews[u.slug] = { unit: u.slug, items: {} };
+    todo.forEach(function (q) {
+      var r = { v: 'keep', note: '', at: new Date().toISOString(), key: q.key };
+      S.reviews[u.slug].items[q.id] = r; persist(u.slug, q, r);
+    });
+    renderUnitList(); renderTotals(); renderUnitHead(); renderQuestion();
   }
 
   // ── navigation ───────────────────────────────────────────────────────────────────────────────────────────────
@@ -462,7 +508,7 @@ details.more li { margin: 4px 0; }
       if (!document.getElementById('qhost')) buildMain();
       S.qi = qi || 0;
       if (key) { var l = visible(); for (var i = 0; i < l.length; i++) if (l[i].key === key) S.qi = i; }
-      renderUnitList(); renderUnitHead(); renderFilters(); renderQuestion(); window.scrollTo(0, 0);
+      renderUnitList(); renderUnitHead(); wireBulk(); renderFilters(); renderQuestion(); window.scrollTo(0, 0);
     }, function () { $('main').innerHTML = '<div class="banner">This unit did not load. Reload the page to try again.</div>'; });
   }
   function buildMain() {
@@ -502,6 +548,7 @@ details.more li { margin: 4px 0; }
     else if (e.key === 'k' || e.key === 'K') setVerdict('keep');
     else if (e.key === 'f' || e.key === 'F') setVerdict('fix');
     else if (e.key === 'c' || e.key === 'C') setVerdict('cut');
+    else if (e.key === 'Enter') { acceptCall(); e.preventDefault(); }
     else if (e.key === 'a' || e.key === 'A') { S.showAnswer = !S.showAnswer; lsSet('libreview.showAnswer', S.showAnswer); renderFilters(); renderQuestion(); }
   });
   window.addEventListener('hashchange', function () { var h = parseHash(); if (h && (!S.cur || h.slug !== S.cur.slug || h.key)) go(h.slug, 0, h.key); });
@@ -509,9 +556,10 @@ details.more li { margin: 4px 0; }
   function boot() {
     Promise.all([
       fetch('data/index.json').then(function (r) { return r.json(); }),
-      fetch('api/verdicts').then(function (r) { return r.json(); })
+      fetch('api/verdicts').then(function (r) { return r.json(); }),
+      fetch('data/calls.json').then(function (r) { return r.ok ? r.json() : {}; }).catch(function () { return {}; })
     ]).then(function (res) {
-      var idx = res[0], v = res[1];
+      var idx = res[0], v = res[1]; S.calls = res[2] || {};
       Object.keys(v.records || {}).forEach(function (id) {
         var r = v.records[id], slug = r.unit; if (!slug) return;
         if (!S.reviews[slug]) S.reviews[slug] = { unit: slug, items: {} };

@@ -54,3 +54,20 @@ IF SOMETHING GOES WRONG
 - You want an extra safety copy right now: click "Download backup" at the top of
   the page. It saves a file with all your decisions to your Downloads folder.
 - Anything else: send Claude the file C:\Users\pgosz\StudyReview\server.log
+
+
+CLAUDE'S FIRST-PASS CALLS (added 2026-11-10)
+Every question shows a line "Claude's call" under its heading. These are NOT your
+decisions. They are my triage from checks the library already has, not a fresh read:
+  Keep               passed the second reader's cold check, no near-duplicate,
+                     no obvious length tell, rests on no unruled rule.
+  Keep, confirm rule the question is fine, but it teaches a rule that is only our
+                     card's proposal or waits on a decision of yours (it names which).
+  Look               a concrete concern: it asks nearly the same as another question,
+                     or its right choice is far longer than the rest. I propose Fix or Cut and say why.
+Press ENTER (or click Accept) to take my call as your verdict. It is only recorded as
+yours when you accept it. Anything you decide yourself overrides my call.
+"Accept Claude's N clean keeps in this unit" (top of each unit) records all the clean
+keeps at once, after one confirming click. Filters above the question jump to my Look
+and Confirm groups. Suggested order: the 111 Look questions first, then the clean keeps
+unit by unit, then the Confirm-rule ones once you have ruled on those decisions.
