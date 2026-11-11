@@ -8,7 +8,7 @@
 //   • chart time   — barTime.toChartTime, per bar, DST-correct (intraday); D/W/M keep
 //                    their business-day 'YYYY-MM-DD' strings as-is (StockChart's adjustTime)
 //   • off-grid     — chart/offGridBars.foldOffGridBars (intraday only)
-//   • RTH filter   — marketSession.etMinutesOfUnix ∈ [570, 960) when extended hours are off
+//   • RTH filter   — 09:30 ≤ ET minute < the day's close (half-day aware) when extended hours are off
 //   • replay       — replayIndex slice, then replayCutoff calendar-day filter
 //   • session      — chart/sessionPreview.applySessionCandle (D/W/M extended preview)
 //   • Heikin-Ashi  — the toHeikinAshi recurrence (indicators.js), continued onto the tail
@@ -24,17 +24,13 @@
 // The store bumps baseRev on every change to sealed bars, so a stale entry can never be
 // served; the LRU bound (BASE_MEMO_MAX) only limits memory. Tested in adapter.test.js.
 
-import { toChartTime } from '../../components/chart/barTime'
+import { toChartTime, etMinuteOfDay, rthCloseMinuteOf, RTH_OPEN_MIN } from '../../components/chart/barTime'
 import { foldOffGridBars } from '../../components/chart/offGridBars'
 import { applySessionCandle } from '../../components/chart/sessionPreview'
 import { toHeikinAshi } from '../../components/chart/indicators'
-import { etMinutesOfUnix } from '../../utils/marketSession'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
 const DWM = new Set(['D', 'W', 'M'])
-// StockChart's RTH view filter (sessionBars memo): 09:30 ≤ ET minute < 16:00.
-const RTH_OPEN_MIN = 570
-const RTH_END_MIN = 960
 
 export const BASE_MEMO_MAX = 32
 
@@ -196,10 +192,13 @@ function haContinue(bars, prev) {
   return out
 }
 
+// The regular-hours view: 09:30 to the DAY's close (13:00 on an NYSE half-day; barTime owns
+// the calendar). ⚠ When charts/rth-halfday-filter lands this becomes barTime.isRthBar —
+// the one RTH test StockChart's sessionBars filter then uses too (it uses a fixed 16:00 today).
 function rthKeep(b) {
   if (typeof b.t !== 'number') return true
-  const m = etMinutesOfUnix(b.t)
-  return m >= RTH_OPEN_MIN && m < RTH_END_MIN
+  const m = etMinuteOfDay(b.t)
+  return m >= RTH_OPEN_MIN && m < rthCloseMinuteOf(b.t)
 }
 function cutoffKeep(cutoff) {
   return (b) => (typeof b.t === 'number'

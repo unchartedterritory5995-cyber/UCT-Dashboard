@@ -8,7 +8,7 @@ import { frameAfterKeyChange } from '../../data/barStore/framing'
 // copies until it imports from here (W-R / P3-S3). This rail reads StockChart's SOURCE so
 // the copies cannot drift — delete the source check the day StockChart imports the module.
 
-const SC = fs.readFileSync(path.join(__dirname, '..', 'StockChart.jsx'), 'utf8')
+const SC = fs.readFileSync(path.resolve(globalThis.process.cwd(), 'src/components/StockChart.jsx'), 'utf8')
 const constOf = (name) => {
   const m = new RegExp(`^const ${name} = ([0-9.]+)\\s*$`, 'm').exec(SC)
   return m ? Number(m[1]) : undefined

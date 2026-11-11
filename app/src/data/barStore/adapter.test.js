@@ -159,3 +159,15 @@ describe('A5 staticSnapshot (barsOverride consumers)', () => {
     expect(composed(toSeries(a, { tf: 'D' })).c).toEqual(bars.map(x => ({ time: x.t, open: x.o, high: x.h, low: x.l, close: x.c })))
   })
 })
+
+describe('A6 RTH view on an NYSE half-day', () => {
+  it('Nov 27 2026 (13:00 close): the regular-hours view drops the 13:00-16:00 bars', () => {
+    const r = rng(8)
+    const day = []
+    for (let t = etUnix(2026, 11, 27, 9, 30); t < etUnix(2026, 11, 27, 16, 0); t += 300) day.push(bar(t, r))
+    const s = toSeries(snap('X_5', day.slice(0, -1), null), { tf: '5', showExtended: false })
+    const last = s.base.candles[s.base.candles.length - 1].time
+    expect(((last % 86400) + 86400) % 86400).toBe(12 * 3600 + 55 * 60)
+    expect(s.base.candles.length).toBe((13 * 60 - 9 * 60 - 30) / 5)
+  })
+})
