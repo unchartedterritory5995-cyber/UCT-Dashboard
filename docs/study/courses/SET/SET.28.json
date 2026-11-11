@@ -698,6 +698,12 @@
    "source": "c1",
    "quote": "Weak with the index under its own 200-day.",
    "claim": "Card 32: a remount is weak with the index under its own 200-day."
+  },
+  {
+   "id": "h30",
+   "source": "h1",
+   "quote": "Max position 40% of the account",
+   "claim": "A7: the maximum position is 40% of the account."
   }
  ],
  "walkthroughs": [
@@ -774,7 +780,7 @@
     "A breakout from a flat base"
    ],
    "answer": "Retaking a line the stock really lost",
-   "why": "Retaking a line the stock really lost. A Remount lost the 50-day or 200-day for a week or more and is buying it back.",
+   "why": "Retaking a line the stock really lost. A Remount lost the 50-day or 200-day for real and is buying it back.",
    "lesson_line": "A Remount is a line lost for real, then taken back.",
    "facts": [
     "k18",
@@ -827,7 +833,7 @@
    ],
    "wrong": {
     "The 5-day and the 8-day": "Those are too short to count as a lost line. The Remount uses the 50-day and 200-day.",
-    "The 10-week and 30-week": "That is Weinstein's older weekly line. Ours are the 50-day and the 200-day.",
+    "The 10-week and 30-week": "Those are weekly lines. Ours are the 50-day and the 200-day.",
     "The session VWAP": "VWAP resets every day. A lost line has to be one the stock sat under for days."
    },
    "house": true
@@ -1028,8 +1034,8 @@
     "The size of the first volume bar"
    ],
    "answer": "How long the line stayed lost",
-   "why": "How long the line stayed lost. A U&R closes back above within 3 sessions; a Remount lost the line for a week or more.",
-   "lesson_line": "Count the sessions under the line. Short is a U&R, long is a Remount.",
+   "why": "How long the line stayed lost. A U&R closes back above within 3 sessions. A Remount spent far longer under the line.",
+   "lesson_line": "Count the sessions under the line. A quick return is a U&R, a long stay a Remount.",
    "facts": [
     "m03",
     "k18"
@@ -1257,22 +1263,19 @@
     "Yes, buy the close"
    ],
    "answer": "No; a pullback or U&R, the line was kept",
-   "why": "No. The line was never really lost, so it is a pullback or a U&R. ENOV looked just like this.",
-   "lesson_line": "A three-day dip is not a lost line.",
+   "why": "No. The line was never really lost, so it is a pullback or a U&R.",
+   "lesson_line": "A two-day dip is not a lost line.",
    "facts": [
-    "d10",
     "m03",
-    "k18",
-    "e06",
-    "e07"
+    "k18"
    ],
    "wrong": {
-    "Yes, it retook the 50-day": "It retook the line, but the line was never really lost. Three sessions is a dip.",
+    "Yes, it retook the 50-day": "It retook the line, but the line was never really lost. Two sessions is a dip.",
     "Yes, if the volume is heavy": "Volume does not change the count. A short dip is not a lost line.",
     "Yes, buy the close": "Buying the close of a short dip is a pullback or U&R trade, with its own rules."
    },
    "house": true,
-   "story": "A leader closes under its 50-day for three sessions. Then it closes back above with a strong candle."
+   "story": "A leader closes under its 50-day for two sessions. Then it closes back above with a strong candle."
   },
   {
    "key": "q24",
@@ -1297,7 +1300,7 @@
    "wrong": {
     "A moving-average Remount": "A Remount uses the 50-day or the 200-day, which do not start at one event day.",
     "A level Remount": "A level Remount uses a flat price level that held. This line bends with volume.",
-    "An Oops": "An Oops is one session with a gap-open. It has no line like this."
+    "An Oops": "An Oops is one session that opens under the prior close. It has no line like this."
    },
    "house": true,
    "story": "A stock closes over a line that starts at its August high and bends with volume."
@@ -1424,12 +1427,13 @@
    "criterion": "rm.stop_width",
    "q": "Account 100,000, risk 0.5%. Buy 109.42, stop 105.86. How many shares does the stop allow?",
    "answer": 140,
-   "why": "140 shares. The size comes from the stop: risk divided by the distance, rounded down. That stop was 3.3% from the buy.",
+   "why": "140 shares. The size comes from the stop: risk divided by the distance, rounded down. The 40% position cap is not close. That stop was 3.3% from the buy.",
    "lesson_line": "The stop sets the size. Wider stop, fewer shares.",
    "facts": [
     "h03",
     "d03",
-    "m07"
+    "m07",
+    "h30"
    ],
    "house": true,
    "calc": {
@@ -1675,7 +1679,7 @@
    "q": "Which grades higher?",
    "choices": [
     "The one that clears all the averages",
-    "The one that clears only the 20-day",
+    "The one with the 50-day overhead",
     "Both grade the same",
     "Neither; both are passes"
    ],
@@ -1687,12 +1691,12 @@
     "m18"
    ],
    "wrong": {
-    "The one that clears only the 20-day": "Leaving the 50-day overhead and falling is a B minus cue.",
+    "The one with the 50-day overhead": "Leaving the 50-day overhead and falling is a B minus cue.",
     "Both grade the same": "Clearing every average at once is an A plus cue; a falling average overhead is not.",
     "Neither; both are passes": "Both can be taken, and grade sets the size. The weaker one is just a lower grade."
    },
    "house": true,
-   "story": "Two 50-day remounts. One clears the 20, 50 and 200-day at once. The other clears the 20-day, with the 50-day still overhead and falling."
+   "story": "Two remounts of the 200-day. One also clears the 20 and 50-day at once. The other leaves the 50-day overhead and falling."
   },
   {
    "key": "q40",
@@ -1738,14 +1742,14 @@
    ],
    "answer": "A U&R, back within 3 sessions",
    "why": "A U&R. An Undercut and Rally closes back above the level within 3 sessions and is bought as the level is retaken.",
-   "lesson_line": "Back in 3 sessions: a U&R. Gone for a week or more: a Remount.",
+   "lesson_line": "Back in 3 sessions: a U&R. A long stay under the line: a Remount.",
    "facts": [
     "m03",
     "k18"
    ],
    "wrong": {
-    "A Remount of a level": "A Remount lost the line for a week or more. This was a couple of sessions.",
-    "An Oops": "An Oops is one session of a gap-open and reclaim. This took more than one.",
+    "A Remount of a level": "A Remount lost the line for a long stay. This was a couple of sessions.",
+    "An Oops": "An Oops is one session that opens under the prior close. This took more than one.",
     "A 20 EMA pullback": "A pullback holds its line. This undercut a base low and took it back."
    },
    "house": true,
@@ -1772,7 +1776,7 @@
     "k18"
    ],
    "wrong": {
-    "A Remount of the 50-day": "A Remount follows a line lost for a week or more. This took one session.",
+    "A Remount of the 50-day": "A Remount follows a line lost for a long stay. This took one session.",
     "A level Remount": "No level was lost for days here. One session is an Oops.",
     "A moving-average Remount": "No average was lost for a stay. This was one candle."
    },
@@ -1976,7 +1980,7 @@
     "No trade; it is a base": "Nothing makes it a base here. It is a lower grade, not a ban."
    },
    "house": true,
-   "story": "A stock fell 60% over months. Today it remounts its 50-day for the first time. The line is still curling lower."
+   "story": "A stock sold off hard for months. Today it remounts its 50-day for the first time, still above its 200-day. The 50-day is still curling lower."
   },
   {
    "key": "q50",
@@ -2078,7 +2082,7 @@
     "A sign to buy the gap"
    ],
    "answer": "A planned loss; the index was weak",
-   "why": "A planned loss. A remount is weak with the index under its own 200-day. AAPL gapped through the stop the next day.",
+   "why": "A planned loss. A remount is weak with the index under its own 200-day. AAPL opened lower and traded through the stop the next day.",
    "lesson_line": "A clean chart is weak when the index is weak.",
    "facts": [
     "e01",
@@ -2087,11 +2091,11 @@
    ],
    "wrong": {
     "A flaw in the 200-day": "The line was fine. The index under its own 200-day made the remount weak.",
-    "A reason to skip stops": "The stop and the gap rule limit a loss like this. They are never optional.",
-    "A sign to buy the gap": "A gap through the stop is not a signal to add."
+    "A reason to skip stops": "The stop limits a loss like this. It is never optional.",
+    "A sign to buy the gap": "A gap down is not a signal to add."
    },
    "house": true,
-   "story": "You bought a 200-day remount at 163.43 with the stop at 159.25. The S&P 500 sits under its own 200-day. Next day it gaps open at 159.90."
+   "story": "You bought a 200-day remount at 163.43 with the stop at 159.25. The S&P 500 sits under its own 200-day. Next day it opens down at 159.90 and trades through your stop."
   },
   {
    "key": "q54",
@@ -2202,9 +2206,9 @@
    "lesson_line": "A fifty-day retake under the 200-day is not a buy.",
    "facts": [
     "e05",
-    "m04",
+    "m05",
     "h10",
-    "k17"
+    "k01"
    ],
    "wrong": {
     "Take it; the 50-day was retaken": "A 50-day reclaim counts only with the close above the 200-day too.",
@@ -2255,7 +2259,7 @@
    ],
    "wrong": {
     "Down to the line": "The stop only moves up.",
-    "Up to the quiet day's high": "That would put the stop above a market that may sit lower. Breakeven is the plan.",
+    "Up to the quiet day's high": "That is not part of the plan. The stop goes to breakeven, our entry.",
     "It stays until 5R": "Breakeven comes between 2R and 5R, at the first trim by default."
    },
    "house": true
@@ -2412,7 +2416,411 @@
   "The chart questions: q56 (NKE asof 2020-08-06, the inside day after the remount, a take) and q57 (CRM asof 2025-06-06, the 50-day reclaim under the 200-day, a pass). The NKE key rests on the dossier's read (d01, d02, a strong remount close and an inside day); the CRM key rests on the dossier's numbers (e05) and B26. Both show the member's own daily chart with their averages.",
   "Deepvue is a vendor page about Weinstein (Tier 2 with a note); it is used only to name the sideways chop (dv1). The 4B- name appears only in card 13's tell (m04); the questions explain it in plain words.",
   "MAU&R: Morales and Kacher let the stop sit 1-2% under the average (the VoSI FAQ). Card 32 lists that as a named variant and not the default; no question keys it. The scanners' remount.py claims (Bonde, Shannon, Raschke, 1.5:1 reward) are not sourced and none reaches a member here.",
-  "Cold-check notes carried from the pilot: no 'the owner' in member text, no untaught house words, the stop stays the rule's stop (B20 for a gap through it), the breakeven move at the first trim (B19)."
+  "Cold-check notes carried from the pilot: no 'the owner' in member text, no untaught house words, the stop stays the rule's stop (B20 for a gap through it), the breakeven move at the first trim (B19).",
+  "Cold check 2026-11-10: 60 pass (13 fixed), 0 fix, 4 cut; 3 walk-throughs pass. Cut: q14 and q60 (breakeven and the 3R trim, duplicates of q59 and q32), q17 (duplicate of q63), q35 (duplicate of q51). Fixed: 'a week or more' removed from member text where it stood for the pending D-074 count (q01, q13, q41, q42); q23's three-session dip is now two sessions (three is unsafe if the owner takes option A, 3 of the prior 20 closes); q39 and q49 stories that contradicted themselves or left out the 200-day; q53 (AAPL opened lower, it did not gap through the stop); q57 (CRM's 200-day is rising, so the 'falling' sources were dropped and B26 carries the key); q29 now names the 40% cap. For the owner, first: D-074 (how long the line must be lost; nothing keys the count now, but q13, q41 and q42 lean on the proposed 3-session U&R limit), D-003 (the pause entry in q20 and the walk-throughs is card 13's proposed Entry B; Entry A, buying the remount-day close, is not taught), and E50 against the grade-cue questions (q39, q49, q50, q64): they teach A plus and B minus cues, and the rulebook says grading is discretionary with no fixed checklist."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "d01/d02 verbatim (NKE: remount 2020-08-05, buy 101.19, stop 99.98 = 1.2%, 3R next day, 25.0R). Re-read in bars.db: 08-05 close 100.94 over the 50-day 98.60; 08-06 high 101.18 and low 100.03 inside the remount day's range (the inside day); 08-07 trades over 101.18; 08-10 passes 104.82. Stop is 5 cents under 100.03.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "d03/d04 verbatim (AMD: report after the close 2023-10-31, remount 11-01, buy 109.42, stop 105.86 = 3.3%, 21.2R). Re-derived (109.42-105.86)/109.42 = 3.25% -> 3.3%. A remount on the reaction day is after the report (card 13 mar.earnings_window).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "d05/d06 verbatim (DOCU: 24 closes under, remount 2024-03-11, buy 2024-03-14 at 59.54, stop 58.44 = 1.8%, gap under the stop 03-15, held the 50-day 20 sessions, high 61.47). Re-derived (59.54-58.44)/59.54 = 1.85%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "k18 and v1 verbatim. The why said 'lost the 50-day or 200-day for a week or more', which is the pending D-074 number in plain words (5 straight closes, or 3 of 20, or an 8-week base); now 'for real'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. m01, m02, k22.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Key right (the 50-day and the 200-day, both cards). The wrong note for '10-week and 30-week' said 'Weinstein's older weekly line'; no fact cites that and the 10-week is not his line (he used the 30-week). Now just 'weekly lines'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. k15, m16, x1 (ChartSchool: wait for a full candle close).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. B26; k01 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. E57, D41.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. m17 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. m05 verbatim; x3, x4 (ChartSchool).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "i2 verbatim (IBD via Yahoo). Key and wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. x1 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. i3 verbatim (IBD); m09 proposed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. AMD d03/d04: remount on the reaction day, allowed (card 13 mar.earnings_window, settled B22).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Key 'how long the line stayed lost' is categorical and right. The why said 'a week or more' for the Remount, the pending D-074 number in words; now 'far longer'. The U&R side keeps '3 sessions' (m03, card 29's proposed ur.inv_no_reclaim).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "cut",
+   "notes": "Duplicate of q59 (the stop goes to breakeven at the first trim, B19), asked as a fill. q59 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Re-derived (101.19-99.98)/101.19 = 1.196% -> 1.2. NKE d01 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Re-derived 109.42 + 3 x (109.42-105.86) = 120.10. AMD d03 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "cut",
+   "notes": "Duplicate of q63 (a close back under the line before the stop is not an extra exit), which asks it in a story. The key itself is right: A4 and card 13's settled mar.after_entry_stop (card 32's rm.close_back_under_after_buy is pending D-008 but defaults to no extra exit).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. D41, F62.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. k12; x2 (ChartSchool) and dv1 (Deepvue on Weinstein) verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "m10/m11 verbatim from card 13's proposed mar.entry_b (the pause). Entry A, the remount-day close, is the owner's pending D-003 and is not taught here; the quiet-day count (1 to 5 sessions) is never keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. A4.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. B23: $9 fails the $10 floor.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Story said the line was lost for three sessions and keyed 'not a Remount'; three closes is not safe under D-074 (option A counts 3 of the prior 20 closes). Now two sessions, a key that holds under every D-074 option; the ENOV/GOOG three-day examples (d10, e06, e07) are no longer cited.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. k20 verbatim. The wrong note for 'An Oops' said 'a gap-open'; the card says 'opens under the prior close', now worded so.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Re-derived (61.47-59.54)/(59.54-58.44) = 1.93/1.10 = 1.75R. DOCU d05/d06 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. m07 verbatim. The 5.5% is a given, over the 3% line (A13).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "Arithmetic: 1R = 1.10; the gap-day first 30-minute low 57.20 is a loss of 2.34 = 2.13R, past the 2R ceiling (B20), so out is right. h06/h07 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "3R re-derived: 101.19 + 3 x 1.21 = 104.82; the open 106.00 is past 3R and under 5R (107.24), so the first third at the open (F63). NKE d01.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "Re-derived 500 / (109.42-105.86) = 140.4 -> 140 shares. A7 check: 140 shares = $15,319, about 15% of the account, under the 40% cap, so the risk-based size is the smaller; the why now says so (new fact h30, A7 verbatim).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. m14, h21 (E52).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. C33: 0.5R after 10 sessions -> sell. Breakeven is 2R to 5R, so the wrong note is true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. B19/E51: third at 3R, third at 5R, trail the rest.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "k05/k16/k24 verbatim (card 32, proposed rm.expect_losses). The '4 in 5' replay figure is in the quote only; the key is 'most lose small, the runners carry the setup'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. k05, k16, h20, h21. Another third at 5R then the trail is E51 (adjustable).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "cut",
+   "notes": "Near-duplicate of q51 (after a stop-out, a second try needs a new trigger, B21), which asks it on DOCU's real example. q51 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. k10, k25 (card 32, proposed). The index-under-its-200-day line is a guide, not a rule (card 13 mar.index_200, D-023 pending).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. F65.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "m15/k14/dv1/x2/e08/e09 verbatim. The key is categorical ('crossed back and forth for weeks'); the card's chop count (2 crossings in 60 sessions, D-075 pending) is never keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "Story said 'Two 50-day remounts' and then that the second only 'clears the 20-day, with the 50-day still overhead', which contradicts itself (a 50-day remount has retaken the 50-day). Now two 200-day remounts, the second leaving the 50-day overhead and falling (m18, a B minus cue). Grade cues are discretionary (E50); the unit says 'cue', never a fixed score.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. m09 proposed; i3 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "Story: closes under Tuesday and Wednesday, back Thursday: inside the 3-session U&R limit (m03). The lesson line and a wrong note said 'a week or more' (the pending D-074 number); now 'a long stay'. The Oops wrong note said 'a gap-open'; now 'opens under the prior close'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "k21 verbatim. The wrong note said 'a line lost for a week or more'; now 'a long stay'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. m02, k22; the story's three weeks under a breakout level is a long stay under any D-074 option.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. d11/d12 verbatim (ESS: 0.08 ATR over the 50-day, then a clear remount, 14.9R). 0.08 ATR fails every margin on the cards (0.25 or 0.5 ATR), so the key holds whatever D-075 says.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. k06, m08 (proposed inv).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "Re-derived: 52.60 against a buy point of 50.00 = 5.2% over, past C28's 4%. The buy point is the quiet day's high (m11, D-022 pending which point; both cards agree here).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. C29: 12% over the 10-day.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. B22 / card 13 mar.earnings_window: a report tonight is inside 3 sessions.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "Story said the stock 'fell 60%' and remounted its 50-day; it did not say where the 200-day was, and a stock down that far would normally sit under it, which is a pass by B26, so the right answer depended on missing information. Now 'sold off hard for months', 'still above its 200-day'. Key (B minus cue, k11) unchanged.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. k09, k10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "d05/d06 verbatim (DOCU: gap under the stop 03-15, held the 50-day 20 sessions). B21 key holds.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "e03/e04 verbatim; re-derived 3R: 198.12 + 3 x 2.81 = 206.55 = the dossier's level. Stopped 08-01 on a low of 193.94 (under 195.31). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "e01/e02 verbatim. The story and the why said AAPL 'gapped open at 159.90' / 'gapped through the stop'; 159.90 is above the 159.25 stop (the day then traded to 153.37), so it opened lower and traded through, not a gap through the stop (B20 does not apply). Reworded; the wrong note on the gap now says 'a gap down'. Rests on the proposed 'weak with the index under its own 200-day' (k25), not a rule.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "d08/d09 verbatim (PYPL: 200-day remount, buy 86.24, stop 83.52 = 3.2%, SPY under its own 200-day, stopped the next session). Key is a read of one example, taught as 'weak with the index under its 200-day' (proposed), not a rule; owner may soften 'Nothing'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. Story A has a 2% stop (A13) and a Green reading (F65); C 'crossed ten times' is a chop line under any count the card proposes.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "Chart NKE asof 2020-08-06: sandbox bars.db has 6,429 daily bars to that date (120-bar window starts 2020-02-18), 1,572 after it. Re-read: 08-05 close 100.94 over the 50-day 98.60 after seven closes under it; 08-06 range 100.03-101.18 inside 97.08-101.25 (an inside day) and close 100.45 over the 50-day; 200-day 93.77 below and rising. d01/d02 hold. The question never names the ticker.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "Chart CRM asof 2025-06-06: 5,274 daily bars to that date (window starts 2024-12-12), 359 after it. Re-read: close 274.51 over the 50-day 267.88 and under the 200-day 295.88, as e05 says. The 200-day is slightly RISING (293.44 twenty sessions earlier), but m04 and k17 (cited before) say 'falling'; both dropped. The key is B26 (no longs below the 200-day) and m05, k01, not slope.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. D42.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "Key right. The wrong note for 'Up to the quiet day's high' said it 'would put the stop above a market that may sit lower', which is not true (the quiet day's high sits just under the entry); now 'not part of the plan'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "cut",
+   "notes": "Duplicate of q59 (breakeven at the first trim) plus q28/q32 (a third at 3R), in one story. The key is right; q59 and q32 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "y1 (StockCharts Wyckoff) and v2 (Morales and Kacher) verbatim, two publishers. Key right; a shakeout is meant to induce selling.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. F65.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "m06 verbatim (card 13 settled mar.after_entry_stop, A4: the stop is the exit). Story is consistent (bought 46.01, stop 44.80, close 45.60 under the line, above the stop). Card 32's own version of this (rm.close_back_under_after_buy) is pending D-008; the default is no extra exit.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the cards, dossiers or rulebook; key right; wrong notes true; voice clean. k08, k09, k11, m18. Grade cues are discretionary (E50); the unit says 'cue', never a fixed score.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
 }

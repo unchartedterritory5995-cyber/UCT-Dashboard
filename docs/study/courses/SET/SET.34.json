@@ -607,6 +607,12 @@
    "source": "d1",
    "quote": "The next candle fell straight through the stop; the day closed 63.83 and the stock lost 6% in the next two sessions.",
    "claim": "CRWD: the next candle fell straight through the stop; the stock lost 6% in the next two sessions."
+  },
+  {
+   "id": "h30",
+   "source": "h1",
+   "quote": "Max position 40% of the account",
+   "claim": "A7: the maximum position is 40% of the account."
   }
  ],
  "walkthroughs": [
@@ -653,7 +659,7 @@
    "key": "w3",
    "title": "TSLA, May 2025: a planned loss (hourly bars)",
    "steps": [
-    "TSLA, 2025, hourly bars. A 26% run, then a dip under the prior day's low, 353.82. The prior close is 358.43.",
+    "TSLA, 2025, hourly bars. A 26% run, then a dip under the prior close, 358.43, to a low of 353.82.",
     "2025-05-30: the first candle closes green at 361.86, back over the prior close. Stop a few cents under the low: 353.79.",
     "Failure mode, and it happened: the third candle broke back under the prior close, and the fourth fell through the stop.",
     "The turn was real but given back within hours. The stop is the exit. A planned loss."
@@ -805,7 +811,7 @@
    "wrong": {
     "A late Go Signal": "There is no late version. After the second candle it is a pivot.",
     "An Oops": "An Oops is a daily-bar pattern at the prior day's low.",
-    "A Remount": "A Remount retakes a line lost for a week or more. This is one session."
+    "A Remount": "A Remount retakes a line lost over a long stay. This is one session."
    },
    "house": true
   },
@@ -1264,7 +1270,7 @@
     "g34"
    ],
    "wrong": {
-    "A U&R; it undercut and reclaimed": "A U&R undercuts a swing low and takes it back within 3 sessions on the daily chart.",
+    "A U&R; it undercut and reclaimed": "A U&R takes back a level over up to 3 sessions on the daily chart. This is one session, hourly.",
     "A Remount of the prior close": "A Remount follows a line lost for days. The prior close is one day old.",
     "An Oops at the prior low": "An Oops is a daily bar at the prior low. This line is the prior close."
    },
@@ -1438,12 +1444,13 @@
    "criterion": "go.stop_width",
    "q": "Account 100,000, risk 0.25%. Buy 336.42, stop 331.63. How many shares does the stop allow?",
    "answer": 52,
-   "why": "52 shares. The size comes from the stop: risk divided by the distance, rounded down. That was META's stop, 1.42% from the buy.",
+   "why": "52 shares. The size comes from the stop: risk divided by the distance, rounded down. The 40% position cap is not close. That was META's stop, 1.42% from the buy.",
    "lesson_line": "The stop sets the size. Not the other way round.",
    "facts": [
     "h03",
     "d02",
-    "h01"
+    "h01",
+    "h30"
    ],
    "house": true,
    "calc": {
@@ -1726,7 +1733,7 @@
    "wrong": {
     "A Go Signal, a little late": "There is no late version. After the second candle it is a pivot.",
     "An Oops": "An Oops is a daily bar at the prior low.",
-    "A Remount": "A Remount follows a line lost for a week or more."
+    "A Remount": "A Remount follows a line lost over a long stay."
    },
    "house": true,
    "story": "The close back above the prior close, 359.35, comes on the third hourly candle at 361.39. Everything else passes."
@@ -1840,7 +1847,7 @@
    ],
    "wrong": {
     "A Go Signal; it reclaimed": "The Go Signal line is the prior close, read on the first two hourly candles.",
-    "A U&R of a swing low": "A U&R needs a prominent swing low and can take 3 sessions to reclaim.",
+    "A U&R of a swing low": "A U&R takes back a level over up to 3 sessions on the daily chart. This is one day at yesterday's low.",
     "A Remount": "A Remount follows a line lost for days."
    },
    "house": true,
@@ -1861,7 +1868,7 @@
    ],
    "answer": "No; the 20-day EMA is falling",
    "why": "No. The card wants the 20-day EMA higher than it was 5 sessions ago. A falling 20-day fails the check.",
-   "lesson_line": "Rising 20-day EMA, rising 50-day area: context first.",
+   "lesson_line": "Context first: the 20-day EMA should be rising.",
    "facts": [
     "g13",
     "g12"
@@ -1984,7 +1991,7 @@
    "wrong": {
     "A mistake; you should have held": "The stop is the exit. Holding through it is how a small loss gets big.",
     "A reason to widen stops": "The stop only moves up, never wider.",
-    "A sign to drop the setup": "One stop says nothing. About a quarter of Go Signals are stopped the same session."
+    "A sign to drop the setup": "One stop says nothing about the setup. The edge shows over many trades."
    },
    "house": true,
    "story": "You bought at 361.86 after a green first candle. The third candle broke back under the prior close, and the fourth fell through your stop at 353.79."
@@ -2060,7 +2067,7 @@
     "Move the stop below the 50-day"
    ],
    "answer": "Sell a big part into the climax",
-   "why": "Sell a big part into it. On a climax run in your own long, sell a big part into the run.",
+   "why": "Sell a big part into it. On a climax run in your own long, sell a big part into the run; how big is a judgment call.",
    "lesson_line": "Sell into the vertical run.",
    "facts": [
     "g26",
@@ -2175,7 +2182,7 @@
    ],
    "wrong": {
     "Out at once; any gap is a loss": "The rule hands the stop to the first 30-minute low, and out only if that is past 2R.",
-    "Move the stop to 24.48": "The stop only moves up, and never past the plan.",
+    "Move the stop to 24.48": "24.48 is above the gap, so it would sell at once. The gap rule uses the first 30-minute low.",
     "Buy more at the gap low": "No adding."
    },
    "house": true,
@@ -2272,7 +2279,7 @@
    "criterion": "go.not_stretched",
    "q": "Skip the buy if the stock is more than 10% above its 10-day average.",
    "answer": "True",
-   "why": "True. Too stretched to buy: skip a long that is more than 10% above its 10-day average. A pullback setup like this rarely trips it.",
+   "why": "True. Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
    "lesson_line": "Ten percent over the 10-day: skip.",
    "facts": [
     "g17",
@@ -2306,7 +2313,417 @@
   "The old Go Signal exit rule: the brain template says a close below the reclaimed level or the 20 EMA negates the Go Signal. The card teaches it as a warning only (the stop is still the exit, A4). q28 and q57 key the card, not the template.",
   "Oops contrast: Williams' Oops (via Unger Academy) and Deepvue define it at the prior day's low on the daily bar. The card's Oops tell is the line (low against close) and the bar (daily against hourly). q20 and q48 key the card's tell and quote the two outside pages only to show the Oops is a daily low pattern. Unger Academy's DAX backtest is not used. The U&R contrast (q27) is keyed on the U&R card's own 3-session daily rule from this card's tell.",
   "q60 uses invented numbers around a real fill: buy 24.48, stop 24.01 are BE's real numbers (dossier), and the gap and 30-minute low are made up for the rule (a loss of 0.63 on a 0.47 R unit is 1.34R, under 2R); the rule shown is B20 only. q29 likewise sets a gap on NVDA's real buy and stop.",
-  "Cold-check notes carried from the pilot: no 'the owner' in member text, no untaught house words, the stop stays the rule's stop (B20 for a gap through it), the breakeven move at the first trim (B19)."
+  "Cold-check notes carried from the pilot: no 'the owner' in member text, no untaught house words, the stop stays the rule's stop (B20 for a gap through it), the breakeven move at the first trim (B19).",
+  "Cold check 2026-11-10: 54 pass (10 fixed), 0 fix, 11 cut; 3 walk-throughs pass (1 fixed). Cut as duplicates: q04, q07, q08, q19, q20, q21, q35, q52, q58, q62 (each kept twin is named in the note); q54 cut (the 'reclaim by a cent proves little' key is the dossier author's read of one failure, no card rule behind it). Fixed: 'a week or more' removed from member text (q06, q44), the invented '23%' (q53), the unsupported 'rarely trips it' (q64), the TSLA prior-day-low label (w3), the Oops and U&R contrasts reworded to match their own cards (q27, q48), the B20 wrong note (q60), the 40% cap now named (q34). Data note: the dossier's NVDA 2024-06-28 failure says the stop was hit 'the next morning' and its table says the same session; the sandbox bars show a low of 122.75 under the 123.39 stop that day, so same session (d12 is wrong; only cut q52 leaned on it). For the owner, first: the flag and the level in q45 and q46 are gates only if he rules D-131 and D-130 that way; the keyed E50 grade cues (q55); and the entry moment (D-003: the walk-throughs buy the close of the reclaiming candle, the scan's fill, not a ruling)."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "d01/d02 verbatim (META 2023-12-15: 20-day EMA 328.52, prior close 333.17, buy 336.42 on the first candle, stop 331.63 = 1.42%, 39.1R, 3R in 2 days). Re-derived (336.42-331.63)/336.42 = 1.42%. Sandbox daily bars agree on the prior close (12-14 close 333.17). The walk-through says 'in our scan the buy is that candle's close'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "d03/d04/d05 verbatim (VIAV 2026-02-19: prior close 26.33 in the sandbox bars too, buy 26.43 on the second candle, stop 25.66 = 2.91%, 44.2R, 3R in 3 days). Re-derived (26.43-25.66)/26.43 = 2.91%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "d08/d09/d10 verbatim (TSLA 2025-05-30: prior close 358.43, buy 361.86, stop 353.79, 26% five-day move). Step 1 said 'a dip under the prior day's low, 353.82', which reads as if 353.82 were the prior day's low; it is the session low at entry (the stop is 3 cents under it; the prior day's low was 356.00 in the sandbox bars). Now 'a dip under the prior close, 358.43, to a low of 353.82'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g01 (card, settled D-145).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g02, g06, g07; the settled rule, not the pending go.open_shape (D-128).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g04 (settled D-145). The card's 11:00 and the scan's 11:30 are never keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "cut",
+   "notes": "Near-duplicate of q02 (the first candle must trade under the prior close) and q26 (the same gap-up case in a story). q02 and q26 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. q1 (Kullamagi) verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "g04/g30 verbatim; key right. The Remount wrong note said 'a line lost for a week or more' (the pending D-074 count in words); now 'a long stay'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "cut",
+   "notes": "Same fact as q50 (the daily footprint cannot show the turn; read the hourly bars), asked as a true/false; q50 asks it as a story. q50 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "cut",
+   "notes": "Same fact as q40 (no longs under the 200-day, B26), which asks it in a story with the tempting rising 20-day. q40 and q41 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g14, F65.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. B22 (3 days before the report; the card says sessions).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. E57, D41.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. E58, g19.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "g31 and g29 verbatim; categorical, no number. The setup around the turn (a leader that moved, a tight hourly flag, a dip to the 20-day line or a marked level) rests on go.already_moved, go.hourly_flag and go.at_support, all pending (D-132, D-131, D-130); no number is keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "g29 verbatim ('about a third of all liquid sessions', the dossier's scan, 30%). The key is the dossier's measurement, not a published statistic; the question says 'a bare red to green'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. q1 (Kullamagi) verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g09 (the card's stop line) and g10 (proposed).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g12 proposed; g38 card mistake.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. C33.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "cut",
+   "notes": "Same fact as q51 (a clean turn late in the day is a pivot, not a Go Signal), asked as a true/false. q06, q44 and q51 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "cut",
+   "notes": "Same fact as q48 (the Oops is a daily bar at the prior low, the Go Signal reads the prior close on hourly bars). q48 kept. The wrong choice 'The Oops uses the prior close' also clashes with the Oops card (oops.trigger is the prior close, pending-owner).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "cut",
+   "notes": "Same fact as q49 (the 20-day EMA must be higher than it was 5 sessions ago, proposed go.ema20_rising). q49 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Re-derived (37.18-(36.15-0.03))/37.18 = 1.06/37.18 = 2.85%. 3% is A13.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Re-derived (169.79-168.84)/168.84 = 0.56% -> 0.6. C28 is 4%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "Re-derived 24.48 + 3 x (24.48-24.01) = 25.89. BE d06 verbatim (buy 24.48, stop 24.01).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. B22: earnings in two sessions.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g03, g02 (settled, D-145).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "g33/g34 verbatim. The wrong note said a U&R undercuts 'a swing low'; the U&R unit's level list is wider (pending D-103), so the note now says 'a level' and keeps the 3-session daily frame (the card's own tell).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "g23 verbatim (card, proposed go.close_under_pc_warning); d13 (NVDA 2024-05-08: prior close 90.55, close 90.41 and next-day low 88.23 in the sandbox bars, stop 89.39). Key holds under A4 (the stop is the exit).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "Arithmetic: 1R = 3.42; a stop at the first 30-minute low 118.83 is a loss of 7.98 = 2.33R, past the 2R ceiling (B20), so out is right. The story is invented around NVDA's real buy and stop (conflicts) and never names it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "3R re-derived: 24.48 + 3 x 0.47 = 25.89; the open 26.40 is past 3R and under 5R (26.83), so the first third at the open (F63).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. E52; q2 (Kullamagi) verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. C33: 0.4R after 10 sessions -> sell.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g16, C28: the buy point here is the prior close.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "Re-derived 250 / (336.42-331.63) = 52.2 -> 52 shares; stop 1.42% (d02). A7 check: 52 shares = $17,494, about 17% of the account, under the 40% cap, so the risk-based size is the smaller; the why now says so (new fact h30, A7 verbatim).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "cut",
+   "notes": "Same fact as q36 (a stop wider than about 3%: size down or skip, never raise it), q36 on a real example (CRS). q36 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "d18/d19 verbatim (CRS 2025-11-14: the first candle ran 315.73 to 329.02 after a 2.8% gap down; the stop under its low is 4.96% from the entry). Size down or skip follows A3/A5/A13; the pending D-005 only asks what the owner wants past 3%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g25, B21, E56: a second failed try this week is still under 3.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. F65, g37.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "g21 (card, proposed go.volume) and o2 (Morales on the U&R) verbatim. 'Volume grades, it does not gate' holds under every D-006 option the card lists.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. B26, g11, g38.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g38 card mistake; g12 proposed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g27 (card mistake: the blind open buy). Story is a 9:35 red candle bought before any turn.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "Re-derived (28.74-26.43)/(26.43-25.66) = 2.31/0.77 = 3.0R. VIAV d04 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "d14/d15 verbatim (AXON 2024-09-11: close back above 359.35 on the third hourly candle, 361.39). The Remount wrong note said 'a line lost for a week or more'; now 'a long stay'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "d16/g31 verbatim (SNOW near-miss: a red to green in a wild post-earnings range, no tight flag; 0.38R then the stop). Categorical, no number; rests on go.hourly_flag (pending D-131) being a requirement. The owner may rule a flag a cue rather than a gate.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "d17/g31 verbatim (CF near-miss: a red to green in mid-air, stopped the same session). Categorical; rests on go.at_support (pending D-130) being a requirement, the 3% distance never keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "d04/d05 verbatim (VIAV second-candle version, 44.2R). The window is the settled go.reclaim_window (D-145).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "u1: the Unger Academy page returned HTTP 520 to the quote checker and to my own fetch; the quote is confirmed only against the dossier's section 3 (42-go-signal.md line 212, also 30-oops-reversal.md line 149). g32, u1, u2 verbatim (Unger Academy on Williams: the open lower than the previous session's low; Deepvue: bought up and passes the prior day's low). The wrong note for the U&R choice said 'a prominent swing low'; now 'a level', up to 3 sessions on the daily chart.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "g13 proposed (the 5-session test is the card's); the story gives a 20-day EMA lower than 5 sessions earlier. The lesson line said 'rising 50-day area', which no fact supports; now 'Context first: the 20-day EMA should be rising.'",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g28 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g30, g04. 13:30 is plainly late under either clock.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "cut",
+   "notes": "Same lesson as q36 (a giant first candle widens the stop). Also leaned on d12, whose 'the stop was hit the next morning' is wrong: NVDA's 06-28 low was 122.75, under the 123.39 stop, so it stopped the same session (d11 says so). q36 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "d08/d09 verbatim (TSLA: buy 361.86, stop 353.79, third candle back under the prior close, fourth through the stop). The wrong note 'about a quarter of Go Signals are stopped the same session' cites a number no fact quotes; now 'one stop says nothing about the setup'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "cut",
+   "notes": "No card or rulebook rule behind the key: 'a reclaim by a cent proves little' is the dossier author's read of one failure (CRWD 2023-12-29; the card's go.reclaim_close close-or-touch is pending D-129), g20 only says the candle closes above its own open, and the story meets every settled gate. Not fixable in one edit.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "g35/g36 verbatim (card grading). Grading is discretionary (E50); the unit says 'cue' and 'grades higher', never a fixed score. Owner may want it dropped.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "g26 verbatim; C34 is 'sell a big part into it, a judgment call'. The why now says how big is a judgment call.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g24 proposed (go.context_break). The key is 'thesis over, the stop still decides' (A4), which holds if the owner rejects the proposal.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "cut",
+   "notes": "Same fact as q14 (the turn is common, about a third of sessions; the stock and the level are the edge). Its criterion tag go.volume is also wrong. q14 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "g02, g03, g04, g11, g12, g13, g14 verbatim; A passes every gate, B turns at 13:30, C never dips. Key right. The same gates as q40/q41/q49, as a synthesis.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "Arithmetic: 1R = 0.47; the first 30-minute low 23.85 is a loss of 0.63 = 1.34R, under the 2R ceiling, so it becomes the stop (B20). The wrong note for 'Move the stop to 24.48' said 'the stop only moves up', which is not why it is wrong (24.48 is up); now 'it is above the gap, so it would sell at once'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "Re-derived 400,000 x 1% = 4,000 shares (D42). No risk-sizing here, so the 40% cap does not bind the answer.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "cut",
+   "notes": "Near-duplicate of q59 (three charts: a late turn, a gap up that never dips, a falling 20-day EMA); q59 asks which one is the Go Signal and q62 which one is a pivot, on the same gates. q59 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "g13, g15, g03, B26, B22 verbatim. A 'which is NOT' question, but the key (a rising 20-day EMA is not a reason to pass) is right and the three wrong choices are true passes.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "g17/h13 verbatim. The why added 'a pullback setup like this rarely trips it', a claim no fact supports for the Go Signal (it is the Remount card's figure); removed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card, dossier or rulebook; key right; wrong notes true; voice clean. g18, A5.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
 }

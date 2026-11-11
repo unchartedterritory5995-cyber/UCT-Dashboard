@@ -434,26 +434,26 @@
   {
    "id": "c24",
    "source": "c1",
-   "quote": "If it is one swing low at least 5 sessions old that price rallied 1 ATR off, on its first break, it is the 2B",
-   "claim": "Card: one swing low at least 5 sessions old that price rallied 1 ATR off, on its first break, is the 2B."
+   "quote": "on its first break, it is the 2B",
+   "claim": "Card: one swing low on its first break is the 2B."
   },
   {
    "id": "c25",
    "source": "c1",
-   "quote": "if it is a rising 20 EMA or 50-day, a prior high, a round number or the 10-session range low, it is a U&R",
-   "claim": "Card: a rising 20 EMA or 50-day, a prior high, a round number or the 10-session range low is a U&R."
+   "quote": "if it is a rising 20 EMA or 50-day, a prior high, a round number",
+   "claim": "Card: a rising 20 EMA or 50-day, a prior high or a round number is a U&R level."
   },
   {
    "id": "c26",
    "source": "c1",
-   "quote": "If it is the gap-up day's low of a still-open 4% gap on 2x volume, it is Gap Support",
-   "claim": "Card: the gap-up day's low of a still-open 4% gap on 2x volume is Gap Support."
+   "quote": "Name the level. If it is the gap-up day's low",
+   "claim": "Card: when the level is the gap-up day's low of a still-open gap, the lesson is Gap Support."
   },
   {
    "id": "c27",
    "source": "c1",
-   "quote": "A spring undercuts the floor of a sideways range of 15 sessions or more that was touched at least twice, and closes back inside the same day or the next",
-   "claim": "Card: a spring undercuts the floor of a sideways range of 15 sessions or more, touched at least twice, and closes back inside the same day or the next."
+   "quote": "A spring undercuts the floor of a sideways range",
+   "claim": "Card: a spring undercuts the floor of a sideways range and closes back inside quickly."
   },
   {
    "id": "c28",
@@ -624,12 +624,6 @@
    "claim": "FDX: this is a Remount of a level, bought on the retake of the line."
   },
   {
-   "id": "d22",
-   "source": "d1",
-   "quote": "The 10-session low IS yesterday's low (104.91, set 03-06)",
-   "claim": "SBUX, 2025-03-07: the 10-session low is yesterday's low, 104.91."
-  },
-  {
    "id": "d23",
    "source": "d1",
    "quote": "A one-day dip under yesterday's low and a close back over it: an Oops (setup 30), judged on one candle, not a U&R.",
@@ -658,6 +652,18 @@
    "source": "h1",
    "quote": "The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only below the 200-day, never above it unless it is a parabolic short.",
    "claim": "B26: no longs below the 200-day simple moving average, except a parabolic long."
+  },
+  {
+   "id": "d27",
+   "source": "d1",
+   "quote": "Before the stop was touched, 35.6% reached 3R and 24.7% reached 5R inside a 60-session window.",
+   "claim": "Scan: before the stop was touched, 35.6% of hits reached 3R and 24.7% reached 5R inside 60 sessions (fixed stop, no trims)."
+  },
+  {
+   "id": "h30",
+   "source": "h1",
+   "quote": "Max position 40% of the account",
+   "claim": "A7: the maximum position is 40% of the account."
   }
  ],
  "walkthroughs": [
@@ -707,12 +713,12 @@
     "NVDA, 2024. The level is 87.62, set on 04-02. One close under it, a 1.99% undercut. It reclaims the next day.",
     "2024-04-05: buy at market as it clears the level, 87.63. Stop a few cents under the undercut low: 85.83, 2.05% away.",
     "Failure mode, and it happened: 0.67R, then a low of 83.02 on 04-09. The stop was the exit.",
-    "A planned loss. Even the best-looking reclaim loses about 58% of the time. A new try needs a new trigger."
+    "A planned loss. In our scan, 35.6% of hits reach 3R before the stop. A new try needs a new trigger."
    ],
    "facts": [
     "d15",
     "d16",
-    "d17",
+    "d27",
     "c03",
     "c04",
     "h22",
@@ -853,7 +859,6 @@
    "lesson_line": "Market order on the reclaim. The stop goes in the same minute.",
    "facts": [
     "h22",
-    "h22",
     "c03"
    ],
    "wrong": {
@@ -935,13 +940,12 @@
    "rung": 2,
    "format": "tf",
    "criterion": "ur.inv_no_reclaim",
-   "q": "A stock closes under its level for 8 sessions, then retakes it. That is a U&R.",
+   "q": "A stock spends weeks under its level, then retakes it. That is a U&R.",
    "answer": "False",
-   "why": "False. No close back above the level within 3 sessions is a breakdown. 5 or more closes under is a Remount, a different setup.",
+   "why": "False. A U&R takes the level back fast. With no close back above within 3 sessions, it is a breakdown. A long stay under a line is a different setup, the Remount.",
    "lesson_line": "A long stay under a line is a Remount, not a U&R.",
    "facts": [
-    "c02",
-    "c21"
+    "c02"
    ],
    "house": true
   },
@@ -1148,8 +1152,8 @@
     "v1"
    ],
    "wrong": {
-    "The prior day's high": "An undercut goes under a low, not a high.",
-    "The all-time high": "A U&R breaks a low and takes it back. A high is not an undercut level.",
+    "The prior day's high": "Morales undercuts a prior low in the pattern, not a high.",
+    "The all-time high": "His wording is a prior low in the pattern, not an all-time high.",
     "The 52-week low only": "Morales names a prior low in the pattern, usually along a potential new base. It need not be a 52-week low."
    }
   },
@@ -1651,7 +1655,7 @@
     "Wait for a second reclaim"
    ],
    "answer": "Skip it; Red means mostly cash",
-   "why": "Skip it. Red is mostly cash and shorts. ADBE's clean U&R was stopped the day SPY made a lower low.",
+   "why": "Skip it. Red is mostly cash and shorts. ADBE's clean U&R was stopped the next day, and SPY made a lower low days later.",
    "lesson_line": "The market reading beats a pretty chart.",
    "facts": [
     "h26",
@@ -1680,7 +1684,7 @@
     "At the average itself"
    ],
    "answer": "A few cents under the undercut low",
-   "why": "A few cents under the undercut low. VoSI lets the stop sit 1-2% below the line; ours is the low that proves the trap wrong.",
+   "why": "A few cents under the undercut low. Morales and Kacher let the stop sit 1-2% below the line; ours is the low that proves the trap wrong.",
    "lesson_line": "Same trap, same stop: under the undercut low.",
    "facts": [
     "c04",
@@ -1717,7 +1721,7 @@
    "rung": 6,
    "format": "tf",
    "criterion": "ur.plan_before_open",
-   "q": "Write the level, the stop and the size before the open.",
+   "q": "We write the level, the stop and the size before the open.",
    "answer": "True",
    "why": "True. The buy waits for the reclaim, but the level, the stop and the size are on paper before the open.",
    "lesson_line": "Plan before the open. The market order only executes the plan.",
@@ -1781,7 +1785,7 @@
    "q": "U&R or something else?",
    "choices": [
     "An Oops, judged on one candle",
-    "A U&R of the 10-session low",
+    "A U&R of the recent range low",
     "A Remount",
     "A flat base breakout"
    ],
@@ -1791,17 +1795,16 @@
    "facts": [
     "c22",
     "c23",
-    "d22",
     "d23",
     "b1"
    ],
    "wrong": {
-    "A U&R of the 10-session low": "Here the 10-session low is only yesterday's low. A U&R needs a level that matters more than that.",
+    "A U&R of the recent range low": "Here the range low is only yesterday's low. A U&R needs a level that matters more than that.",
     "A Remount": "A Remount follows a long stay under a line. This was one day.",
     "A flat base breakout": "There is no base breakout here. This is a one-day undercut and reclaim."
    },
    "house": true,
-   "story": "The stock opened under its prior close and dipped under yesterday's low. It closed back over yesterday's close. The 10-session low is yesterday's low."
+   "story": "The stock opened under its prior close and dipped under yesterday's low. It closed back over yesterday's close. Yesterday's low was also the lowest of the recent range."
   },
   {
    "key": "q46",
@@ -1846,7 +1849,7 @@
     "A Remount"
    ],
    "answer": "Gap Support, the same trap at one line",
-   "why": "Gap Support. The gap-up day's low of a still-open 4% gap on 2x volume is Gap Support, with its own card.",
+   "why": "Gap Support. When the level is the gap-up day's low of a gap still open, the lesson is Gap Support, with its own card.",
    "lesson_line": "Gap-up day's low, gap still open: that is Gap Support.",
    "facts": [
     "c26"
@@ -1857,7 +1860,7 @@
     "A Remount": "A Remount needs a long stay under a line. This was a dip and reclaim."
    },
    "house": true,
-   "story": "A stock gapped up 6% on earnings on 3x volume. The gap is still open. Days later it dips under the gap-up day's low, then reclaims it."
+   "story": "A stock gapped up hard on earnings, on heavy volume. The gap is still open. Days later it dips under the gap-up day's low, then reclaims it."
   },
   {
    "key": "q48",
@@ -1882,7 +1885,7 @@
    ],
    "wrong": {
     "A 2B of a swing low": "A 2B is one swing low, on its first break. A rising average is a U&R level.",
-    "An Oops": "An Oops needs a gap-open under the prior close and a one-day reclaim.",
+    "An Oops": "An Oops opens under the prior close and reclaims it the same day. This level is a rising average.",
     "A spring": "A spring needs a flat range. This level is a rising average."
    },
    "house": true,
@@ -1902,7 +1905,7 @@
     "A flat base breakout"
    ],
    "answer": "A spring, the Wyckoff cousin",
-   "why": "A spring. It undercuts the floor of a flat range of 15 sessions or more, touched at least twice, and closes back inside by the next day.",
+   "why": "A spring. It undercuts the floor of a flat range and closes back inside quickly, here by the next day.",
    "lesson_line": "Flat range, floor broken, back inside fast: a spring.",
    "facts": [
     "c27",
@@ -1910,7 +1913,7 @@
    ],
    "wrong": {
     "A U&R of a rising average": "The level is the floor of a flat range, not a rising average.",
-    "An Oops": "An Oops is a one-day gap-open reversal. This follows a range of 20 sessions.",
+    "An Oops": "An Oops is one candle that opens under the prior close. This follows a long flat range.",
     "A flat base breakout": "A flat base breakout trades through a ceiling. This broke a floor."
    },
    "house": true,
@@ -1953,11 +1956,11 @@
    "criterion": "ur.after_entry_stop",
    "q": "A U&R is a good trade because most of them work.",
    "answer": "False",
-   "why": "False. Most hits are stopped. Even the best-looking reclaim loses about 58% of the time in our scan; the edge is the R of the winners.",
+   "why": "False. Most hits are stopped. In our scan, only 35.6% of hits reached 3R before the stop; the edge is the R of the winners.",
    "lesson_line": "The edge is the size of the winners, not the hit rate.",
    "facts": [
     "c18",
-    "d17"
+    "d27"
    ],
    "house": true
   },
@@ -2094,7 +2097,7 @@
     "Buy larger next time"
    ],
    "answer": "Stop worked; the index had not turned",
-   "why": "The stop worked. ADBE sold off through it the day SPY made a lower low, so the index had not turned.",
+   "why": "The stop worked. ADBE sold off through it the next day, and SPY made a lower low days later, so the index had not turned.",
    "lesson_line": "A clean-looking U&R means little while the index is still falling.",
    "facts": [
     "d12",
@@ -2108,7 +2111,7 @@
     "Buy larger next time": "Larger size on a failed idea is a bigger loss."
    },
    "house": true,
-   "story": "You bought a U&R at the open, 218.83, with the stop at 214.73. The stock gapped up, sold off all day and closed at 213.80, through the stop."
+   "story": "You bought a U&R at the open, 218.83, with the stop at 214.73. The next morning it gapped up, sold off all day and closed at 213.80, through the stop."
   },
   {
    "key": "q57",
@@ -2269,12 +2272,13 @@
    "criterion": "ur.stop_width",
    "q": "Account 100,000, risk 0.25%. Buy 245.39, stop 235.64. How many shares does the stop allow?",
    "answer": 25,
-   "why": "25 shares. The size comes from the stop: risk divided by the distance, rounded down. That stop was 3.97% from the buy, so LULU sized small.",
+   "why": "25 shares. The size comes from the stop: risk divided by the distance, rounded down. The 40% position cap is not close. That stop was 3.97% from the buy, so LULU sized small.",
    "lesson_line": "The size comes from the stop. A wide stop means few shares.",
    "facts": [
     "h03",
     "d26",
-    "c05"
+    "c05",
+    "h30"
    ],
    "house": true,
    "calc": {
@@ -2301,7 +2305,399 @@
   "MAU&R stop: Morales and Kacher let the stop sit 1-2% below the average (v4). The card's stop is the undercut low for every U&R, including the moving-average form (the card names VoSI's 1 to 2% as not ours). q40 keys the card and quotes VoSI only to contrast.",
   "Turtle Soup (t1, t2) is quoted from a StockCharts summary, not the book (Street Smarts was not read). It is used only as a second voice for 'buy as it comes back through the broken low' and 'the stop just below the low'; no key rests on it alone.",
   "IBD's shakeout-plus-three (i1, i2) is a later, higher entry. The card lists it as option C and 'not the default' (proposed); q41 keys only that it is not ours.",
-  "The scanners' 70% of U&Rs deliver 2:1 claim, Brian Shannon's credit and the 1.5% stop are the card's D-004 and D-010 items. None of it reaches a member here. The 58% loss rate in q51 and q55 is the dossier's own scan, not a published statistic."
+  "The scanners' 70% of U&Rs deliver 2:1 claim, Brian Shannon's credit and the 1.5% stop are the card's D-004 and D-010 items. None of it reaches a member here. The 58% loss rate in q51 and q55 is the dossier's own scan, not a published statistic.",
+  "Cold check 2026-11-10: 57 pass (13 fixed), 0 fix, 5 cut; 3 walk-throughs pass (1 fixed). Cut: q03 and q16 (duplicates of q05/q21 and q27), q55 (duplicate of q44), q14 and q46 (they key the Remount tell '5 or more closes under', the owner's pending D-074; q10 now asks the settled half). Fixed: the ADBE date error (stopped 03-27, SPY's low 04-02: q39, q56), the '58% loses' claim (the scan's share that missed 3R before a fixed stop; now the 35.6% base rate: w3, q51), 'VoSI' (q40), the categorical tells in q45 to q49 stripped of the 10-session, 4% / 2x, 15-session and 5-session numbers. For the owner, first: D-103 (which levels count for a U&R; q45, q47, q48, q49, q19 follow the card's lookalike tells and flip if he rules otherwise), D-074 (the Remount length; nothing here keys it now), and D-036 (the 3-session limit still keyed in q09 and q10 through the card's proposed ur.inv_no_reclaim)."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "d01/d02 verbatim (QCOM 2020-09-21: level 109.62, low 108.30 = 1.20% under, buy 109.63, stop 108.25 = 1.26%, 3R in 1 day, 37.3R); re-derived (109.63-108.25)/109.63 = 1.26%. Steps 22 words or fewer. The fill is the scan's L plus a cent (conflicts).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "d03/d04 verbatim (WYNN 2013-11-21: L 159.37, low 157.48 = 1.19%, 2 closes under, gap back, buy 159.97 = 0.4% over L, stop 157.43 = 1.59%, 3R in 8 days, 26.0R); arithmetic re-derived. Stop is 5 cents under the low.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "d15/d16 verbatim (NVDA 2024-04-05: L 87.62, 1.99% under, buy 87.63, stop 85.83 = 2.05%, 0.67R, stopped 83.02). Step 4 said 'the best-looking reclaim loses about 58% of the time'; the scan's 58% is the share of top-half-close reclaims that did NOT reach 3R before a fixed stop with no trims, not a loss rate. Now cites the dossier's own base rate (d27: 35.6% reach 3R before the stop).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. o1, v1, c01 found (two Morales pages).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "o1 verbatim (Morales glossary). True as keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "cut",
+   "notes": "Near-duplicate of q05 (when the buy triggers: on the way back up) and q21 (the same 'never buy the undercut' in a story). The fact c03 is already taught twice; q05 and q21 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. Fill key 'lowest' = c04.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. Market-order wording is E57.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "c03/E57 right. The fact list repeated h22 twice; now h22, c03. Wrong notes true.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "c20 (card) and v3 (Morales and Kacher) verbatim. True as keyed; the level types are not keyed (D-103 pending).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. c06 and A4.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "c02 verbatim; keyed on the card's ur.inv_no_reclaim (proposed), not on ur.reclaim_window (pending D-036). If the owner changes the 3-session limit this fill must change (conflicts).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Keyed the pending D-074 Remount tell ('5 or more closes under'). Rewritten onto the proposed ur.inv_no_reclaim (c02: no close back above within 3 sessions is a breakdown): the story now says 'weeks under', and the why names the Remount only as a different setup, with no count. c21 no longer cited. The 8-session story lost its number.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. o2 verbatim (Morales); c10 proposed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. B23: $6 fails the $10 price floor, $50 million passes the $20 million floor. Key False.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "v3, y2 verbatim (Morales and Kacher; Wyckoff via StockCharts). Key and wrong notes true; 'Nobody; it is only a dip' is a weak distractor but not wrong.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "cut",
+   "notes": "Keys 'up to 3 closes under is a U&R, 5 or more a Remount' (c21): the Remount number is the owner's pending D-074 (5 straight, 5 to 30, or 3 of 20) and the U&R count is pending D-036. A categorical rewrite (quick dip against weeks under) would duplicate the rewritten q10. Cut rather than key a pending number.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. t1 (Turtle Soup via StockCharts) verbatim, used only as a second voice.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "cut",
+   "notes": "Duplicate of q27 (a close back under the level is a warning, not the exit; hold, do not add), which tests it in a story. q27 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Re-derived (59.95-59.04)/59.95 = 1.52% -> 1.5. Computes depth only; the card's 3% / 6% depth lines (pending D-036) are not taught. STLD 1.52% = d07.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. v2, v3 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "o1, v1 verbatim; key is Morales's own wording and the question says so. The wrong notes for 'prior day's high' and 'all-time high' said 'an undercut goes under a low, not a high' and 'a high is not an undercut level', which contradicts the card (a prior high or breakout level is a U&R level, ur.level, pending D-103). Both now say only that Morales's wording is a prior low in the pattern.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. B22 (3 days) and the card's buyout-news line (c11). Earnings in two sessions is inside 3.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. Story 2% under 170.00 never trades back; 'no adding' is rulebook A5.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Re-derived (60.18-(59.04-0.05))/60.18 = 1.98%. d07 verbatim (stop 58.99 = 1.98%); 3% is A13.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Re-derived 135.38 + 3 x (135.38-133.69) = 140.45. d08 verbatim (AMD 2024-01-04 buy 135.38, stop 133.69). B19 third at 3R.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. A4.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. E56 (3 a week, 6 a month); fill key 6.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. B19 / E51: third at 3R, third at 5R, trail the rest. No sizing here.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "c07 verbatim; story: bought 141.20, stop 138.90 (1.63%), close 139.80 is under the level and above the stop; hold is right. Replaces q16.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "Re-derived (52.30-50.00)/50.00 = 4.6%; C28 is 4%. Chasing costs size, not risk = h12.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "Re-derived (119.00-111.65)/(111.65-110.18) = 7.35/1.47 = 5.0R. VEEV d09 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "Story is self-consistent: lowest low while under 48.00 is 46.90 (day two); day three gaps back. Key = c04, F62.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. E52 (10-day fast, 21-day steadier).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. C33: 0.4R after 10 sessions -> sell. B19 breakeven is 2R to 5R, so the wrong note is true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "Arithmetic: R = 1.69; a stop at the gap-day first 30-minute low 131.20 is a loss of 4.18 = 2.47R, past the 2R ceiling (B20), so out is right. h06/h07 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "3R re-derived: 109.63 + 3 x (109.63-108.25) = 113.77; the open 115.20 is past 3R and under 5R (116.53), so the first third at the open (F63). QCOM d01.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. D42 / c16.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. Breakeven at the first trim is the card's default (c19); the reclaimed-level raise is the journal template's habit that the card says is not ours (c28 verbatim).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. c09 proposed; c33 verbatim from the card's B- row ('normally a pass: RBRK').",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. F65.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "Why said ADBE was 'stopped the day SPY made a lower low'. d12/d13: stopped 2018-03-27; SPY's lower low was 04-02. Now 'stopped the next day, and SPY made a lower low days later'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "The why used 'VoSI', an untaught abbreviation; now 'Morales and Kacher'. v4 verbatim (1-2% below the line). Key is the card's stop.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. i1, i2 verbatim (IBD via Yahoo); c29 proposed, 'not the default'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "D39 / c15. The statement was an imperative ('Write the level...'); now 'We write ...' so true/false reads.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. c18 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "d10/d11 verbatim (TRIP: buy 102.18, stop 100.56, next day low 100.44 = 12 cents through, close 103.35, 91.78 by 08-01). Key (planned loss; B21 new trigger) holds.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "Oops vs U&R tell (c22, c23): categorical, no number of its own; rests on pending D-103 (the prior day's low alone is not a U&R level), which the owner may veto (conflicts). The story and a choice said 'the 10-session low' (a number from the pending ur.level); now 'the lowest of the recent range'. d22 (the 10-session number) no longer cited.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "cut",
+   "notes": "Keys 'eight closes under = Remount' (c21, 5 or more): the pending D-074 number. The settled part ('not a U&R, took far longer than 3 sessions') is what the rewritten q10 already asks.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "Gap Support tell: categorical (the gap-up day's low). The why and the story carried the Gap Support card's '4% gap on 2x volume', both pending-owner (gs.gap_size, gs.gap_volume); the why is now numberless, the story says 'hard' and 'heavy volume', and the c26 quote is cut to 'Name the level. If it is the gap-up day's low'. Rests on pending D-103 for the level types; owner may veto.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "Rising-average U&R against the 2B: categorical. c24/c25 quotes cut so the 2B card's '5 sessions, 1 ATR' and the '10-session' range low are not shown. Wrong note for 'An Oops' said 'a gap-open'; the card says 'opens under the prior close', now worded so. Rests on pending D-103 (rising averages as levels); owner may veto.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "Spring tell: the why said 'a flat range of 15 sessions or more, touched at least twice, back inside by the next day'; those numbers are the lookalike tell's, and the spring card's own are 20 sessions (spr.range_length) and same day or next (spr.reclaim_window), both pending-owner. The why is now numberless, the c27 quote cut to 'A spring undercuts the floor of a sideways range', the Oops wrong note no longer says '20 sessions'. The story's 20 sessions and 3 touches are givens. Rests on pending D-103.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. C28: 106.20 is 6.2% over 100.00. The close is not the buy point.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "The why said 'the best-looking reclaim loses about 58% of the time' (d17). The scan's 58% is the share of top-half-close reclaims that did not reach 3R before a fixed stop with no trims; it is not a loss rate. Now c18 ('most hits are stopped') plus d27: 35.6% of hits reached 3R before the stop, 24.7% 5R, verbatim.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "MSFT 2020-03-02 d18/d19 verbatim: 6.88% under 163.23 (to 152.00), stop 8.08% from the buy. Keyed on the stop width (A13), never on the depth. The wrong note 'a stop that is not honest' is fine.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "Seed numbers 1.8% and 6.9% are the card's own question seed; key = c05/c30/c31 (over 3% means size down). The correct choice is worded 'the close sizes down'; true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "c11/c32 verbatim. Five sessions out clears B22; a report within a week is the card's B- cue. Grading is discretionary (E50) and the unit says 'graded down', not a fixed score. Owner may want it taught as a cue only.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "cut",
+   "notes": "Near-duplicate of q44 (a stop-out by the rules is a planned loss; the next try needs a new trigger). Also leaned on d17's '58% loses', which is a mis-stated scan figure. q44 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "Same ADBE date error as q39: the why said the stop was hit 'the day SPY made a lower low'. d12/d13: stopped 03-27, SPY's lower low 04-02. Fixed; the story also put the gap up on the buy day, now 'the next morning' (d12: buy at the 03-26 open, 03-27 open 229.90, close 213.80).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. AMD d14 verbatim (buy 105.52, stop 102.58 = 2.79%, stopped 09-20). B21 / E56.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. WYNN d03/d04; the open 159.97 is 0.4% over 159.37. The wrong note 'we do not wait for the close' matches the card's intraday trigger.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "Chart NTAP asof 2004-10-27: sandbox bars.db has 2,249 daily bars to that date (120-bar window starts 2004-05-07), 5,544 after it. Re-read: 10-26 low 22.72 close 22.98 under L 23.04; 10-27 open 22.84 low 22.75 close 23.86; 50-day 22.39 against 21.10 ten sessions earlier (rising); 200-day 20.93. d05/d06 hold. The question never names the ticker.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "Chart MSFT asof 2026-06-08: 7,898 daily bars to that date (window starts 2025-12-15), 108 after it. Re-read: close 411.74, 200-day 455.91 (9.7% under, and 465.66 twenty sessions earlier, falling); low 408.56 against L 409.58; B26 hard rule.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "Quotes verbatim on the card or in the dossier; key right; wrong notes true; voice clean. E56: three stops this week, the fourth try is over the cap.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "Re-derived: risk 250 / (245.39-235.64) = 25.64 -> 25 shares; stop 3.97% from the buy (d26). A7 check: 25 shares = $6,135, about 6% of the account, far under the 40% cap, so the risk-based size is the smaller; the why now says so (new fact h30, A7 verbatim).",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
 }
