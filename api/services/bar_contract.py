@@ -29,8 +29,8 @@ from zoneinfo import ZoneInfo
 CONTRACT_VERSION = 1
 #: A provider answer at instant X proves buckets that ended by X - SEAL_LAG_S: the
 #: just-closed bucket's final aggregate lands seconds after its end (a bucket stored
-#: while forming carries the same `ts` as the finished one). Same env knob as the
-#: request path's sealed-bucket rule (#1090 `_SEAL_LAG_S`) — one value for both.
+#: while forming carries the same `ts` as the finished one). The ONE seal-lag value:
+#: any server rule about "is this closed bucket final" reads this constant.
 SEAL_LAG_S = float(os.environ.get("BARS_SEAL_LAG_SECONDS", "5"))
 INTRADAY_TFS = ("1", "5", "15", "30", "60")
 DATE_TFS = ("D", "W", "M")

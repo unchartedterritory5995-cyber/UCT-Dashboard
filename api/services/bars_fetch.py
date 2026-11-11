@@ -996,6 +996,14 @@ def _local_tail_repair(ticker_up: str, tf: str, last_ts: int):
         vt = tail_verified_through(ticker_up, d["src"]) if d.get("complete") else None
         if vt is not None:
             _mark_tail_verified(ticker_up, tf, vt)
+        if d.get("complete"):
+            # Bar contract seal, inherited the same way: a derived bucket that ended by
+            # the base's seal is built only from final base buckets. The derived window
+            # rewritten here starts at its first row (contiguity: `record_sealed`).
+            _base_seal = _sqlite.series_meta(ticker_up, d["src"]).get("sealed_through")
+            if _base_seal is not None:
+                _sqlite.record_sealed(ticker_up, tf, _base_seal, int(d["rows"][0]["t"]),
+                                      _time.time())
         new_last = max(int(b["t"]) for b in d["rows"])
         current = (not _needs_fresh(new_last, tf)
                    and intraday_tail_status(ticker_up, tf, new_last)["tail_status"] != "unverified")

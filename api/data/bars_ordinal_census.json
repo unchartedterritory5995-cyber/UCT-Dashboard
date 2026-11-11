@@ -7,7 +7,7 @@
     "get_bars_before",
     "get_bars_since"
   ],
-  "modules_scanned": 2275,
+  "modules_scanned": 2282,
   "summary": {
     "named_access_count": 2,
     "positional_count": 53,
@@ -77,23 +77,23 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 551
+          "line": 552
         },
         {
           "function": "get_bars",
-          "line": 840
+          "line": 841
         },
         {
           "function": "get_bars",
-          "line": 858
+          "line": 859
         },
         {
           "function": "get_bars",
-          "line": 5878
+          "line": 6007
         }
       ],
       "evidence": {
-        "line": 558,
+        "line": 559,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -274,80 +274,92 @@
           "line": 370
         },
         {
-          "function": "get_bars",
-          "line": 1519
-        },
-        {
-          "function": "get_bars",
-          "line": 2058
+          "function": "get_bars_since",
+          "line": 891
         },
         {
           "function": "get_bars_since",
-          "line": 2352
+          "line": 919
         },
         {
           "function": "get_bars_since",
-          "line": 2365
+          "line": 969
+        },
+        {
+          "function": "get_bars",
+          "line": 1702
+        },
+        {
+          "function": "get_bars",
+          "line": 2241
         },
         {
           "function": "get_bars_since",
-          "line": 2508
-        },
-        {
-          "function": "get_bars",
-          "line": 2985
-        },
-        {
-          "function": "get_bars_before",
-          "line": 3119
-        },
-        {
-          "function": "get_bars_before",
-          "line": 3146
-        },
-        {
-          "function": "get_bars_before",
-          "line": 3229
-        },
-        {
-          "function": "get_bars_before",
-          "line": 3310
+          "line": 2535
         },
         {
           "function": "get_bars_since",
-          "line": 3442
+          "line": 2548
+        },
+        {
+          "function": "get_bars_since",
+          "line": 2691
         },
         {
           "function": "get_bars",
-          "line": 3446
+          "line": 3187
+        },
+        {
+          "function": "get_bars_before",
+          "line": 3321
+        },
+        {
+          "function": "get_bars_before",
+          "line": 3348
+        },
+        {
+          "function": "get_bars_before",
+          "line": 3431
+        },
+        {
+          "function": "get_bars_before",
+          "line": 3512
+        },
+        {
+          "function": "get_bars_since",
+          "line": 3644
         },
         {
           "function": "get_bars",
-          "line": 4246
+          "line": 3648
         },
         {
           "function": "get_bars",
-          "line": 4300
+          "line": 4473
         },
         {
           "function": "get_bars",
-          "line": 4310
+          "line": 4527
         },
         {
           "function": "get_bars",
-          "line": 4432
+          "line": 4537
         },
         {
           "function": "get_bars",
-          "line": 4519
+          "line": 4659
         },
         {
           "function": "get_bars",
-          "line": 4630
+          "line": 4746
         },
         {
           "function": "get_bars",
-          "line": 4764
+          "line": 4857
+        },
+        {
+          "function": "get_bars",
+          "line": 4991
         }
       ],
       "evidence": {
