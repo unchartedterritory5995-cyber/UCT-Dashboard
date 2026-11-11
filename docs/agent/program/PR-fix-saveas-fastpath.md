@@ -90,3 +90,16 @@ Two runs of at most 25 files each, no suite lock, node_modules Junction. Both EX
   agentFlagshipV2, agentOperatorLive, agentKnowledgeCompare).
 - firstCallRatchet is not on master, so it was not run.
 - ESLint is clean on both changed source files.
+
+## AUDIT controls (added after review)
+
+The new rail now has 20 tests. These run on both boards that have a layouts source:
+
+- Two new instant controls: "save it as Thrust Days" (a two-word name) and "save this layout as default" (explicit layout
+  wording keeps master's behaviour). Each gives a `layout.saveAs` proposal with the right name and 0 model turns.
+- "save the workspace as Momentum Swing" is NOT an instant save, on master or on this branch. The matcher's subject list
+  has "this workspace" but not "the workspace", so fastParse returns null and the model handles it. This PR does not
+  widen the matcher. Instead, a rail pins the current behaviour: no proposal, exactly 1 model turn. Making
+  "the workspace / the layout" fast is a separate, small widening, if AUDIT wants it.
+- Mutant re-run (guard off): 9 failed | 11 passed (20), the same 9 regression cases as before. All 8 controls and both
+  pins stay green. File + noRegexLookbehind: 26/26.

@@ -71,7 +71,8 @@ for (const [label, [widgets, syms]] of Object.entries(BOARDS)) {
         })
       }
       if (withLayouts) {
-        for (const [text, name] of [['save this layout as Swing', 'Swing'], ['save it as Momentum', 'Momentum']]) {
+        for (const [text, name] of [['save this layout as Swing', 'Swing'], ['save it as Momentum', 'Momentum'],
+          ['save it as Thrust Days', 'Thrust Days'], ['save this layout as default', 'default']]) {
           it(`control: "${text}" is still an instant layout save proposal (no model call)`, async () => {
             const { host } = build(widgets, syms, true)
             const f = fastParse(text, { host })
@@ -84,6 +85,19 @@ for (const [label, [widgets, syms]] of Object.entries(BOARDS)) {
             expect(turns).toBe(0)
           })
         }
+        // AUDIT asked for "save the workspace as Momentum Swing" as an instant control. On master the matcher's subject
+        // list has "this workspace" but not "the workspace", so master sends it to the model. This PR keeps that. The
+        // rail pins it: no false claim, one model turn.
+        it('pin: "save the workspace as Momentum Swing" is not fast on master or here; it reaches the model', async () => {
+          const text = 'save the workspace as Momentum Swing'
+          const { host } = build(widgets, syms, true)
+          expect(fastParse(text, { host })).toBeNull()
+          render(<AgentPanel host={host} onClose={() => {}} />)
+          type(text)
+          await screen.findByText(MODEL_REPLY)
+          expect(turns).toBe(1)
+          expect(screen.queryByTestId('agent-proposal')).toBeNull()
+        })
       }
     })
   }
