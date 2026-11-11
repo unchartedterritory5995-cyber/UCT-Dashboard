@@ -3998,17 +3998,36 @@ export function seedAndUpdateOf(body, table) {
 }
 
 /** ⭐⭐ LANE B0 — the ternary spelling whose seed is Pine's `na` literal and whose
- *  test is a BARE history read (`na(x[k])`): `na` on every bar in Pine (see the
- *  call site). Only that test: `na(nz(x[1]))` is never true, and its bar 0 runs
- *  the update instead. */
+ *  test is a BARE history read (`na(x[k])`). ENGINE 48: it refuses `pine:cycle` by
+ *  name in every version (see the call site, and `naSeededSelfReferenceSentence`).
+ *  Only that test: `na(nz(x[1]))` is never true, and its bar 0 runs the update
+ *  instead. */
 export function naSeededSelfReference(body, parts, table) {
   if (!parts || !isStaticNa(parts.seed) || !ternarySeedAndUpdate(body, table)) return false
-  const spec = table && table.functions && table.functions.accum
-  const bind = spec && spec.recurrence && spec.recurrence.binds
+  // ⛔ THE SHAPE ONLY, NOT THE NAME (engine-48 review N5). `ternarySeedAndUpdate` already
+  // requires the `na(…)` test to contain a free `self`, and `na` takes one argument, so a bare
+  // series read here (or an offset of one) can only be `self`. A name check beside it could
+  // never fire, and a guard that cannot fail is not counted as one.
   const read = body.args[0].args && body.args[0].args[0]
-  return !!read && ((read.type === 'series' && read.name === bind)
-    || (read.type === 'offset' && read.args && read.args[0]
-      && read.args[0].type === 'series' && read.args[0].name === bind))
+  return !!read && (read.type === 'series'
+    || (read.type === 'offset' && read.args && read.args[0] && read.args[0].type === 'series'))
+}
+
+/** ⭐⭐ ENGINE 48 — the specifics of the `pine:cycle` refusal of `x = na(x[k]) ? na : U`
+ *  (the lead sentence is `REFUSALS['pine:cycle']`). Exported so both lanes' rails pin
+ *  the one wording. `version` is the lexed pragma (`null` = no pragma, read as v1). */
+export function naSeededSelfReferenceSentence(name, version) {
+  if (!listingSeedIsUnpinned(version)) {
+    return `\`${name}\` reads its own history inside its own declaration. This does not compile `
+      + 'in Pine v3+: a variable cannot refer to itself in its own declaration, so TradingView '
+      + 'draws nothing for this script and nothing is drawn here. In v3+ the variable is declared '
+      + 'once and updated with `:=`'
+  }
+  return `\`${name}\` is set to \`na\` whenever its own earlier value, as its \`na()\` test reads it, `
+    + `is \`na\`. Pine v1/v2 (and a script with no \`//@version\`) does not state what that earlier value `
+    + `is before the first bar: if it is \`na\`, \`${name}\` is \`na\` on every bar; if it is 0, the update `
+    + 'runs from the first bar. The two readings can disagree, and no TradingView capture has settled '
+    + 'which one TradingView draws, so neither is drawn'
 }
 
 /** `na(self…) ? SEED : UPDATE` — the spelling the docblock above describes. */
@@ -8460,16 +8479,33 @@ export class Resolver {
             + 'first-bar value the way `na(' + name + '[1]) ? … : …` does',
             bound.at || locate(tok))
         }
-        // ⭐⭐ LANE B0 — `x = na(x[k]) ? na : U`: Pine reads `x[k]` as `na` on bar 0,
-        // takes the `na` arm, and so `x[k]` is `na` again on every later bar — the
-        // value is `na` on EVERY bar, whatever `U` says. Written as that constant,
-        // which is exactly Pine's, and which keeps the one rule the listing pass
-        // reads (`interpret.js::historySeedReading`: an unmarked `na` seed is a
-        // history seed whose bar 0 runs the update) true of every `accum` this
-        // translator writes.
-        // ⛔ r1 — only where bar 0's history is pinned (v3+, `listingSeedIsUnpinned`): for v1/v2
-        // (and no pragma) Pine's `x[1]` on bar 0 may be `0`, which is unwitnessed (W34-I4b).
-        if (!listingSeedIsUnpinned(this.pineVersion) && naSeededSelfReference(body, parts, this.table)) return parts.seed
+        // ⭐⭐ ENGINE 48 — `x = na(x[k]) ? na : U` REFUSES BY NAME, in every version, in
+        // both lanes, and no column is drawn for it. The runtime lane reaches this branch for
+        // a binding it keeps in the `Resolver`; one it makes a SLOT (a function local, or one
+        // whose update reads a slot) is refused with the same sentence by
+        // `pineRuntimeFrontend.js::naSeededSelfDeclaration` (review N1). Where the runtime lane
+        // meets another wall first (a warm-up update: `runtime:conditional-history`), it refuses
+        // by that name instead; the member door shows this one. Neither answer it could draw is
+        // witnessed:
+        //   - v3+ (`!listingSeedIsUnpinned`): TradingView does not COMPILE it. Pine v3
+        //     removed self-reference in a declaration, so there is no TradingView value
+        //     at all. Engine 46 (LANE B0) drew the all-`na` column here, and before it
+        //     the counter spelling refused `pine:state` (LANE2-r1r3 N3).
+        //   - v1/v2 and no pragma: Pine compiles it, and its answer turns on the one fact
+        //     W34-I4b leaves unpinned, `x[k]` before the first bar. Read as `na`, every
+        //     bar takes the `na` arm, so `x` is `na` on EVERY bar. Read as 0, bar 0 runs
+        //     `U` from 0 and each later bar runs `U` from there. The listing pass's
+        //     candidates (seed, update(U, na), zero) do not include the first reading,
+        //     so for a `U` that forgets its seed they agreed from bar 1 on a value the
+        //     first reading contradicts, and the host served it (LANE2-r1r3 N1). No
+        //     capture pins it (capture row W34-I4-S1).
+        // ⛔ Only this spelling: a stated seed (`na(x[1]) ? 7.0 : U`) and a test that is
+        // not a bare history read (`na(nz(x[1]))`) keep their paths below.
+        if (naSeededSelfReference(body, parts, this.table)) {
+          throw new PineRefusal('pine:cycle',
+            `${REFUSALS['pine:cycle']} — ${naSeededSelfReferenceSentence(name, this.pineVersion)}`,
+            bound.at || locate(tok))
+        }
         // 🔴🔴 THE SAME CONVERGENCE GATE AS THE MUTABLE FORM, asked of the UPDATE
         // ARM ALONE — the seed arm is what the accumulator re-seeds WITH, so
         // asking it to forget itself is asking the wrong question. Routing around
