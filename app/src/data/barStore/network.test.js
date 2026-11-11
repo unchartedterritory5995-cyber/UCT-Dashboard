@@ -284,7 +284,7 @@ describe('what is asked', () => {
     expect(rec.calls[1].url).not.toMatch(/since=/)                // voided → one full read at once
     expect(rec.calls[1].at - rec.calls[0].at).toBeLessThan(2000)
     expect(voided).toBe(1)
-    expect(rec.calls.slice(1).every((c) => !/since=/.test(c.url))).toBe(true)   // nothing sealed: full reads...
+    expect(rec.calls.slice(2).every((c) => /since=/.test(c.url))).toBe(true)    // then mutable-window deltas...
     expect(rec.calls.length).toBeLessThanOrEqual(BUDGET_PER_HOUR + 1)           // ...on the cadence, never a loop
     const s = w.registry.getSnapshot(key)
     expect(s.restSeen).toBe(true)

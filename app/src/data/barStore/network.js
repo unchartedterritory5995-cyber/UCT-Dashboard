@@ -54,6 +54,29 @@ export const ERROR_RETRY_MS = 1500
 export const ERROR_RETRY_MAX_MS = 30_000
 /** A terminal `no_data` key is re-asked this rarely (a listing can start trading). */
 export const NO_DATA_POLL_MS = 300_000
+/**
+ * The server's MUTABLE window (api/services/bars_fetch.py `_DELTA_HEAL_WINDOW_SECONDS`, 8 h):
+ * the stretch behind the stored tail a repair may still rewrite. With no seal held, a poll
+ * re-reads exactly this window (`since = tail − window`) and lets the answer replace it;
+ * anything older changes only with `history_rev` (P1 §2), which forces a full read.
+ */
+export const MUTABLE_WINDOW_S = 8 * 3600
+
+/**
+ * Where the next `since=` delta of snapshot `s` starts, or null for a FULL read.
+ * FULL only for: the first load (no server answer yet and nothing restored), a pending full
+ * read (`needsFull` — cache_key / history_rev change, a voided restored seal), D/W/M and
+ * windowed keys (the legacy client reads those whole too). With a seal: `deltaFrom` (the
+ * first row after the newest seal). Without one: the held tail minus the mutable window.
+ * (The caller still turns an over-budget delta into a full read.)
+ */
+export function deltaStartFor(s, p = parseKey(s.key)) {
+  if (!p || !isIntradayTf(p.tf) || p.window || s.needsFull) return null
+  if (s.sealedSpans.length && s.deltaFrom != null) return s.deltaFrom
+  if (!s.restSeen) return null
+  const tail = s.developing ? s.developing.t : (s.bars.length ? s.bars[s.bars.length - 1].t : null)
+  return finite(tail) ? tail - MUTABLE_WINDOW_S : null
+}
 export const PRIORITIES = Object.freeze(['visible', 'urgent', 'grid', 'background'])
 
 const finite = (x) => typeof x === 'number' && Number.isFinite(x)
@@ -148,9 +171,9 @@ export function createNetwork({
     const gen = s.gen
     const session = _session(r)
     const bars = barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session })
-    const delta = isIntradayTf(p.tf) && !p.window && !s.needsFull && s.deltaFrom != null && s.sealedSpans.length > 0 &&
-      deltaWithinBudget(p.tf, s.deltaFrom, now(), bars)
-    const url = barsUrl(r.key, { bars, since: delta ? s.deltaFrom - 1 : null, session })
+    const from = deltaStartFor(s, p)
+    const delta = from != null && deltaWithinBudget(p.tf, from, now(), bars)
+    const url = barsUrl(r.key, { bars, since: delta ? from - 1 : null, session })
     return _send(r, 'tail', url, priority, async (json) => {
       if (json?.no_data) {
         registry.dispatch(r.key, { type: ACTION.REST_ERROR, key: r.key, gen, payload: { error: 'no_data', terminal: true } })
@@ -161,7 +184,7 @@ export function createNetwork({
         return { error: true, retryAfterSec: json?.retry_after ?? null }
       }
       const type = delta ? ACTION.REST_DELTA : ACTION.REST_FULL
-      registry.dispatch(r.key, { type, key: r.key, gen, payload: delta ? { ...json, since: s.deltaFrom } : json })
+      registry.dispatch(r.key, { type, key: r.key, gen, payload: delta ? { ...json, since: from } : json })
       return { ok: true, delta, retryAfterSec: json.retry_after ?? null }
     }, gen)
   }
