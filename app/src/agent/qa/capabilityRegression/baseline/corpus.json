@@ -10128,6 +10128,243 @@
       ]
     },
     {
+      "id": "drawing.setActiveBoard",
+      "source": "C1-167..170 (pl-exec1): Drawing Boards, in the real drawings store through the panel's writers",
+      "capabilities": [
+        "drawing.setActiveBoard"
+      ],
+      "board": "ONE",
+      "seed": {
+        "boards": {
+          "names": [
+            "Swing",
+            "Earnings"
+          ],
+          "active": 1
+        }
+      },
+      "needs": [
+        "drawing.setActiveBoard"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.setActiveBoard",
+            "target": "$drawingBoards[0]",
+            "args": {
+              "board": "Swing"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "boards": {
+          "names": [
+            "Swing",
+            "Earnings"
+          ],
+          "active": "Swing"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "boards": {
+            "active": "Earnings"
+          }
+        }
+      },
+      "phrasings": [
+        "switch to my Swing board",
+        "switch to the Swing drawing board",
+        "draw on my Swing board"
+      ]
+    },
+    {
+      "id": "drawing.createBoard",
+      "source": "C1-167..170 (pl-exec1): Drawing Boards, in the real drawings store through the panel's writers",
+      "capabilities": [
+        "drawing.createBoard"
+      ],
+      "board": "ONE",
+      "seed": {
+        "boards": {
+          "names": [
+            "Swing"
+          ],
+          "active": 0
+        }
+      },
+      "needs": [
+        "drawing.createBoard"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.createBoard",
+            "target": "$drawingBoards[0]",
+            "args": {
+              "name": "Earnings"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "boards": {
+          "names": [
+            "Swing",
+            "Earnings"
+          ],
+          "active": "Earnings"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "boards": {
+            "names": [
+              "Swing"
+            ],
+            "active": "Swing"
+          }
+        }
+      },
+      "phrasings": [
+        "create a new drawing board called Earnings",
+        "make a new drawing board named Earnings",
+        "add a drawing board called Earnings"
+      ]
+    },
+    {
+      "id": "drawing.renameBoard",
+      "source": "C1-167..170 (pl-exec1): Drawing Boards, in the real drawings store through the panel's writers",
+      "capabilities": [
+        "drawing.renameBoard"
+      ],
+      "board": "ONE",
+      "seed": {
+        "boards": {
+          "names": [
+            "Swing",
+            ""
+          ],
+          "active": 0
+        }
+      },
+      "needs": [
+        "drawing.renameBoard"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.renameBoard",
+            "target": "$drawingBoards[0]",
+            "args": {
+              "board": "Board 2",
+              "to": "Breakouts"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "boards": {
+          "names": [
+            "Swing",
+            "Breakouts"
+          ],
+          "active": "Swing"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "boards": {
+            "names": [
+              "Swing",
+              "Board 2"
+            ]
+          }
+        }
+      },
+      "phrasings": [
+        "rename Board 2 to Breakouts",
+        "rename my Board 2 drawing board to Breakouts",
+        "call drawing Board 2 Breakouts"
+      ]
+    },
+    {
+      "id": "drawing.deleteBoard",
+      "source": "C1-167..170 (pl-exec1): Drawing Boards, in the real drawings store through the panel's writers",
+      "capabilities": [
+        "drawing.deleteBoard"
+      ],
+      "board": "ONE",
+      "seed": {
+        "boards": {
+          "names": [
+            "Swing",
+            "Breakouts"
+          ],
+          "active": 0,
+          "drawings": {
+            "1": 2
+          }
+        }
+      },
+      "needs": [
+        "drawing.deleteBoard"
+      ],
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "drawing.deleteBoard",
+            "target": "$drawingBoards[0]",
+            "args": {
+              "board": "Breakouts"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "receipt": false,
+        "proposalSays": [
+          "Delete the drawing board “Breakouts”",
+          "2 drawings",
+          "can.t be undone"
+        ],
+        "boards": {
+          "names": [
+            "Swing",
+            "Breakouts"
+          ],
+          "active": "Swing"
+        }
+      },
+      "approve": true,
+      "afterApprove": {
+        "boards": {
+          "names": [
+            "Swing"
+          ],
+          "active": "Swing"
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        "delete the Breakouts board",
+        "delete my Breakouts drawing board",
+        "remove the Breakouts drawing board"
+      ]
+    },
+    {
       "id": "chartSetup.setRange",
       "source": "PR #825 (11-05): the chart's own view controls and Ctrl+M",
       "capabilities": [

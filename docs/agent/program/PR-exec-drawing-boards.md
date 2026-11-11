@@ -99,3 +99,9 @@ Earlier, at ff7eacc221:
 - Not covered: board visibility, order and colour (the panel has no controls for them), and the mobile Boards sheet.
 - The sync check reads the `tracings_doc` preference. If `TRACINGS_STORE_ENABLED` (compiled, default OFF) is ever switched on, receipts will say the save was not confirmed until this check follows the new store.
 - On the model path, an unnamed delete is caught by the hint, by a board argument that must be exactly one board's name, and by the card that names the board. The fast path asks deterministically for the common phrasings.
+
+## Capability-regression corpus (follow-up)
+
+- Four capreg intents, one per action, on the real drawings store through `host.drawingBoards` (the panel's writers): `drawing.setActiveBoard` ("switch to my Swing board", Undo switches back), `drawing.createBoard` ("create a new drawing board called Earnings", Undo removes it), `drawing.renameBoard` ("rename Board 2 to Breakouts", Undo restores "Board 2"), and `drawing.deleteBoard` ("delete the Breakouts board"). The delete intent asserts the CONFIRMATION card first (it names the board, "2 drawings" and "can't be undone"), with no receipt and both boards still there. Only Apply deletes it.
+- Harness: `seed.boards` ({ names, active, drawings }) seeds the boards in the real store, and the stubbed server copy (`tracings_doc`) now also carries the boards list, as exportTracings() pushes it, so `confirm()` reads them back. Runner: a `boards` expectation (labels and the active board) and `proposalSays` (the waiting card's own text).
+- Regenerated: capreg `coverage/*` (UPDATE_CAPREG=1, additive contract) and `baseline.lock.json` (`--update`, additive).
