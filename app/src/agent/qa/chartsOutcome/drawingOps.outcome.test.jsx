@@ -27,7 +27,7 @@ const recentId = (c, s = 'NVDA') => must(drawingsOf(c, s).drawings.find(d => d.r
 const TREND = (c, s = 'NVDA') => [{ action: 'drawing.addTrendline', target: ref(c, s), args: { from: { date: '2026-10-01', price: 100 }, to: { date: '2026-10-20', price: 120 }, color: 'red', style: 'dashed' } }]
 const DUP = (c, id = recentId(c), s = 'NVDA') => ({ action: 'drawing.duplicate', target: ref(c, s), args: { drawing: id } })
 const POS = (c, id, levels) => ({ action: 'drawing.setPositionAlerts', target: ref(c), args: { drawing: id, levels } })
-const strip = ({ id: _id, ...rest }) => rest
+const strip = (d) => { const rest = { ...d }; delete rest.id; return rest }
 
 describe('C1-157 Duplicate: the menu\'s own copy, on the right symbol, undone by id', () => {
   it('a copy lands just below the original with the original\'s style, unlocked; the copy becomes "it"; Undo removes only the copy', async () => {

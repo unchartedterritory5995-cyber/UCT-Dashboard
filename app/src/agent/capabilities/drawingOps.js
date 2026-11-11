@@ -120,7 +120,7 @@ export function registerDrawingOps(common, { registerCapability, byId, notFound,
     check(st, args, env) { return plan(st, args, env).why || null },
     apply(st, args, env) {
       const p = plan(st, args, env)
-      return { ...st, alerts: [...st.alerts, ...p.creates.map(({ label: _l, ...c }) => c)] }
+      return { ...st, alerts: [...st.alerts, ...p.creates.map(c => ({ sym: c.sym, price: c.price, direction: c.direction, body: c.body }))] }
     },
     describe(b, a, args, env) {
       if (a.alerts.length <= b.alerts.length) return null
