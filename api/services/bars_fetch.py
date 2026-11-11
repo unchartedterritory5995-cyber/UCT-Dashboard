@@ -213,6 +213,20 @@ def _request_is_interactive() -> bool:
     return bool(getattr(_req_ctx, "interactive", False))
 
 
+def set_background_caller(flag: bool) -> None:
+    """Mark the CURRENT thread as an in-process BACKGROUND bars caller (bars_prewarm
+    workers, `warm_bars_async`). Such a caller is not behind the edge (no request
+    budget) yet is not member demand either, so the D/W/M delta pool counts it against
+    the warm share (`_date_delta_warm_sem`) instead of the interactive/in-process
+    branch (review #1034 N1). In-process callers that answer a member (seasonality,
+    data_exports, discord...) never set it and keep their blocking semantics."""
+    _req_ctx.background = bool(flag)
+
+
+def _is_background_caller() -> bool:
+    return bool(getattr(_req_ctx, "background", False))
+
+
 # ── REQUEST WAIT BUDGET (2026-11-10) ─────────────────────────────────────────
 # ⛔⛔ THE EDGE ABORTS THE TIER AT 8 s (edge/bars-edge-router/worker.js
 # BARS_TIMEOUT_MS) AND RE-ASKS WEB_ORIGIN — a different bars.db with a different
@@ -3585,6 +3599,8 @@ _DATE_DELTA_SLOT_WAIT_S = 1.0
 #: In-process (non-edge) callers keep the original blocking semantics, with a
 #: generous safety ceiling instead of none.
 _DATE_DELTA_INPROC_CEILING_S = 60.0
+#: How long an in-process BACKGROUND caller may wait for its warm-share slot.
+_DATE_DELTA_BG_SLOT_WAIT_S = 10.0
 
 
 def _bounded_date_delta(ticker_up: str, tf: str, last_ts, deadline: float | None = None) -> bool:
@@ -3593,7 +3609,15 @@ def _bounded_date_delta(ticker_up: str, tf: str, last_ts, deadline: float | None
         deadline = (_DATE_DELTA_DEADLINE_SECONDS if _budget_active()
                     else _DATE_DELTA_INPROC_CEILING_S)
     warm_slot = None
-    if _budget_active() and not _request_is_interactive():
+    if _is_background_caller() and not _budget_active():
+        # in-process BACKGROUND (prewarm / warm_bars_async): counts against the warm
+        # share like warm=1, so it can never hold the slots a click needs (N1). It is
+        # not on a member's clock, so it may wait for its share rather than shed.
+        if not _date_delta_warm_sem.acquire(timeout=_DATE_DELTA_BG_SLOT_WAIT_S):
+            return False
+        warm_slot = _date_delta_warm_sem
+        got = _date_delta_sem.acquire(timeout=_DATE_DELTA_BG_SLOT_WAIT_S)
+    elif _budget_active() and not _request_is_interactive():
         # warm=1 over HTTP: never more than the warm share, never waits for a slot
         if not _date_delta_warm_sem.acquire(blocking=False):
             return False
@@ -3802,10 +3826,13 @@ def warm_bars_async(tickers: list[str], tf: str = "D", bars: int = 8000) -> None
         return
 
     def _warm_one(t: str) -> None:
+        set_background_caller(True)       # warm share of the D/W/M pool (N1)
         try:
             _get_bars_inner(t, tf, bars)
         except Exception:
             pass  # warming is best-effort; don't poison the executor
+        finally:
+            set_background_caller(False)
 
     seen: set[str] = set()
     for t in tickers:
