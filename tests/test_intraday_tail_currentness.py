@@ -55,14 +55,17 @@ class TestExpectedCompletedBucket:
         assert bars_fetch.expected_completed_bucket("5", MON_1133) == et(2026, 9, 28, 11, 25)
 
     @pytest.mark.parametrize("tf,expected", [
-        ("1", (11, 32)), ("5", (11, 25)), ("15", (11, 15)), ("30", (11, 0)), ("60", (10, 0)),
+        ("1", (11, 32)), ("5", (11, 25)), ("15", (11, 15)), ("30", (11, 0)), ("60", (10, 30)),
     ])
     def test_every_intraday_tf(self, tf, expected):
         assert bars_fetch.expected_completed_bucket(tf, MON_1133) == et(2026, 9, 28, *expected)
 
-    def test_60m_uses_the_irregular_0930_opening_bucket(self):
-        # At 10:05 the 09:30-10:00 bar has closed, even though a full hour has not elapsed.
-        assert bars_fetch.expected_completed_bucket("60", et(2026, 9, 28, 10, 5)) == et(2026, 9, 28, 9, 30)
+    def test_60m_uses_the_tradingview_0930_opening_bucket(self):
+        # TradingView grid: the 09:30 bar runs to 10:30 — open at 10:05, closed at 10:35.
+        assert bars_fetch.expected_completed_bucket("60", et(2026, 9, 28, 10, 5)) is None
+        assert bars_fetch.expected_completed_bucket("60", et(2026, 9, 28, 10, 35)) == et(2026, 9, 28, 9, 30)
+        # …and the 15:30 half bar is the session's last: final at the close.
+        assert bars_fetch.expected_completed_bucket("60", et(2026, 9, 28, 16, 30)) == et(2026, 9, 28, 15, 30)
 
     def test_no_expectation_before_the_first_bucket_closes(self):
         assert bars_fetch.expected_completed_bucket("5", et(2026, 9, 28, 9, 32)) is None
@@ -422,12 +425,16 @@ class TestScope:
         assert "tail_status" not in _body(out)
 
 
-def test_60m_opening_bucket_is_verifiable_at_1000_not_1030():
-    """The 09:30 hourly bucket ends at 10:00. A check at 10:01 proves it."""
+def test_60m_opening_bucket_is_verifiable_at_1030():
+    """The 09:30 hourly bucket ends at 10:30 (TradingView grid). A check at 10:31 proves it."""
     bars_fetch._tail_verified.clear()
-    bars_fetch._mark_tail_verified("THIN", "60", et(2026, 9, 28, 10, 1))
-    st = bars_fetch.intraday_tail_status("THIN", "60", FRI_1555, now=et(2026, 9, 28, 10, 20))
+    bars_fetch._mark_tail_verified("THIN", "60", et(2026, 9, 28, 10, 31))
+    st = bars_fetch.intraday_tail_status("THIN", "60", FRI_1555, now=et(2026, 9, 28, 10, 50))
     assert st["tail_status"] == "verified"
+    # the 15:30 half bar ends at 16:00: a 16:01 check proves the session's last bar
+    bars_fetch._tail_verified.clear()
+    bars_fetch._mark_tail_verified("THIN", "60", et(2026, 9, 28, 16, 1))
+    assert bars_fetch._bucket_end("60", et(2026, 9, 28, 15, 30), 3600) == et(2026, 9, 28, 16, 0)
 
 
 # ── Weekly: the current week's forming candle (the verified intended contract) ──

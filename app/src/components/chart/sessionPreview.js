@@ -16,7 +16,7 @@
 //
 // This module is pure (no React / DOM / color decisions) so it is unit-tested in
 // isolation. All timestamps here are raw UTC unix seconds as returned by
-// /api/bars (the frontend's +ET_OFFSET display shift is applied elsewhere).
+// /api/bars (the frontend's per-instant ET display shift, barTime.toChartTime, is applied elsewhere).
 
 // ET session windows, minutes-since-ET-midnight. Match useMarketOpen.js.
 const PRE_WINDOW = [4 * 60, 9 * 60 + 30]   // 4:00 – 9:30

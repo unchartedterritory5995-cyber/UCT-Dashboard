@@ -25,6 +25,7 @@
 //    subscribers at drag START, before any commit.
 
 import { uid } from '../../utils/uid'
+import { stampTimeBase, toRawUnixView } from './drawingTimeBase'
 import { normalizeDrawing, normalizeDrawings } from './drawingSchema'
 
 const STORAGE_KEY = 'uct-chart-drawings'
@@ -207,7 +208,9 @@ export function addDrawing(sym, d) {
   _addGuard.set(key, id)
   queueMicrotask(() => _addGuard.delete(key))
   const e = _ensure(sym)
-  _commit(sym, e, [...e.drawings, normalizeDrawing({ ...d, id })])
+  // ONE time base on every write (drawingTimeBase.js): legacy Agent chart-time points become raw
+  // unix and a numeric-point drawing is stamped `tb:'unix'`.
+  _commit(sym, e, [...e.drawings, normalizeDrawing({ ...stampTimeBase(toRawUnixView([d])[0]), id })])
   return id
 }
 
@@ -236,7 +239,7 @@ export function updateDrawing(sym, id, updates, opts) {
   if (!e.drawings.some((x) => x.id === id)) return   // unknown id: no junk history step
   _commit(
     sym, e,
-    e.drawings.map((x) => (x.id === id ? { ...x, ...updates } : x)),
+    e.drawings.map((x) => (x.id === id ? { ...x, ...stampTimeBase(updates) } : x)),
     opts?.record !== false,
   )
 }
