@@ -1574,5 +1574,15 @@
   "feature": "control",
   "title": "A drawing’s Duplicate",
   "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Duplicate on a drawing’s menu)"
+ },
+ "C1-044": {
+  "feature": "panelAction",
+  "title": "Picking the replay date on the chart",
+  "from": "replay row reviewed by hand 2026-11-11 (not assigned before: Pick on chart in Replay Mode, then a click on the bar, then Start replay)"
+ },
+ "C3-211": {
+  "feature": "panelAction",
+  "title": "Picking the replay date on the chart",
+  "from": "replay row reviewed by hand 2026-11-11 (not assigned before: Pick on chart in Replay Mode, then a click on the bar, then Start replay)"
  }
 }

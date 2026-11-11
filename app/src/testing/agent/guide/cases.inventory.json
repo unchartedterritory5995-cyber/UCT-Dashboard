@@ -180,6 +180,12 @@
   "title": "Replaying the market"
  },
  {
+  "id": "C1-044",
+  "say": "how do I pick the cutoff on the chart",
+  "feature": "panelAction",
+  "title": "Picking the replay date on the chart"
+ },
+ {
   "id": "C1-045",
   "say": "how do I exit replay",
   "feature": "panelAction",
@@ -1888,6 +1894,12 @@
   "say": "how do I exit replay",
   "feature": "panelAction",
   "title": "Leaving replay"
+ },
+ {
+  "id": "C3-211",
+  "say": "how do I pick the cutoff by clicking the chart",
+  "feature": "panelAction",
+  "title": "Picking the replay date on the chart"
  },
  {
   "id": "C3-212",
