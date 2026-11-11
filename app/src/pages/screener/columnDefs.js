@@ -603,11 +603,11 @@ export const COLUMN_DEFS = {
   rs_rating_3m: { label: 'Rank 3M', fmt: num(0), heat: heatRs,
     desc: 'Percentile rank, 1-99, of the plain 63-session return across the cap universe minus ETFs on daily bars, the window the IBD-style rating weights heaviest; blank where the rating job has not rated the name.' },
   rs_rating_6m: { label: 'Rank 6M', fmt: num(0), heat: heatRs,
-    desc: 'Percentile rank, 1-99, of the plain 126-session return across the cap universe minus ETFs on daily bars, one of the four windows the IBD-style rating weights; blank where the rating job has not rated the name.' },
+    desc: 'Percentile rank, 1-99, of a recency-weighted six-month blend (the 63-session close ratio counts double, the 126-session once) across the cap universe minus ETFs on daily bars, the same newest-quarter weighting the IBD-style rating uses; blank where the rating job has not rated the name.' },
   rs_rating_9m: { label: 'Rank 9M', fmt: num(0), heat: heatRs,
-    desc: 'Percentile rank, 1-99, of the plain 189-session return across the cap universe minus ETFs on daily bars, a companion percentile the IBD-style rating does not weight; blank where the rating job has not rated the name.' },
+    desc: 'Percentile rank, 1-99, of a recency-weighted nine-month blend (the 63-session close ratio counts double, the 126- and 189-session ones once) across the cap universe minus ETFs on daily bars, a companion percentile the IBD-style rating does not carry; blank where the rating job has not rated the name.' },
   rs_rating_12m: { label: 'Rank 12M', fmt: num(0), heat: heatRs,
-    desc: 'Percentile rank, 1-99, of the plain 252-session return across the cap universe minus ETFs on daily bars, one of the four windows the IBD-style rating weights; blank where the rating job has not rated the name.' },
+    desc: 'Percentile rank, 1-99, of a recency-weighted twelve-month blend (the 63-session close ratio counts double, the 126-, 189- and 252-session ones once) across the cap universe minus ETFs on daily bars, the same newest-quarter weighting the IBD-style rating uses; blank where the rating job has not rated the name.' },
   // ── UCT Relative Strength, Phase 3 (unit 3-11; engineering map D1 / D7) ──
   // Written by the same `bars_rs` step only while RS_V3_ENABLED is armed
   // (`rs_columns.PHASE3_COLUMNS`); `filters.meta()` leaves out their controls and

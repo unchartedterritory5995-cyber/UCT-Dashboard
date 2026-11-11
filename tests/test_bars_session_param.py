@@ -186,7 +186,7 @@ def test_default_60m_is_still_the_rth_grid(store):
     ts = [b["t"] for b in body["bars"]]
     assert et(*TUE, 9, 30) in ts and et(*TUE, 10, 30) in ts
     assert et(*TUE, 10, 0) not in ts
-    assert "session" not in body
+    assert body.get("session") is None   # legacy (no param): bar contract `session: null`
     # explicit rth is the same series
     assert [b["t"] for b in _body(bars_router.serve_bars("THIN", "60", 50, session="rth"))["bars"]] == ts
 
