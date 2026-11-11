@@ -1457,6 +1457,24 @@ def _writable_bars(ticker: str, tf: str, bars: list[dict]) -> tuple[list[dict], 
     return keep, rejected
 
 
+#: 🔴 THE GRID INVARIANT, AT THE SAME DOOR (2026-11-10). An intraday row is keyed on
+#: its BUCKET START. Prod held post-market rows stamped at a trade time (SPY 5m
+#: 16:35:50 beside 16:35:00), each drawn as an extra candle — the yfinance fallback's
+#: separate live row, written add-only beside the Massive grid row. A misaligned row
+#: whose bucket has a row in the batch is dropped (that row wins); otherwise it is
+#: snapped to the bucket start and written INSERT OR IGNORE (fills an empty bucket,
+#: never replaces a stored one). Rule + rationale: `intraday_grid` module doc.
+def _grid_rows(ticker: str, tf: str, bars: list[dict], date_tf: bool) -> tuple[list[dict], list[dict]]:
+    if date_tf or not bars:
+        return bars, []
+    try:
+        from api.services import intraday_grid
+        return intraday_grid.fold_for_write(ticker, tf, bars)
+    except Exception as e:                               # pragma: no cover
+        _logger.warning("[sqlite] grid fold failed for %s tf=%s (writing as-is): %s", ticker, tf, e)
+        return bars, []
+
+
 def put_bars_many(tf: str, bars_by_ticker: dict[str, list[dict]]) -> int:
     """Upsert many tickers' bars of ONE timeframe in a single transaction.
 
@@ -1465,12 +1483,17 @@ def put_bars_many(tf: str, bars_by_ticker: dict[str, list[dict]]) -> int:
     write lock. Same validity gate and the same INSERT OR REPLACE as `put_bars`.
     `t` is the stored integer key (unix seconds intraday, YYYYMMDD for D)."""
     rows = []
+    snapped_rows = []
     for ticker, bars in (bars_by_ticker or {}).items():
         keep, _rejected = _writable_bars(ticker.upper(), tf, bars)
+        keep, snapped = _grid_rows(ticker.upper(), tf, keep, False)
         for b in keep:
             rows.append((ticker.upper(), tf, int(b.get("t", 0)), b.get("o"), b.get("h"),
                          b.get("l"), b.get("c"), int(b.get("v") or 0)))
-    if not rows:
+        for b in snapped:
+            snapped_rows.append((ticker.upper(), tf, int(b["t"]), b.get("o"), b.get("h"),
+                                 b.get("l"), b.get("c"), int(b.get("v") or 0)))
+    if not rows and not snapped_rows:
         return 0
     last_lock_err: sqlite3.OperationalError | None = None
     for attempt in range(3):
@@ -1481,8 +1504,13 @@ def put_bars_many(tf: str, bars_by_ticker: dict[str, list[dict]]) -> int:
                     "INSERT OR REPLACE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
                     rows,
                 )
+                if snapped_rows:
+                    c.executemany(
+                        "INSERT OR IGNORE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
+                        snapped_rows,
+                    )
                 c.commit()
-            return len(rows)
+            return len(rows) + len(snapped_rows)
         except sqlite3.OperationalError as e:
             if "locked" not in str(e).lower():
                 raise
@@ -1516,7 +1544,8 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
         return 0
     ticker = ticker.upper()
     bars, _rejected = _writable_bars(ticker, tf, bars)
-    if not bars:
+    bars, snapped = _grid_rows(ticker, tf, bars, date_tf)
+    if not bars and not snapped:
         return 0
     rows = []
     for b in bars:
@@ -1527,6 +1556,8 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
             b.get("o"), b.get("h"), b.get("l"), b.get("c"),
             int(b.get("v") or 0),
         ))
+    snapped_rows = [(ticker, tf, int(b["t"]), b.get("o"), b.get("h"), b.get("l"),
+                     b.get("c"), int(b.get("v") or 0)) for b in snapped]
 
     _verb = "INSERT OR IGNORE" if on_conflict == "ignore" else "INSERT OR REPLACE"
     last_lock_err: sqlite3.OperationalError | None = None
@@ -1534,12 +1565,19 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
         try:
             with _WRITE_LOCK:
                 c = _conn()
-                c.executemany(
-                    f"{_verb} INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
-                    rows,
-                )
+                if rows:
+                    c.executemany(
+                        f"{_verb} INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
+                        rows,
+                    )
+                if snapped_rows:
+                    # Snapped off-grid rows fill an EMPTY bucket only (intraday_grid doc).
+                    c.executemany(
+                        "INSERT OR IGNORE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
+                        snapped_rows,
+                    )
                 c.commit()
-            return len(rows)
+            return len(rows) + len(snapped_rows)
         except sqlite3.OperationalError as e:
             # OperationalError covers "locked" (contention) and a few non-
             # corruption cases; only retry the locked variant. Other

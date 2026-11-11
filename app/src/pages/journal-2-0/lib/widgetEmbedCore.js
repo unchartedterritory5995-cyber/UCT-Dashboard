@@ -6,7 +6,7 @@
 import {
   widgetMeta, normalizeParams, validateParams, paramsPlainText, isReconstructable, asOfDayOf,
 } from '../../../widgets/registry'
-import { peekDrawings } from '../../../components/chart/drawingsStore'
+import { peekDrawings } from '../../../components/chart/drawingsPeek' // not drawingsStore: keeps it off Notebook first open
 import { notebookFlag } from './offline/notebookFlags'
 
 /** Wave 13 lane 13H-2: the ONE client gate for the chart-plan doors -- the plan panel, bar

@@ -31,16 +31,17 @@ def _rows(path):
 
 def test_only_bars_newer_than_the_local_tail_are_adopted(tmp_path):
     local, snap = str(tmp_path / "bars.db"), str(tmp_path / "delta.db")
-    _db(local, [("AAA", "5", 100), ("AAA", "5", 300), ("AAA", "D", 100),
-                ("BBB", "5", 100)])
-    _db(snap, [("AAA", "5", 200),    # below the tail, basis UNPROVEN (no common row): not adopted
-               ("AAA", "5", 400),    # newer than the tail: adopted
+    # 5m keys are bucket starts (multiples of 300): the merge refuses off-grid rows.
+    _db(local, [("AAA", "5", 300), ("AAA", "5", 900), ("AAA", "D", 100),
+                ("BBB", "5", 300)])
+    _db(snap, [("AAA", "5", 600),    # below the tail, basis UNPROVEN (no common row): not adopted
+               ("AAA", "5", 1200),   # newer than the tail: adopted
                ("AAA", "D", 100),    # already there
                ("CCC", "D", 50),     # a pair the pod has never seen: adopted
                ("CCC", "D", 60)])
     assert data_sync._merge_ohlcv_from(snap, local_db=local) == 3
-    assert _rows(local) == {("AAA", "5", 100), ("AAA", "5", 300), ("AAA", "5", 400),
-                            ("AAA", "D", 100), ("BBB", "5", 100),
+    assert _rows(local) == {("AAA", "5", 300), ("AAA", "5", 900), ("AAA", "5", 1200),
+                            ("AAA", "D", 100), ("BBB", "5", 300),
                             ("CCC", "D", 50), ("CCC", "D", 60)}
 
 

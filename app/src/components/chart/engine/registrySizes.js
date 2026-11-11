@@ -90,7 +90,16 @@ export const SHIPPED_DEF_IDS = Object.freeze({
     'percentFromMa', 'fiftyTwoWeek',
     'standardDeviation',
   ]),
-  server: Object.freeze(['rsLine']),
+  // ⭐ UCT RS split (2026-11-09) — THE SERVER LANE IS A LIST, IN REGISTRATION
+  // ORDER, AND IT GROWS BY HAND LIKE EVERY LANE HERE. Unit U6 registers three
+  // more server definitions beside `rsLine` — `rsRating`, `rsPhases`, `rsVsEma`
+  // — and appends their ids to this array in the order `nativeRegistry.js`
+  // registers them. Each carries `meta.requiresServer: true` (unit U1), so it is
+  // SHIPPED (in this manifest, in `listDefinitions()`) and still not OFFERED until
+  // the live server lists it (`serverCompute.isDefinitionOffered`); the rails that
+  // compare an OFFER surface against `listDefinitions()` filter by that gate.
+  // ⭐ U6 (2026-11-09): the three landed, in `nativeRegistry.js`'s registration order.
+  server: Object.freeze(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma']),
   ast: Object.freeze([]),
 })
 

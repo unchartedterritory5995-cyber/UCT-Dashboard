@@ -77,21 +77,22 @@ describe('the overlay working copy (toRawUnixView / stampTimeBase / pointChartTi
   })
 })
 
-describe('drawingsStore writes are stamped', () => {
+describe('chart drawing writes are stamped (useChartDrawings, the chart write door)', () => {
   it('addDrawing converts a legacy chart-time point and stamps; updateDrawing stamps numeric points', async () => {
-    const store = await import('./drawingsStore')
+    const { renderHook, act } = await import('@testing-library/react')
+    const { default: useChartDrawings } = await import('./useChartDrawings')
+    const read = () => JSON.parse(localStorage.getItem('uct-chart-drawings') || '{}').TBTEST || []
+    const { result } = renderHook(() => useChartDrawings('TBTEST'))
     const u = Date.UTC(2026, 9, 29, 13, 30) / 1000
-    const id = store.addDrawing('TBTEST', { type: 'vertical', points: [{ time: toChartTime(u) }], color: '#fff' })
-    const all = JSON.parse(localStorage.getItem('uct-chart-drawings') || '{}').TBTEST || []
-    const d = all.find(x => x.id === id)
+    let id, id2
+    act(() => { id = result.current.addDrawing({ type: 'vertical', points: [{ time: toChartTime(u) }], color: '#fff' }) })
+    const d = read().find(x => x.id === id)
     expect(d.tb).toBe('unix')
     expect(d.points[0].time).toBe(u)
-    const id2 = store.addDrawing('TBTEST', { type: 'horizontal', points: [{ price: 5 }] })
-    store.updateDrawing('TBTEST', id2, { color: '#000' })
-    const d2 = (JSON.parse(localStorage.getItem('uct-chart-drawings')).TBTEST || []).find(x => x.id === id2)
-    expect(d2.tb).toBeUndefined()
-    store.updateDrawing('TBTEST', id2, { points: [{ time: u, price: 5 }] })
-    const d3 = (JSON.parse(localStorage.getItem('uct-chart-drawings')).TBTEST || []).find(x => x.id === id2)
-    expect(d3.tb).toBe('unix')
+    act(() => { id2 = result.current.addDrawing({ type: 'horizontal', points: [{ price: 5 }] }) })
+    act(() => { result.current.updateDrawing(id2, { color: '#000' }) })
+    expect(read().find(x => x.id === id2).tb).toBeUndefined()
+    act(() => { result.current.updateDrawing(id2, { points: [{ time: u, price: 5 }] }) })
+    expect(read().find(x => x.id === id2).tb).toBe('unix')
   })
 })

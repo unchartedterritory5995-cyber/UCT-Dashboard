@@ -58,6 +58,47 @@ master push is a full deploy gate and a deploy, and wasted runs still cost wall-
 - If runs fail with "The job was not started because ... spending limit": that is the budget, not the code.
   Tell the owner; do not re-push to retry.
 
+## ⭐ Speed and reliability: how every change is made (owner standing rule, 2026-11-10)
+
+The owner's bar: **instant, smooth, reliable, no lag, for every member** (browser and the desktop app), at
+the level of the largest consumer apps. Targets, plan and measurements: the desktop speed plan
+(`C:\Users\Patrick\reports\UCT desktop app FINAL plan - speed and reliability.md`, local). These rules apply
+to every session and every agent, whatever the task.
+
+1. **Measure the real member path, before and after. Trace before you theorize.** On 2026-11-10 two plausible
+   theories (React re-renders; one renderer thread) were both wrong; a Chromium trace found the real cause in
+   minutes (endless CSS animations saturating the GPU process). Proof tools live in the `uct-desktop` repo,
+   `scripts/proofs/`: `charts-load-proofs.mjs` (real Charts widget pop-outs; `--trace`, `--profile=N`,
+   `--animations`, `--kill-anim`), `analyze-trace.py`, `launch-phases.mjs`, `motion-sweep.mjs`. Never measure
+   a surface members do not use (the Terminal pop-out pages are not the Charts path).
+2. **Nothing always on screen animates forever.** An `infinite` CSS animation makes the window draw at the
+   display rate forever (12 chart widgets: 549 presents/s, GPU main thread 90% busy). Rail:
+   `app/src/styles/endlessAnimations.test.js` (stylesheets AND inline styles). Ambient cues ride an existing
+   once-a-second render (`.clockDot`, `data-beat`) or run a few iterations and rest.
+3. **No unconditional per-frame loop.** A `requestAnimationFrame` that re-arms itself forever costs every chart,
+   every frame. Use `createAdaptiveFrameLoop` (`app/src/components/chart/adaptiveFrameLoop.js`): every frame while
+   something moves, a 250 ms safety pass when still, woken by pointer/resize/range/data events.
+4. **Background work never competes with the first paint.** Heavy background work (pack ingests and the like)
+   starts after the page's first chart (`afterFirstChartPaint`, `lib/barsPackClient.js`) and runs one window at
+   a time (`navigator.locks`). A page left early must not throw away and restart the same work.
+5. **First-open bytes are a budget, paid for, not raised.** After every production build:
+   `python tools/notebook_perf_budgets.py --dist app/dist`. A change that adds to first open moves something else
+   off it (2026-11-10: the drawings store left Notebook first open, -10.4 KB). Raising the line is the owner's call.
+6. **Polls respect visibility.** SWR's `isVisible` is `lib/deskVisibility.isAppVisible`: polls pause when the
+   desktop desk is hidden or a tab is hidden. Live streams and alerts are not polls. Never add a polling loop
+   that bypasses it.
+7. **Every test and guard must be proven able to fail.** Break the code on purpose and watch the test go red,
+   restore from a saved copy (never `git checkout`), then commit. A green suite proves nothing on its own.
+8. **Deploy as a lane, not a crowd.** Batch changes; one master merge at a time; confirm a push landed with
+   `git merge-base --is-ancestor <sha> origin/master` (push output alone has lied); a red master gate blocks
+   every member-facing deploy, so fix it forward at once. **A Screener server change ships its own bookkeeping
+   in the same PR:** re-pin `SCREENER_PIN` (`tests/test_uct_agent_qa_f16.py`), regenerate `screener-fields.json`
+   (`python -m tests.test_uct_agent_qa_scan_corpus --write-baseline`) and the SAT-1 capture
+   (`UPDATE_SAT1_REQUESTS=1`). On 2026-11-10 skipping these left master red for every session for hours.
+9. **The CDN is part of the product.** Check what Cloudflare actually delivers (fetch `/assets/*` through the edge
+   AND from `web-production-05cb6.up.railway.app`), not just what the origin sends. See `ASSETS_NO_TRANSFORM_ENABLED`
+   in `docs/feature_flags.json` for why compressed origin files reached members uncompressed.
+
 
 ## Project Overview
 

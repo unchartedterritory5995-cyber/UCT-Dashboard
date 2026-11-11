@@ -7,7 +7,8 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import DesktopStaleBanner from './DesktopStaleBanner'
 import DesktopDeskToast from './DesktopDeskToast'
-import { ackBeforeQuit, hasDesktopFeature, onBeforeQuit } from '../lib/desktopBridge'
+import { ackBeforeQuit, hasDesktopFeature, onBeforeQuit, onDeskVisibility } from '../lib/desktopBridge'
+import { setDeskHidden } from '../lib/deskVisibility'
 import { clearAppClosing, markAppClosing } from '../lib/appClosing'
 import { requestDeskLaunch, withdrawDeskLaunch } from '../lib/popoutRegistry'
 import { onPrefsUserChange, prefsUser } from '../lib/prefsSession'
@@ -32,6 +33,16 @@ export default function DesktopBridgeSync() {
     return () => {
       off()
       if (stillAlive) clearTimeout(stillAlive)
+    }
+  }, [])
+
+  // Idle mode: while every app window is hidden or minimized, SWR stops polling (its isVisible reads
+  // lib/deskVisibility). Unmounting clears it, so a shell that goes away never leaves polls paused.
+  useEffect(() => {
+    const off = onDeskVisibility((state) => setDeskHidden(state === 'hidden'))
+    return () => {
+      off()
+      setDeskHidden(false)
     }
   }, [])
 

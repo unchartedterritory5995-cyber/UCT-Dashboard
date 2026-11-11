@@ -206,7 +206,7 @@ COLUMNS = [
     # sessions for a delta — never a guessed value. Additive: ALTER-added on
     # init.
     "rs_rating_ibd", "rs_rating_chg_5", "rs_rating_chg_20",
-    "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_12m",
+    "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_9m", "rs_rating_12m",
     # ⭐ UCT RELATIVE STRENGTH, Phase 3 (unit 3-10, decision D7). ONE writer,
     # `rs_columns.collect_one(..., phase3=True)` inside the same `bars_rs` step,
     # and only while `snapshot_builder.rs_v3_enabled()` (RS_V3_ENABLED, dark by
@@ -291,7 +291,7 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         # UCT RS, history-derived (2a-06): the 1-99 rating, two signed deltas
         # of it, four 1-99 component percentiles. Whole numbers, all seven.
         "rs_rating_ibd", "rs_rating_chg_5", "rs_rating_chg_20",
-        "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_12m"}
+        "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_9m", "rs_rating_12m"}
 
 
 # ---------------------------------------------------------------------------

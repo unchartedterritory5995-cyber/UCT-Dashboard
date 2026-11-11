@@ -3893,31 +3893,64 @@ def _build_day_stats(today: str, exclude_algo: bool = False,
         conn = sqlite3.connect(DB_PATH, timeout=10)
         try:
             conn.row_factory = sqlite3.Row
-            if len(sources) == 1:
-                cur = conn.execute(
-                    f"{select_cols} FROM flow "
-                    f"WHERE source = ? AND CreatedDate = ? AND {color_gate} "
-                    f"ORDER BY id DESC LIMIT ?",
-                    (sources[0], today, override_sql_floor, sql_cap),
-                )
-            else:
-                # 'all' = a TRUE UNION of the partitions: cap PER SOURCE and union,
-                # not "latest N of the merged pool". The old merged-pool LIMIT dropped
-                # the morning on heavy days (>cap combined color-gate rows) and made
-                # All < Stocks -- 7/9: stocks classified 2137 vs all 1685, undercounting
-                # the day by ~$86M bull. Per-source cap keeps each partition's full day,
-                # so All == Stocks u ETFs by construction. Each source stays under the
-                # cap, so it's the same per-source work, just no longer truncated.
-                subqueries, params = [], []
-                for s in sources:
-                    subqueries.append(
-                        f"SELECT * FROM ({select_cols} FROM flow "
-                        f"WHERE source = ? AND CreatedDate = ? AND {color_gate} "
-                        f"ORDER BY id DESC LIMIT ?)"
-                    )
-                    params.extend([s, today, override_sql_floor, sql_cap])
-                cur = conn.execute(" UNION ALL ".join(subqueries), params)
-            rows = cur.fetchall()
+            # ⛔⛔ THIS READ GOES THROUGH `_resilient_fetch`, AND THAT IS WHY THE MARKET
+            # READ SURVIVES A CORRUPT PAGE (2026-11-10).
+            #
+            # ⚰️ On 2026-11-10 flow.db corrupted for the third time in two days. The
+            # paths already wired to _resilient_fetch degraded correctly and kept
+            # serving — their logs read "session-ledger hit a corrupt flow.db page —
+            # retrying in bounded id windows". THIS path was not wired, so it raised
+            # `database disk image is malformed` straight out of the build and the
+            # Options Flow day card returned nothing **for six hours**, at
+            # `[flow-prepare] build raised: ...` roughly 32 times a minute. The rows
+            # it needed were READABLE the whole time: 48 of 48 sampled id windows were
+            # clean and only the write-head tail was damaged. The page died for data it
+            # could have read.
+            #
+            # ⛔ ONE _resilient_fetch CALL PER SOURCE, NOT ONE UNION ALL. Three reasons,
+            # and the first is the load-bearing one:
+            #   1. `_resilient_fetch` recovers by re-reading in bounded `id >= ? AND
+            #      id < ?` windows, and it derives those bounds from a MIN/MAX over
+            #      `source_clause AND CreatedDate`. A UNION ALL has no single id range
+            #      to bound, so the retry could not be expressed over it.
+            #   2. It preserves the per-source cap exactly (see the 7/9 note below),
+            #      because each source keeps its own LIMIT and its own window walk.
+            #   3. A corrupt span in `indexes` no longer costs us `stocks`: each source
+            #      degrades on its own and the other still reports in full.
+            #
+            # On a HEALTHY database this is unchanged work — _resilient_fetch runs the
+            # unbounded query first and only falls back on a malformed-page error, and
+            # `UNION ALL` of per-source subqueries was already equivalent to appending
+            # them in source order.
+            #
+            # 'all' = a TRUE UNION of the partitions: cap PER SOURCE and union, not
+            # "latest N of the merged pool". The old merged-pool LIMIT dropped the
+            # MORNING on heavy days (>cap combined color-gate rows) and made All <
+            # Stocks -- 7/9: stocks classified 2137 vs all 1685, undercounting the day
+            # by ~$86M bull. Per-source cap keeps each partition's full day, so
+            # All == Stocks u ETFs by construction.
+            #
+            # `sources` holds only code-controlled literals ('stocks'/'indexes'), so
+            # interpolating them is injection-safe — the same guarantee this function
+            # already relies on for `src_clause` below.
+            for s in sources:
+                s_clause = f"source = '{s}'"
+
+                def _run_day_stats(id_clause, id_params, _s=s):
+                    # _s is bound as a DEFAULT ARG on purpose: a bare closure over the
+                    # loop variable would make every source read the LAST one.
+                    return conn.execute(
+                        f"{select_cols} FROM flow "
+                        f"WHERE source = '{_s}' AND CreatedDate = ? AND {color_gate} "
+                        f"{id_clause} "
+                        f"ORDER BY id DESC LIMIT ?",
+                        (today, override_sql_floor, *id_params, sql_cap),
+                    ).fetchall()
+
+                rows.extend(_resilient_fetch(
+                    conn, _run_day_stats, s_clause, today, "", (),
+                    limit=(cap if cap > 0 else None),
+                    label=f"day-stats:{s}"))
             if cap > 0:
                 for s in sources:
                     if sum(1 for r in rows if r["source"] == s) >= cap:

@@ -112,8 +112,11 @@ export const COLUMN_DEFS = {
     desc: "Change in extended hours, from the last pre-market or after-hours trade. Before the open (4:00–9:30 ET) the change is against the prior close; after the close (to 8:00 PM ET) it is against today's close. Overnight and on weekends it shows the last after-hours trade; blank during the session. No extended-hours volume is available, so these screens cannot filter on it." },
   premarket_price: { label: 'Ext-hrs price', fmt: usd,
     desc: "The last pre-market or after-hours trade. Before the open (4:00–9:30 ET) the change is against the prior close; after the close (to 8:00 PM ET) it is against today's close. Overnight and on weekends it shows the last after-hours trade; blank during the session. No extended-hours volume is available, so these screens cannot filter on it." },
+  // U5a (2026-11-09): one RS rating everywhere. The server hands this column the nightly
+  // IBD-style RS Rating (the chart's UCT RS number), so it reads the same as RS Rating; the
+  // hourly rank stands in only for a name with no stored rating. Copy describes the armed state.
   rs_rank: { label: 'RS', fmt: num(0), heat: heatRs, cell: 'rs',
-    desc: 'Price-performance rank, 1-99 (99 = strongest), against every name we rank — our own coverage list, not the whole market. It is the percentile of the RS Ret column, so the two always agree in order (checked on every row of the 2026-10-18 snapshot). Without a 3-month price history there is no rank.' },
+    desc: 'The RS Rating, 1-99 (99 = strongest): the IBD-style rating the chart\'s UCT RS shows, so this column and the RS Rating column carry the same number. The 63-session return weighted 40% with the 126-, 189- and 252-session returns 20% each, ranked against every name we rate — our own coverage list minus ETFs, not the whole market. Written once a night by the 04:15 ET rating job; it does not move during the session. A name with no stored rating shows our hourly rank instead. Without a 3-month price history there is no rank.' },
   uct_composite: { label: 'UCT', fmt: num(0), heat: heatRs, cell: 'rs',
     desc: 'The house composite, 1-99: a weighted blend of six ratings — EPS, relative strength, growth, SMR, accumulation/distribution and value — momentum-first (the weights are in the methodology panel). ⚠️ It is renormalised over the ratings a company actually has, so a name missing one is scored on a smaller basis rather than given a zero, and two equal scores are not always the same measurement. ⚠️ Its relative-strength leg is ranked from the ratings store\'s own copy of the RS return, refreshed on a rolling cycle of up to six days, so it can sit a few points away from the RS column.' },
   rs_return: { label: 'RS Ret', fmt: num(2),
@@ -601,6 +604,8 @@ export const COLUMN_DEFS = {
     desc: 'Percentile rank, 1-99, of the plain 63-session return across the cap universe minus ETFs on daily bars, the window the IBD-style rating weights heaviest; blank where the rating job has not rated the name.' },
   rs_rating_6m: { label: 'Rank 6M', fmt: num(0), heat: heatRs,
     desc: 'Percentile rank, 1-99, of the plain 126-session return across the cap universe minus ETFs on daily bars, one of the four windows the IBD-style rating weights; blank where the rating job has not rated the name.' },
+  rs_rating_9m: { label: 'Rank 9M', fmt: num(0), heat: heatRs,
+    desc: 'Percentile rank, 1-99, of the plain 189-session return across the cap universe minus ETFs on daily bars, a companion percentile the IBD-style rating does not weight; blank where the rating job has not rated the name.' },
   rs_rating_12m: { label: 'Rank 12M', fmt: num(0), heat: heatRs,
     desc: 'Percentile rank, 1-99, of the plain 252-session return across the cap universe minus ETFs on daily bars, one of the four windows the IBD-style rating weights; blank where the rating job has not rated the name.' },
   // ── UCT Relative Strength, Phase 3 (unit 3-11; engineering map D1 / D7) ──

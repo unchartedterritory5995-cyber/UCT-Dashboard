@@ -178,7 +178,7 @@ def test_every_rs_column_publishes_a_method_with_a_stated_limit():
     doc = M.all_methods()
     published = {m["column"]: m for m in doc["methods"]}
     cols = _rs_columns()
-    assert len(cols) == 20, cols        # 17 -> 20 on 2026-11-07: the Phase 3 three (unit 3-11)
+    assert len(cols) == 21, cols        # 17 -> 20 on 2026-11-07: the Phase 3 three (unit 3-11); 20 -> 21 on 2026-11-10: rs_rating_9m (S1)
     for col in cols:
         m = published.get(col)
         assert m is not None, f"{col} ships without a method"

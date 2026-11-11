@@ -1,0 +1,69 @@
+# head acb8aadd75 2026-11-10T23:32:01Z dirty: 2 tracked file(s) modified
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+# cmd: cd app && npx vitest run src/agent/agentExecReach.test.jsx
+ RUN  v4.0.18 C:/w/pl-widget-f16/app
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > widget held-out, routing v1
+[reach] widget held-out v1 {"model":"24/24","action":"21/24","list":"21/24"} misses: ["C3-170 flip the themes list so the worst ones are on top action+list","C3-151 show only 3 star economic events action+list","C3-152 expand the tbd earnings section action+list"]
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > widget held-out, routing v2
+[reach] widget held-out v2 {"model":"24/24","action":"21/24","list":"21/24"} misses: ["C3-170 flip the themes list so the worst ones are on top action+list","C3-151 show only 3 star economic events action+list","C3-152 expand the tbd earnings section action+list"]
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > widget tune, routing v1
+[reach] widget tune v1 {"model":"24/24","action":"20/24","list":"21/24"} misses: ["C3-169 rank the themes year to date action+list","C3-170 sort the themes ascending action+list","C3-171 theme performance from the open instead of the close action","C3-139 filter the headlines to earnings action+list"]
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > widget tune, routing v2
+[reach] widget tune v2 {"model":"24/24","action":"21/24","list":"21/24"} misses: ["C3-169 rank the themes year to date action+list","C3-170 sort the themes ascending action+list","C3-139 filter the headlines to earnings action+list"]
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > list held-out, routing v1
+[reach] list held-out v1 {"model":"8/8","action":"7/8"} misses: ["C1-066 add RVOL to the stat strip above the chart action"]
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > list held-out, routing v2
+[reach] list held-out v2 {"model":"8/8","action":"8/8"} misses: []
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > list tune, routing v1
+[reach] list tune v1 {"model":"5/5","action":"5/5"} misses: []
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > list tune, routing v2
+[reach] list tune v2 {"model":"5/5","action":"5/5"} misses: []
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > name held-out2, routing v1
+[reach] name held-out2 v1 {"model":"6/6","action":"5/6","list":"5/6"} misses: ["C3-187 on the new-highs/new-lows widget add the S&P 500 action+list"]
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > name held-out2, routing v2
+[reach] name held-out2 v2 {"model":"6/6","action":"5/6","list":"5/6"} misses: ["C3-187 on the new-highs/new-lows widget add the S&P 500 action+list"]
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > door held-out2, routing v1
+[reach] door held-out2 v1 {"model":"4/4","action":"4/4","list":"4/4"} misses: []
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > door held-out2, routing v2
+[reach] door held-out2 v2 {"model":"4/4","action":"4/4","list":"4/4"} misses: []
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > journal held-out2, routing v1
+[reach] journal held-out2 v1 {"model":"4/4","action":"4/4"} misses: []
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > journal held-out2, routing v2
+[reach] journal held-out2 v2 {"model":"4/4","action":"4/4"} misses: []
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > widget tune2, routing v1
+[reach] widget tune2 v1 {"model":"5/5","action":"5/5","list":"5/5"} misses: []
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > widget tune2, routing v2
+[reach] widget tune2 v2 {"model":"5/5","action":"5/5","list":"5/5"} misses: []
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > journal tune2, routing v1
+[reach] journal tune2 v1 {"model":"4/4","action":"4/4"} misses: []
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > journal tune2, routing v2
+[reach] journal tune2 v2 {"model":"4/4","action":"4/4"} misses: []
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > search held-out7, routing v1
+[reach] search held-out7 v1 {"model":"3/3","action":"3/3","list":"3/3"} misses: []
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > search held-out7, routing v2
+[reach] search held-out7 v2 {"model":"3/3","action":"3/3","list":"3/3"} misses: []
+ ✓ src/agent/agentExecReach.test.jsx (23 tests) 174236ms
+     ✓ widget held-out, routing v1  23952ms
+     ✓ widget held-out, routing v2  24140ms
+     ✓ widget tune, routing v1  23816ms
+     ✓ widget tune, routing v2  24087ms
+     ✓ list held-out, routing v1  7970ms
+     ✓ list held-out, routing v2  8168ms
+     ✓ list tune, routing v1  4943ms
+     ✓ list tune, routing v2  4974ms
+     ✓ name held-out2, routing v1  5984ms
+     ✓ name held-out2, routing v2  6210ms
+     ✓ door held-out2, routing v1  3990ms
+     ✓ door held-out2, routing v2  4054ms
+     ✓ journal held-out2, routing v1  3943ms
+     ✓ journal held-out2, routing v2  3996ms
+     ✓ widget tune2, routing v1  4944ms
+     ✓ widget tune2, routing v2  5089ms
+     ✓ journal tune2, routing v1  3937ms
+     ✓ journal tune2, routing v2  4026ms
+     ✓ search held-out7, routing v1  2980ms
+     ✓ search held-out7, routing v2  3030ms
+ Test Files  1 passed (1)
+      Tests  23 passed (23)
+   Start at  18:32:03
+   Duration  183.39s (transform 6.31s, setup 382ms, import 7.94s, tests 174.24s, environment 650ms)

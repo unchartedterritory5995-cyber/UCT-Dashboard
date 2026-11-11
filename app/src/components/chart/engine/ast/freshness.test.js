@@ -172,7 +172,9 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     //                                Anticipation starter): a scan primitive, excluded with theirs.
     //   excluded 111 + 4 = 115       the four `live_base_*` columns (2026-11-10): live-tier bases,
     //                                not member columns, excluded with their own reason.
-    expect(Object.keys(excluded).length).toBe(115)
+    // 110 -> 111 on 2026-11-10 (RS split S1): rs_rating_9m, excluded like the other rating-history columns.
+    // => 116: master's four live_base_* columns + the RS split's rs_rating_9m (both 2026-11-10).
+    expect(Object.keys(excluded).length).toBe(116)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)

@@ -57,7 +57,11 @@ import {
 // ⭐ UCT RS Phase 3, unit 3-02b — what the LIVE server row declares, read the way
 // the settings dialog and the phone sheet read it (3-02), so a `requiresServer`
 // control, option or preset stays hidden here too until the server can answer it.
-import { serverDeclares, subscribeServerDefinitions } from './engine/serverCompute'
+import {
+  serverDeclares, subscribeServerDefinitions,
+  // ⭐ RS split U1 — the definition-level gate for the Browse catalogue.
+  isCatalogRowOffered, serverDefinitionsVersion,
+} from './engine/serverCompute'
 // ⭐ THE BREAKPOINT HOOK THE APP ALREADY HAS. The narrow layout is a second
 // VIEW of one state, not a second component, and it needs exactly one bit:
 // is there room for two columns. A `matchMedia` of its own here would be a
@@ -157,7 +161,6 @@ import { movePane, movePaneTo } from './engine/paneOrder'
 import { moveSeriesWithinPane, moveSeriesTo, canMoveSeries } from './engine/paneSeriesOrder'
 import { safeCssColour } from './engine/objectColour'
 import { tagRestatesName } from './shortTag'
-import { noteRsPreset } from '../../lib/rsTelemetry'
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -779,17 +782,21 @@ export default function ChartSettingsIndicators({
   // with a tombstoned overlay the legacy `ma` row is revealed so the member can
   // get their EMA 9 back; renaming it *Restore EMA 9* is what stops that being a
   // SECOND row reading "Moving Average" (§34).
+  // ⭐ RS split U1 — a `meta.requiresServer` definition is subtracted until the
+  // live server lists it (`isCatalogRowOffered`), the same way and at the same
+  // place as `hidden`; `serverVersion` moves when the answer lands.
+  const serverVersion = useSyncExternalStore(subscribeServerDefinitions, serverDefinitionsVersion, () => 0)
   const catalog = useMemo(
     () => {
       const hidden = hiddenLibraryIds(settings)
       return [
         ...BUILT_IN_ROWS.filter((r) => !hidden.includes(r.id)).map((r) => libraryRowFor(r, settings)),
-        ...catalogRows(registry).filter((r) => !hidden.includes(r.id)),
+        ...catalogRows(registry).filter((r) => !hidden.includes(r.id) && isCatalogRowOffered(r, registry)),
         ...userCatalogRows(registry),
       ]
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `generation` IS the registry's version; see above
-    [registry, generation, settings],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `generation` IS the registry's version; `serverVersion` the gate's
+    [registry, generation, settings, serverVersion],
   )
 
   // ─── ACTIVE: WHAT THE CHART IS DRAWING ────────────────────────────────────
@@ -2533,7 +2540,7 @@ export default function ChartSettingsIndicators({
     const apply = (p) => {
       if (!p) return
       memo[row.instanceId] = p.id
-      noteRsPreset(def, p)
+      // (the `rs_preset` count was retired with the presets, RS split U9)
       commitWrite(applyPresetInputs(settings, row.instanceId, def, p, registry))
     }
     const originId = `ins-preset-origin-${resultIdSafe(row.id)}`

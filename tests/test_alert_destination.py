@@ -140,6 +140,9 @@ CONVERTED = {
     # R2 recovery failing, headlines unconfirmed in R2). New (never a literal reader), an ops
     # message (counts only, never headline content), resolved lazily inside `_post`.
     "api/services/trade_exchange_news/ops_alerts.py",
+    # 2026-11-10 -- desktop app telemetry halt triggers + daily digest (desktop plan 5.1). New
+    # (never a literal reader), an ops message (enum counts only), resolved lazily inside `_post_ops`.
+    "api/services/desktop_events.py",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════

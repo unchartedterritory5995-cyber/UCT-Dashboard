@@ -552,10 +552,15 @@ def _split_list(splits_reader, ticker: str):
 
 
 def default_fast_map() -> dict:
-    """``rs_ranking.cached_rank_map()`` - the hourly UCT fast rating, cache only,
-    never a recompute (an empty dict on a cold cache; the receipt counts it)."""
+    """``rs_ranking.fast_rank_map()`` - the hourly UCT fast rating, cache only,
+    never a recompute (an empty dict on a cold cache; the receipt counts it).
+
+    ⛔ THE RAW FAST MAP, NOT ``cached_rank_map`` (RS split unit U5a). Under
+    ``RS_RANK_IBD_ENABLED`` that reader hands back THIS table's ``ibd`` as
+    ``rs_rank``, so reading it here would store the rating in its own ``fast``
+    column: a circle, and the one column that records the other formula gone."""
     from api.services import rs_ranking
-    return rs_ranking.cached_rank_map()
+    return rs_ranking.fast_rank_map()
 
 
 def _fast_for(fast_map, ticker: str):
@@ -563,7 +568,9 @@ def _fast_for(fast_map, ticker: str):
         return None
     v = fast_map.get(ticker)
     if isinstance(v, dict):
-        v = v.get("rs_rank")
+        # A unified entry (U5a) keeps the hourly value under ``rs_rank_fast``;
+        # a raw one carries it as ``rs_rank``. Either way the FAST rating is stored.
+        v = v.get("rs_rank_fast", v.get("rs_rank"))
     try:
         return None if v is None else int(v)
     except (TypeError, ValueError):
@@ -1352,6 +1359,32 @@ def read_fields(tickers, session=None, failures=None, now=None) -> dict:
         row["asof"] = latest
         out[t] = row
     return out
+
+
+def newest_ibd_ratings() -> tuple:
+    """``(session, {TICKER: ibd})`` for the NEWEST stored session: the one number the
+    site shows as the RS rating everywhere once ``RS_RANK_IBD_ENABLED`` is on (RS
+    split unit U5a; ``rs_ranking.cached_rank_map`` is the reader).
+
+    READ-ONLY and never raises: no table, no rows or a failed read answers
+    ``(None, {})`` and creates nothing, so a dark pod keeps no schema. Rows whose
+    ``ibd`` is null (rated short) are left out, so the caller falls back to the fast
+    rank for them exactly as for a name with no row. One ``MAX(session)`` seek and
+    one whole-session read: the newest session is ~3,700 rows."""
+    try:
+        with closing(snapshot_db.connect()) as conn:
+            if not _table_exists(conn, TABLE):
+                return None, {}
+            latest = conn.execute(f"SELECT MAX(session) FROM {TABLE}").fetchone()[0]
+            if latest is None:
+                return None, {}
+            rows = conn.execute(
+                f"SELECT ticker, ibd FROM {TABLE} WHERE session = ? AND ibd IS NOT NULL",
+                (latest,)).fetchall()
+    except Exception as e:                                   # noqa: BLE001 - a read never raises
+        log.warning("[rs_history] newest ratings read failed: %s", e)
+        return None, {}
+    return latest, {str(r[0]).upper(): int(r[1]) for r in rows}
 
 
 def _session_age_days(latest_key: str, now=None):
