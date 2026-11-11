@@ -1023,6 +1023,48 @@
    "category": "momentum"
   },
   {
+   "key": "rs_rating_1m",
+   "label": "1M Return Rank",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength"
+  },
+  {
+   "key": "rs_rating_3m",
+   "label": "3M Return Rank",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength"
+  },
+  {
+   "key": "rs_rating_6m",
+   "label": "6M Return Rank",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength"
+  },
+  {
+   "key": "rs_rating_9m",
+   "label": "9M Return Rank",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength"
+  },
+  {
+   "key": "rs_rating_12m",
+   "label": "12M Return Rank",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength"
+  },
+  {
+   "key": "rs_rating_chg_20",
+   "label": "RS Rating Change (20 sessions)",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength"
+  },
+  {
    "key": "rs_new_high",
    "label": "RS New High (52-week)",
    "type": "bool",
@@ -1086,13 +1128,6 @@
    "category": "relative_strength"
   },
   {
-   "key": "rs_benchmark_agree",
-   "label": "RS Agrees vs SPY and RSP",
-   "type": "bool",
-   "unit": null,
-   "category": "relative_strength"
-  },
-  {
    "key": "rs_rating_ibd",
    "label": "RS Rating (IBD-style)",
    "type": "range",
@@ -1107,37 +1142,9 @@
    "category": "relative_strength"
   },
   {
-   "key": "rs_rating_chg_20",
-   "label": "RS Rating Change (20 sessions)",
-   "type": "range",
-   "unit": null,
-   "category": "relative_strength"
-  },
-  {
-   "key": "rs_rating_1m",
-   "label": "1M Return Rank",
-   "type": "range",
-   "unit": null,
-   "category": "relative_strength"
-  },
-  {
-   "key": "rs_rating_3m",
-   "label": "3M Return Rank",
-   "type": "range",
-   "unit": null,
-   "category": "relative_strength"
-  },
-  {
-   "key": "rs_rating_6m",
-   "label": "6M Return Rank",
-   "type": "range",
-   "unit": null,
-   "category": "relative_strength"
-  },
-  {
-   "key": "rs_rating_12m",
-   "label": "12M Return Rank",
-   "type": "range",
+   "key": "rs_benchmark_agree",
+   "label": "RS Agrees vs SPY and RSP",
+   "type": "bool",
    "unit": null,
    "category": "relative_strength"
   },

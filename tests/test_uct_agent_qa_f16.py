@@ -149,6 +149,10 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 # the only Screener commit since 54dabb6cb4; re-pinned in the same PR so master's deploy gate never goes red.
 SCREENER_PIN = "1a26d4ea00224d20cdf52e4f3ead41c0c2bab318"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
+# The F16 change set is immutable: #1029's own PR head (merged as 4dacc81529). The rail compares the pin against THIS commit,
+# never HEAD, so a later Screener change by another team (e.g. #1021, the RS split) can no longer turn master's deploy gate
+# red. It asks exactly what it claims: did the F16 work touch the member Screener's server code? Full id, never a ref.
+F16_HEAD = "523fa4e0122dc614106c14fed9785395c7dd99cc"
 
 
 def _diff_base(pin=SCREENER_PIN, run=None):
@@ -160,9 +164,17 @@ def _diff_base(pin=SCREENER_PIN, run=None):
     return pin if r.returncode == 0 else None
 
 
-def _screener_diff(base, head="HEAD"):
+def _screener_diff(base, head=F16_HEAD, run=None):
     import subprocess
-    return subprocess.run(["git", "diff", "--name-only", f"{base}...{head}", "--", *SCREENER_PATHS], capture_output=True, text=True)
+    run = run or subprocess.run
+    return run(["git", "diff", "--name-only", f"{base}...{head}", "--", *SCREENER_PATHS], capture_output=True, text=True)
+
+
+def _f16_verdict(base, head=F16_HEAD, run=None):
+    """The Screener files the F16 change set touched (empty = untouched). Raises when git itself failed."""
+    r = _screener_diff(base, head, run=run)
+    assert r.returncode == 0, r.stderr
+    return r.stdout.split()
 
 
 def test_the_diff_base_is_the_pin_when_the_checkout_holds_it():
@@ -185,9 +197,38 @@ def test_the_member_screeners_own_server_code_is_untouched_by_the_F16_work():
         # A shallow checkout without the pin (the master deploy gate fetches depth 2) cannot carry this comparison at
         # all; a skip is the honest reading there. agent-ci fetches full history and runs it for real.
         pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
-    r = _screener_diff(base)
-    assert r.returncode == 0, r.stderr
-    assert r.stdout.strip() == "", r.stdout
+    if _diff_base(pin=F16_HEAD) is None:
+        pytest.skip("the F16 head %s is not in this checkout" % F16_HEAD)
+    assert _f16_verdict(base) == []
+
+
+def test_the_rail_compares_against_the_fixed_F16_head_never_HEAD():
+    import subprocess
+    seen = []
+
+    def spy(cmd, **kw):
+        seen.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+    assert _f16_verdict(SCREENER_PIN, run=spy) == []
+    assert seen[0][3] == f"{SCREENER_PIN}...{F16_HEAD}", seen
+    assert re.fullmatch(r"[0-9a-f]{40}", F16_HEAD), "a full commit id, never a ref that can move"
+
+
+def test_CONTROL_the_rail_fails_if_the_F16_head_had_touched_a_screener_file():
+    """CONTROL: a fake diff that names a Screener file must turn the rail's verdict non-empty (the assertion would fail)."""
+    import subprocess
+
+    def touched(cmd, **kw):
+        return subprocess.CompletedProcess(cmd, 0, "api/services/screener/filters.py\n", "")
+    verdict = _f16_verdict(SCREENER_PIN, run=touched)
+    assert verdict == ["api/services/screener/filters.py"]
+    with pytest.raises(AssertionError):
+        assert verdict == []
+
+    def broken(cmd, **kw):
+        return subprocess.CompletedProcess(cmd, 128, "", "fatal: bad revision")
+    with pytest.raises(AssertionError):  # a git failure is never read as "untouched"
+        _f16_verdict(SCREENER_PIN, run=broken)
 
 
 def test_the_guard_can_say_no():
