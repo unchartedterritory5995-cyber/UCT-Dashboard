@@ -210,7 +210,7 @@ export const GROUPS = [
       /\b(gainers?|losers?|movers?|gap(ped|ping|s)? (up|down)|new highs?|near (the )?highs?|all[- ]time highs?|pull(ing|s)?[- ]?backs?|pulling back|tagging|tight (bases?|flags?|ranges?)|bases?|flags?|breakouts?|unusual volume|big volume|leaders?|leading groups?|laggards?|acting well|working)\b/,
       /\b(over|under|above|below) \$?\d+ (bucks|dollars)\b|\b\d+ (million|mil|m|billion|bn?) (a day|dollar volume)\b|\bliquid (names|stocks)\b/,
       /\b(sort (it|them|that|by)|only the ones|same thing but|just (the )?(large|small|mid)[- ]?caps)\b/] },
-  { id: 'alerts', title: 'Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level', domains: ['alert'], actions: ['drawing.setAlert'],
+  { id: 'alerts', title: 'Price alerts (list, create, delete), an alert that follows a drawn line or Fibonacci level, and the entry / stop / target alerts of a position drawing', domains: ['alert'], actions: ['drawing.setAlert', 'drawing.setPositionAlerts'],
     // CG-12 (corpus #769): "tell me about TSM" is a question, never an alert — only "tell me when / if …" is
     words: [/\balerts?\b/, /\b(notify|ping) me\b/, /\btell me (when|if|once|as soon as)\b/, /\b(crosses|breaks|hits)\b/] },
   // ⭐ W1-B B-03: INDICATOR alerts (RSI, MACD…) in their own small group, `fillLast` like every specialised group — so the

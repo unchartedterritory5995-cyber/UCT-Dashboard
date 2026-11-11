@@ -123,6 +123,8 @@
   "drawing.setProps": "drawings",
   "drawing.setFibLevels": "drawings",
   "drawing.setAlert": "alerts",
+  "drawing.duplicate": "drawings",
+  "drawing.setPositionAlerts": "alerts",
   "indicator.list": "indicators",
   "indicator.openCreate": "indicators",
   "indicator.add": "indicators",
@@ -220,7 +222,7 @@
   },
   {
    "id": "alerts",
-   "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
+   "title": "Price alerts (list, create, delete), an alert that follows a drawn line or Fibonacci level, and the entry / stop / target alerts of a position drawing"
   },
   {
    "id": "indicatorAlerts",
@@ -359,7 +361,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
+      "title": "Price alerts (list, create, delete), an alert that follows a drawn line or Fibonacci level, and the entry / stop / target alerts of a position drawing"
      },
      {
       "id": "indicatorAlerts",
@@ -516,7 +518,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
+      "title": "Price alerts (list, create, delete), an alert that follows a drawn line or Fibonacci level, and the entry / stop / target alerts of a position drawing"
      },
      {
       "id": "indicatorAlerts",
@@ -628,7 +630,8 @@
     "alert.create",
     "alert.delete",
     "watchlist.open",
-    "drawing.setAlert"
+    "drawing.setAlert",
+    "drawing.setPositionAlerts"
    ],
    "routing": {
     "version": 1,
@@ -687,7 +690,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
+      "title": "Price alerts (list, create, delete), an alert that follows a drawn line or Fibonacci level, and the entry / stop / target alerts of a position drawing"
      },
      {
       "id": "indicatorAlerts",
@@ -809,7 +812,8 @@
     "drawing.clear",
     "drawing.setAnchors",
     "drawing.setProps",
-    "drawing.setFibLevels"
+    "drawing.setFibLevels",
+    "drawing.duplicate"
    ],
    "routing": {
     "version": 1,
@@ -868,7 +872,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
+      "title": "Price alerts (list, create, delete), an alert that follows a drawn line or Fibonacci level, and the entry / stop / target alerts of a position drawing"
      },
      {
       "id": "indicatorAlerts",
@@ -1021,7 +1025,7 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
+      "title": "Price alerts (list, create, delete), an alert that follows a drawn line or Fibonacci level, and the entry / stop / target alerts of a position drawing"
      },
      {
       "id": "indicatorAlerts",
@@ -1208,6 +1212,8 @@
     "drawing.setProps",
     "drawing.setFibLevels",
     "drawing.setAlert",
+    "drawing.duplicate",
+    "drawing.setPositionAlerts",
     "indicator.list",
     "indicator.openCreate",
     "indicator.add",
