@@ -11,8 +11,8 @@ INVARIANT (property test below): after any sequence of base writes, local repair
 provider deltas, every stored derived bucket equals the resample of the stored base
 rows in that bucket, and the derived tail reaches the base tail's bucket.
 
-Also pinned: a request blocks on the provider only when a CLOSED bucket is missing
-(1m ONON/SOFI and SPY/IWM 15m `sd-deadline` ~2.5 s with current data).
+The forming-bucket blocking rule is deliberately UNCHANGED from origin/master (it
+belongs to P1's `developing` contract); a test pins that.
 
 Synthetic stores (a real bars.db in a temp dir), a frozen clock, and a provider that
 records every call. No real market data.
@@ -306,7 +306,8 @@ def test_F4_derivation_stops_at_a_base_hole_and_does_not_inherit_proof(env):
     c.execute("DELETE FROM ohlcv WHERE ticker='SPY' AND tf='15' AND ts=?",
               (_ts(2026, 11, 11, 6, 15),))
     c.commit()
-    bars_fetch._mark_tail_verified("SPY", "15", _NOW.timestamp())
+    # proof that predates the hole: it cannot vouch for the slot as a no-trade slot
+    bars_fetch._mark_tail_verified("SPY", "15", _ts(2026, 11, 11, 6, 15))
     r = bars_fetch._local_tail_repair("SPY", "30", sq.get_last_ts("SPY", "30"))
     assert r is not None and r[1] is False, "a truncated derivation is not current"
     assert r[0] == _ts(2026, 11, 11, 5, 30), "stops at the last complete bucket"
@@ -346,7 +347,49 @@ def test_F3_base_far_behind_is_not_written(env):
     assert out and out[-1]["t"] == _ts(2026, 11, 11, 9, 30), "target still derived from the fetch"
 
 
-# ── F1/F2: what a request may block on ──────────────────────────────────────
+# ── N3: only CLOSED base slots are required; provider proof covers no-trade slots ─
+
+def test_N3_the_still_forming_base_slot_is_never_required(env):
+    """10:00:05 ET: the 15m 10:00 slot has not landed yet; the closed slots are all
+    there, so nothing is missing."""
+    sq, _, clock, _ = env
+    clock.instant = datetime(2026, 11, 11, 10, 0, 5, tzinfo=_ET)
+    rows = _session_rows(2026, 11, 11, 15, end=(10, 0))         # through the 09:45 slot
+    sq.put_bars("SPY", "15", rows)
+    assert bars_fetch._first_missing_base_slot(
+        "SPY", rows[0]["t"], int(clock.instant.timestamp())) is None
+
+
+def test_N3_a_provider_answered_no_trade_slot_is_not_a_hole(env):
+    """A thin name with no prints in one closed slot: once the provider answered past
+    that slot, its absence is legitimate and the local rebuild still runs."""
+    sq, calls, _, _ = env
+    _seed(sq, "30")
+    c = sq._conn()
+    c.execute("DELETE FROM ohlcv WHERE ticker='SPY' AND tf='15' AND ts=?",
+              (_ts(2026, 11, 11, 6, 15),))
+    c.commit()
+    bars_fetch._mark_tail_verified("SPY", "15", _NOW.timestamp() - 5)
+    resp = bars_fetch._get_bars_inner("SPY", "30", 60)
+    assert orjson.loads(resp.body)["bars"][-1]["t"] == _ts(2026, 11, 11, 9, 30)
+    assert calls == []
+
+
+def test_SPY_at_the_open_15m_current_30m_stale_answers_from_local_data(env):
+    """The production case: 09:42 ET, SPY 15m current (incl. the forming 09:30 row),
+    30m ending at the previous evening's 19:30 bar → current first answer, zero
+    provider calls, through the same request path the chart uses."""
+    sq, calls, _, _ = env
+    _seed(sq, "30")
+    from api.routers import bars as bars_router
+    resp = bars_router.serve_bars_http("SPY", "30", 60)
+    body = orjson.loads(resp.body)
+    assert body["bars"][-1]["t"] == _ts(2026, 11, 11, 9, 30)
+    assert body.get("tail_status") == "current"
+    assert calls == []
+
+
+# ── forming bucket: behaviour IDENTICAL to origin/master (P1 owns `developing`) ─
 
 def _seed_fine(sq, tf: str, end):
     step = int(tf)
@@ -355,69 +398,23 @@ def _seed_fine(sq, tf: str, end):
     return rows
 
 
-@pytest.mark.parametrize("tf,end,last", [("1", (9, 42), (9, 41)), ("15", (9, 30), (9, 15))])
-def test_sealed_newest_closed_bucket_waits_only_briefly_and_announces_the_forming_bucket(
-        env, tf, end, last):
+@pytest.mark.parametrize("tf,end", [("1", (9, 42)), ("15", (9, 30)), ("1", (9, 41)), ("15", (9, 15))])
+@pytest.mark.parametrize("proven", [False, True])
+def test_forming_bucket_repair_blocks_exactly_as_master(env, monkeypatch, tf, end, proven):
+    """Same-session first answer with the forming bucket absent: the repair is waited
+    on for the full ceiling — whether or not the newest closed bucket is proven — and
+    the answer carries no extra keys. This PR changes nothing here."""
     sq, calls, _, _ = env
+    monkeypatch.setattr(bars_fetch, "_REQUEST_DEADLINE_SECONDS", 1.0)
     rows = _seed_fine(sq, tf, end)
-    assert rows[-1]["t"] == _ts(2026, 11, 11, *last)
-    step = int(tf) * 60
-    # proven complete: the provider answered after the bucket's end + lag
-    bars_fetch._mark_tail_verified("SPY", tf, rows[-1]["t"] + step + bars_fetch._SEAL_LAG_S)
+    if proven:
+        bars_fetch._mark_tail_verified("SPY", tf, _NOW.timestamp())
     t0 = time.perf_counter()
     resp = bars_fetch._get_bars_inner("SPY", tf, 60)
     took = time.perf_counter() - t0
     body = orjson.loads(resp.body)
+    assert took >= 0.9, "the forming-bucket repair keeps master's full wait"
+    assert bars_fetch.get_serve_layer() == "sd-deadline"
     assert body["bars"][-1]["t"] == rows[-1]["t"]
-    assert len(calls) == 1, "the forming bucket's repair ran"
-    assert bars_fetch._FORMING_WAIT_SECONDS - 0.1 <= took < bars_fetch._FORMING_WAIT_SECONDS + 0.5
-    assert bars_fetch.get_serve_layer() == "sd-forming"
-    assert body["forming_pending"] == _ts(2026, 11, 11, *last) + step, \
-        "a forming bucket the answer lacks is announced, never silently dropped"
-
-
-@pytest.mark.parametrize("tf,end", [("1", (9, 42)), ("15", (9, 30))])
-def test_F2_a_bucket_stored_while_forming_is_not_sealed(env, monkeypatch, tf, end):
-    """Same tail timestamp, but the only proof predates the bucket's end (it was
-    written while forming): the repair keeps the full wait."""
-    sq, calls, _, _ = env
-    monkeypatch.setattr(bars_fetch, "_REQUEST_DEADLINE_SECONDS", 1.2)
-    rows = _seed_fine(sq, tf, end)
-    step = int(tf) * 60
-    bars_fetch._mark_tail_verified("SPY", tf, rows[-1]["t"] + step - 20)   # mid-bucket
-    t0 = time.perf_counter()
-    bars_fetch._get_bars_inner("SPY", tf, 60)
-    assert time.perf_counter() - t0 >= 1.1
-    assert bars_fetch.get_serve_layer() == "sd-deadline"
-
-
-@pytest.mark.parametrize("tf,end", [("1", (9, 41)), ("15", (9, 15))])
-def test_CONTROL_a_tail_missing_a_closed_bucket_keeps_the_full_wait(env, monkeypatch, tf, end):
-    sq, calls, _, _ = env
-    monkeypatch.setattr(bars_fetch, "_REQUEST_DEADLINE_SECONDS", 1.2)
-    _seed_fine(sq, tf, end)                        # the newest closed bucket is missing
-    t0 = time.perf_counter()
-    bars_fetch._get_bars_inner("SPY", tf, 60)
-    took = time.perf_counter() - t0
-    assert took >= 1.1, "a closed bucket is missing: the repair is worth the full wait"
-    assert bars_fetch.get_serve_layer() == "sd-deadline"
-
-
-@pytest.mark.parametrize("tf", ["1", "5", "15", "30", "60"])
-@pytest.mark.parametrize("minute", [0, 1, 14, 29, 31, 59, 61, 389])
-def test_INVARIANT_short_wait_only_for_a_proven_sealed_newest_closed_bucket(env, tf, minute):
-    """Over instants across the session: the short wait applies iff the tail holds the
-    newest closed bucket AND proof postdates its end; one bucket behind, or proof from
-    before the end (stored while forming), keeps the full ceiling."""
-    _, _, clock, _ = env
-    clock.instant = datetime.fromtimestamp(_ts(2026, 11, 11, 9, 30) + minute * 60 + 17, _ET)
-    frontier = bars_fetch.expected_completed_ext_bucket(tf)
-    step = 3600 if tf == "60" else int(tf) * 60
-    end = bars_fetch._bucket_end(tf, frontier, step)
-    bars_fetch._tail_verified.clear()
-    bars_fetch._mark_tail_verified("SPY", tf, end - 1)
-    assert bars_fetch._repair_wait("SPY", tf, frontier) is None, "proof predates the end"
-    bars_fetch._mark_tail_verified("SPY", tf, end + bars_fetch._SEAL_LAG_S)
-    assert bars_fetch._repair_wait("SPY", tf, frontier) == bars_fetch._FORMING_WAIT_SECONDS
-    behind = bars_fetch._ext_bucket_start(tf, frontier - 1)
-    assert bars_fetch._repair_wait("SPY", tf, behind) is None
+    assert set(body) == {"ticker", "tf", "bars"}
+    assert len(calls) == 1

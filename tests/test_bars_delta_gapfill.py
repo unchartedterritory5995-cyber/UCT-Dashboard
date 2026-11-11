@@ -142,6 +142,7 @@ def test_delta_30m_resamples_from_15m():
                 for t, b in sorted(rows.items()) if t > since]
 
     with patch.object(bars_fetch, "_get_client", return_value=_FakeClient()),          patch.object(bars_fetch, "_paginate_massive_aggs", side_effect=fake_pages),          patch.object(bars_fetch._sqlite, "put_bars", side_effect=_fake_put), \
+            patch.object(bars_fetch._sqlite, "get_last_ts", return_value=None), \
             patch.object(bars_fetch._sqlite, "get_bars_since", side_effect=_fake_since):
         out = bars_fetch._delta_intraday("QQQ", "30", now - 4 * 3600)
     assert "/range/15/minute/" in seen["url"]

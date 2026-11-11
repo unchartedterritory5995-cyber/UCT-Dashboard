@@ -899,12 +899,21 @@ def _base_slot_in_session(s: int) -> bool:
 
 
 def _first_missing_base_slot(ticker_up: str, lo: int, now: int):
-    """First in-session 15m slot in [lo, now] with no stored base row, else None."""
+    """First CLOSED in-session 15m slot at/after `lo` with no stored base row, else None.
+
+    * Only CLOSED slots are required (slot end <= now): the still-forming slot may not
+      have printed or landed yet — requiring it would block every rebuild at the open
+      and at each 15m boundary (review #1090 N3).
+    * A slot the provider has already ANSWERED for (`tail_verified_through` of the base
+      at/after the slot's end) and that is still absent is a legitimate no-trade slot,
+      not a hole — so thin names rebuild locally too."""
     step = int(_DERIVED_BASE_TF) * 60
     have = {int(r[0]) for r in _sqlite.get_bars_since(ticker_up, _DERIVED_BASE_TF, int(lo) - 1)}
+    vt = tail_verified_through(ticker_up, _DERIVED_BASE_TF)
     s = int(lo) // step * step
-    while s <= int(now):
-        if s not in have and _base_slot_in_session(s):
+    while s + step <= int(now):
+        if (s not in have and _base_slot_in_session(s)
+                and not (vt is not None and float(vt) >= s + step)):
             return s
         s += step
     return None
@@ -3588,11 +3597,10 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
                     else:
                         _mark_serve("delta-deadline")
                 else:
-                    _dw = _repair_wait(ticker_up, tf, last_ts)   # sealed: short wait
-                    if _bounded_delta(ticker_up, tf, last_ts or 0, False, deadline=_dw):
+                    if _bounded_delta(ticker_up, tf, last_ts or 0, False):
                         last_ts = _sqlite.get_last_ts(ticker_up, tf)
                     else:
-                        _mark_serve("delta-forming" if _dw is not None else "delta-deadline")
+                        _mark_serve("delta-deadline")
             except Exception:
                 pass
 
@@ -3803,75 +3811,6 @@ _REQUEST_DEADLINE_SECONDS = float(
 # write; this ceiling only matters under a held SQLite write lock.
 _LOCAL_DERIVE_DEADLINE_SECONDS = float(
     _os.environ.get("BARS_LOCAL_DERIVE_DEADLINE_SECONDS", "0.75"))
-# ── WHAT A REQUEST MAY BLOCK ON (2026-11-11) ─────────────────────────────────
-# ⛔ ROOT CAUSE of `sd-deadline` with CURRENT data (measured at the 09:30 open: liquid
-# 1m opens and SPY/IWM 15m first answers held ~2.5 s, then served exactly the rows
-# they already had). Two freshness contracts disagreed: `_needs_fresh` calls a tail
-# stale as soon as a NEW bucket has begun (the forming bucket is absent — true for
-# 1m every minute), and that verdict decided whether the first paint BLOCKED on the
-# provider; while the wire contract (`intraday_tail_status`) and the client judge a
-# tail by the newest CLOSED bucket. So every first paint after a minute boundary
-# waited on a provider for a bucket that is still forming — the one bar the live
-# feed paints and the next `since` poll carries.
-# ⭐ CONTRACT (review #1090 F1/F2):
-#   * A closed bucket counts as SEALED only when it is PROVEN complete: the provider
-#     (or the live stream, via `tail_verified_through`) answered at or after that
-#     bucket's END plus `_SEAL_LAG_S`. A row's timestamp alone proves nothing — a
-#     bucket stored WHILE forming (09:59 written at 09:59:40) carries the same `ts` as
-#     the finished one, so at 10:00:05 it would be served as sealed while truncated.
-#   * Newest closed bucket NOT sealed → the repair is worth the full ceiling (as before).
-#   * Sealed → only the FORMING bucket can be missing or behind. The first answer still
-#     wants it (a missing forming bucket is opened flat by the client fallback writer —
-#     the "wrong open" class `_needs_fresh` guards), so the repair is waited on for a
-#     SHORT ceiling (`_FORMING_WAIT_SECONDS`); if it sheds, the store's own forming row
-#     (if any — e.g. the 30m/60m rebuilt from 15m) is served, and a forming bucket the
-#     store does not hold is announced as `forming_pending` (never silently dropped).
-#     The router's `newest_bar_is_forming` already marks a served forming row unsealed.
-_SEAL_LAG_S = float(_os.environ.get("BARS_SEAL_LAG_SECONDS", "5"))
-_FORMING_WAIT_SECONDS = float(_os.environ.get("BARS_FORMING_WAIT_SECONDS", "0.6"))
-
-
-def _newest_closed_bucket_sealed(ticker_up: str, tf: str, last_ts, now: float | None = None) -> bool:
-    """True when the stored tail holds the newest closed extended-session bucket AND it
-    is proven complete (see the contract above)."""
-    if tf not in ("1", "5", "15", "30", "60") or not last_ts:
-        return False
-    frontier = expected_completed_ext_bucket(tf, now)
-    if frontier is None or int(last_ts) < int(frontier):
-        return False
-    step = int(tf) * 60 if tf != "60" else 3600
-    vt = tail_verified_through(ticker_up, tf)
-    return vt is not None and float(vt) >= _bucket_end(tf, int(frontier), step) + _SEAL_LAG_S
-
-
-def _repair_wait(ticker_up: str, tf: str, last_ts) -> float | None:
-    """The provider wait a request-path intraday repair may use: `_FORMING_WAIT_SECONDS`
-    when only the forming bucket can be missing, else None (the normal ceiling)."""
-    return _FORMING_WAIT_SECONDS if _newest_closed_bucket_sealed(ticker_up, tf, last_ts) else None
-
-
-def _forming_bucket_start(tf: str, now: float | None = None) -> int:
-    t = int(now if now is not None else _time.time())
-    return _ext_bucket_start(tf, t)
-
-
-def _mark_forming_pending(payload: dict, tf: str, now: float | None = None) -> None:
-    """Announce a forming bucket the answer does not carry (`forming_pending: <start>`),
-    so the client never mistakes its absence for "no bar yet" and opens it flat.
-    Only inside an open extended session (a bucket is forming at all)."""
-    try:
-        rows = payload.get("bars") or []
-        if tf not in ("1", "5", "15", "30", "60") or not rows:
-            return
-        now_ts = float(now if now is not None else _time.time())
-        if not _base_slot_in_session(int(now_ts) // 60 * 60):
-            return
-        fb = _forming_bucket_start(tf, now_ts)
-        last = rows[-1].get("t") if isinstance(rows[-1], dict) else None
-        if isinstance(last, (int, float)) and int(last) < fb:
-            payload["forming_pending"] = fb
-    except Exception:                      # noqa: BLE001 — a hint, never a failure
-        pass
 
 
 def _bounded_delta(ticker_up: str, tf: str, last_ts: int, date_tf: bool,
@@ -4786,15 +4725,10 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                     # at 8 s and fell back to the WEB pod (a different store). Same ceiling
                     # and same capacity pools as Layer 4: a shed repair serves the store now
                     # and the response is marked unverified by the router.
-                    # ⭐ Sealed newest closed bucket → only a SHORT wait for the forming
-                    # bucket (`_repair_wait`); on a shed, the store is re-read so its own
-                    # forming row (e.g. the 30m/60m rebuilt from 15m) is served.
-                    _sd_wait_s = _repair_wait(ticker_up, tf, last_ts)
-                    _sd_done = _bounded_delta(ticker_up, tf, last_ts, False, deadline=_sd_wait_s)
+                    _sd_done = _bounded_delta(ticker_up, tf, last_ts, False)
                     if not _sd_done:
-                        _mark_serve("sd-forming" if _sd_wait_s is not None else "sd-deadline")
-                    _sd_rows = (_sqlite.get_bars(ticker_up, tf, bars)
-                                if (_sd_done or _sd_wait_s is not None) else stored_rows)
+                        _mark_serve("sd-deadline")
+                    _sd_rows = _sqlite.get_bars(ticker_up, tf, bars) if _sd_done else stored_rows
                     if _sd_partial:
                         # Depth is still short: hand the (now tail-repaired) rows to the
                         # stale-while-revalidate block below, which serves them and kicks
@@ -4808,7 +4742,6 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                             "ticker": ticker_up, "tf": tf,
                             "bars": _fmt_sqlite_bars(_sd_rows or stored_rows, tf, ticker_up),
                         }
-                        _mark_forming_pending(payload, tf)
                         if payload["bars"]:
                             # A shed repair must not pin the unrepaired rows for a full TTL.
                             cache.set(cache_key, payload,
