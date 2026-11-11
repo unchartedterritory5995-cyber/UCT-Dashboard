@@ -860,6 +860,19 @@
    ],
    "fast": false
   },
+  "drawing.favoriteTool": {
+   "domain": "drawing",
+   "group": "drawingExtras",
+   "target": "drawToolFavorites",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "drawing.list": {
    "domain": "drawing",
    "group": "drawings",
@@ -886,10 +899,36 @@
    ],
    "fast": false
   },
+  "drawing.positionCalculator": {
+   "domain": "drawing",
+   "group": "drawingExtras",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "drawing.remove": {
    "domain": "drawing",
    "group": "drawings",
    "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "drawing.saveDefaults": {
+   "domain": "drawing",
+   "group": "drawingExtras",
+   "target": "chart",
    "risk": "local",
    "reversible": true,
    "undo": "exact",

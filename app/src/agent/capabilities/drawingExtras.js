@@ -165,7 +165,7 @@ export function registerDrawingExtras() {
   registerCapability({
     target: 'drawToolFavorites', surfaces: ['charts'], available: onCharts,
     name: 'drawing.favoriteTool',
-    summary: `Star or unstar a DRAWING TOOL as a favourite (the ★ in the drawing toolbar's tools menu): starred tools sit on the floating favourites bar on every chart in this browser. Tools: ${FAVORITE_TOOLS.map(toolName).join(', ')}. Undo puts the favourites back.`,
+    summary: 'Star or unstar a DRAWING TOOL as a favourite (the ★ in the drawing toolbar\'s tools menu): starred tools sit on the floating favourites bar on every chart in this browser. Undo puts the favourites back.',
     hints: 'target = the drawToolFavorites entry; tool = the toolbar tool\'s id; favorite = true to star, false to unstar. Only for a drawing TOOL — flagging or starring a ticker is the watchlist\'s flag (watchlist.setFlag), never this.',
     args: { type: 'object', properties: { tool: { type: 'string', enum: [...FAVORITE_TOOLS] }, favorite: { type: 'boolean' } }, required: ['tool', 'favorite'], additionalProperties: false },
     check(st, args) { return favPlan(st, args).why || null },

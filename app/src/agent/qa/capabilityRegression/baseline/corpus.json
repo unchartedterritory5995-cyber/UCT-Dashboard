@@ -10564,6 +10564,183 @@
       "phrasings": [
         "keep a copy of that one"
       ]
+    },
+    {
+      "id": "drawing.positionCalculator",
+      "source": "C1-144 (drawing extras): the toolbar's Position tool — the Position Calculator with entry, stop and target",
+      "board": "TIMED",
+      "needs": [
+        "drawing.positionCalculator"
+      ],
+      "capabilities": [
+        "drawing.positionCalculator"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.positionCalculator",
+            "target": "$charts[0]",
+            "args": {
+              "entry": 50,
+              "stop": 48,
+              "target": 56,
+              "side": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "positionCalc": {
+            "can": true,
+            "open": true,
+            "entry": "50",
+            "stop": "48",
+            "target": "56",
+            "direction": "long"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "view": {
+            "positionCalc": {
+              "can": true,
+              "open": false,
+              "entry": "",
+              "stop": "",
+              "target": "",
+              "direction": "long"
+            }
+          }
+        }
+      },
+      "phrasings": [
+        "open the position calculator with entry 50 stop 48 target 56",
+        "size this trade: entry 50, stop 48, target 56",
+        "put a position calculator on the chart, entry 50, stop 48 and target 56"
+      ]
+    },
+    {
+      "id": "drawing.saveDefaults",
+      "source": "C1-160 (drawing extras): a drawing menu's Save as default, onto the chart's drawing defaults",
+      "board": "TIMED",
+      "needs": [
+        "drawing.saveDefaults"
+      ],
+      "capabilities": [
+        "drawing.saveDefaults"
+      ],
+      "before": [
+        {
+          "say": "draw a dashed trendline from 2026-09-02 at 100 to 2026-10-28 at 180",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.addTrendline",
+                "target": "$drawings[0]",
+                "args": {
+                  "from": {
+                    "date": "2026-09-02",
+                    "price": 100
+                  },
+                  "to": {
+                    "date": "2026-10-28",
+                    "price": 180
+                  },
+                  "color": null,
+                  "style": "dashed"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1,
+              "has": {
+                "type": "trendline"
+              }
+            }
+          }
+        }
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.saveDefaults",
+            "target": "$charts[0]",
+            "args": {
+              "drawing": "$ctx:drawings.0.drawings.0.id"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "drawingDefaults.style",
+          "value": "dashed"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "setting": {
+            "key": "drawingDefaults.style",
+            "value": "solid"
+          }
+        }
+      },
+      "phrasings": [
+        "make this trendline my default style",
+        "save this trendline's style as the default for new drawings",
+        "use that line's look as my default drawing style"
+      ]
+    },
+    {
+      "id": "drawing.favoriteTool",
+      "source": "C1-165 (drawing extras): the ★ in the drawing toolbar's tools menu",
+      "board": "DRAW",
+      "needs": [
+        "drawing.favoriteTool"
+      ],
+      "capabilities": [
+        "drawing.favoriteTool"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.favoriteTool",
+            "target": "$drawToolFavorites[0]",
+            "args": {
+              "tool": "fib",
+              "favorite": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "favoriteTools": [
+          "fib"
+        ],
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "favoriteTools": []
+        }
+      },
+      "phrasings": [
+        "add the fib tool to my favourites",
+        "star the fibonacci retracement tool",
+        "put the fib tool on my favorites toolbar"
+      ]
     }
   ],
   "refusals": [

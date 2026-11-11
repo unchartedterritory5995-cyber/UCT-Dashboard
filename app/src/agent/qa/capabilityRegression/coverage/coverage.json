@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 183,
-  "withProductionKinds": 174,
+  "all": 186,
+  "withProductionKinds": 177,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 183,
-  "withAnyRegressionCase": 131,
+  "capabilities": 186,
+  "withAnyRegressionCase": 134,
   "perProtection": {
    "nl": {
-    "covered": 129,
-    "applicable": 183
+    "covered": 132,
+    "applicable": 186
    },
    "routing": {
-    "covered": 126,
-    "applicable": 183
+    "covered": 129,
+    "applicable": 186
    },
    "args": {
-    "covered": 131,
-    "applicable": 183
+    "covered": 134,
+    "applicable": 186
    },
    "execution": {
-    "covered": 129,
-    "applicable": 183
+    "covered": 132,
+    "applicable": 186
    },
    "receipt": {
-    "covered": 101,
-    "applicable": 183
+    "covered": 104,
+    "applicable": 186
    },
    "refusal": {
     "covered": 33,
-    "applicable": 183
+    "applicable": 186
    },
    "permission": {
-    "covered": 176,
-    "applicable": 183
+    "covered": 179,
+    "applicable": 186
    },
    "undo": {
-    "covered": 58,
-    "applicable": 115
+    "covered": 61,
+    "applicable": 118
    },
    "multiStep": {
-    "covered": 36,
-    "applicable": 183
+    "covered": 37,
+    "applicable": 186
    },
    "phrasings": {
-    "covered": 125,
-    "applicable": 183
+    "covered": 128,
+    "applicable": 186
    }
   }
  },
@@ -3628,6 +3628,60 @@
     "phrasings": []
    }
   },
+  "drawing.favoriteTool": {
+   "domain": "drawing",
+   "group": "drawingExtras",
+   "target": "drawToolFavorites",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.favoriteTool: \"add the fib tool to my favourites\"",
+     "drawing.favoriteTool: \"star the fibonacci retracement tool\"",
+     "drawing.favoriteTool: \"put the fib tool on my favorites toolbar\""
+    ],
+    "routing": [
+     "drawing.favoriteTool: \"add the fib tool to my favourites\"",
+     "drawing.favoriteTool: \"star the fibonacci retracement tool\"",
+     "drawing.favoriteTool: \"put the fib tool on my favorites toolbar\""
+    ],
+    "args": [
+     "corpus drawing.favoriteTool"
+    ],
+    "execution": [
+     "drawing.favoriteTool (c)"
+    ],
+    "receipt": [
+     "drawing.favoriteTool (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "drawing.favoriteTool: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "drawing.list": {
    "domain": "drawing",
    "group": "drawings",
@@ -3720,6 +3774,60 @@
     "phrasings": []
    }
   },
+  "drawing.positionCalculator": {
+   "domain": "drawing",
+   "group": "drawingExtras",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.positionCalculator: \"open the position calculator with entry 50 stop 48 target 56\"",
+     "drawing.positionCalculator: \"size this trade: entry 50, stop 48, target 56\"",
+     "drawing.positionCalculator: \"put a position calculator on the chart, entry 50, stop 48 and target 56\""
+    ],
+    "routing": [
+     "drawing.positionCalculator: \"open the position calculator with entry 50 stop 48 target 56\"",
+     "drawing.positionCalculator: \"size this trade: entry 50, stop 48, target 56\"",
+     "drawing.positionCalculator: \"put a position calculator on the chart, entry 50, stop 48 and target 56\""
+    ],
+    "args": [
+     "corpus drawing.positionCalculator"
+    ],
+    "execution": [
+     "drawing.positionCalculator (c)"
+    ],
+    "receipt": [
+     "drawing.positionCalculator (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "drawing.positionCalculator: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "drawing.remove": {
    "domain": "drawing",
    "group": "drawings",
@@ -3774,6 +3882,62 @@
     ],
     "multiStep": [
      "drawing.remove: after an earlier turn"
+    ],
+    "phrasings": []
+   }
+  },
+  "drawing.saveDefaults": {
+   "domain": "drawing",
+   "group": "drawingExtras",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "drawing.saveDefaults: \"make this trendline my default style\"",
+     "drawing.saveDefaults: \"save this trendline's style as the default for new drawings\"",
+     "drawing.saveDefaults: \"use that line's look as my default drawing style\""
+    ],
+    "routing": [
+     "drawing.saveDefaults: \"make this trendline my default style\"",
+     "drawing.saveDefaults: \"save this trendline's style as the default for new drawings\"",
+     "drawing.saveDefaults: \"use that line's look as my default drawing style\""
+    ],
+    "args": [
+     "corpus drawing.saveDefaults"
+    ],
+    "execution": [
+     "drawing.saveDefaults (c)"
+    ],
+    "receipt": [
+     "drawing.saveDefaults (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "drawing.saveDefaults: undo restores"
+    ],
+    "multiStep": [
+     "drawing.saveDefaults: after an earlier turn"
     ],
     "phrasings": []
    }
