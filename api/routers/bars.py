@@ -373,7 +373,7 @@ def warm_bars_endpoint(payload: dict = Body(...), user: dict = Depends(require_b
 _bars_proxy_client = None
 
 
-async def _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin):
+async def _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin, session=""):
     """Forward a /api/bars request to the dedicated bars-serving tier and return its
     response VERBATIM — body + status + the exact Cache-Control/Pragma/Server-Timing
     headers `serve_bars` sets — so the browser cannot tell proxy from local (the tier
@@ -389,9 +389,10 @@ async def _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin):
         _bars_proxy_client = httpx.AsyncClient(
             timeout=httpx.Timeout(8.0, connect=2.0), follow_redirects=False)
     url = f"{origin}/api/bars/{_quote(ticker)}"
-    r = await _bars_proxy_client.get(
-        url, params={"tf": tf, "bars": bars, "since": since, "to": to, "warm": warm},
-        headers=bars_service_headers())
+    params = {"tf": tf, "bars": bars, "since": since, "to": to, "warm": warm}
+    if session:
+        params["session"] = session   # the tier must see the chart's session too
+    r = await _bars_proxy_client.get(url, params=params, headers=bars_service_headers())
     # ⛔⛔ A TIER AUTH REFUSAL IS OURS, NEVER THE MEMBER’S. This caller already
     # decided the request is entitled; a 401/403 from the tier can only mean
     # PUSH_SECRET is unset or mismatched there. Raising drops into `get_bars`’
@@ -566,6 +567,7 @@ async def get_bars(
     since: str = Query(default="", description="Return only bars with t > since (browser delta sync)"),
     to: str = Query(default="", description="Return bars ending at this date (YYYY-MM-DD) — replay pre-cutoff window"),
     warm: int = Query(default=0, description="1 = best-effort background warm (skips the provider fetch when the pod is busy, so it can't starve a real chart request)"),
+    session: str = Query(default="", description="Chart session: 'rth' | 'eth' (intraday only). eth on tf=60 serves TradingView's extended 60m grid (clock hours); tail_status is judged against this session. Absent = legacy behaviour."),
 ):
     """HTTP route → the dedicated bars-serving tier (Path B Phase 2) or the local
     `serve_bars` core.
@@ -577,17 +579,22 @@ async def get_bars(
     directly — they must never hit the proxy path."""
     if is_econ_symbol(ticker):          # ⛔ before proxy, provider, add-ons -- see is_econ_symbol
         return _econ_refusal(ticker)
+    if not isinstance(session, str):    # called in-process: the Query() default object
+        session = ""
     origin = os.environ.get("BARS_ORIGIN_URL", "").rstrip("/")
     if origin and _bars_proxy_should_route(ticker, warm):
         try:
-            return await _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin)
+            # `session` only when asked: an absent param keeps the legacy call/URL exactly.
+            _extra = (session,) if session else ()
+            return await _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin, *_extra)
         except Exception:
             pass  # tier unreachable/slow/error → fall through to local serve (today's path)
     # Local serve is SYNC (SQLite/provider I/O) → run it in the threadpool so it never
     # blocks the event loop (this route is async now for the proxy path). Behaviourally
     # identical to the pre-Phase-2 sync route, which FastAPI also ran in the threadpool.
     from starlette.concurrency import run_in_threadpool
-    return await run_in_threadpool(serve_bars_http, ticker, tf, bars, since, to, warm)
+    return await run_in_threadpool(serve_bars_http, ticker, tf, bars, since, to, warm,
+                                   *((session,) if session else ()))
 
 
 @router.get("/api/adjustment-basis/{ticker}")
@@ -725,7 +732,7 @@ def _augment_daily_with_today(response, ticker: str):
 _INTRADAY_TFS = ("1", "5", "15", "30", "60")
 
 
-def _augment_with_tail_status(response, ticker: str, tf: str):
+def _augment_with_tail_status(response, ticker: str, tf: str, session: str | None = None):
     """Attach ``tail_status`` + ``verified_through`` (and ``Retry-After`` when the tail
     is unverified) to an intraday 200.
 
@@ -755,7 +762,8 @@ def _augment_with_tail_status(response, ticker: str, tf: str):
         if not rows:
             return response
         tail = rows[-1].get("t") if isinstance(rows[-1], dict) else None
-    st = _bars_fetch.intraday_tail_status(ticker, tf, tail)
+    st = (_bars_fetch.intraday_tail_status(ticker, tf, tail, session=session) if session
+          else _bars_fetch.intraday_tail_status(ticker, tf, tail))
     payload["tail_status"] = st["tail_status"]
     payload["verified_through"] = st["verified_through"]
     headers = {}
@@ -839,6 +847,7 @@ def serve_bars(
     since: str = "",
     to: str = "",
     warm: int = 0,
+    session: str = "",
 ):
     """Member/tier entry point. Marks this request thread as INTERACTIVE (a non-warm
     ask) for the lifetime of the serve so an intraday tail repair may use the reserved
@@ -848,12 +857,95 @@ def serve_bars(
         return _econ_refusal(ticker)
     _bars_fetch.set_request_interactive(not warm)
     try:
-        return _serve_bars_impl(ticker, tf, bars, since, to, warm)
+        sess = _bars_fetch.normalize_session(session) if tf in _INTRADAY_TFS else None
+        if tf == "60" and sess == "eth":
+            return _serve_eth_hourly(ticker, bars, since, to, warm)
+        return _serve_bars_impl(ticker, tf, bars, since, to, warm, session=sess)
     finally:
         _bars_fetch.set_request_interactive(False)
 
 
-def serve_bars_http(ticker, tf, bars=200, since="", to="", warm=0):
+# ── EXTENDED-HOURS 60m (TradingView's 04:00-20:00 chart: clock hours) ─────────
+# ⭐ DERIVED ON READ FROM THE 15m SERVE, NEVER STORED. The stored tf=60 series is
+# the RTH grid (09:30, 10:30 ... — `SIXTY_MIN_GRID`), and the two grids cannot be
+# converted into each other (09:30-10:30 straddles two clock hours). A stored
+# '60e' series would need a twin write in every 60m writer (cold fetch, delta,
+# heal, range, rebuild, R2 sync, live store) and a second copy of the data;
+# deriving from 15m reuses the ONE source both grids are built from
+# (`_session_resample_hourly`), so the ETH hour inherits all of 15m's freshness,
+# heal, warm-shed, deep and replay (`to=`) machinery — and its `tail_status` is the
+# 15m tail judged against the EXTENDED frontier, i.e. the chart's own session.
+# Cost: a 4x-wider SQLite read + an in-process resample (milliseconds).
+_ETH_SRC_PER_HOUR = 4           # 15m bars per 60m bucket
+_ETH_HEADERS = ("cache-control", "pragma", "server-timing", "retry-after", "x-bars-shed")
+
+
+def _eth_src_count(bars: int) -> int:
+    """15m rows to read for `bars` ETH hours. ⛔ A first paint (under the deep
+    threshold) stays under it on the 15m side too, so a 60m first paint can never
+    take the heavy synchronous deep branch it would not have taken as tf=60."""
+    n = max(1, int(bars)) * _ETH_SRC_PER_HOUR
+    thr = _bars_fetch._DEEP_REQUEST_THRESHOLD
+    if int(bars) < thr:
+        n = min(n, thr - 1)
+    return n
+
+
+def _carry_headers(new, old):
+    if new is not old:
+        for h in _ETH_HEADERS:
+            if h in old.headers:
+                new.headers[h] = old.headers[h]
+    return new
+
+
+def _serve_eth_hourly(ticker: str, bars: int, since: str, to: str, warm: int):
+    """tf=60 on the ETH (clock-hour) grid, from the 15m serve. See the block above."""
+    since15 = ""
+    floor = None
+    if since:
+        try:
+            s = int(since)
+            s = s // 1000 if s > 10_000_000_000 else s
+            # Re-aggregate the WHOLE bucket the delta starts in: every 15m row of it.
+            floor = _bars_fetch.bucket_60_et_unix_seconds(s + 1, grid="eth")
+            since15 = str(max(0, floor - 1))
+        except (TypeError, ValueError):
+            since15 = since
+    resp = _serve_bars_impl(ticker, "15", _eth_src_count(bars), since15, to, warm, session="eth")
+    try:
+        payload = orjson.loads(resp.body)
+    except Exception:
+        return resp
+    if not isinstance(payload, dict):
+        return resp
+    payload["tf"] = "60"
+    payload["session"] = "eth"
+    rows = payload.get("bars")
+    if isinstance(rows, list) and rows:
+        try:
+            out = _session_resample_hourly(
+                [r for r in rows if isinstance(r, dict) and isinstance(r.get("t"), (int, float))],
+                grid="eth")
+            if floor is not None:
+                out = [b for b in out if b["t"] >= floor]
+            elif not payload.get("delta"):
+                out = out[-int(bars):]
+            payload["bars"] = out
+        except Exception:                  # noqa: BLE001 — never a 60m answer on the wrong grid
+            payload["bars"] = []
+            payload["tail_status"] = "unverified"
+    out_resp = _carry_headers(
+        JSONResponse(content=payload, status_code=getattr(resp, "status_code", 200)), resp)
+    if getattr(resp, "status_code", 200) == 200 and payload.get("bars"):
+        try:
+            out_resp = _carry_headers(_augment_with_bar_close_state(out_resp, "60"), out_resp)
+        except Exception:                  # noqa: BLE001
+            pass
+    return out_resp
+
+
+def serve_bars_http(ticker, tf, bars=200, since="", to="", warm=0, session=""):
     """`serve_bars` for an HTTP request behind the edge: runs it under ONE wait budget
     (bars_fetch._bounded_wait) so the sum of every request-path wait stays under the
     edge's 8 s abort. ⚠️ HTTP routes only — in-process callers (seasonality,
@@ -861,7 +953,8 @@ def serve_bars_http(ticker, tf, bars=200, since="", to="", warm=0):
     ceiling (review F3). Resolves `serve_bars` at call time, so a patched core is used."""
     _bars_fetch.start_request_budget()
     try:
-        return serve_bars(ticker, tf, bars, since, to, warm)
+        return (serve_bars(ticker, tf, bars, since, to, warm, session) if session
+                else serve_bars(ticker, tf, bars, since, to, warm))
     finally:
         _bars_fetch.end_request_budget()
 
@@ -873,6 +966,7 @@ def _serve_bars_impl(
     since: str = "",
     to: str = "",
     warm: int = 0,
+    session: str | None = None,
 ):
     """Return OHLCV bars for client-side charting (Lightweight Charts v5).
 
@@ -1114,7 +1208,7 @@ def _serve_bars_impl(
                 and not is_index(ticker)
                 and getattr(response, "status_code", 200) == 200):
             try:
-                response = _augment_with_tail_status(response, ticker, tf)
+                response = _augment_with_tail_status(response, ticker, tf, session)
             except Exception:
                 pass
 

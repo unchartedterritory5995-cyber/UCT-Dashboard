@@ -12,8 +12,9 @@
 import { preload } from 'swr'
 import { SWRGlobalState, cache as _swrCache } from 'swr/_internal'
 import { prefetchTickerMeta } from '../hooks/useTickerMeta'
-import { idbGet, idbPut, mergeDelta } from './barsIDB'
-import { memHas, memPut, memPeek, memPeekSavedAt } from './barsMemCache'
+import { idbGet as _idbGetRaw, idbPut as _idbPutRaw, mergeDelta } from './barsIDB'
+import { memHas as _memHasRaw, memPut as _memPutRaw, memPeek as _memPeekRaw, memPeekSavedAt as _memPeekSavedAtRaw } from './barsMemCache'
+import { seriesCacheTf, barsSessionQuery, barsGridQuery } from '../components/chart/barTime'
 import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor } from './barsBackfill'
 import { isDailyTailStale, isDailyTodayCloseProvisionalForPaint, isCurrentEnoughForPaint, classifyIntradayTail } from './marketSession'
 
@@ -149,6 +150,21 @@ export function joinPendingBars(url) { return _pendingBars.get(url) || null }
 // requested. The chart now TELLS the warmer its session (`setPrefetchShowExtended`).
 let _prefetchShowExtended = false
 export function setPrefetchShowExtended(on) { _prefetchShowExtended = !!on }
+// ⭐ (2026-11-10) …AND THE SESSION DECIDES WHICH 60m SERIES A WARM FILLS. With EXT on the
+// chart reads the clock-grid 60m under its own cache key ('60e', `seriesCacheTf`) and
+// asks `&session=eth`; a warm must fill THAT key with THAT series. Every cache call in
+// this module goes through these wrappers so no site can write one grid under the
+// other's key. Other tfs map to themselves (one key across sessions).
+function _ck(tf) { return seriesCacheTf(tf, _prefetchShowExtended) }
+function idbGet(sym, tf) { return _idbGetRaw(sym, _ck(tf)) }
+function idbPut(sym, tf, bars) { return _idbPutRaw(sym, _ck(tf), bars) }
+function memHas(sym, tf) { return _memHasRaw(sym, _ck(tf)) }
+function memPut(sym, tf, bars, opts) { return _memPutRaw(sym, _ck(tf), bars, opts) }
+function memPeek(sym, tf) { return _memPeekRaw(sym, _ck(tf)) }
+function memPeekSavedAt(sym, tf) { return _memPeekSavedAtRaw(sym, _ck(tf)) }
+// The chart's own URL tail: `&session=` on intraday (StockChart's `_primaryBase` adds
+// the same, so a warm and the chart's request are ONE SWR key / one in-flight join).
+function _sessQ(tf) { return barsSessionQuery(tf, _prefetchShowExtended) }
 const _INTRADAY_COUNT_TFS = new Set(['1', '5', '15', '30', '60'])
 function _barsFor(tf) {
   if (_INTRADAY_COUNT_TFS.has(String(tf))) return firstPaintBarsFor(String(tf), _prefetchShowExtended)
@@ -278,7 +294,7 @@ export function _url(sym, tf, warm = true) {
   // IDB warming is keyed by (sym,tf), not the URL, so the extra param never breaks it.
   // The hover/focus intent-warm passes warm=false so it isn't shed AND its SWR-cache key
   // matches the visible chart's (no `&warm`), letting the imminent click paint from cache.
-  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${_barsFor(tf)}${warm ? '&warm=1' : ''}`
+  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${_barsFor(tf)}${_sessQ(tf)}${warm ? '&warm=1' : ''}`
 }
 
 // The native intraday codes. Declared ABOVE its first use on purpose: this file
@@ -322,7 +338,7 @@ export function _resetRepairCooldown() { _repairAt.clear() }
 // `warm=1` keeps it shed-able under load exactly like the full warm — a repair is
 // still a background nicety and must never outrank the chart the member clicked.
 function _sinceUrl(sym, tf, lastT) {
-  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${_barsFor(tf)}`
+  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${_barsFor(tf)}${_sessQ(tf)}`
        + `&since=${encodeURIComponent(String(Math.max(0, lastT - 1)))}&warm=1`
 }
 
@@ -550,7 +566,7 @@ const REPLAY_WARM_TFS = ['5', '15', '30', '60']
 export function prefetchReplayTimeframes(sym, cutoffIso, { bars = 4000 } = {}) {
   if (!sym || !cutoffIso) return
   for (const tf of REPLAY_WARM_TFS) {
-    _enqueue(`/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bars}&to=${encodeURIComponent(cutoffIso)}&warm=1`, false)
+    _enqueue(`/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bars}${barsGridQuery(tf, _prefetchShowExtended)}&to=${encodeURIComponent(cutoffIso)}&warm=1`, false)
   }
 }
 
@@ -862,7 +878,7 @@ let _deepKick = null
 
 function _deepUrl(sym, tf) {
   // Deep background warm — best-effort, so it sheds under load like the shallow prefetch.
-  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${fullBarsFor(tf)}&warm=1`
+  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${fullBarsFor(tf)}${_sessQ(tf)}&warm=1`
 }
 async function _deepWarmOne(sym, tf) {
   try {

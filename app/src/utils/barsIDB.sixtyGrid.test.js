@@ -21,3 +21,22 @@ describe('_hasOldSixtyMinGrid', () => {
     expect(_hasOldSixtyMinGrid(day(2, OLD), '30')).toBe(false)
   })
 })
+
+// 2026-11-10 session grids: '60' = session grid (RTH view), '60e' = clock grid (ETH view).
+// An entry on the OTHER grid — or a mixed one — is absent, so a session toggle can never
+// merge one grid into the other.
+const CLOCK = [[4, 0], [5, 0], [8, 0], [9, 0], [10, 0], [11, 0], [15, 0], [16, 0], [19, 0]]
+describe('_hasOldSixtyMinGrid — per-session keys', () => {
+  it("'60e' keeps a clock-hour entry and refuses a session-grid one", () => {
+    expect(_hasOldSixtyMinGrid([...day(2, CLOCK), ...day(3, CLOCK)], '60e')).toBe(false)
+    expect(_hasOldSixtyMinGrid(day(2, NEW), '60e')).toBe(true)
+  })
+  it("'60' refuses a clock-hour entry (the ETH series written under the RTH key)", () => {
+    expect(_hasOldSixtyMinGrid(day(2, CLOCK), '60')).toBe(true)
+  })
+  it('a mixed session/clock entry is refused under either key', () => {
+    const mixed = [...day(2, NEW), ...day(3, CLOCK)]
+    expect(_hasOldSixtyMinGrid(mixed, '60')).toBe(true)
+    expect(_hasOldSixtyMinGrid(mixed, '60e')).toBe(true)
+  })
+})

@@ -216,11 +216,10 @@ describe('60m grid — TradingView session alignment', () => {
 })
 
 describe('the policy is one switch', () => {
-  it('both views read the stored session grid today', () => {
-    expect(SIXTY_MIN_GRID_BY_SESSION).toEqual({ rth: 'session', extended: 'session' })
+  it('RTH reads the session grid, the extended view the clock grid (TradingView, both views)', () => {
+    expect(SIXTY_MIN_GRID_BY_SESSION).toEqual({ rth: 'session', extended: 'clock' })
     expect(sixtyMinGridFor('rth')).toBe('session')
-    expect(sixtyMinGridFor('extended')).toBe('session')
-    expect(sixtyMinGridFor()).toBe('session')
+    expect(sixtyMinGridFor('extended')).toBe('clock')
   })
   it('a TradingView-extended policy routes the extended view to the clock grid', () => {
     const tv = { rth: 'session', extended: 'clock' }

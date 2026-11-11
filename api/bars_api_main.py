@@ -361,8 +361,9 @@ def _build_app() -> FastAPI:
         since: str = "",
         to: str = "",
         warm: int = 0,
+        session: str = "",
     ):
-        return serve_bars_http(ticker, tf, bars, since=since, to=to, warm=warm)
+        return serve_bars_http(ticker, tf, bars, since=since, to=to, warm=warm, session=session)
 
     # ⛔ NO GATE HERE ON PURPOSE — same reason as `/api/bars/{ticker}` above.
     @app.get("/api/bars-history/{ticker}")

@@ -1,7 +1,7 @@
 // app/src/components/StockChart.jsx — TradingView Lightweight Charts v5 wrapper
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
-import { computeBarTime, toChartTime, fromChartTime, isOnSixtyMinGrid } from './chart/barTime'
+import { computeBarTime, toChartTime, fromChartTime, isOnSixtyMinGrid, seriesCacheTf, barsSessionQuery, barsGridQuery } from './chart/barTime'
 import { liveStreamSession } from './chart/liveBuckets'
 import { foldOffGridBars } from './chart/offGridBars'
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
@@ -5366,6 +5366,16 @@ export default function StockChart({
   // filter — or the current ext session leaks onto an RTH-only chart.
   const showExtendedRef = useRef(showExtended)
   showExtendedRef.current = showExtended
+  // ⭐ (2026-11-10) THE SESSION IS PART OF WHAT IS FETCHED. `_barsTf` is the series'
+  // CACHE identity (IDB / mem / load keys): '60e' for 60m with extended hours on (the
+  // clock grid, served by `/api/bars?tf=60&session=eth`), else the tf itself — only
+  // 60m differs between views, so no other tf splits its cache. `_sessQ` is the
+  // `&session=` every primary /api/bars URL carries (the server judges the tail against
+  // the chart's own session); `_gridQ` is `&session=eth` only where the bars differ,
+  // for secondary series that must sit on the primary's grid.
+  const _barsTf = seriesCacheTf(resolvedTf, showExtended)
+  const _sessQ = barsSessionQuery(resolvedTf, showExtended)
+  const _gridQ = barsGridQuery(resolvedTf, showExtended)
   // Latest "is it pre/post market right now (ET clock)", same latest-ref reason.
   // Assigned next to _inExtWindow's derivation further down.
   const inExtWindowRef = useRef(false)
@@ -7957,7 +7967,7 @@ export default function StockChart({
     compareSymbol || indexPaneSymbol ||
     (cs.comparisonSymbols || []).some(c => c && c.enabled && c.sym)
   )
-  const _depthKey = `${sym}_${resolvedTf}`
+  const _depthKey = `${sym}_${_barsTf}`
   if (_depthKeyRef.current !== _depthKey) {
     _depthKeyRef.current = _depthKey
     // T0 — a new (symbol, timeframe) load begins. Inert unless the diagnostic flag
@@ -8302,9 +8312,9 @@ export default function StockChart({
   // effect consumes the same promise, so there is still exactly one IDB read per load.
   const _idbReadRef = useRef(null)
   {
-    const _rk = `${sym}_${resolvedTf}`
+    const _rk = `${sym}_${_barsTf}`
     if (sym && resolvedTf && !_econId && _idbReadRef.current?.key !== _rk) {
-      _idbReadRef.current = { key: _rk, p: idbGet(sym, resolvedTf) }
+      _idbReadRef.current = { key: _rk, p: idbGet(sym, _barsTf) }
     }
   }
 
@@ -8317,7 +8327,7 @@ export default function StockChart({
     idbRepairFromRef.current = null
     idbReadyForRef.current = null  // synchronous — invalidates the gate immediately
     axisWidthRatchetRef.current = 0  // new sym/tf → let the axis column re-fit once
-    const key = `${sym}_${resolvedTf}`
+    const key = `${sym}_${_barsTf}`
     // ⛔ An economic series is never cached in the bars IndexedDB (nor read from it).
     if (_econId) { idbReadyForRef.current = key; setIdbLoaded(true); return undefined }
     let settled = false
@@ -8350,7 +8360,7 @@ export default function StockChart({
       idbReadyForRef.current = key   // open the gate; idbBars stays null → full fetch
       setIdbLoaded(true)
     }, _patient ? _IDB_FIRST_PAINT_TIMEOUT_CACHED_MS : _IDB_FIRST_PAINT_TIMEOUT_MS)
-    const _read = (_idbReadRef.current?.key === key) ? _idbReadRef.current.p : idbGet(sym, resolvedTf)
+    const _read = (_idbReadRef.current?.key === key) ? _idbReadRef.current.p : idbGet(sym, _barsTf)
     let _gone = false   // this (sym, tf) was left: a late read must not stamp the NEW key's state
     _read.then(entry => {
       settled = true; clearTimeout(_t)
@@ -8384,7 +8394,7 @@ export default function StockChart({
       setIdbLoaded(true)
     }).catch(() => { settled = true; clearTimeout(_t); if (_gone) return; idbReadyForRef.current = key; setIdbLoaded(true) })
     return () => { settled = true; _gone = true; clearTimeout(_t) }
-  }, [sym, resolvedTf, _econId])
+  }, [sym, resolvedTf, _barsTf, _econId])
 
   // SWR URL: only set if IDB state is for the CURRENT sym+tf. Stale idbLoaded
   // from a previous ticker (before the IDB effect runs) is rejected by the ref
@@ -8678,7 +8688,7 @@ export default function StockChart({
   const _histFirstPaint = _splitOn && _deepFirstPaint && !_idbAlreadyDeep && _fpDwellReady && _fpEdge
   // Deep sealed history from the edge — after the user pans PAST the first-paint tail
   // (fetchDepth grows), OR on first paint when _histFirstPaint (Fix 2) is enabled.
-  const _histFire = _splitOn && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`
+  const _histFire = _splitOn && idbLoaded && idbReadyForRef.current === `${sym}_${_barsTf}`
     && (fetchDepth > _fpBars || _histFirstPaint)
   // Standardize the history URL: always the FULL sealed depth (`_fullTarget`, fixed per tf)
   // + `d=<last sealed date>` derived from the bars we already hold. Fixed URL = every user +
@@ -8727,10 +8737,10 @@ export default function StockChart({
   // Scroll-back (`bars=` grows) is a new base → its FIRST fetch is full, every poll after
   // it is `since=` again (`_tailFullDoneRef`), instead of re-downloading 9k-32k bars.
   const _tailKeyed = isIntraday && !!sym && _toParam == null && !_hasOverride && !_isCustomTf
-  const _primaryBase = `/api/bars/${encodeURIComponent(sym || '')}?tf=${resolvedTf}&bars=${_primaryBars}`
+  const _primaryBase = `/api/bars/${encodeURIComponent(sym || '')}?tf=${resolvedTf}&bars=${_primaryBars}${_sessQ}`
   const _tailReqRef = useRef(null)
   _tailReqRef.current = {
-    key: `${sym}_${resolvedTf}`, sym, tf: resolvedTf, base: _primaryBase,
+    key: `${sym}_${_barsTf}`, sym, tf: resolvedTf, ck: _barsTf, base: _primaryBase,
     forceFull: _primaryForceFull, sinceFromIdb: _sinceFromIdbNow,
   }
   const _tailFullDoneRef = useRef(null)
@@ -8752,7 +8762,7 @@ export default function StockChart({
       } else {
         // IDB for this key has not landed. Seed from the mem cache, else race the read.
         let seed = null
-        const mem = memPeek(req.sym, req.tf)
+        const mem = memPeek(req.sym, req.ck)
         const mt = mem?.length ? mem[mem.length - 1]?.t : null
         if (typeof mt === 'number' && classifyIntradayTail(mt, req.tf) !== 'gapped') {
           seed = { bars: mem, t: mt, rf: null }
@@ -8796,10 +8806,10 @@ export default function StockChart({
     ? null
     : _tailKeyed
     ? _tailKey
-    : ((sym && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`)
+    : ((sym && idbLoaded && idbReadyForRef.current === `${sym}_${_barsTf}`)
         ? (_toParam != null
-            ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_primaryBars}&to=${encodeURIComponent(_toParam)}`
-            : `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_primaryBars}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`)
+            ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_primaryBars}${_sessQ}&to=${encodeURIComponent(_toParam)}`
+            : `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_primaryBars}${_sessQ}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`)
         : null)
 
   // Self-healing poll cadence: with no refreshInterval, the chart was frozen
@@ -8844,7 +8854,7 @@ export default function StockChart({
   // render exactly when the budget flips.
   const [, _bumpTailBudget] = useState(0)
   const _intradayPollMs = useCallback((latest) => {
-    const key = `${sym}_${resolvedTf}`
+    const key = `${sym}_${_barsTf}`
     const _wasSpent = tailRetriesExhausted(_tailCatchupRef.current, key)
     // The tail ACTUALLY ON SCREEN: a `since=` response carries only the delta (and
     // is empty when nothing is new), so the merged cache tail is the honest reading.
@@ -8928,7 +8938,7 @@ export default function StockChart({
 
   // ── Comparison symbol SWR fetch ──
   const compareSwrUrl = compareSymbol
-    ? `/api/bars/${encodeURIComponent(compareSymbol.toUpperCase())}?tf=${resolvedTf}&bars=${barCount}`
+    ? `/api/bars/${encodeURIComponent(compareSymbol.toUpperCase())}?tf=${resolvedTf}&bars=${barCount}${_gridQ}`
     : null
   const { data: compareData } = useSWR(compareSwrUrl, instFetcher, { dedupingInterval: 60_000, revalidateOnFocus: false })
 
@@ -8941,10 +8951,10 @@ export default function StockChart({
   const _intradayDeepFire = isIntraday && !_isCustomTf && _intradayDeepBackfillEnabled()
     && !_hasOverride && !replayCutoff && !_pinnedFull && !_overlayActive
     && _intradayDeepArmed
-    && !!sym && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`
+    && !!sym && idbLoaded && idbReadyForRef.current === `${sym}_${_barsTf}`
     && (idbBars?.length || 0) < INTRADAY_DEFAULT_BARS
   const _intradayDeepUrl = _intradayDeepFire
-    ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${INTRADAY_DEFAULT_BARS}`
+    ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${INTRADAY_DEFAULT_BARS}${_sessQ}`
     : null
   const { data: _intradayDeepData } = useSWR(_intradayDeepUrl, instFetcher, {
     dedupingInterval: 60_000,
@@ -8977,10 +8987,13 @@ export default function StockChart({
     // the server's `ticker` field reveals the mismatch — skip to avoid storing
     // e.g. AAPL bars under MSFT when the user switches tickers rapidly.
     if (data.ticker && data.ticker !== sym.toUpperCase()) return
+    // ⛔ A 60m answer on the OTHER grid (a server without `session=eth` support, or a
+    // straggler from before an RTH/ETH toggle) never merges into this key's series.
+    if (resolvedTf === '60' && ((data.session === 'eth') !== (_barsTf === '60e'))) return
     // Belt-and-suspenders: only merge if idbBars is known to belong to this sym+tf.
     // Without this, a delta response could merge with leftover bars from another
     // ticker still sitting in idbBars state (the cross-ticker race).
-    const sameSymTf = idbReadyForRef.current === `${sym}_${resolvedTf}`
+    const sameSymTf = idbReadyForRef.current === `${sym}_${_barsTf}`
     // TEMP DIAGNOSTIC (enable in DevTools: window.__uctBarsDebug = true) — traces
     // the delta-sync path to find the "missing candles until ~10s later" stall on
     // a stale-cache revisit. Logs the since sent, the delta response, the cached
@@ -8994,7 +9007,7 @@ export default function StockChart({
     // merge it onto the base it was asked from, and make that the IDB state for this key
     // (the late IDB read folds UNDER it — see the IDB effect).
     const _sb = _sinceBaseRef.current
-    if (data.delta && !(idbBars?.length && sameSymTf) && _sb?.key === `${sym}_${resolvedTf}`
+    if (data.delta && !(idbBars?.length && sameSymTf) && _sb?.key === `${sym}_${_barsTf}`
         && _sb.seq === _loadSeqRef.current && _sb.bars?.length) {
       const merged = (_deltaMergedRef.current?.data === data) ? _deltaMergedRef.current.bars : mergeDelta(_sb.bars, data.bars)
       idbBarsRef.current = merged
@@ -9002,10 +9015,10 @@ export default function StockChart({
       idbSinceRef.current = merged[merged.length - 1]?.t ?? idbSinceRef.current
       idbSavedAtRef.current = Date.now()
       idbRepairFromRef.current = null
-      idbReadyForRef.current = `${sym}_${resolvedTf}`
+      idbReadyForRef.current = `${sym}_${_barsTf}`
       setIdbLoaded(true)
-      idbPut(sym, resolvedTf, merged)
-      memPut(sym, resolvedTf, merged)
+      idbPut(sym, _barsTf, merged)
+      memPut(sym, _barsTf, merged)
       return
     }
     if (data.delta && idbBars?.length && sameSymTf) {
@@ -9039,8 +9052,8 @@ export default function StockChart({
       // intra-session age gate would keep calling a freshly-merged set stale and the
       // chart would drop its own deep history one commit after healing it.
       idbSavedAtRef.current = Date.now()
-      idbPut(sym, resolvedTf, merged)
-      memPut(sym, resolvedTf, merged)
+      idbPut(sym, _barsTf, merged)
+      memPut(sym, _barsTf, merged)
     } else if (!data.delta && data.bars.length) {
       // If IDB already holds a DEEPER history than this (shallow, recent) full set —
       // e.g. the Custom-Period-Sort deep prefetch pre-warmed the full pre-2024 tail —
@@ -9068,8 +9081,8 @@ export default function StockChart({
       setIdbBars(next)
       idbSinceRef.current = next[next.length - 1]?.t ?? null
       idbSavedAtRef.current = Date.now()        // healed from the server — see above
-      idbPut(sym, resolvedTf, next)
-      memPut(sym, resolvedTf, next)
+      idbPut(sym, _barsTf, next)
+      memPut(sym, _barsTf, next)
     }
   }, [data])  // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -9082,7 +9095,7 @@ export default function StockChart({
     if (!histData?.bars?.length || !sym || !resolvedTf) return
     if (!histData.sealed) return                                   // only the sealed endpoint's shape
     if (histData.ticker && histData.ticker !== sym.toUpperCase()) return   // stale-closure guard
-    if (idbReadyForRef.current !== `${sym}_${resolvedTf}`) return  // cross-ticker guard
+    if (idbReadyForRef.current !== `${sym}_${_barsTf}`) return  // cross-ticker guard
     const cur = idbBarsRef.current
     // Fix 2 cold-tail paint: when the /api/bars tail is slow or HUNG (a cold-server long-tail
     // ticker — XXII/KORU-class microcaps + thin ETFs can stall the tail 20s+), the deep SEALED
@@ -9104,8 +9117,8 @@ export default function StockChart({
       // door. The set is genuinely fresh FROM THE SERVER, so the recency stamp is now.
       idbSinceRef.current = histData.bars[histData.bars.length - 1]?.t ?? null
       idbSavedAtRef.current = Date.now()
-      idbPut(sym, resolvedTf, histData.bars)
-      memPut(sym, resolvedTf, histData.bars)
+      idbPut(sym, _barsTf, histData.bars)
+      memPut(sym, _barsTf, histData.bars)
       return
     }
     const merged = mergeDelta(histData.bars, cur)
@@ -9115,8 +9128,8 @@ export default function StockChart({
     // A history merge only PREPENDS, so the tail is unchanged — but state it anyway
     // rather than leaving the ref to be right by accident.
     idbSinceRef.current = merged[merged.length - 1]?.t ?? idbSinceRef.current
-    idbPut(sym, resolvedTf, merged)
-    memPut(sym, resolvedTf, merged)
+    idbPut(sym, _barsTf, merged)
+    memPut(sym, _barsTf, merged)
   }, [histData, idbBars])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Phase 3' Part 3: arm the intraday deep-backfill ~900ms after the sym/tf settles ──
@@ -9141,23 +9154,23 @@ export default function StockChart({
   useEffect(() => {
     if (!_intradayDeepData?.bars?.length || !sym || !resolvedTf) return
     if (_intradayDeepData.ticker && _intradayDeepData.ticker !== sym.toUpperCase()) return
-    if (idbReadyForRef.current !== `${sym}_${resolvedTf}`) return
+    if (idbReadyForRef.current !== `${sym}_${_barsTf}`) return
     const cur = idbBarsRef.current
     if (!cur?.length) {
       idbBarsRef.current = _intradayDeepData.bars
       setIdbBars(_intradayDeepData.bars)
       idbSinceRef.current = _intradayDeepData.bars[_intradayDeepData.bars.length - 1]?.t ?? idbSinceRef.current
       idbSavedAtRef.current = Date.now()        // healed from the server — see above
-      idbPut(sym, resolvedTf, _intradayDeepData.bars)
-      memPut(sym, resolvedTf, _intradayDeepData.bars)
+      idbPut(sym, _barsTf, _intradayDeepData.bars)
+      memPut(sym, _barsTf, _intradayDeepData.bars)
       return
     }
     const merged = mergeDelta(_intradayDeepData.bars, cur)
     if (merged.length === cur.length) return                       // no older bars added — nothing to repaint
     idbBarsRef.current = merged
     setIdbBars(merged)
-    idbPut(sym, resolvedTf, merged)
-    memPut(sym, resolvedTf, merged)
+    idbPut(sym, _barsTf, merged)
+    memPut(sym, _barsTf, merged)
   }, [_intradayDeepData, idbBars])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Background prefetch — all other timeframes when sym changes ───────────
@@ -9201,7 +9214,8 @@ export default function StockChart({
         try {
           // The timeframe now ON SCREEN is the chart's own fetch — never warm it in parallel.
           if (tf === activeTfRef.current) continue
-          const entry = await idbGet(sym, tf)
+          const _ckTf = seriesCacheTf(tf, showExtended)   // this view's cache key for tf
+          const entry = await idbGet(sym, _ckTf)
           // ⭐ (2026-11-10) ONE classifier for every cache decision. Intraday: a FRESH
           // entry (within one bucket of the frontier) is skipped; a BEHIND one is repaired
           // with `since=` (every row past the tail — tiny); only a GAPPED/absent one
@@ -9233,7 +9247,7 @@ export default function StockChart({
           // 2026-09-01). With it, a busy server sheds them fast (a cache-hit warm still
           // serves — the server checks the cache first); switching to a TF for real is
           // a non-warm fetch that always serves.
-          const url   = `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bc}${since != null ? `&since=${encodeURIComponent(String(since))}` : ''}&warm=1`
+          const url   = `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bc}${barsSessionQuery(tf, showExtended)}${since != null ? `&since=${encodeURIComponent(String(since))}` : ''}&warm=1`
           // Through the SHARED slot gate, as BACKGROUND traffic: it only takes a slot while
           // BARS_BG_RESERVE stay free for the visible chart, and never ahead of it.
           let d
@@ -9245,8 +9259,9 @@ export default function StockChart({
           }
           if (cancelled || !d?.bars?.length) continue
           const next = (d.delta && entry?.bars?.length) ? mergeDelta(entry.bars, d.bars) : d.bars
-          idbPut(sym, tf, next)
-          memPut(sym, tf, next)   // warm the sync mem cache too → instant TF switch
+          if (tf === '60' && ((d.session === 'eth') !== (_ckTf === '60e'))) continue   // wrong grid for this key
+          idbPut(sym, _ckTf, next)
+          memPut(sym, _ckTf, next)   // warm the sync mem cache too → instant TF switch
         } catch {
           // Single-TF failures shouldn't kill the whole prefetch chain.
         }
@@ -9290,16 +9305,16 @@ export default function StockChart({
   const _deltaAdvancesTail = !!(data?.delta && Array.isArray(data.bars)
     && typeof idbSinceRef.current === 'number'
     && data.bars.some(b => typeof b?.t === 'number' && b.t > idbSinceRef.current))
-  const _idbHistoryContext = (idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}`)
+  const _idbHistoryContext = (idbBars?.length && idbReadyForRef.current === `${sym}_${_barsTf}`)
     ? idbBars : null
   // ⭐ (2026-11-10) THE DELTA IS MERGED IN RENDER, NOT ONE COMMIT LATER. A `since=` answer
   // that advances a held-back (not-current) cache used to yield `null` here and wait for
   // the merge effect — the BLANK frame between "stale" and "correct". Merge it now onto
   // the base it was asked from (IDB state, or the mem base of a pre-IDB request); the merge
   // effect then adopts this exact array, so the canvas is set once.
-  const _deltaBase = (idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}`)
+  const _deltaBase = (idbBars?.length && idbReadyForRef.current === `${sym}_${_barsTf}`)
     ? idbBars
-    : ((_sinceBaseRef.current?.key === `${sym}_${resolvedTf}` && _sinceBaseRef.current.seq === _loadSeqRef.current)
+    : ((_sinceBaseRef.current?.key === `${sym}_${_barsTf}` && _sinceBaseRef.current.seq === _loadSeqRef.current)
         ? _sinceBaseRef.current.bars : null)
   const _deltaMerged = useMemo(
     () => ((_netMatches && data?.delta && _deltaBase?.length) ? mergeDelta(_deltaBase, data.bars) : null),
@@ -9307,7 +9322,7 @@ export default function StockChart({
   )
   const _deltaMergedRef = useRef(null)
   _deltaMergedRef.current = _deltaMerged ? { data, base: _deltaBase, bars: _deltaMerged } : null
-  const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday && !idbStaleDaily && !_idbDailyLastInsane && !_idbBasisMismatch && !_idbNotCurrent
+  const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${_barsTf}` && !idbStaleIntraday && !idbStaleDaily && !_idbDailyLastInsane && !_idbBasisMismatch && !_idbNotCurrent
   // SPLIT-FETCH deep render. When split-fetch is on, `data.bars` is a fresh SHORT tail
   // (capped to FIRST_PAINT_BARS via _primaryBars) and idbBars is the DEEP sealed+tail
   // merge. The daily STALENESS gates in _idbFresh — chiefly idbStaleDaily, which flags a
@@ -9319,7 +9334,7 @@ export default function StockChart({
   // and last-bar sanity — because a wrong-basis or corrupt deep history CANNOT be healed
   // by merging just the recent tail. Split-gated, so split OFF = identical to before.
   const _splitDeepUsable = _splitOn && idbBars?.length > 0
-    && idbReadyForRef.current === `${sym}_${resolvedTf}`
+    && idbReadyForRef.current === `${sym}_${_barsTf}`
     && !_idbDailyLastInsane && !_idbBasisMismatch
   // ⛔ AND THE PAINTABLE HALF, WHICH IS A DIFFERENT QUESTION. `_splitDeepUsable` is a
   // USEFULNESS verdict — identity, basis, value sanity — and it says nothing about
@@ -9339,7 +9354,7 @@ export default function StockChart({
   // this layer is the one on screen (provisionalStaleRef below), so no phantom
   // developing candle can grow on the stale tail before authoritative bars swap in.
   const _idbProvisionalRaw = (idbStaleIntraday && idbBars?.length
-    && idbReadyForRef.current === `${sym}_${resolvedTf}`) ? idbBars : null
+    && idbReadyForRef.current === `${sym}_${_barsTf}`) ? idbBars : null
   // Part 2 (gated): drop the single frozen-partial developing tail so the provisional first
   // paint is never a misleading candle — the forced full refetch fills the correct current tail.
   // Keep >1 bar (never blank the chart); inert at PCT=0.
@@ -9350,7 +9365,7 @@ export default function StockChart({
   // last fallback (when net+IDB haven't resolved for the current key yet) so a
   // warm switch paints on the first frame instead of flashing the loading
   // overlay. Keyed to the current sym+tf → cannot show another ticker's data.
-  const _memBarsRaw = (!_overrideArr && !barsOverridePending) ? memPeek(sym, resolvedTf) : null
+  const _memBarsRaw = (!_overrideArr && !barsOverridePending) ? memPeek(sym, _barsTf) : null
   // Don't fall back to a stale daily mem entry either (prefetch's _memPromoteFresh
   // always promotes D/W/M, so mem can hold a multi-session-old daily just like IDB).
   // ⛔⛔ (2026-11-10) AND AN INTRADAY MEM ENTRY OBEYS THE SAME PAINT RULE AS IDB. It had
@@ -9425,7 +9440,7 @@ export default function StockChart({
   // %-above-MA can double in a session, so every such day dropped the deep history and
   // the chart "began" at the 600-bar window (May 2024, 2026-10-07).
   const _splitDeepSpliceable = _splitOn && idbBars?.length > 0
-    && idbReadyForRef.current === `${sym}_${resolvedTf}`
+    && idbReadyForRef.current === `${sym}_${_barsTf}`
     && !_idbBasisMismatch
   const _splitDeepBehindFresh = useMemo(
     () => ((_netMatches && !data.delta && _splitDeepSpliceable && !(_idbFresh || _splitDeepPaintable))
@@ -9578,11 +9593,11 @@ export default function StockChart({
   const _basisPurgedRef = useRef(null)
   useEffect(() => {
     if (!_idbBasisMismatch) return
-    const k = `${sym}_${resolvedTf}`
+    const k = `${sym}_${_barsTf}`
     if (_basisPurgedRef.current === k) return
     _basisPurgedRef.current = k
-    idbDelete(sym, resolvedTf)
-  }, [_idbBasisMismatch, sym, resolvedTf])
+    idbDelete(sym, _barsTf)
+  }, [_idbBasisMismatch, sym, resolvedTf, _barsTf])
   // First-bars latch: fire onBarsReady exactly once per mount, on the first
   // render where loading settles false — renderable bars OR fatal error both
   // count, so a dead ticker never starves the grid mount queue waiting on it.
@@ -9642,7 +9657,7 @@ export default function StockChart({
         verifiedThrough: (_respForSym && typeof data?.verified_through === 'number') ? data.verified_through : null,
         serverStatus: _respForSym ? (data?.tail_status ?? null) : null,
         pending: !!isValidating,
-        retriesExhausted: tailRetriesExhausted(_tailCatchupRef.current, `${sym}_${resolvedTf}`),
+        retriesExhausted: tailRetriesExhausted(_tailCatchupRef.current, `${sym}_${_barsTf}`),
         terminalNoData: !!(data?.no_data && !(Array.isArray(bars) && bars.length)),
       })
     : null
@@ -9709,7 +9724,7 @@ export default function StockChart({
         // live feed, and a no-op REPLACE once caught up (the price sits within 2.5
         // intervals of the tail again → this branch stops firing).
         const _sym = sym, _tf = resolvedTf
-        fetch(`/api/bars/${encodeURIComponent(_sym)}?tf=${_tf}&bars=${barCount}`)
+        fetch(`/api/bars/${encodeURIComponent(_sym)}?tf=${_tf}&bars=${barCount}${_sessQ}`)
           .then(r => (r.ok ? r.json() : null))
           .then(payload => {
             // Guard against a ticker/tf switch mid-fetch, and against a stale payload.
@@ -11477,13 +11492,13 @@ export default function StockChart({
   // tickers are missing." Capped depth + bounded concurrency + one retry.
   const cmpBarCount = Math.min(barCount || 1500, 2000)
   const { data: comparisonsData } = useSWR(
-    comparisonsKey ? ['comparison-bars', comparisonsKey, resolvedTf, cmpBarCount] : null,
+    comparisonsKey ? ['comparison-bars', comparisonsKey, resolvedTf, cmpBarCount, _gridQ] : null,
     async () => {
       const syms = enabledComparisons.map(c => String(c.sym).toUpperCase())
       const fetchOne = async (s) => {
         for (let attempt = 0; attempt < 2; attempt++) {
           try {
-            const r = await fetch(`/api/bars/${encodeURIComponent(s)}?tf=${resolvedTf}&bars=${cmpBarCount}`)
+            const r = await fetch(`/api/bars/${encodeURIComponent(s)}?tf=${resolvedTf}&bars=${cmpBarCount}${_gridQ}`)
             if (r.ok) {
               const j = await r.json()
               const bars = j?.bars || []
@@ -11642,10 +11657,10 @@ export default function StockChart({
   // overlay, this is its own auto-scaled pane (the shape is what matters for
   // spotting relative strength). Indices route through yfinance server-side.
   const { data: indexPaneData } = useSWR(
-    indexPaneSymbol ? ['index-pane-bars', String(indexPaneSymbol).toUpperCase(), resolvedTf, barCount] : null,
+    indexPaneSymbol ? ['index-pane-bars', String(indexPaneSymbol).toUpperCase(), resolvedTf, barCount, _gridQ] : null,
     async () => {
       const s = String(indexPaneSymbol).toUpperCase()
-      const res = await fetch(`/api/bars/${encodeURIComponent(s)}?tf=${resolvedTf}&bars=${barCount}`)
+      const res = await fetch(`/api/bars/${encodeURIComponent(s)}?tf=${resolvedTf}&bars=${barCount}${_gridQ}`)
         .then(r => (r.ok ? r.json() : { bars: [] }))
         .catch(() => ({ bars: [] }))
       return res?.bars || []
@@ -11758,7 +11773,7 @@ export default function StockChart({
     liveBarRef.current = null
     barStartVolRef.current = 0
     latestLiveRef.current = null
-  }, [sym, resolvedTf])
+  }, [sym, resolvedTf, _barsTf])
 
   // Real-time candle updates — tick-by-tick via WebSocket.
   // Detects bar period boundaries and creates NEW candles automatically.
@@ -11895,6 +11910,7 @@ export default function StockChart({
     // means a new D/W/M day with no confirmed session — leave yesterday alone.
     const decision = classifyLiveBar({
       tf: resolvedTf, last, live, tickSec, nowSec: Date.now() / 1000,
+      session: liveStreamSession(showExtendedRef.current),
     })
     const barTime = decision.time != null ? decision.time : last.time
     // D2 arbitration: a fresh registry trade feed (Writer C) owns the same-bucket close.
@@ -12264,7 +12280,7 @@ export default function StockChart({
     // during the disconnect window and we need its authoritative server value.
     if (lastBarT == null || !sym) return
     const sinceMs = Math.max(0, lastBarT - 1)
-    fetch(`/api/bars/${encodeURIComponent(sym)}?tf=${encodeURIComponent(resolvedTf)}&since=${sinceMs}`)
+    fetch(`/api/bars/${encodeURIComponent(sym)}?tf=${encodeURIComponent(resolvedTf)}${barsSessionQuery(resolvedTf, showExtendedRef.current)}&since=${sinceMs}`)
       .then(r => r.ok ? r.json() : null)
       .then(payload => {
         if (!payload?.bars?.length) return
@@ -13607,6 +13623,7 @@ export default function StockChart({
       // prior-session candle. 'skip' = new D/W/M day, session unconfirmed.
       const decision = classifyLiveBar({
         tf: resolvedTf, last, live: liveSnap, tickSec, nowSec: Date.now() / 1000,
+        session: liveStreamSession(showExtendedRef.current),
       })
       const barTime = decision.time != null ? decision.time : last.time
 
