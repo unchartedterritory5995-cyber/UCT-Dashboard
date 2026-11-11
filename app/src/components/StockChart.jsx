@@ -1559,7 +1559,7 @@ import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarBy
 import { memPeek, memPut, memPeekSavedAt } from '../utils/barsMemCache'
 import { timingStart, timingMark, timingMarkPaint, timingMarkEmpty } from '../utils/intradayTiming'
 import { makeLiveSane } from './chart/liveTickBaseline'
-import { etMinutesOfUnix, classifyIntradayTail, isCurrentEnoughForPaint, expectedFormingBar, isDailyTodayBarStaleForPaint, dailyMissingSessionsForPaint, dailyCachePaintVerdict, DAILY_PAINT_MAX_GAP, isTradingSessionTodayET, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
+import { etMinutesOfUnix, classifyIntradayTail, isCurrentEnoughForPaint, isCacheCurrentForView, expectedFormingBar, isDailyTodayBarStaleForPaint, dailyMissingSessionsForPaint, dailyCachePaintVerdict, DAILY_PAINT_MAX_GAP, isTradingSessionTodayET, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
 import { createTailPollState, nextTailPollMs, tailRetriesExhausted, watchdogGapMs, intradayDedupMs, liveBadgeState } from '../utils/intradayTailPoll'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
@@ -8509,11 +8509,14 @@ export default function StockChart({
   // ⭐ MEASURED, NOT ASSERTED: with this gate absent the harness records a 23 ms
   // first paint that is 38 five-minute buckets stale, 19/19 switches — i.e. the
   // best-looking number in the run was the defect.
+  // ⭐ (W-L 2026-11-11) ONE CONTRACT: `isCacheCurrentForView` — the same call the warmers
+  // (prefetchBars) make — judged on the tail THIS VIEW DRAWS. 'fresh' by the repair
+  // classifier is no longer an exemption: on an extended view pre-market, or an RTH view
+  // whose cache ends in pre-market bars, a 'fresh' raw tail is not what is on screen.
   const _idbNotCurrent = isIntraday && typeof idbSinceRef.current === 'number'
-    && _intradayTail === 'behind'
-    && !isCurrentEnoughForPaint(idbSinceRef.current, resolvedTf, {
-      session: showExtended ? 'extended' : 'rth',
-    })
+    && _intradayTail !== 'gapped'
+    && !isCacheCurrentForView(idbReadyForRef.current === `${sym}_${_barsTf}` ? idbBars : null,
+      idbSinceRef.current, resolvedTf, { session: showExtended ? 'extended' : 'rth' })
   // Daily staleness gate — the analog of idbStaleIntraday for tf='D'. Without it
   // a symbol switch during RTH paints a daily cache that's missing the last few
   // sessions (each ticker's IDB is only as fresh as the last time it was viewed),
@@ -8816,8 +8819,11 @@ export default function StockChart({
     }
     const url = since != null ? `${base}&since=${encodeURIComponent(String(since))}` : base
     // A cold open whose exact URL an urgent/intent warm is already fetching joins it.
-    const joined = since == null ? joinPendingBars(url) : null
-    const json = await (joined || instFetcher(url, { sym: req.sym, tf: req.tf, seq }))
+    // (W-L 2026-11-11) …or, for a tail, the scan warm's in-flight `since=` twin. A joined
+    // background warm may be shed (503 warm-shed) where this request would not: fall back.
+    const joined = joinPendingBars(url)
+    const _own = () => instFetcher(url, { sym: req.sym, tf: req.tf, seq })
+    const json = joined ? await joined.catch(_own) : await _own()
     if (json && !json.delta) _tailFullDoneRef.current = base
     return json
   }, [instFetcher])
@@ -9410,8 +9416,7 @@ export default function StockChart({
   const _memIntradayRefused = isIntraday && Array.isArray(_memBarsRaw) && _memBarsRaw.length > 0
     && (() => {
       const t = _memBarsRaw[_memBarsRaw.length - 1]?.t
-      return typeof t !== 'number' || classifyIntradayTail(t, resolvedTf) === 'gapped'
-        || !isCurrentEnoughForPaint(t, resolvedTf, { session: showExtended ? 'extended' : 'rth' })
+      return !isCacheCurrentForView(_memBarsRaw, t, resolvedTf, { session: showExtended ? 'extended' : 'rth' })
     })()
   const _memBars = (_memTailStaleDaily(_memBarsRaw, memPeekSavedAt(sym, resolvedTf)) || _memIntradayRefused) ? null : _memBarsRaw
   // A mem entry that is a SOUND base (not gapped) even if it is not current.
