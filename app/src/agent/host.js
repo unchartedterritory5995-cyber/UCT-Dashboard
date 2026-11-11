@@ -11,6 +11,7 @@
 // Only charts on the visible grid are targets; popped-out / floating ones are not.
 // While Multi Chart is on screen the targets are its cells instead (gridEntries; a cell's ref is its persisted cell id).
 
+import { loadCatalog, setCatalogReader } from './watchlistCatalog'
 import { planPlacement, planGroupPlacement } from '../pages/charts/placement/place'
 import { FIXED_ROWS } from '../pages/charts/rowHeight'
 import { boardWidgetCount, boardCanGrow, MAX_BOARD_WIDGETS } from '../pages/charts/boardBound'
@@ -148,6 +149,10 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
           view: e.api.agent.view?.() || null,
           // the exact symbol string StockChart keys its drawings by (useChartDrawings(sym))
           drawSym: e.api.agent.drawSym?.() || e.r.symbol,
+          // ⭐ C1-127: the chart's own Chart Settings door (ChartWidget adapter → ChartPane): may it open here, and is it
+          // open now (the read-back). Absent when the adapter has no door (a Multi Chart cell): chartSetup.openSettings refuses.
+          ...(typeof e.api.agent.openSettings === 'function'
+            ? { canOpenSettings: !!e.api.agent.canOpenSettings?.(), settingsOpen: !!e.api.agent.settingsOpen?.() } : {}),
           // ⭐ W1-B B-06: the workspace's Replay Mode cutoff ('YYYY-MM-DD' | null) — ONE shared value every linked chart
           // reads (StockChart `replayCutoff`); absent (undefined) when this host has no replay source
           ...(replay ? { replay: replay.read() ?? null } : {}),
@@ -212,6 +217,11 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
     openIndicatorDoor: (ref, door) => {
       const e = entries().find(x => x.ref === ref)
       try { return !!e?.api.agent.openIndicatorDoor?.(door) } catch { return false }
+    },
+    // ⭐ C1-127: open THIS chart's own Chart Settings dialog (the gear's openSettings). Writes nothing; chart.js reads it back.
+    openSettings: (ref) => {
+      const e = entries().find(x => x.ref === ref)
+      try { return !!e?.api.agent.openSettings?.() } catch { return false }
     },
     // The Time Navigator's jump on this chart (a view; see ChartWidget's adapter).
     goTo: (ref, ms) => {
@@ -421,7 +431,11 @@ export function buildListViewSource({ getWidgets }) {
       return {
         ref, type: v.type, key: v.key, listId: v.type === 'watchlist' && String(v.key).startsWith('user:') ? String(v.key).slice(5) : null,
         label: name, name, rows: live.rows(), cfg: live.cfg, sort: live.sort, columns: live.columns, fixedColumns: live.fixedColumns, persisted: live.persisted,
-        selected: live.selected || null, active: live.active, position: positionWord(w, siblings) || null,
+        selected: live.selected || null, active: live.active, position: positionWord(w, siblings) || null, widgetId: w.id,
+        // the saved layout (null: none saved), for the column Undo; absent when the widget keeps none
+        ...(typeof live.savedCfg === 'function' && live.savedCfg() !== undefined ? { savedCfg: live.savedCfg() } : {}),
+        // the header drag's and the gridline's own results (Watchlists.jsx), for watchlist.arrangeColumns: pure over a cfg
+        ...(live.movedCfg ? { cols: { moved: live.movedCfg, resized: live.resizedCfg, min: live.minWidthOf, width: live.widthOf } } : {}),
       }
     }),
     /** Is a widget showing this saved list sorted by a column? (No rows are read: this runs per list, per turn.) */
@@ -471,9 +485,13 @@ export function buildWatchlistSource({ getLists, getWidgets, revalidate, request
     return r.json()
   }
   const enc = encodeURIComponent
+  // watchlist group A (C3-064): the picker's prebuilt / community catalogue is read through this source's own request
+  setCatalogReader(request)
   const send = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   return {
     loaded: () => Array.isArray(getLists()),
+    /** The picker's other lists (UCT's prebuilt directory, community lists): names and ids, or null (watchlistCatalog.js). */
+    catalog: () => loadCatalog(request),
     snapshot() {
       const widgets = getWidgets() || []
       return rows().map(row => ({

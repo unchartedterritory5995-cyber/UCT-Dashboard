@@ -200,7 +200,27 @@ describe('release audit: every registered action is reachable through routing', 
       for (const n of mine) covered.add(n)
     }
     expect(FULL.filter(c => !covered.has(c.name)).map(c => c.name)).toEqual([])
-    expect(FULL.length).toBe(157)             // Agent Phase 1: + indicatorAlert.list, + 4 indicatorTemplate (list/apply/save/delete), + chartSetup.setRange/resetView/setIndicatorsHidden/setMovingAverages, + watchlist.sortColumn/setColumns/step/readView/setFlag/keepOnly, + drawing.add/setAnchors/setProps/setFibLevels/setAlert. hotfix 2026-11-03: + agent.undo. W1-B (2026-11-02): + widget.setOption, + chart.replay, + 3 indicatorAlert (create/toggle/delete), + 7 anchored drawing tools (addTrendline/Ray/HorizontalRay/Rectangle/Fib/Text/Avwap). Phase 3: + board.swap, board.duplicateChart. Phase 2 guide: + guide.explain, guide.show. live test 2026-10-28: + chartGrid.set. Indicators P2: + indicatorStyle.set/placeIn, pane.move/resize, indicatorCopy.duplicate/copyTo, definition.search/describe/duplicate/delete. Charts operator P1: + 6 chartSetup, + 5 drawing, + widget.addTab, + watchlist.reorder/setNote, + indicator.discardDraft. Gate C: + indicator.update. Phase 1: + watchlist.open; MI breadth slice 1: + breadth.show; breadth intelligence: + breadth.history
+    expect(FULL.length).toBe(163)             // re-merge onto 24a4b8350b: master 160 + #1027 3 (watchlist.showList own words-only group, watchlist.exportList, watchlist.arrangeColumns) = 163. pl-exec4 (#1077): + chartSetup.stepBars/autoScale. C1-127: + chartSetup.openSettings. Agent Phase 1: + indicatorAlert.list, + 4 indicatorTemplate (list/apply/save/delete), + chartSetup.setRange/resetView/setIndicatorsHidden/setMovingAverages, + watchlist.sortColumn/setColumns/step/readView/setFlag/keepOnly, + drawing.add/setAnchors/setProps/setFibLevels/setAlert. hotfix 2026-11-03: + agent.undo. W1-B (2026-11-02): + widget.setOption, + chart.replay, + 3 indicatorAlert (create/toggle/delete), + 7 anchored drawing tools (addTrendline/Ray/HorizontalRay/Rectangle/Fib/Text/Avwap). Phase 3: + board.swap, board.duplicateChart. Phase 2 guide: + guide.explain, guide.show. live test 2026-10-28: + chartGrid.set. Indicators P2: + indicatorStyle.set/placeIn, pane.move/resize, indicatorCopy.duplicate/copyTo, definition.search/describe/duplicate/delete. Charts operator P1: + 6 chartSetup, + 5 drawing, + widget.addTab, + watchlist.reorder/setNote, + indicator.discardDraft. Gate C: + indicator.update. Phase 1: + watchlist.open; MI breadth slice 1: + breadth.show; breadth intelligence: + breadth.history
     // M2: + indicator.add / remove / show / hide; M3: + draft / previewDraft / saveDraft / undoDraft
+  })
+})
+
+// Lead 2026-11-09: a WORDS-ONLY group (a niche action: what one Watchlist widget shows) is sent only when the words name it. It
+// never fills a message nothing recognised, nor a knowledge-only one, so adding one never displaces what those requests pack.
+describe('words-only groups never fill an unrecognised or knowledge-only request', () => {
+  const opts = { limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold }
+  const wordsOnly = GROUPS.filter(g => g.wordsOnly)
+  const sentOf = (msg, extra = []) => new Set(routeManifest(FULL, msg, opts, extra).manifest.map(c => groupOfAction(c.name)))
+  it('the flag is declared (the Watchlist widget\'s list group)', () => {
+    expect(wordsOnly.map(g => g.id)).toContain('watchlistShow')
+  })
+  it.each(['zzz unrelated', 'scratch that', 'what is an EP setup', 'how does the team think about patience', 'go back to how it was before', 'hmm'])
+  ('"%s": no words-only group is in the request', (msg) => {
+    const sent = sentOf(msg)
+    for (const g of wordsOnly) expect(sent.has(g.id), `${g.id} for "${msg}"`).toBe(false)
+  })
+  it('named by its own words, or asked for by a reroute, it is sent', () => {
+    expect(sentOf('put my flagged list in the watchlist widget').has('watchlistShow')).toBe(true)
+    expect(sentOf('zzz unrelated', ['watchlistShow']).has('watchlistShow')).toBe(true)
   })
 })

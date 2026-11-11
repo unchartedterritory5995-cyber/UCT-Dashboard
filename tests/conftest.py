@@ -515,3 +515,25 @@ def _no_test_leaks_a_dependency_override():
 def routed_schema(monkeypatch):
     """The kill switch (UCT_AGENT_CONSTANT_SCHEMA=0): for tests of the routed schema, which it must keep restoring exactly."""
     monkeypatch.setenv("UCT_AGENT_CONSTANT_SCHEMA", "0")
+
+@pytest.fixture(autouse=True)
+def _reset_screener_live_rest():
+    """Clear `live_tier._LAST_WORK`, the screener sweeper's rest ledger.
+
+    A real sweep that happens to take over a second on a slow box would make
+    the NEXT test's `sweep_job()` rest instead of run. Looked up via
+    sys.modules so the fixture never imports the screener into an unrelated test."""
+    def _clear():
+        # A test may park a stand-in module there (the surface tests do), so
+        # read the attribute defensively rather than assume the real module.
+        mod = sys.modules.get("api.services.screener.live_tier")
+        try:
+            ledger = mod.__dict__.get("_LAST_WORK") if mod is not None else None
+        except Exception:  # noqa: BLE001 -- a deliberately exploding stand-in
+            ledger = None
+        if isinstance(ledger, list):
+            ledger.clear()
+
+    _clear()
+    yield
+    _clear()

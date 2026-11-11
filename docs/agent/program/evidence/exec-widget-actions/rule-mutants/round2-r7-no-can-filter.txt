@@ -1,0 +1,132 @@
+# head d9486ea660 2026-11-10T23:24:50Z dirty: 1 tracked file(s) modified
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+# cmd: cd app && npx vitest run src/agent/whichWidget.rules.rail.test.js src/agent/agentWhichWidget.rail.test.jsx src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx src/agent/watchlistTarget.rail.test.js src/agent/agentWatchlistShow.test.jsx src/agent/agentWatchlistOut.test.jsx src/agent/agentWatchlistShowHeldOut.test.js src/agent/agentWatchlistOutHeldOut.test.js
+ RUN  v4.0.18 C:/w/pl-widget-pre2/app
+ ✓ src/agent/agentWatchlistOutHeldOut.test.js (1 test) 2ms
+ ✓ src/agent/agentWatchlistShowHeldOut.test.js (1 test) 2ms
+ ✓ src/agent/watchlistTarget.rail.test.js (10 tests) 9ms
+ ❯ src/agent/whichWidget.rules.rail.test.js (16 tests | 2 failed) 13ms
+     ✓ "put Leaders in the NVDA watchlist" (plan picked the left one): aimed at the one linked to NVDA, no question 3ms
+     ✓ the plan already on it: acted as planned, no question 0ms
+     ✓ control: a ticker neither widget is linked to names none: asked 0ms
+     ✓ "put Leaders in the left SPY watchlist" (plan picked the right one): aimed left, no question 0ms
+     ✓ "put Leaders in the SPY watchlist": the ticker names neither: asked 0ms
+     ✓ words undefined with two Watchlist widgets: asked, never the planner's pick 0ms
+     ✓ words null with two Watchlist widgets: asked, never the planner's pick 0ms
+     ✓ words  with two Watchlist widgets: asked, never the planner's pick 0ms
+     ✓ control: one Watchlist widget and no words: nothing to ask 0ms
+     ✓ approved, words name none: runs on the widget it carries (no question) 0ms
+     ✓ control: the same words, not approved: asked 0ms
+     ✓ "hide the logos, but don't touch the watchlist" (plan: the Watchlist): refused in words; no other widget is asked about or aimed at 1ms
+     ✓ control: the same op without the negation acts on the Watchlist, no question 0ms
+     × plan widget R, words name none: the one switchable widget, no question 4ms
+     × plan widget null, words name none: the one switchable widget, no question 1ms
+     ✓ control: with no `can` (a setOption on the same board), both are candidates: asked 0ms
+ ✓ src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx (3 tests) 3372ms
+     ✓ the plan picked the left one: a question, and neither widget's look changed  1151ms
+     ✓ the plan picked Momentum's view: a question, and no saved column layout  1015ms
+     ✓ control: "move the volume column after the symbol in Momentum" names it: moved, no question  1203ms
+ ✓ src/agent/agentWhichWidget.rail.test.jsx (6 tests) 6371ms
+     ✓ "refresh the scanner" (the plan picked the top one): asked which, and neither door is pressed  1078ms
+     ✓ "don't touch the period sort, just reload the scanner", planned on the Period Sort: the Period Sort gets NO refetch, nothing is claimed  1039ms
+     ✓ u18-show-05 "put Long Term on the Swing watchlist widget": the Swing widget shows Long Term; the other is untouched; no question  1059ms
+     ✓ u18-export-04 "export the Swing watchlist as a csv file": the Swing widget's own Export CSV, no question  1136ms
+     ✓ "refresh the IPOs scanner" with two Scanners: that one only  1036ms
+     ✓ "refresh the scanner" with ONE Scanner (and a Period Sort): it acts  1021ms
+ ✓ src/agent/agentWatchlistOut.test.jsx (29 tests) 28811ms
+     ✓ held-out "copy the Momentum list to my clipboard"  1151ms
+     ✓ held-out "copy the Swing Ideas list to my clipboard"  1041ms
+     ✓ held-out "put the tickers in Momentum on the clipboard"  1044ms
+     ✓ held-out "put the tickers in Swing Ideas on the clipboard"  1105ms
+     ✓ held-out "copy my Momentum watchlist so I can paste it"  1036ms
+     ✓ held-out "copy my Swing Ideas watchlist so I can paste it"  1044ms
+     ✓ held-out "export Momentum as a CSV"  1042ms
+     ✓ held-out "export Swing Ideas as a CSV"  1036ms
+     ✓ held-out "download the Momentum list as csv"  1102ms
+     ✓ held-out "download the Swing Ideas list as csv"  1063ms
+     ✓ held-out "save my Momentum watchlist to a csv file"  1056ms
+     ✓ held-out "save my Swing Ideas watchlist to a csv file"  1041ms
+     ✓ held-out "export Momentum to Excel"  979ms
+     ✓ held-out "export Swing Ideas to Excel"  995ms
+     ✓ held-out "download the Momentum watchlist as an excel file"  994ms
+     ✓ held-out "download the Swing Ideas watchlist as an excel file"  992ms
+     ✓ held-out "give me Momentum as an xlsx"  967ms
+     ✓ held-out "give me Swing Ideas as an xlsx"  995ms
+     ✓ Excel: Apply downloads through the menu's handler, once  1246ms
+     ✓ a REFUSED clipboard write is never "copied": it is said, with the menu item  1048ms
+     ✓ held-out "export this watchlist as a csv": export is the member's own lists only — refused, nothing called  1001ms
+     ✓ held-out "download the flagged list to excel": export is the member's own lists only — refused, nothing called  970ms
+     ✓ no export quota: Excel refused in words (CSV offered), nothing called  997ms
+     ✓ two Watchlist widgets and none named: asked, nothing called  1026ms
+     ✓ held-out "tag NVDA red": no model call; the Journal's ticker tags named; nothing changed  962ms
+     ✓ held-out "colour tag AMD blue": no model call; the Journal's ticker tags named; nothing changed  966ms
+     ✓ held-out "mark TSLA with a green tag": no model call; the Journal's ticker tags named; nothing changed  955ms
+     ✓ held-out "give META a purple tag": no model call; the Journal's ticker tags named; nothing changed  949ms
+ ✓ src/agent/agentWatchlistShow.test.jsx (35 tests) 37596ms
+     ✓ held-out "show my Momentum list in the watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1270ms
+     ✓ held-out "show my Swing Ideas list in the watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1045ms
+     ✓ held-out "switch the watchlist widget to Momentum": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1147ms
+     ✓ held-out "switch the watchlist widget to Swing Ideas": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1040ms
+     ✓ held-out "put Momentum up in my watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1146ms
+     ✓ held-out "put Swing Ideas up in my watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1033ms
+     ✓ held-out "show the Leaders list": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1131ms
+     ✓ held-out "show the Semis Watch list": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1137ms
+     ✓ held-out "open UCT's Leaders list in the watchlist widget": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1139ms
+     ✓ held-out "open UCT's Semis Watch list in the watchlist widget": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1148ms
+     ✓ held-out "switch the watchlist to the prebuilt Leaders": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1150ms
+     ✓ held-out "switch the watchlist to the prebuilt Semis Watch": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1149ms
+     ✓ held-out "open the community list Breakout Club": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1166ms
+     ✓ held-out "open the community list Value Hunters": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1133ms
+     ✓ held-out "show the Breakout Club community watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1119ms
+     ✓ held-out "show the Value Hunters community watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1135ms
+     ✓ held-out "put the public Breakout Club list in my watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1386ms
+     ✓ held-out "put the public Value Hunters list in my watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1143ms
+     ✓ held-out "show my flagged list": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1126ms
+     ✓ held-out "put my flagged tickers in the watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1156ms
+     ✓ held-out "switch the watchlist to Flagged": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1137ms
+     ✓ held-out "go back to the list picker": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1149ms
+     ✓ held-out "take the watchlist back to its picker": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1121ms
+     ✓ held-out "let me pick a different list in the watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1117ms
+     ✓ held-out "show my red tags in the watchlist": REFUSED — nothing changes; the reason (or the near names) is said  989ms
+     ✓ held-out "open the blue tag list in the widget": REFUSED — nothing changes; the reason (or the near names) is said  982ms
+     ✓ held-out "show the Leadrs list": REFUSED — nothing changes; the reason (or the near names) is said  993ms
+     ✓ held-out "open the community list Breakout": REFUSED — nothing changes; the reason (or the near names) is said  980ms
+     ✓ held-out "show my Momo list in the watchlist": REFUSED — nothing changes; the reason (or the near names) is said  986ms
+     ✓ already showing that list: nothing changes and nothing changed is said  976ms
+     ✓ a widget showing a list UCT chose or a followed list is not switched (as the open action's rule)  995ms
+     ✓ held-out "show the Leaders list in the watchlist"  985ms
+     ✓ held-out "show the Leaders list in the left watchlist"  1088ms
+     ✓ held-out "put my flagged list in the right watchlist widget"  1194ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/agent/whichWidget.rules.rail.test.js > `can`: a Watchlist widget bound to a source cannot switch lists, so it is no candidate for showList / exportList > plan widget R, words name none: the one switchable widget, no question
+ FAIL  src/agent/whichWidget.rules.rail.test.js > `can`: a Watchlist widget bound to a source cannot switch lists, so it is no candidate for showList / exportList > plan widget null, words name none: the one switchable widget, no question
+AssertionError: expected { arg: 'widget', …(2) } to be undefined
+- Expected: 
+undefined
++ Received: 
+{
+  "arg": "widget",
+  "choices": [
+    {
+      "label": "Watchlist (left)",
+      "ref": "L",
+    },
+    {
+      "label": "Watchlist (right)",
+      "ref": "R",
+    },
+  ],
+  "text": "Which Watchlist — Watchlist (left) or Watchlist (right)?",
+}
+ ❯ src/agent/whichWidget.rules.rail.test.js:81:20
+     79|   it.each([['R'], [null]])('plan widget %s, words name none: the one s…
+     80|     const r = whichWidget(show(widget), H, 'show Leaders in the watchl…
+     81|     expect(r?.ask).toBeUndefined()
+       |                    ^
+     82|     expect(r === null || r.args?.widget === 'R', JSON.stringify(r)).to…
+     83|   })
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+ Test Files  1 failed | 7 passed (8)
+      Tests  2 failed | 99 passed (101)
+   Start at  18:24:54
+   Duration  45.12s (transform 18.91s, setup 2.52s, import 27.34s, tests 76.18s, environment 6.47s)

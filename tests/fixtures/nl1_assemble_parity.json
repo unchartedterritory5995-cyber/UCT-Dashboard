@@ -47,6 +47,7 @@
   "watchlist.setNote": "lists",
   "watchlist.sortColumn": "lists",
   "watchlist.setColumns": "lists",
+  "watchlist.arrangeColumns": "watchlistShow",
   "watchlist.step": "lists",
   "watchlist.readView": "lists",
   "watchlist.setFlag": "lists",
@@ -89,6 +90,8 @@
   "widget.readOptions": "boardEdit",
   "widget.sendToJournal": "boardEdit",
   "watchlist.open": "lists",
+  "watchlist.showList": "watchlistShow",
+  "watchlist.exportList": "watchlistShow",
   "widget.showScan": "workspace",
   "chart.applyThemeAll": "charts",
   "widget.resize": "workspace",
@@ -141,6 +144,9 @@
   "chartSetup.compareDisplay": "chartSetup",
   "chartSetup.setRange": "chartSetup",
   "chartSetup.resetView": "chartSetup",
+  "chartSetup.openSettings": "chartSetup",
+  "chartSetup.stepBars": "boardEdit",
+  "chartSetup.autoScale": "boardEdit",
   "chartSetup.setIndicatorsHidden": "chartSetup",
   "chartSetup.setMovingAverages": "chartSetup",
   "chartSetup.saveTemplate": "chartSetup",
@@ -180,7 +186,7 @@
   },
   {
    "id": "boardEdit",
-   "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+   "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
   },
   {
    "id": "workspace",
@@ -251,6 +257,10 @@
    "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
   },
   {
+   "id": "watchlistShow",
+   "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
+  },
+  {
    "id": "guide",
    "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
   }
@@ -319,7 +329,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -388,6 +398,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -476,7 +490,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -545,6 +559,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -647,7 +665,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -716,6 +734,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -828,7 +850,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -897,6 +919,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
      },
      {
       "id": "guide",
@@ -981,7 +1007,7 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
@@ -1052,6 +1078,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -1089,6 +1119,7 @@
     "calendar",
     "agent",
     "undo",
+    "watchlistShow",
     "guide"
    ],
    "names": [
@@ -1132,6 +1163,7 @@
     "watchlist.setNote",
     "watchlist.sortColumn",
     "watchlist.setColumns",
+    "watchlist.arrangeColumns",
     "watchlist.step",
     "watchlist.readView",
     "watchlist.setFlag",
@@ -1174,6 +1206,8 @@
     "widget.readOptions",
     "widget.sendToJournal",
     "watchlist.open",
+    "watchlist.showList",
+    "watchlist.exportList",
     "widget.showScan",
     "chart.applyThemeAll",
     "widget.resize",
@@ -1226,6 +1260,9 @@
     "chartSetup.compareDisplay",
     "chartSetup.setRange",
     "chartSetup.resetView",
+    "chartSetup.openSettings",
+    "chartSetup.stepBars",
+    "chartSetup.autoScale",
     "chartSetup.setIndicatorsHidden",
     "chartSetup.setMovingAverages",
     "chartSetup.saveTemplate",
