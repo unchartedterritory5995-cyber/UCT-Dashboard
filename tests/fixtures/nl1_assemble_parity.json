@@ -34,6 +34,9 @@
   "layout.create": "layouts",
   "layout.delete": "layouts",
   "layout.duplicate": "layouts",
+  "layout.pinToBar": "layouts",
+  "layout.unpinFromBar": "layouts",
+  "layout.moveOnBar": "layouts",
   "watchlist.list": "lists",
   "watchlist.show": "lists",
   "watchlist.add": "lists",
@@ -188,7 +191,7 @@
   },
   {
    "id": "layouts",
-   "title": "Saved layouts (open, save, create, copy, rename, delete)"
+   "title": "Saved layouts (open, save, create, copy, rename, delete; the layout bar: pin a layout, take it off, reorder)"
   },
   {
    "id": "indicators",
@@ -327,7 +330,7 @@
      },
      {
       "id": "layouts",
-      "title": "Saved layouts (open, save, create, copy, rename, delete)"
+      "title": "Saved layouts (open, save, create, copy, rename, delete; the layout bar: pin a layout, take it off, reorder)"
      },
      {
       "id": "indicators",
@@ -457,7 +460,10 @@
     "layout.rename",
     "layout.create",
     "layout.delete",
-    "layout.duplicate"
+    "layout.duplicate",
+    "layout.pinToBar",
+    "layout.unpinFromBar",
+    "layout.moveOnBar"
    ],
    "routing": {
     "version": 1,
@@ -484,7 +490,7 @@
      },
      {
       "id": "layouts",
-      "title": "Saved layouts (open, save, create, copy, rename, delete)"
+      "title": "Saved layouts (open, save, create, copy, rename, delete; the layout bar: pin a layout, take it off, reorder)"
      },
      {
       "id": "indicators",
@@ -655,7 +661,7 @@
      },
      {
       "id": "layouts",
-      "title": "Saved layouts (open, save, create, copy, rename, delete)"
+      "title": "Saved layouts (open, save, create, copy, rename, delete; the layout bar: pin a layout, take it off, reorder)"
      },
      {
       "id": "indicators",
@@ -836,7 +842,7 @@
      },
      {
       "id": "layouts",
-      "title": "Saved layouts (open, save, create, copy, rename, delete)"
+      "title": "Saved layouts (open, save, create, copy, rename, delete; the layout bar: pin a layout, take it off, reorder)"
      },
      {
       "id": "indicators",
@@ -989,7 +995,7 @@
      },
      {
       "id": "layouts",
-      "title": "Saved layouts (open, save, create, copy, rename, delete)"
+      "title": "Saved layouts (open, save, create, copy, rename, delete; the layout bar: pin a layout, take it off, reorder)"
      },
      {
       "id": "indicators",
@@ -1119,6 +1125,9 @@
     "layout.create",
     "layout.delete",
     "layout.duplicate",
+    "layout.pinToBar",
+    "layout.unpinFromBar",
+    "layout.moveOnBar",
     "watchlist.list",
     "watchlist.show",
     "watchlist.add",

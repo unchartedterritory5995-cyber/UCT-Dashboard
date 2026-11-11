@@ -27,7 +27,7 @@
 // that; every switch flushes first). A PREBUILT layout is shared with every
 // member, so it is never written automatically.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import usePreferences from '../../hooks/usePreferences'
 import UIcon from '../../components/ui/UIcon'
 import ArtifactHistory, { useArtifactVersionsAvailable } from '../../components/artifactHistory/ArtifactHistory'
@@ -242,8 +242,8 @@ export default function LayoutDock({
   // layout. Unlike the library's "add to bar", pin() does NOT open the layout (switching
   // the board is layout.open, a separate step that asks first when edits would be lost).
   // Every write answers whether the server accepted it; the read is the reconciled rail.
-  if (agentRef) {
-    agentRef.current = {
+  useImperativeHandle(agentRef, () => (
+    {
       snapshot: () => ({
         ready: !(prefsLoading || loading),
         hidden: dock.hidden,
@@ -257,7 +257,7 @@ export default function LayoutDock({
       // Undo of a close: the same layout back in the same slot (addPin, then shifted into place).
       restore: (id, index) => { const p = addPin(dock.pins, id); return writeDock({ ...dock, pins: shiftPin(p, p.length - 1, index) }) },
     }
-  }
+  ), [dock, entries, prefsLoading, loading, writeDock])
 
   const renderItem = (slot, isProvisional = false) => {
     const { entry, index } = slot

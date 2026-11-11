@@ -20,7 +20,7 @@ const prefsStore = { prefs: {}, subs: new Set(), refuse: false, writes: 0 }
 const emit = () => prefsStore.subs.forEach(f => f())
 const setPref = vi.fn(async (k, v) => { prefsStore.writes += 1; prefsStore.prefs = { ...prefsStore.prefs, [k]: v }; emit(); return !prefsStore.refuse })
 vi.mock('../hooks/usePreferences', () => ({
-  default: () => {
+  default: function usePreferencesMock() {
     const prefs = useSyncExternalStore((f) => { prefsStore.subs.add(f); return () => prefsStore.subs.delete(f) }, () => prefsStore.prefs)
     return { prefs, setPref, loading: false }
   },
