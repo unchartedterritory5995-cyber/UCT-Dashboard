@@ -15,7 +15,7 @@ import shell from './PeriodSortPanel.module.css'
 import c from './CompareSymbolsPanel.module.css'
 import Input from '../../components/ui/Input'
 import useFocusTrap from '../../components/mobile/useFocusTrap'
-import { COMPARE_OPEN_EVENT, GROUP_TYPES, fetchGroupList, fetchGroupMembers } from './compareGroups'
+import { COMPARE_OPEN_EVENT, GROUP_TYPES, fetchGroupList, fetchGroupMembers, withGroupAdded, withoutGroup, withGroupScale } from './compareGroups'
 
 const CompareRotation = lazy(() => import('./CompareRotation'))
 
@@ -153,19 +153,10 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
     try {
       const members = (await fetchGroupMembers(groupType, name))?.symbols || []
       if (!members.length) return
+      // The one list write for a group (compareGroups.withGroupAdded), shared with the Agent's chartSetup.compareGroup.
       setSymbols(prev => {
-        const have = new Set(prev.map(x => x.sym))
-        const used = new Set(prev.map(x => String(x.color).toLowerCase()))
-        let idx = prev.length
-        const additions = []
-        for (const s of members) {
-          if (have.has(s)) continue
-          const color = pickComparisonColor(idx++, used)
-          used.add(color.toLowerCase())
-          additions.push({ sym: s, enabled: true, color, scaleMode: 'new', group: name })
-        }
-        if (!additions.length) return prev
-        const next = [...prev, ...additions]
+        const next = withGroupAdded(prev, name, members, pickComparisonColor)
+        if (next === prev) return prev
         apiRef.current?.setComparison(next)
         return next
       })
@@ -175,7 +166,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
   }, [groupType])
 
   const removeSymbol = useCallback((sym) => { push(symbols.filter(x => x.sym !== sym)) }, [symbols, push])
-  const removeGroup = useCallback((name) => { push(symbols.filter(x => x.group !== name)) }, [symbols, push])
+  const removeGroup = useCallback((name) => { push(withoutGroup(symbols, name)) }, [symbols, push])
   const clearAll = useCallback(() => { push([]); setHideBase(false); apiRef.current?.setHideBase?.(false) }, [push])
   const toggleHideBase = useCallback(() => {
     setHideBase(v => { const nv = !v; apiRef.current?.setHideBase?.(nv); return nv })
@@ -186,7 +177,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
     push(symbols.map(x => x.sym === sym ? { ...x, scaleMode: sm } : x))
   }, [symbols, push])
   const setGroupScale = useCallback((name, sm) => {
-    push(symbols.map(x => x.group === name ? { ...x, scaleMode: sm } : x))
+    push(withGroupScale(symbols, name, sm))
   }, [symbols, push])
 
   // Split into individual tickers + named groups (stable first-seen order).

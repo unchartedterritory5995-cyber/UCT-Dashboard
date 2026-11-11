@@ -201,7 +201,7 @@
       "script": "corpus/committed/atr-support-and-resistance__3e9ddb38c4.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "INCONCLUSIVE",
         "reason": null,
         "plots": [
           [
@@ -251,17 +251,17 @@
           ]
         ],
         "objects": [
-          "DIVERGE",
+          "INCONCLUSIVE",
           [
             [
               "lines",
               306,
-              0
+              null
             ],
             [
               "boxes",
               54,
-              0
+              null
             ]
           ]
         ],
@@ -394,7 +394,13 @@
         ],
         "objects": [
           "MATCH",
-          []
+          [
+            [
+              "labels",
+              0,
+              null
+            ]
+          ]
         ],
         "paints": null
       },
@@ -1036,12 +1042,12 @@
             [
               "lines",
               6,
-              0
+              null
             ],
             [
               "labels",
               3,
-              0
+              null
             ],
             [
               "boxes",
@@ -1129,7 +1135,23 @@
         ],
         "objects": [
           "MATCH",
-          []
+          [
+            [
+              "lines",
+              0,
+              null
+            ],
+            [
+              "labels",
+              0,
+              null
+            ],
+            [
+              "boxes",
+              0,
+              null
+            ]
+          ]
         ],
         "paints": null
       }
@@ -1163,7 +1185,7 @@
             [
               "lines",
               9,
-              0
+              null
             ],
             [
               "tableCells",
@@ -1454,16 +1476,16 @@
       "script": "corpus/committed/liquidity-heatmap-nephew-sam__7628c72c3d.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
-        "reason": null,
+        "verdict": "INCONCLUSIVE",
+        "reason": "1 of 1 items could not be compared",
         "plots": [],
         "objects": [
-          "DIVERGE",
+          "INCONCLUSIVE",
           [
             [
               "labels",
               421,
-              0
+              null
             ]
           ]
         ],
@@ -2071,16 +2093,16 @@
       "script": "corpus/committed/poor-man039s-volume-profile__ZnFTCYyvGJ.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
-        "reason": null,
+        "verdict": "INCONCLUSIVE",
+        "reason": "1 of 1 items could not be compared",
         "plots": [],
         "objects": [
-          "DIVERGE",
+          "INCONCLUSIVE",
           [
             [
               "labels",
               40,
-              0
+              null
             ]
           ]
         ],
@@ -2303,7 +2325,7 @@
       "script": "corpus/committed/sector-rotation__0fca060bf4.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "INCONCLUSIVE",
         "reason": null,
         "plots": [
           [
@@ -2313,17 +2335,17 @@
           ]
         ],
         "objects": [
-          "DIVERGE",
+          "INCONCLUSIVE",
           [
             [
               "lines",
               55,
-              0
+              null
             ],
             [
               "boxes",
               504,
-              0
+              null
             ]
           ]
         ],
@@ -2335,21 +2357,21 @@
       "script": "corpus/committed/smt-divergence-ict-01-tradingfinder-smart-money-technique__3f66e16b3c.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
-        "reason": null,
+        "verdict": "INCONCLUSIVE",
+        "reason": "1 of 1 items could not be compared",
         "plots": [],
         "objects": [
-          "DIVERGE",
+          "INCONCLUSIVE",
           [
             [
               "lines",
               504,
-              0
+              null
             ],
             [
               "labels",
               504,
-              0
+              null
             ]
           ]
         ],
@@ -2547,16 +2569,16 @@
       "script": "corpus/committed/vdubus-pattern-gen-v2-restored-refined__66dc68412e.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
-        "reason": null,
+        "verdict": "INCONCLUSIVE",
+        "reason": "1 of 1 items could not be compared",
         "plots": [],
         "objects": [
-          "DIVERGE",
+          "INCONCLUSIVE",
           [
             [
               "lines",
               504,
-              500
+              null
             ]
           ]
         ],
@@ -2589,16 +2611,16 @@
       "script": "corpus/committed/volume-profile__X0dKLxdLh4.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
-        "reason": null,
+        "verdict": "INCONCLUSIVE",
+        "reason": "1 of 1 items could not be compared",
         "plots": [],
         "objects": [
-          "DIVERGE",
+          "INCONCLUSIVE",
           [
             [
               "lines",
               203,
-              0
+              null
             ]
           ]
         ],

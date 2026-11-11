@@ -314,7 +314,12 @@ describe('F4 — what is withheld by name on the SPY captures, and whose it is',
     const range = windowRange(c)
     expect(vendorObjects(c).filter((v) => v.f === 'line' && outsideWindow(v, range)).length).toBe(219)
     const r = graded('atr-support-and-resistance-rddt-1d-2026-09-28')
-    expect([family(r, 'lines').ours, family(r, 'boxes').ours]).toEqual([0, 0])
+    // ⭐ OZ RE-PIN (2026-11-09): nothing of either is drawn, now withheld BY NAME
+    // (`objects:not-carried`, the lost creates) — INCONCLUSIVE, no longer a bare 0 / DIVERGE.
+    expect([family(r, 'lines').ours, family(r, 'boxes').ours]).toEqual([null, null])
+    expect([family(r, 'lines').withheld, family(r, 'boxes').withheld]).toEqual([true, true])
+    expect(r.objects.verdict).toBe('INCONCLUSIVE')
+    expect(r.objects.withheld).toBe('objects:not-carried')
   }, T)
 
   it('liquidity-heatmap: all 14 label creates read a request the door cannot serve (`pine:request`, lower timeframes); 305 of SPY\'s 421 labels are pre-window anyway', () => {

@@ -35,7 +35,7 @@ Mutants. Each was run against both new test files and then reverted:
 
 - The fast path claims a phrase only when the sentence says "bar" or "dock" ("pin/unpin … layout" also counts) and the words name exactly one layout. Anything else goes to the model. The model gets a `layoutDock` context entry that lists the bar's slots as `{ spot, layout, id }`.
 - Wrong-target control: none of these sentences produce a bar action: "move the chart to the left", "delete Main Trading", "remove Main Trading", "open Breadth", "close the Breadth tab".
-- Routing: the `layouts` group gets three add-only words: a preposition followed by "bar" or "dock", `unpin`, and `pin … layout`. Its title now mentions the bar.
+- Routing (re-merge onto `64421f770d`): the three actions are their OWN words-only group `layoutBar` (by action name, `fillLast`), like `watchlistShow` / `compareGroups`; `layouts` is unchanged from master. Its words: a preposition followed by "bar" or "dock" (never a bar-info noun after "bar": the chart header's readout), `unpin`, and `pin … layout`. Why, and the v2 / NL-1 evidence: `evidence/layout-bar-1074/v2-first-calls.md`.
 
 ## Files (git diff --name-status origin/master...HEAD)
 
@@ -47,7 +47,7 @@ A	app/src/agent/capabilities/layoutBar.js                  target kind layoutDoc
 M	app/src/agent/contract/manifest.golden.json              regenerated (UPDATE_AGENT_GOLDEN=1)
 M	app/src/agent/host.js                                    buildLayoutDockSource + host.layoutDock
 A	app/src/agent/qa/chartsOutcome/layoutBar.outcome.test.jsx real panel + real LayoutDock (4)
-M	app/src/agent/routing.js                                 layouts group: bar words (add-only)
+M	app/src/agent/routing.js                                 + layoutBar group (words-only, the 3 bar actions)
 M	app/src/pages/charts/ChartsWorkspace.jsx                 agentDockRef → LayoutDock agentRef and the host
 M	app/src/pages/charts/LayoutDock.jsx                      the door (useImperativeHandle); writeDock returns setPref's answer
 M	app/src/pages/charts/layoutDockPins.js                   shiftPin (movePin repeated)

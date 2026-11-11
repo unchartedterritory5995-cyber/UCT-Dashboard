@@ -21,6 +21,11 @@
 //                                Undo restores the window and the view lock it replaced (restoreView).
 //   chartSetup.resetView         right-click → Reset view (doResetView). A view, read back from the time scale. No Undo:
 //                                it also drops a dragged price scale, which nothing reads back.
+//   chartSetup.stepBars          the Time Navigator's ◀ / ▶ (StockChart.stepBar, n bars in one call). A view, read back as
+//                                the window moved by exactly n bars; Undo restores the window and view lock (restoreView).
+//   chartSetup.autoScale         the price axis menu's Auto-scale (doAutoScale, the one writer the menu row uses). Read back
+//                                from the price scale (getDateMeta.priceAuto); unreadable = unavailable. No Undo: the
+//                                hand-set range it drops is not read back.
 //   chartSetup.setIndicatorsHidden  Alt+Shift+I: every indicator and Volume off the canvas, until a reload. Nothing saved.
 //   chartSetup.setMovingAverages Ctrl+M's writer (averageVisibility.js): every moving average hidden or shown.
 //
@@ -45,6 +50,16 @@ const rangeOf = (raw) => RANGE_OPTS.find(([label]) => label.toLowerCase() === St
 const NOT_READY = 'That chart hasn\'t finished loading, so I can\'t confirm its view. Try again in a moment.'
 const RANGE_NO_UNDO = 'I couldn\'t read how the chart was framed before, so this can\'t be undone here: pick another range, or reset the view.'
 const RESET_NO_UNDO = 'A view reset has no Undo: pan or zoom the chart, or pick a range.'
+const MAX_STEP = 100
+const STEP_NO_UNDO = 'I couldn\'t read where the chart was before, so this step can\'t be undone here: step it the other way, or reset the view.'
+const AUTO_NO_UNDO = 'Auto-scale has no Undo: drag the price scale to set it by hand again.'
+const PRICE_UNREADABLE = 'I can\'t read this chart\'s price scale right now, so I can\'t tell whether it is on auto-scale. Try again in a moment.'
+// C1-127 · chartSetup.openSettings
+const OPEN_NO_UNDO = 'Opening Chart Settings changes nothing, so there\'s nothing to undo: close it with ✕ or Esc.'
+const NO_SETTINGS_DOOR = 'I can\'t open Chart Settings for that chart from here. Use the gear on the chart (or its grid\'s toolbar in Multi Chart).'
+// "open chart settings", "show me the settings panel", "bring up the chart's settings", "pull up the settings for the chart"
+// (canon() has already folded "this / my chart" into "the chart"; no lookbehind: src/noRegexLookbehind.test.js)
+const OPEN_SETTINGS = /^(?:please )?(?:open|show(?: me)?|bring up|pull up|pop up|pop open|launch|display|get me|give me)(?: up)? (?:the |my |its )?(?:(?:the )?chart'?s? )?settings( (?:dialog|panel|window|modal|menu|box|screen|popup|pop-up))?(?: (?:for|of|on) the chart)?$/
 
 // ── copyLook: what a chart's LOOK is NOT (kept from the target chart) ──
 // Top-level keys that are data or per-chart tools, not appearance.
@@ -292,6 +307,70 @@ export function registerChartSetupCapabilities() {
     apply: (st) => (st.view?.atDefaultView ? st : { ...st, viewDo: { op: 'resetView' } }),
     describe: (b, a) => (a.viewDo ? 'Reset this chart\'s view to the default window and put the price scale back on auto' : null),
     noop: () => 'This chart is already at its default view',
+  })
+
+  // ── C1-127: open ONE chart's own Chart Settings dialog — the gear / right-click "Chart settings" / Alt+, door ──
+  // host.charts.openSettings → the ChartWidget adapter → ChartPane.openSettings (the gear's own function); read back from
+  // the pane's open state. A dialog opening changes no setting, so there is nothing to undo (undo: 'none', said on the
+  // receipt). Targeting is the chart kind's (deixis / the clicked chart / "Which chart?"), never its own.
+  registerCapability({
+    ...chartCommon,
+    name: 'chartSetup.openSettings',
+    summary: 'Open ONE chart\'s own Chart Settings dialog for the member (the gear on the chart\'s header, right-click → Chart settings, Alt+,), so they can look or edit there themselves. Changes no setting; no Undo needed.',
+    hints: 'target = the chart. Only when they ask to OPEN / SHOW / BRING UP the chart\'s settings; to CHANGE a setting use chart.setSetting. "Open settings" alone (no chart) is the Settings page (app.open).',
+    args: { type: 'object', properties: {}, required: [], additionalProperties: false },
+    undo: 'none',
+    undoNote: OPEN_NO_UNDO,
+    fast: ({ lower, typed }) => {
+      const m = OPEN_SETTINGS.exec(lower)
+      if (!m) return null
+      // a chart named anywhere in the sentence ("… for the AAPL chart" is lifted off before the clause is read), or a
+      // dialog word: bare "open settings" / "open the settings" stays the Settings PAGE (app.open)
+      return /\bcharts?\b|\bchart'?s\b/.test(lower) || m[1] || /\bcharts?\b|\bchart'?s\b/i.test(String(typed || '')) ? {} : null
+    },
+    check: (st) => (st.canOpenSettings ? null : NO_SETTINGS_DOOR),
+    apply: (st) => (st.settingsOpen ? st : { ...st, openSettings: true }),
+    describe: (b, a) => (a.openSettings ? 'Opened Chart Settings for this chart — nothing on it was changed' : null),
+    noop: () => 'Chart Settings is already open for this chart',
+  })
+
+  registerCapability({
+    ...chartCommon,
+    name: 'chartSetup.stepBars',
+    summary: `Step ONE chart's view back (older bars) or forward (newer bars) by whole bars: the Time Navigator's ◀ / ▶ buttons, one bar per click, up to ${MAX_STEP} bars at once. A view change: nothing is drawn, removed or saved. Undo puts the previous view back.`,
+    hints: `direction = back | forward; bars = how many bars, 1 to ${MAX_STEP} ("a bar" = 1). For a date use chart.goToDate; for a span, chartSetup.setRange. Not Replay Mode's cutoff (chart.replay).`,
+    args: { type: 'object', properties: { direction: { type: 'string', enum: ['back', 'forward'] }, bars: { type: 'integer' } }, required: ['direction', 'bars'], additionalProperties: false },
+    undoNote: STEP_NO_UNDO,
+    check(st, { direction, bars }) {
+      if (direction !== 'back' && direction !== 'forward') return 'Step back or forward?'
+      if (!Number.isInteger(bars) || bars < 1 || bars > MAX_STEP) return `I can step 1 to ${MAX_STEP} bars at a time. For a bigger jump, go to a date.`
+      return st.view?.frame ? null : NOT_READY
+    },
+    // the chart's own stepBar(n) moves the logical window by n bars; the read-back expects exactly that window
+    apply(st, { direction, bars }) {
+      const n = direction === 'back' ? -bars : bars
+      const f = st.view.frame
+      return { ...st, viewDo: { op: 'stepBar', arg: n, want: { fromRight: f.fromRight - n, toRight: f.toRight - n } } }
+    },
+    describe: (b, a, { direction, bars }) => (a.viewDo ? `Moved this chart ${bars} bar${bars === 1 ? '' : 's'} ${direction} (view only; nothing on the chart changed)` : null),
+  })
+
+  registerCapability({
+    ...chartCommon,
+    name: 'chartSetup.autoScale',
+    summary: 'Put ONE chart\'s price scale back on auto-scale so it fits the bars again (the price axis menu → Auto-scale; double-clicking the price numbers does the same), after the scale was dragged or squeezed by hand. Only the price scale: the time window, settings, drawings and indicators are untouched. No Undo.',
+    hints: 'target = the chart. Log / percent / arithmetic is chart.setScale; to also reset the time window use chartSetup.resetView.',
+    args: { type: 'object', properties: {}, required: [], additionalProperties: false },
+    undo: 'none',
+    undoNote: AUTO_NO_UNDO,
+    check(st) {
+      if (!st.view) return NOT_READY
+      // a failed read is unavailable, never "already on auto-scale"
+      return typeof st.view.priceAuto === 'boolean' ? null : PRICE_UNREADABLE
+    },
+    apply: (st) => (st.view.priceAuto ? st : { ...st, viewDo: { op: 'autoScale' } }),
+    describe: (b, a) => (a.viewDo ? 'Put this chart\'s price scale back on auto-scale: it fits the bars again (the time window is unchanged)' : null),
+    noop: () => 'This chart\'s price scale is already on auto-scale',
   })
 
   registerCapability({
