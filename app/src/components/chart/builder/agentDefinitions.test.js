@@ -178,6 +178,16 @@ describe('delete — safe by default', () => {
     expect(await executeDefinitionAction(p.plan, ctx({ charts: [] }), srv)).toEqual({ ok: false, reason: 'unsupported-definition', detail: { why: DELETE_REFUSALS.unreadBefore } })
     expect(deleted).toBe(false)
   })
+  // review #1109 finding 2: a 404 on the first read says the indicator is already gone (deleted
+  // from another tab); that is the sentence, not "could not read" (true, but it hides the fact)
+  it('a 404 on the first read is refused as not-found; nothing is deleted', async () => {
+    const srv = { ...fakeServer(), read: async () => ({ ok: false, status: 404, error: 'Not found' }) }
+    let deleted = false
+    srv.remove = async () => { deleted = true; return { ok: true } }
+    const p = planDefinitionAction({ op: 'delete', defId: MINE }, ctx({ charts: [] }))
+    expect(await executeDefinitionAction(p.plan, ctx({ charts: [] }), srv)).toEqual({ ok: false, reason: 'not-found' })
+    expect(deleted).toBe(false)
+  })
   // ⛔ F-15 follow-up — Undo's own first read: only a 404 says the id is free. Anything else
   // (no answer, a 5xx, a 200 whose body held no definition) leaves it unknown; nothing is
   // written, so it is a refusal in a true sentence, never `unconfirmed`.

@@ -252,6 +252,9 @@ export async function executeDefinitionAction(plan, ctx = {}, deps = {}) {
   // ⛔ F-15 follow-up — a read that fails BEFORE the delete is a REFUSAL: nothing was written.
   // As `unconfirmed` it reached the member as "UCT could not read it back" plus "some changes
   // could not be reversed" (`commit` marks `unconfirmed` as `unreverted`), both false here.
+  // A 404 is the one failed read that says what happened: the server no longer holds it (a
+  // delete from another tab, say), which the list this tab drew from has not caught up with.
+  if (before.status === 404) return refuse(REASONS.NOT_FOUND)
   if (!before.ok || !before.row.definition) return refuse(REASONS.UNSUPPORTED_DEFINITION, { why: DELETE_REFUSALS.unreadBefore })
   const pineSource = scriptOf(before.row)
   const refused = deleteRefusal(before.row, pineSource)
@@ -361,7 +364,8 @@ export async function undoDefinitionAction(undo, ctx = {}, deps = {}) {
     const now = await read(undo.defId)
     if (now.ok) return refuse(REASONS.RESTORE_CONFLICT, { why: 'the definition is live again' })
     // ⛔ F-15 follow-up — only a 404 says the id is free. Any other answer (no answer, a 5xx, a
-    // 403, or a 200 whose body held no definition: `readUserDefinition` returns that as not ok)
+    // 403, or a 200 whose body has no `def_id` or does not parse: `readUserDefinition` returns
+    // that as not ok)
     // leaves it unknown, and nothing has been written yet, so this is a REFUSAL. As `unconfirmed`
     // the member read "UCT could not read it back", which named a read-back that never happened.
     if (now.status !== 404) return refuse(REASONS.RESTORE_CONFLICT, { why: 'UCT could not check whether that indicator already exists' })

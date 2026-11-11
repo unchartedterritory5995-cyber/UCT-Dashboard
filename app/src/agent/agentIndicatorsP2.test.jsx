@@ -288,6 +288,89 @@ describe('definition.* — uct.indicators.definitions/1', () => {
     expect(saved).toBe(false)
     expect(srv.rows.get(MINE).live).toBe(false)
   })
+  it('F-15: a delete whose first read gets a 404 says the indicator is no longer there, and nothing is left changed', async () => {
+    const srv = server()
+    srv.read = async () => ({ ok: false, status: 404, error: 'Not found' })
+    let deleted = false
+    srv.remove = async () => { deleted = true; return { ok: true } }
+    setDefinitionDeps(srv)
+    const b = board()
+    const { p, env } = await plan(b.host, [{ action: 'definition.delete', target: 'definitions', args: { defId: MINE } }], lib)
+    expect(p.ok, JSON.stringify(p.refusals)).toBe(true)
+    const res = await commitPlan(b.host, p, { env, ctx: CTX })
+    expect(`${res.failed[0].label} ${res.failed[0].reason}`).toBe('Your indicators failed (That indicator is no longer there.) — nothing was left changed')
+    expect(deleted).toBe(false)
+  })
+
+  // ⛔ review #1109 finding 1 — the four paths that come AFTER a real write stay `unconfirmed`:
+  // the member is told the read-back failed and that something may be left changed, never a
+  // refusal's "nothing was left changed". (Mutants R4/R5 turned two of them into refusals and
+  // no test noticed.) Forward ops: the runtime's `unreverted` tail. Undo ops: `commit` throws
+  // the read-back sentence WITH `unreverted: true` (what the runtime's Undo path renders from it
+  // is the runtime's, and is not pinned here).
+  const READ_BACK = 'UCT could not read it back, so I am not reporting it as done'
+  const NOT_REVERSED = `Your indicators failed (${READ_BACK}) — and some changes could not be reversed`
+  it('after-write rail :231 — a copy that was made but cannot be read back stays unconfirmed', async () => {
+    const srv = server()
+    const COPY = 'u_cccccccccc7a'
+    srv.fork = async () => ({ ok: true, row: { def_id: COPY, version: 1, definition: { ...FIX.styled_markers, id: COPY, version: 1, meta: { ...(FIX.styled_markers.meta || {}), name: 'My Breakout Dots (copy)' } } } })
+    setDefinitionDeps(srv)
+    const b = board()
+    const { p, env } = await plan(b.host, [{ action: 'definition.duplicate', target: 'definitions', args: { defId: MINE } }], lib)
+    expect(p.ok, JSON.stringify(p.refusals)).toBe(true)
+    const res = await commitPlan(b.host, p, { env, ctx: CTX })
+    expect(res.ok).toBe(false)
+    expect(`${res.failed[0].label} ${res.failed[0].reason}`).toBe(NOT_REVERSED)
+    expect(res.compensated).toBe(false)
+  })
+  it('after-write rail :266 — a delete that ran but whose 404 cannot be confirmed stays unconfirmed', async () => {
+    const srv = server()
+    const base = srv.read
+    let removed = false
+    const remove = srv.remove
+    srv.remove = async (id) => { const r = await remove(id); removed = true; return r }
+    srv.read = async (id) => (removed ? { ok: false, status: 500, error: 'The server could not read this indicator (500).' } : base(id))
+    setDefinitionDeps(srv)
+    const b = board()
+    const { p, env } = await plan(b.host, [{ action: 'definition.delete', target: 'definitions', args: { defId: MINE } }], lib)
+    expect(p.ok, JSON.stringify(p.refusals)).toBe(true)
+    const res = await commitPlan(b.host, p, { env, ctx: CTX })
+    expect(res.ok).toBe(false)
+    expect(`${res.failed[0].label} ${res.failed[0].reason}`).toBe(NOT_REVERSED)
+    expect(res.compensated).toBe(false)
+    expect(srv.rows.get(MINE).live).toBe(false) // the write happened
+  })
+  it('after-write rail :397 — an Undo that re-saved but cannot read it back stays unconfirmed', async () => {
+    const srv = server()
+    setDefinitionDeps(srv)
+    const b = board()
+    const { res } = await run(b.host, [{ action: 'definition.delete', target: 'definitions', args: { defId: MINE } }], lib)
+    expect(srv.rows.get(MINE).live).toBe(false)
+    const base = srv.read
+    const save = srv.save
+    let saved = false
+    srv.save = async (...a) => { const r = await save(...a); saved = true; return r }
+    srv.read = async (id) => (saved ? { ok: false, status: 500, error: 'The server could not read this indicator (500).' } : base(id))
+    await expect(definitionLibraryKind.commit(b.host, 'definitions', { undo: res.undo.items[0].undoData }))
+      .rejects.toMatchObject({ message: READ_BACK, unreverted: true })
+    expect(srv.rows.get(MINE).live).toBe(true) // the write happened
+  })
+  it('after-write rail :417 — an Undo of a copy that ran its delete but cannot confirm the 404 stays unconfirmed', async () => {
+    const srv = server()
+    const COPY = 'u_cccccccccc7b'
+    srv.rows.set(COPY, { def_id: COPY, version: 1, definition: { ...FIX.styled_markers, id: COPY }, repaint: null, live: true })
+    const base = srv.read
+    const remove = srv.remove
+    let removed = false
+    srv.remove = async (id) => { const r = await remove(id); removed = true; return r }
+    srv.read = async (id) => (removed ? { ok: false, status: 500, error: 'The server could not read this indicator (500).' } : base(id))
+    setDefinitionDeps(srv)
+    const b = board()
+    const record = { contract: 'uct.indicators.definitions/1', kind: 'undo', op: 'duplicate', defId: COPY, name: 'My Breakout Dots (copy)', sourceDefId: MINE }
+    await expect(definitionLibraryKind.commit(b.host, 'definitions', { undo: record }))
+      .rejects.toMatchObject({ message: READ_BACK, unreverted: true })
+    expect(srv.rows.get(COPY).live).toBe(false) // the write happened
+  })
   it('F-15: an Undo that cannot be exact says WHY, each fact once (the exact text the member reads)', async () => {
     const srv = server()
     const row = srv.rows.get(MINE)
