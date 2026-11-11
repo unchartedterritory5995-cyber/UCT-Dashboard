@@ -144,10 +144,10 @@ _GROUP_ID = re.compile(r"^[a-z][a-zA-Z]{1,23}$")
 # below), i.e. the "OTHER ACTION GROUPS" lines of the request's LAST system block (the per-request part, after the
 # cached core) and the `need_groups` enum. It never bounds actions: the browser's action budget (NL-1: 55) and
 # MAX_CAPABILITIES do. Groups past it are still cut, but never silently: the first cut in a process is logged
-# (a WARNING naming the dropped ids). Master reached exactly 24 on 2026-11-11 (a 25th group dropped `guide`), so 32
-# gives every family headroom and stays bounded (32 × 160 chars). Rail: app/src/agent/routingMaxGroups.test.js
-# fails when routing.js GROUPS outgrows this.
-MAX_GROUPS = 32
+# (a WARNING naming the dropped ids). Master reached exactly 24 on 2026-11-11 (a 25th group dropped `guide`); master
+# declares 26, queued PRs bring it to 31 and family builds in flight to 33, so 48 gives every family headroom and stays
+# bounded (48 × 160 chars). Rail: app/src/agent/routingMaxGroups.test.js fails when routing.js GROUPS outgrows this.
+MAX_GROUPS = 48
 #: set once the first over-limit routing.groups has been logged (validate_routing runs on every turn)
 _GROUPS_DROP_LOGGED = False
 
