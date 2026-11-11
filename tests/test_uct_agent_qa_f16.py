@@ -150,7 +150,9 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 # Re-pinned 2026-11-11 (UCT RS split, PR #1021): the RS work changes filters.py, snapshot_db.py, snapshot_builder.py,
 # methodology.py, identities.py and rs_history.py on purpose (Rank 9M column, picker-hidden RS columns, one RS Rating
 # everywhere). Every Screener commit since 1a26d4ea00 is that PR; pinned at its merge so master's deploy gate goes green.
-SCREENER_PIN = "7c09a4d303a5a584ad725e576dfc3b5a36fbe64b"
+# Re-pinned 2026-11-10 (live overlay write): 823eef1ed9 changes snapshot_db.py and live_tier.py on purpose (multi-row
+# statements instead of executemany, the GIL convoy, and two timing fields). Re-pinned in the same PR; it contains the RS split above.
+SCREENER_PIN = "823eef1ed92ba1c9fdf4efdc02283ac8b73ccecf"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 
 
@@ -199,7 +201,7 @@ def test_the_guard_can_say_no():
         pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
     r = _screener_diff(SCREENER_PIN + "~1", SCREENER_PIN)
     assert r.returncode == 0, r.stderr
-    assert "api/services/screener/filters.py" in r.stdout.split()  # a file the pinned commit changed (RS split: Rank 9M column)
+    assert "api/services/screener/snapshot_db.py" in r.stdout.split()  # a file the pinned commit changed (the overlay write)
 
 
 def test_no_UCT_weight_or_formula_is_named_in_the_models_instructions():
