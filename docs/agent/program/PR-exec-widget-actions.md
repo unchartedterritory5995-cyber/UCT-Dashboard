@@ -639,3 +639,26 @@ Evidence class: LOCAL, vitest (jsdom / node) and real pytest, scripted plans, in
 - **Run A (15 files, no lock):** the 4 pins, agentNl1SelectionCoverage, agentScanSat1Requests, routeReachability, agentNoLookbehindEquivalence, noRegexLookbehind, capreg corpus.routing / corpus.routingV2 / inventory / golden, agentContracts, and #1077's agentChartViewNudges. Result: **15 passed, 2265/2265**. `[routing] 43/43 routed; mean 23.8 of 163 capabilities; 0 full`.
 - **Run B (23 files, no lock):** every test file #1027 changes against master, including the held-out files, the outcome files, the which-widget rails and Watchlists.columnDrag.parity. Result: **23 passed, 378/378**.
 - **Real pytest** (pl-grid venv, no lock) on the same 23 reader files as the post-#1080 run (master added no `tests/*.py` since `7cd14dca6f`): **`984 passed, 1 warning`**. test_gate_shards was not run because its read-set is a known red on master.
+
+#### AUDIT HOLD at 445ca4fcde: list held-out v2 C1-065 (fix on top of the re-merge)
+
+Evidence class: LOCAL, vitest (jsdom / node) and real pytest, scripted plans, invented fixture data. Not a real browser and not the real model. Logs: `evidence/exec-widget-actions/c1065-runA.txt` (reach misses list ids only), `c1065-runB.txt`, `pytest-c1065.txt`.
+
+- **Symptom:** agentExecReach "list held-out, routing v2" scored action 7/8 (pinned 8/8). The miss was C1-065. Its v2 first call did not carry chart.setSetting. On master it is 8/8.
+- **Cause:** it was not the widgetNames control-key words, and it was not the watchlistShow words or the "on my/the watchlist" rule. v1 matched no group for the request, both before and after. The cause was #1027's new `watchlistShow` group becoming a document in routing v2's BM25 index (`nlm1/capabilityIndex.js buildIndex`), and that changed the corpus statistics:
+  - N went 22 → 23, which raised every term's IDF.
+  - The average document length moved.
+  - Together these lifted boardEdit's lexical score on that request from about 5.85 (on master) to 6.08, just past `STRONG` (6.0).
+  - The request then counted as recognised rather than uncertain. v2 sent chartSetup, boardEdit and agent (24 actions) without `charts`, so chart.setSetting was gone.
+  - The same index made watchlistShow itself a v2-scored group, although its design is words-only (routing.js `wordsOnly`: sent only when its own words name it).
+- **Fix (routing/group design only, `capabilityIndex.js`):** a `wordsOnly` group stays a document in the index, so it can still be inspected (nlm1Routing's "every manifest group is a document" still holds). It is not scored, and it is left out of N, document frequency and the average length. So v2 scores every other group exactly as master does, and watchlistShow is reached only by its words (v1's regexes). There is no pin change, no held-out edit, no tie or size rule and no lookbehind.
+- **C1-065 v2 first call, before → after:** selected `chartSetup, boardEdit, agent` (24 actions, no chart.setSetting) → `charts, chartGrid, boardEdit, alerts, indicatorAlerts, data, breadth, settings, calendar, agent, undo, guide` (55 actions, chart.setSetting carried). list held-out v2 is back to **8/8**.
+- **Which other first calls changed:** I diffed v2 `routeManifestV2` (charts ctx, production limit and budget) over 3636 requests: the 2745 lookbehind routing corpus, the NLM-1 dev paraphrases, NL-1 corpus / dev-nl1 / heldout-v1 / heldout-v2, and every agentExec held-out and tune set.
+  - Before this fix: 297 requests differed from master `24a4b8350b`. Of those, 233 had watchlistShow sent, and 64 others were drift of the C1-065 kind.
+  - After this fix: 143 differ from master, and every one of them is a request whose own words select watchlistShow (#1027's v1 word hits, so the group takes room in the budget). **0 other differences.**
+  - From before the fix to after it, 158 v2 first calls changed. Each one moves back toward master's selection.
+  - NL-1 selection does not use the v2 index (`nl1/selection.js` imports only routing.js), so no NL-1 first call changed. The numbers are identical: corpus.json 174/182 (95.6%), dev-nl1 43/43 (100%), heldout-v1 164/165 (99.4%).
+- **Generated files:** golden, parity, capreg baseline (`--update`: 170 / 42 / 31) and capreg coverage (`UPDATE_CAPREG=1`, 691/691) were each regenerated in their own run. **None moved.**
+- **Run A (23 files, no lock):** the 4 pins (163 / 157 unchanged), agentNl1SelectionCoverage, **agentExecReach (all of it, every pinned row)**, agentScanSat1Requests 62/62, routeReachability, agentNoLookbehindEquivalence 6/6 (no frozen row changed; that test reads v1 `selectGroups` only), noRegexLookbehind, capreg corpus.routing / corpus.routingV2 / inventory / golden, routingCollision / routingCollisionV2, agentContracts, agentChartViewNudges, and nlm1Routing / routingV1Identity / devMetrics / nlm1WholeOrPlanner / nlm1StepPlans. Result: **23 passed, 2436/2436**. `[routing] 43/43 routed; mean 23.8 of 163 capabilities; 0 full`.
+- **Run B (#1027's own 23 files):** **23 passed, 378/378**.
+- **Real pytest** on the same 23 reader files: **`984 passed, 1 warning`**.
