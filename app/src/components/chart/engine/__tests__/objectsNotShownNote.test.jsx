@@ -73,6 +73,12 @@ const RT_STOP = (col) => src(['var float acc = 0', 'acc += close', 'plot(acc)', 
 // HOST — a history offset that goes NEGATIVE on bar 120: a Pine runtime error (C9).
 const HOST_STOP = (bad) => src([`n = bar_index == 120 ? ${bad} : 0`, 'if bar_index % 20 == 0',
   '    label.new(bar_index, close[n], "x")', 'plot(close)'])
+// HOST — review O4: the same stop (a line read at a NEGATIVE offset on bar 120) in a
+// program that also LOSES a create (a label whose text reads another symbol).
+const STOP_AND_LOST = (bad) => src(['v = request.security("FOO:BAR", "W", close)',
+  `n = bar_index == 120 ? ${bad} : 0`, 'if bar_index % 20 == 0',
+  '    line.new(bar_index, close[n], bar_index + 1, close[n])', 'if barstate.islast',
+  '    label.new(bar_index, high, str.tostring(v))', 'plot(close)'])
 // HOST — a label reading `time("60")` on a daily chart (the C36 clock note says why) beside
 // the window-ambiguity line (withheld for a reason the clock note does NOT give).
 const CLOCK_AND_OTHER = src(['var float[] w = array.new_float()', 'if close > 0', '    w.unshift(high)',
@@ -89,6 +95,17 @@ const CLOCK_AND_WARMUP = src(['var float acc = 0', 'acc := acc * 0.9 + close',
 // update is withheld by the clock alone, so the taint it leaves is the clock's too (C17).
 const CLOCK_TAINT = src(['var label l = na', 'if barstate.isfirst', '    l := label.new(bar_index, high, "x")',
   'if barstate.islast', '    label.set_text(l, na(time("W")) ? "a" : "b")', 'plot(close)'])
+// HOST — review O6: a label made KNOWN on the last bar whose text is then set from a
+// `time("W")` read. The create reads nothing unknown, so the label is held only for the
+// TAINT the clock-withheld update leaves (C17, `taintHeld`), never as a withheld create.
+// (CLOCK_TAINT above reaches `famUnknown`: off the listing its `barstate.isfirst` create
+// is itself withheld.) The mirror reads the window ambiguity in place of the clock.
+const CLOCK_TAINT_HELD = src(['if barstate.islast', '    l = label.new(bar_index, high, "x")',
+  '    label.set_text(l, na(time("W")) ? "a" : "b")', 'plot(close)'])
+const WINDOW_TAINT_HELD = src(['var float[] w = array.new_float()', 'if close > 0', '    w.unshift(high)',
+  'if close > 0', '    w.unshift(low)', 'if w.size() > 3', '    w.pop()',
+  'if barstate.islast', '    l = label.new(bar_index, high, "x")',
+  '    label.set_text(l, str.tostring(w.get(1)))', 'plot(close)'])
 // RUNTIME — `line.get_price` of a vertical line: a step whose answer is not measured (C40).
 const RT_GETPRICE = src(['var float acc = 0', 'acc += close', 'plot(acc)', 'if barstate.islast',
   '    l = line.new(bar_index, low, bar_index, high)', '    label.new(bar_index, line.get_price(l, bar_index), str.tostring(acc, "#"))'])
@@ -284,6 +301,30 @@ describe('⭐⭐ OZ r1 — a STOPPED run draws nothing and says why, on both lan
     m.binder.teardown()
   })
 
+  // ⭐ review O4 — a stopped run names NO family: its one sentence is the stop's. The
+  // control proves the same program, run to the end, WOULD name the lost label, so the
+  // stopped case is not vacuous.
+  it('⛔ O4 — host: a stopped run that also lost a create says only the stop, never the family', () => {
+    const m = mount(STOP_AND_LOST('-1'), { fromListing: true })
+    expect(m.def.objects).toBeTruthy()
+    expect(m.last.lines).toEqual([])
+    expect(m.last.labels).toEqual([])
+    const why = objectRenderDropsFor(m.id).why
+    expect(Object.keys(why)).toEqual([STOPPED_KEY])
+    expect(why[STOPPED_KEY]).toMatch(/^None of this script's drawings are shown on this chart: it stops with an error here/)
+    expect(m.text).not.toContain(LOST_LABEL)
+    m.binder.teardown()
+  })
+
+  it('⛔ O4 CONTROL — the same program run to the end draws its lines and names the lost label', () => {
+    const m = mount(STOP_AND_LOST('0'), { fromListing: true })
+    expect(m.last.lines.length).toBeGreaterThan(0)
+    expect(m.last.labels).toEqual([])
+    expect(objectRenderDropsFor(m.id).why).toEqual({ label: LOST_LABEL })
+    expect(m.text).toContain(LOST_LABEL)
+    m.binder.teardown()
+  })
+
   it('⭐ runtime: drawings withheld whole off the listing (two starts disagree); the member reads the reason', () => {
     const m = mount(RT_TWO_STARTS)
     expect(m.def.compute.objects).toBe(true)
@@ -339,6 +380,31 @@ describe('⭐⭐ OZ r1 — with a chart-clock note, a family withheld for ANOTHE
     expect(m.last.lines).toEqual([])
     const t = notShownSentence(['line', 'label'], NOT_SHOWN.NOT_COMPUTABLE)
     expect(objectRenderDropsFor(m.id).why).toEqual({ label: t, line: t })
+    m.binder.teardown()
+  })
+
+  // ⭐ review O6 — the clock filter on the TAINT-HELD path (`taintOtherSeen`)
+  it("⛔ O6 — a label held only for a taint the clock left is the clock note's, not a second sentence", () => {
+    const m = mount(CLOCK_TAINT_HELD, { tf: '30' })
+    expect(m.def.objects).toBeTruthy()
+    expect(m.last.labels).toEqual([])
+    expect(objectRenderDropsFor(m.id)).toBe(null)
+    expect(m.text).toContain('time(')
+    m.binder.teardown()
+  })
+
+  it('⛔ O6 CONTROL — the same label on a daily chart draws: on 30 minutes only the update is held', () => {
+    const m = mount(CLOCK_TAINT_HELD, { tf: 'D' })
+    expect(m.last.labels).toHaveLength(1)
+    expect(objectRenderDropsFor(m.id)).toBe(null)
+    m.binder.teardown()
+  })
+
+  it('⭐ O6 — a label held for a taint the window ambiguity left is named', () => {
+    const m = mount(WINDOW_TAINT_HELD)
+    expect(m.def.objects).toBeTruthy()
+    expect(m.last.labels).toEqual([])
+    expect(objectRenderDropsFor(m.id).why).toEqual({ label: notShownSentence(['label'], NOT_SHOWN.NOT_COMPUTABLE) })
     m.binder.teardown()
   })
 
