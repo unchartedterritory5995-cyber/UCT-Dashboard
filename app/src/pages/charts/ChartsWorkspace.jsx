@@ -3734,6 +3734,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
               widget={w}
               headerAtBottom={false}
               merged={merged}
+              integratedChartHeader={!merged}
               // Only the main board passes `h.onPopOut`/`h.onFloat` from
               // `mainGridHandlers` — a popped-out board's `renderGrid` call omits
               // both, so `isMainBoard` never mis-caps a secondary monitor's board.
