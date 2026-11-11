@@ -1,0 +1,179 @@
+# pl-widget no lock, BelowNormal, label unsaved-rail-red 
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+e21244ac97
+?? src/agent/agentUnsavedScreen.rail.test.jsx
+
+ RUN  v4.0.18 C:/w/pl-unsaved/app
+
+stderr | src/agent/agentUnsavedScreen.rail.test.jsx > an unsaved screen survives a reload (exact key uct.agent.unsavedScreens.v1) > starting fresh: a new screen saved after the reload removes this chat's entry only (another chat's stays)
+[uct-agent] screener: this chat's last screen was not saved (HTTP 503); a chat switch or reload starts fresh
+
+ ❯ src/agent/agentUnsavedScreen.rail.test.jsx (8 tests | 8 failed) 482ms
+     × failed save, reload, "narrow that to tech": the older server copy is NOT refined, the member is asked, the entry is kept 18ms
+     × "refine it" after the question: this browser's copy is saved again FIRST, then narrowed; the entry is removed by its exact id 14ms
+     × the retry fails too: nothing is refined, the member is told, the entry is kept 15ms
+     × starting fresh: a new screen saved after the reload removes this chat's entry only (another chat's stays) 15ms
+     × capped at 20 chats: the oldest entries go first 371ms
+     × touches ONLY the exact key: no other key is read, written or removed, and storage is never enumerated 17ms
+     × a storage ACCESS error after a reload fails closed: start fresh, the older server copy is never refined 17ms
+     × a QUOTA error on the write is logged and never breaks the answer; in this session the refinement still starts fresh 15ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent/agentUnsavedScreen.rail.test.jsx > an unsaved screen survives a reload (exact key uct.agent.unsavedScreens.v1) > failed save, reload, "narrow that to tech": the older server copy is NOT refined, the member is asked, the entry is kept
+TypeError: .toMatch() expects to receive a string, but got object
+ ❯ src/agent/agentUnsavedScreen.rail.test.jsx:71:15
+     69|     await failedSaveThenReload()
+     70|     const a = await run({ mode: 'refine', filters: TECH })
+     71|     expect(a).toMatch(QUESTION)
+       |               ^
+     72|     expect(scans().map(s => s[2].filters)).toEqual([NEW_FILTERS])   //…
+     73|     expect(stored()?.ac_1?.screen?.spec?.filters).toEqual(NEW_FILTERS)…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  src/agent/agentUnsavedScreen.rail.test.jsx > an unsaved screen survives a reload (exact key uct.agent.unsavedScreens.v1) > "refine it" after the question: this browser's copy is saved again FIRST, then narrowed; the entry is removed by its exact id
+AssertionError: expected 1 to be less than 0
+ ❯ src/agent/agentUnsavedScreen.rail.test.jsx:87:19
+     85|     const scan = after.findIndex(c => c[1] === '/api/screener/scan')
+     86|     expect(retry).toBeGreaterThanOrEqual(0)
+     87|     expect(retry).toBeLessThan(scan)                              // t…
+       |                   ^
+     88|     expect(after[retry][2].value.spec.filters).toEqual(NEW_FILTERS)
+     89|     expect(scans()[1][2].filters).toEqual([...NEW_FILTERS, { key: 'sec…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  src/agent/agentUnsavedScreen.rail.test.jsx > an unsaved screen survives a reload (exact key uct.agent.unsavedScreens.v1) > the retry fails too: nothing is refined, the member is told, the entry is kept
+TypeError: .toMatch() expects to receive a string, but got object
+ ❯ src/agent/agentUnsavedScreen.rail.test.jsx:97:15
+     95|     await run({ mode: 'refine', filters: TECH })
+     96|     const a = await run({ mode: 'refine', filters: TECH })
+     97|     expect(a).toMatch(/^I didn't run it: I still couldn't save this ch…
+       |               ^
+     98|     expect(scans()).toHaveLength(1)
+     99|     expect(stored()?.ac_1?.screen?.spec?.filters).toEqual(NEW_FILTERS)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  src/agent/agentUnsavedScreen.rail.test.jsx > an unsaved screen survives a reload (exact key uct.agent.unsavedScreens.v1) > starting fresh: a new screen saved after the reload removes this chat's entry only (another chat's stays)
+TypeError: Cannot convert undefined or null to object
+ ❯ src/agent/agentUnsavedScreen.rail.test.jsx:106:19
+    104|     noteConversation('ac_1')
+    105|     await failedSaveThenReload()
+    106|     expect(Object.keys(stored()).sort()).toEqual(['ac_1', 'ac_9'])
+       |                   ^
+    107|     putFails = false
+    108|     await run({ filters: [F('price', 'gte', 10)] }); await flush()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  src/agent/agentUnsavedScreen.rail.test.jsx > an unsaved screen survives a reload (exact key uct.agent.unsavedScreens.v1) > capped at 20 chats: the oldest entries go first
+TypeError: Cannot convert undefined or null to object
+ ❯ src/agent/agentUnsavedScreen.rail.test.jsx:117:24
+    115|     vi.spyOn(Date, 'now').mockImplementation(() => (t += 1))
+    116|     for (let i = 0; i < 25; i++) { noteConversation(`ac_c${i}`); await…
+    117|     const ids = Object.keys(stored())
+       |                        ^
+    118|     expect(ids).toHaveLength(20)
+    119|     expect(ids.sort()).toEqual(Array.from({ length: 20 }, (_, i) => `a…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  src/agent/agentUnsavedScreen.rail.test.jsx > an unsaved screen survives a reload (exact key uct.agent.unsavedScreens.v1) > touches ONLY the exact key: no other key is read, written or removed, and storage is never enumerated
+AssertionError: expected 0 to be greater than 0
+ ❯ src/agent/agentUnsavedScreen.rail.test.jsx:135:25
+    133|     putFails = false
+    134|     await run({ mode: 'refine', filters: TECH })
+    135|     expect(used.length).toBeGreaterThan(0)
+       |                         ^
+    136|     expect([...new Set(used.filter(k => String(k).startsWith('uct.agen…
+    137|     expect(keyAt).not.toHaveBeenCalled()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+ FAIL  src/agent/agentUnsavedScreen.rail.test.jsx > an unsaved screen survives a reload (exact key uct.agent.unsavedScreens.v1) > a storage ACCESS error after a reload fails closed: start fresh, the older server copy is never refined
+AssertionError: expected { …(3) } to be 'I didn\'t run it: I couldn\'t read th…' // Object.is equality
+
+- Expected: 
+"I didn't run it: I couldn't read this chat's last screen back from UCT, so I'm starting fresh: run the screen again first, e.g. “stocks above their 20-day EMA with volume at least twice average”."
+
++ Received: 
+{
+  "link": {
+    "href": "/screener?s=eyJmIjp7InByaWNlIjp7Im9wIjoiZ3RlIiwibWluIjo1MH0sInNlY3RvciI6eyJvcCI6ImluIiwidmFsdWVzIjpbIlRlY2hub2xvZ3kiXX19fQ",
+    "label": "Open in Screener",
+  },
+  "table": {
+    "columns": [
+      {
+        "key": "ticker",
+        "label": "Symbol",
+      },
+      {
+        "key": "price",
+        "label": "Price",
+      },
+      {
+        "key": "chg_pct_1d",
+        "label": "Chg 1D",
+      },
+    ],
+    "rows": [
+      {
+        "chg_pct_1d": "1.00%",
+        "price": "$12.00",
+        "ticker": "AAA",
+      },
+      {
+        "chg_pct_1d": "2.00%",
+        "price": "$40.00",
+        "ticker": "BBB",
+      },
+    ],
+  },
+  "text": "2 stocks match (Price ≥ $50 · Sector: Technology). Showing the first 2, ordered by market cap, largest first (no other order was asked for). Data: 2026-10-30 snapshot.",
+}
+
+ ❯ src/agent/agentUnsavedScreen.rail.test.jsx:149:15
+    147|     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { …
+    148|     const a = await run({ mode: 'refine', filters: TECH })
+    149|     expect(a).toBe(`I didn't run it: ${LAST_SCREEN_UNREAD.replace(/\.$…
+       |               ^
+    150|     expect(scans()).toHaveLength(1)
+    151|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯
+
+ FAIL  src/agent/agentUnsavedScreen.rail.test.jsx > an unsaved screen survives a reload (exact key uct.agent.unsavedScreens.v1) > a QUOTA error on the write is logged and never breaks the answer; in this session the refinement still starts fresh
+AssertionError: expected "warn" to be called with arguments: [ StringMatching{…} ]
+
+Received: 
+
+  1st warn call:
+
+  [
+-   StringMatching /^\[uct-agent\] screener: this browser could not keep the unsaved screen \(QuotaExceededError\)/,
++   "[uct-agent] screener: this chat's last screen was not saved (HTTP 503); a chat switch or reload starts fresh",
+  ]
+
+
+Number of calls: 1
+
+ ❯ src/agent/agentUnsavedScreen.rail.test.jsx:159:18
+    157|     await flush()
+    158|     expect(typeof first === 'string' && first.startsWith("I didn't run…
+    159|     expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^\[uct-ag…
+       |                  ^
+    160|     noteConversation('ac_2'); await ensureLast(); noteConversation('ac…
+    161|     expect(await run({ mode: 'refine', filters: TECH })).toBe(`I didn'…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  8 failed (8)
+   Start at  21:52:09
+   Duration  7.11s (transform 4.61s, setup 237ms, import 5.81s, tests 482ms, environment 458ms)
+
+RUN-DONE 
